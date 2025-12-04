@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 🟢 I CHANGED THE TITLE SO YOU CAN SEE IF THE FILE UPDATES -->
+    <title>Whip Montez OS (PATCHED)</title>
+    
+    <!-- 🟢 LOADS TAILWIND -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+      
+      /* 🟢 FORCE BLACK BACKGROUND (Even if Tailwind fails) */
+      body { 
+        font-family: 'Space Mono', monospace; 
+        background-color: #000000 !important; 
+        color: #00ff41;
+        margin: 0;
+      }
+      
+      .chrome-text {
+        background: linear-gradient(to bottom, #fff 0%, #ccc 50%, #888 51%, #444 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      
+      @keyframes slide-up {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
