@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Force black background to prevent white flashes */
+body {
+  margin: 0;
+  background-color: #000000;
+  color: #ffffff;
+  overflow: hidden; 
+}
