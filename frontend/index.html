@@ -1,66 +1,12 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Whip Montez OS</title>
-    
-    <!-- 🟢 THIS IS THE MISSING INGREDIENT: TAILWIND CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <style>
-      /* Custom Font Loader (Space Mono) */
-      @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
-      
-      /* Base Styles: Force 100% Height to fix "Doesn't Fit Screen" issues */
-      html, body, #root {
-        height: 100%;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        background-color: #000; 
-        color: #fff;
-        overflow: hidden; /* Prevents double scrollbars */
-        font-family: 'Space Mono', monospace; 
-      }
-      
-      /* Chrome Text Effect for the Logo */
-      .chrome-text {
-        background: linear-gradient(to bottom, #fff 0%, #ccc 50%, #888 51%, #444 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-      
-      /* Animations */
-      @keyframes slide-up {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
-      
-      @keyframes scanline {
-        0% { transform: translateY(-100%); }
-        100% { transform: translateY(100%); }
-      }
-      .scanline {
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: linear-gradient(to bottom, transparent 50%, rgba(0, 255, 65, 0.05) 51%);
-        background-size: 100% 4px;
-        pointer-events: none;
-        z-index: 50;
-      }
-      
-      /* Custom Scrollbar for inner windows */
-      ::-webkit-scrollbar { width: 6px; }
-      ::-webkit-scrollbar-track { background: #111; }
-      ::-webkit-scrollbar-thumb { background: #333; }
-      ::-webkit-scrollbar-thumb:hover { background: #00ff41; }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+
+// Note: We removed the import for './index.css' and './App.css' 
+// to prevent errors, since we are using the index.html styles instead.
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
