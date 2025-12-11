@@ -35,16 +35,24 @@ try {
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
 // --- GEMINI API HELPERS ---
-const apiKey = "AIzaSyBVEPNdugd7jzRxUzcZOXW1NEFNK0eY3TM"; // Injected at build time
+const apiKey = "AIzaSyBVEPNdugd7jzRxUzcZOXW1NEFNK0eY3TM"; 
+
+// ------------------------------------------------------------------
+// <<< THIS IS WHERE YOU PLUG IN THE BACKEND URL LOGIC >>>
+// ------------------------------------------------------------------
+const isLocal = window.location.hostname === 'localhost';
+const BACKEND_URL = isLocal
+  ? 'http://localhost:3001/api/generate' // Use your local backend URL here
+  : 'https://restored-os-whip-montez-production.up.railway.app/api/generate'; // Railway production URL
+// ------------------------------------------------------------------
 
 const callGemini = async (prompt, systemInstruction = "", useSearch = false) => {
   // 1. SIMULATION MODE (Fast Fallback if no key)
   // Check if apiKey is explicitly empty. If so, return mock data immediately.
-  if (apiKey === "") {
-      console.log("System running in Simulation Mode (No API Key found)");
-      await new Promise(r => setTimeout(r, 1500)); // Simulate network delay
-      
-      // Mock Responses for The Lab features
+  const isSimulationMode = apiKey === ""; 
+
+  // Function to return mock data based on agent
+  const getMockResponse = () => {
       if (prompt.includes("Album Cover")) {
            // A tiny, transparent mock PNG base64 string
            const mockImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="; 
@@ -60,9 +68,6 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
               { concept: "Phone Booth Cipher", visual: "Whip delivers bars inside an old NYC phone booth while neon rain streams down the glass.", trend: "Cinematic Mood", shots: ["Exterior low light", "Interior close-up on mic"] }
           ]);
       }
-      if (systemInstruction.includes("Whip Montez") && systemInstruction.includes("2004")) {
-          return "Ayo, chill. I'm just here protecting my data. Red Hook stand up! 🗽";
-      }
       if (systemInstruction.includes("crate digger")) {
           return JSON.stringify([
               { artist: "The Honey Drippers", track: "Impeach the President", year: "1973", desc: "Classic drum break used by everyone." },
@@ -73,25 +78,22 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
       if (systemInstruction.includes("A&R")) {
           return JSON.stringify({ critique: "The flow is tight but needs more aggression. Hook is catchy, but the delivery needs more energy.", commercial: 8, street: 6 });
       }
-      if (prompt.includes("News") || systemInstruction.includes("news")) {
-         return JSON.stringify([
-             { id: 4, date: "DEC 10 2004", source: "MTV NEWS", title: "SNOOP DOGG DROPS R&G", content: "The Doggfather returns with a new masterpiece.", tags: ["MUSIC"] },
-             { id: 5, date: "NOV 15 2004", source: "IGN", title: "HALF-LIFE 2 RELEASED", content: "Valve's long awaited shooter is finally here.", tags: ["GAMING"] },
-             { id: 6, date: "OCT 20 2004", source: "NY TIMES", title: "RED SOX BREAK CURSE", content: "Historic win changes baseball forever.", tags: ["SPORTS"] }
-         ]);
-      }
-      // Ghostwriter fallback
       if (systemInstruction.includes("Whip Montez")) {
           return "Yo, I'm from the concrete jungle where dreams are made / But nightmares lurk in the shade / I hustle hard just to get paid / In this game of life, I never fade.\n\nBrooklyn stand up, we in the building / Stacking paper to the ceiling / This is how I'm feeling / Real talk, no concealing.";
       }
-      
       return "DATA CORRUPTION. UNABLE TO PROCESS REQUEST.";
+  };
+
+  if (isSimulationMode) {
+      console.log("Using Simulation Mode fallback.");
+      await new Promise(r => setTimeout(r, 1500)); 
+      return getMockResponse();
   }
 
-  // 2. REAL API CALL (If key exists and passes initial check)
+  // 2. REAL API CALL (If key exists)
   const delays = [1000, 2000, 4000, 8000, 16000];
   
-  // Image Generation Model Check (using imagen-4.0-generate-001)
+  // Custom API call for Image Generation
   if (prompt.includes("Album Cover")) {
      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
      const payload = { instances: { prompt: prompt + ", 1990s hip hop album cover, gritty neon, high contrast, vinyl texture" }, parameters: { "sampleCount": 1 } };
@@ -112,7 +114,8 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
         } catch (error) {
              console.error("Image API call failed:", error);
              if (i === delays.length || error.message === "INVALID_KEY") {
-                return JSON.stringify({ error: "IMAGE_CONNECTION_LOST" });
+                // If API fails, fall back to returning mock data structure
+                return getMockResponse();
              }
              await new Promise(resolve => setTimeout(resolve, delays[i]));
         }
@@ -144,12 +147,9 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
         if (response.status === 403) throw new Error("INVALID_KEY"); // Don't retry if key is wrong
         
         if ((response.status === 429 || response.status >= 500) && i < delays.length) {
-          console.warn(`Rate limited (${response.status}). Retrying in ${delays[i]}ms...`);
           await new Promise(resolve => setTimeout(resolve, delays[i]));
           continue;
         }
-        // Throw 429 error with status code so we can detect it later
-        if (response.status === 429) throw new Error("HTTP error! status: 429 (Too Many Requests)");
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -158,26 +158,8 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
     } catch (error) {
       console.error("Gemini API call failed:", error);
       if (i === delays.length || error.message === "INVALID_KEY") {
-        // Check if it's a rate-limit error (429)
-        const is429 = error.message && error.message.includes("429");
-        
-        // Fallback Logic for failed calls
-        if (systemInstruction.includes("battle rapper")) {
-            return is429 ? "ERROR_429_RATE_LIMITED" : "Yo, connection's weak but my flow is strong / I been running this game all along / You trying to hack the system? You wrong / Now listen close to the words of my song.";
-        }
-        if (systemInstruction.includes("crate digger")) {
-            if (is429) return "ERROR_429_RATE_LIMITED";
-            return JSON.stringify([
-                { artist: "The Honey Drippers", track: "Impeach the President", year: "1973", desc: "Classic drum break (Offline Mode)." },
-                { artist: "Bob James", track: "Nautilus", year: "1974", desc: "Haunting keys (Offline Mode)." },
-                { artist: "Skull Snaps", track: "It's A New Day", year: "1973", desc: "Hardest drums in the game (Offline Mode)." }
-            ]);
-        }
-        if (systemInstruction.includes("A&R")) {
-            if (is429) return "ERROR_429_RATE_LIMITED";
-            return JSON.stringify({ critique: "Offline Mode: Cannot analyze text. Flow seems okay.", commercial: 5, street: 5 });
-        }
-        return is429 ? "ERROR_429_RATE_LIMITED" : "CONNECTION LOST. SIGNAL WEAK (API ERROR).";
+        // If API fails, return mock data
+        return getMockResponse();
       }
       await new Promise(resolve => setTimeout(resolve, delays[i]));
     }
@@ -404,7 +386,7 @@ const Home = ({ setSection }) => {
         
         {/* Top Section: Branding */}
         <div className="flex justify-between items-start w-full">
-          <div className="animate-slide-in-left">
+          <div className="animate-fade-in">
             <h1 className="chrome-text text-7xl md:text-9xl font-black uppercase tracking-tighter leading-none opacity-90 drop-shadow-2xl">
               Whip<br/>Montez
             </h1>
@@ -469,6 +451,136 @@ const Home = ({ setSection }) => {
   );
 };
 
+// 4. BIO SECTION
+const Bio = ({ setSection }) => {
+  return (
+    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-4">
+      <BackgroundCarousel images={[]} />
+      <div className="absolute inset-0 bg-black/60 z-10"></div>
+      
+      {/* Main Profile Container - 2004 Flash Site Style */}
+      <div className="relative z-30 w-full max-w-5xl h-[85vh] bg-[#0f0f0f] border-2 border-[#333] flex flex-col md:flex-row shadow-2xl">
+        
+        {/* Left Sidebar: ID Card / Navigation */}
+        <div className="w-full md:w-80 bg-[#111] border-r border-[#333] p-6 flex flex-col gap-6">
+           <div className="aspect-square w-full bg-[#222] border-4 border-[#333] relative overflow-hidden group">
+             <img 
+               src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=800&q=80" 
+               className="w-full h-full object-cover grayscale contrast-125 group-hover:scale-110 transition-transform duration-500" 
+               alt="Whip Montez"
+             />
+             <div className="absolute bottom-2 right-2 bg-[#00ff41] text-black text-xs font-bold px-2 py-0.5 animate-pulse">
+                 ONLINE
+             </div>
+           </div>
+
+           <div className="space-y-1">
+             <h2 className="text-2xl font-black text-white tracking-tighter uppercase">Whip Montez</h2>
+             <p className="text-[#00ff41] font-mono text-xs">RED HOOK, BROOKLYN</p>
+             <p className="text-gray-500 font-mono text-xs">LIVEWIRE RECORDS</p>
+           </div>
+
+           <div className="flex-1 space-y-2">
+             <button onClick={() => setSection('music')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+                 <Disc size={14}/> DISCOGRAPHY
+             </button>
+             <button onClick={() => setSection('tour')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+                 <Calendar size={14}/> TOUR DATES
+             </button>
+             <button onClick={() => setSection('news')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+                 <Newspaper size={14}/> PRESS / NEWS
+             </button>
+             <button onClick={() => window.open('https://www.youtube.com/results?search_query=90s+hip+hop', '_blank')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+                 <Video size={14}/> VIDEOS
+             </button>
+           </div>
+
+           <div className="border-t border-[#333] pt-4">
+             <p className="text-[10px] text-gray-500 font-mono mb-2">MANAGEMENT:</p>
+             <div className="text-xs text-white font-bold">JARI MONTEZ</div>
+             <div className="text-xs text-gray-400">jari@livewire-ent.com</div>
+           </div>
+        </div>
+
+        {/* Right Content: Bio Text & Stats */}
+        <div className="flex-1 bg-[#0a0a0a] flex flex-col relative overflow-hidden">
+           {/* Header */}
+           <div className="h-16 bg-[#00ff41] text-black p-4 flex justify-between items-center">
+             <h1 className="text-4xl font-black tracking-tighter">OFFICIAL PROFILE</h1>
+             <div className="flex gap-2">
+                 <div className="w-3 h-3 bg-black"></div>
+                 <div className="w-3 h-3 bg-black"></div>
+                 <div className="w-3 h-3 bg-black"></div>
+             </div>
+           </div>
+
+           {/* Scrollable Content */}
+           <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+             <div className="max-w-2xl mx-auto space-y-8">
+                 
+                 {/* Quote */}
+                 <blockquote className="border-l-4 border-[#00ff41] pl-6 py-2">
+                   <p className="text-xl md:text-2xl font-bold text-white italic leading-relaxed">
+                      "I’ve paid my dues… I’ve developed my skills… I am ready."
+                   </p>
+                 </blockquote>
+
+                 {/* Stats Grid */}
+                 <div className="grid grid-cols-2 gap-4 border-y border-[#333] py-6 my-6">
+                   <div>
+                      <div className="text-[10px] text-gray-500 font-mono uppercase">Name</div>
+                      <div className="text-[#00ff41] font-bold">Wanda Altagracia Almonte</div>
+                   </div>
+                   <div>
+                      <div className="text-[10px] text-gray-500 font-mono uppercase">Origin</div>
+                      <div className="text-[#00ff41] font-bold">Red Hook, Brooklyn</div>
+                   </div>
+                   <div>
+                      <div className="text-[10px] text-gray-500 font-mono uppercase">Key Features</div>
+                      <div className="text-[#00ff41] font-bold">Erick Sermon, Talib Kweli</div>
+                   </div>
+                   <div>
+                      <div className="text-[10px] text-gray-500 font-mono uppercase">Education</div>
+                      <div className="text-[#00ff41] font-bold">LaGuardia HS (Dance)</div>
+                   </div>
+                 </div>
+
+                 {/* The Story */}
+                 <div className="prose prose-invert prose-sm font-mono text-gray-300 leading-relaxed space-y-6">
+                   <p className="first-letter:text-4xl first-letter:text-[#00ff41] first-letter:font-black first-letter:float-left first-letter:mr-2">
+                      Introducing… "WHIP MONTEZ" (born Wanda Altagracia Almonte) a Dominican fem-cee reppin’ Brooklyn's Red Hook Housing Projects.
+                   </p>
+                   
+                   <p>
+                      Whip is currently recording her first album comprised of a variety of hip-hop tracks. Her highly anticipated debut album tentatively titled <strong className="text-white">“Can’t Nobody Whip Montez”</strong> is due for release in 2006 and contains sure shot hits like "Take it slow" where she advises men not to wreck a potential relationship by moving too fast. On the automatic head-banger "No Matter What You Say," WHIP pulls no punches and goes straight at her critics. WHIP definitely demonstrates her versatility, which distinguishes her from her counter-parts when she penned, "Dear God," an, introspective song that touches upon numerous issues that beset society and tragedies that have impacted us all.
+                   </p>
+
+                   <div className="border-l-2 border-[#333] pl-4 italic text-gray-400">
+                      2004 was a great year for Whip Montez. She was featured alongside the Green-Eyed Bandit, <strong className="text-white">Erick Sermon</strong> and one of Brooklyn’s finest MC’s <strong className="text-white">Talib Kweli</strong>. The three collaborated on a track called “Chillin” off Sermon’s last album “Chilltown, NY”. It wasn’t long after Montez penned her verse that Sermon called on Talib to complete the track with a verse of his own.
+                   </div>
+
+                   <p>
+                      “This was a dream come true to be in the booth with a hip-hop legend, and Talib it was truly an educational experience, one that I will cherish for a long time.”
+                   </p>
+
+                   <p>
+                      With a good number of showcases and college shows, she has opened up for notable artists like 112, Slum Village, and the Infamous Mobb Deep to name a few. This has definitely helped her expand her fan base and create a buzz for her. Last year, WHIP had several overseas performances, in particular, the Dominican Republic, Coral Hamaca Resort, where she blessed over 2,000 screaming fans. “Those shows were crazy, because they really appreciate artist that make trips to their country. In DR, they held me down like I was in BK.”
+                   </p>
+
+                   <p className="mt-4 text-[#00ff41] font-bold border-t border-[#333] pt-4">
+                      {'>'} SYSTEM NOTE: Artist Profile Last Updated: DEC 04 2004
+                   </p>
+                 </div>
+
+             </div>
+           </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
 // 3. MUSIC PLAYER (Evidence Tapes)
 const MusicPlayer = () => {
   const [selectedAlbumId, setSelectedAlbumId] = useState('tape1');
@@ -519,7 +631,7 @@ const MusicPlayer = () => {
       ];
       default: return [
         { es: "Buscando mi dinero", en: "Looking for my money", note: "Hustle culture." },
-        { es: "Siempre leal", en: "Always loyal", note: "Livewire code." }
+        { es: "Siempre leal", in: "Always loyal", note: "Livewire code." }
       ];
     }
   };
@@ -682,148 +794,6 @@ const MusicPlayer = () => {
   );
 };
 
-// 4. BIO SECTION
-const Bio = ({ setSection }) => {
-  return (
-    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-4">
-      <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/60 z-10"></div>
-      
-      {/* Main Profile Container - 2004 Flash Site Style */}
-      <div className="relative z-30 w-full max-w-5xl h-[85vh] bg-[#0f0f0f] border-2 border-[#333] flex flex-col md:flex-row shadow-2xl">
-        
-        {/* Left Sidebar: ID Card / Navigation */}
-        <div className="w-full md:w-80 bg-[#111] border-r border-[#333] p-6 flex flex-col gap-6">
-           <div className="aspect-square w-full bg-[#222] border-4 border-[#333] relative overflow-hidden group">
-             <img 
-               src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=800&q=80" 
-               className="w-full h-full object-cover grayscale contrast-125 group-hover:scale-110 transition-transform duration-500" 
-               alt="Whip Montez"
-             />
-             <div className="absolute bottom-2 right-2 bg-[#00ff41] text-black text-xs font-bold px-2 py-0.5 animate-pulse">
-                 ONLINE
-             </div>
-           </div>
-
-           <div className="space-y-1">
-             <h2 className="text-2xl font-black text-white tracking-tighter uppercase">Whip Montez</h2>
-             <p className="text-[#00ff41] font-mono text-xs">RED HOOK, BROOKLYN</p>
-             <p className="text-gray-500 font-mono text-xs">LIVEWIRE RECORDS</p>
-           </div>
-
-           <div className="flex-1 space-y-2">
-             <button onClick={() => setSection('music')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
-                 <Disc size={14}/> DISCOGRAPHY
-             </button>
-             <button onClick={() => setSection('tour')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
-                 <Calendar size={14}/> TOUR DATES
-             </button>
-             <button onClick={() => setSection('news')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
-                 <Newspaper size={14}/> PRESS / NEWS
-             </button>
-             <button onClick={() => window.open('https://www.youtube.com/results?search_query=90s+hip+hop', '_blank')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
-                 <Video size={14}/> VIDEOS
-             </button>
-           </div>
-
-           <div className="border-t border-[#333] pt-4">
-             <p className="text-[10px] text-gray-500 font-mono mb-2">MANAGEMENT:</p>
-             <div className="text-xs text-white font-bold">JARI MONTEZ</div>
-             <div className="text-xs text-gray-400">jari@livewire-ent.com</div>
-           </div>
-        </div>
-
-        {/* Right Content: Bio Text & Stats */}
-        <div className="flex-1 bg-[#0a0a0a] flex flex-col relative overflow-hidden">
-           {/* Header */}
-           <div className="h-16 bg-[#00ff41] text-black p-4 flex justify-between items-center">
-             <h1 className="text-4xl font-black tracking-tighter">OFFICIAL PROFILE</h1>
-             <div className="flex gap-2">
-                 <div className="w-3 h-3 bg-black"></div>
-                 <div className="w-3 h-3 bg-black"></div>
-                 <div className="w-3 h-3 bg-black"></div>
-             </div>
-           </div>
-
-           {/* Scrollable Content */}
-           <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-             <div className="max-w-2xl mx-auto space-y-8">
-                 
-                 {/* Quote */}
-                 <blockquote className="border-l-4 border-[#00ff41] pl-6 py-2">
-                   <p className="text-xl md:text-2xl font-bold text-white italic leading-relaxed">
-                      "I’ve paid my dues… I’ve developed my skills… I am ready."
-                   </p>
-                 </blockquote>
-
-                 {/* Stats Grid */}
-                 <div className="grid grid-cols-2 gap-4 border-y border-[#333] py-6 my-6">
-                   <div>
-                      <div className="text-[10px] text-gray-500 font-mono uppercase">Name</div>
-                      <div className="text-[#00ff41] font-bold">Wanda Altagracia Almonte</div>
-                   </div>
-                   <div>
-                      <div className="text-[10px] text-gray-500 font-mono uppercase">Origin</div>
-                      <div className="text-[#00ff41] font-bold">Red Hook, Brooklyn</div>
-                   </div>
-                   <div>
-                      <div className="text-[10px] text-gray-500 font-mono uppercase">Key Features</div>
-                      <div className="text-[#00ff41] font-bold">Erick Sermon, Talib Kweli</div>
-                   </div>
-                   <div>
-                      <div className="text-[10px] text-gray-500 font-mono uppercase">Education</div>
-                      <div className="text-[#00ff41] font-bold">LaGuardia HS (Dance)</div>
-                   </div>
-                 </div>
-
-                 {/* The Story */}
-                 <div className="prose prose-invert prose-sm font-mono text-gray-300 leading-relaxed space-y-6">
-                   <p className="first-letter:text-4xl first-letter:text-[#00ff41] first-letter:font-black first-letter:float-left first-letter:mr-2">
-                      Introducing… "WHIP MONTEZ" (born Wanda Altagracia Almonte) a Dominican fem-cee reppin’ Brooklyn's Red Hook Housing Projects.
-                   </p>
-                   
-                   <p>
-                      Whip is currently recording her first album comprised of a variety of hip-hop tracks. Her highly anticipated debut album tentatively titled <strong className="text-white">“Can’t Nobody Whip Montez”</strong> is due for release in 2006 and contains sure shot hits like "Take it slow" where she advises men not to wreck a potential relationship by moving too fast. On the automatic head-banger "No Matter What You Say," WHIP pulls no punches and goes straight at her critics. WHIP definitely demonstrates her versatility, which distinguishes her from her counter-parts when she penned, "Dear God," an, introspective song that touches upon numerous issues that beset society and tragedies that have impacted us all.
-                   </p>
-
-                   <div className="border-l-2 border-[#333] pl-4 italic text-gray-400">
-                      2004 was a great year for Whip Montez. She was featured alongside the Green-Eyed Bandit, <strong className="text-white">Erick Sermon</strong> and one of Brooklyn’s finest MC’s <strong className="text-white">Talib Kweli</strong>. The three collaborated on a track called “Chillin” off Sermon’s last album “Chilltown, NY”. It wasn’t long after Montez penned her verse that Sermon called on Talib to complete the track with a verse of his own.
-                   </div>
-
-                   <p>
-                      “This was a dream come true to be in the booth with a hip-hop legend, and Talib it was truly an educational experience, one that I will cherish for a long time.”
-                   </p>
-
-                   <p>
-                      With a good number of showcases and college shows, she has opened up for notable artists like 112, Slum Village, and the Infamous Mobb Deep to name a few. This has definitely helped her expand her fan base and create a buzz for her. Last year, WHIP had several overseas performances, in particular, the Dominican Republic, Coral Hamaca Resort, where she blessed over 2,000 screaming fans. “Those shows were crazy, because they really appreciate artist that make trips to their country. In DR, they held me down like I was in BK.”
-                   </p>
-
-                   <p>
-                      Again, last year WHIP found the “Good Life” when she doubled-up with super-legend Lisa-Lisa for a track that was number 1 in France. “People underestimate Europe! It’s great for new artist because they just appreciate good music in place like France, Spain and Germany.” However, Montez is ready to “whip” the competition in the States, she’s ready to do more than just a few “bet placing” freestyles. 
-                   </p>
-
-                   <p>
-                      Consequently, Whip is no stranger to the game… The youngest of four children, Whip was introduced to Hip-Hop as a teenager while attending Fiorello H. LaGuardia high school of Performing Arts in NYC where she studied dance.
-                   </p>
-
-                   <p>
-                      It wasn’t until the summer of ’99 that Whip discovered her passion for writing lyrics as a way to express herself. Once she began writing, battling on corners and joining in on ciphers was a natural progression. Soon the recognition followed and she took her gift more seriously. The only broad in the cipher, Whip usually had much to prove. But she never worries about that because, seriously…. <span className="text-[#00ff41] font-bold">can’t anybody Whip Montez!</span>
-                   </p>
-
-                   <p className="mt-4 text-[#00ff41] font-bold border-t border-[#333] pt-4">
-                      {'>'} SYSTEM NOTE: Artist Profile Last Updated: DEC 04 2004
-                   </p>
-                 </div>
-
-             </div>
-           </div>
-        </div>
-
-      </div>
-    </div>
-  );
-};
-
 // 5. TOUR ARCHIVE (Restored Ticket Hub)
 const TourHistory = () => {
   const dates = [
@@ -884,14 +854,7 @@ const TourHistory = () => {
                       <td className="p-2 border-r border-[#333] font-bold text-gray-400 align-middle text-[11px]">{gig.city}</td>
                       <td className="p-2 border-r border-[#333] font-mono text-[#00ff41] font-bold align-middle">{gig.price}</td>
                       <td className="p-2 border-r border-[#333] text-center font-bold align-middle">
-                        {gig.status === 'SOLD OUT' ? <span className="text-red-500">0</span> : gig.status === 'CANCELLED' ? <span className="text-gray-600">-</span> : <span className="text-white">{gig.seats}</span>}
-                      </td>
-                      <td className="p-2 text-center align-middle">
-                        {gig.status === 'SOLD OUT' ? (
-                          <span className="text-red-500 font-black text-[10px] border-2 border-red-500 px-1 transform -rotate-12 inline-block opacity-80">SOLD OUT</span>
-                        ) : gig.status === 'CANCELLED' ? (
-                          <span className="text-gray-600 font-bold text-[10px] border border-gray-600 px-2 py-1">CANCELLED</span>
-                        ) : gig.status === 'COMPLETED' ? (
+                        {gig.status === 'SOLD OUT' ? <span className="text-red-500">0</span> : gig.status === 'CANCELLED' ? <span className="text-gray-600">-</span> : gig.status === 'COMPLETED' ? (
                           <span className="text-gray-500 font-bold text-[10px]">CLOSED</span>
                         ) : (
                           <button className="bg-[#00ff41] text-black border border-[#00ff41] px-3 py-1 text-[10px] font-black hover:bg-white hover:border-white transition-colors flex items-center justify-center gap-1 mx-auto w-full">
@@ -1004,13 +967,13 @@ const StyleArchive = () => {
   const seedData = async () => {
     if (!db) return;
     const seedItems = [
-      { name: "Livewire Official Tee", category: "Shirts", price: 35, image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80", desc: "Classic Logo Black" },
-      { name: "Red Hook Hoodie", category: "Hoodies", price: 85, image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&q=80", desc: "Heavyweight Cotton" },
-      { name: "Whip Cargo Pants", category: "Pants", price: 95, image: "https://images.unsplash.com/photo-1517445312882-14f275936729?w=500&q=80", desc: "Tactical Pockets" },
-      { name: "Tour Backpack 04", category: "Bags", price: 60, image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80", desc: "Canvas Rucksack" },
-      { name: "Grafitti Joggers", category: "Pants", price: 70, image: "https://images.unsplash.com/photo-1552902865-b72c031ac5ea?w=500&q=80", desc: "All-over Print" },
-      { name: "Bandana Pack", category: "Accessories", price: 20, image: "https://images.unsplash.com/photo-1629316075677-72782e379a41?w=500&q=80", desc: "3 Colors" },
-      { name: "Velour Track Top", category: "Hoodies", price: 110, image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500&q=80", desc: "Navy Blue" },
+      { name: "Livewire Official Tee - Black", category: "Shirts", price: 35, image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80", desc: "Classic Logo Black" },
+      { name: "Whip Montez Red Hook Hoodie", category: "Hoodies", price: 85, image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&q=80", desc: "Heavyweight Cotton" },
+      { name: "Livewire Cargo Pants", category: "Pants", price: 95, image: "https://images.unsplash.com/photo-1517445312882-14f275936729?w=500&q=80", desc: "Tactical Pockets" },
+      { name: "Whip Tour Backpack '04", category: "Bags", price: 60, image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80", desc: "Canvas Rucksack" },
+      { name: "Graffiti Logo Joggers", category: "Pants", price: 70, image: "https://images.unsplash.com/photo-1552902865-b72c031ac5ea?w=500&q=80", desc: "All-over Print" },
+      { name: "Whip Montez Bandana Pack", category: "Accessories", price: 20, image: "https://images.unsplash.com/photo-1629316075677-72782e379a41?w=500&q=80", desc: "3 Colors" },
+      { name: "Livewire Velour Track Top", category: "Hoodies", price: 110, image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500&q=80", desc: "Navy Blue" },
       { name: "Whip Montez Snapback Hat", category: "Accessories", price: 30, image: "https://images.unsplash.com/photo-1577771761611-37f37ccb84db?w=500&q=80", desc: "Embroidered Logo" },
       { name: "Livewire 2004 Album Tee", category: "Shirts", price: 40, image: "https://images.unsplash.com/photo-1571542617696-6136d2c4760d?w=500&q=80", desc: "Album Art Print" },
       { name: "Red Hook Bomber Jacket", category: "Jackets", price: 150, image: "https://images.unsplash.com/photo-1551028038-0973a0e633d2?w=500&q=80", desc: "Heavy Satin Shell" },
@@ -1271,8 +1234,71 @@ const StyleArchive = () => {
   );
 };
 
-// 7. GHOSTWRITER (Lyric Recovery) - lazy-loaded to reduce initial bundle
-const Ghostwriter = React.lazy(() => import('./components/Ghostwriter'));
+// 7. GHOSTWRITER (Lyric Recovery)
+const Ghostwriter = () => {
+  const [prompt, setPrompt] = useState("");
+  const [lyrics, setLyrics] = useState("");
+  const [loading, setLoading] = useState(false);
+  const lastRequestTime = useRef(0);
+
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
+
+    // Cooldown check
+    const cooldownTime = 3000; // 3 seconds
+    const now = Date.now();
+    if (now - lastRequestTime.current < cooldownTime) {
+        alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before generating new lyrics.`);
+        return;
+    }
+
+    setLoading(true);
+    setLyrics("");
+    const systemPrompt = "You are Whip Montez, a gritty, lyrical female rapper from Red Hook Brooklyn, circa 2004. Write an 8-bar verse about the user's topic. Use Spanglish, NY slang from the early 2000s (e.g., 'son', 'dun', 'mad', 'deadass'), and keep it confident and raw. Do not use hashtags. Format it as a verse.";
+    const result = await callGemini(prompt, systemPrompt);
+    lastRequestTime.current = Date.now();
+    setLyrics(result);
+    setLoading(false);
+  };
+
+  return (
+    <div className="h-full w-full relative overflow-hidden p-6 flex flex-col items-center justify-center">
+      <BackgroundCarousel images={[]} />
+      <div className="absolute inset-0 bg-black/80 z-10"></div>
+      <div className="relative z-20 w-full max-w-3xl border border-cyan-600 bg-[#050505]/90 p-1 shadow-[0_0_30px_rgba(0,180,255,0.4)]">
+        <div className="bg-cyan-600 text-black px-2 py-1 font-bold flex justify-between items-center mb-2">
+          <span>LYRIC_RECOVERY_TOOL.EXE</span>
+          <div className="flex gap-1"><div className="w-3 h-3 bg-black"></div></div>
+        </div>
+        <div className="p-4 flex flex-col gap-4">
+          <div className="text-cyan-400 font-mono text-sm mb-2">{'>'} SYSTEM ALERT: CORRUPTED LYRIC FILES DETECTED.<br/>{'>'} ENTER KEYWORDS TO ATTEMPT DATA RECOVERY...</div>
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              value={prompt} 
+              onChange={(e) => setPrompt(e.target.value)} 
+              placeholder="ENTER TOPIC (e.g., 'Summertime in Brooklyn', 'Haters', 'Money')" 
+              className="flex-1 bg-black border border-cyan-800 text-white p-2 font-mono outline-none focus:border-cyan-400" 
+              onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
+            />
+            <button 
+              onClick={handleGenerate} 
+              disabled={loading} 
+              className="bg-cyan-600 text-black px-4 py-2 font-bold font-mono hover:bg-cyan-400 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {loading ? "RECOVERING..." : <span>INITIATE <Sparkles className="inline w-4 h-4"/></span>}
+            </button>
+          </div>
+          <div className="min-h-[200px] border border-cyan-800 bg-[#000000] p-4 font-mono text-sm md:text-base leading-relaxed overflow-y-auto max-h-[400px]">
+            {loading && <div className="text-cyan-400 animate-pulse">{'>'} SCANNING SECTORS...<br/>{'>'} DECRYPTING FLOW...<br/>{'>'} ASSEMBLING BARS...</div>}
+            {!loading && lyrics && <div className="text-white whitespace-pre-line typing-cursor">{lyrics}</div>}
+            {!loading && !lyrics && <div className="text-gray-600 italic">// WAITING FOR INPUT //</div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // 8. COMMUNITY HUB (The Block - RESTORED TO GREEN/BLACK OS STYLE)
 const CommunityHub = ({ setSection }) => {
@@ -1371,7 +1397,7 @@ const CommunityHub = ({ setSection }) => {
   };
 
   return (
-    <div className="h-full flex flex-col relative overflow-hidden bg-[#0a0a0a] font-mono">
+    <div className="h-full w-full relative overflow-hidden bg-[#0a0a0a] font-mono">
       <BackgroundCarousel images={[]} />
       <div className="absolute inset-0 bg-black/80 z-0 pointer-events-none"></div>
       
@@ -1467,7 +1493,7 @@ const CommunityHub = ({ setSection }) => {
                           </div>
                       ) : (
                           <div className="rounded-lg border border-[#333] overflow-hidden shadow-lg">
-                              <img src={post.mediaUrl} alt="Post Attachment" className="w-full h-auto max-h-96 object-cover" onError={(e) => e.target.style.display = 'none'} />
+                              <img src={post.mediaUrl} alt="Post Attachment" className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} />
                           </div>
                       )}
                   </div>
@@ -1625,7 +1651,7 @@ const SidekickChat = () => {
            <button className="px-3 py-0.5 border border-white border-r-gray-600 border-b-gray-600 text-xs shadow-sm bg-[#d4d0c8] active:border-gray-600 active:border-r-white">Block</button>
            <button 
              onClick={handleSend}
-             className="px-6 py-0.5 border border-white border-r-gray-600 border-b-gray-600 text-xs shadow-sm bg-[#d4d0c8] font-bold active:border-gray-600 active:border-r-white"
+             className="px-6 py-0.5 border border-white border-r-gray-600 border-b-gray-600 text-xs font-bold active:border-gray-600 active:border-r-white"
            >
              Send
            </button>
@@ -1737,6 +1763,8 @@ const RapBattle = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const endRef = useRef(null);
+  const lastRequestTime = useRef(0);
+
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1744,6 +1772,15 @@ const RapBattle = () => {
 
   const handleBattle = async () => {
     if (!input.trim()) return;
+
+    // Cooldown check
+    const cooldownTime = 3000; // 3 seconds
+    const now = Date.now();
+    if (now - lastRequestTime.current < cooldownTime) {
+        alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before spitting another bar.`);
+        return;
+    }
+    
     const userBar = { sender: 'user', text: input };
     setHistory(prev => [...prev, userBar]);
     setInput("");
@@ -1752,6 +1789,7 @@ const RapBattle = () => {
     const systemPrompt = "You are a fierce battle rapper from 2004 Brooklyn. The user is your opponent. Respond to their bar with a 2-4 line diss track verse. Be aggressive, witty, use NYC slang, and make it rhyme. Keep it under 200 characters.";
     const responseText = await callGemini(`Opponent says: "${input}". Respond with a diss.`, systemPrompt);
     
+    lastRequestTime.current = Date.now();
     setHistory(prev => [...prev, { sender: 'ai', text: responseText }]);
     setLoading(false);
   };
@@ -1796,17 +1834,28 @@ const CrateDigger = () => {
   const [mood, setMood] = useState("");
   const [samples, setSamples] = useState([]);
   const [loading, setLoading] = useState(false);
+  const lastRequestTime = useRef(0);
 
   const handleDig = async () => {
     if (!mood.trim()) return;
+
+    // Cooldown check
+    const cooldownTime = 3000; // 3 seconds
+    const now = Date.now();
+    if (now - lastRequestTime.current < cooldownTime) {
+        alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before digging again.`);
+        return;
+    }
+
     setLoading(true);
     setSamples([]);
     const systemPrompt = "You are a crate digger. Suggest 3 obscure 70s/80s records based on the user's mood. JSON format: [{ 'artist': '', 'track': '', 'year': '', 'desc': '' }]. No markdown.";
     const responseText = await callGemini(mood, systemPrompt);
     try {
-      const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '');
+      const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
       setSamples(JSON.parse(cleanText));
     } catch (e) { console.error("Parse error", e); }
+    lastRequestTime.current = Date.now();
     setLoading(false);
   };
 
@@ -1847,26 +1896,24 @@ const ARSuite = () => {
   const [demoText, setDemoText] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [loading, setLoading] = useState(false);
+  const lastRequestTime = useRef(0);
 
   const handleReview = async () => {
     if (!demoText.trim()) return;
+    
+    // Cooldown check
+    const cooldownTime = 3000; // 3 seconds
+    const now = Date.now();
+    if (now - lastRequestTime.current < cooldownTime) {
+        alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before submitting again.`);
+        return;
+    }
+
     setLoading(true);
     setFeedback(null); // Clear previous feedback
     const systemPrompt = "You are an A&R. Critique these lyrics. JSON format: { 'critique': '', 'commercial': 0-10, 'street': 0-10 }.";
     
     const responseText = await callGemini(demoText, systemPrompt);
-    
-    // Handle rate limit error
-    if (responseText === "ERROR_429_RATE_LIMITED") {
-      setFeedback({ 
-        critique: "🔴 SERVER OVERLOADED: API is experiencing rate limits. The Gemini service is too busy right now. Please wait a few minutes and try again.", 
-        commercial: 'WAIT', 
-        street: 'WAIT',
-        error: true 
-      });
-      setLoading(false);
-      return;
-    }
     
     try {
       const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -1875,6 +1922,7 @@ const ARSuite = () => {
         console.error("Failed to parse A&R response:", e);
         setFeedback({ critique: "ERROR: Failed to process analysis data.", commercial: 'N/A', street: 'N/A' });
     }
+    lastRequestTime.current = Date.now();
     setLoading(false);
   };
 
@@ -1902,20 +1950,11 @@ const ARSuite = () => {
              )}
              {feedback && (
                <div className="space-y-6">
-                 {feedback.error ? (
-                   <div className="bg-red-900/20 border-l-4 border-red-600 p-4 text-sm text-red-400">
-                     <div className="font-bold mb-2">⏱️ RATE LIMITED</div>
-                     {feedback.critique}
-                   </div>
-                 ) : (
-                   <>
-                     <div className="flex gap-4 text-center">
-                       <div className="flex-1 bg-black border border-blue-600 p-4"><div className="text-xs text-gray-500">RADIO</div><div className="text-3xl font-black text-white">{feedback.commercial}/10</div></div>
-                       <div className="flex-1 bg-black border border-red-600 p-4"><div className="text-xs text-gray-500">STREETS</div><div className="text-3xl font-black text-white">{feedback.street}/10</div></div>
-                     </div>
-                     <div className="bg-black/50 p-4 border-l-4 border-blue-600 text-sm text-gray-300">{feedback.critique}</div>
-                   </>
-                 )}
+                 <div className="flex gap-4 text-center">
+                   <div className="flex-1 bg-black border border-blue-600 p-4"><div className="text-xs text-gray-500">RADIO</div><div className="text-3xl font-black text-white">{feedback.commercial}/10</div></div>
+                   <div className="flex-1 bg-black border border-red-600 p-4"><div className="text-xs text-gray-500">STREETS</div><div className="text-3xl font-black text-white">{feedback.street}/10</div></div>
+                 </div>
+                 <div className="bg-black/50 p-4 border-l-4 border-blue-600 text-sm text-gray-300">{feedback.critique}</div>
                </div>
              )}
           </div>
@@ -1930,11 +1969,21 @@ const AlbumArtGenerator = () => {
     const [prompt, setPrompt] = useState("A gritty, neon-lit cyberpunk street corner in Red Hook, Brooklyn with a vinyl record.");
     const [imageUrl, setImageUrl] = useState(null);
     const [loading, setLoading] = useState(false);
+    const lastRequestTime = useRef(0);
     
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
         setLoading(true);
         setImageUrl(null);
+        
+        // Cooldown check
+        const cooldownTime = 3000; // 3 seconds
+        const now = Date.now();
+        if (now - lastRequestTime.current < cooldownTime) {
+            alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before generating again.`);
+            setLoading(false);
+            return;
+        }
         
         // Pass "Album Cover" in the prompt to trigger the image generation path in callGemini
         const fullPrompt = "Album Cover: " + prompt; 
@@ -1961,6 +2010,7 @@ const AlbumArtGenerator = () => {
             const mockImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
             setImageUrl(`data:image/png;base64,${mockImageBase64}`);
         }
+        lastRequestTime.current = Date.now();
         setLoading(false);
     };
 
@@ -2026,9 +2076,19 @@ const ViralVideoAgent = () => {
     const [concepts, setConcepts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isWhipMode, setIsWhipMode] = useState(false);
+    const lastRequestTime = useRef(0);
 
     const handleGenerate = async () => {
         if (!trackIdea.trim()) return;
+
+        // Cooldown check
+        const cooldownTime = 3000; // 3 seconds
+        const now = Date.now();
+        if (now - lastRequestTime.current < cooldownTime) {
+            alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before generating new concepts.`);
+            return;
+        }
+
         setLoading(true);
         setConcepts([]);
 
@@ -2052,6 +2112,7 @@ const ViralVideoAgent = () => {
             console.error("Failed to parse VVA response:", e);
             setConcepts([{ concept: "ERROR", visual: "Failed to load concepts. Check API status.", trend: "SYSTEM FAIL", shots: ["System Failure"] }]);
         }
+        lastRequestTime.current = Date.now();
         setLoading(false);
     };
     
@@ -2260,12 +2321,51 @@ const OSInterface = ({ reboot }) => {
     };
   }, []);
 
+  // Centralized rendering logic for the active component
+  const renderActiveComponent = () => {
+    switch (activeSection) {
+      case 'home':
+        return <Home setSection={setActiveSection} />;
+      case 'bio':
+        return <Bio setSection={setActiveSection} />;
+      case 'music':
+        return <MusicPlayer />;
+      case 'tour':
+        return <TourHistory />;
+      case 'style':
+        return <StyleArchive />;
+      case 'community':
+        return <CommunityHub setSection={setActiveSection} />;
+      case 'studio':
+        return <StudioHub setSection={setActiveSection} />;
+      case 'ghostwriter':
+        return <Ghostwriter />;
+      case 'chat':
+        return <SidekickChat />;
+      case 'battle':
+        return <RapBattle />;
+      case 'crates':
+        return <CrateDigger />;
+      case 'news':
+        return <NewsArchive />;
+      case 'ar_suite':
+        return <ARSuite />;
+      case 'album_art':
+        return <AlbumArtGenerator />;
+      case 'viral_video':
+        return <ViralVideoAgent />;
+      default:
+        return <Home setSection={setActiveSection} />;
+    }
+  };
+
+
   return (
     <div className="flex flex-col h-screen w-full relative z-10">
       <div className="h-10 bg-[#111] border-b border-[#333] flex items-center justify-between px-4 select-none overflow-x-auto">
         <div className="flex items-center gap-4 min-w-max">
           <div className="flex items-center gap-2 text-[#00ff41] font-bold"><Cpu size={16} /> <span className="hidden md:inline">SYSTEM_READY</span></div>
-          <div className="h-4 w-[1px] bg-[#333]"></div>
+          <div className="h-4 w-[1px] bg-[#333] mx-1"></div>
           <nav className="flex gap-1">
             {['home', 'bio', 'music', 'tour', 'style', 'community', 'news'].map(section => (
               <button key={section} onClick={() => setActiveSection(section)} className={`px-3 py-1 text-xs font-mono uppercase transition-colors ${activeSection === section ? 'bg-[#00ff41] text-black' : 'text-gray-400 hover:text-white'}`}>
@@ -2290,25 +2390,7 @@ const OSInterface = ({ reboot }) => {
           </div>
           
           <div className="flex-1 relative overflow-hidden">
-            {activeSection === 'home' && <Home setSection={setActiveSection} />}
-            {activeSection === 'bio' && <Bio setSection={setActiveSection} />}
-            {activeSection === 'music' && <MusicPlayer />}
-            {activeSection === 'tour' && <TourHistory />}
-            {activeSection === 'style' && <StyleArchive />}
-            {activeSection === 'community' && <CommunityHub setSection={setActiveSection} />}
-            {activeSection === 'studio' && <StudioHub setSection={setActiveSection} />}
-            {activeSection === 'ghostwriter' && (
-              <React.Suspense fallback={<div className="p-8 text-center">Loading Ghostwriter...</div>}>
-                <Ghostwriter callGemini={callGemini} />
-              </React.Suspense>
-            )}
-            {activeSection === 'chat' && <SidekickChat />}
-            {activeSection === 'battle' && <RapBattle />}
-            {activeSection === 'crates' && <CrateDigger />}
-            {activeSection === 'news' && <NewsArchive />}
-            {activeSection === 'ar_suite' && <ARSuite />}
-            {activeSection === 'album_art' && <AlbumArtGenerator />}
-            {activeSection === 'viral_video' && <ViralVideoAgent />}
+            {renderActiveComponent()}
           </div>
         </div>
       </div>
