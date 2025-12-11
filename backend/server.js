@@ -47,7 +47,10 @@ const genAI = new GoogleGenerativeAI(apiKey);
   } catch (err) {
     console.warn('⚠️ Could not list models at startup:', err && err.message ? err.message : err);
   }
-})();
+})().catch(err => {
+  console.error('🔴 Fatal error during initialization:', err);
+  // Don't exit the process - server should stay running even if models check fails
+});
 
 // ROOT ROUTE (Health Check)
 app.get('/', (req, res) => {
@@ -114,7 +117,36 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`> Server running on http://localhost:${PORT}`);
   console.log('> Uplink Ready.');
+});
+
+// Graceful shutdown handlers
+process.on('SIGTERM', () => {
+  console.log('🔴 SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('🔴 SIGINT received, shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('🔴 Uncaught Exception:', err);
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔴 Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit - keep server running even on unhandled rejections
 });
