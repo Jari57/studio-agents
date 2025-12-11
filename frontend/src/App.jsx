@@ -144,9 +144,12 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
         if (response.status === 403) throw new Error("INVALID_KEY"); // Don't retry if key is wrong
         
         if ((response.status === 429 || response.status >= 500) && i < delays.length) {
+          console.warn(`Rate limited (${response.status}). Retrying in ${delays[i]}ms...`);
           await new Promise(resolve => setTimeout(resolve, delays[i]));
           continue;
         }
+        // Throw 429 error with status code so we can detect it later
+        if (response.status === 429) throw new Error("HTTP error! status: 429 (Too Many Requests)");
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -155,11 +158,15 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
     } catch (error) {
       console.error("Gemini API call failed:", error);
       if (i === delays.length || error.message === "INVALID_KEY") {
+        // Check if it's a rate-limit error (429)
+        const is429 = error.message && error.message.includes("429");
+        
         // Fallback Logic for failed calls
         if (systemInstruction.includes("battle rapper")) {
-            return "Yo, connection's weak but my flow is strong / I been running this game all along / You trying to hack the system? You wrong / Now listen close to the words of my song.";
+            return is429 ? "ERROR_429_RATE_LIMITED" : "Yo, connection's weak but my flow is strong / I been running this game all along / You trying to hack the system? You wrong / Now listen close to the words of my song.";
         }
         if (systemInstruction.includes("crate digger")) {
+            if (is429) return "ERROR_429_RATE_LIMITED";
             return JSON.stringify([
                 { artist: "The Honey Drippers", track: "Impeach the President", year: "1973", desc: "Classic drum break (Offline Mode)." },
                 { artist: "Bob James", track: "Nautilus", year: "1974", desc: "Haunting keys (Offline Mode)." },
@@ -167,9 +174,10 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
             ]);
         }
         if (systemInstruction.includes("A&R")) {
+            if (is429) return "ERROR_429_RATE_LIMITED";
             return JSON.stringify({ critique: "Offline Mode: Cannot analyze text. Flow seems okay.", commercial: 5, street: 5 });
         }
-        return "CONNECTION LOST. SIGNAL WEAK (API ERROR).";
+        return is429 ? "ERROR_429_RATE_LIMITED" : "CONNECTION LOST. SIGNAL WEAK (API ERROR).";
       }
       await new Promise(resolve => setTimeout(resolve, delays[i]));
     }
@@ -1900,6 +1908,18 @@ const ARSuite = () => {
     
     const responseText = await callGemini(demoText, systemPrompt);
     
+    // Handle rate limit error
+    if (responseText === "ERROR_429_RATE_LIMITED") {
+      setFeedback({ 
+        critique: "🔴 SERVER OVERLOADED: API is experiencing rate limits. The Gemini service is too busy right now. Please wait a few minutes and try again.", 
+        commercial: 'WAIT', 
+        street: 'WAIT',
+        error: true 
+      });
+      setLoading(false);
+      return;
+    }
+    
     try {
       const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
       setFeedback(JSON.parse(cleanJson));
@@ -1934,11 +1954,20 @@ const ARSuite = () => {
              )}
              {feedback && (
                <div className="space-y-6">
-                 <div className="flex gap-4 text-center">
-                   <div className="flex-1 bg-black border border-blue-600 p-4"><div className="text-xs text-gray-500">RADIO</div><div className="text-3xl font-black text-white">{feedback.commercial}/10</div></div>
-                   <div className="flex-1 bg-black border border-red-600 p-4"><div className="text-xs text-gray-500">STREETS</div><div className="text-3xl font-black text-white">{feedback.street}/10</div></div>
-                 </div>
-                 <div className="bg-black/50 p-4 border-l-4 border-blue-600 text-sm text-gray-300">{feedback.critique}</div>
+                 {feedback.error ? (
+                   <div className="bg-red-900/20 border-l-4 border-red-600 p-4 text-sm text-red-400">
+                     <div className="font-bold mb-2">⏱️ RATE LIMITED</div>
+                     {feedback.critique}
+                   </div>
+                 ) : (
+                   <>
+                     <div className="flex gap-4 text-center">
+                       <div className="flex-1 bg-black border border-blue-600 p-4"><div className="text-xs text-gray-500">RADIO</div><div className="text-3xl font-black text-white">{feedback.commercial}/10</div></div>
+                       <div className="flex-1 bg-black border border-red-600 p-4"><div className="text-xs text-gray-500">STREETS</div><div className="text-3xl font-black text-white">{feedback.street}/10</div></div>
+                     </div>
+                     <div className="bg-black/50 p-4 border-l-4 border-blue-600 text-sm text-gray-300">{feedback.critique}</div>
+                   </>
+                 )}
                </div>
              )}
           </div>
