@@ -1,4 +1,4 @@
-name: Node CI - Build Frontend
+name: Node CI - Build & Validate
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Use Node.js 22.x
+      - name: Setup Node.js 22.12.0
         uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'
@@ -22,25 +22,27 @@ jobs:
             frontend/package-lock.json
             backend/package-lock.json
 
-      - name: Verify Node version
+      - name: Verify Node.js version
         run: node --version && npm --version
 
-      - name: Install frontend deps
-        run: |
-          cd frontend; npm ci
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
 
       - name: Build frontend
-        run: |
-          cd frontend; npm run build
+        run: cd frontend && npm run build
 
-      - name: List build output
-        run: |
-          ls -la frontend/dist || true
+      - name: Verify frontend build output
+        run: ls -la frontend/dist/index.html
 
-      - name: Install backend deps (no server run)
-        run: |
-          cd backend; npm ci
+      - name: Install backend dependencies
+        run: cd backend && npm ci
 
-      - name: Check backend env (non-failing)
-        run: |
-          node backend/check_env.js
+      - name: Verify backend installation
+        run: cd backend && npm list --depth=0
+
+      - name: Check environment configuration
+        run: node backend/check_env.js
+
+      - name: Build status
+        if: success()
+        run: echo "✅ Build successful - ready for Railway deployment"
