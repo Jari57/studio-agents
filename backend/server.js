@@ -3,13 +3,17 @@ const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 
-// 🟢 FORCE LOAD .ENV FROM CURRENT DIRECTORY
-// This fixes the issue where the server can't find the keys.
+// 🟢 FORCE LOAD .ENV FROM CURRENT DIRECTORY (local dev only)
+// In production (Railway), environment variables come from the platform
 const envPath = path.resolve(__dirname, '.env');
-const result = require('dotenv').config({ path: envPath });
-
-if (result.error) {
-  console.error("🔴 Error loading .env file:", result.error);
+try {
+  const result = require('dotenv').config({ path: envPath });
+  if (result.error && result.error.code !== 'ENOENT') {
+    // Only log errors that aren't "file not found" (expected in production)
+    console.warn("⚠️  .env file not found - using platform environment variables");
+  }
+} catch (e) {
+  console.warn("⚠️  Could not load .env file - using platform environment variables");
 }
 
 const app = express();
