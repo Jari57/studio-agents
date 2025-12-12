@@ -146,41 +146,6 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
   }
 };
 
-// Shared free-usage limiter for AI agents (client-side tracking, per browser)
-const useFreeLimit = (agentKey, limit = 3) => {
-  const [usage, setUsage] = useState(0);
-
-  useEffect(() => {
-    try {
-      const stored = Number(localStorage.getItem(agentKey));
-      if (Number.isFinite(stored)) setUsage(stored);
-    } catch (err) {
-      console.warn(`Usage load failed for ${agentKey}`, err);
-    }
-  }, [agentKey]);
-
-  const consume = () => {
-    const next = usage + 1;
-    setUsage(next);
-    try {
-      localStorage.setItem(agentKey, String(next));
-    } catch (err) {
-      console.warn(`Usage persist failed for ${agentKey}`, err);
-    }
-  };
-
-  const reset = () => {
-    setUsage(0);
-    try {
-      localStorage.removeItem(agentKey);
-    } catch (err) {
-      console.warn(`Usage reset failed for ${agentKey}`, err);
-    }
-  };
-
-  return { usage, limit, canUse: usage < limit, consume, reset };
-};
-
 // --- COMPONENTS ---
 
 // 0. REIMAGINED LIVEWIRE LOGO (VECTOR STYLE)
@@ -1900,7 +1865,7 @@ const CrateDigger = () => {
 
     setLoading(true);
     setSamples([]);
-    const systemPrompt = "You are a crate digger. Suggest 3 obscure 70s/80s records based on the user's mood. JSON format: [{ 'artist': '', 'track': '', 'year': '', 'desc': '' }]. No markdown.";
+    const systemPrompt = "You are a crate digger. Suggest 3 obscure 70s/80s records based on the user's mood. JSON format: [{ \"artist\": \"\", \"track\": \"\", \"year\": \"\", \"desc\": \"\" }]. No markdown.";
     const responseText = await callGemini(mood, systemPrompt);
     try {
       const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
