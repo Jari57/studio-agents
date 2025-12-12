@@ -803,146 +803,47 @@ const MusicPlayer = () => {
     }
   ];
 
-  // Optimized audio loading with caching and preload
+  // Load audio when track changes
   useEffect(() => {
-    if (!audioRef.current || !currentTrack) {
-      console.log('[AUDIO DEBUG] Missing audio ref or track:', { hasAudio: !!audioRef.current, hasTrack: !!currentTrack });
-      return;
-    }
-    
-    console.log('[AUDIO DEBUG] Loading track:', currentTrack.title, 'isPlaying:', isPlaying);
+    if (!audioRef.current || !currentTrack) return;
     
     const loadAudio = async () => {
-      setAudioLoading(true);
-      
-      // Helper to wait for audio to be ready and then play
-      const playWhenReady = () => {
-        if (!isPlaying) {
-          console.log('[AUDIO DEBUG] Not auto-playing (isPlaying is false)');
-          return;
-        }
-        
-        console.log('[AUDIO DEBUG] Setting up auto-play after load...');
-        
-        const doPlay = () => {
-          console.log('[AUDIO DEBUG] Playing now, readyState:', audioRef.current?.readyState);
-          if (audioRef.current) {
-            audioRef.current.play()
-              .then(() => console.log('[AUDIO DEBUG] Playback started successfully'))
-              .catch(e => console.log('[AUDIO DEBUG] Playback failed:', e));
-          }
-        };
-        
-        // Wait a moment for the src to be set, then check readyState
-        setTimeout(() => {
-          if (!audioRef.current) return;
-          
-          console.log('[AUDIO DEBUG] Checking readyState:', audioRef.current.readyState);
-          
-          if (audioRef.current.readyState >= 3) {
-            // Already loaded enough to play
-            console.log('[AUDIO DEBUG] Audio already ready, playing immediately');
-            doPlay();
-          } else {
-            // Wait for loadeddata event (fires earlier than canplaythrough)
-            console.log('[AUDIO DEBUG] Adding loadeddata listener...');
-            const onLoadedData = () => {
-              console.log('[AUDIO DEBUG] loadeddata event fired');
-              doPlay();
-            };
-            audioRef.current.addEventListener('loadeddata', onLoadedData, { once: true });
-            
-            // Fallback timeout in case event doesn't fire
-            setTimeout(() => {
-              if (audioRef.current && isPlaying) {
-                console.log('[AUDIO DEBUG] Timeout fallback, forcing play attempt');
-                doPlay();
-              }
-            }, 1000);
-          }
-        }, 100);
-      };
-      
       try {
-        // Check cache first for instant loading
-        if (urlCacheRef.current[currentTrack.audioUrl]) {
-          console.log('[AUDIO DEBUG] Cache hit for:', currentTrack.audioUrl);
-          audioRef.current.src = urlCacheRef.current[currentTrack.audioUrl];
-          audioRef.current.load();
-          setAudioLoading(false);
-          playWhenReady();
-          return;
-        }
-        
-        // Try Firebase Storage with caching
         if (storage && currentTrack.audioUrl) {
-          console.log('[AUDIO DEBUG] Fetching from Firebase Storage:', currentTrack.audioUrl);
           const storageRef = ref(storage, currentTrack.audioUrl);
           const url = await getDownloadURL(storageRef);
-          
-          console.log('[AUDIO DEBUG] Got Firebase URL:', url);
-          urlCacheRef.current[currentTrack.audioUrl] = url;
-          
           audioRef.current.src = url;
-          audioRef.current.load();
-          setAudioLoading(false);
-          playWhenReady();
         } else {
-          // Direct path fallback
-          console.log('[AUDIO DEBUG] Using direct path:', currentTrack.audioUrl);
-          const directUrl = `/${currentTrack.audioUrl}`;
-          urlCacheRef.current[currentTrack.audioUrl] = directUrl;
-          audioRef.current.src = directUrl;
-          audioRef.current.load();
-          setAudioLoading(false);
-          playWhenReady();
+          audioRef.current.src = `/${currentTrack.audioUrl}`;
         }
-      } catch (err) {
-        console.log('[AUDIO DEBUG] Error loading, using direct fallback:', err);
-        const directUrl = `/${currentTrack.audioUrl}`;
-        urlCacheRef.current[currentTrack.audioUrl] = directUrl;
-        audioRef.current.src = directUrl;
         audioRef.current.load();
-        setAudioLoading(false);
-        playWhenReady();
+      } catch (err) {
+        console.log("Audio load error, trying direct path:", err);
+        audioRef.current.src = `/${currentTrack.audioUrl}`;
+        audioRef.current.load();
       }
     };
     
     loadAudio();
   }, [currentTrack]);
 
+  // Control playback based on isPlaying state
   useEffect(() => {
     if (!audioRef.current) return;
-    console.log('[AUDIO DEBUG] isPlaying changed to:', isPlaying);
+    
     if (isPlaying) {
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          console.log('[AUDIO DEBUG] Play/pause effect: playback started');
-        }).catch(err => {
-          console.log('[AUDIO DEBUG] Play prevented:', err);
-          // Retry after a short delay
-          setTimeout(() => {
-            if (audioRef.current && isPlaying) {
-              console.log('[AUDIO DEBUG] Retrying playback...');
-              audioRef.current.play().catch(e => console.log('[AUDIO DEBUG] Retry failed:', e));
-            }
-          }, 100);
-        });
-      }
+      audioRef.current.play().catch(err => {
+        console.log("Play error:", err);
+      });
     } else {
-      console.log('[AUDIO DEBUG] Pausing audio');
       audioRef.current.pause();
     }
   }, [isPlaying]);
 
   const handleTrackClick = (track) => {
-    console.log('[AUDIO DEBUG] Track clicked:', track.title, 'Current track:', currentTrack?.title);
     if (currentTrack?.id === track.id) {
-      console.log('[AUDIO DEBUG] Toggling same track, isPlaying:', isPlaying, '-> ', !isPlaying);
       setIsPlaying(!isPlaying);
     } else {
-      console.log('[AUDIO DEBUG] Switching to new track, setting isPlaying to true');
       setCurrentTrack(track);
       setIsPlaying(true);
     }
