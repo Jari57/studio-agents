@@ -1601,35 +1601,35 @@ const CommunityHub = ({ setSection }) => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden bg-[#0a0a0a] font-mono">
+    <div className="h-full w-full relative overflow-hidden bg-[#0a0a0a] font-mono flex flex-col">
       <BackgroundCarousel images={[]} />
       <div className="absolute inset-0 bg-black/80 z-0 pointer-events-none"></div>
       
       {/* Header - Terminal Style */}
-      <div className="relative z-10 h-16 border-b border-[#333] flex items-center justify-between px-6 bg-[#111]">
-        <div className="flex items-center gap-3">
-           <Users size={20} className="text-[#00ff41]" />
-           <h2 className="text-xl font-bold text-white tracking-widest uppercase">THE_BLOCK<span className="text-[#00ff41] animate-pulse">_FEED</span></h2>
+      <div className="relative z-10 h-12 md:h-16 border-b border-[#333] flex items-center justify-between px-3 md:px-6 bg-[#111] shrink-0">
+        <div className="flex items-center gap-2 md:gap-3">
+           <Users size={16} className="md:w-5 md:h-5 text-[#00ff41]" />
+           <h2 className="text-sm md:text-xl font-bold text-white tracking-wider md:tracking-widest uppercase">THE_BLOCK<span className="text-[#00ff41] animate-pulse">_FEED</span></h2>
         </div>
         <button 
           onClick={() => setSection('chat')}
-          className="bg-[#00ff41]/10 border border-[#00ff41] text-[#00ff41] px-4 py-1 font-bold text-xs flex items-center gap-2 hover:bg-[#00ff41] hover:text-black transition-colors"
+          className="bg-[#00ff41]/10 border border-[#00ff41] text-[#00ff41] px-2 md:px-4 py-1 font-bold text-[9px] md:text-xs flex items-center gap-1 md:gap-2 hover:bg-[#00ff41] hover:text-black transition-colors"
         >
-          <MessageSquare size={14}/> PRIVATE MSG
+          <MessageSquare size={12} className="md:w-[14px] md:h-[14px]"/><span className="hidden sm:inline">PRIVATE MSG</span><span className="sm:hidden">MSG</span>
         </button>
       </div>
 
-      <div className="relative z-10 flex-1 overflow-y-auto p-6 max-w-4xl mx-auto w-full custom-scrollbar">
-        <div className="space-y-6">
+      <div className="relative z-10 flex-1 overflow-y-auto p-3 md:p-6 max-w-4xl mx-auto w-full" style={{WebkitOverflowScrolling: 'touch'}}>
+        <div className="space-y-3 md:space-y-6">
           
           {/* Input Area - Terminal Style */}
-          <div className="border border-[#333] bg-[#050505] p-4 relative">
-             <div className="text-[#00ff41] text-xs mb-2">{'>'} INITIATE BROADCAST:</div>
+          <div className="border border-[#333] bg-[#050505] p-2 md:p-4 relative">
+             <div className="text-[#00ff41] text-[10px] md:text-xs mb-1 md:mb-2">{'>'} INITIATE BROADCAST:</div>
              <textarea 
                value={newPost}
                onChange={(e) => setNewPost(e.target.value)}
                placeholder="Write to the block..." 
-               className="w-full bg-[#111] border border-[#333] text-white text-sm p-3 outline-none resize-none h-20 font-mono focus:border-[#00ff41] transition-colors mb-2"
+               className="w-full bg-[#111] border border-[#333] text-white text-xs md:text-sm p-2 md:p-3 outline-none resize-none h-16 md:h-20 font-mono focus:border-[#00ff41] transition-colors mb-2"
              ></textarea>
              
              {showMediaInput && (
@@ -1646,13 +1646,13 @@ const CommunityHub = ({ setSection }) => {
              )}
              
              <div className="flex justify-between items-center">
-               <div className="flex gap-4 text-gray-500">
-                 <button onClick={() => setShowMediaInput(!showMediaInput)} className={`hover:text-[#00ff41] transition-colors ${showMediaInput ? 'text-[#00ff41]' : ''}`}><ImageIcon size={16}/></button>
-                 <button onClick={() => setShowMediaInput(!showMediaInput)} className="hover:text-[#00ff41] transition-colors"><Video size={16}/></button>
+               <div className="flex gap-2 md:gap-4 text-gray-500">
+                 <button onClick={() => setShowMediaInput(!showMediaInput)} className={`hover:text-[#00ff41] transition-colors ${showMediaInput ? 'text-[#00ff41]' : ''}`}><ImageIcon size={14} className="md:w-4 md:h-4"/></button>
+                 <button onClick={() => setShowMediaInput(!showMediaInput)} className="hover:text-[#00ff41] transition-colors"><Video size={14} className="md:w-4 md:h-4"/></button>
                </div>
                <button 
                  onClick={handlePost}
-                 className="bg-[#00ff41] text-black px-6 py-1 text-xs font-black hover:bg-white transition-colors uppercase"
+                 className="bg-[#00ff41] text-black px-3 md:px-6 py-1 text-[10px] md:text-xs font-black hover:bg-white transition-colors uppercase"
                >
                  TRANSMIT
                </button>
@@ -1661,25 +1661,25 @@ const CommunityHub = ({ setSection }) => {
 
           {/* Posts Feed - Terminal Style */}
           {posts.map(post => (
-            <div key={post.id} className="border border-[#333] bg-[#111] p-4 hover:border-[#00ff41]/50 transition-colors relative group">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-[#222] border border-[#333] flex items-center justify-center">
-                     <span className="text-[#00ff41] font-bold text-xs">{post.user.charAt(0)}</span>
+            <div key={post.id} className="border border-[#333] bg-[#111] p-2 md:p-4 hover:border-[#00ff41]/50 transition-colors relative group">
+              <div className="flex items-start justify-between mb-2 md:mb-3">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <div className="w-6 h-6 md:w-8 md:h-8 bg-[#222] border border-[#333] flex items-center justify-center shrink-0">
+                     <span className="text-[#00ff41] font-bold text-[10px] md:text-xs">{post.user.charAt(0)}</span>
                   </div>
-                  <div>
-                    <div className="text-white font-bold text-xs uppercase flex items-center gap-2">
-                      {post.user}
-                      <span className="text-[9px] bg-[#00ff41]/10 text-[#00ff41] px-1 border border-[#00ff41]/30">CITIZEN</span>
+                  <div className="min-w-0">
+                    <div className="text-white font-bold text-[10px] md:text-xs uppercase flex items-center gap-1 md:gap-2 flex-wrap">
+                      <span className="truncate">{post.user}</span>
+                      <span className="text-[8px] md:text-[9px] bg-[#00ff41]/10 text-[#00ff41] px-1 border border-[#00ff41]/30 shrink-0">CITIZEN</span>
                     </div>
-                    <div className="text-gray-600 text-[10px] mt-0.5 font-mono">
+                    <div className="text-gray-600 text-[9px] md:text-[10px] mt-0.5 font-mono">
                       {post.createdAt?.seconds ? new Date(post.createdAt.seconds * 1000).toLocaleString() : 'JUST NOW'}
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className="text-gray-300 text-sm font-mono leading-relaxed pl-11 mb-3">
+              <div className="text-gray-300 text-xs md:text-sm font-mono leading-relaxed pl-8 md:pl-11 mb-2 md:mb-3">
                 {post.content}
               </div>
 
@@ -2021,31 +2021,31 @@ const RapBattle = () => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-4">
+    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-2 md:p-4">
       <BackgroundCarousel images={[]} />
       <div className="absolute inset-0 bg-black/80 z-10"></div>
-      <div className="relative z-30 w-full max-w-2xl h-[70vh] bg-[#111] border border-red-700 shadow-[0_0_20px_rgba(220,38,38,0.4)] flex flex-col">
-        <div className="bg-red-700 text-white px-4 py-2 flex justify-between items-center font-bold">
-           <span className="flex items-center gap-2"><Flame size={18}/> CIPHER_DOJO.EXE</span>
-           <div className="flex gap-1"><div className="w-3 h-3 bg-black"></div></div>
+      <div className="relative z-30 w-full max-w-2xl h-[85vh] md:h-[70vh] bg-[#111] border border-red-700 shadow-[0_0_20px_rgba(220,38,38,0.4)] flex flex-col overflow-hidden">
+        <div className="bg-red-700 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm shrink-0">
+           <span className="flex items-center gap-1 md:gap-2"><Flame size={14} className="md:w-[18px] md:h-[18px]"/><span className="hidden sm:inline">CIPHER_DOJO.EXE</span><span className="sm:hidden">BATTLE</span></span>
+           <div className="flex gap-1"><div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-black"></div></div>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-black/90">
+        <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-3 md:space-y-4 bg-black/90" style={{WebkitOverflowScrolling: 'touch'}}>
            {history.map((turn, i) => (
              <div key={i} className={`flex ${turn.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[70%] p-3 border-l-4 ${turn.sender === 'user' ? 'border-red-500 bg-red-900/20 text-right' : 'border-red-500 bg-red-900/20 text-left'}`}>
-                   <div className={`text-[10px] font-bold mb-1 ${turn.sender === 'user' ? 'text-red-500' : 'text-red-500'}`}>{turn.sender === 'user' ? 'YOU' : 'RIVAL MC'}</div>
-                   <div className="text-white font-mono text-sm whitespace-pre-wrap">{turn.text}</div>
+                <div className={`max-w-[85%] md:max-w-[70%] p-2 md:p-3 border-l-4 ${turn.sender === 'user' ? 'border-red-500 bg-red-900/20 text-right' : 'border-red-500 bg-red-900/20 text-left'}`}>
+                   <div className={`text-[9px] md:text-[10px] font-bold mb-1 ${turn.sender === 'user' ? 'text-red-500' : 'text-red-500'}`}>{turn.sender === 'user' ? 'YOU' : 'RIVAL MC'}</div>
+                   <div className="text-white font-mono text-xs md:text-sm whitespace-pre-wrap">{turn.text}</div>
                 </div>
              </div>
            ))}
-           {loading && <div className="text-red-500 animate-pulse text-xs font-mono">Rival is writing a diss...</div>}
+           {loading && <div className="text-red-500 animate-pulse text-[10px] md:text-xs font-mono">Rival is writing a diss...</div>}
            <div ref={endRef}></div>
         </div>
-        <div className="p-4 bg-[#1a1a1a] border-t border-[#333] flex gap-2">
+        <div className="p-2 md:p-4 bg-[#1a1a1a] border-t border-[#333] flex gap-2 shrink-0">
            <input 
              type="text" value={input} onChange={(e) => setInput(e.target.value)} 
              placeholder="Spit your bars here..." 
-             className="flex-1 bg-black border border-[#333] text-white p-2 font-mono outline-none focus:border-red-500" 
+             className="flex-1 bg-black border border-[#333] text-white p-2 font-mono text-xs md:text-sm outline-none focus:border-red-500" 
              onKeyPress={(e) => e.key === 'Enter' && handleBattle()} 
            />
            <button onClick={handleBattle} disabled={loading} className="bg-red-600 text-white px-6 py-2 font-bold font-mono hover:bg-red-500 transition-colors uppercase disabled:opacity-50">SPIT</button>
@@ -2272,52 +2272,56 @@ const AlbumArtGenerator = () => {
     };
 
     return (
-        <div className="h-full w-full relative overflow-hidden flex flex-col items-center justify-center p-4">
+        <div className="h-full w-full relative overflow-hidden flex flex-col items-center justify-center p-2 md:p-4">
             <BackgroundCarousel images={[]} />
             <div className="absolute inset-0 bg-black/80 z-10"></div>
-            <div className="relative z-20 w-full max-w-4xl h-[85vh] bg-[#1a1a1a] border border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] flex flex-col">
-                <div className="bg-pink-600 text-white px-4 py-2 flex justify-between items-center font-bold">
-                    <span className="flex items-center gap-2"><Camera size={18}/> ALBUM_ART_GENERATOR.EXE</span>
+            <div className="relative z-20 w-full max-w-4xl h-[90vh] md:h-[85vh] bg-[#1a1a1a] border border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] flex flex-col overflow-hidden">
+                <div className="bg-pink-600 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold shrink-0">
+                    <span className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
+                      <Camera size={14} className="md:w-[18px] md:h-[18px]"/> 
+                      <span className="hidden sm:inline">ALBUM_ART_GENERATOR.EXE</span>
+                      <span className="sm:hidden">ALBUM_ART_GEN</span>
+                    </span>
                 </div>
                 
-                <div className="p-6 bg-[#111] border-b border-[#333]">
-                    <h2 className="text-white font-black text-xl mb-2">GENERATE COVER ART</h2>
-                    <div className="flex gap-2">
+                <div className="p-3 md:p-6 bg-[#111] border-b border-[#333] shrink-0">
+                    <h2 className="text-white font-black text-sm md:text-xl mb-2">GENERATE COVER ART</h2>
+                    <div className="flex flex-col sm:flex-row gap-2">
                         <input 
                             type="text" 
                             value={prompt} 
                             onChange={(e) => setPrompt(e.target.value)} 
                             placeholder="Describe your album cover..." 
-                            className="flex-1 bg-black border border-[#333] text-white p-3 font-mono outline-none focus:border-pink-500" 
+                            className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:border-pink-500" 
                             onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
                         />
                         <button 
                             onClick={handleGenerate} 
                             disabled={loading} 
-                            className="bg-pink-600 text-white px-6 font-bold hover:bg-pink-500 uppercase disabled:opacity-50"
+                            className="bg-pink-600 text-white px-4 md:px-6 py-2 md:py-3 text-xs md:text-sm font-bold hover:bg-pink-500 uppercase disabled:opacity-50 active:scale-95 transition-transform"
                         >
                             {loading ? "PROCESSING..." : "GENERATE"}
                         </button>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 bg-[#0a0a0a] flex items-center justify-center">
+                <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-[#0a0a0a] flex items-center justify-center" style={{WebkitOverflowScrolling: 'touch'}}>
                     {loading && (
-                        <div className="text-pink-500 animate-pulse text-xl font-mono flex flex-col items-center">
-                            <RefreshCw size={32} className="mb-4 animate-spin"/>
-                            SCANNING THE GRID FOR IMAGES...
+                        <div className="text-pink-500 animate-pulse text-sm md:text-xl font-mono flex flex-col items-center">
+                            <RefreshCw size={24} className="md:w-8 md:h-8 mb-4 animate-spin"/>
+                            <span className="text-xs md:text-base">SCANNING THE GRID FOR IMAGES...</span>
                         </div>
                     )}
                     {imageUrl && !loading && (
-                        <div className="w-96 h-96 border-4 border-white shadow-[0_0_20px_rgba(236,72,153,0.5)] relative">
+                        <div className="w-full max-w-[280px] sm:max-w-xs md:max-w-md aspect-square border-2 md:border-4 border-white shadow-[0_0_20px_rgba(236,72,153,0.5)] relative">
                             <img src={imageUrl} alt="Generated Album Art" className="w-full h-full object-cover"/>
-                            <div className="absolute top-2 left-2 bg-black/70 text-white text-[10px] font-mono px-2 py-1">RESULT: {prompt.substring(0, 30)}...</div>
-                            <button onClick={() => window.open(imageUrl, '_blank')} className="absolute bottom-2 right-2 bg-[#00ff41] text-black text-xs font-bold px-3 py-1 hover:bg-white transition-colors">SAVE IMAGE</button>
+                            <div className="absolute top-1 md:top-2 left-1 md:left-2 bg-black/70 text-white text-[9px] md:text-[10px] font-mono px-1 md:px-2 py-0.5 md:py-1">RESULT: {prompt.substring(0, 20)}...</div>
+                            <button onClick={() => window.open(imageUrl, '_blank')} className="absolute bottom-1 md:bottom-2 right-1 md:right-2 bg-[#00ff41] text-black text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 hover:bg-white transition-colors active:scale-95">SAVE IMAGE</button>
                         </div>
                     )}
                     {!imageUrl && !loading && (
-                        <div className="text-gray-600 text-center font-mono text-sm">
-                            <Camera size={48} className="mx-auto mb-4 text-gray-700"/>
+                        <div className="text-gray-600 text-center font-mono text-xs md:text-sm">
+                            <Camera size={32} className="md:w-12 md:h-12 mx-auto mb-4 text-gray-700"/>
                             AWAITING ART GENERATION REQUEST.
                         </div>
                     )}
@@ -2388,78 +2392,85 @@ const ViralVideoAgent = () => {
 
 
     return (
-        <div className="h-full w-full relative overflow-hidden flex flex-col items-center justify-center p-4">
+        <div className="h-full w-full relative overflow-hidden flex flex-col items-center justify-center p-2 md:p-4">
             <BackgroundCarousel images={[]} />
             <div className="absolute inset-0 bg-black/80 z-10"></div>
-            <div className="relative z-20 w-full max-w-5xl h-[85vh] bg-[#1a1a1a] border border-cyan-500 shadow-[0_0_30px_rgba(0,255,255,0.4)] flex flex-col">
-                <div className="bg-cyan-700 text-white px-4 py-2 flex justify-between items-center font-bold">
-                    <span className="flex items-center gap-2"><TrendingUp size={18}/> VIRAL_VIDEO_AGENT.EXE</span>
+            <div className="relative z-20 w-full max-w-5xl h-[90vh] md:h-[85vh] bg-[#1a1a1a] border border-cyan-500 shadow-[0_0_30px_rgba(0,255,255,0.4)] flex flex-col overflow-hidden">
+                <div className="bg-cyan-700 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold shrink-0">
+                    <span className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
+                      <TrendingUp size={14} className="md:w-[18px] md:h-[18px]"/> 
+                      <span className="hidden sm:inline">VIRAL_VIDEO_AGENT.EXE</span>
+                      <span className="sm:hidden">VIRAL_VID_AGENT</span>
+                    </span>
                 </div>
                 
-                <div className="p-6 bg-[#111] border-b border-[#333]">
-                    <h2 className="text-white font-black text-xl mb-2">GENERATE VIRAL CONCEPTS</h2>
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2 text-xs font-mono text-gray-400">
+                <div className="p-3 md:p-6 bg-[#111] border-b border-[#333] shrink-0">
+                    <h2 className="text-white font-black text-sm md:text-xl mb-2 md:mb-3">GENERATE VIRAL CONCEPTS</h2>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-2">
+                        <div className="flex items-center gap-2 text-[10px] md:text-xs font-mono text-gray-400">
                              MODE: 
-                             <button onClick={() => setIsWhipMode(!isWhipMode)} className="flex items-center gap-1 border border-cyan-800 px-2 py-0.5 bg-black hover:border-cyan-500 transition-colors">
-                                {isWhipMode ? <ToggleRight size={16} className="text-cyan-500"/> : <ToggleLeft size={16} className="text-gray-500"/>}
-                                {isWhipMode ? "WHIP MONTEZ SPECIFIC" : "GENERAL TRENDS"}
+                             <button onClick={() => setIsWhipMode(!isWhipMode)} className="flex items-center gap-1 border border-cyan-800 px-1.5 md:px-2 py-0.5 bg-black hover:border-cyan-500 transition-colors active:scale-95">
+                                {isWhipMode ? <ToggleRight size={14} className="md:w-4 md:h-4 text-cyan-500"/> : <ToggleLeft size={14} className="md:w-4 md:h-4 text-gray-500"/>}
+                                <span className="hidden sm:inline">{isWhipMode ? "WHIP MONTEZ SPECIFIC" : "GENERAL TRENDS"}</span>
+                                <span className="sm:hidden">{isWhipMode ? "WHIP" : "GENERAL"}</span>
                              </button>
                         </div>
-                        <button onClick={() => setConcepts([])} className="text-xs text-gray-500 hover:text-red-500 flex items-center gap-1">
-                            <Trash2 size={12}/> CLEAR RESULTS
+                        <button onClick={() => setConcepts([])} className="text-[10px] md:text-xs text-gray-500 hover:text-red-500 flex items-center gap-1 active:scale-95">
+                            <Trash2 size={10} className="md:w-3 md:h-3"/> CLEAR RESULTS
                         </button>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                         <input 
                             type="text" 
                             value={trackIdea} 
                             onChange={(e) => setTrackIdea(e.target.value)} 
                             placeholder={isWhipMode ? "Enter key elements of your new Whip Montez track..." : "Enter track mood or title for general concepts..."} 
-                            className="flex-1 bg-black border border-cyan-800 text-white p-3 font-mono outline-none focus:border-cyan-500" 
+                            className="flex-1 bg-black border border-cyan-800 text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:border-cyan-500" 
                             onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
                         />
                         <button 
                             onClick={handleGenerate} 
                             disabled={loading} 
-                            className="bg-cyan-600 text-black px-6 font-bold hover:bg-cyan-500 uppercase disabled:opacity-50"
+                            className="bg-cyan-600 text-black px-4 md:px-6 py-2 md:py-3 text-xs md:text-sm font-bold hover:bg-cyan-500 uppercase disabled:opacity-50 active:scale-95 shrink-0"
                         >
                             {loading ? "ANALYZING..." : "GENERATE CONCEPTS"}
                         </button>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 bg-[#0a0a0a] space-y-6">
+                <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-[#0a0a0a] space-y-4 md:space-y-6" style={{WebkitOverflowScrolling: 'touch'}}>
                     {loading && (
-                        <div className="text-cyan-400 animate-pulse text-xl font-mono flex flex-col items-center py-10">
-                            <RefreshCw size={32} className="mb-4 animate-spin"/>
-                            SCANNING VIRAL TRENDS...
+                        <div className="text-cyan-400 animate-pulse text-sm md:text-xl font-mono flex flex-col items-center py-10">
+                            <RefreshCw size={24} className="md:w-8 md:h-8 mb-4 animate-spin"/>
+                            <span className="text-xs md:text-base">SCANNING VIRAL TRENDS...</span>
                         </div>
                     )}
                     {concepts.length > 0 && !loading && (
-                        <div className="space-y-6">
-                            <h3 className="text-cyan-400 font-bold text-lg border-b border-cyan-800 pb-2">RECOMMENDED VIRAL CONCEPTS ({concepts.length})</h3>
+                        <div className="space-y-4 md:space-y-6">
+                            <h3 className="text-cyan-400 font-bold text-sm md:text-lg border-b border-cyan-800 pb-2">RECOMMENDED VIRAL CONCEPTS ({concepts.length})</h3>
                             
                             {/* Upload Buttons */}
-                            <div className="flex gap-4">
-                                <span className="text-xs font-mono text-gray-500 pt-3">DISTRIBUTE CONCEPT TO:</span>
-                                <button onClick={() => handleUpload("TikTok")} className="bg-white text-black font-bold text-xs px-3 py-1.5 hover:bg-gray-200">TIKTOK</button>
-                                <button onClick={() => handleUpload("Instagram")} className="bg-white text-black font-bold text-xs px-3 py-1.5 hover:bg-gray-200">INSTAGRAM REELS</button>
-                                <button onClick={() => handleUpload("Facebook")} className="bg-white text-black font-bold text-xs px-3 py-1.5 hover:bg-gray-200">FACEBOOK SHORTS</button>
+                            <div className="flex flex-col sm:flex-row gap-2 md:gap-4">
+                                <span className="text-[10px] md:text-xs font-mono text-gray-500 sm:pt-3">DISTRIBUTE CONCEPT TO:</span>
+                                <div className="flex gap-2 flex-wrap">
+                                  <button onClick={() => handleUpload("TikTok")} className="bg-white text-black font-bold text-[10px] md:text-xs px-2 md:px-3 py-1 md:py-1.5 hover:bg-gray-200 active:scale-95">TIKTOK</button>
+                                  <button onClick={() => handleUpload("Instagram")} className="bg-white text-black font-bold text-[10px] md:text-xs px-2 md:px-3 py-1 md:py-1.5 hover:bg-gray-200 active:scale-95">INSTAGRAM REELS</button>
+                                  <button onClick={() => handleUpload("Facebook")} className="bg-white text-black font-bold text-[10px] md:text-xs px-2 md:px-3 py-1 md:py-1.5 hover:bg-gray-200 active:scale-95">FACEBOOK SHORTS</button>
+                                </div>
                             </div>
                             
                             {concepts.map((concept, index) => (
-                                <div key={index} className="bg-[#111] border border-cyan-900 p-4 shadow-md">
-                                    <div className="flex justify-between items-center mb-3">
-                                        <h4 className="text-white font-black text-xl flex items-center gap-2">
-                                            {concept.concept}
-                                            <span className="text-xs text-black bg-cyan-400 font-bold px-2 py-0.5">{concept.trend}</span>
+                                <div key={index} className="bg-[#111] border border-cyan-900 p-3 md:p-4 shadow-md">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 md:mb-3 gap-2">
+                                        <h4 className="text-white font-black text-sm md:text-xl flex items-center gap-2 flex-wrap">
+                                            <span className="break-words">{concept.concept}</span>
+                                            <span className="text-[10px] md:text-xs text-black bg-cyan-400 font-bold px-1.5 md:px-2 py-0.5 shrink-0">{concept.trend}</span>
                                         </h4>
                                     </div>
-                                    <p className="text-gray-400 text-sm italic mb-3">{concept.visual}</p>
-                                    <div className="mt-3">
-                                        <h5 className="text-cyan-500 text-xs font-bold uppercase mb-1">KEY SHOTS:</h5>
-                                        <ul className="text-gray-500 text-xs space-y-0.5 list-disc list-inside">
+                                    <p className="text-gray-400 text-xs md:text-sm italic mb-2 md:mb-3">{concept.visual}</p>
+                                    <div className="mt-2 md:mt-3">
+                                        <h5 className="text-cyan-500 text-[10px] md:text-xs font-bold uppercase mb-1">KEY SHOTS:</h5>
+                                        <ul className="text-gray-500 text-[10px] md:text-xs space-y-0.5 list-disc list-inside">
                                             {concept.shots.map((shot, i) => <li key={i}>{shot}</li>)}
                                         </ul>
                                     </div>
@@ -2468,8 +2479,8 @@ const ViralVideoAgent = () => {
                         </div>
                     )}
                     {!concepts.length && !loading && (
-                        <div className="text-gray-600 text-center font-mono text-sm py-10">
-                            <TrendingUp size={48} className="mx-auto mb-4 text-gray-700"/>
+                        <div className="text-gray-600 text-center font-mono text-xs md:text-sm py-10">
+                            <TrendingUp size={32} className="md:w-12 md:h-12 mx-auto mb-4 text-gray-700"/>
                             AGENT READY. ENTER A TRACK IDEA ABOVE.
                         </div>
                     )}
