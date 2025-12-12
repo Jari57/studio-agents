@@ -816,6 +816,9 @@ const MusicPlayer = () => {
           audioRef.current.src = urlCacheRef.current[currentTrack.audioUrl];
           audioRef.current.load(); // Force preload
           setAudioLoading(false);
+          if (isPlaying) {
+            audioRef.current.play().catch(e => console.log('Playback failed:', e));
+          }
           return;
         }
         
@@ -830,6 +833,10 @@ const MusicPlayer = () => {
           audioRef.current.src = url;
           audioRef.current.load(); // Force preload
           setAudioLoading(false);
+
+          if (isPlaying) {
+            audioRef.current.play().catch(e => console.log('Playback failed:', e));
+          }
         } else {
           // Direct path fallback
           const directUrl = `/${currentTrack.audioUrl}`;
@@ -837,6 +844,10 @@ const MusicPlayer = () => {
           audioRef.current.src = directUrl;
           audioRef.current.load();
           setAudioLoading(false);
+
+          if (isPlaying) {
+            audioRef.current.play().catch(e => console.log('Playback failed:', e));
+          }
         }
       } catch (err) {
         console.log("Trying direct audio path:", currentTrack.audioUrl);
@@ -846,6 +857,10 @@ const MusicPlayer = () => {
         audioRef.current.src = directUrl;
         audioRef.current.load();
         setAudioLoading(false);
+
+        if (isPlaying) {
+          audioRef.current.play().catch(e => console.log('Playback failed:', e));
+        }
       }
     };
     
