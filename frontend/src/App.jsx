@@ -816,48 +816,53 @@ const Bio = ({ setSection }) => {
              ) : (
                // MEMORY LANE GALLERY
                <div className="max-w-5xl mx-auto">
-                 <div className="mb-6 text-center">
-                   <h2 className="text-2xl md:text-3xl font-black text-[#00ff41] mb-2">MEMORY LANE</h2>
-                   <p className="text-gray-400 text-sm font-mono">Studio sessions, shows, and behind-the-scenes moments from the Livewire era</p>
+                 <div className="mb-6 md:mb-8 text-center border-b border-[#333] pb-4">
+                   <h2 className="text-2xl md:text-3xl font-black text-[#00ff41] mb-2 uppercase">MEMORY LANE</h2>
+                   <p className="text-gray-300 text-sm md:text-base font-mono">Studio sessions, shows, and behind-the-scenes moments from the Livewire era</p>
                  </div>
 
                  {/* Admin Upload (only show if authenticated) */}
                  {user && !user.isAnonymous && (
-                   <div className="bg-[#1a1a1a] border-2 border-[#333] p-4 mb-6">
-                     <h3 className="text-[#00ff41] font-bold mb-2 flex items-center gap-2">
-                       <Upload size={16} />
+                   <div className="bg-[#1a1a1a] border-2 border-[#00ff41] p-4 md:p-6 mb-6 md:mb-8">
+                     <h3 className="text-[#00ff41] font-bold text-base md:text-lg mb-3 flex items-center gap-2 uppercase">
+                       <Upload size={18} />
                        ADMIN: Upload Photo
                      </h3>
-                     <div className="flex gap-2">
+                     <div className="flex flex-col md:flex-row gap-2 md:gap-3">
                        <input
                          type="file"
                          accept="image/*"
                          onChange={(e) => setUploadFile(e.target.files[0])}
-                         className="flex-1 bg-[#0a0a0a] border border-[#333] text-gray-300 px-3 py-2 text-sm"
+                         className="flex-1 bg-[#0a0a0a] border border-[#00ff41] text-white px-3 py-2 text-sm font-mono"
                        />
                        <button
                          onClick={handleUpload}
                          disabled={!uploadFile || uploading}
-                         className="bg-[#00ff41] text-black px-4 py-2 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#00cc33] transition-colors"
+                         className="bg-[#00ff41] text-black px-6 py-2 font-bold text-sm uppercase disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#00cc33] transition-colors"
                        >
                          {uploading ? 'UPLOADING...' : 'UPLOAD'}
                        </button>
                      </div>
+                     {uploadFile && (
+                       <div className="mt-2 text-xs text-gray-300 font-mono">
+                         Selected: {uploadFile.name}
+                       </div>
+                     )}
                    </div>
                  )}
 
                  {/* Photo Grid */}
-                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 mb-8">
                    {photos.length > 0 ? (
                      photos.map((photo) => (
-                       <div key={photo.id} className="aspect-square bg-[#1a1a1a] border-2 border-[#333] relative overflow-hidden group hover:border-[#00ff41] transition-all">
+                       <div key={photo.id} className="aspect-square bg-[#1a1a1a] border-2 border-[#333] relative overflow-hidden group hover:border-[#00ff41] transition-all cursor-pointer">
                          <img 
                            src={photo.url} 
                            alt="Memory" 
                            className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300"
                          />
-                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                           <div className="text-[#00ff41] text-[10px] font-mono">
+                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                           <div className="text-[#00ff41] text-xs font-mono font-bold uppercase">
                              {photo.caption || 'RED HOOK ARCHIVES'}
                            </div>
                          </div>
@@ -867,19 +872,29 @@ const Bio = ({ setSection }) => {
                      // Placeholder grid
                      [...Array(12)].map((_, i) => (
                        <div key={i} className="aspect-square bg-[#1a1a1a] border-2 border-[#333] relative overflow-hidden group hover:border-[#00ff41] transition-all">
-                         <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600">
-                           <Camera size={32} className="mb-2 opacity-20" />
-                           <div className="text-[10px] font-mono">PHOTO {i + 1}</div>
-                           <div className="text-[8px] font-mono opacity-50">Coming Soon</div>
+                         <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+                           <Camera size={40} className="mb-2 opacity-30" />
+                           <div className="text-xs font-mono font-bold">PHOTO {i + 1}</div>
+                           <div className="text-[10px] font-mono opacity-70 mt-1">Coming Soon</div>
                          </div>
                        </div>
                      ))
                    )}
                  </div>
 
-                 <p className="mt-6 text-xs text-gray-500 italic text-center border-t border-[#333] pt-4">
-                   Archive in progress. More photos being digitized from analog sources. Check back soon.
-                 </p>
+                 {/* Footer Info */}
+                 {photos.length === 0 && (
+                   <div className="text-center border-t border-[#333] pt-6">
+                     <p className="text-gray-300 text-sm font-mono mb-2">
+                       📸 No photos uploaded yet
+                     </p>
+                     <p className="text-gray-500 text-xs font-mono">
+                       {user && !user.isAnonymous 
+                         ? 'Use the upload panel above to add memories from the Livewire era' 
+                         : 'Check back soon for exclusive behind-the-scenes content'}
+                     </p>
+                   </div>
+                 )}
                </div>
              )}
            </div>
