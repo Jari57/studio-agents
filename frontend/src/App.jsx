@@ -807,35 +807,47 @@ const MusicPlayer = () => {
   useEffect(() => {
     if (!audioRef.current || !currentTrack) return;
     
+    const audio = audioRef.current;
+    const shouldAutoPlay = isPlaying;
+    
     const loadAudio = async () => {
       try {
+        // Get the URL
+        let url;
         if (storage && currentTrack.audioUrl) {
           const storageRef = ref(storage, currentTrack.audioUrl);
-          const url = await getDownloadURL(storageRef);
-          audioRef.current.src = url;
+          url = await getDownloadURL(storageRef);
         } else {
-          audioRef.current.src = `/${currentTrack.audioUrl}`;
+          url = `/${currentTrack.audioUrl}`;
         }
-        audioRef.current.load();
         
-        // If we should be playing, play after load
-        if (isPlaying) {
-          audioRef.current.play().catch(err => console.log("Play error:", err));
+        // Set source and load
+        audio.src = url;
+        audio.load();
+        
+        // If should auto-play, wait for canplay event
+        if (shouldAutoPlay) {
+          const onCanPlay = () => {
+            audio.play().catch(err => console.log("Play error:", err));
+          };
+          audio.addEventListener('canplay', onCanPlay, { once: true });
         }
       } catch (err) {
         console.log("Audio load error, trying direct path:", err);
-        audioRef.current.src = `/${currentTrack.audioUrl}`;
-        audioRef.current.load();
+        audio.src = `/${currentTrack.audioUrl}`;
+        audio.load();
         
-        // If we should be playing, play after load
-        if (isPlaying) {
-          audioRef.current.play().catch(err => console.log("Play error:", err));
+        if (shouldAutoPlay) {
+          const onCanPlay = () => {
+            audio.play().catch(err => console.log("Play error:", err));
+          };
+          audio.addEventListener('canplay', onCanPlay, { once: true });
         }
       }
     };
     
     loadAudio();
-  }, [currentTrack, isPlaying]);
+  }, [currentTrack]);
 
   // Control playback ONLY when isPlaying changes (not when track changes)
   useEffect(() => {
