@@ -94,33 +94,35 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
   // 2. REAL API CALL (If key exists)
   const delays = [1000, 2000, 4000, 8000, 16000];
   
-  // Custom API call for Image Generation
+  // Image generation also routes through backend proxy (was previously direct to Gemini)
   if (prompt.includes("Album Cover")) {
-     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
-     const payload = { instances: { prompt: prompt + ", 1990s hip hop album cover, gritty neon, high contrast, vinyl texture" }, parameters: { "sampleCount": 1 } };
-     
-     for (let i = 0; i <= delays.length; i++) {
-        try {
-          const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-          if (!response.ok) {
-             if (response.status === 403) throw new Error("INVALID_KEY");
-             if ((response.status === 429 || response.status >= 500) && i < delays.length) {
-                await new Promise(resolve => setTimeout(resolve, delays[i]));
-                continue;
-             }
-             throw new Error(`HTTP error! status: ${response.status}`);
+    // Route through backend instead of direct API call
+    for (let i = 0; i <= delays.length; i++) {
+      try {
+        const response = await fetch(BACKEND_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, systemInstruction: "Generate an album cover image description" })
+        });
+
+        if (!response.ok) {
+          if ((response.status === 429 || response.status >= 500) && i < delays.length) {
+            await new Promise(resolve => setTimeout(resolve, delays[i]));
+            continue;
           }
-          const data = await response.json();
-          return JSON.stringify(data);
-        } catch (error) {
-             console.error("Image API call failed:", error);
-             if (i === delays.length || error.message === "INVALID_KEY") {
-                // If API fails, fall back to returning mock data structure
-                return getMockResponse();
-             }
-             await new Promise(resolve => setTimeout(resolve, delays[i]));
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-     }
+
+        const data = await response.json();
+        return JSON.stringify(data);
+      } catch (error) {
+        console.error("Album art backend call failed:", error);
+        if (i === delays.length) {
+          return getMockResponse();
+        }
+        await new Promise(resolve => setTimeout(resolve, delays[i]));
+      }
+    }
   }
 
 
