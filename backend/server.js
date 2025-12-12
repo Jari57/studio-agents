@@ -108,7 +108,17 @@ app.post('/api/generate', async (req, res) => {
 
   } catch (error) {
     const msg = error && error.message ? error.message : String(error);
+    const statusCode = error?.response?.status || error?.status || (msg.includes('429') ? 429 : 500);
     console.error('Generation Error:', msg);
+
+    // Handle quota / rate limit explicitly so the frontend can show a clear message
+    if (statusCode === 429) {
+      return res.status(429).json({
+        error: 'Rate limited or quota exceeded',
+        details: 'Gemini returned 429. Check billing/quotas for the GEMINI_API_KEY or switch to a lower-cost model (e.g., gemini-1.5-flash).'
+      });
+    }
+
     const suggestion = msg.toLowerCase().includes('not found') || msg.includes('404')
       ? 'Model not found for this API/version. Restart the server to see `listModels()` output, or set a supported model in backend/server.js or via env var `GENERATIVE_MODEL`.'
       : null;

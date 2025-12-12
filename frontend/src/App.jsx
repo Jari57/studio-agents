@@ -2012,28 +2012,28 @@ const CrateDigger = () => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-4">
+    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-2 md:p-4">
       <BackgroundCarousel images={[]} />
       <div className="absolute inset-0 bg-black/80 z-10"></div>
-      <div className="relative z-30 w-full max-w-3xl h-[80vh] bg-[#111] border border-yellow-600 shadow-[0_0_20px_rgba(250,204,21,0.4)] flex flex-col">
-        <div className="bg-yellow-600 text-black px-4 py-2 flex justify-between items-center font-bold">
-           <span className="flex items-center gap-2"><Disc size={18}/> CRATE_DIGGER_PRO.EXE</span>
+      <div className="relative z-30 w-full max-w-3xl h-[85vh] md:h-[80vh] bg-[#111] border border-yellow-600 shadow-[0_0_20px_rgba(250,204,21,0.4)] flex flex-col">
+        <div className="bg-yellow-600 text-black px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm">
+           <span className="flex items-center gap-2"><Disc size={16} className="md:w-[18px] md:h-[18px]"/> <span className="hidden sm:inline">CRATE_DIGGER_PRO.EXE</span><span className="sm:hidden">CRATE DIGGER</span></span>
            <div className="flex gap-1"><div className="w-3 h-3 bg-black"></div></div>
         </div>
-        <div className="p-6 bg-[#1a1a1a] border-b border-[#333]">
-           <h2 className="text-white font-black text-2xl mb-2">FIND THE PERFECT SAMPLE</h2>
-           <div className="flex gap-2">
-             <input type="text" value={mood} onChange={(e) => setMood(e.target.value)} placeholder="Enter a vibe..." className="flex-1 bg-black border border-[#333] text-white p-3 font-mono outline-none focus:border-yellow-600" onKeyPress={(e) => e.key === 'Enter' && handleDig()} />
-             <button onClick={handleDig} disabled={loading} className="bg-yellow-600 text-black px-6 font-bold hover:bg-yellow-500">DIG</button>
+        <div className="p-3 md:p-6 bg-[#1a1a1a] border-b border-[#333]">
+           <h2 className="text-white font-black text-lg md:text-2xl mb-2">FIND THE PERFECT SAMPLE</h2>
+           <div className="flex flex-col sm:flex-row gap-2">
+             <input type="text" value={mood} onChange={(e) => setMood(e.target.value)} placeholder="Enter a vibe..." className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 font-mono text-sm md:text-base outline-none focus:border-yellow-600" onKeyPress={(e) => e.key === 'Enter' && handleDig()} />
+             <button onClick={handleDig} disabled={loading} className="bg-yellow-600 text-black px-6 py-2 md:py-3 font-bold hover:bg-yellow-500 text-sm md:text-base whitespace-nowrap">DIG</button>
            </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-6 bg-[#0a0a0a]">
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-[#0a0a0a]">
            {samples.map((sample, i) => (
-             <div key={i} className="flex gap-4 p-4 border border-[#333] bg-[#111] mb-2 hover:border-yellow-600">
+             <div key={i} className="flex gap-3 md:gap-4 p-3 md:p-4 border border-[#333] bg-[#111] mb-2 hover:border-yellow-600">
                 <div className="flex-1">
-                   <div className="text-yellow-600 text-xs font-bold mb-1">{sample.year} // {sample.artist}</div>
-                   <div className="text-white font-black text-xl">{sample.track}</div>
-                   <div className="text-gray-400 text-sm mt-1">{sample.desc}</div>
+                   <div className="text-yellow-600 text-[10px] md:text-xs font-bold mb-1">{sample.year} // {sample.artist}</div>
+                   <div className="text-white font-black text-base md:text-xl">{sample.track}</div>
+                   <div className="text-gray-400 text-xs md:text-sm mt-1">{sample.desc}</div>
                 </div>
              </div>
            ))}
@@ -2086,34 +2086,43 @@ const ARSuite = () => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden flex flex-col items-center justify-center p-4">
+    <div className="h-full w-full relative overflow-hidden flex flex-col items-center justify-center p-2 md:p-4">
       <BackgroundCarousel images={[]} />
       <div className="absolute inset-0 bg-black/80 z-10"></div>
       <div className="relative z-30 w-full max-w-4xl h-[85vh] bg-[#1a1a1a] border border-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)] flex flex-col">
-        <div className="bg-blue-600 text-white px-4 py-2 flex justify-between items-center font-bold">
-          <span className="flex items-center gap-2"><Briefcase size={18}/> A&R_DASHBOARD.EXE</span>
+        <div className="bg-blue-600 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm">
+          <span className="flex items-center gap-2"><Briefcase size={16} className="md:w-[18px] md:h-[18px]"/> <span className="hidden sm:inline">A&R_DASHBOARD.EXE</span><span className="sm:hidden">A&R</span></span>
         </div>
-        <div className="flex-1 flex overflow-hidden">
-          <div className="w-1/2 p-6 border-r border-[#333] flex flex-col">
-             <textarea className="flex-1 bg-black border border-[#333] text-white p-4 font-mono text-sm resize-none focus:border-blue-500 outline-none mb-4" placeholder="Paste lyrics..." value={demoText} onChange={(e) => setDemoText(e.target.value)} />
-             <button onClick={handleReview} disabled={loading} className="bg-blue-600 text-white py-3 font-bold hover:bg-blue-500 uppercase disabled:opacity-50">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+          <div className="w-full md:w-1/2 p-3 md:p-6 border-b md:border-r md:border-b-0 border-[#333] flex flex-col">
+             <textarea className="flex-1 bg-black border border-[#333] text-white p-3 md:p-4 font-mono text-xs md:text-sm resize-none focus:border-blue-500 outline-none mb-3 md:mb-4" placeholder="Paste lyrics..." value={demoText} onChange={(e) => setDemoText(e.target.value)} />
+             <button onClick={handleReview} disabled={loading} className="bg-blue-600 text-white py-2 md:py-3 font-bold hover:bg-blue-500 uppercase disabled:opacity-50 text-xs md:text-sm">
                 {loading ? "ANALYZING RHYMES..." : "SUBMIT FOR REVIEW"}
              </button>
           </div>
-          <div className="w-1/2 p-6 bg-[#111] overflow-y-auto">
+          <div className="w-full md:w-1/2 p-3 md:p-6 bg-[#111] overflow-y-auto">
              {loading && (
-                 <div className="text-blue-500 animate-pulse text-xl font-mono flex flex-col items-center py-10">
-                     <RefreshCw size={32} className="mb-4 animate-spin"/>
+                 <div className="text-blue-500 animate-pulse text-base md:text-xl font-mono flex flex-col items-center py-10">
+                     <RefreshCw size={24} className="md:w-8 md:h-8 mb-4 animate-spin"/>
                      A&R IS PROCESSING...
                  </div>
              )}
              {feedback && (
-               <div className="space-y-6">
-                 <div className="flex gap-4 text-center">
-                   <div className="flex-1 bg-black border border-blue-600 p-4"><div className="text-xs text-gray-500">RADIO</div><div className="text-3xl font-black text-white">{feedback.commercial}/10</div></div>
-                   <div className="flex-1 bg-black border border-red-600 p-4"><div className="text-xs text-gray-500">STREETS</div><div className="text-3xl font-black text-white">{feedback.street}/10</div></div>
+               <div className="space-y-4 md:space-y-6">
+                 <div className="flex gap-3 md:gap-4 text-center">
+                   <div className="flex-1 bg-black border border-blue-600 p-3 md:p-4"><div className="text-[10px] md:text-xs text-gray-500">RADIO</div><div className="text-2xl md:text-3xl font-black text-white">{feedback.commercial}/10</div></div>
+                   <div className="flex-1 bg-black border border-red-600 p-3 md:p-4"><div className="text-[10px] md:text-xs text-gray-500">STREETS</div><div className="text-2xl md:text-3xl font-black text-white">{feedback.street}/10</div></div>
                  </div>
-                 <div className="bg-black/50 p-4 border-l-4 border-blue-600 text-sm text-gray-300">{feedback.critique}</div>
+                 <div className="bg-black/50 p-3 md:p-4 border-l-4 border-blue-600 text-xs md:text-sm text-gray-300">{feedback.critique}</div>
+               </div>
+             )}
+             {feedback && (
+               <div className="space-y-4 md:space-y-6">
+                 <div className="flex gap-3 md:gap-4 text-center">
+                   <div className="flex-1 bg-black border border-blue-600 p-3 md:p-4"><div className="text-[10px] md:text-xs text-gray-500">RADIO</div><div className="text-2xl md:text-3xl font-black text-white">{feedback.commercial}/10</div></div>
+                   <div className="flex-1 bg-black border border-red-600 p-3 md:p-4"><div className="text-[10px] md:text-xs text-gray-500">STREETS</div><div className="text-2xl md:text-3xl font-black text-white">{feedback.street}/10</div></div>
+                 </div>
+                 <div className="bg-black/50 p-3 md:p-4 border-l-4 border-blue-600 text-xs md:text-sm text-gray-300">{feedback.critique}</div>
                </div>
              )}
           </div>
