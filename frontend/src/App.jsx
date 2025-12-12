@@ -472,69 +472,69 @@ const Home = ({ setSection }) => {
 // 4. BIO SECTION
 const Bio = ({ setSection }) => {
   return (
-    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-4">
+    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-2 md:p-4">
       <BackgroundCarousel images={[]} />
       <div className="absolute inset-0 bg-black/60 z-10"></div>
       
       {/* Main Profile Container - 2004 Flash Site Style */}
-      <div className="relative z-30 w-full max-w-5xl h-[85vh] bg-[#0f0f0f] border-2 border-[#333] flex flex-col md:flex-row shadow-2xl">
+      <div className="relative z-30 w-full max-w-5xl h-[90vh] md:h-[85vh] bg-[#0f0f0f] border-2 border-[#333] flex flex-col md:flex-row shadow-2xl overflow-hidden">
         
         {/* Left Sidebar: ID Card / Navigation */}
-        <div className="w-full md:w-80 bg-[#111] border-r border-[#333] p-6 flex flex-col gap-6">
-           <div className="aspect-square w-full bg-[#222] border-4 border-[#333] relative overflow-hidden group">
+        <div className="w-full md:w-80 bg-[#111] border-b md:border-r md:border-b-0 border-[#333] p-3 md:p-6 flex flex-row md:flex-col gap-3 md:gap-6 overflow-x-auto md:overflow-x-visible shrink-0">
+           <div className="w-32 h-32 md:w-full md:aspect-square bg-[#222] border-4 border-[#333] relative overflow-hidden group shrink-0">
              <img 
                src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=800&q=80" 
                className="w-full h-full object-cover grayscale contrast-125 group-hover:scale-110 transition-transform duration-500" 
                alt="Whip Montez"
              />
-             <div className="absolute bottom-2 right-2 bg-[#00ff41] text-black text-xs font-bold px-2 py-0.5 animate-pulse">
+             <div className="absolute bottom-1 right-1 md:bottom-2 md:right-2 bg-[#00ff41] text-black text-[9px] md:text-xs font-bold px-1 md:px-2 py-0.5 animate-pulse">
                  ONLINE
              </div>
            </div>
 
-           <div className="space-y-1">
-             <h2 className="text-2xl font-black text-white tracking-tighter uppercase">Whip Montez</h2>
-             <p className="text-[#00ff41] font-mono text-xs">RED HOOK, BROOKLYN</p>
-             <p className="text-gray-500 font-mono text-xs">LIVEWIRE RECORDS</p>
-           </div>
+           <div className="flex-1 md:flex-none space-y-1">
+             <h2 className="text-lg md:text-2xl font-black text-white tracking-tighter uppercase">Whip Montez</h2>
+             <p className="text-[#00ff41] font-mono text-[10px] md:text-xs">RED HOOK, BROOKLYN</p>
+             <p className="text-gray-500 font-mono text-[10px] md:text-xs">LIVEWIRE RECORDS</p>
+           
+             <div className="hidden md:block md:flex-1 space-y-2 pt-4">
+               <button onClick={() => setSection('music')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+                   <Disc size={14}/> DISCOGRAPHY
+               </button>
+               <button onClick={() => setSection('tour')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+                   <Calendar size={14}/> TOUR DATES
+               </button>
+               <button onClick={() => setSection('news')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+                   <Newspaper size={14}/> NEWS
+               </button>
+               <button onClick={() => window.open('https://www.youtube.com/results?search_query=90s+hip+hop', '_blank')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+                   <Video size={14}/> VIDEOS
+               </button>
+             </div>
 
-           <div className="flex-1 space-y-2">
-             <button onClick={() => setSection('music')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
-                 <Disc size={14}/> DISCOGRAPHY
-             </button>
-             <button onClick={() => setSection('tour')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
-                 <Calendar size={14}/> TOUR DATES
-             </button>
-             <button onClick={() => setSection('news')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
-                 <Newspaper size={14}/> PRESS / NEWS
-             </button>
-             <button onClick={() => window.open('https://www.youtube.com/results?search_query=90s+hip+hop', '_blank')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
-                 <Video size={14}/> VIDEOS
-             </button>
-           </div>
-
-           <div className="border-t border-[#333] pt-4">
-             <p className="text-[10px] text-gray-500 font-mono mb-2">MANAGEMENT:</p>
-             <div className="text-xs text-white font-bold">JARI MONTEZ</div>
-             <div className="text-xs text-gray-400">jari@livewire-ent.com</div>
+             <div className="hidden md:block border-t border-[#333] pt-4 mt-4">
+               <p className="text-[10px] text-gray-500 font-mono mb-2">MANAGEMENT:</p>
+               <div className="text-xs text-white font-bold">JARI MONTEZ</div>
+               <div className="text-xs text-gray-400">jari@livewire-ent.com</div>
+             </div>
            </div>
         </div>
 
         {/* Right Content: Bio Text & Stats */}
-        <div className="flex-1 bg-[#0a0a0a] flex flex-col relative overflow-hidden">
+        <div className="flex-1 bg-[#0a0a0a] flex flex-col relative overflow-hidden min-h-0">
            {/* Header */}
-           <div className="h-16 bg-[#00ff41] text-black p-4 flex justify-between items-center">
-             <h1 className="text-4xl font-black tracking-tighter">OFFICIAL PROFILE</h1>
-             <div className="flex gap-2">
-                 <div className="w-3 h-3 bg-black"></div>
-                 <div className="w-3 h-3 bg-black"></div>
-                 <div className="w-3 h-3 bg-black"></div>
+           <div className="h-10 md:h-16 bg-[#00ff41] text-black px-3 md:p-4 flex justify-between items-center shrink-0">
+             <h1 className="text-lg md:text-4xl font-black tracking-tighter">OFFICIAL PROFILE</h1>
+             <div className="flex gap-1 md:gap-2">
+                 <div className="w-2 h-2 md:w-3 md:h-3 bg-black"></div>
+                 <div className="w-2 h-2 md:w-3 md:h-3 bg-black"></div>
+                 <div className="w-2 h-2 md:w-3 md:h-3 bg-black"></div>
              </div>
            </div>
 
            {/* Scrollable Content */}
-           <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-             <div className="max-w-2xl mx-auto space-y-8">
+           <div className="flex-1 overflow-y-auto p-3 md:p-8 overscroll-contain" style={{WebkitOverflowScrolling: 'touch'}}>
+             <div className="max-w-2xl mx-auto space-y-4 md:space-y-8">
                  
                  {/* Quote */}
                  <blockquote className="border-l-4 border-[#00ff41] pl-6 py-2">
@@ -544,28 +544,28 @@ const Bio = ({ setSection }) => {
                  </blockquote>
 
                  {/* Stats Grid */}
-                 <div className="grid grid-cols-2 gap-4 border-y border-[#333] py-6 my-6">
+                 <div className="grid grid-cols-2 gap-3 md:gap-4 border-y border-[#333] py-4 md:py-6 my-4 md:my-6">
                    <div>
-                      <div className="text-[10px] text-gray-500 font-mono uppercase">Name</div>
-                      <div className="text-[#00ff41] font-bold">Wanda Altagracia Almonte</div>
+                      <div className="text-[9px] md:text-[10px] text-gray-500 font-mono uppercase">Name</div>
+                      <div className="text-[#00ff41] font-bold text-xs md:text-base">Wanda Altagracia Almonte</div>
                    </div>
                    <div>
-                      <div className="text-[10px] text-gray-500 font-mono uppercase">Origin</div>
-                      <div className="text-[#00ff41] font-bold">Red Hook, Brooklyn</div>
+                      <div className="text-[9px] md:text-[10px] text-gray-500 font-mono uppercase">Origin</div>
+                      <div className="text-[#00ff41] font-bold text-xs md:text-base">Red Hook, Brooklyn</div>
                    </div>
                    <div>
-                      <div className="text-[10px] text-gray-500 font-mono uppercase">Key Features</div>
-                      <div className="text-[#00ff41] font-bold">Erick Sermon, Talib Kweli</div>
+                      <div className="text-[9px] md:text-[10px] text-gray-500 font-mono uppercase">Key Features</div>
+                      <div className="text-[#00ff41] font-bold text-xs md:text-base">Erick Sermon, Talib Kweli</div>
                    </div>
                    <div>
-                      <div className="text-[10px] text-gray-500 font-mono uppercase">Education</div>
-                      <div className="text-[#00ff41] font-bold">LaGuardia HS (Dance)</div>
+                      <div className="text-[9px] md:text-[10px] text-gray-500 font-mono uppercase">Education</div>
+                      <div className="text-[#00ff41] font-bold text-xs md:text-base">LaGuardia HS (Dance)</div>
                    </div>
                  </div>
 
                  {/* The Story */}
-                 <div className="prose prose-invert prose-sm font-mono text-gray-300 leading-relaxed space-y-6">
-                   <p className="first-letter:text-4xl first-letter:text-[#00ff41] first-letter:font-black first-letter:float-left first-letter:mr-2">
+                 <div className="prose prose-invert prose-sm font-mono text-gray-300 leading-relaxed space-y-4 md:space-y-6 text-xs md:text-sm">
+                   <p className="first-letter:text-3xl md:first-letter:text-4xl first-letter:text-[#00ff41] first-letter:font-black first-letter:float-left first-letter:mr-2">
                       Introducing… "WHIP MONTEZ" (born Wanda Altagracia Almonte) a Dominican fem-cee reppin’ Brooklyn's Red Hook Housing Projects.
                    </p>
                    
