@@ -11,8 +11,8 @@ import {
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, arrayUnion, where, getDocs } from 'firebase/firestore';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 
 // --- FIREBASE SETUP ---
@@ -242,6 +242,39 @@ const useVoiceInput = (onResult) => {
   };
 
   return { isListening, isSupported, startListening, stopListening };
+};
+
+// Helper function to save generations to Firestore
+const saveToLibrary = async (user, type, content, metadata = {}) => {
+  if (!user || user.isAnonymous) {
+    const shouldSignIn = confirm('Sign in to save your creations to your library. Continue to sign in?');
+    if (shouldSignIn) {
+      return 'auth_required';
+    }
+    return null;
+  }
+
+  if (!db) {
+    alert('Save feature not available in demo mode');
+    return null;
+  }
+
+  try {
+    const docRef = await addDoc(collection(db, 'user_library'), {
+      userId: user.uid,
+      type: type, // 'album_art', 'video_concept', 'lyrics', 'battle', 'samples', etc.
+      content: content,
+      metadata: {
+        ...metadata,
+        userEmail: user.email,
+      },
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Save failed:', error);
+    throw error;
+  }
 };
 
 // --- COMPONENTS ---
@@ -2316,10 +2349,11 @@ const ARSuite = () => {
 };
 
 // 15. NEW FEATURE: ALBUM ART GENERATOR (Future Cyber Look)
-const AlbumArtGenerator = () => {
+const AlbumArtGenerator = ({ user, onAuthRequest }) => {
     const [prompt, setPrompt] = useState("A gritty, neon-lit cyberpunk street corner in Red Hook, Brooklyn with a vinyl record.");
     const [imageUrl, setImageUrl] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
     const lastRequestTime = useRef(0);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_albumart', 3);
     const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
@@ -2374,6 +2408,28 @@ const AlbumArtGenerator = () => {
         }
         lastRequestTime.current = Date.now();
         setLoading(false);
+    };
+
+    const handleSave = async () => {
+      if (!imageUrl) return;
+      
+      setSaving(true);
+      try {
+        const result = await saveToLibrary(user, 'album_art', imageUrl, { 
+          prompt,
+          generatedAt: new Date().toISOString()
+        });
+        
+        if (result === 'auth_required') {
+          onAuthRequest();
+        } else if (result) {
+          alert('✓ Saved to your library!');
+        }
+      } catch (error) {
+        alert('Save failed: ' + error.message);
+      } finally {
+        setSaving(false);
+      }
     };
 
     return (
@@ -2433,13 +2489,23 @@ const AlbumArtGenerator = () => {
                         <div className="w-full max-w-[280px] sm:max-w-xs md:max-w-md aspect-square border-2 md:border-4 border-white shadow-[0_0_20px_rgba(236,72,153,0.5)] relative">
                             <img src={imageUrl} alt="Generated Album Art" className="w-full h-full object-cover"/>
                             <div className="absolute top-1 md:top-2 left-1 md:left-2 bg-black/70 text-white text-[9px] md:text-[10px] font-mono px-1 md:px-2 py-0.5 md:py-1">RESULT: {prompt.substring(0, 20)}...</div>
-                            <a 
-                              href={imageUrl} 
-                              download={`album-art-${Date.now()}.png`}
-                              className="absolute bottom-1 md:bottom-2 right-1 md:right-2 bg-[#00ff41] text-black text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 hover:bg-white transition-colors active:scale-95 inline-block"
-                            >
-                              SAVE IMAGE
-                            </a>
+                            <div className="absolute bottom-1 md:bottom-2 right-1 md:right-2 flex gap-1 md:gap-2">
+                              <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className="bg-cyan-600 text-white text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 hover:bg-cyan-500 transition-colors active:scale-95 disabled:opacity-50 flex items-center gap-1"
+                                title="Save to library"
+                              >
+                                <Heart size={10} className="md:w-3 md:h-3"/> {saving ? 'SAVING...' : 'SAVE'}
+                              </button>
+                              <a 
+                                href={imageUrl} 
+                                download={`album-art-${Date.now()}.png`}
+                                className="bg-[#00ff41] text-black text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 hover:bg-white transition-colors active:scale-95 inline-block"
+                              >
+                                DOWNLOAD
+                              </a>
+                            </div>
                         </div>
                     )}
                     {!imageUrl && !loading && (
@@ -2455,7 +2521,7 @@ const AlbumArtGenerator = () => {
 };
 
 // 18. NEW FEATURE: SOCIAL MEDIA MUSIC VIDEO AI AGENT
-const ViralVideoAgent = () => {
+const ViralVideoAgent = ({ user, onAuthRequest }) => {
     const [trackIdea, setTrackIdea] = useState("");
     const [concepts, setConcepts] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -2684,11 +2750,158 @@ const StudioHub = ({ setSection }) => {
   );
 };
 
+// AUTH MODAL COMPONENT
+const AuthModal = ({ onClose, onAuth }) => {
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleEmailAuth = async (e) => {
+    e.preventDefault();
+    if (!auth) {
+      setError('Auth not available in demo mode');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      if (isSignUp) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      onAuth();
+      onClose();
+    } catch (err) {
+      setError(err.message.replace('Firebase: ', '').replace(/\(auth.*?\)/, ''));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    if (!auth) {
+      setError('Auth not available in demo mode');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      onAuth();
+      onClose();
+    } catch (err) {
+      setError(err.message.replace('Firebase: ', '').replace(/\(auth.*?\)/, ''));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 animate-fade-in">
+      <div className="w-full max-w-md bg-[#1a1a1a] border-2 border-cyan-500 shadow-[0_0_40px_rgba(0,255,255,0.4)]">
+        <div className="bg-cyan-700 text-white px-4 py-2 flex justify-between items-center">
+          <span className="font-mono font-bold text-sm flex items-center gap-2">
+            <User size={16}/> USER_AUTH.EXE
+          </span>
+          <button onClick={onClose} className="hover:text-black transition-colors">
+            <X size={18}/>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="text-center mb-6">
+            <h2 className="text-white font-black text-xl mb-2">
+              {isSignUp ? 'CREATE ACCOUNT' : 'SIGN IN'}
+            </h2>
+            <p className="text-gray-400 text-xs font-mono">
+              {isSignUp ? 'Sign up to save your creations' : 'Login is optional but enables saving'}
+            </p>
+          </div>
+
+          {error && (
+            <div className="bg-red-900/30 border border-red-500 text-red-300 p-3 text-xs font-mono">
+              ERROR: {error}
+            </div>
+          )}
+
+          <form onSubmit={handleEmailAuth} className="space-y-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="EMAIL"
+              className="w-full bg-black border border-[#333] text-white p-3 text-sm font-mono outline-none focus:border-cyan-500"
+              required
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="PASSWORD"
+              className="w-full bg-black border border-[#333] text-white p-3 text-sm font-mono outline-none focus:border-cyan-500"
+              required
+              minLength={6}
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-cyan-600 text-black py-3 font-bold text-sm uppercase hover:bg-cyan-500 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'PROCESSING...' : (isSignUp ? 'CREATE ACCOUNT' : 'SIGN IN')}
+            </button>
+          </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[#333]"></div>
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-[#1a1a1a] px-2 text-gray-500 font-mono">OR</span>
+            </div>
+          </div>
+
+          <button
+            onClick={handleGoogleAuth}
+            disabled={loading}
+            className="w-full bg-white text-black py-3 font-bold text-sm uppercase hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <Globe size={16}/> SIGN IN WITH GOOGLE
+          </button>
+
+          <button
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="w-full text-cyan-400 text-xs font-mono hover:text-cyan-300 transition-colors"
+          >
+            {isSignUp ? 'Already have an account? SIGN IN' : "Don't have an account? CREATE ONE"}
+          </button>
+
+          <button
+            onClick={onClose}
+            className="w-full text-gray-500 text-xs font-mono hover:text-gray-400 transition-colors"
+          >
+            SKIP (Continue as guest)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // 17. MAIN OS SHELL
 const OSInterface = ({ reboot }) => {
   const [activeSection, setActiveSection] = useState('home');
   const [time, setTime] = useState(new Date().toLocaleTimeString());
   const [user, setUser] = useState(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     // 1. Start System Clock
@@ -2765,9 +2978,9 @@ const OSInterface = ({ reboot }) => {
       case 'ar_suite':
         return <ARSuite />;
       case 'album_art':
-        return <AlbumArtGenerator />;
+        return <AlbumArtGenerator user={user} onAuthRequest={() => setShowAuthModal(true)} />;
       case 'viral_video':
-        return <ViralVideoAgent />;
+        return <ViralVideoAgent user={user} onAuthRequest={() => setShowAuthModal(true)} />;
       default:
         return <Home setSection={setActiveSection} />;
     }
@@ -2809,12 +3022,59 @@ const OSInterface = ({ reboot }) => {
           </nav>
         </div>
         <div className="flex items-center gap-2 md:gap-4 text-[10px] md:text-xs font-mono">
+          {/* User Auth Button */}
+          {!user || user.isAnonymous ? (
+            <button 
+              onClick={() => setShowAuthModal(true)}
+              className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 px-2 py-1 border border-cyan-800 hover:border-cyan-500 transition-colors"
+            >
+              <User size={12} className="md:w-3.5 md:h-3.5"/>
+              <span className="hidden sm:inline">SIGN IN</span>
+            </button>
+          ) : (
+            <div className="relative">
+              <button 
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 px-2 py-1 border border-cyan-800 hover:border-cyan-500 transition-colors"
+              >
+                <User size={12} className="md:w-3.5 md:h-3.5"/>
+                <span className="hidden sm:inline truncate max-w-[100px]">{user.email || user.uid.substring(0, 8)}</span>
+              </button>
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-[#1a1a1a] border border-cyan-800 shadow-lg z-50 min-w-[150px]">
+                  <button
+                    onClick={async () => {
+                      try {
+                        await signOut(auth);
+                        setUser(null);
+                        setShowUserMenu(false);
+                      } catch (error) {
+                        console.error('Sign out failed:', error);
+                      }
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs hover:bg-cyan-900 transition-colors text-white"
+                  >
+                    SIGN OUT
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          
           <button onClick={reboot} className="text-red-500 hover:text-red-400 flex items-center gap-1">
             <Power size={12} className="md:w-3.5 md:h-3.5"/>
           </button>
           <span className="text-[#00ff41] whitespace-nowrap">{time}</span>
         </div>
       </div>
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal 
+          onClose={() => setShowAuthModal(false)} 
+          onAuth={() => console.log('User authenticated')}
+        />
+      )}
 
       {/* Main content area */}
       <div className="flex-1 relative overflow-hidden bg-black">
