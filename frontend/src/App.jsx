@@ -35,7 +35,8 @@ try {
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
 // --- GEMINI API HELPERS ---
-const apiKey = "AIzaSyBVEPNdugd7jzRxUzcZOXW1NEFNK0eY3TM"; 
+// API key removed - all requests route through Railway backend proxy
+const apiKey = ""; 
 
 // ------------------------------------------------------------------
 // <<< THIS IS WHERE YOU PLUG IN THE BACKEND URL LOGIC >>>
@@ -123,29 +124,16 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
   }
 
 
+  // Route text generation through backend proxy (uses server-side API key)
   for (let i = 0; i <= delays.length; i++) {
     try {
-      const payload = {
-        contents: [{ parts: [{ text: prompt }] }],
-        systemInstruction: { parts: [{ text: systemInstruction }] }
-      };
-
-      if (useSearch) {
-        payload.tools = [{ google_search: {} }];
-      }
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }
-      );
+      const response = await fetch(BACKEND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, systemInstruction })
+      });
 
       if (!response.ok) {
-        if (response.status === 403) throw new Error("INVALID_KEY"); // Don't retry if key is wrong
-        
         if ((response.status === 429 || response.status >= 500) && i < delays.length) {
           await new Promise(resolve => setTimeout(resolve, delays[i]));
           continue;
@@ -154,16 +142,51 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
       }
 
       const data = await response.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || "DATA CORRUPTION ERROR. TRY AGAIN.";
+      const output = data?.output ?? data?.message ?? data;
+      return typeof output === "string" ? output : JSON.stringify(output);
     } catch (error) {
-      console.error("Gemini API call failed:", error);
-      if (i === delays.length || error.message === "INVALID_KEY") {
-        // If API fails, return mock data
+      console.error("Backend proxy call failed:", error);
+      if (i === delays.length) {
         return getMockResponse();
       }
       await new Promise(resolve => setTimeout(resolve, delays[i]));
     }
   }
+};
+
+// Shared free-usage limiter for AI agents (client-side tracking, per browser)
+const useFreeLimit = (agentKey, limit = 3) => {
+  const [usage, setUsage] = useState(0);
+
+  useEffect(() => {
+    try {
+      const stored = Number(localStorage.getItem(agentKey));
+      if (Number.isFinite(stored)) setUsage(stored);
+    } catch (err) {
+      console.warn(`Usage load failed for ${agentKey}`, err);
+    }
+  }, [agentKey]);
+
+  const consume = () => {
+    const next = usage + 1;
+    setUsage(next);
+    try {
+      localStorage.setItem(agentKey, String(next));
+    } catch (err) {
+      console.warn(`Usage persist failed for ${agentKey}`, err);
+    }
+  };
+
+  const reset = () => {
+    setUsage(0);
+    try {
+      localStorage.removeItem(agentKey);
+    } catch (err) {
+      console.warn(`Usage reset failed for ${agentKey}`, err);
+    }
+  };
+
+  return { usage, limit, canUse: usage < limit, consume, reset };
 };
 
 // --- COMPONENTS ---
@@ -1240,6 +1263,7 @@ const Ghostwriter = () => {
   const [lyrics, setLyrics] = useState("");
   const [loading, setLoading] = useState(false);
   const lastRequestTime = useRef(0);
+  const { usage, limit, canUse, consume } = useFreeLimit('aiAgentUsage_ghostwriter', 3);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -1251,6 +1275,12 @@ const Ghostwriter = () => {
         alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before generating new lyrics.`);
         return;
     }
+
+    if (!canUse) {
+      setLyrics(`FREE LIMIT REACHED: ${limit} free Ghostwriter attempts used.`);
+      return;
+    }
+    consume();
 
     setLoading(true);
     setLyrics("");
@@ -1578,6 +1608,7 @@ const SidekickChat = () => {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_sidekick', 3);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1587,10 +1618,16 @@ const SidekickChat = () => {
 
   const handleSend = async () => {
     if (!input.trim()) return;
+    if (!canUse) {
+      setMessages(prev => [...prev, { sender: 'system', text: `FREE LIMIT REACHED: ${limit} free Sidekick replies used.` }]);
+      setInput("");
+      return;
+    }
     const userMsg = { sender: 'user', text: input };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     setLoading(true);
+    consume();
     
     const systemPrompt = "You are Whip Montez, a female rapper from 2004. Your hard drive has been found in 2025. You are suspicious. Speak in early 2000s NY slang. Keep responses relatively short, like an Instant Message.";
     const chatHistory = messages.map(m => `${m.sender === 'user' ? 'Stranger' : 'Whip'}: ${m.text}`).join('\n') + `\nStranger: ${input}\nWhip:`;
@@ -1667,6 +1704,7 @@ const NewsArchive = () => {
   const [newsItems, setNewsItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_news', 3);
 
   const defaultHistorical = [
     { id: 1, date: "OCT 24 2004", time: "11:23 PM EST", source: "XXL MAGAZINE", author: "B. Wilson", title: "BREAKING: WHIP MONTEZ SIGNS TO LIVEWIRE", content: "After a bidding war, the Red Hook lyricist has inked a deal with Erick Sermon.", tags: ["HIPHOP", "NEW_SIGNING", "NYC"] },
@@ -1685,6 +1723,13 @@ const NewsArchive = () => {
     const useSearch = selectedMode === 'modern';
     let context = selectedMode === 'historical' ? "You are a hip-hop blog editor from 2004." : `You are a Gen Z hip-hop news aggregator from 2024/2025. Search query: ${searchTerm || "Modern Hip Hop News"}.`;
     const systemPrompt = `Generate a JSON array of 3 news objects. Format: [{ "id": 1, "date": "MMM DD YYYY", "source": "SOURCE", "title": "HEADLINE", "content": "Short text", "tags": ["TAG1"] }]. No markdown.`;
+
+    if (!canUse) {
+      setNewsItems([{ id: 0, date: "", time: "", source: "SYSTEM", author: "", title: `FREE LIMIT REACHED: ${limit} free news pulls used.`, content: "", tags: ["LIMIT"] }]);
+      setLoading(false);
+      return;
+    }
+    consume();
 
     try {
       const response = await callGemini(`${context} Era: ${era}`, systemPrompt, useSearch);
@@ -1764,6 +1809,7 @@ const RapBattle = () => {
   const [loading, setLoading] = useState(false);
   const endRef = useRef(null);
   const lastRequestTime = useRef(0);
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_battle', 3);
 
 
   useEffect(() => {
@@ -1780,6 +1826,12 @@ const RapBattle = () => {
         alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before spitting another bar.`);
         return;
     }
+
+    if (!canUse) {
+      setHistory(prev => [...prev, { sender: 'ai', text: `FREE LIMIT REACHED: ${limit} free Rap Battle turns used.` }]);
+      return;
+    }
+    consume();
     
     const userBar = { sender: 'user', text: input };
     setHistory(prev => [...prev, userBar]);
@@ -1835,6 +1887,7 @@ const CrateDigger = () => {
   const [samples, setSamples] = useState([]);
   const [loading, setLoading] = useState(false);
   const lastRequestTime = useRef(0);
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_crates', 3);
 
   const handleDig = async () => {
     if (!mood.trim()) return;
@@ -1846,6 +1899,12 @@ const CrateDigger = () => {
         alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before digging again.`);
         return;
     }
+
+    if (!canUse) {
+      setSamples([{ artist: 'SYSTEM', track: `FREE LIMIT REACHED`, year: '', desc: `${limit} free digs used.` }]);
+      return;
+    }
+    consume();
 
     setLoading(true);
     setSamples([]);
@@ -1897,6 +1956,7 @@ const ARSuite = () => {
   const [feedback, setFeedback] = useState(null);
   const [loading, setLoading] = useState(false);
   const lastRequestTime = useRef(0);
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_ar', 3);
 
   const handleReview = async () => {
     if (!demoText.trim()) return;
@@ -1908,6 +1968,12 @@ const ARSuite = () => {
         alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before submitting again.`);
         return;
     }
+
+    if (!canUse) {
+      setFeedback({ critique: `FREE LIMIT REACHED: ${limit} free A&R reviews used.`, commercial: 'N/A', street: 'N/A' });
+      return;
+    }
+    consume();
 
     setLoading(true);
     setFeedback(null); // Clear previous feedback
@@ -1970,6 +2036,7 @@ const AlbumArtGenerator = () => {
     const [imageUrl, setImageUrl] = useState(null);
     const [loading, setLoading] = useState(false);
     const lastRequestTime = useRef(0);
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_albumart', 3);
     
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
@@ -1984,6 +2051,13 @@ const AlbumArtGenerator = () => {
             setLoading(false);
             return;
         }
+
+        if (!canUse) {
+          alert(`FREE LIMIT REACHED: ${limit} free Album Art generations used.`);
+          setLoading(false);
+          return;
+        }
+        consume();
         
         // Pass "Album Cover" in the prompt to trigger the image generation path in callGemini
         const fullPrompt = "Album Cover: " + prompt; 
@@ -2077,6 +2151,7 @@ const ViralVideoAgent = () => {
     const [loading, setLoading] = useState(false);
     const [isWhipMode, setIsWhipMode] = useState(false);
     const lastRequestTime = useRef(0);
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_viral', 3);
 
     const handleGenerate = async () => {
         if (!trackIdea.trim()) return;
@@ -2088,6 +2163,13 @@ const ViralVideoAgent = () => {
             alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before generating new concepts.`);
             return;
         }
+
+        if (!canUse) {
+          setConcepts([{ concept: 'FREE LIMIT REACHED', visual: `${limit} free Viral Video runs used.`, trend: 'LIMIT', shots: ['Upgrade required'] }]);
+          return;
+        }
+
+        consume();
 
         setLoading(true);
         setConcepts([]);
