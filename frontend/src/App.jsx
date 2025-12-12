@@ -752,19 +752,31 @@ const MusicPlayer = () => {
   useEffect(() => {
     if (!audioRef.current || !currentTrack) return;
     
-    if (storage && currentTrack.audioUrl) {
-      // Get download URL from Firebase Storage
-      const storageRef = ref(storage, currentTrack.audioUrl);
-      getDownloadURL(storageRef)
-        .then(url => {
+    // Direct audio loading - try storage first, fallback to direct path
+    const loadAudio = async () => {
+      try {
+        if (storage && currentTrack.audioUrl) {
+          const storageRef = ref(storage, currentTrack.audioUrl);
+          const url = await getDownloadURL(storageRef);
           audioRef.current.src = url;
-          if (isPlaying) audioRef.current.play();
-        })
-        .catch(err => {
-          console.error("Audio not found in Firebase Storage:", err);
-          // Fallback: play silence or show error
-        });
-    }
+        } else {
+          // Fallback: try direct path
+          audioRef.current.src = `/${currentTrack.audioUrl}`;
+        }
+        if (isPlaying) {
+          audioRef.current.play().catch(e => console.log('Playback failed:', e));
+        }
+      } catch (err) {
+        console.log("Trying direct audio path:", currentTrack.audioUrl);
+        // Direct fallback
+        audioRef.current.src = `/${currentTrack.audioUrl}`;
+        if (isPlaying) {
+          audioRef.current.play().catch(e => console.log('Playback failed:', e));
+        }
+      }
+    };
+    
+    loadAudio();
   }, [currentTrack]);
 
   useEffect(() => {
@@ -1194,9 +1206,14 @@ const StyleArchive = () => {
     }
     const unsubscribe = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'merch'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setItems(data);
-      if (data.length === 0) setShowSeed(true);
-      else setShowSeed(false);
+      // Always show fallback items if database is empty
+      if (data.length === 0) {
+        setItems(fallbackItems);
+        setShowSeed(true);
+      } else {
+        setItems(data);
+        setShowSeed(false);
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -1699,17 +1716,39 @@ const CommunityHub = ({ setSection }) => {
       <div className="absolute inset-0 bg-black/80 z-0 pointer-events-none"></div>
       
       {/* Header - Terminal Style */}
-      <div className="relative z-10 h-12 md:h-16 border-b border-[#333] flex items-center justify-between px-3 md:px-6 bg-[#111] shrink-0">
-        <div className="flex items-center gap-2 md:gap-3">
-           <Users size={16} className="md:w-5 md:h-5 text-[#00ff41]" />
-           <h2 className="text-sm md:text-xl font-bold text-white tracking-wider md:tracking-widest uppercase">THE_BLOCK<span className="text-[#00ff41] animate-pulse">_FEED</span></h2>
+      <div className="relative z-10 border-b border-[#333] bg-[#111] shrink-0">
+        <div className="flex flex-col md:flex-row md:items-center justify-between px-3 md:px-6 py-2 md:py-0 md:h-16 gap-2 md:gap-0">
+          <div className="flex items-center gap-2 md:gap-3">
+             <Users size={16} className="md:w-5 md:h-5 text-[#00ff41]" />
+             <h2 className="text-sm md:text-xl font-bold text-white tracking-wider md:tracking-widest uppercase">THE_BLOCK<span className="text-[#00ff41] animate-pulse">_FEED</span></h2>
+          </div>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="flex-1 md:flex-initial md:w-64 flex items-center gap-2 bg-[#050505] border border-[#333] px-2 py-1">
+              <Search size={12} className="text-[#00ff41] shrink-0"/>
+              <input 
+                type="text" 
+                placeholder="SEARCH POSTS..."
+                className="flex-1 bg-transparent text-white text-xs font-mono outline-none placeholder-gray-600 min-w-0"
+                onChange={(e) => {
+                  const term = e.target.value.toLowerCase();
+                  if (term) {
+                    const filtered = posts.filter(p => 
+                      p.content?.toLowerCase().includes(term) || 
+                      p.user?.toLowerCase().includes(term)
+                    );
+                    setPosts(filtered.length ? filtered : posts);
+                  }
+                }}
+              />
+            </div>
+            <button 
+              onClick={() => setSection('chat')}
+              className="bg-[#00ff41]/10 border border-[#00ff41] text-[#00ff41] px-2 md:px-4 py-1 font-bold text-[9px] md:text-xs flex items-center gap-1 md:gap-2 hover:bg-[#00ff41] hover:text-black transition-colors shrink-0"
+            >
+              <MessageSquare size={12} className="md:w-[14px] md:h-[14px]"/><span className="hidden sm:inline">PRIVATE MSG</span><span className="sm:hidden">MSG</span>
+            </button>
+          </div>
         </div>
-        <button 
-          onClick={() => setSection('chat')}
-          className="bg-[#00ff41]/10 border border-[#00ff41] text-[#00ff41] px-2 md:px-4 py-1 font-bold text-[9px] md:text-xs flex items-center gap-1 md:gap-2 hover:bg-[#00ff41] hover:text-black transition-colors"
-        >
-          <MessageSquare size={12} className="md:w-[14px] md:h-[14px]"/><span className="hidden sm:inline">PRIVATE MSG</span><span className="sm:hidden">MSG</span>
-        </button>
       </div>
 
       <div className="relative z-10 flex-1 overflow-y-auto p-3 md:p-6 max-w-4xl mx-auto w-full" style={{WebkitOverflowScrolling: 'touch'}}>
@@ -1974,9 +2013,16 @@ const NewsArchive = () => {
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_news', 3);
 
   const defaultHistorical = [
-    { id: 1, date: "OCT 24 2004", time: "11:23 PM EST", source: "XXL MAGAZINE", author: "B. Wilson", title: "BREAKING: WHIP MONTEZ SIGNS TO LIVEWIRE", content: "After a bidding war, the Red Hook lyricist has inked a deal with Erick Sermon.", tags: ["HIPHOP", "NEW_SIGNING", "NYC"] },
-    { id: 2, date: "APR 01 2004", time: "09:00 AM PST", source: "GOOGLE", author: "Admin", title: "GOOGLE ANNOUNCES 'GMAIL'", content: "Google announced a new email service called 'Gmail' offering 1GB of storage.", tags: ["TECH", "GOOGLE"] },
-    { id: 3, date: "FEB 04 2004", time: "03:30 PM EST", source: "HARVARD CRIMSON", author: "Campus Beat", title: "THEFACEBOOK.COM LAUNCHES", content: "A new social utility has launched at Harvard connecting students.", tags: ["SOCIAL", "STARTUP"] }
+    { id: 1, date: "DEC 12 2025", time: "11:23 PM EST", source: "LIVEWIRE DAILY", author: "B. Wilson", title: "WHIP MONTEZ CATALOG RESTORED: LOST TAPES DISCOVERED", content: "After 20+ years, the complete unreleased archive of Brooklyn's Whip Montez has been digitally restored and made available online.", tags: ["HIPHOP", "RESTORATION", "NYC"] },
+    { id: 2, date: "DEC 10 2025", time: "02:15 PM EST", source: "HIP HOP DX", author: "Staff", title: "RED HOOK DIARIES REACHES CULT CLASSIC STATUS", content: "The 2004 mixtape that never got proper distribution is now considered one of NYC's hidden gems.", tags: ["CLASSIC", "UNDERGROUND"] },
+    { id: 3, date: "DEC 08 2025", time: "09:30 AM EST", source: "COMPLEX", author: "K. Rodriguez", title: "ERICK SERMON ON DISCOVERING WHIP MONTEZ", content: "The Def Squad legend recalls finding the Red Hook lyricist in a basement cipher back in 2004.", tags: ["INTERVIEW", "LEGENDS"] },
+    { id: 4, date: "DEC 05 2025", time: "04:20 PM EST", source: "BROOKLYN VEGAN", author: "Local", title: "THE STOOP: HOW A 2001 TAPE INFLUENCED NYC RAP", content: "Musicologists trace the DNA of modern Brooklyn hip-hop back to this forgotten project.", tags: ["HISTORY", "BROOKLYN"] },
+    { id: 5, date: "DEC 01 2025", time: "12:00 PM EST", source: "PITCHFORK", author: "M. Chen", title: "LIVEWIRE SESSIONS: THE LOST ALBUM THAT TIME FORGOT", content: "A deep dive into the unreleased 2004 debut that features production from legendary NYC beatmakers.", tags: ["REVIEW", "ANALYSIS"] },
+    { id: 6, date: "NOV 28 2025", time: "06:45 PM EST", source: "THE FADER", author: "Editorial", title: "WHIP MONTEZ REUNION SHOW SELLS OUT IN MINUTES", content: "Brooklyn fans crash ticket website trying to secure spots for the first live performance in over 20 years.", tags: ["LIVE", "EVENTS"] },
+    { id: 7, date: "NOV 25 2025", time: "03:15 PM EST", source: "REVOLT", author: "Video Team", title: "UNRELEASED FREESTYLE FOOTAGE SURFACES ONLINE", content: "Rare clips from 2004 Red Hook ciphers show Whip Montez battling alongside Ali Vegas and other NYC legends.", tags: ["VIDEO", "ARCHIVE"] },
+    { id: 8, date: "NOV 20 2025", time: "10:30 AM EST", source: "VIBE", author: "R. Jackson", title: "THE LIVEWIRE MOVEMENT: NYC'S FORGOTTEN LABEL", content: "How Erick Sermon's indie imprint almost changed the game before the digital era hit.", tags: ["LABEL", "INDUSTRY"] },
+    { id: 9, date: "NOV 15 2025", time: "08:00 PM EST", source: "MASS APPEAL", author: "Culture Desk", title: "SAMPLE BREAKDOWN: WHIP MONTEZ'S PRODUCTION SECRETS", content: "Producers analyze the dusty breaks and obscure loops that made the Red Hook sound so distinctive.", tags: ["PRODUCTION", "BEATS"] },
+    { id: 10, date: "NOV 10 2025", time: "01:45 PM EST", source: "HYPEBEAST", author: "Fashion", title: "WHIP MONTEZ MERCH DROP: VINTAGE 2004 AESTHETIC", content: "Limited edition Livewire gear featuring original album artwork sells out in hours, fueling collector market.", tags: ["FASHION", "MERCH"] }
   ];
 
   useEffect(() => {
@@ -1989,7 +2035,7 @@ const NewsArchive = () => {
     const era = selectedMode === 'historical' ? "2000-2004" : "2024-2025";
     const useSearch = selectedMode === 'modern';
     let context = selectedMode === 'historical' ? "You are a hip-hop blog editor from 2004." : `You are a Gen Z hip-hop news aggregator from 2024/2025. Search query: ${searchTerm || "Modern Hip Hop News"}.`;
-    const systemPrompt = `Generate a JSON array of 3 news objects. Format: [{ "id": 1, "date": "MMM DD YYYY", "source": "SOURCE", "title": "HEADLINE", "content": "Short text", "tags": ["TAG1"] }]. No markdown.`;
+    const systemPrompt = `Generate a JSON array of 10 news objects. Format: [{ "id": 1, "date": "MMM DD YYYY", "source": "SOURCE", "title": "HEADLINE", "content": "Short text", "tags": ["TAG1"] }]. No markdown.`;
 
     if (!canUse) {
       setNewsItems([{ id: 0, date: "", time: "", source: "SYSTEM", author: "", title: `FREE LIMIT REACHED: ${limit} free news pulls used.`, content: "", tags: ["LIMIT"] }]);
