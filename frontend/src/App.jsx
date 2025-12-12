@@ -1066,7 +1066,7 @@ const MusicPlayer = () => {
                     <span>VOL: 24</span>
                 </div>
                 <div className="font-mono text-emerald-400 text-lg whitespace-nowrap overflow-hidden">
-                    <span className="animate-marquee block">{currentTrack ? `${currentTrack.title} - WHIP MONTEZ` : "INSERT CASSETTE..."}</span>
+                    <span className={`block ${isPlaying ? 'animate-marquee' : ''}`}>{currentTrack ? `${currentTrack.title} - WHIP MONTEZ` : "INSERT CASSETTE..."}</span>
                 </div>
                 <div className="w-full flex gap-0.5 items-end justify-center h-10">
                    {[...Array(32)].map((_, i) => (
