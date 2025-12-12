@@ -184,6 +184,66 @@ const useFreeLimit = (agentKey, limit = 3) => {
   return { usage, limit, canUse: usage < limit, consume, reset };
 };
 
+// Voice recognition hook for speech-to-text
+const useVoiceInput = (onResult) => {
+  const [isListening, setIsListening] = useState(false);
+  const [isSupported, setIsSupported] = useState(false);
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    // Check if browser supports speech recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setIsSupported(true);
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        onResult(transcript);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, [onResult]);
+
+  const startListening = () => {
+    if (recognitionRef.current && !isListening) {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (error) {
+        console.error('Failed to start recognition:', error);
+      }
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
+  return { isListening, isSupported, startListening, stopListening };
+};
+
 // --- COMPONENTS ---
 
 // 0. REIMAGINED LIVEWIRE LOGO (VECTOR STYLE)
@@ -1984,6 +2044,9 @@ const RapBattle = () => {
   const endRef = useRef(null);
   const lastRequestTime = useRef(0);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_battle', 3);
+  const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
+    setInput(prev => prev ? prev + ' ' + transcript : transcript);
+  });
 
 
   useEffect(() => {
@@ -2048,7 +2111,17 @@ const RapBattle = () => {
              className="flex-1 bg-black border border-[#333] text-white p-2 font-mono text-xs md:text-sm outline-none focus:border-red-500" 
              onKeyPress={(e) => e.key === 'Enter' && handleBattle()} 
            />
-           <button onClick={handleBattle} disabled={loading} className="bg-red-600 text-white px-6 py-2 font-bold font-mono hover:bg-red-500 transition-colors uppercase disabled:opacity-50">SPIT</button>
+           {isSupported && (
+             <button 
+                 onClick={startListening} 
+                 disabled={loading || isListening}
+                 className={`px-2 md:px-3 border border-[#333] ${isListening ? 'bg-red-600 animate-pulse' : 'bg-black hover:bg-red-900'} text-white transition-colors disabled:opacity-50`}
+                 title="Voice input"
+             >
+                 <Mic size={16} className="md:w-5 md:h-5"/>
+             </button>
+           )}
+           <button onClick={handleBattle} disabled={loading} className="bg-red-600 text-white px-4 md:px-6 py-2 font-bold font-mono hover:bg-red-500 transition-colors uppercase disabled:opacity-50">SPIT</button>
         </div>
       </div>
     </div>
@@ -2062,6 +2135,9 @@ const CrateDigger = () => {
   const [loading, setLoading] = useState(false);
   const lastRequestTime = useRef(0);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_crates', 3);
+  const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
+    setMood(prev => prev ? prev + ' ' + transcript : transcript);
+  });
 
   const handleDig = async () => {
     if (!mood.trim()) return;
@@ -2104,7 +2180,19 @@ const CrateDigger = () => {
         <div className="p-3 md:p-6 bg-[#1a1a1a] border-b border-[#333]">
            <h2 className="text-white font-black text-lg md:text-2xl mb-2">FIND THE PERFECT SAMPLE</h2>
            <div className="flex flex-col sm:flex-row gap-2">
-             <input type="text" value={mood} onChange={(e) => setMood(e.target.value)} placeholder="Enter a vibe..." className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 font-mono text-sm md:text-base outline-none focus:border-yellow-600" onKeyPress={(e) => e.key === 'Enter' && handleDig()} />
+             <div className="flex gap-2 flex-1">
+               <input type="text" value={mood} onChange={(e) => setMood(e.target.value)} placeholder="Enter a vibe..." className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 font-mono text-sm md:text-base outline-none focus:border-yellow-600" onKeyPress={(e) => e.key === 'Enter' && handleDig()} />
+               {isSupported && (
+                 <button 
+                     onClick={startListening} 
+                     disabled={loading || isListening}
+                     className={`px-2 md:px-3 border border-[#333] ${isListening ? 'bg-yellow-600 animate-pulse' : 'bg-black hover:bg-yellow-900'} text-white transition-colors disabled:opacity-50`}
+                     title="Voice input"
+                 >
+                     <Mic size={16} className="md:w-5 md:h-5"/>
+                 </button>
+               )}
+             </div>
              <button onClick={handleDig} disabled={loading} className="bg-yellow-600 text-black px-6 py-2 md:py-3 font-bold hover:bg-yellow-500 text-sm md:text-base whitespace-nowrap">DIG</button>
            </div>
         </div>
@@ -2131,6 +2219,9 @@ const ARSuite = () => {
   const [loading, setLoading] = useState(false);
   const lastRequestTime = useRef(0);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_ar', 3);
+  const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
+    setDemoText(prev => prev ? prev + '\n' + transcript : transcript);
+  });
 
   const handleReview = async () => {
     if (!demoText.trim()) return;
@@ -2176,10 +2267,21 @@ const ARSuite = () => {
         </div>
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           <div className="w-full md:w-1/2 p-3 md:p-6 border-b md:border-r md:border-b-0 border-[#333] flex flex-col">
-             <textarea className="flex-1 bg-black border border-[#333] text-white p-3 md:p-4 font-mono text-xs md:text-sm resize-none focus:border-blue-500 outline-none mb-3 md:mb-4" placeholder="Paste lyrics..." value={demoText} onChange={(e) => setDemoText(e.target.value)} />
-             <button onClick={handleReview} disabled={loading} className="bg-blue-600 text-white py-2 md:py-3 font-bold hover:bg-blue-500 uppercase disabled:opacity-50 text-xs md:text-sm">
-                {loading ? "ANALYZING RHYMES..." : "SUBMIT FOR REVIEW"}
-             </button>
+             <textarea className="flex-1 bg-black border border-[#333] text-white p-3 md:p-4 font-mono text-xs md:text-sm resize-none focus:border-blue-500 outline-none mb-2" placeholder="Paste lyrics..." value={demoText} onChange={(e) => setDemoText(e.target.value)} />
+             <div className="flex gap-2">
+               {isSupported && (
+                 <button 
+                     onClick={startListening} 
+                     disabled={loading || isListening}
+                     className={`px-3 py-2 border border-[#333] ${isListening ? 'bg-blue-600 animate-pulse' : 'bg-black hover:bg-blue-900'} text-white transition-colors disabled:opacity-50 flex items-center gap-2 text-xs`}
+                 >
+                     <Mic size={16}/> {isListening ? 'LISTENING...' : 'VOICE'}
+                 </button>
+               )}
+               <button onClick={handleReview} disabled={loading} className="flex-1 bg-blue-600 text-white py-2 md:py-3 font-bold hover:bg-blue-500 uppercase disabled:opacity-50 text-xs md:text-sm">
+                  {loading ? "ANALYZING RHYMES..." : "SUBMIT FOR REVIEW"}
+               </button>
+             </div>
           </div>
           <div className="w-full md:w-1/2 p-3 md:p-6 bg-[#111] overflow-y-auto">
              {loading && (
@@ -2220,6 +2322,9 @@ const AlbumArtGenerator = () => {
     const [loading, setLoading] = useState(false);
     const lastRequestTime = useRef(0);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_albumart', 3);
+    const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
+      setPrompt(prev => prev ? prev + ' ' + transcript : transcript);
+    });
     
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
@@ -2287,14 +2392,26 @@ const AlbumArtGenerator = () => {
                 <div className="p-3 md:p-6 bg-[#111] border-b border-[#333] shrink-0">
                     <h2 className="text-white font-black text-sm md:text-xl mb-2">GENERATE COVER ART</h2>
                     <div className="flex flex-col sm:flex-row gap-2">
-                        <input 
-                            type="text" 
-                            value={prompt} 
-                            onChange={(e) => setPrompt(e.target.value)} 
-                            placeholder="Describe your album cover..." 
-                            className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:border-pink-500" 
-                            onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
-                        />
+                        <div className="flex gap-2 flex-1">
+                          <input 
+                              type="text" 
+                              value={prompt} 
+                              onChange={(e) => setPrompt(e.target.value)} 
+                              placeholder="Describe your album cover..." 
+                              className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:border-pink-500" 
+                              onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
+                          />
+                          {isSupported && (
+                            <button 
+                                onClick={startListening} 
+                                disabled={loading || isListening}
+                                className={`px-2 md:px-3 py-2 border border-[#333] ${isListening ? 'bg-pink-600 animate-pulse' : 'bg-black hover:bg-pink-900'} text-white transition-colors disabled:opacity-50`}
+                                title="Voice input"
+                            >
+                                <Mic size={16} className="md:w-5 md:h-5"/>
+                            </button>
+                          )}
+                        </div>
                         <button 
                             onClick={handleGenerate} 
                             disabled={loading} 
@@ -2316,7 +2433,13 @@ const AlbumArtGenerator = () => {
                         <div className="w-full max-w-[280px] sm:max-w-xs md:max-w-md aspect-square border-2 md:border-4 border-white shadow-[0_0_20px_rgba(236,72,153,0.5)] relative">
                             <img src={imageUrl} alt="Generated Album Art" className="w-full h-full object-cover"/>
                             <div className="absolute top-1 md:top-2 left-1 md:left-2 bg-black/70 text-white text-[9px] md:text-[10px] font-mono px-1 md:px-2 py-0.5 md:py-1">RESULT: {prompt.substring(0, 20)}...</div>
-                            <button onClick={() => window.open(imageUrl, '_blank')} className="absolute bottom-1 md:bottom-2 right-1 md:right-2 bg-[#00ff41] text-black text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 hover:bg-white transition-colors active:scale-95">SAVE IMAGE</button>
+                            <a 
+                              href={imageUrl} 
+                              download={`album-art-${Date.now()}.png`}
+                              className="absolute bottom-1 md:bottom-2 right-1 md:right-2 bg-[#00ff41] text-black text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 hover:bg-white transition-colors active:scale-95 inline-block"
+                            >
+                              SAVE IMAGE
+                            </a>
                         </div>
                     )}
                     {!imageUrl && !loading && (
@@ -2339,6 +2462,9 @@ const ViralVideoAgent = () => {
     const [isWhipMode, setIsWhipMode] = useState(false);
     const lastRequestTime = useRef(0);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_viral', 3);
+    const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
+      setTrackIdea(prev => prev ? prev + ' ' + transcript : transcript);
+    });
 
     const handleGenerate = async () => {
         if (!trackIdea.trim()) return;
@@ -2420,14 +2546,26 @@ const ViralVideoAgent = () => {
                         </button>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
-                        <input 
-                            type="text" 
-                            value={trackIdea} 
-                            onChange={(e) => setTrackIdea(e.target.value)} 
-                            placeholder={isWhipMode ? "Enter key elements of your new Whip Montez track..." : "Enter track mood or title for general concepts..."} 
-                            className="flex-1 bg-black border border-cyan-800 text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:border-cyan-500" 
-                            onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
-                        />
+                        <div className="flex gap-2 flex-1">
+                          <input 
+                              type="text" 
+                              value={trackIdea} 
+                              onChange={(e) => setTrackIdea(e.target.value)} 
+                              placeholder={isWhipMode ? "Enter key elements of your new Whip Montez track..." : "Enter track mood or title for general concepts..."} 
+                              className="flex-1 bg-black border border-cyan-800 text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:border-cyan-500" 
+                              onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
+                          />
+                          {isSupported && (
+                            <button 
+                                onClick={startListening} 
+                                disabled={loading || isListening}
+                                className={`px-2 md:px-3 py-2 border border-cyan-800 ${isListening ? 'bg-cyan-600 animate-pulse' : 'bg-black hover:bg-cyan-900'} text-white transition-colors disabled:opacity-50`}
+                                title="Voice input"
+                            >
+                                <Mic size={16} className="md:w-5 md:h-5"/>
+                            </button>
+                          )}
+                        </div>
                         <button 
                             onClick={handleGenerate} 
                             disabled={loading} 
