@@ -48,11 +48,7 @@ const BACKEND_URL = isLocal
 // ------------------------------------------------------------------
 
 const callGemini = async (prompt, systemInstruction = "", useSearch = false) => {
-  // 1. SIMULATION MODE (Fast Fallback if no key)
-  // Check if apiKey is explicitly empty. If so, return mock data immediately.
-  const isSimulationMode = apiKey === ""; 
-
-  // Function to return mock data based on agent
+  // Function to return mock data (fallback only if backend fails after all retries)
   const getMockResponse = () => {
       if (prompt.includes("Album Cover")) {
            // A tiny, transparent mock PNG base64 string
@@ -85,13 +81,7 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
       return "DATA CORRUPTION. UNABLE TO PROCESS REQUEST.";
   };
 
-  if (isSimulationMode) {
-      console.log("Using Simulation Mode fallback.");
-      await new Promise(r => setTimeout(r, 1500)); 
-      return getMockResponse();
-  }
-
-  // 2. REAL API CALL (If key exists)
+  // Always try backend proxy first (no early simulation mode bailout)
   const delays = [1000, 2000, 4000, 8000, 16000];
   
   // Image generation also routes through backend proxy (was previously direct to Gemini)
