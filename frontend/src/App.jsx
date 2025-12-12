@@ -258,14 +258,14 @@ const BootSequence = ({ onComplete }) => {
   }, []); // Run only once on mount
 
   return (
-    <div className="h-screen w-full bg-black flex flex-col justify-start p-10 font-mono text-xl z-50 absolute top-0 left-0 overflow-hidden">
+    <div className="h-screen w-full bg-black flex flex-col justify-start p-4 sm:p-6 md:p-10 font-mono text-sm sm:text-base md:text-xl z-50 absolute top-0 left-0 overflow-hidden">
       <div id="boot-log" className="overflow-y-auto h-full space-y-1">
         {lines.map((line, i) => (
           <div key={i} className={`typing-effect ${line.style}`}>
             {`> ${line.text}`}
           </div>
         ))}
-        <div className="w-3 h-5 bg-[#00ff41] animate-pulse inline-block ml-2"></div>
+        <div className="w-2 h-3 sm:w-3 sm:h-5 bg-[#00ff41] animate-pulse inline-block ml-2"></div>
       </div>
     </div>
   );
@@ -631,10 +631,10 @@ const MusicPlayer = () => {
       color: "text-red-500",
       tapeColor: "border-red-500",
       tracks: [
-        { id: 201, title: "U Catching Feelings", duration: "2:50", date: "2002-09-11", video: true, audioUrl: "U Catching Feelings.mp3" },
+        { id: 201, title: "Stand Up", duration: "2:50", date: "2002-09-11", video: true, audioUrl: "02 Stand Up.mp3" },
         { id: 202, title: "Brooklyn Anthem feat. Alfonzo Hunter", duration: "3:15", date: "2002-12-01", video: false, audioUrl: "Brooklyn Anthem feat. Alfonzo Hunter.mp3" },
         { id: 203, title: "Sit Back n Remain (Freestyle)", duration: "2:10", date: "2003-02-14", video: false, audioUrl: "Sit Back n Remain (freesstyle).mp3" },
-        { id: 204, title: "Sky's The Limit", duration: "1:20", date: "2003-07-04", video: false, audioUrl: "Sky's The limit.mp3" },
+        { id: 204, title: "YoungStar", duration: "1:20", date: "2003-07-04", video: false, audioUrl: "Whip Montez YoungStar.mp3" },
         { id: 205, title: "No Matter You Say", duration: "4:00", date: "2003-08-14", video: true, audioUrl: "No Matter You Say.mp3" }
       ]
     }
@@ -2481,31 +2481,59 @@ const OSInterface = ({ reboot }) => {
 
   return (
     <div className="flex flex-col h-screen w-full relative z-10">
-      <div className="h-10 bg-[#111] border-b border-[#333] flex items-center justify-between px-4 select-none overflow-x-auto">
-        <div className="flex items-center gap-4 min-w-max">
-          <div className="flex items-center gap-2 text-[#00ff41] font-bold"><Cpu size={16} /> <span className="hidden md:inline">SYSTEM_READY</span></div>
+      {/* Top navigation bar - scrollable on mobile */}
+      <div className="h-auto md:h-10 bg-[#111] border-b border-[#333] flex flex-col md:flex-row items-start md:items-center justify-between px-2 md:px-4 py-2 md:py-0 select-none overflow-x-auto">
+        <div className="flex items-center gap-2 md:gap-4 min-w-max w-full md:w-auto mb-2 md:mb-0">
+          <div className="flex items-center gap-1 md:gap-2 text-[#00ff41] font-bold text-xs md:text-sm">
+            <Cpu size={14} className="md:w-4 md:h-4" /> 
+            <span className="hidden sm:inline">SYSTEM_READY</span>
+          </div>
           <div className="h-4 w-[1px] bg-[#333] mx-1"></div>
-          <nav className="flex gap-1">
+          {/* Mobile: wrap navigation, Desktop: single row */}
+          <nav className="flex gap-1 flex-wrap md:flex-nowrap">
             {['home', 'bio', 'music', 'tour', 'style', 'community', 'news'].map(section => (
-              <button key={section} onClick={() => setActiveSection(section)} className={`px-3 py-1 text-xs font-mono uppercase transition-colors ${activeSection === section ? 'bg-[#00ff41] text-black' : 'text-gray-400 hover:text-white'}`}>
+              <button 
+                key={section} 
+                onClick={() => setActiveSection(section)} 
+                className={`px-2 md:px-3 py-1.5 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap ${
+                  activeSection === section ? 'bg-[#00ff41] text-black' : 'text-gray-400 hover:text-white'
+                }`}
+              >
                 {section === 'music' ? 'Lost_Tapes' : section === 'style' ? 'Merch' : section === 'community' ? 'The_Block' : section}
               </button>
             ))}
-            <div className="h-4 w-[1px] bg-[#333] mx-1"></div>
-            <button onClick={() => setActiveSection('studio')} className={`px-3 py-1 text-xs font-mono uppercase transition-colors flex items-center gap-1 ${['studio', 'battle', 'crates', 'ghostwriter', 'ar_suite', 'album_art', 'viral_video'].includes(activeSection) ? 'bg-yellow-600 text-black' : 'text-gray-400 hover:text-white'}`}><Grid size={10} /> STUDIO</button>
+            <div className="hidden md:block h-4 w-[1px] bg-[#333] mx-1"></div>
+            <button 
+              onClick={() => setActiveSection('studio')} 
+              className={`px-2 md:px-3 py-1.5 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors flex items-center gap-1 whitespace-nowrap ${
+                ['studio', 'battle', 'crates', 'ghostwriter', 'ar_suite', 'album_art', 'viral_video'].includes(activeSection) ? 'bg-yellow-600 text-black' : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Grid size={10} /> STUDIO
+            </button>
           </nav>
         </div>
-        <div className="flex items-center gap-4 text-xs font-mono ml-4">
-          <button onClick={reboot} className="text-red-500 hover:text-red-400 flex items-center gap-1"><Power size={14}/></button>
-          <span className="text-[#00ff41]">{time}</span>
+        <div className="flex items-center gap-2 md:gap-4 text-[10px] md:text-xs font-mono">
+          <button onClick={reboot} className="text-red-500 hover:text-red-400 flex items-center gap-1">
+            <Power size={12} className="md:w-3.5 md:h-3.5"/>
+          </button>
+          <span className="text-[#00ff41] whitespace-nowrap">{time}</span>
         </div>
       </div>
 
+      {/* Main content area */}
       <div className="flex-1 relative overflow-hidden bg-black">
-        <div className="absolute inset-2 border border-[#333] flex flex-col bg-[#050505]">
-          <div className="h-8 bg-[#1a1a1a] border-b border-[#333] flex items-center justify-between px-2">
-            <div className="text-xs text-gray-400 font-mono flex items-center gap-2"><Terminal size={12} /> C:\WHIP_MONTEZ\{activeSection.toUpperCase()}.EXE</div>
-            <div className="flex gap-2"><Minus size={12} className="text-gray-500"/><Maximize2 size={12} className="text-gray-500"/><X size={12} className="text-gray-500"/></div>
+        <div className="absolute inset-1 md:inset-2 border border-[#333] flex flex-col bg-[#050505]">
+          <div className="h-6 md:h-8 bg-[#1a1a1a] border-b border-[#333] flex items-center justify-between px-2">
+            <div className="text-[10px] md:text-xs text-gray-400 font-mono flex items-center gap-2">
+              <Terminal size={10} className="md:w-3 md:h-3" /> 
+              <span className="truncate">C:\WHIP_MONTEZ\{activeSection.toUpperCase()}.EXE</span>
+            </div>
+            <div className="flex gap-2">
+              <Minus size={10} className="md:w-3 md:h-3 text-gray-500"/>
+              <Maximize2 size={10} className="md:w-3 md:h-3 text-gray-500"/>
+              <X size={10} className="md:w-3 md:h-3 text-gray-500"/>
+            </div>
           </div>
           
           <div className="flex-1 relative overflow-hidden">
@@ -2514,7 +2542,8 @@ const OSInterface = ({ reboot }) => {
         </div>
       </div>
 
-      <div className="h-6 bg-[#00ff41] text-black text-xs font-mono flex items-center overflow-hidden border-t border-[#00ff41]">
+      {/* Bottom marquee - smaller on mobile */}
+      <div className="h-5 md:h-6 bg-[#00ff41] text-black text-[10px] md:text-xs font-mono flex items-center overflow-hidden border-t border-[#00ff41]">
          <div className="animate-marquee whitespace-nowrap uppercase font-bold">*** BREAKING: UNRELEASED TRACKS FOUND IN RED HOOK BASEMENT *** TOUR DATES LEAKED FROM 2004 *** WHIP MONTEZ SIGHTING CONFIRMED AT BODEGA *** SYSTEM RESTORATION AT 99% ***</div>
       </div>
     </div>
