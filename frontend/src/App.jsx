@@ -817,19 +817,29 @@ const MusicPlayer = () => {
           audioRef.current.src = `/${currentTrack.audioUrl}`;
         }
         audioRef.current.load();
+        
+        // If we should be playing, play after load
+        if (isPlaying) {
+          audioRef.current.play().catch(err => console.log("Play error:", err));
+        }
       } catch (err) {
         console.log("Audio load error, trying direct path:", err);
         audioRef.current.src = `/${currentTrack.audioUrl}`;
         audioRef.current.load();
+        
+        // If we should be playing, play after load
+        if (isPlaying) {
+          audioRef.current.play().catch(err => console.log("Play error:", err));
+        }
       }
     };
     
     loadAudio();
-  }, [currentTrack]);
+  }, [currentTrack, isPlaying]);
 
-  // Control playback based on isPlaying state
+  // Control playback ONLY when isPlaying changes (not when track changes)
   useEffect(() => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || !currentTrack) return;
     
     if (isPlaying) {
       audioRef.current.play().catch(err => {
