@@ -3365,6 +3365,7 @@ const CrateDigger = () => {
   const [mood, setMood] = useState("");
   const [samples, setSamples] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const lastRequestTime = useRef(0);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_crates', 3);
   const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
