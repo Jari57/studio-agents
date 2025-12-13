@@ -2406,7 +2406,7 @@ const StyleArchive = () => {
                     <div className="text-white font-bold text-xs md:text-sm uppercase truncate">{item.name}</div>
                     <div className="text-[#00ff41] font-mono text-[10px] md:text-xs">${item.price}</div>
                   </div>
-                  <button onClick={() => setCart(cart.filter((_, idx) => idx !== i))} className="text-gray-500 hover:text-red-500 shrink-0"><X size={14}/></button>
+                  <button onClick={() => setCart(cart.filter((_, idx) => idx !== i))} onTouchEnd={(e) => { e.preventDefault(); setCart(cart.filter((_, idx) => idx !== i)); }} className="text-gray-500 hover:text-red-500 shrink-0 touch-manipulation"><X size={14}/></button>
                 </div>
               ))}
               {cart.length === 0 && <div className="text-center text-gray-600 mt-10 text-sm">Cart is empty.</div>}
@@ -2799,7 +2799,8 @@ const CommunityHub = ({ setSection }) => {
                </div>
                <button 
                  onClick={handlePost}
-                 className="bg-[#00ff41] text-black px-3 md:px-6 py-1 text-[10px] md:text-xs font-black hover:bg-white transition-colors uppercase"
+                 onTouchEnd={(e) => { e.preventDefault(); if (newPostContent.trim()) handlePost(); }}
+                 className="bg-[#00ff41] text-black px-3 md:px-6 py-1 text-[10px] md:text-xs font-black hover:bg-white transition-colors uppercase touch-manipulation"
                >
                  TRANSMIT
                </button>
@@ -2854,14 +2855,16 @@ const CommunityHub = ({ setSection }) => {
               <div className="flex gap-6 text-[10px] text-gray-500 font-mono border-t border-[#333] pt-2 pl-11">
                 <button 
                   onClick={() => handleLike(post.id, post.likes)}
-                  className="flex items-center gap-1 hover:text-[#00ff41] transition-colors"
+                  onTouchEnd={(e) => { e.preventDefault(); handleLike(post.id, post.likes); }}
+                  className="flex items-center gap-1 hover:text-[#00ff41] transition-colors touch-manipulation"
                 >
                   <Heart size={12}/> 
                   <span>{post.likes || 0} LIKES</span>
                 </button>
                 <button 
                   onClick={() => setReplyingTo(replyingTo === post.id ? null : post.id)}
-                  className="flex items-center gap-1 hover:text-[#00ff41] transition-colors"
+                  onTouchEnd={(e) => { e.preventDefault(); setReplyingTo(replyingTo === post.id ? null : post.id); }}
+                  className="flex items-center gap-1 hover:text-[#00ff41] transition-colors touch-manipulation"
                 >
                   <MessageCircle size={12}/> 
                   <span>REPLY ({post.replies?.length || 0})</span>
