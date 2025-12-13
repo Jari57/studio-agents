@@ -135,8 +135,9 @@ const validatePromptSafety = (prompt) => {
 const allowedOrigins = isDevelopment 
   ? ['http://localhost:5173', 'http://localhost:3000']
   : [
-      'https://restored-os-whip-montez-production.up.railway.app',
-      process.env.FRONTEND_URL
+      process.env.FRONTEND_URL,
+      'https://whipmontez.com',
+      'https://www.whipmontez.com'
     ].filter(Boolean);
 
 app.use(cors({
@@ -153,6 +154,15 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Serve static frontend build when available (Railway production)
+const distPath = path.join(__dirname, '../frontend/dist');
+if (!isDevelopment && fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 //  REQUEST LOGGING
 if (isDevelopment) {

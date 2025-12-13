@@ -45,10 +45,10 @@ const apiKey = "";
 // ------------------------------------------------------------------
 // <<< THIS IS WHERE YOU PLUG IN THE BACKEND URL LOGIC >>>
 // ------------------------------------------------------------------
-const isLocal = window.location.hostname === 'localhost';
+const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const BACKEND_URL = isLocal
-  ? 'http://localhost:3001/api/generate' // Use your local backend URL here
-  : 'https://restored-os-whip-montez-production.up.railway.app/api/generate'; // Railway production URL
+  ? 'http://localhost:3001/api/generate'
+  : `${window.location.protocol}//${window.location.host}/api/generate`; // Use same domain in production
 // ------------------------------------------------------------------
 
 // 🛡️ Enhanced input sanitization function to prevent injection attacks
