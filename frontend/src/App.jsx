@@ -3212,12 +3212,14 @@ const RapBattle = () => {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const endRef = useRef(null);
   const lastRequestTime = useRef(0);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_battle', 3);
   const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
     setInput(prev => prev ? prev + ' ' + transcript : transcript);
   });
+  const { speak, stop, isSpeaking, isSupported: speechSupported } = useSpeechSynthesis();
 
 
   useEffect(() => {
@@ -3261,9 +3263,18 @@ const RapBattle = () => {
       <div className="relative z-30 w-full max-w-2xl h-[85vh] md:h-[70vh] bg-[#111] border border-red-700 shadow-[0_0_20px_rgba(220,38,38,0.4)] flex flex-col my-4">
         <div className="bg-red-700 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm shrink-0">
            <span className="flex items-center gap-1 md:gap-2"><Flame size={14} className="md:w-[18px] md:h-[18px]"/><span className="hidden sm:inline">CIPHER_DOJO.EXE</span><span className="sm:hidden">BATTLE</span></span>
-           <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-red-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
-             <X size={14} className="md:w-4 md:h-4 text-white"/>
-           </button>
+           <div className="flex gap-1">
+             <button 
+               onClick={() => setShowInfo(true)}
+               className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-red-900 transition-colors flex items-center justify-center"
+               title="Info"
+             >
+               <Info size={14} className="md:w-4 md:h-4 text-red-400"/>
+             </button>
+             <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-red-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
+               <X size={14} className="md:w-4 md:h-4 text-white"/>
+             </button>
+           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-3 md:space-y-4 bg-black/90" style={{WebkitOverflowScrolling: 'touch'}}>
            {history.map((turn, i) => (
@@ -3297,6 +3308,54 @@ const RapBattle = () => {
            <button onClick={handleBattle} disabled={loading} className="bg-red-600 text-white px-4 md:px-6 py-2 font-bold font-mono hover:bg-red-500 transition-colors uppercase disabled:opacity-50 active:scale-95">SPIT</button>
         </div>
       </div>
+
+      {/* Info Modal */}
+      {showInfo && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/90" onClick={() => setShowInfo(false)}>
+          <div className="bg-[#111] border-2 border-red-700 p-6 max-w-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{WebkitOverflowScrolling: 'touch'}}>
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-red-500 font-bold text-xl font-mono">CIPHER_DOJO.EXE - SYSTEM INFO</h3>
+              <button onClick={() => setShowInfo(false)} className="text-red-500 hover:text-white">
+                <X size={20}/>
+              </button>
+            </div>
+            <div className="space-y-4 text-gray-100 text-sm leading-relaxed">
+              <div>
+                <h4 className="text-red-500 font-bold mb-2">TOOL DESCRIPTION:</h4>
+                <p>AI-powered battle rap opponent inspired by 2004 Brooklyn hip-hop culture. Test your lyrical skills against an opponent who responds with aggressive, witty disses.</p>
+              </div>
+              <div>
+                <h4 className="text-red-500 font-bold mb-2">FEATURES:</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Voice-to-text input for natural flow</li>
+                  <li>Real-time AI responses with NYC slang</li>
+                  <li>Free tier: 3 battle rounds per session</li>
+                  <li>3-second cooldown between bars</li>
+                  <li>Chat-style battle history</li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="text-red-500 font-bold mb-2">HOW TO USE:</h4>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>Type or voice your battle bars</li>
+                  <li>Click SPIT to challenge the AI</li>
+                  <li>Get a diss track response in seconds</li>
+                  <li>Keep battling to sharpen your skills</li>
+                </ol>
+              </div>
+              <div>
+                <h4 className="text-red-500 font-bold mb-2">PRO TIPS:</h4>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Use metaphors and wordplay for impact</li>
+                  <li>Reference Brooklyn/NYC culture</li>
+                  <li>Keep bars concise (2-4 lines)</li>
+                  <li>Focus on flow and rhyme schemes</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
