@@ -403,21 +403,6 @@ const BackgroundCarousel = ({ images }) => {
 // 2. HOME
 const Home = ({ setSection }) => {
   const [hoveredItem, setHoveredItem] = useState(null);
-  const [newsIndex, setNewsIndex] = useState(0);
-  const headlines = [
-    "WHIP MONTEZ SIGNS TO LIVEWIRE",
-    "GMAIL LAUNCHES BETA // 1GB FREE",
-    "HALO 2 BREAKS SALES RECORDS",
-    "NEW MIXTAPE 'RED HOOK DIARIES' LEAKED",
-    "JAY-Z RETIRES? BLACK ALBUM FALLOUT"
-  ];
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setNewsIndex(prev => (prev + 1) % headlines.length);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, []);
 
   const homeCarouselImages = [
     'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1600&h=900&fit=crop&q=80',
@@ -428,64 +413,76 @@ const Home = ({ setSection }) => {
 
   const widgets = [
     {
-      id: 'news',
-      title: 'THE FEED',
-      subtitle: 'DAILY_NEWS_LOG',
-      icon: Activity,
-      color: 'text-cyan-400',
-      borderColor: 'border-cyan-400',
-      hoverBg: 'hover:bg-cyan-400/10',
-      shadow: 'group-hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]',
-      content: headlines[newsIndex],
-      action: () => setSection('news')
-    },
-    {
-      id: 'music',
-      title: 'THE TAPES',
-      subtitle: 'AUDIO_ARCHIVE_V1',
-      icon: Radio,
+      id: 'ghostwriter',
+      title: 'GHOST',
+      subtitle: 'AI_LYRIC_ENGINE',
+      icon: Sparkles,
       color: 'text-[#00ff41]',
       borderColor: 'border-[#00ff41]',
       hoverBg: 'hover:bg-[#00ff41]/10',
       shadow: 'group-hover:shadow-[0_0_20px_rgba(0,255,65,0.3)]',
-      content: '5 UNRELEASED ALBUMS',
-      action: () => setSection('music')
+      content: 'GENERATE VERSES',
+      action: () => setSection('ghostwriter')
     },
     {
-      id: 'style',
-      title: 'SUPPLY',
-      subtitle: 'MERCH_DROP_04',
-      icon: ShoppingBag,
-      color: 'text-purple-400',
-      borderColor: 'border-purple-400',
-      hoverBg: 'hover:bg-purple-400/10',
-      shadow: 'group-hover:shadow-[0_0_20px_rgba(192,132,252,0.3)]',
-      content: 'LIMITED STOCK: LIVE',
-      action: () => setSection('style')
+      id: 'chat',
+      title: 'CIPHER',
+      subtitle: 'AI_CONVERSATION',
+      icon: MessageSquare,
+      color: 'text-cyan-500',
+      borderColor: 'border-cyan-500',
+      hoverBg: 'hover:bg-cyan-500/10',
+      shadow: 'group-hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]',
+      content: 'TALK TO AI',
+      action: () => setSection('chat')
     },
     {
-      id: 'studio',
-      title: 'THE LAB',
-      subtitle: 'PRODUCTION_SUITE',
-      icon: Sliders,
+      id: 'battle',
+      title: 'BATTLE',
+      subtitle: 'RAP_COMPETITION',
+      icon: Mic,
       color: 'text-pink-500',
       borderColor: 'border-pink-500',
       hoverBg: 'hover:bg-pink-500/10',
       shadow: 'group-hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]',
-      content: 'MAKE BEATS / BATTLE',
-      action: () => setSection('studio')
+      content: 'CHALLENGE AI',
+      action: () => setSection('battle')
     },
     {
-      id: 'tour',
-      title: 'WORLD TOUR',
-      subtitle: 'LOG_DATES_2004',
-      icon: MapPin,
-      color: 'text-yellow-400',
-      borderColor: 'border-yellow-400',
-      hoverBg: 'hover:bg-yellow-400/10',
-      shadow: 'group-hover:shadow-[0_0_20px_rgba(250,204,21,0.3)]',
-      content: 'EAST COAST LEG',
-      action: () => setSection('tour')
+      id: 'ar_suite',
+      title: 'A&R',
+      subtitle: 'ARTIST_DEVELOPMENT',
+      icon: User,
+      color: 'text-purple-500',
+      borderColor: 'border-purple-500',
+      hoverBg: 'hover:bg-purple-500/10',
+      shadow: 'group-hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]',
+      content: 'CAREER INSIGHTS',
+      action: () => setSection('ar_suite')
+    },
+    {
+      id: 'crates',
+      title: 'CRATE',
+      subtitle: 'SAMPLE_DISCOVERY',
+      icon: Disc,
+      color: 'text-yellow-500',
+      borderColor: 'border-yellow-500',
+      hoverBg: 'hover:bg-yellow-500/10',
+      shadow: 'group-hover:shadow-[0_0_20px_rgba(234,179,8,0.3)]',
+      content: 'DIG FOR SOUNDS',
+      action: () => setSection('crates')
+    },
+    {
+      id: 'viral_video',
+      title: 'VIRAL',
+      subtitle: 'VIDEO_CONCEPTS',
+      icon: Video,
+      borderColor: 'border-red-500',
+      color: 'text-red-500',
+      hoverBg: 'hover:bg-red-500/10',
+      shadow: 'group-hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]',
+      content: 'CREATE VIDEOS',
+      action: () => setSection('viral_video')
     }
   ];
 
@@ -519,7 +516,7 @@ const Home = ({ setSection }) => {
 
         <div className="flex-1 min-h-[20px]"></div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 w-full pb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4 w-full pb-4">
           {widgets.map((widget, i) => (
             <div 
               key={widget.id}
@@ -544,11 +541,7 @@ const Home = ({ setSection }) => {
                    {widget.title}
                  </h3>
                  <div className={`text-[8px] md:text-[9px] font-mono uppercase tracking-wider ${widget.color} truncate`}>
-                   {widget.id === 'news' ? (
-                     <span className="animate-pulse">{'>'} {widget.content}</span>
-                   ) : (
-                     <>{'>'} {widget.subtitle}</>
-                   )}
+                   <>{'>'} {widget.subtitle}</>
                  </div>
               </div>
 
@@ -564,7 +557,7 @@ const Home = ({ setSection }) => {
 
 // 4. BIO SECTION
 const Bio = ({ setSection, user = null }) => {
-  const [viewMode, setViewMode] = useState('bio'); // 'bio' or 'memory'
+  const [viewMode, setViewMode] = useState('bio'); // 'bio', 'memory', or 'story'
   const [photos, setPhotos] = useState([]);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -748,13 +741,13 @@ const Bio = ({ setSection, user = null }) => {
            {/* Header */}
            <div className="h-10 md:h-16 bg-[#00ff41] text-black px-3 md:p-4 flex justify-between items-center shrink-0">
              <h1 className="text-lg md:text-4xl font-black tracking-tighter">
-               {viewMode === 'bio' ? 'OFFICIAL PROFILE' : 'MEMORY LANE'}
+               {viewMode === 'bio' ? 'OFFICIAL PROFILE' : viewMode === 'memory' ? 'MEMORY LANE' : 'THE STORY'}
              </h1>
              <div className="flex items-center gap-1">
                {/* Toggle Buttons */}
                <button
                  onClick={() => setViewMode('bio')}
-                 className={`px-3 md:px-6 py-2 md:py-3 text-xs md:text-sm font-black tracking-wider border-2 transition-all ${
+                 className={`px-2 md:px-4 py-2 md:py-3 text-[10px] md:text-sm font-black tracking-wider border-2 transition-all ${
                    viewMode === 'bio' 
                      ? 'bg-black text-[#00ff41] border-[#00ff41] shadow-[0_0_10px_rgba(0,255,65,0.5)]' 
                      : 'bg-transparent text-black border-black hover:bg-black/10'
@@ -763,8 +756,19 @@ const Bio = ({ setSection, user = null }) => {
                  BIO
                </button>
                <button
+                 onClick={() => setViewMode('story')}
+                 className={`px-2 md:px-4 py-2 md:py-3 text-[10px] md:text-sm font-black tracking-wider border-2 transition-all ${
+                   viewMode === 'story' 
+                     ? 'bg-black text-[#00ff41] border-[#00ff41] shadow-[0_0_10px_rgba(0,255,65,0.5)]' 
+                     : 'bg-transparent text-black border-black hover:bg-black/10'
+                 }`}
+               >
+                 <ShieldAlert size={14} className="inline mr-1" />
+                 STORY
+               </button>
+               <button
                  onClick={() => setViewMode('memory')}
-                 className={`px-3 md:px-6 py-2 md:py-3 text-xs md:text-sm font-black tracking-wider border-2 transition-all ${
+                 className={`px-2 md:px-4 py-2 md:py-3 text-[10px] md:text-sm font-black tracking-wider border-2 transition-all ${
                    viewMode === 'memory' 
                      ? 'bg-black text-[#00ff41] border-[#00ff41] shadow-[0_0_10px_rgba(0,255,65,0.5)]' 
                      : 'bg-transparent text-black border-black hover:bg-black/10'
@@ -778,7 +782,271 @@ const Bio = ({ setSection, user = null }) => {
 
            {/* Scrollable Content */}
            <div className="flex-1 overflow-y-auto overscroll-contain" style={{WebkitOverflowScrolling: 'touch'}}>
-             {viewMode === 'bio' ? (
+             {viewMode === 'story' ? (
+               // THE STORY - ALTERNATIVE REALITY EXPERIENCE
+               <div className="min-h-full bg-black flex items-center justify-center p-4 md:p-8">
+                 <div className="max-w-4xl w-full space-y-8">
+                   {/* Hero Section */}
+                   <div className="text-center space-y-6 mb-12">
+                     <div className="inline-block">
+                       <div className="text-[#00ff41]/70 text-xs font-mono tracking-[0.6em] uppercase mb-4 animate-pulse">
+                         Alternative Reality Experience
+                       </div>
+                       <h1 className="text-4xl md:text-6xl font-thin text-[#00ff41] tracking-tighter drop-shadow-[0_0_10px_rgba(0,255,65,0.8)] mb-6">
+                         WHIP MONTEZ
+                       </h1>
+                       <div className="h-[2px] w-32 bg-[#00ff41] shadow-[0_0_20px_#00ff41] mx-auto mb-4"></div>
+                       <p className="text-white/60 text-sm tracking-[0.4em] uppercase">
+                         The Restored Experience
+                       </p>
+                     </div>
+                   </div>
+
+                   {/* The Full Story */}
+                   <div className="prose prose-invert max-w-none space-y-8 text-gray-300 leading-relaxed">
+                     {/* Introduction */}
+                     <div className="bg-gradient-to-r from-[#00ff41]/10 to-transparent border-l-4 border-[#00ff41] p-6">
+                       <h2 className="text-2xl md:text-3xl font-black text-white mb-4 tracking-tight">
+                         WHAT IS THIS?
+                       </h2>
+                       <p className="text-base md:text-lg font-mono leading-relaxed">
+                         Welcome to the <strong className="text-[#00ff41]">WHIP MONTEZ: Restored OS</strong>—an Alternative Reality Experience (ARE) that resurrects a lost moment in hip-hop history. This isn't just a website. It's a digital time capsule, a reconstructed operating system from 2000-2004, built to honor an artist who never got her moment in the spotlight.
+                       </p>
+                     </div>
+
+                     {/* The Artist's Story */}
+                     <div>
+                       <h3 className="text-xl md:text-2xl font-black text-[#00ff41] mb-4 uppercase tracking-wide border-b border-[#333] pb-2">
+                         THE ARTIST WHO TIME FORGOT
+                       </h3>
+                       <p className="text-sm md:text-base">
+                         <strong className="text-white">Whip Montez</strong> was real. Born Wanda Altagracia Almonte in Brooklyn's Red Hook Housing Projects, she was a Dominican-American MC who was on the verge of breaking through in the early 2000s. She collaborated with legends like <strong className="text-white">Erick Sermon</strong> and <strong className="text-white">Talib Kweli</strong>. She performed alongside <strong className="text-white">Mobb Deep</strong> and <strong className="text-white">Slum Village</strong>. She had the talent, the connections, and the drive.
+                       </p>
+                       <p className="text-sm md:text-base mt-4">
+                         But her debut album, <em className="text-white">"Can't Nobody Whip Montez,"</em> never dropped. The industry moved on. Digital distribution was in its infancy. Independent artists without major label backing often disappeared without a trace. Whip Montez became one of hip-hop's countless "what ifs"—a brilliant artist whose music was never properly archived, celebrated, or remembered.
+                       </p>
+                       <p className="text-sm md:text-base mt-4 italic text-gray-400">
+                         Until now.
+                       </p>
+                     </div>
+
+                     {/* The Vision */}
+                     <div className="bg-[#0a0a0a] border border-[#333] p-6 rounded">
+                       <h3 className="text-xl md:text-2xl font-black text-[#00ff41] mb-4 uppercase tracking-wide">
+                         THE VISION: RESTORING WHAT WAS LOST
+                       </h3>
+                       <p className="text-sm md:text-base">
+                         This project was created by <strong className="text-white">Jari Montez</strong>, Whip's brother and former manager. After 20+ years, he's reconstructing the digital experience that never existed—the official website, the streaming presence, the interactive fan hub that Whip deserved but never had.
+                       </p>
+                       <p className="text-sm md:text-base mt-4">
+                         Using cutting-edge AI technology and modern web development, we've built an <strong className="text-[#00ff41]">Alternative Reality Operating System</strong> that simulates what Whip's career might have looked like if the timing had been different. It's part memorial, part what-if scenario, part interactive art project.
+                       </p>
+                     </div>
+
+                     {/* Why This Matters */}
+                     <div>
+                       <h3 className="text-xl md:text-2xl font-black text-[#00ff41] mb-4 uppercase tracking-wide border-b border-[#333] pb-2">
+                         WHY THIS MATTERS
+                       </h3>
+                       <div className="grid md:grid-cols-2 gap-6">
+                         <div className="space-y-3">
+                           <div className="flex items-start gap-3">
+                             <div className="w-2 h-2 bg-[#00ff41] rounded-full mt-2 shrink-0"></div>
+                             <div>
+                               <strong className="text-white block mb-1">Preserving Lost Voices</strong>
+                               <p className="text-xs md:text-sm text-gray-400">
+                                 Countless talented artists from the pre-streaming era vanished without proper documentation. This project honors them all.
+                               </p>
+                             </div>
+                           </div>
+                           <div className="flex items-start gap-3">
+                             <div className="w-2 h-2 bg-[#00ff41] rounded-full mt-2 shrink-0"></div>
+                             <div>
+                               <strong className="text-white block mb-1">Female Representation</strong>
+                               <p className="text-xs md:text-sm text-gray-400">
+                                 The early 2000s hip-hop scene was overwhelmingly male. Whip fought for her place and deserves to be remembered.
+                               </p>
+                             </div>
+                           </div>
+                         </div>
+                         <div className="space-y-3">
+                           <div className="flex items-start gap-3">
+                             <div className="w-2 h-2 bg-[#00ff41] rounded-full mt-2 shrink-0"></div>
+                             <div>
+                               <strong className="text-white block mb-1">Tech Meets Art</strong>
+                               <p className="text-xs md:text-sm text-gray-400">
+                                 This experiment shows how AI and modern tools can resurrect and reimagine lost cultural moments.
+                               </p>
+                             </div>
+                           </div>
+                           <div className="flex items-start gap-3">
+                             <div className="w-2 h-2 bg-[#00ff41] rounded-full mt-2 shrink-0"></div>
+                             <div>
+                               <strong className="text-white block mb-1">Family Legacy</strong>
+                               <p className="text-xs md:text-sm text-gray-400">
+                                 A brother's love letter to his sister—ensuring her story doesn't end in obscurity.
+                               </p>
+                             </div>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* The Features */}
+                     <div className="bg-gradient-to-b from-[#0a0a0a] to-black border-t-4 border-b-4 border-[#00ff41] p-6 my-8">
+                       <h3 className="text-xl md:text-2xl font-black text-white mb-6 uppercase tracking-wide text-center">
+                         EXPLORE THE RESTORED OS
+                       </h3>
+                       <div className="grid md:grid-cols-3 gap-4">
+                         <div className="bg-black/50 border border-[#333] p-4 hover:border-[#00ff41] transition-all group">
+                           <div className="text-[#00ff41] mb-2"><Sparkles size={24} /></div>
+                           <h4 className="text-white font-bold mb-2 group-hover:text-[#00ff41] transition-colors">AI GHOSTWRITER</h4>
+                           <p className="text-xs text-gray-400">Generate custom verses in Whip's style using advanced AI trained on her lyrical patterns.</p>
+                         </div>
+                         <div className="bg-black/50 border border-[#333] p-4 hover:border-cyan-500 transition-all group">
+                           <div className="text-cyan-500 mb-2"><MessageSquare size={24} /></div>
+                           <h4 className="text-white font-bold mb-2 group-hover:text-cyan-500 transition-colors">SIDEKICK CIPHER</h4>
+                           <p className="text-xs text-gray-400">Chat with an AI recreation of Whip's personality and perspective on hip-hop.</p>
+                         </div>
+                         <div className="bg-black/50 border border-[#333] p-4 hover:border-pink-500 transition-all group">
+                           <div className="text-pink-500 mb-2"><Mic size={24} /></div>
+                           <h4 className="text-white font-bold mb-2 group-hover:text-pink-500 transition-colors">RAP BATTLE</h4>
+                           <p className="text-xs text-gray-400">Go bar-for-bar with an AI opponent in real-time freestyle battles.</p>
+                         </div>
+                         <div className="bg-black/50 border border-[#333] p-4 hover:border-purple-500 transition-all group">
+                           <div className="text-purple-500 mb-2"><User size={24} /></div>
+                           <h4 className="text-white font-bold mb-2 group-hover:text-purple-500 transition-colors">A&R OFFICE</h4>
+                           <p className="text-xs text-gray-400">Get career advice, release strategies, and industry insights from AI.</p>
+                         </div>
+                         <div className="bg-black/50 border border-[#333] p-4 hover:border-yellow-500 transition-all group">
+                           <div className="text-yellow-500 mb-2"><Disc size={24} /></div>
+                           <h4 className="text-white font-bold mb-2 group-hover:text-yellow-500 transition-colors">CRATE DIGGER</h4>
+                           <p className="text-xs text-gray-400">Discover obscure samples and production techniques from the golden era.</p>
+                         </div>
+                         <div className="bg-black/50 border border-[#333] p-4 hover:border-red-500 transition-all group">
+                           <div className="text-red-500 mb-2"><Video size={24} /></div>
+                           <h4 className="text-white font-bold mb-2 group-hover:text-red-500 transition-colors">VIRAL VIDEO AI</h4>
+                           <p className="text-xs text-gray-400">Generate music video concepts and promotional content ideas.</p>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* Additional Features */}
+                     <div>
+                       <h3 className="text-xl md:text-2xl font-black text-[#00ff41] mb-4 uppercase tracking-wide border-b border-[#333] pb-2">
+                         PLUS: AUTHENTIC 2000s EXPERIENCE
+                       </h3>
+                       <div className="space-y-4">
+                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-[#00ff41] p-4">
+                           <Radio className="text-[#00ff41] shrink-0" size={20} />
+                           <div>
+                             <strong className="text-white block mb-1">Lost Tapes Audio Player</strong>
+                             <p className="text-xs md:text-sm text-gray-400">Stream Whip's unreleased tracks with a retro Flash-style music player interface.</p>
+                           </div>
+                         </div>
+                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-cyan-500 p-4">
+                           <Globe className="text-cyan-500 shrink-0" size={20} />
+                           <div>
+                             <strong className="text-white block mb-1">Live Hip-Hop News Feed</strong>
+                             <p className="text-xs md:text-sm text-gray-400">Real-time entertainment news with trending social media posts from X, Reddit, Instagram.</p>
+                           </div>
+                         </div>
+                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-purple-500 p-4">
+                           <ShoppingBag className="text-purple-500 shrink-0" size={20} />
+                           <div>
+                             <strong className="text-white block mb-1">Livewire Merch Store</strong>
+                             <p className="text-xs md:text-sm text-gray-400">Browse vintage-style merchandise with Y2K aesthetic and secure checkout.</p>
+                           </div>
+                         </div>
+                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-pink-500 p-4">
+                           <Camera className="text-pink-500 shrink-0" size={20} />
+                           <div>
+                             <strong className="text-white block mb-1">Memory Lane Gallery</strong>
+                             <p className="text-xs md:text-sm text-gray-400">Archival photos from Red Hook, studio sessions, and live performances.</p>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* The Tech */}
+                     <div className="bg-[#0a0a0a] border border-[#333] p-6 rounded">
+                       <h3 className="text-xl md:text-2xl font-black text-[#00ff41] mb-4 uppercase tracking-wide">
+                         HOW IT WAS BUILT
+                       </h3>
+                       <p className="text-sm md:text-base mb-4">
+                         This Alternative Reality Experience combines modern technology with nostalgic design to create an authentic time-travel experience:
+                       </p>
+                       <div className="grid md:grid-cols-2 gap-4 text-xs md:text-sm">
+                         <div className="space-y-2">
+                           <div className="flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 bg-[#00ff41] rounded-full"></div>
+                             <span className="text-gray-300"><strong className="text-white">Google Gemini AI</strong> - Powers all interactive agents</span>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 bg-[#00ff41] rounded-full"></div>
+                             <span className="text-gray-300"><strong className="text-white">React + Vite</strong> - Modern frontend framework</span>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 bg-[#00ff41] rounded-full"></div>
+                             <span className="text-gray-300"><strong className="text-white">Firebase</strong> - Real-time database & storage</span>
+                           </div>
+                         </div>
+                         <div className="space-y-2">
+                           <div className="flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 bg-[#00ff41] rounded-full"></div>
+                             <span className="text-gray-300"><strong className="text-white">Tailwind CSS</strong> - Y2K-inspired design system</span>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 bg-[#00ff41] rounded-full"></div>
+                             <span className="text-gray-300"><strong className="text-white">Node.js Backend</strong> - API proxy for AI services</span>
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <div className="w-1.5 h-1.5 bg-[#00ff41] rounded-full"></div>
+                             <span className="text-gray-300"><strong className="text-white">Vercel/Railway</strong> - Cloud deployment</span>
+                           </div>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* The Disclaimer */}
+                     <div className="border-t-2 border-b-2 border-[#00ff41] bg-gradient-to-r from-[#00ff41]/5 to-transparent p-6 my-8">
+                       <div className="flex items-start gap-4">
+                         <ShieldAlert className="text-[#00ff41] shrink-0" size={32} />
+                         <div>
+                           <h3 className="text-lg md:text-xl font-black text-white mb-3 uppercase">
+                             IMPORTANT: THIS IS AN ALTERNATIVE REALITY
+                           </h3>
+                           <p className="text-sm md:text-base text-gray-300 leading-relaxed">
+                             While Whip Montez was a real artist with genuine talent and connections, this website presents a <strong className="text-white">fictionalized "what if" scenario</strong>. The AI-generated content, reconstructed timeline, and interactive features are creative interpretations—not historical documentation. Some details have been reimagined or enhanced for storytelling purposes. This is an <strong className="text-[#00ff41]">artistic memorial</strong> and <strong className="text-[#00ff41]">technological experiment</strong>, not a biographical archive.
+                           </p>
+                           <p className="text-xs text-gray-500 mt-3 italic">
+                             Any resemblance to actual events beyond publicly verifiable information is part of the Alternative Reality Experience design.
+                           </p>
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* Closing */}
+                     <div className="text-center space-y-4 pt-8">
+                       <div className="h-[2px] w-32 bg-[#00ff41] shadow-[0_0_20px_#00ff41] mx-auto mb-6"></div>
+                       <p className="text-base md:text-lg font-mono text-white/80 italic">
+                         "This is for every artist who never got their shot.<br/>
+                         For every voice that was silenced too soon.<br/>
+                         For Whip Montez, and all the Lost Tapes."
+                       </p>
+                       <p className="text-sm text-[#00ff41] font-mono tracking-wider">
+                         — JARI MONTEZ, 2025
+                       </p>
+                       <div className="pt-6">
+                         <p className="text-xs text-gray-600 uppercase tracking-widest">
+                           SYSTEM STATUS: RESTORED // TERMINAL ID: WHIP-OS-V2
+                         </p>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             ) : viewMode === 'bio' ? (
                // BIO CONTENT
                <>
                  {/* Bio Header - Full Width */}
@@ -1657,36 +1925,36 @@ const TourHistory = () => {
 const StyleArchive = () => {
   // Fallback Data if Firebase Unavailable
   const fallbackItems = [
-      { id: 'm1', name: "Livewire Official Tee - Black", category: "Shirts", price: 35, image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80", desc: "Classic Logo Black" },
-      { id: 'm2', name: "Whip Montez Red Hook Hoodie", category: "Hoodies", price: 85, image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&q=80", desc: "Heavyweight Cotton" },
-      { id: 'm3', name: "Livewire Cargo Pants", category: "Pants", price: 95, image: "https://images.unsplash.com/photo-1517445312882-14f275936729?w=500&q=80", desc: "Tactical Pockets" },
-      { id: 'm4', name: "Whip Tour Backpack '04", category: "Bags", price: 60, image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80", desc: "Canvas Rucksack" },
-      { id: 'm5', name: "Graffiti Logo Joggers", category: "Pants", price: 70, image: "https://images.unsplash.com/photo-1552902865-b72c031ac5ea?w=500&q=80", desc: "All-over Print" },
-      { id: 'm6', name: "Whip Montez Bandana Pack", category: "Accessories", price: 20, image: "https://images.unsplash.com/photo-1629316075677-72782e379a41?w=500&q=80", desc: "3 Colors" },
-      { id: 'm7', name: "Livewire Velour Track Top", category: "Hoodies", price: 110, image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500&q=80", desc: "Navy Blue" },
-      { id: 'm8', name: "Whip Montez Snapback Hat", category: "Accessories", price: 30, image: "https://images.unsplash.com/photo-1577771761611-37f37ccb84db?w=500&q=80", desc: "Embroidered Logo" },
-      { id: 'm9', name: "Livewire 2004 Album Tee", category: "Shirts", price: 40, image: "https://images.unsplash.com/photo-1571542617696-6136d2c4760d?w=500&q=80", desc: "Album Art Print" },
-      { id: 'm10', name: "Red Hook Bomber Jacket", category: "Jackets", price: 150, image: "https://images.unsplash.com/photo-1551028038-0973a0e633d2?w=500&q=80", desc: "Heavy Satin Shell" },
-      { id: 'm11', name: "Montez Skull Beanie", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1582236528760-496e5797f374?w=500&q=80", desc: "Winter Wear" },
-      { id: 'm12', name: "Livewire Utility Vest", category: "Jackets", price: 90, image: "https://images.unsplash.com/photo-1622479532585-cd278cc0486c?w=500&q=80", desc: "Multi-Pocket" },
-      { id: 'm13', name: "Whip Cropped Tee", category: "Shirts", price: 30, image: "https://images.unsplash.com/photo-1523359054-933e144a7065?w=500&q=80", desc: "Female Fit" },
-      { id: 'm14', name: "Montez Logo Socks", category: "Accessories", price: 15, image: "https://images.unsplash.com/photo-1606277636181-a95786f1f41b?w=500&q=80", desc: "Mid-Calf" },
-      { id: 'm15', name: "Digital Camo Hoodie", category: "Hoodies", price: 90, image: "https://images.unsplash.com/photo-1543163534-118e3810145f?w=500&q=80", desc: "Digital Print" },
-      { id: 'm16', name: "Signature Wristband Set", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1529124430154-15c0e051c04d?w=500&q=80", desc: "Livewire x Montez" },
-      { id: 'm17', name: "Whip Montez Denim Jacket", category: "Jackets", price: 140, image: "https://images.unsplash.com/photo-1551537482-f2075a1d41f2?w=500&q=80", desc: "Vintage Wash" },
-      { id: 'm18', name: "Brooklyn Nights Long Sleeve", category: "Shirts", price: 45, image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=500&q=80", desc: "Thermal Cotton" },
-      { id: 'm19', name: "Montez Chain Link Bracelet", category: "Accessories", price: 55, image: "https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=500&q=80", desc: "Stainless Steel" },
+      { id: 'm1', name: "Livewire Official Tee - Black", category: "Shirts", price: 35, image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=500&q=80", desc: "Classic Logo Black" },
+      { id: 'm2', name: "Whip Montez Red Hook Hoodie", category: "Hoodies", price: 85, image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500&q=80", desc: "Heavyweight Cotton" },
+      { id: 'm3', name: "Livewire Cargo Pants", category: "Pants", price: 95, image: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500&q=80", desc: "Tactical Pockets" },
+      { id: 'm4', name: "Whip Tour Backpack '04", category: "Bags", price: 60, image: "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?w=500&q=80", desc: "Canvas Rucksack" },
+      { id: 'm5', name: "Graffiti Logo Joggers", category: "Pants", price: 70, image: "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=500&q=80", desc: "All-over Print" },
+      { id: 'm6', name: "Whip Montez Bandana Pack", category: "Accessories", price: 20, image: "https://images.unsplash.com/photo-1616956873272-942c9f86d1e3?w=500&q=80", desc: "3 Colors" },
+      { id: 'm7', name: "Livewire Velour Track Top", category: "Hoodies", price: 110, image: "https://images.unsplash.com/photo-1564584217132-2271feaeb3c5?w=500&q=80", desc: "Navy Blue" },
+      { id: 'm8', name: "Whip Montez Snapback Hat", category: "Accessories", price: 30, image: "https://images.unsplash.com/photo-1575428652377-a2d80e2277fc?w=500&q=80", desc: "Embroidered Logo" },
+      { id: 'm9', name: "Livewire 2004 Album Tee", category: "Shirts", price: 40, image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=500&q=80", desc: "Album Art Print" },
+      { id: 'm10', name: "Red Hook Bomber Jacket", category: "Jackets", price: 150, image: "https://images.unsplash.com/photo-1520367691844-1049d43e9340?w=500&q=80", desc: "Heavy Satin Shell" },
+      { id: 'm11', name: "Montez Skull Beanie", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=500&q=80", desc: "Winter Wear" },
+      { id: 'm12', name: "Livewire Utility Vest", category: "Jackets", price: 90, image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500&q=80", desc: "Multi-Pocket" },
+      { id: 'm13', name: "Whip Cropped Tee", category: "Shirts", price: 30, image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80", desc: "Female Fit" },
+      { id: 'm14', name: "Montez Logo Socks", category: "Accessories", price: 15, image: "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=500&q=80", desc: "Mid-Calf" },
+      { id: 'm15', name: "Digital Camo Hoodie", category: "Hoodies", price: 90, image: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80", desc: "Digital Print" },
+      { id: 'm16', name: "Signature Wristband Set", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1611652022419-a9419f74343a?w=500&q=80", desc: "Livewire x Montez" },
+      { id: 'm17', name: "Whip Montez Denim Jacket", category: "Jackets", price: 140, image: "https://images.unsplash.com/photo-1601333144130-8cbb312386b6?w=500&q=80", desc: "Vintage Wash" },
+      { id: 'm18', name: "Brooklyn Nights Long Sleeve", category: "Shirts", price: 45, image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=500&q=80", desc: "Thermal Cotton" },
+      { id: 'm19', name: "Montez Chain Link Bracelet", category: "Accessories", price: 55, image: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=500&q=80", desc: "Stainless Steel" },
       { id: 'm20', name: "Red Hook Crewneck", category: "Hoodies", price: 75, image: "https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=500&q=80", desc: "Embroidered Logo" },
-      { id: 'm21', name: "Livewire Track Jacket", category: "Jackets", price: 120, image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=500&q=80", desc: "Retro Stripes" },
-      { id: 'm22', name: "Whip Montez Tank Top", category: "Shirts", price: 28, image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=500&q=80", desc: "Summer Edition" },
-      { id: 'm23', name: "Brooklyn Born Duffle Bag", category: "Bags", price: 85, image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80", desc: "Gym & Travel" },
+      { id: 'm21', name: "Livewire Track Jacket", category: "Jackets", price: 120, image: "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?w=500&q=80", desc: "Retro Stripes" },
+      { id: 'm22', name: "Whip Montez Tank Top", category: "Shirts", price: 28, image: "https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?w=500&q=80", desc: "Summer Edition" },
+      { id: 'm23', name: "Brooklyn Born Duffle Bag", category: "Bags", price: 85, image: "https://images.unsplash.com/photo-1547949003-9792a18a2601?w=500&q=80", desc: "Gym & Travel" },
       { id: 'm24', name: "Montez Logo Bucket Hat", category: "Accessories", price: 35, image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=500&q=80", desc: "Reversible" },
-      { id: 'm25', name: "Livewire Windbreaker", category: "Jackets", price: 95, image: "https://images.unsplash.com/photo-1548126032-079b4e3df0e2?w=500&q=80", desc: "Water Resistant" },
-      { id: 'm26', name: "Red Hook Sweatpants", category: "Pants", price: 65, image: "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=500&q=80", desc: "Relaxed Fit" },
+      { id: 'm25', name: "Livewire Windbreaker", category: "Jackets", price: 95, image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=500&q=80", desc: "Water Resistant" },
+      { id: 'm26', name: "Red Hook Sweatpants", category: "Pants", price: 65, image: "https://images.unsplash.com/photo-1552902865-b72c031ac5ea?w=500&q=80", desc: "Relaxed Fit" },
       { id: 'm27', name: "Whip Montez Crossbody Bag", category: "Bags", price: 50, image: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=500&q=80", desc: "Urban Essential" },
       { id: 'm28', name: "Brooklyn Camo Shorts", category: "Pants", price: 55, image: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=500&q=80", desc: "Summer Wear" },
-      { id: 'm29', name: "Livewire Zip Hoodie", category: "Hoodies", price: 95, image: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80", desc: "Full Front Zip" },
-      { id: 'm30', name: "Montez Era Tour Tee '04", category: "Shirts", price: 50, image: "https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?w=500&q=80", desc: "Limited Edition" }
+      { id: 'm29', name: "Livewire Zip Hoodie", category: "Hoodies", price: 95, image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&q=80", desc: "Full Front Zip" },
+      { id: 'm30', name: "Montez Era Tour Tee '04", category: "Shirts", price: 50, image: "https://images.unsplash.com/photo-1571542617696-6136d2c4760d?w=500&q=80", desc: "Limited Edition" }
   ];
 
   const [items, setItems] = useState(fallbackItems);
@@ -1709,8 +1977,8 @@ const StyleArchive = () => {
     }
     const unsubscribe = onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'merch'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Always show fallback items if database is empty
-      if (data.length === 0) {
+      // Always show fallback items if database is empty or items don't have images
+      if (data.length === 0 || data.some(item => !item.image)) {
         setItems(fallbackItems);
         setShowSeed(true);
       } else {
@@ -1749,22 +2017,22 @@ const StyleArchive = () => {
   const seedData = async () => {
     if (!db) return;
     const seedItems = [
-      { name: "Livewire Official Tee - Black", category: "Shirts", price: 35, image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80", desc: "Classic Logo Black" },
-      { name: "Whip Montez Red Hook Hoodie", category: "Hoodies", price: 85, image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&q=80", desc: "Heavyweight Cotton" },
-      { name: "Livewire Cargo Pants", category: "Pants", price: 95, image: "https://images.unsplash.com/photo-1517445312882-14f275936729?w=500&q=80", desc: "Tactical Pockets" },
-      { name: "Whip Tour Backpack '04", category: "Bags", price: 60, image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&q=80", desc: "Canvas Rucksack" },
-      { name: "Graffiti Logo Joggers", category: "Pants", price: 70, image: "https://images.unsplash.com/photo-1552902865-b72c031ac5ea?w=500&q=80", desc: "All-over Print" },
-      { name: "Whip Montez Bandana Pack", category: "Accessories", price: 20, image: "https://images.unsplash.com/photo-1629316075677-72782e379a41?w=500&q=80", desc: "3 Colors" },
-      { name: "Livewire Velour Track Top", category: "Hoodies", price: 110, image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=500&q=80", desc: "Navy Blue" },
-      { name: "Whip Montez Snapback Hat", category: "Accessories", price: 30, image: "https://images.unsplash.com/photo-1577771761611-37f37ccb84db?w=500&q=80", desc: "Embroidered Logo" },
-      { name: "Livewire 2004 Album Tee", category: "Shirts", price: 40, image: "https://images.unsplash.com/photo-1571542617696-6136d2c4760d?w=500&q=80", desc: "Album Art Print" },
-      { name: "Red Hook Bomber Jacket", category: "Jackets", price: 150, image: "https://images.unsplash.com/photo-1551028038-0973a0e633d2?w=500&q=80", desc: "Heavy Satin Shell" },
-      { name: "Montez Skull Beanie", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1582236528760-496e5797f374?w=500&q=80", desc: "Winter Wear" },
-      { name: "Livewire Utility Vest", category: "Jackets", price: 90, image: "https://images.unsplash.com/photo-1622479532585-cd278cc0486c?w=500&q=80", desc: "Multi-Pocket" },
-      { name: "Whip Cropped Tee", category: "Shirts", price: 30, image: "https://images.unsplash.com/photo-1523359054-933e144a7065?w=500&q=80", desc: "Female Fit" },
-      { name: "Montez Logo Socks", category: "Accessories", price: 15, image: "https://images.unsplash.com/photo-1606277636181-a95786f1f41b?w=500&q=80", desc: "Mid-Calf" },
-      { name: "Digital Camo Hoodie", category: "Hoodies", price: 90, image: "https://images.unsplash.com/photo-1543163534-118e3810145f?w=500&q=80", desc: "Digital Print" },
-      { name: "Signature Wristband Set", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1529124430154-15c0e051c04d?w=500&q=80", desc: "Livewire x Montez" }
+      { name: "Livewire Official Tee - Black", category: "Shirts", price: 35, image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=500&q=80", desc: "Classic Logo Black" },
+      { name: "Whip Montez Red Hook Hoodie", category: "Hoodies", price: 85, image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500&q=80", desc: "Heavyweight Cotton" },
+      { name: "Livewire Cargo Pants", category: "Pants", price: 95, image: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500&q=80", desc: "Tactical Pockets" },
+      { name: "Whip Tour Backpack '04", category: "Bags", price: 60, image: "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?w=500&q=80", desc: "Canvas Rucksack" },
+      { name: "Graffiti Logo Joggers", category: "Pants", price: 70, image: "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=500&q=80", desc: "All-over Print" },
+      { name: "Whip Montez Bandana Pack", category: "Accessories", price: 20, image: "https://images.unsplash.com/photo-1616956873272-942c9f86d1e3?w=500&q=80", desc: "3 Colors" },
+      { name: "Livewire Velour Track Top", category: "Hoodies", price: 110, image: "https://images.unsplash.com/photo-1564584217132-2271feaeb3c5?w=500&q=80", desc: "Navy Blue" },
+      { name: "Whip Montez Snapback Hat", category: "Accessories", price: 30, image: "https://images.unsplash.com/photo-1575428652377-a2d80e2277fc?w=500&q=80", desc: "Embroidered Logo" },
+      { name: "Livewire 2004 Album Tee", category: "Shirts", price: 40, image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=500&q=80", desc: "Album Art Print" },
+      { name: "Red Hook Bomber Jacket", category: "Jackets", price: 150, image: "https://images.unsplash.com/photo-1520367691844-1049d43e9340?w=500&q=80", desc: "Heavy Satin Shell" },
+      { name: "Montez Skull Beanie", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=500&q=80", desc: "Winter Wear" },
+      { name: "Livewire Utility Vest", category: "Jackets", price: 90, image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500&q=80", desc: "Multi-Pocket" },
+      { name: "Whip Cropped Tee", category: "Shirts", price: 30, image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80", desc: "Female Fit" },
+      { name: "Montez Logo Socks", category: "Accessories", price: 15, image: "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=500&q=80", desc: "Mid-Calf" },
+      { name: "Digital Camo Hoodie", category: "Hoodies", price: 90, image: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80", desc: "Digital Print" },
+      { name: "Signature Wristband Set", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1611652022419-a9419f74343a?w=500&q=80", desc: "Livewire x Montez" }
     ];
 
     seedItems.forEach(async (item) => {
@@ -1976,7 +2244,11 @@ const StyleArchive = () => {
             {filteredItems.map(item => (
               <div key={item.id} className="group relative bg-[#111] border border-[#222] hover:border-[#00ff41]/50 transition-all duration-300 flex flex-col">
                 <div className="aspect-[3/4] overflow-hidden relative bg-[#050505]">
-                  <img src={item.image} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"/>
+                  <img 
+                    src={item.image || 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80'} 
+                    onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80'; }}
+                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                  />
                   {/* Watermark */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="text-white/10 text-2xl md:text-4xl font-black uppercase tracking-widest transform rotate-[-25deg] select-none" style={{textShadow: '0 0 40px rgba(0,0,0,0.5)'}}>
@@ -2563,10 +2835,11 @@ const SidekickChat = () => {
 
 // 10. NEWS ARCHIVE
 const NewsArchive = () => {
-  const [mode, setMode] = useState('historical'); // 'historical' or 'modern'
+  const [mode, setMode] = useState('live'); // 'historical' or 'live'
   const [newsItems, setNewsItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [trendingPosts, setTrendingPosts] = useState([]);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_news', 3);
 
   const defaultHistorical = [
@@ -2582,17 +2855,27 @@ const NewsArchive = () => {
     { id: 10, date: "NOV 10 2025", time: "01:45 PM EST", source: "HYPEBEAST", author: "Fashion", title: "WHIP MONTEZ MERCH DROP: VINTAGE 2004 AESTHETIC", content: "Limited edition Livewire gear featuring original album artwork sells out in hours, fueling collector market.", tags: ["FASHION", "MERCH"] }
   ];
 
-  useEffect(() => {
-    setNewsItems(defaultHistorical);
-  }, []);
+  const defaultTrending = [
+    { platform: 'X', icon: '𝕏', username: '@HipHopDaily', time: '2m', text: '🔥 New Kendrick album dropping midnight EST confirmed', likes: '24.5K', color: 'text-blue-400' },
+    { platform: 'Reddit', icon: '🎧', username: 'r/hiphopheads', time: '15m', text: '[FRESH] Travis Scott - FE!N (Official Video)', likes: '892', color: 'text-orange-500' },
+    { platform: 'Instagram', icon: '📸', username: '@complexmusic', time: '1h', text: 'Drake spotted in studio with Metro Boomin 👀', likes: '156K', color: 'text-pink-500' },
+    { platform: 'X', icon: '𝕏', username: '@XXL', time: '2h', text: 'Breaking: J. Cole announces surprise EP this Friday', likes: '18.2K', color: 'text-blue-400' },
+    { platform: 'TikTok', icon: '🎵', username: '@hiphopvibes', time: '3h', text: 'This beat is going CRAZY on my FYP 🔥', likes: '2.1M', color: 'text-cyan-400' }
+  ];
 
-  const fetchNews = async (selectedMode) => {
+  useEffect(() => {
+    if (mode === 'historical') {
+      setNewsItems(defaultHistorical);
+    } else {
+      fetchLiveNews();
+    }
+    setTrendingPosts(defaultTrending);
+  }, [mode]);
+
+  const fetchLiveNews = async () => {
     setLoading(true);
-    setMode(selectedMode);
-    const era = selectedMode === 'historical' ? "2000-2004" : "2024-2025";
-    const useSearch = selectedMode === 'modern';
-    let context = selectedMode === 'historical' ? "You are a hip-hop blog editor from 2004." : `You are a Gen Z hip-hop news aggregator from 2024/2025. Search query: ${searchTerm || "Modern Hip Hop News"}.`;
-    const systemPrompt = `Generate a JSON array of 10 news objects. Format: [{ "id": 1, "date": "MMM DD YYYY", "source": "SOURCE", "title": "HEADLINE", "content": "Short text", "tags": ["TAG1"] }]. No markdown.`;
+    const query = searchTerm || "latest hip hop news, trending rap artists, new album releases, hip hop industry news";
+    const systemPrompt = `You are a real-time hip hop news aggregator for December 2025. Generate 10 current, plausible hip hop/rap news headlines. Include: new releases, trending artists, beef/drama, industry news, viral moments. Format as JSON array: [{ "id": 1, "date": "DEC 12 2025", "time": "11:23 PM EST", "source": "COMPLEX/XXL/BILLBOARD/etc", "author": "Staff", "title": "HEADLINE IN CAPS", "content": "2-3 sentences of details", "tags": ["TAG1", "TAG2"] }]. Make it feel current and real. No markdown formatting.`;
 
     if (!canUse) {
       setNewsItems([{ id: 0, date: "", time: "", source: "SYSTEM", author: "", title: `FREE LIMIT REACHED: ${limit} free news pulls used.`, content: "", tags: ["LIMIT"] }]);
@@ -2602,25 +2885,48 @@ const NewsArchive = () => {
     consume();
 
     try {
-      const response = await callGemini(`${context} Era: ${era}`, systemPrompt, useSearch);
+      const response = await callGemini(query, systemPrompt, true); // Use search for live mode
       const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
       setNewsItems(JSON.parse(cleanJson));
     } catch (e) {
-      if (selectedMode === 'historical') setNewsItems(defaultHistorical);
+      setNewsItems(defaultHistorical);
     }
     setLoading(false);
+  };
+
+  const fetchNews = async (selectedMode) => {
+    setMode(selectedMode);
+    if (selectedMode === 'historical') {
+      setNewsItems(defaultHistorical);
+      setLoading(false);
+    } else {
+      await fetchLiveNews();
+    }
+  };
+
+  const refreshTrending = async () => {
+    const systemPrompt = `Generate 5 fake but plausible trending social media posts about hip hop from X (Twitter), Reddit, Instagram, TikTok in December 2025. Format as JSON: [{ "platform": "X/Reddit/Instagram/TikTok", "icon": "emoji", "username": "@handle or r/sub", "time": "2m/1h/etc", "text": "Post content", "likes": "24.5K/892/etc", "color": "text-blue-400/text-orange-500/etc" }]. No markdown.`;
+    
+    try {
+      const response = await callGemini("trending hip hop social media posts", systemPrompt, false);
+      const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
+      setTrendingPosts(JSON.parse(cleanJson));
+    } catch (e) {
+      setTrendingPosts(defaultTrending);
+    }
   };
 
   return (
     <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-4">
       <BackgroundCarousel images={[]} />
       <div className="absolute inset-0 bg-black/80 z-10"></div>
-      <div className={`relative z-30 w-full max-w-5xl h-[85vh] shadow-[0_0_40px_rgba(0,255,65,0.1)] flex flex-col font-mono text-gray-300 transition-colors duration-500 ${mode === 'historical' ? 'bg-[#0a0a0a]' : 'bg-[#050510]'}`}>
+      <div className={`relative z-30 w-full max-w-6xl h-[85vh] shadow-[0_0_40px_rgba(0,255,65,0.1)] flex flex-col font-mono text-gray-300 transition-colors duration-500 ${mode === 'historical' ? 'bg-[#0a0a0a]' : 'bg-[#050510]'}`}>
         <div className={`${mode === 'historical' ? 'bg-[#00ff41] text-black' : 'bg-cyan-500 text-black'} p-4 md:p-6 border-t-4 border-b-4 ${mode === 'historical' ? 'border-[#00ff41]' : 'border-cyan-500'} flex justify-between items-end transition-colors duration-500`}>
            <div>
              <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none flex items-center gap-4">
-               <Globe size={48} strokeWidth={2.5}/> {mode === 'historical' ? 'THE_FEED' : 'VIRAL_DASH'}
+               <Globe size={48} strokeWidth={2.5}/> {mode === 'historical' ? 'THE_FEED_2004' : 'LIVE_HIP_HOP'}
              </h1>
+             <p className="text-xs md:text-sm font-bold mt-1 opacity-80">{mode === 'historical' ? 'ARCHIVE MODE' : 'REAL-TIME NEWS & TRENDING'}</p>
            </div>
            
            <div className="flex items-center gap-4">
@@ -2630,37 +2936,89 @@ const NewsArchive = () => {
                   type="text" 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder={mode === 'historical' ? "SEARCH ARCHIVES..." : "SEARCH WEB (e.g. 'Drake News')"}
+                  placeholder={mode === 'historical' ? "SEARCH ARCHIVES..." : "SEARCH (e.g. 'Drake beef')"}
                   className="bg-transparent border-none outline-none text-black font-black text-base md:text-lg w-full placeholder-black/60"
                   onKeyPress={(e) => e.key === 'Enter' && fetchNews(mode)}
                 />
-                {mode === 'modern' && (
-                    <button onClick={() => fetchNews(mode)} className="bg-black text-cyan-500 px-4 py-2 text-sm font-black rounded border-2 border-black hover:border-cyan-400 transition-all">GO</button>
+                {mode === 'live' && (
+                    <button onClick={() => fetchLiveNews()} className="bg-black text-cyan-500 px-4 py-2 text-sm font-black rounded border-2 border-black hover:border-cyan-400 transition-all">SEARCH</button>
                 )}
              </div>
              
               <div className="flex items-center gap-3 bg-black/30 p-2 rounded border-2 border-black">
                   <span className={`text-xs md:text-sm font-black ${mode === 'historical' ? 'text-black opacity-100' : 'text-black opacity-50'}`}>2004</span>
-                  <button onClick={() => fetchNews(mode === 'historical' ? 'modern' : 'historical')} disabled={loading} className="focus:outline-none">
+                  <button onClick={() => fetchNews(mode === 'historical' ? 'live' : 'historical')} disabled={loading} className="focus:outline-none">
                     {mode === 'historical' ? <ToggleLeft size={36} /> : <ToggleRight size={36} />}
                   </button>
-                  <span className={`text-xs md:text-sm font-black ${mode === 'modern' ? 'text-black opacity-100' : 'text-black opacity-50'}`}>2024</span>
+                  <span className={`text-xs md:text-sm font-black ${mode === 'live' ? 'text-black opacity-100' : 'text-black opacity-50'}`}>LIVE</span>
                </div>
            </div>
         </div>
         
         <div className="flex-1 flex overflow-hidden relative">
-           {loading && <div className="absolute inset-0 bg-black/90 z-50 flex items-center justify-center"><RefreshCw size={48} className="animate-spin text-[#00ff41]" /></div>}
-           <div className="hidden md:block w-64 bg-[#111] border-r border-[#333] p-4 overflow-y-auto shrink-0">
-             <h3 className="font-bold text-[#00ff41] border-b border-[#333] pb-1 mb-2 text-sm">TAGS</h3>
-             <div className="flex flex-wrap gap-2">{['#HIPHOP', '#TECH', '#NYC'].map(tag => <span key={tag} className="text-xs text-gray-500">{tag}</span>)}</div>
+           {loading && <div className="absolute inset-0 bg-black/90 z-50 flex items-center justify-center"><RefreshCw size={48} className="animate-spin text-cyan-500" /></div>}
+           
+           {/* Left Panel - Trending Social */}
+           <div className="hidden md:block w-80 bg-[#0a0a0a] border-r border-[#333] flex flex-col shrink-0">
+             <div className="p-4 border-b border-[#333] flex items-center justify-between">
+               <h3 className="font-black text-cyan-500 text-sm flex items-center gap-2">
+                 <TrendingUp size={16} /> TRENDING NOW
+               </h3>
+               <button onClick={refreshTrending} className="text-gray-500 hover:text-cyan-500 transition-colors">
+                 <RefreshCw size={14} />
+               </button>
+             </div>
+             <div className="flex-1 overflow-y-auto p-3 space-y-3">
+               {trendingPosts.map((post, i) => (
+                 <div key={i} className="bg-[#111] border border-[#222] p-3 rounded hover:border-cyan-500/50 transition-all cursor-pointer">
+                   <div className="flex items-start gap-2 mb-2">
+                     <span className="text-lg">{post.icon}</span>
+                     <div className="flex-1 min-w-0">
+                       <div className="flex items-center gap-2 text-xs">
+                         <span className={`font-bold ${post.color}`}>{post.username}</span>
+                         <span className="text-gray-600">• {post.time}</span>
+                       </div>
+                     </div>
+                   </div>
+                   <p className="text-xs text-gray-300 leading-relaxed mb-2">{post.text}</p>
+                   <div className="flex items-center gap-3 text-xs text-gray-500">
+                     <span>❤️ {post.likes}</span>
+                     <span className="text-gray-700">•</span>
+                     <span className="text-gray-600">{post.platform}</span>
+                   </div>
+                 </div>
+               ))}
+             </div>
+             <div className="p-3 border-t border-[#333] text-center">
+               <p className="text-[9px] text-gray-600 uppercase tracking-wider">Updated Every 5 Minutes</p>
+             </div>
            </div>
+           
+           {/* Main News Feed */}
            <div className="flex-1 overflow-y-auto bg-[#0a0a0a] p-4 space-y-4">
+             {mode === 'live' && (
+               <div className="bg-red-900/20 border border-red-500 p-3 rounded flex items-center gap-3">
+                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                 <span className="text-red-400 text-xs font-bold uppercase tracking-wider">Live Feed Active • Searching Real-Time Sources</span>
+               </div>
+             )}
              {newsItems.map((item) => (
-               <div key={item.id} className="border border-[#333] bg-[#111] p-4 hover:border-[#00ff41]">
-                   <h2 className="text-xl font-bold text-[#e0e0e0] mb-2">{item.title}</h2>
-                   <p className="text-sm text-gray-400">{item.content}</p>
-                   <div className="flex gap-4 mt-2 text-xs text-[#00ff41]">{item.source} // {item.date}</div>
+               <div key={item.id} className="border border-[#333] bg-[#111] p-4 hover:border-cyan-500 transition-all group">
+                   <div className="flex items-start justify-between mb-2">
+                     <div className="flex-1">
+                       <h2 className="text-lg md:text-xl font-bold text-white mb-1 group-hover:text-cyan-500 transition-colors">{item.title}</h2>
+                       <p className="text-sm text-gray-400 leading-relaxed">{item.content}</p>
+                     </div>
+                   </div>
+                   <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
+                     <span className="text-cyan-500 font-bold">{item.source}</span>
+                     <span className="text-gray-600">•</span>
+                     <span className="text-gray-500">{item.date}</span>
+                     {item.time && <><span className="text-gray-600">•</span><span className="text-gray-500">{item.time}</span></>}
+                     {item.tags && item.tags.map(tag => (
+                       <span key={tag} className="bg-cyan-900/30 text-cyan-400 px-2 py-0.5 rounded text-[10px] font-bold">#{tag}</span>
+                     ))}
+                   </div>
                </div>
              ))}
            </div>
@@ -3605,23 +3963,22 @@ const OSInterface = ({ reboot }) => {
           <nav className="flex gap-1 flex-wrap md:flex-nowrap">
             {['home', 'bio', 'music', 'tour', 'style', 'community', 'news'].map(section => (
               <button 
-                key={section} 
+                key={section}
                 onClick={() => setActiveSection(section)} 
                 className={`px-2 md:px-3 py-1.5 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap ${
                   activeSection === section ? 'bg-[#00ff41] text-black' : 'text-gray-400 hover:text-white'
                 }`}
               >
-                {section === 'music' ? 'Lost_Tapes' : section === 'style' ? 'Merch' : section === 'community' ? 'The_Block' : section}
+                {section === 'music' ? 'Lost Tapes' : section}
               </button>
             ))}
-            <div className="hidden md:block h-4 w-[1px] bg-[#333] mx-1"></div>
             <button 
               onClick={() => setActiveSection('studio')} 
-              className={`px-2 md:px-3 py-1.5 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors flex items-center gap-1 whitespace-nowrap ${
-                ['studio', 'battle', 'crates', 'ghostwriter', 'ar_suite', 'album_art', 'viral_video'].includes(activeSection) ? 'bg-yellow-600 text-black' : 'text-gray-400 hover:text-white'
+              className={`px-2 md:px-3 py-1.5 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap ${
+                activeSection === 'studio' ? 'bg-pink-500 text-black font-bold' : 'text-pink-500 hover:text-white font-bold'
               }`}
             >
-              <Grid size={10} /> STUDIO
+              STUDIO
             </button>
           </nav>
         </div>
@@ -3721,6 +4078,13 @@ const LandingPage = ({ onEnter }) => {
     }, 2500); 
   };
 
+  const quickAccessWidgets = [
+    { id: 'music', icon: Radio, label: 'LOST TAPES', color: 'text-[#00ff41]', bgColor: 'bg-[#00ff41]' },
+    { id: 'merch', icon: ShoppingBag, label: 'MERCH', color: 'text-purple-500', bgColor: 'bg-purple-500' },
+    { id: 'news', icon: Globe, label: 'FEED', color: 'text-cyan-500', bgColor: 'bg-cyan-500' },
+    { id: 'studio', icon: Sliders, label: 'STUDIO', color: 'text-pink-500', bgColor: 'bg-pink-500' }
+  ];
+
   return (
     <div className="h-screen w-full bg-black flex flex-col items-center justify-center relative overflow-hidden z-[110] font-sans">
       {/* Subtle modern mesh bg */}
@@ -3751,7 +4115,7 @@ const LandingPage = ({ onEnter }) => {
         </div>
       )}
 
-      <div className={`z-10 flex flex-col items-center transition-all duration-1000 ease-in-out ${isEntering ? 'space-y-0 justify-center h-full' : 'space-y-16'}`}>
+      <div className={`z-10 w-full max-w-6xl px-4 flex flex-col items-center transition-all duration-1000 ease-in-out ${isEntering ? 'space-y-0 justify-center h-full' : 'space-y-12'}`}>
         <div className={`text-center relative transition-all duration-1500 ease-in-out transform ${isEntering ? 'scale-50 translate-y-4' : 'scale-100'}`}>
           
           {/* New Disclaimer Text - Stays at top */}
@@ -3771,6 +4135,30 @@ const LandingPage = ({ onEnter }) => {
 
           {/* The Expanding Line Animation */}
           <div className={`h-[2px] bg-[#00ff41] shadow-[0_0_20px_#00ff41] mx-auto mt-8 transition-all duration-1500 ease-out ${isEntering ? 'w-[120%] opacity-100' : 'w-0 opacity-0'}`}></div>
+        </div>
+
+        {/* Quick Access Widgets */}
+        <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-3xl transition-all duration-700 ${isEntering ? 'opacity-0 scale-0' : 'opacity-100 scale-100'}`}>
+          {quickAccessWidgets.map((widget, i) => (
+            <div 
+              key={widget.id}
+              onClick={handleEnterClick}
+              className="group relative bg-black/50 backdrop-blur-sm border border-[#333] hover:border-[#00ff41]/50 p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer transition-all duration-300 hover:bg-black/70 hover:scale-105 active:scale-95"
+              style={{ animationDelay: `${i * 100}ms` }}
+            >
+              <div className={`p-3 rounded-full bg-gradient-to-br from-[#111] to-black shadow-[inset_0_2px_5px_rgba(0,0,0,1)] group-hover:shadow-[0_0_20px_rgba(0,255,65,0.2)] transition-all duration-300`}>
+                <widget.icon 
+                  size={24} 
+                  className={`text-[#444] group-hover:${widget.color} transition-colors duration-300 group-hover:drop-shadow-[0_0_10px_currentColor]`} 
+                  strokeWidth={2}
+                />
+              </div>
+              <span className={`text-[10px] md:text-xs font-mono uppercase tracking-widest text-gray-600 group-hover:${widget.color} transition-colors duration-300`}>
+                {widget.label}
+              </span>
+              <div className={`absolute inset-x-0 bottom-0 h-[2px] ${widget.bgColor} scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center`}></div>
+            </div>
+          ))}
         </div>
 
         <div className={`relative group cursor-pointer transition-all duration-700 ${isEntering ? 'opacity-0 scale-0 pointer-events-none' : 'opacity-100 scale-100'}`} onClick={handleEnterClick}>
@@ -3796,7 +4184,7 @@ const LandingPage = ({ onEnter }) => {
       </div>
       
       <div className={`absolute bottom-8 w-full px-8 flex flex-col md:flex-row justify-between items-center text-[#00ff41]/30 font-mono text-[10px] tracking-widest uppercase gap-2 transition-opacity duration-1000 ${isEntering ? 'opacity-0' : 'opacity-100'}`}>
-        <span>System_Standby_Mode // Press Power to Boot</span>
+        <span>Quick_Access_Available // Press Power to Boot Full System</span>
         <button 
           onClick={() => setShowDisclaimer(true)}
           className="hover:text-[#00ff41] transition-colors border-b border-transparent hover:border-[#00ff41] pb-[1px] cursor-pointer"
