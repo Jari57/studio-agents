@@ -6,7 +6,8 @@ import {
   Calendar, Ticket, Flame, Search, Database, Globe, Newspaper, ExternalLink, User, 
   Hash, Grid, Headphones, Activity, Zap, Wallet, Power, Sliders, Briefcase, 
   RefreshCw, ToggleLeft, ToggleRight, Filter, Plus, Trash2, Edit2, Upload,
-  Camera, TrendingUp, Users, Image as ImageIcon, Link as LinkIcon, Loader2
+  Camera, TrendingUp, Users, Image as ImageIcon, Link as LinkIcon, Loader2,
+  Info, Volume2
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -3365,7 +3366,6 @@ const CrateDigger = () => {
   const [mood, setMood] = useState("");
   const [samples, setSamples] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
   const lastRequestTime = useRef(0);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_crates', 3);
   const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
