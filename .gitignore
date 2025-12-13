@@ -1,5 +1,8 @@
+# --- Environment Variables (NEVER COMMIT) ---
 .env
 .env.local
+.env.production
+.env.development
 backend/.env
 frontend/.env
 
@@ -9,9 +12,36 @@ node_modules/
 # --- Build Outputs ---
 dist/
 build/
+.next/
+out/
 
-# --- Logs & OS ---
+# --- Logs ---
 *.log
+logs/
+backend/logs/
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS Files ---
 .DS_Store
 Thumbs.db
-.vsco
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Temporary Files ---
+*.tmp
+*.temp
+.cache/
+
+# --- Test Coverage ---
+coverage/
+.nyc_output/
+
+# --- Firebase/Auth (if using service accounts) ---
+firebase-debug.log
+firebaseServiceAccountKey.json
