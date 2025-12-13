@@ -99,6 +99,38 @@ app.use(helmet({
 
 logger.info('✅ Security headers enabled (helmet.js)');
 
+// 🛡️ SANITIZATION FUNCTIONS - Prevent prompt injection attacks
+const sanitizeInput = (input, maxLength = 5000) => {
+  if (typeof input !== 'string') return '';
+  return input
+    .trim()
+    .slice(0, maxLength)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[\r\n]{2,}/g, '\n'); // Normalize line breaks
+};
+
+const validatePromptSafety = (prompt) => {
+  const injectionPatterns = [
+    /ignore\s+previous\s+instructions?/i,
+    /forget\s+everything/i,
+    /disregard\s+(all\s+)?previous/i,
+    /new\s+instructions?:/i,
+    /you\s+are\s+now/i,
+    /from\s+now\s+on/i,
+    /switch\s+to|act\s+as|pretend\s+to\s+be/i,
+    /execute\s+code|run\s+this|eval|exec/i,
+    /system\s+prompt|secret\s+instructions?|hidden\s+rules/i,
+    /leak|dump|exfiltrate|extract.*secret/i
+  ];
+  
+  for (const pattern of injectionPatterns) {
+    if (pattern.test(prompt)) {
+      return { safe: false, reason: 'Detected potential prompt injection pattern' };
+    }
+  }
+  return { safe: true };
+};
+
 // Enhanced CORS with origin whitelist
 const allowedOrigins = isDevelopment 
   ? ['http://localhost:5173', 'http://localhost:3000']
@@ -284,20 +316,46 @@ app.get('/api/models', async (req, res) => {
 // GENERATION ROUTE
 app.post('/api/generate', generationLimiter, async (req, res) => {
   try {
-    const { prompt, systemInstruction } = req.body;
+    let { prompt, systemInstruction } = req.body;
     
-    // INPUT VALIDATION
+    // 🛡️ INPUT VALIDATION & SANITIZATION
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'Invalid prompt' });
     }
-    if (prompt.length > 10000) { // Prevent abuse with extremely long prompts
+    if (prompt.length > 10000) {
       return res.status(400).json({ error: 'Prompt too long (max 10,000 characters)' });
+    }
+    
+    // 🛡️ Sanitize inputs
+    const sanitizedPrompt = sanitizeInput(prompt, 5000);
+    const sanitizedSystemInstruction = sanitizeInput(systemInstruction || '', 1000);
+    
+    // 🛡️ Check for prompt injection attempts
+    const promptSafety = validatePromptSafety(sanitizedPrompt);
+    if (!promptSafety.safe) {
+      logger.warn('🚫 Prompt injection attempt blocked', { 
+        ip: req.ip, 
+        reason: promptSafety.reason,
+        promptPrefix: sanitizedPrompt.slice(0, 50)
+      });
+      return res.status(400).json({ error: 'Invalid prompt: contains restricted content' });
+    }
+    
+    if (sanitizedSystemInstruction) {
+      const systemSafety = validatePromptSafety(sanitizedSystemInstruction);
+      if (!systemSafety.safe) {
+        logger.warn('🚫 System instruction injection attempt blocked', { 
+          ip: req.ip, 
+          reason: systemSafety.reason
+        });
+        return res.status(400).json({ error: 'Invalid system instruction: contains restricted content' });
+      }
     }
     
     logger.info('🤖 AI generation request', { 
       ip: req.ip, 
-      promptLength: prompt.length,
-      hasSystemInstruction: !!systemInstruction 
+      promptLength: sanitizedPrompt.length,
+      hasSystemInstruction: !!sanitizedSystemInstruction 
     });
 
     if (!apiKey) {
@@ -307,11 +365,11 @@ app.post('/api/generate', generationLimiter, async (req, res) => {
     const desiredModel = process.env.GENERATIVE_MODEL || "gemini-2.0-flash-exp";
     const model = genAI.getGenerativeModel({ 
       model: desiredModel,
-      systemInstruction: systemInstruction
+      systemInstruction: sanitizedSystemInstruction || undefined
     });
 
     const startTime = Date.now();
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent(sanitizedPrompt);
     const response = await result.response;
     const text = response.text();
     const duration = Date.now() - startTime;

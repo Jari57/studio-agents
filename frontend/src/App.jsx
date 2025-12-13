@@ -51,24 +51,62 @@ const BACKEND_URL = isLocal
   : 'https://restored-os-whip-montez-production.up.railway.app/api/generate'; // Railway production URL
 // ------------------------------------------------------------------
 
-// 🛡️ Input sanitization function to prevent injection attacks
-const sanitizeInput = (input) => {
+// 🛡️ Enhanced input sanitization function to prevent injection attacks
+const sanitizeInput = (input, maxLength = 5000) => {
   if (typeof input !== 'string') return '';
+  
   return input
     .trim()
-    .slice(0, 5000) // Limit input length to prevent buffer overflow
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ''); // Remove control characters
+    .slice(0, maxLength) // Limit input length to prevent buffer overflow
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+    .replace(/[\r\n]{2,}/g, '\n'); // Normalize line breaks
+};
+
+// 🛡️ Advanced prompt injection detection and prevention
+const validateAndSanitizePrompt = (prompt) => {
+  if (!prompt || typeof prompt !== 'string') {
+    throw new Error('Invalid prompt: must be a non-empty string');
+  }
+  
+  const sanitized = sanitizeInput(prompt, 5000);
+  
+  // Block common prompt injection patterns
+  const injectionPatterns = [
+    /ignore\s+previous\s+instructions?/i,
+    /forget\s+everything/i,
+    /disregard\s+(all\s+)?previous/i,
+    /new\s+instructions?:/i,
+    /you\s+are\s+now/i,
+    /from\s+now\s+on/i,
+    /switch\s+to|act\s+as|pretend\s+to\s+be/i,
+    /execute\s+code|run\s+this|eval|exec/i,
+    /system\s+prompt|secret\s+instructions?|hidden\s+rules/i,
+    /leak|dump|exfiltrate|extract.*secret/i
+  ];
+  
+  for (const pattern of injectionPatterns) {
+    if (pattern.test(sanitized)) {
+      console.warn('Blocked potential prompt injection attempt:', pattern);
+      throw new Error('Input contains potentially malicious content');
+    }
+  }
+  
+  return sanitized;
 };
 
 const callGemini = async (prompt, systemInstruction = "", useSearch = false) => {
-  // 🛡️ Sanitize inputs at function entry
-  const sanitizedPrompt = sanitizeInput(prompt);
-  const sanitizedSystemInstruction = sanitizeInput(systemInstruction);
-  
-  // Validate that sanitized inputs are not empty
-  if (!sanitizedPrompt) {
-    console.error('Empty prompt after sanitization');
-    return 'ERROR: Invalid input provided.';
+  // 🛡️ Validate and sanitize inputs at function entry
+  try {
+    var sanitizedPrompt = validateAndSanitizePrompt(prompt);
+    var sanitizedSystemInstruction = sanitizeInput(systemInstruction, 1000); // Shorter limit for system instructions
+    
+    // Additional validation for system instructions
+    if (sanitizedSystemInstruction && sanitizedSystemInstruction.length > 1000) {
+      sanitizedSystemInstruction = sanitizedSystemInstruction.slice(0, 1000);
+    }
+  } catch (err) {
+    console.error('Input validation failed:', err.message);
+    return `ERROR: ${err.message}`;
   }
   
   // Function to return mock data (fallback only if backend fails after all retries)
@@ -3403,7 +3441,15 @@ const CrateDigger = () => {
   });
 
   const handleDig = async () => {
+    // 🛡️ Validate and sanitize mood input
     if (!mood.trim()) return;
+    
+    try {
+      validateAndSanitizePrompt(mood); // Will throw if injection detected
+    } catch (err) {
+      alert(`Invalid input: ${err.message}`);
+      return;
+    }
 
     // Cooldown check
     const cooldownTime = 3000; // 3 seconds
@@ -3490,6 +3536,14 @@ const ARSuite = () => {
 
   const handleReview = async () => {
     if (!demoText.trim()) return;
+    
+    // 🛡️ Validate and sanitize demo text input
+    try {
+      validateAndSanitizePrompt(demoText); // Will throw if injection detected
+    } catch (err) {
+      alert(`Invalid input: ${err.message}`);
+      return;
+    }
     
     // Cooldown check
     const cooldownTime = 3000; // 3 seconds
