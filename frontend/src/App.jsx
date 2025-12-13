@@ -2427,6 +2427,9 @@ const Ghostwriter = () => {
   const [loading, setLoading] = useState(false);
   const lastRequestTime = useRef(0);
   const { usage, limit, canUse, consume } = useFreeLimit('aiAgentUsage_ghostwriter', 3);
+  const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
+    setPrompt(prev => prev ? prev + ' ' + transcript : transcript);
+  });
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -2461,7 +2464,9 @@ const Ghostwriter = () => {
       <div className="relative z-20 w-full max-w-3xl border border-cyan-600 bg-[#050505]/90 p-1 shadow-[0_0_30px_rgba(0,180,255,0.4)]">
         <div className="bg-cyan-600 text-black px-2 py-1 font-bold flex justify-between items-center mb-2">
           <span>LYRIC_RECOVERY_TOOL.EXE</span>
-          <div className="flex gap-1"><div className="w-3 h-3 bg-black"></div></div>
+          <button onClick={() => window.history.back()} className="w-5 h-5 bg-black hover:bg-red-600 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
+            <X size={14} className="text-white"/>
+          </button>
         </div>
         <div className="p-4 flex flex-col gap-4">
           <div className="text-cyan-400 font-mono text-sm mb-2">{'>'} SYSTEM ALERT: CORRUPTED LYRIC FILES DETECTED.<br/>{'>'} ENTER KEYWORDS TO ATTEMPT DATA RECOVERY...</div>
@@ -2474,6 +2479,16 @@ const Ghostwriter = () => {
               className="flex-1 bg-black border border-cyan-800 text-white p-2 font-mono outline-none focus:border-cyan-400" 
               onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
             />
+            {isSupported && (
+              <button 
+                  onClick={startListening} 
+                  disabled={loading || isListening}
+                  className={`px-3 border border-cyan-800 ${isListening ? 'bg-cyan-600 animate-pulse' : 'bg-black hover:bg-cyan-900'} text-white transition-colors disabled:opacity-50`}
+                  title="Voice input"
+              >
+                  <Mic size={16} className="text-cyan-400"/>
+              </button>
+            )}
             <button 
               onClick={handleGenerate} 
               disabled={loading} 
@@ -3134,7 +3149,9 @@ const RapBattle = () => {
       <div className="relative z-30 w-full max-w-2xl h-[85vh] md:h-[70vh] bg-[#111] border border-red-700 shadow-[0_0_20px_rgba(220,38,38,0.4)] flex flex-col overflow-hidden">
         <div className="bg-red-700 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm shrink-0">
            <span className="flex items-center gap-1 md:gap-2"><Flame size={14} className="md:w-[18px] md:h-[18px]"/><span className="hidden sm:inline">CIPHER_DOJO.EXE</span><span className="sm:hidden">BATTLE</span></span>
-           <div className="flex gap-1"><div className="w-2.5 h-2.5 md:w-3 md:h-3 bg-black"></div></div>
+           <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-red-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
+             <X size={14} className="md:w-4 md:h-4 text-white"/>
+           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-3 md:space-y-4 bg-black/90" style={{WebkitOverflowScrolling: 'touch'}}>
            {history.map((turn, i) => (
@@ -3219,7 +3236,9 @@ const CrateDigger = () => {
       <div className="relative z-30 w-full max-w-3xl h-[85vh] md:h-[80vh] bg-[#111] border border-yellow-600 shadow-[0_0_20px_rgba(250,204,21,0.4)] flex flex-col">
         <div className="bg-yellow-600 text-black px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm">
            <span className="flex items-center gap-2"><Disc size={16} className="md:w-[18px] md:h-[18px]"/> <span className="hidden sm:inline">CRATE_DIGGER_PRO.EXE</span><span className="sm:hidden">CRATE DIGGER</span></span>
-           <div className="flex gap-1"><div className="w-3 h-3 bg-black"></div></div>
+           <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-yellow-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
+             <X size={14} className="md:w-4 md:h-4 text-white"/>
+           </button>
         </div>
         <div className="p-3 md:p-6 bg-[#1a1a1a] border-b border-[#333]">
            <h2 className="text-white font-black text-lg md:text-2xl mb-2">FIND THE PERFECT SAMPLE</h2>
@@ -3308,6 +3327,9 @@ const ARSuite = () => {
       <div className="relative z-30 w-full max-w-4xl h-[85vh] bg-[#1a1a1a] border border-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)] flex flex-col">
         <div className="bg-blue-600 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm">
           <span className="flex items-center gap-2"><Briefcase size={16} className="md:w-[18px] md:h-[18px]"/> <span className="hidden sm:inline">A&R_DASHBOARD.EXE</span><span className="sm:hidden">A&R</span></span>
+          <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-blue-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
+            <X size={14} className="md:w-4 md:h-4 text-white"/>
+          </button>
         </div>
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
           <div className="w-full md:w-1/2 p-3 md:p-6 border-b md:border-r md:border-b-0 border-[#333] flex flex-col">
@@ -3454,6 +3476,9 @@ const AlbumArtGenerator = ({ user, onAuthRequest }) => {
                       <span className="hidden sm:inline">ALBUM_ART_GENERATOR.EXE</span>
                       <span className="sm:hidden">ALBUM_ART_GEN</span>
                     </span>
+                    <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-pink-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
+                      <X size={14} className="md:w-4 md:h-4 text-white"/>
+                    </button>
                 </div>
                 
                 <div className="p-3 md:p-6 bg-[#111] border-b border-[#333] shrink-0">
@@ -3552,6 +3577,9 @@ const TrendHunter = () => {
   const [sortBy, setSortBy] = useState('views');
   const lastRequestTime = useRef(0);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_trendhunter', 5);
+  const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
+    setHashtag(prev => prev ? prev + ' ' + transcript.replace('#', '') : transcript.replace('#', ''));
+  });
 
   const platforms = [
     { id: 'all', name: 'ALL PLATFORMS', icon: '🌐' },
@@ -3658,9 +3686,14 @@ const TrendHunter = () => {
             <span className="hidden sm:inline">TREND_HUNTER_AI.EXE</span>
             <span className="sm:hidden">TREND_HUNTER</span>
           </span>
-          <div className="flex items-center gap-2 text-[10px] font-mono">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-            <span>SCANNING</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-[10px] font-mono mr-2">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+              <span className="hidden sm:inline">SCANNING</span>
+            </div>
+            <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black/50 hover:bg-black flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
+              <X size={14} className="md:w-4 md:h-4 text-white"/>
+            </button>
           </div>
         </div>
 
@@ -3681,6 +3714,16 @@ const TrendHunter = () => {
                   className="flex-1 bg-transparent text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:outline-none" 
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()} 
                 />
+                {isSupported && (
+                  <button 
+                      onClick={startListening} 
+                      disabled={loading || isListening}
+                      className={`px-2 md:px-3 ${isListening ? 'bg-violet-600 animate-pulse' : 'hover:bg-violet-900/50'} text-white transition-colors disabled:opacity-50`}
+                      title="Voice input"
+                  >
+                      <Mic size={16} className="md:w-5 md:h-5"/>
+                  </button>
+                )}
               </div>
               <button 
                 onClick={handleSearch} 
@@ -3906,6 +3949,9 @@ const TrendHunter = () => {
                       <span className="hidden sm:inline">VIRAL_VIDEO_AGENT.EXE</span>
                       <span className="sm:hidden">VIRAL_VID_AGENT</span>
                     </span>
+                    <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-cyan-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
+                      <X size={14} className="md:w-4 md:h-4 text-white"/>
+                    </button>
                 </div>
                 
                 <div className="p-3 md:p-6 bg-[#111] border-b border-[#333] shrink-0">
