@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 
@@ -23,7 +24,27 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// 🟢 DEBUG: CHECK IF KEY LOADED (Safe Print)
+// �️ RATE LIMITING - CRITICAL FOR PRODUCTION
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
+// Apply rate limiting to API routes only
+app.use('/api/', apiLimiter);
+
+// Stricter limit for AI generation (most expensive operation)
+const generationLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // Limit each IP to 10 AI generations per minute
+  message: 'AI generation rate limit exceeded. Please wait before trying again.',
+  skipSuccessfulRequests: false
+});
+
+// �🟢 DEBUG: CHECK IF KEY LOADED (Safe Print)
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
     console.error("🔴 CRITICAL: GEMINI_API_KEY is missing from .env file!");
@@ -64,10 +85,19 @@ app.get('/api/models', async (req, res) => {
       return res.status(500).json({ error: 'Server missing API Key. Check backend/.env' });
     }
 
-    if (typeof genAI.listModels !== 'function') {
-      return res.status(501).json({ error: 'listModels() is not available in this SDK version.' });
+    if (typeof genAI.listMgenerationLimiter, async (req, res) => {
+  try {
+    const { prompt, systemInstruction } = req.body;
+    
+    // 🛡️ INPUT VALIDATION
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'Invalid prompt' });
     }
-
+    if (prompt.length > 10000) { // Prevent abuse with extremely long prompts
+      return res.status(400).json({ error: 'Prompt too long (max 10,000 characters)' });
+    }
+    
+    console.log(`[${new Date().toISOString()}] Generation request from ${req.ip}`
     const models = await genAI.listModels();
     // `models` may be an array of model objects. Filter those that advertise generateContent support.
     const supported = (Array.isArray(models) ? models : []).filter(m => {

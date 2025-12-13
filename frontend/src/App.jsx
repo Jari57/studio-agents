@@ -122,11 +122,18 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
   // Route text generation through backend proxy (uses server-side API key)
   for (let i = 0; i <= delays.length; i++) {
     try {
+      // 🛡️ Add timeout to prevent hanging requests under heavy load
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(BACKEND_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, systemInstruction })
+        body: JSON.stringify({ prompt, systemInstruction }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         if ((response.status === 429 || response.status >= 500) && i < delays.length) {
@@ -140,7 +147,11 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
       const output = data?.output ?? data?.message ?? data;
       return typeof output === "string" ? output : JSON.stringify(output);
     } catch (error) {
-      console.error("Backend proxy call failed:", error);
+      if (error.name === 'AbortError') {
+        console.error('Request timeout after 30 seconds - server may be overloaded');
+      } else {
+        console.error("Backend proxy call failed:", error);
+      }
       if (i === delays.length) {
         return getMockResponse();
       }
