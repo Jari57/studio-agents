@@ -695,7 +695,10 @@ const Bio = ({ setSection, user = null }) => {
                  BIO
                </button>
                <button
-                 onClick={() => setViewMode('memory')}
+                 onClick={() => {
+                   console.log('MEMORY button clicked');
+                   setViewMode('memory');
+                 }}
                  className={`px-2 md:px-4 py-1 md:py-2 text-[10px] md:text-xs font-bold transition-all ${
                    viewMode === 'memory' ? 'bg-black text-[#00ff41]' : 'bg-black/20 text-black hover:bg-black/40'
                  }`}
@@ -821,10 +824,10 @@ const Bio = ({ setSection, user = null }) => {
                </div>
              ) : (
                // MEMORY LANE GALLERY
-               <div className="max-w-5xl mx-auto" style={{border: '2px solid red', minHeight: '500px'}}>
-                 <div className="mb-6 md:mb-8 text-center border-b border-[#333] pb-4" style={{background: 'blue'}}>
-                   <h2 className="text-2xl md:text-3xl font-black text-[#00ff41] mb-2 uppercase">MEMORY LANE</h2>
-                   <p className="text-gray-300 text-sm md:text-base font-mono">Studio sessions, shows, and behind-the-scenes moments from the Livewire era</p>
+               <div className="w-full min-h-full">
+                 <div className="mb-6 md:mb-8 text-center border-b border-[#00ff41] pb-4">
+                   <h2 className="text-2xl md:text-3xl font-black text-[#00ff41] mb-2 uppercase tracking-wider">MEMORY LANE</h2>
+                   <p className="text-white text-sm md:text-base font-mono">Studio sessions, shows, and behind-the-scenes moments from the Livewire era</p>
                  </div>
 
                  {/* Admin Upload (only show if authenticated) */}
@@ -877,11 +880,11 @@ const Bio = ({ setSection, user = null }) => {
                    ) : (
                      // Placeholder grid
                      [...Array(12)].map((_, i) => (
-                       <div key={i} className="aspect-square bg-[#1a1a1a] border-2 border-[#333] relative overflow-hidden group hover:border-[#00ff41] transition-all">
-                         <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
-                           <Camera size={40} className="mb-2 opacity-30" />
-                           <div className="text-xs font-mono font-bold">PHOTO {i + 1}</div>
-                           <div className="text-[10px] font-mono opacity-70 mt-1">Coming Soon</div>
+                       <div key={i} className="aspect-square bg-[#1a1a1a] border-2 border-[#00ff41]/30 relative overflow-hidden group hover:border-[#00ff41] transition-all">
+                         <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                           <Camera size={40} className="mb-2 opacity-50 text-[#00ff41]" />
+                           <div className="text-sm font-mono font-bold text-white">PHOTO {i + 1}</div>
+                           <div className="text-xs font-mono opacity-70 mt-1">Coming Soon</div>
                          </div>
                        </div>
                      ))
