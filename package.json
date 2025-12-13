@@ -14,5 +14,7 @@
     "build": "cd frontend && npm install --include=dev && npm run build",
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "start": "cd backend && npm start"
+  },
+  "postinstall": "cd backend && npm install --omit=dev"
   }
 }
