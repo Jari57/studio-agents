@@ -569,9 +569,11 @@ const Bio = ({ setSection, user = null }) => {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  console.log('Bio component - user:', user); // Debug log
+  console.log('=== BIO COMPONENT DEBUG v2.1 ===');
+  console.log('Bio component - user:', user);
   console.log('Bio component - viewMode:', viewMode);
   console.log('Bio component - photos:', photos);
+  console.log('=================================');
 
   // Load photos from Firebase on mount
   useEffect(() => {
