@@ -51,35 +51,54 @@ const BACKEND_URL = isLocal
   : 'https://restored-os-whip-montez-production.up.railway.app/api/generate'; // Railway production URL
 // ------------------------------------------------------------------
 
+// 🛡️ Input sanitization function to prevent injection attacks
+const sanitizeInput = (input) => {
+  if (typeof input !== 'string') return '';
+  return input
+    .trim()
+    .slice(0, 5000) // Limit input length to prevent buffer overflow
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ''); // Remove control characters
+};
+
 const callGemini = async (prompt, systemInstruction = "", useSearch = false) => {
+  // 🛡️ Sanitize inputs at function entry
+  const sanitizedPrompt = sanitizeInput(prompt);
+  const sanitizedSystemInstruction = sanitizeInput(systemInstruction);
+  
+  // Validate that sanitized inputs are not empty
+  if (!sanitizedPrompt) {
+    console.error('Empty prompt after sanitization');
+    return 'ERROR: Invalid input provided.';
+  }
+  
   // Function to return mock data (fallback only if backend fails after all retries)
   const getMockResponse = () => {
-      if (prompt.includes("Album Cover")) {
+      if (sanitizedPrompt.includes("Album Cover")) {
            // A tiny, transparent mock PNG base64 string
            const mockImageBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="; 
            return JSON.stringify({ predictions: [{ bytesBase64Encoded: mockImageBase64 }] }); // Mock base64 data for image
       }
-      if (systemInstruction.includes("battle rapper")) {
+      if (sanitizedSystemInstruction.includes("battle rapper")) {
           return "Yo, your rhymes are weak, your style is obsolete / I crash your whole system with one delete / You claiming the throne? You must be joking / My flow is the code that leaves you broken.";
       }
-      if (systemInstruction.includes("Viral Video Agent")) {
+      if (sanitizedSystemInstruction.includes("Viral Video Agent")) {
           return JSON.stringify([
               { concept: "The 360 Spin", visual: "Whip performs a smooth, continuous 360 camera spin, catching three different outfit changes.", trend: "Seamless Transition", shots: ["Wide shot 360 cam", "Close up on transition points"] },
               { concept: "Matrix Glitch", visual: "Whip freezes mid-move, the background glitches into neon data streams, and she 'reboots' to finish the bar.", trend: "Aesthetic Glitchcore", shots: ["High frame rate slow-mo", "Green screen overlay"] },
               { concept: "Phone Booth Cipher", visual: "Whip delivers bars inside an old NYC phone booth while neon rain streams down the glass.", trend: "Cinematic Mood", shots: ["Exterior low light", "Interior close-up on mic"] }
           ]);
       }
-      if (systemInstruction.includes("crate digger")) {
+      if (sanitizedSystemInstruction.includes("crate digger")) {
           return JSON.stringify([
               { artist: "The Honey Drippers", track: "Impeach the President", year: "1973", desc: "Classic drum break used by everyone." },
               { artist: "Bob James", track: "Nautilus", year: "1974", desc: "Haunting keys, bassline crazy." },
               { artist: "Skull Snaps", track: "It's A New Day", year: "1973", desc: "Hardest drums in the game." }
           ]);
       }
-      if (systemInstruction.includes("A&R")) {
+      if (sanitizedSystemInstruction.includes("A&R")) {
           return JSON.stringify({ critique: "The flow is tight but needs more aggression. Hook is catchy, but the delivery needs more energy.", commercial: 8, street: 6 });
       }
-      if (systemInstruction.includes("Whip Montez")) {
+      if (sanitizedSystemInstruction.includes("Whip Montez")) {
           return "Yo, I'm from the concrete jungle where dreams are made / But nightmares lurk in the shade / I hustle hard just to get paid / In this game of life, I never fade.\n\nBrooklyn stand up, we in the building / Stacking paper to the ceiling / This is how I'm feeling / Real talk, no concealing.";
       }
       return "DATA CORRUPTION. UNABLE TO PROCESS REQUEST.";
@@ -96,7 +115,7 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
         const response = await fetch(BACKEND_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, systemInstruction: "Generate an album cover image description" })
+          body: JSON.stringify({ prompt: sanitizedPrompt, systemInstruction: "Generate an album cover image description" })
         });
 
         if (!response.ok) {
@@ -130,7 +149,7 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
       const response = await fetch(BACKEND_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, systemInstruction }),
+        body: JSON.stringify({ prompt: sanitizedPrompt, systemInstruction: sanitizedSystemInstruction }),
         signal: controller.signal
       });
       
