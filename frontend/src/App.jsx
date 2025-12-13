@@ -3655,58 +3655,224 @@ const ViralVideoAgent = ({ user, onAuthRequest }) => {
     );
 };
 
-// 16. STUDIO HUB - Cleaned up to reflect remaining features (2025 Future Look)
+// 16. STUDIO HUB - 2026 ULTRA-MODERN NEURAL INTERFACE
 const StudioHub = ({ setSection }) => {
+  const agents = [
+    {
+      id: 'ghostwriter',
+      title: 'NEURAL LYRICIST',
+      subtitle: 'QUANTUM VERSE ENGINE',
+      icon: Sparkles,
+      gradient: 'from-cyan-500 via-blue-500 to-purple-600',
+      glowColor: 'rgba(6,182,212,0.4)',
+      particleColor: '#06b6d4',
+      description: 'Generate infinite verses with AI consciousness',
+      action: () => setSection('ghostwriter'),
+      tags: ['GPT-4', 'NEURAL', 'REAL-TIME']
+    },
+    {
+      id: 'chat',
+      title: 'CONSCIOUSNESS LINK',
+      subtitle: 'AI PERSONALITY MATRIX',
+      icon: MessageSquare,
+      gradient: 'from-pink-500 via-rose-500 to-red-500',
+      glowColor: 'rgba(236,72,153,0.4)',
+      particleColor: '#ec4899',
+      description: 'Interface with Whip\'s digital consciousness',
+      action: () => setSection('chat'),
+      tags: ['SENTIENT', 'CHAT', 'MEMORY']
+    },
+    {
+      id: 'battle',
+      title: 'COMBAT SIMULATOR',
+      subtitle: 'FREESTYLE WAR ZONE',
+      icon: Flame,
+      gradient: 'from-red-500 via-orange-500 to-yellow-500',
+      glowColor: 'rgba(239,68,68,0.4)',
+      particleColor: '#ef4444',
+      description: 'Real-time battle rap AI with adaptive responses',
+      action: () => setSection('battle'),
+      tags: ['ADVERSARIAL', 'LIVE', 'ADAPTIVE']
+    },
+    {
+      id: 'ar_suite',
+      title: 'CAREER ORACLE',
+      subtitle: 'PREDICTIVE ANALYTICS',
+      icon: TrendingUp,
+      gradient: 'from-indigo-500 via-purple-500 to-pink-500',
+      glowColor: 'rgba(139,92,246,0.4)',
+      particleColor: '#8b5cf6',
+      description: 'Strategic insights powered by industry data',
+      action: () => setSection('ar_suite'),
+      tags: ['ANALYTICS', 'STRATEGY', 'ML']
+    },
+    {
+      id: 'crates',
+      title: 'SONIC ARCHAEOLOGIST',
+      subtitle: 'SAMPLE QUANTUM SEARCH',
+      icon: Disc,
+      gradient: 'from-amber-500 via-yellow-500 to-orange-500',
+      glowColor: 'rgba(245,158,11,0.4)',
+      particleColor: '#f59e0b',
+      description: 'Deep learning sample discovery engine',
+      action: () => setSection('crates'),
+      tags: ['AUDIO-ML', 'DISCOVERY', 'RARE']
+    },
+    {
+      id: 'viral_video',
+      title: 'VIRAL ARCHITECT',
+      subtitle: 'CONTENT SYNTHESIS AI',
+      icon: Video,
+      gradient: 'from-emerald-500 via-teal-500 to-cyan-500',
+      glowColor: 'rgba(16,185,129,0.4)',
+      particleColor: '#10b981',
+      description: 'Generate viral concepts using trend analysis',
+      action: () => setSection('viral_video'),
+      tags: ['VIRAL', 'VIDEO-GEN', 'TRENDS']
+    }
+  ];
+
   return (
-    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-4">
-      <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10"></div>
-      <div className="relative z-30 w-full max-w-6xl h-[85vh] flex flex-col justify-center items-center gap-8">
-         <div className="text-center">
-            <h1 className="text-5xl md:text-7xl font-black chrome-text tracking-tighter mb-2" style={{ textShadow: '2px 2px 0px #000, 0 0 20px rgba(0,180,255,0.4)' }}>THE LAB</h1>
-            <p className="text-cyan-400 font-mono tracking-[0.5em] text-sm">LIVEWIRE FUTURE SUITE (2025)</p>
-         </div>
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full overflow-y-auto p-4 custom-scrollbar">
-            
-            {/* CORE AI TOOLS */}
-            <div onClick={() => setSection('ar_suite')} className="group bg-[#111] border-2 border-blue-900 p-6 flex flex-col items-center text-center hover:border-blue-500 cursor-pointer h-64 justify-center shadow-lg hover:shadow-[0_0_30px_rgba(37,99,235,0.6)] transition-all">
-               <Briefcase size={48} className="text-blue-500 mb-4 group-hover:text-blue-400 transition-colors"/>
-               <h2 className="text-xl font-black text-white uppercase">A&R Suite</h2>
-               <p className="text-[10px] text-gray-600 mt-2 font-mono">AI LYRIC ANALYSIS</p>
-            </div>
-            
-            <div onClick={() => setSection('battle')} className="group bg-[#111] border-2 border-red-900 p-6 flex flex-col items-center text-center hover:border-red-500 cursor-pointer h-64 justify-center shadow-lg hover:shadow-[0_0_30px_rgba(220,38,38,0.6)] transition-all">
-               <Flame size={48} className="text-red-600 mb-4 group-hover:text-red-400 transition-colors"/>
-               <h2 className="text-xl font-black text-white uppercase">The Cipher</h2>
-               <p className="text-[10px] text-gray-600 mt-2 font-mono">FREESTYLE BATTLE SIM</p>
-            </div>
-
-            <div onClick={() => setSection('album_art')} className="group bg-[#111] border-2 border-pink-900 p-6 flex flex-col items-center text-center hover:border-pink-500 cursor-pointer h-64 justify-center shadow-lg hover:shadow-[0_0_30px_rgba(236,72,153,0.6)] transition-all">
-               <Camera size={48} className="text-pink-500 mb-4 group-hover:text-pink-400 transition-colors"/>
-               <h2 className="text-xl font-black text-white uppercase">Album Art Generator</h2>
-               <p className="text-[10px] text-gray-600 mt-2 font-mono">AI IMAGE GENERATION</p>
-            </div>
-            
-            <div onClick={() => setSection('crates')} className="group bg-[#111] border-2 border-yellow-900 p-6 flex flex-col items-center text-center hover:border-yellow-500 cursor-pointer h-64 justify-center shadow-lg hover:shadow-[0_0_30px_rgba(250,204,21,0.6)] transition-all">
-               <Disc size={48} className="text-yellow-600 mb-4 group-hover:text-yellow-400 transition-colors"/>
-               <h2 className="text-xl font-black text-white uppercase">Crate Digger</h2>
-               <p className="text-[10px] text-gray-600 mt-2 font-mono">SAMPLE FINDER</p>
-            </div>
-            
-            <div onClick={() => setSection('ghostwriter')} className="group bg-[#111] border-2 border-cyan-800 p-6 flex flex-col items-center text-center hover:border-cyan-500 cursor-pointer h-64 justify-center shadow-lg hover:shadow-[0_0_30px_rgba(0,180,255,0.6)] transition-all">
-               <Mic size={48} className="text-cyan-500 mb-4 group-hover:text-cyan-400 transition-colors"/>
-               <h2 className="text-xl font-black text-white uppercase">Ghostwriter</h2>
-               <p className="text-[10px] text-gray-600 mt-2 font-mono">LYRIC RECOVERY TOOL</p>
-            </div>
-
-            {/* NEW VVA AGENT */}
-            <div onClick={() => setSection('viral_video')} className="group bg-[#111] border-2 border-green-700 p-6 flex flex-col items-center text-center hover:border-green-500 cursor-pointer h-64 justify-center shadow-lg hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] transition-all">
-               <TrendingUp size={48} className="text-green-500 mb-4 group-hover:text-green-400 transition-colors"/>
-               <h2 className="text-xl font-black text-white uppercase">Viral Video Agent</h2>
-               <p className="text-[10px] text-gray-600 mt-2 font-mono">SOCIAL MEDIA CONCEPTS</p>
-            </div>
-         </div>
+    <div className="h-full w-full relative overflow-hidden flex items-center justify-center">
+      {/* Animated Background Grid */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0" style={{
+          backgroundImage: 'linear-gradient(rgba(6,182,212,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,0.1) 1px, transparent 1px)',
+          backgroundSize: '50px 50px',
+          animation: 'gridMove 20s linear infinite'
+        }}></div>
       </div>
+      
+      {/* Radial Gradient Orbs */}
+      <div className="absolute top-20 left-20 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse"></div>
+      <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+      <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
+
+      <div className="relative z-10 w-full max-w-7xl px-4 md:px-8 py-8 md:py-12">
+        {/* Hero Header */}
+        <div className="text-center mb-12 md:mb-16">
+          <div className="inline-block mb-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></div>
+              <span className="text-cyan-400 text-xs md:text-sm font-mono tracking-[0.3em] uppercase">NEURAL INTERFACE ACTIVE</span>
+              <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+          <h1 className="text-4xl md:text-7xl font-black bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent mb-4" style={{
+            textShadow: '0 0 40px rgba(6,182,212,0.3)',
+            letterSpacing: '-0.02em'
+          }}>
+            AI STUDIO 2026
+          </h1>
+          <p className="text-gray-400 text-sm md:text-base font-light max-w-2xl mx-auto leading-relaxed">
+            Next-generation artificial intelligence agents trained on hip-hop culture, <br className="hidden md:block"/>
+            ready to collaborate on your creative vision
+          </p>
+        </div>
+
+        {/* Agent Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          {agents.map((agent, index) => (
+            <div
+              key={agent.id}
+              onClick={agent.action}
+              className="group relative cursor-pointer"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              {/* Glassmorphic Card */}
+              <div className="relative h-full bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:border-white/30 hover:shadow-2xl">
+                
+                {/* Animated Gradient Border Glow */}
+                <div className={`absolute inset-0 bg-gradient-to-r ${agent.gradient} opacity-0 group-hover:opacity-20 blur-xl transition-opacity duration-500 -z-10`}></div>
+                
+                {/* Floating Orb */}
+                <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-0 group-hover:opacity-100 blur-2xl transition-all duration-700" style={{ background: agent.glowColor }}></div>
+                
+                {/* Icon Container with 3D Effect */}
+                <div className="relative mb-6">
+                  <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${agent.gradient} shadow-lg group-hover:shadow-2xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3`}>
+                    <agent.icon size={32} className="text-white drop-shadow-lg" strokeWidth={2.5} />
+                  </div>
+                  {/* Pulsing Rings */}
+                  <div className={`absolute inset-0 rounded-2xl border-2 opacity-0 group-hover:opacity-100 group-hover:scale-150 transition-all duration-700`} style={{ borderColor: agent.particleColor }}></div>
+                  <div className={`absolute inset-0 rounded-2xl border opacity-0 group-hover:opacity-50 group-hover:scale-125 transition-all duration-500 delay-75`} style={{ borderColor: agent.particleColor }}></div>
+                </div>
+
+                {/* Content */}
+                <div className="relative space-y-3">
+                  <div>
+                    <h3 className="text-xl md:text-2xl font-black text-white mb-1 tracking-tight group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-300 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
+                      {agent.title}
+                    </h3>
+                    <p className={`text-xs font-mono tracking-wider uppercase bg-gradient-to-r ${agent.gradient} bg-clip-text text-transparent`}>
+                      {agent.subtitle}
+                    </p>
+                  </div>
+
+                  <p className="text-gray-400 text-sm leading-relaxed min-h-[40px]">
+                    {agent.description}
+                  </p>
+
+                  {/* Tech Tags */}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {agent.tags.map(tag => (
+                      <span 
+                        key={tag} 
+                        className="px-2 py-1 text-[10px] font-mono font-bold tracking-wider bg-white/5 border border-white/10 rounded-md group-hover:border-white/30 group-hover:bg-white/10 transition-all duration-300"
+                        style={{ color: agent.particleColor }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Activation Indicator */}
+                <div className="absolute bottom-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <span className="text-xs font-mono text-gray-500">ACTIVATE</span>
+                  <div className="w-2 h-2 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 animate-pulse"></div>
+                </div>
+
+                {/* Scan Line Effect */}
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none" style={{
+                  animation: 'scanLine 3s ease-in-out infinite',
+                  animationDelay: `${index * 0.5}s`
+                }}></div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom Status Bar */}
+        <div className="mt-12 text-center">
+          <div className="inline-flex items-center gap-4 px-6 py-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-mono text-gray-400">ALL SYSTEMS ONLINE</span>
+            </div>
+            <div className="w-px h-4 bg-white/20"></div>
+            <div className="flex items-center gap-2">
+              <Cpu size={14} className="text-cyan-500" />
+              <span className="text-xs font-mono text-gray-400">NEURAL NET READY</span>
+            </div>
+            <div className="w-px h-4 bg-white/20"></div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono text-gray-400">LATENCY: <span className="text-green-400">24ms</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes gridMove {
+          0% { transform: translate(0, 0); }
+          100% { transform: translate(50px, 50px); }
+        }
+        @keyframes scanLine {
+          0% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
+        }
+      `}</style>
     </div>
   );
 };
