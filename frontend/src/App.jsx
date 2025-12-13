@@ -693,12 +693,12 @@ const Bio = ({ setSection, user = null }) => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-2 md:p-4">
+    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
       <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/60 z-10"></div>
+      <div className="absolute inset-0 bg-black/60 z-10 pointer-events-none"></div>
       
       {/* Main Profile Container - 2004 Flash Site Style */}
-      <div className="relative z-30 w-full max-w-5xl h-[90vh] md:h-[85vh] bg-[#0f0f0f] border-2 border-[#333] flex flex-col md:flex-row shadow-2xl overflow-hidden">
+      <div className="relative z-30 w-full max-w-5xl h-[90vh] md:h-[85vh] bg-[#0f0f0f] border-2 border-[#333] flex flex-col md:flex-row shadow-2xl my-4">
         
         {/* Left Sidebar: ID Card / Navigation */}
         <div className="w-full md:w-80 bg-[#111] border-b md:border-r md:border-b-0 border-[#333] p-3 md:p-6 flex flex-row md:flex-col gap-3 md:gap-6 overflow-x-auto md:overflow-x-visible shrink-0">
@@ -1587,7 +1587,7 @@ const MusicPlayer = () => {
   const currentLyrics = getLyricsForAlbum(selectedAlbumId);
 
   return (
-    <div className="h-full flex flex-col relative overflow-hidden bg-[#0a0a0a]">
+    <div className="h-full flex flex-col relative bg-[#0a0a0a] overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
       {/* Header */}
       <div className="h-10 md:h-12 border-b border-[#333] bg-[#111] flex items-center px-2 md:px-4 justify-between shrink-0">
         <div className="flex items-center gap-1 md:gap-2">
@@ -1846,10 +1846,10 @@ const TourHistory = () => {
   ];
 
   return (
-    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-2 md:p-4">
+    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
       <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/70 z-10"></div>
-      <div className="relative z-30 w-full max-w-5xl h-[85vh] bg-[#111] border border-[#333] shadow-2xl flex flex-col font-sans">
+      <div className="absolute inset-0 bg-black/70 z-10 pointer-events-none"></div>
+      <div className="relative z-30 w-full max-w-5xl h-[85vh] bg-[#111] border border-[#333] shadow-2xl flex flex-col font-sans my-4">
         <div className="bg-[#2d2d2d] text-gray-400 px-2 py-1 flex justify-between items-center border-b border-[#444] shadow-none">
            <div className="flex items-center gap-2">
              <Globe size={14} className="text-[#00ff41]"/>
@@ -2458,10 +2458,10 @@ const Ghostwriter = () => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden p-6 flex flex-col items-center justify-center">
+    <div className="h-full w-full relative p-6 flex flex-col items-center justify-center overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
       <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10"></div>
-      <div className="relative z-20 w-full max-w-3xl border border-cyan-600 bg-[#050505]/90 p-1 shadow-[0_0_30px_rgba(0,180,255,0.4)]">
+      <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
+      <div className="relative z-20 w-full max-w-3xl border border-cyan-600 bg-[#050505]/90 p-1 shadow-[0_0_30px_rgba(0,180,255,0.4)] my-6">
         <div className="bg-cyan-600 text-black px-2 py-1 font-bold flex justify-between items-center mb-2">
           <span>LYRIC_RECOVERY_TOOL.EXE</span>
           <button onClick={() => window.history.back()} className="w-5 h-5 bg-black hover:bg-red-600 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
@@ -3143,10 +3143,10 @@ const RapBattle = () => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-2 md:p-4">
+    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
       <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10"></div>
-      <div className="relative z-30 w-full max-w-2xl h-[85vh] md:h-[70vh] bg-[#111] border border-red-700 shadow-[0_0_20px_rgba(220,38,38,0.4)] flex flex-col overflow-hidden">
+      <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
+      <div className="relative z-30 w-full max-w-2xl h-[85vh] md:h-[70vh] bg-[#111] border border-red-700 shadow-[0_0_20px_rgba(220,38,38,0.4)] flex flex-col my-4">
         <div className="bg-red-700 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm shrink-0">
            <span className="flex items-center gap-1 md:gap-2"><Flame size={14} className="md:w-[18px] md:h-[18px]"/><span className="hidden sm:inline">CIPHER_DOJO.EXE</span><span className="sm:hidden">BATTLE</span></span>
            <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-red-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
@@ -3230,10 +3230,10 @@ const CrateDigger = () => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-2 md:p-4">
+    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
       <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10"></div>
-      <div className="relative z-30 w-full max-w-3xl h-[85vh] md:h-[80vh] bg-[#111] border border-yellow-600 shadow-[0_0_20px_rgba(250,204,21,0.4)] flex flex-col">
+      <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
+      <div className="relative z-30 w-full max-w-3xl h-[85vh] md:h-[80vh] bg-[#111] border border-yellow-600 shadow-[0_0_20px_rgba(250,204,21,0.4)] flex flex-col my-4">
         <div className="bg-yellow-600 text-black px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm">
            <span className="flex items-center gap-2"><Disc size={16} className="md:w-[18px] md:h-[18px]"/> <span className="hidden sm:inline">CRATE_DIGGER_PRO.EXE</span><span className="sm:hidden">CRATE DIGGER</span></span>
            <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-yellow-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
@@ -3321,10 +3321,10 @@ const ARSuite = () => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden flex flex-col items-center justify-center p-2 md:p-4">
+    <div className="h-full w-full relative flex flex-col items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
       <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10"></div>
-      <div className="relative z-30 w-full max-w-4xl h-[85vh] bg-[#1a1a1a] border border-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)] flex flex-col">
+      <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
+      <div className="relative z-30 w-full max-w-4xl h-[85vh] bg-[#1a1a1a] border border-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)] flex flex-col my-4">
         <div className="bg-blue-600 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm">
           <span className="flex items-center gap-2"><Briefcase size={16} className="md:w-[18px] md:h-[18px]"/> <span className="hidden sm:inline">A&R_DASHBOARD.EXE</span><span className="sm:hidden">A&R</span></span>
           <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-blue-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
@@ -3466,10 +3466,10 @@ const AlbumArtGenerator = ({ user, onAuthRequest }) => {
     };
 
     return (
-        <div className="h-full w-full relative overflow-hidden flex flex-col items-center justify-center p-2 md:p-4">
+        <div className="h-full w-full relative flex flex-col items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
             <BackgroundCarousel images={[]} />
-            <div className="absolute inset-0 bg-black/80 z-10"></div>
-            <div className="relative z-20 w-full max-w-4xl h-[90vh] md:h-[85vh] bg-[#1a1a1a] border border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] flex flex-col overflow-hidden">
+            <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
+            <div className="relative z-20 w-full max-w-4xl h-[90vh] md:h-[85vh] bg-[#1a1a1a] border border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] flex flex-col my-4">
                 <div className="bg-pink-600 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold shrink-0">
                     <span className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
                       <Camera size={14} className="md:w-[18px] md:h-[18px]"/> 
@@ -3661,9 +3661,9 @@ const TrendHunter = () => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden flex flex-col items-center justify-center p-2 md:p-4">
+    <div className="h-full w-full relative flex flex-col items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
       {/* Neural Network Background */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 pointer-events-none">
         <div 
           className="absolute inset-0 opacity-10"
           style={{
@@ -3676,9 +3676,9 @@ const TrendHunter = () => {
         <div className="absolute bottom-20 right-20 w-96 h-96 bg-fuchsia-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
       </div>
 
-      <div className="absolute inset-0 bg-black/80 z-10"></div>
+      <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
 
-      <div className="relative z-20 w-full max-w-6xl h-[90vh] md:h-[85vh] bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] border border-violet-500/50 shadow-[0_0_50px_rgba(139,92,246,0.4)] flex flex-col overflow-hidden backdrop-blur-xl">
+      <div className="relative z-20 w-full max-w-6xl h-[90vh] md:h-[85vh] bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] border border-violet-500/50 shadow-[0_0_50px_rgba(139,92,246,0.4)] flex flex-col backdrop-blur-xl my-4">
         {/* Window Header */}
         <div className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold shrink-0">
           <span className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
@@ -3939,10 +3939,10 @@ const TrendHunter = () => {
 
 
     return (
-        <div className="h-full w-full relative overflow-hidden flex flex-col items-center justify-center p-2 md:p-4">
+        <div className="h-full w-full relative flex flex-col items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
             <BackgroundCarousel images={[]} />
-            <div className="absolute inset-0 bg-black/80 z-10"></div>
-            <div className="relative z-20 w-full max-w-5xl h-[90vh] md:h-[85vh] bg-[#1a1a1a] border border-cyan-500 shadow-[0_0_30px_rgba(0,255,255,0.4)] flex flex-col overflow-hidden">
+            <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
+            <div className="relative z-20 w-full max-w-5xl h-[90vh] md:h-[85vh] bg-[#1a1a1a] border border-cyan-500 shadow-[0_0_30px_rgba(0,255,255,0.4)] flex flex-col my-4">
                 <div className="bg-cyan-700 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold shrink-0">
                     <span className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
                       <TrendingUp size={14} className="md:w-[18px] md:h-[18px]"/> 
