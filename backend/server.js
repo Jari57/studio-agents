@@ -1,18 +1,20 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
+const helmet = require('helmet');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 const morgan = require('morgan');
 const winston = require('winston');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // Environment detection
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const isDevelopment = NODE_ENV === 'development';
 const isProduction = NODE_ENV === 'production';
 
-// 🪵 WINSTON LOGGER SETUP
+//  WINSTON LOGGER SETUP
 const logDir = path.join(__dirname, 'logs');
 if (!fs.existsSync(logDir)) {
   fs.mkdirSync(logDir, { recursive: true });
@@ -59,9 +61,9 @@ if (isDevelopment) {
   }));
 }
 
-logger.info(`🚀 Starting server in ${NODE_ENV} mode`);
+logger.info(` Starting server in ${NODE_ENV} mode`);
 
-// 🟢 FORCE LOAD .ENV FROM CURRENT DIRECTORY (local dev only)
+//  FORCE LOAD .ENV FROM CURRENT DIRECTORY (local dev only)
 // In production (Railway), environment variables come from the platform
 const envPath = path.resolve(__dirname, '.env');
 try {
@@ -78,11 +80,49 @@ try {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
+//  SECURITY: Helmet.js - Set security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: true
+  }
+}));
+
+logger.info('✅ Security headers enabled (helmet.js)');
+
+// Enhanced CORS with origin whitelist
+const allowedOrigins = isDevelopment 
+  ? ['http://localhost:5173', 'http://localhost:3000']
+  : [
+      'https://restored-os-whip-montez-production.up.railway.app',
+      process.env.FRONTEND_URL
+    ].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      logger.warn('🚫 CORS blocked', { origin, allowedOrigins });
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 
-// 🪵 REQUEST LOGGING
+//  REQUEST LOGGING
 if (isDevelopment) {
   app.use(morgan('dev')); // Colorful logs for development
 } else {
@@ -95,13 +135,33 @@ if (isDevelopment) {
   app.use(morgan('tiny')); // Brief console output
 }
 
-// �️ RATE LIMITING - CRITICAL FOR PRODUCTION
+// Fingerprint-based user tracking for rate limiting (IPv6-safe)
+const createFingerprint = (req) => {
+  const ipHash = ipKeyGenerator(req); // IPv6-safe IP normalization
+  const userId = req.body?.userId || 'anon';
+  const userAgent = req.headers['user-agent'] || 'unknown';
+  const components = `${ipHash}-${userId}-${userAgent}`;
+  return crypto.createHash('md5').update(components).digest('hex');
+};
+
+// RATE LIMITING - Enhanced with fingerprinting
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  max: 100, // Limit each fingerprint to 100 requests per windowMs
+  keyGenerator: createFingerprint,
+  handler: (req, res) => {
+    logger.warn('⚠️ Rate limit exceeded', {
+      ip: req.ip,
+      path: req.path,
+      fingerprint: createFingerprint(req)
+    });
+    res.status(429).json({
+      error: 'Too many requests',
+      retryAfter: '15 minutes'
+    });
+  },
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
 // Apply rate limiting to API routes only
@@ -110,12 +170,22 @@ app.use('/api/', apiLimiter);
 // Stricter limit for AI generation (most expensive operation)
 const generationLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // Limit each IP to 10 AI generations per minute
-  message: 'AI generation rate limit exceeded. Please wait before trying again.',
+  max: 10, // Limit each fingerprint to 10 AI generations per minute
+  keyGenerator: createFingerprint,
+  handler: (req, res) => {
+    logger.warn('⚠️ AI generation rate limit exceeded', {
+      ip: req.ip,
+      fingerprint: createFingerprint(req)
+    });
+    res.status(429).json({
+      error: 'AI generation rate limit exceeded',
+      message: 'Please wait before trying again.'
+    });
+  },
   skipSuccessfulRequests: false
 });
 
-// 🟢 API KEY VALIDATION
+//  API KEY VALIDATION
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
     logger.error('CRITICAL: GEMINI_API_KEY is missing!', { 
@@ -155,7 +225,7 @@ app.get('/', (req, res) => {
   res.send('Whip Montez Backend System Online. Uplink Established.');
 });
 
-// 📊 MONITORING DASHBOARD
+//  MONITORING DASHBOARD
 app.get('/dashboard', (req, res) => {
   logger.info('Dashboard accessed', { ip: req.ip });
   res.sendFile(path.join(__dirname, 'dashboard.html'));
@@ -189,21 +259,15 @@ app.get('/api/models', async (req, res) => {
       return res.status(500).json({ error: 'Server missing API Key. Check backend/.env' });
     }
 
-    if (typeof genAI.listMgenerationLimiter, async (req, res) => {
-  try {
-    const { prompt, systemInstruction } = req.body;
-    
-    // 🛡️ INPUT VALIDATION
-    if (!prompt || typeof prompt !== 'string') {
-      return res.status(400).json({ error: 'Invalid prompt' });
+    if (typeof genAI.listModels !== 'function') {
+      return res.status(501).json({
+        error: 'Model listing not supported',
+        details: 'This SDK version does not support listModels(). Update @google/generative-ai or manually set GENERATIVE_MODEL in .env'
+      });
     }
-    if (prompt.length > 10000) { // Prevent abuse with extremely long prompts
-      return res.status(400).json({ error: 'Prompt too long (max 10,000 characters)' });
-    }
-    
-    console.log(`[${new Date().toISOString()}] Generation request from ${req.ip}`
+
     const models = await genAI.listModels();
-    // `models` may be an array of model objects. Filter those that advertise generateContent support.
+    // Filter models that support generateContent
     const supported = (Array.isArray(models) ? models : []).filter(m => {
       try {
         const methods = m.supportedGenerationMethods || m.supportedMethods || [];
@@ -218,10 +282,19 @@ app.get('/api/models', async (req, res) => {
 });
 
 // GENERATION ROUTE
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', generationLimiter, async (req, res) => {
   try {
     const { prompt, systemInstruction } = req.body;
-    logger.info('AI generation request', { 
+    
+    // INPUT VALIDATION
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'Invalid prompt' });
+    }
+    if (prompt.length > 10000) { // Prevent abuse with extremely long prompts
+      return res.status(400).json({ error: 'Prompt too long (max 10,000 characters)' });
+    }
+    
+    logger.info('🤖 AI generation request', { 
       ip: req.ip, 
       promptLength: prompt.length,
       hasSystemInstruction: !!systemInstruction 
@@ -280,7 +353,7 @@ app.post('/api/generate', async (req, res) => {
 
 const HOST = '0.0.0.0'; // Bind to all interfaces for Railway
 const server = app.listen(PORT, HOST, () => {
-  logger.info('Server started successfully', {
+  logger.info('✅ Server started successfully', {
     host: HOST,
     port: PORT,
     environment: NODE_ENV,
@@ -290,31 +363,55 @@ const server = app.listen(PORT, HOST, () => {
   logger.info(`🚀 Uplink Ready at http://${HOST}:${PORT}`);
 });
 
+// Global error handler middleware
+app.use((err, req, res, next) => {
+  logger.error('❌ Unhandled error', {
+    error: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    ip: req.ip,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Don't leak error details in production
+  if (isDevelopment) {
+    res.status(err.statusCode || 500).json({
+      error: err.message,
+      stack: err.stack
+    });
+  } else {
+    res.status(err.statusCode || 500).json({
+      error: 'Internal server error'
+    });
+  }
+});
+
 // Graceful shutdown handlers
 process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully...');
+  logger.info('⚠️ SIGTERM received, shutting down gracefully...');
   server.close(() => {
-    logger.info('Server closed successfully');
+    logger.info('✅ Server closed successfully');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully...');
+  logger.info('⚠️ SIGINT received, shutting down gracefully...');
   server.close(() => {
-    logger.info('Server closed successfully');
+    logger.info('✅ Server closed successfully');
     process.exit(0);
   });
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-  logger.error('Uncaught Exception - Server will restart', { error: err.message, stack: err.stack });
+  logger.error('❌ Uncaught Exception - Server will restart', { error: err.message, stack: err.stack });
   process.exit(1);
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Promise Rejection', { reason, promise });
+  logger.error('❌ Unhandled Promise Rejection', { reason, promise });
   // Don't exit - keep server running even on unhandled rejections
 });

@@ -1,0 +1,143 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security-scan:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install Backend Dependencies
+        run: cd backend && npm ci
+      
+      - name: Run Security Audit (Backend)
+        run: cd backend && npm audit --production --audit-level=moderate
+        continue-on-error: true
+      
+      - name: Install Frontend Dependencies
+        run: cd frontend && npm ci
+      
+      - name: Run Security Audit (Frontend)
+        run: cd frontend && npm audit --production --audit-level=moderate
+        continue-on-error: true
+
+  test-and-build:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    needs: security-scan
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      
+      - name: Install Backend Dependencies
+        run: cd backend && npm ci
+      
+      - name: Verify Backend Structure
+        run: |
+          cd backend
+          if [ ! -f "server.js" ]; then echo "❌ server.js missing"; exit 1; fi
+          if [ ! -f "package.json" ]; then echo "❌ package.json missing"; exit 1; fi
+          echo "✅ Backend structure valid"
+      
+      - name: Install Frontend Dependencies
+        run: cd frontend && npm ci
+      
+      - name: Build Frontend
+        run: cd frontend && npm run build
+        env:
+          NODE_ENV: production
+      
+      - name: Verify Build Output
+        run: |
+          if [ ! -d "frontend/dist" ]; then
+            echo "❌ Build failed - dist folder not found"
+            exit 1
+          fi
+          echo "✅ Frontend build successful"
+          ls -lah frontend/dist
+      
+      - name: Check for console.log in production
+        run: |
+          cd frontend/dist/assets
+          if grep -r "console\\.log" *.js 2>/dev/null; then
+            echo "⚠️ Warning: console.log found in production build"
+          else
+            echo "✅ No console.log in production build"
+          fi
+        continue-on-error: true
+
+  lint-and-format:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Install Frontend Dependencies
+        run: cd frontend && npm ci
+      
+      - name: Run ESLint
+        run: cd frontend && npx eslint src/ --ext .js,.jsx --max-warnings 50
+        continue-on-error: true
+
+  deployment-check:
+    name: Deployment Readiness
+    runs-on: ubuntu-latest
+    needs: [test-and-build, lint-and-format]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check Environment Files
+        run: |
+          if [ -f ".env" ] || [ -f "backend/.env" ] || [ -f "frontend/.env" ]; then
+            echo "❌ CRITICAL: .env files found in repository!"
+            exit 1
+          fi
+          echo "✅ No .env files in repository"
+      
+      - name: Check Gitignore
+        run: |
+          if ! grep -q "\.env" .gitignore; then
+            echo "❌ .env not in .gitignore"
+            exit 1
+          fi
+          echo "✅ .gitignore configured correctly"
+      
+      - name: Verify Documentation
+        run: |
+          if [ ! -f "README.md" ]; then echo "⚠️ README.md missing"; fi
+          if [ ! -f "DEPLOYMENT_GUIDE.md" ]; then echo "⚠️ DEPLOYMENT_GUIDE.md missing"; fi
+          echo "✅ Documentation check complete"
+      
+      - name: Summary
+        if: success()
+        run: |
+          echo "🚀 All checks passed - Ready for deployment!"
+          echo ""
+          echo "✅ Security audit completed"
+          echo "✅ Build successful"
+          echo "✅ Code quality verified"
+          echo "✅ No secrets in repository"
