@@ -570,6 +570,8 @@ const Bio = ({ setSection, user = null }) => {
   const [uploading, setUploading] = useState(false);
 
   console.log('Bio component - user:', user); // Debug log
+  console.log('Bio component - viewMode:', viewMode);
+  console.log('Bio component - photos:', photos);
 
   // Load photos from Firebase on mount
   useEffect(() => {
@@ -817,8 +819,8 @@ const Bio = ({ setSection, user = null }) => {
                </div>
              ) : (
                // MEMORY LANE GALLERY
-               <div className="max-w-5xl mx-auto">
-                 <div className="mb-6 md:mb-8 text-center border-b border-[#333] pb-4">
+               <div className="max-w-5xl mx-auto" style={{border: '2px solid red', minHeight: '500px'}}>
+                 <div className="mb-6 md:mb-8 text-center border-b border-[#333] pb-4" style={{background: 'blue'}}>
                    <h2 className="text-2xl md:text-3xl font-black text-[#00ff41] mb-2 uppercase">MEMORY LANE</h2>
                    <p className="text-gray-300 text-sm md:text-base font-mono">Studio sessions, shows, and behind-the-scenes moments from the Livewire era</p>
                  </div>
