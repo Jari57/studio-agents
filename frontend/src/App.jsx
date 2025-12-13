@@ -3148,7 +3148,7 @@ const RapBattle = () => {
                  <Mic size={16} className="md:w-5 md:h-5"/>
              </button>
            )}
-           <button onClick={handleBattle} disabled={loading} className="bg-red-600 text-white px-4 md:px-6 py-2 font-bold font-mono hover:bg-red-500 transition-colors uppercase disabled:opacity-50">SPIT</button>
+           <button onClick={handleBattle} disabled={loading} className="bg-red-600 text-white px-4 md:px-6 py-2 font-bold font-mono hover:bg-red-500 transition-colors uppercase disabled:opacity-50 active:scale-95">SPIT</button>
         </div>
       </div>
     </div>
@@ -3220,7 +3220,7 @@ const CrateDigger = () => {
                  </button>
                )}
              </div>
-             <button onClick={handleDig} disabled={loading} className="bg-yellow-600 text-black px-6 py-2 md:py-3 font-bold hover:bg-yellow-500 text-sm md:text-base whitespace-nowrap">DIG</button>
+             <button onClick={handleDig} disabled={loading} className="bg-yellow-600 text-black px-6 py-2 md:py-3 font-bold hover:bg-yellow-500 text-sm md:text-base whitespace-nowrap active:scale-95 transition-transform">DIG</button>
            </div>
         </div>
         <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-[#0a0a0a]">
@@ -3305,7 +3305,7 @@ const ARSuite = () => {
                      <Mic size={16}/> {isListening ? 'LISTENING...' : 'VOICE'}
                  </button>
                )}
-               <button onClick={handleReview} disabled={loading} className="flex-1 bg-blue-600 text-white py-2 md:py-3 font-bold hover:bg-blue-500 uppercase disabled:opacity-50 text-xs md:text-sm">
+               <button onClick={handleReview} disabled={loading} className="flex-1 bg-blue-600 text-white py-2 md:py-3 font-bold hover:bg-blue-500 uppercase disabled:opacity-50 text-xs md:text-sm active:scale-95 transition-transform">
                   {loading ? "ANALYZING RHYMES..." : "SUBMIT FOR REVIEW"}
                </button>
              </div>
@@ -3750,7 +3750,7 @@ const TrendHunter = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {results.map((post, index) => (
                   <div 
-                    key={index}
+                    key={`${post.platform}-${post.username}-${index}`}
                     className="relative group bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-sm border border-violet-500/20 rounded-lg p-4 hover:border-violet-400/50 hover:shadow-lg hover:shadow-violet-500/20 transition-all duration-300"
                   >
                     {/* Trending Badge */}
