@@ -490,7 +490,7 @@ const Home = ({ setSection }) => {
     <div className="relative h-full w-full overflow-y-auto overflow-x-hidden flex flex-col font-sans" style={{WebkitOverflowScrolling: 'touch'}}>
       <BackgroundCarousel images={homeCarouselImages} />
       
-      <div className="relative z-30 flex-1 flex flex-col justify-between p-3 md:p-12 bg-gradient-to-t from-black via-transparent to-black/40 min-h-full">
+      <div className="relative z-30 flex-1 flex flex-col justify-between p-3 md:p-12 bg-gradient-to-t from-black via-transparent to-black/40 min-h-full max-w-[2400px] mx-auto w-full">
         
         {/* Top Section: Branding */}
         <div className="flex justify-between items-start w-full mb-4 md:mb-0">
@@ -521,13 +521,19 @@ const Home = ({ setSection }) => {
             <div 
               key={widget.id}
               onClick={widget.action}
+              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), widget.action())}
+              tabIndex={0}
+              role="button"
+              aria-label={`${widget.content} - ${widget.subtitle}`}
               onMouseEnter={() => setHoveredItem(widget.title)}
               onMouseLeave={() => setHoveredItem(null)}
               className={`
                 group relative h-28 md:h-32 border-t-2 bg-black/80 backdrop-blur-md p-3 md:p-4 cursor-pointer transition-all duration-300
                 flex flex-col justify-between overflow-hidden active:scale-95
                 ${widget.borderColor} ${widget.hoverBg} ${widget.shadow} hover:-translate-y-2
+                focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black
               `}
+              style={{ [widget.borderColor.replace('border-', 'ringColor')]: widget.color }}
             >
               <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.2)_50%)] bg-[length:100%_4px] pointer-events-none opacity-50"></div>
               
@@ -3661,7 +3667,7 @@ const TrendHunter = () => {
                   value={hashtag} 
                   onChange={(e) => setHashtag(e.target.value.replace('#', ''))} 
                   placeholder="enter hashtag..." 
-                  className="flex-1 bg-transparent text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none" 
+                  className="flex-1 bg-transparent text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:outline-none" 
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()} 
                 />
               </div>
@@ -3682,7 +3688,7 @@ const TrendHunter = () => {
                   <button 
                     key={p.id}
                     onClick={() => setPlatform(p.id)}
-                    className={`px-2 py-1 text-[10px] font-mono border transition-all ${
+                    className={`px-2 py-1 text-[10px] font-mono border transition-all cursor-pointer ${
                       platform === p.id 
                         ? 'bg-violet-600 border-violet-400 text-white' 
                         : 'bg-black border-violet-500/30 text-gray-400 hover:border-violet-500/50'
@@ -3698,7 +3704,7 @@ const TrendHunter = () => {
                   <button 
                     key={sort}
                     onClick={() => setSortBy(sort)}
-                    className={`px-2 py-1 text-[10px] font-mono uppercase border transition-all ${
+                    className={`px-2 py-1 text-[10px] font-mono uppercase border transition-all cursor-pointer ${
                       sortBy === sort 
                         ? 'bg-fuchsia-600 border-fuchsia-400 text-white' 
                         : 'bg-black border-fuchsia-500/30 text-gray-400 hover:border-fuchsia-500/50'
