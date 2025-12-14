@@ -1,2 +1,2 @@
-release: cd frontend && npm install --include=dev && npm run build && cd ../backend && npm install --omit=dev
-web: cd backend && npm install --omit=dev && node server.js
+release: cd frontend && npm install --include=dev && npm run build && rm -rf ../backend/public && mkdir -p ../backend/public && cp -r dist/* ../backend/public/ && cd ../backend && npm install
+web: cd backend && npm install && node server.js

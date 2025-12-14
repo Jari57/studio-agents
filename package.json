@@ -15,6 +15,6 @@
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "start": "cd backend && npm start"
   },
-  "postinstall": "cd backend && npm install --omit=dev"
+  "postinstall": "cd backend && npm install && if exist ..\\frontend\\dist (rd /s /q backend\\public & mkdir backend\\public & xcopy /E /I /Y ..\\frontend\\dist backend\\public)"
   }
 }

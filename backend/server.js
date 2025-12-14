@@ -155,15 +155,14 @@ app.use(cors({
 
 app.use(express.json());
 
-// Serve static frontend build when available (Railway production)
-const distPath = path.join(__dirname, '../frontend/dist');
-if (!isDevelopment && fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
+// Serve static frontend build copied into backend/public (Railway release)
+const staticDir = path.join(__dirname, 'public');
+if (fs.existsSync(staticDir)) {
+  app.use(express.static(staticDir));
   app.get('/', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
+    res.sendFile(path.join(staticDir, 'index.html'));
   });
 }
-
 //  REQUEST LOGGING
 if (isDevelopment) {
   app.use(morgan('dev')); // Colorful logs for development
