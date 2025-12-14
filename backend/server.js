@@ -8,6 +8,7 @@ const morgan = require('morgan');
 const winston = require('winston');
 const fs = require('fs');
 const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
 
 // Environment detection
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -154,6 +155,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(cookieParser()); // Parse cookies for Twitter OAuth
 
 // Serve static frontend build copied into backend/public (Railway release)
 const staticDir = path.join(__dirname, 'public');
@@ -416,6 +418,219 @@ app.post('/api/generate', generationLimiter, async (req, res) => {
     const details = suggestion ? `${msg} | SUGGESTION: ${suggestion}` : msg;
     res.status(500).json({ error: 'AI Generation Failed', details });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// TWITTER/X OAuth 2.0 PKCE FLOW - Direct Posting Integration
+// ═══════════════════════════════════════════════════════════════════
+
+// In-memory session store (use Redis in production)
+const twitterSessions = new Map();
+
+// Twitter OAuth 2.0 configuration
+const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID;
+const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET;
+const TWITTER_CALLBACK_URL = process.env.TWITTER_CALLBACK_URL || 
+  (isDevelopment ? 'http://localhost:3001/api/twitter/callback' : 'https://whipmontez.com/api/twitter/callback');
+
+// Generate PKCE code verifier and challenge
+const generatePKCE = () => {
+  const verifier = crypto.randomBytes(32).toString('base64url');
+  const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+  return { verifier, challenge };
+};
+
+// Check if Twitter is configured
+const isTwitterConfigured = () => {
+  return !!(TWITTER_CLIENT_ID && TWITTER_CLIENT_SECRET);
+};
+
+// GET /api/twitter/status - Check if Twitter OAuth is available
+app.get('/api/twitter/status', (req, res) => {
+  res.json({
+    configured: isTwitterConfigured(),
+    message: isTwitterConfigured() 
+      ? 'Twitter OAuth ready' 
+      : 'Twitter OAuth not configured - add TWITTER_CLIENT_ID and TWITTER_CLIENT_SECRET to .env'
+  });
+});
+
+// GET /api/twitter/auth - Start OAuth flow
+app.get('/api/twitter/auth', (req, res) => {
+  if (!isTwitterConfigured()) {
+    return res.status(503).json({ error: 'Twitter OAuth not configured' });
+  }
+
+  const state = crypto.randomBytes(16).toString('hex');
+  const { verifier, challenge } = generatePKCE();
+  
+  // Store session data
+  twitterSessions.set(state, {
+    verifier,
+    createdAt: Date.now(),
+    returnUrl: req.query.returnUrl || '/'
+  });
+
+  // Clean up old sessions (older than 10 minutes)
+  for (const [key, session] of twitterSessions) {
+    if (Date.now() - session.createdAt > 10 * 60 * 1000) {
+      twitterSessions.delete(key);
+    }
+  }
+
+  const scopes = ['tweet.read', 'tweet.write', 'users.read', 'offline.access'];
+  const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('client_id', TWITTER_CLIENT_ID);
+  authUrl.searchParams.set('redirect_uri', TWITTER_CALLBACK_URL);
+  authUrl.searchParams.set('scope', scopes.join(' '));
+  authUrl.searchParams.set('state', state);
+  authUrl.searchParams.set('code_challenge', challenge);
+  authUrl.searchParams.set('code_challenge_method', 'S256');
+
+  logger.info('🐦 Twitter OAuth flow started', { state });
+  res.redirect(authUrl.toString());
+});
+
+// GET /api/twitter/callback - Handle OAuth callback
+app.get('/api/twitter/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+
+  if (error) {
+    logger.warn('🐦 Twitter OAuth denied', { error });
+    return res.redirect('/?twitter_error=' + encodeURIComponent(error));
+  }
+
+  const session = twitterSessions.get(state);
+  if (!session) {
+    logger.warn('🐦 Invalid state in Twitter callback');
+    return res.redirect('/?twitter_error=invalid_state');
+  }
+
+  twitterSessions.delete(state);
+
+  try {
+    // Exchange code for tokens
+    const tokenResponse = await fetch('https://api.twitter.com/2/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${TWITTER_CLIENT_ID}:${TWITTER_CLIENT_SECRET}`).toString('base64')
+      },
+      body: new URLSearchParams({
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: TWITTER_CALLBACK_URL,
+        code_verifier: session.verifier
+      })
+    });
+
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.text();
+      logger.error('🐦 Twitter token exchange failed', { status: tokenResponse.status, error: errorData });
+      return res.redirect('/?twitter_error=token_exchange_failed');
+    }
+
+    const tokens = await tokenResponse.json();
+    
+    // Get user info
+    const userResponse = await fetch('https://api.twitter.com/2/users/me', {
+      headers: { 'Authorization': `Bearer ${tokens.access_token}` }
+    });
+    
+    const userData = userResponse.ok ? await userResponse.json() : null;
+    const username = userData?.data?.username || 'user';
+
+    logger.info('🐦 Twitter OAuth successful', { username });
+
+    // Return tokens to frontend via redirect with fragment (safer than query params)
+    const returnUrl = new URL(session.returnUrl || '/', req.protocol + '://' + req.get('host'));
+    returnUrl.searchParams.set('twitter_connected', 'true');
+    returnUrl.searchParams.set('twitter_username', username);
+    
+    // Store encrypted token in cookie (httpOnly for security)
+    res.cookie('twitter_token', tokens.access_token, {
+      httpOnly: true,
+      secure: !isDevelopment,
+      sameSite: 'lax',
+      maxAge: tokens.expires_in * 1000
+    });
+
+    if (tokens.refresh_token) {
+      res.cookie('twitter_refresh', tokens.refresh_token, {
+        httpOnly: true,
+        secure: !isDevelopment,
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      });
+    }
+
+    res.redirect(returnUrl.toString());
+  } catch (err) {
+    logger.error('🐦 Twitter OAuth error', { error: err.message });
+    res.redirect('/?twitter_error=server_error');
+  }
+});
+
+// POST /api/twitter/tweet - Post a tweet
+app.post('/api/twitter/tweet', async (req, res) => {
+  const token = req.cookies?.twitter_token;
+  
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated with Twitter', needsAuth: true });
+  }
+
+  const { text } = req.body;
+  if (!text || typeof text !== 'string') {
+    return res.status(400).json({ error: 'Tweet text is required' });
+  }
+
+  // Twitter limit is 280 characters
+  const tweetText = text.slice(0, 280);
+
+  try {
+    const response = await fetch('https://api.twitter.com/2/tweets', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ text: tweetText })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      logger.error('🐦 Tweet failed', { status: response.status, error: errorData });
+      
+      if (response.status === 401) {
+        // Token expired, clear cookies
+        res.clearCookie('twitter_token');
+        res.clearCookie('twitter_refresh');
+        return res.status(401).json({ error: 'Twitter session expired', needsAuth: true });
+      }
+      
+      return res.status(response.status).json({ error: 'Failed to post tweet', details: errorData });
+    }
+
+    const result = await response.json();
+    logger.info('🐦 Tweet posted successfully', { tweetId: result.data?.id });
+    
+    res.json({
+      success: true,
+      tweetId: result.data?.id,
+      tweetUrl: `https://twitter.com/i/status/${result.data?.id}`
+    });
+  } catch (err) {
+    logger.error('🐦 Tweet error', { error: err.message });
+    res.status(500).json({ error: 'Failed to post tweet' });
+  }
+});
+
+// GET /api/twitter/disconnect - Clear Twitter session
+app.get('/api/twitter/disconnect', (req, res) => {
+  res.clearCookie('twitter_token');
+  res.clearCookie('twitter_refresh');
+  res.json({ success: true, message: 'Disconnected from Twitter' });
 });
 
 const HOST = '0.0.0.0'; // Bind to all interfaces for Railway

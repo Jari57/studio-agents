@@ -7,7 +7,7 @@ import {
   Hash, Grid, Headphones, Activity, Zap, Wallet, Power, Sliders, Briefcase, 
   RefreshCw, ToggleLeft, ToggleRight, Filter, Plus, Trash2, Edit2, Upload,
   Camera, TrendingUp, Users, Image as ImageIcon, Link as LinkIcon, Loader2,
-  Info, Volume2
+  Info, Volume2, HelpCircle, Eye, Volume1, VolumeX
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -216,6 +216,406 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
       await new Promise(resolve => setTimeout(resolve, delays[i]));
     }
   }
+};
+
+// =============================================================================
+// SUBSCRIPTION & TRIAL SYSTEM
+// =============================================================================
+
+// Pricing tiers for social media creators
+const PRICING_TIERS = {
+  free: {
+    name: 'FREE TRIAL',
+    price: 0,
+    usesPerAgent: 3,
+    audioSeconds: 10,
+    features: [
+      '3 uses per AI agent',
+      '10 second voice output',
+      'Basic STT input',
+      'Session-based access'
+    ],
+    limitations: [
+      'No saved creations',
+      'No conversation history',
+      'Watermarked exports'
+    ]
+  },
+  creator: {
+    name: 'CREATOR',
+    price: 9.99,
+    interval: 'month',
+    usesPerAgent: 100,
+    audioSeconds: 30,
+    features: [
+      '100 uses per agent/month',
+      '30 second voice output',
+      'Advanced STT with noise cancellation',
+      'Save unlimited creations',
+      'Export without watermarks',
+      'Priority AI processing',
+      'Conversation history'
+    ],
+    popular: true
+  },
+  studio: {
+    name: 'STUDIO PRO',
+    price: 24.99,
+    interval: 'month',
+    usesPerAgent: -1, // Unlimited
+    audioSeconds: 60,
+    features: [
+      'Unlimited AI generations',
+      '60 second voice output',
+      'All Creator features',
+      'API access for integrations',
+      'Custom agent personalities',
+      'Batch generation',
+      'Team collaboration (up to 3)',
+      'Priority support'
+    ]
+  }
+};
+
+// Enhanced subscription context with IP tracking
+const SubscriptionContext = React.createContext(null);
+
+const useSubscription = () => {
+  const context = React.useContext(SubscriptionContext);
+  if (!context) {
+    throw new Error('useSubscription must be used within SubscriptionProvider');
+  }
+  return context;
+};
+
+const SubscriptionProvider = ({ children }) => {
+  const [tier, setTier] = useState('free');
+  const [usageByAgent, setUsageByAgent] = useState({});
+  const [userEmail, setUserEmail] = useState(null);
+  const [ipAddress, setIpAddress] = useState(null);
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState(null);
+  const [savedCreations, setSavedCreations] = useState([]);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Get IP address for trial tracking
+  useEffect(() => {
+    const fetchIP = async () => {
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const data = await res.json();
+        setIpAddress(data.ip);
+        
+        // Load usage for this IP from localStorage
+        const storedUsage = localStorage.getItem(`studio_usage_${data.ip}`);
+        if (storedUsage) {
+          setUsageByAgent(JSON.parse(storedUsage));
+        }
+      } catch (err) {
+        console.warn('Could not fetch IP, using session-based tracking');
+        // Fallback to session-based tracking
+        const sessionId = sessionStorage.getItem('studio_session_id') || crypto.randomUUID();
+        sessionStorage.setItem('studio_session_id', sessionId);
+        setIpAddress(sessionId);
+        
+        const storedUsage = localStorage.getItem(`studio_usage_${sessionId}`);
+        if (storedUsage) {
+          setUsageByAgent(JSON.parse(storedUsage));
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchIP();
+  }, []);
+
+  // Load subscription from Firebase if user is logged in
+  useEffect(() => {
+    if (!auth || !db) return;
+    
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user && user.email) {
+        setUserEmail(user.email);
+        
+        // Load subscription status from Firestore
+        try {
+          const userDocRef = doc(db, 'users', user.uid);
+          onSnapshot(userDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              if (data.subscription) {
+                setTier(data.subscription.tier || 'free');
+                setSubscriptionExpiry(data.subscription.expiry?.toDate() || null);
+              }
+              if (data.savedCreations) {
+                setSavedCreations(data.savedCreations);
+              }
+            }
+          });
+        } catch (err) {
+          console.error('Error loading subscription:', err);
+        }
+      } else {
+        setUserEmail(null);
+        setTier('free');
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  // Check if subscription is valid
+  const isSubscriptionActive = () => {
+    if (tier === 'free') return true; // Free tier always "active"
+    if (!subscriptionExpiry) return false;
+    return new Date() < subscriptionExpiry;
+  };
+
+  // Get remaining uses for an agent
+  const getRemainingUses = (agentId) => {
+    const tierConfig = PRICING_TIERS[tier];
+    if (tierConfig.usesPerAgent === -1) return Infinity; // Unlimited
+    
+    const used = usageByAgent[agentId] || 0;
+    return Math.max(0, tierConfig.usesPerAgent - used);
+  };
+
+  // Check if user can use an agent
+  const canUseAgent = (agentId) => {
+    if (!isSubscriptionActive() && tier !== 'free') {
+      return false;
+    }
+    return getRemainingUses(agentId) > 0;
+  };
+
+  // Consume a use for an agent
+  const consumeUse = (agentId) => {
+    const newUsage = {
+      ...usageByAgent,
+      [agentId]: (usageByAgent[agentId] || 0) + 1
+    };
+    setUsageByAgent(newUsage);
+    
+    // Persist to localStorage with IP
+    if (ipAddress) {
+      localStorage.setItem(`studio_usage_${ipAddress}`, JSON.stringify(newUsage));
+    }
+    
+    // Also persist to Firebase if logged in
+    if (auth?.currentUser && db) {
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      updateDoc(userDocRef, { 
+        [`agentUsage.${agentId}`]: (usageByAgent[agentId] || 0) + 1,
+        lastUsed: serverTimestamp()
+      }).catch(console.error);
+    }
+  };
+
+  // Get audio limit in seconds based on tier
+  const getAudioLimit = () => {
+    return PRICING_TIERS[tier]?.audioSeconds || 10;
+  };
+
+  // Save a creation to Firebase
+  const saveCreation = async (creation) => {
+    if (tier === 'free') {
+      setShowPaywall(true);
+      return false;
+    }
+    
+    if (!auth?.currentUser || !db) {
+      console.warn('Must be logged in to save creations');
+      return false;
+    }
+    
+    try {
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      const newCreation = {
+        ...creation,
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        agentId: creation.agentId
+      };
+      
+      await updateDoc(userDocRef, {
+        savedCreations: arrayUnion(newCreation)
+      });
+      
+      setSavedCreations(prev => [...prev, newCreation]);
+      return true;
+    } catch (err) {
+      console.error('Error saving creation:', err);
+      return false;
+    }
+  };
+
+  // Get saved creations for an agent
+  const getCreationsForAgent = (agentId) => {
+    return savedCreations.filter(c => c.agentId === agentId);
+  };
+
+  // Delete a saved creation
+  const deleteCreation = async (creationId) => {
+    if (!auth?.currentUser || !db) return false;
+    
+    try {
+      const updatedCreations = savedCreations.filter(c => c.id !== creationId);
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userDocRef, { savedCreations: updatedCreations });
+      setSavedCreations(updatedCreations);
+      return true;
+    } catch (err) {
+      console.error('Error deleting creation:', err);
+      return false;
+    }
+  };
+
+  const value = {
+    tier,
+    setTier,
+    userEmail,
+    ipAddress,
+    usageByAgent,
+    subscriptionExpiry,
+    savedCreations,
+    showPaywall,
+    setShowPaywall,
+    isLoading,
+    isSubscriptionActive,
+    getRemainingUses,
+    canUseAgent,
+    consumeUse,
+    getAudioLimit,
+    saveCreation,
+    getCreationsForAgent,
+    deleteCreation,
+    PRICING_TIERS
+  };
+
+  return (
+    <SubscriptionContext.Provider value={value}>
+      {children}
+    </SubscriptionContext.Provider>
+  );
+};
+
+// =============================================================================
+// ENHANCED AUTH COMPONENTS
+// =============================================================================
+
+// Password strength checker
+const checkPasswordStrength = (password) => {
+  const checks = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+  };
+  
+  const score = Object.values(checks).filter(Boolean).length;
+  
+  return {
+    checks,
+    score,
+    isStrong: score >= 4,
+    label: score <= 2 ? 'Weak' : score <= 3 ? 'Fair' : score <= 4 ? 'Good' : 'Strong',
+    color: score <= 2 ? 'red' : score <= 3 ? 'yellow' : score <= 4 ? 'green' : 'cyan'
+  };
+};
+
+// Email validation
+const validateEmail = (email) => {
+  const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return regex.test(email);
+};
+
+// Paywall Modal Component
+const PaywallModal = ({ onClose, onUpgrade }) => {
+  const { PRICING_TIERS, tier: currentTier } = useSubscription();
+  
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-black border border-white/20 p-6 md:p-8" style={{WebkitOverflowScrolling: 'touch'}}>
+        {/* Close Button */}
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-white/60 hover:text-white transition-colors"
+        >
+          <X size={24} />
+        </button>
+        
+        {/* Header */}
+        <div className="text-center mb-8">
+          <p className="text-cyan-400 text-xs uppercase tracking-[0.3em] mb-2">Upgrade Your Creative Arsenal</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Unlock <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">THE STUDIO</span>
+          </h2>
+          <p className="text-white/60 max-w-lg mx-auto">
+            Built for social media creators who want AI-powered content creation at their fingertips.
+          </p>
+        </div>
+        
+        {/* Pricing Cards */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {Object.entries(PRICING_TIERS).map(([key, plan]) => (
+            <div 
+              key={key}
+              className={`relative bg-black/60 border ${plan.popular ? 'border-cyan-500' : 'border-white/10'} p-6 transition-all hover:border-white/30`}
+            >
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-cyan-500 to-purple-500 text-black text-xs font-bold uppercase tracking-wider">
+                  Most Popular
+                </div>
+              )}
+              
+              <h3 className="text-white font-bold text-xl mb-2">{plan.name}</h3>
+              <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-4xl font-bold text-white">${plan.price}</span>
+                {plan.interval && <span className="text-white/40">/{plan.interval}</span>}
+              </div>
+              
+              <ul className="space-y-3 mb-6">
+                {plan.features.map((feature, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <CheckCircle size={16} className="text-cyan-400 mt-0.5 flex-shrink-0" />
+                    <span className="text-white/80">{feature}</span>
+                  </li>
+                ))}
+                {plan.limitations?.map((limitation, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm opacity-50">
+                    <X size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
+                    <span className="text-white/60">{limitation}</span>
+                  </li>
+                ))}
+              </ul>
+              
+              <button
+                onClick={() => onUpgrade(key)}
+                disabled={key === currentTier}
+                className={`w-full py-3 font-bold uppercase tracking-wider transition-all ${
+                  key === currentTier 
+                    ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                    : plan.popular
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-black hover:shadow-[0_0_30px_rgba(0,255,255,0.4)]'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                {key === currentTier ? 'Current Plan' : key === 'free' ? 'Start Free' : 'Subscribe'}
+              </button>
+            </div>
+          ))}
+        </div>
+        
+        {/* Security Badge */}
+        <div className="flex items-center justify-center gap-2 mt-8 text-white/40 text-xs">
+          <Lock size={12} />
+          <span>Secure payment via Stripe • Cancel anytime</span>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Shared free-usage limiter for AI agents (client-side tracking, per browser)
@@ -2523,165 +2923,2637 @@ const StyleArchive = () => {
   );
 };
 
-// 7. GHOSTWRITER (Lyric Recovery)
-const Ghostwriter = () => {
-  const [prompt, setPrompt] = useState("");
-  const [lyrics, setLyrics] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
-  const lastRequestTime = useRef(0);
-  const { usage, limit, canUse, consume } = useFreeLimit('aiAgentUsage_ghostwriter', 3);
-  const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
-    setPrompt(prev => prev ? prev + ' ' + transcript : transcript);
-  });
-  const { speak, stop, isSpeaking, isSupported: speechSupported } = useSpeechSynthesis();
-
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-
-    // Cooldown check
-    const cooldownTime = 3000; // 3 seconds
-    const now = Date.now();
-    if (now - lastRequestTime.current < cooldownTime) {
-        alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before generating new lyrics.`);
-        return;
-    }
-
-    if (!canUse) {
-      setLyrics(`FREE LIMIT REACHED: ${limit} free Ghostwriter attempts used.`);
+// 7. STUDIO - FUTURISTIC AI AGENT HUB
+const Studio = () => {
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [selectedTool, setSelectedTool] = useState(null);
+  const [agentInput, setAgentInput] = useState("");
+  const [agentOutput, setAgentOutput] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState([]);
+  const [generatedImages, setGeneratedImages] = useState([]);
+  const [storyboardScenes, setStoryboardScenes] = useState([]);
+  const [designTemplates, setDesignTemplates] = useState([]);
+  const [imageSettings, setImageSettings] = useState({ style: 'album-art', aspect: '1:1', quality: 'standard' });
+  const [videoSettings, setVideoSettings] = useState({ platform: 'tiktok', duration: '30', mood: 'energetic' });
+  const [shareMenuOpen, setShareMenuOpen] = useState(null);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [twitterConnected, setTwitterConnected] = useState(false);
+  const [twitterUsername, setTwitterUsername] = useState('');
+  const [twitterPosting, setTwitterPosting] = useState(false);
+  const [twitterPostSuccess, setTwitterPostSuccess] = useState(null);
+  
+  // NEW: Onboarding & Help System
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [showQuickTip, setShowQuickTip] = useState(null);
+  const [showExamples, setShowExamples] = useState(false);
+  
+  // NEW: Camera/Video Import for TikTok
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [cameraStream, setCameraStream] = useState(null);
+  const [recordedVideo, setRecordedVideo] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const videoRef = useRef(null);
+  const chunksRef = useRef([]);
+  
+  // NEW: Voice Input System
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const recognitionRef = useRef(null);
+  
+  // NEW: Text-to-Speech Output System
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [selectedVoiceStyle, setSelectedVoiceStyle] = useState('smooth');
+  const [showVoiceStyleMenu, setShowVoiceStyleMenu] = useState(null);
+  const [userRecording, setUserRecording] = useState(null);
+  const [isRecordingFlow, setIsRecordingFlow] = useState(false);
+  const userAudioRecorderRef = useRef(null);
+  const userAudioChunksRef = useRef([]);
+  
+  // Voice Style Presets (different delivery energies)
+  const voiceStyles = {
+    growler: { name: 'The Growler', desc: 'Aggressive, intense bark', pitch: 0.6, rate: 0.9, icon: '🔥' },
+    rapidfire: { name: 'Rapid Fire', desc: 'Fast, choppy, high energy', pitch: 1.1, rate: 1.6, icon: '⚡' },
+    smooth: { name: 'Smooth Operator', desc: 'Laid back, confident flow', pitch: 0.9, rate: 0.85, icon: '😎' },
+    street: { name: 'Street General', desc: 'Hard, commanding presence', pitch: 0.7, rate: 0.95, icon: '👑' },
+    poet: { name: 'The Poet', desc: 'Thoughtful, storytelling', pitch: 1.0, rate: 0.75, icon: '📜' },
+    hype: { name: 'Hype Man', desc: 'Loud, energetic, party', pitch: 1.3, rate: 1.3, icon: '🎉' }
+  };
+  
+  // Text-to-Speech Function
+  const speakText = (text, styleKey = selectedVoiceStyle) => {
+    if (!('speechSynthesis' in window)) {
+      console.error('Text-to-speech not supported');
       return;
     }
-    consume();
+    
+    // Stop any current speech
+    window.speechSynthesis.cancel();
+    
+    const style = voiceStyles[styleKey] || voiceStyles.smooth;
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Get available voices and pick a good one
+    const voices = window.speechSynthesis.getVoices();
+    const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+    if (englishVoices.length > 0) {
+      // Try to find a male voice for more "rapper" sound
+      const maleVoice = englishVoices.find(v => v.name.toLowerCase().includes('male') || v.name.includes('David') || v.name.includes('James'));
+      utterance.voice = maleVoice || englishVoices[0];
+    }
+    
+    utterance.pitch = style.pitch;
+    utterance.rate = style.rate;
+    utterance.volume = 1;
+    
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    
+    window.speechSynthesis.speak(utterance);
+    playSound('send');
+  };
+  
+  const stopSpeaking = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  };
+  
+  // Record User's Own Flow
+  const startRecordingFlow = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      userAudioRecorderRef.current = new MediaRecorder(stream);
+      userAudioChunksRef.current = [];
+      
+      userAudioRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          userAudioChunksRef.current.push(e.data);
+        }
+      };
+      
+      userAudioRecorderRef.current.onstop = () => {
+        const blob = new Blob(userAudioChunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        setUserRecording(url);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      userAudioRecorderRef.current.start();
+      setIsRecordingFlow(true);
+      playSound('start');
+    } catch (err) {
+      console.error('Mic access denied:', err);
+    }
+  };
+  
+  const stopRecordingFlow = () => {
+    if (userAudioRecorderRef.current && isRecordingFlow) {
+      userAudioRecorderRef.current.stop();
+      setIsRecordingFlow(false);
+      playSound('success');
+    }
+  };
+  
+  const downloadUserRecording = () => {
+    if (userRecording) {
+      const a = document.createElement('a');
+      a.href = userRecording;
+      a.download = `my-flow-${Date.now()}.webm`;
+      a.click();
+    }
+  };
+  
+  // NEW: Swipe Gesture Navigation
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
+  const minSwipeDistance = 50;
+  
+  const lastRequestTime = useRef(0);
+  
+  // Initialize Voice Recognition
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      setVoiceSupported(true);
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'en-US';
+      
+      recognitionRef.current.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join('');
+        setAgentInput(transcript);
+      };
+      
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+        playSound('stop');
+      };
+      
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+    }
+  }, []);
+  
+  const toggleVoiceInput = () => {
+    if (!voiceSupported) return;
+    
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      playSound('start');
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+  
+  // Sound Effects System
+  const playSound = (type) => {
+    const sounds = {
+      start: 'data:audio/wav;base64,UklGRl9vT19teleURCRSUAAAABhxYW1hAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      stop: 'data:audio/wav;base64,UklGRl9vT19teleURCRSUAAAABhxYW1hAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      send: 'data:audio/wav;base64,UklGRl9vT19teleURCRSUAAAABhxYW1hAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      success: 'data:audio/wav;base64,UklGRl9vT19teleURCRSUAAAABhxYW1hAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+      click: 'data:audio/wav;base64,UklGRl9vT19teleURCRSUAAAABhxYW1hAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+    };
+    
+    // Use Web Audio API for clean sounds
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      if (type === 'start') {
+        oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(1760, audioContext.currentTime + 0.1);
+      } else if (type === 'stop') {
+        oscillator.frequency.setValueAtTime(1760, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.1);
+      } else if (type === 'send') {
+        oscillator.frequency.setValueAtTime(523, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(1047, audioContext.currentTime + 0.15);
+      } else if (type === 'success') {
+        oscillator.frequency.setValueAtTime(523, audioContext.currentTime);
+        oscillator.frequency.setValueAtTime(659, audioContext.currentTime + 0.1);
+        oscillator.frequency.setValueAtTime(784, audioContext.currentTime + 0.2);
+      } else {
+        oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+      }
+      
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.2);
+    } catch (e) {
+      // Audio not supported or blocked
+    }
+  };
+  
+  // Swipe Gesture Handlers
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (selectedAgent && agents.length > 0) {
+      const currentIndex = agents.findIndex(a => a.id === selectedAgent.id);
+      
+      if (isLeftSwipe && currentIndex < agents.length - 1) {
+        // Swipe left = next agent
+        playSound('click');
+        handleAgentSelect(agents[currentIndex + 1]);
+      } else if (isRightSwipe && currentIndex > 0) {
+        // Swipe right = previous agent
+        playSound('click');
+        handleAgentSelect(agents[currentIndex - 1]);
+      }
+    }
+  };
+  
+  // Check if first visit to Studio
+  useEffect(() => {
+    const hasSeenOnboarding = localStorage.getItem('studio_onboarding_v1');
+    if (!hasSeenOnboarding) {
+      setShowOnboarding(true);
+    }
+  }, []);
 
-    setLoading(true);
-    setLyrics("");
-    const systemPrompt = "You are Whip Montez, a gritty, lyrical female rapper from Red Hook Brooklyn, circa 2004. Write an 8-bar verse about the user's topic. Use Spanglish, NY slang from the early 2000s (e.g., 'son', 'dun', 'mad', 'deadass'), and keep it confident and raw. Do not use hashtags. Format it as a verse.";
-    const result = await callGemini(prompt, systemPrompt);
-    lastRequestTime.current = Date.now();
-    setLyrics(result);
-    setLoading(false);
+  const completeOnboarding = () => {
+    localStorage.setItem('studio_onboarding_v1', 'true');
+    setShowOnboarding(false);
+  };
+  
+  // Check Twitter connection on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('twitter_connected') === 'true') {
+      setTwitterConnected(true);
+      setTwitterUsername(urlParams.get('twitter_username') || '');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    if (urlParams.get('twitter_error')) {
+      console.error('Twitter OAuth error:', urlParams.get('twitter_error'));
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // REMIX SYSTEM - Regenerate content with new elements
+  // ═══════════════════════════════════════════════════════════════════
+  
+  const handleRemix = async (originalContent, agentOrTool) => {
+    const remixStyles = [
+      'with a darker, moodier vibe',
+      'but make it more energetic and upbeat',
+      'in a more minimalist style',
+      'with stronger Brooklyn/NYC references',
+      'with a 90s throwback aesthetic',
+      'but make it more commercial/radio-friendly',
+      'with more emotional depth',
+      'in a trap/drill style',
+      'with R&B influences',
+      'but make it more aggressive'
+    ];
+    const randomStyle = remixStyles[Math.floor(Math.random() * remixStyles.length)];
+    
+    const remixPrompt = `Take this creation and REMIX it ${randomStyle}. Keep the core concept but transform the style and energy:\n\nORIGINAL:\n${originalContent}\n\nCreate a fresh new version that feels different but related.`;
+    
+    setAgentInput(remixPrompt);
+    // Auto-submit the remix
+    if (selectedAgent) {
+      setIsProcessing(true);
+      const result = await callGemini(remixPrompt, selectedAgent.systemPrompt);
+      setConversationHistory(prev => [...prev, 
+        { role: 'user', content: `🔄 REMIX: ${randomStyle}` },
+        { role: 'assistant', content: result }
+      ]);
+      setAgentOutput(result);
+      setIsProcessing(false);
+    }
   };
 
-  return (
-    <div className="h-full w-full relative p-6 flex flex-col items-center justify-center overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
-      <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
-      <div className="relative z-20 w-full max-w-3xl border border-cyan-600 bg-[#050505]/90 p-1 shadow-[0_0_30px_rgba(0,180,255,0.4)] my-6">
-        <div className="bg-cyan-600 text-black px-2 py-1 font-bold flex justify-between items-center mb-2">
-          <span>LYRIC_RECOVERY_TOOL.EXE</span>
-          <div className="flex gap-1">
-            <button 
-              onClick={() => setShowInfo(true)}
-              className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-cyan-800 transition-colors flex items-center justify-center"
-              title="Info"
+  // ═══════════════════════════════════════════════════════════════════
+  // CAMERA/VIDEO IMPORT - Record TikTok dances with AI jingles
+  // ═══════════════════════════════════════════════════════════════════
+  
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user', width: { ideal: 1080 }, height: { ideal: 1920 } },
+        audio: true 
+      });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Camera access denied:', err);
+      alert('Please allow camera access to record videos');
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+  };
+
+  const startRecording = () => {
+    if (!cameraStream) return;
+    chunksRef.current = [];
+    const mediaRecorder = new MediaRecorder(cameraStream, { mimeType: 'video/webm' });
+    mediaRecorderRef.current = mediaRecorder;
+    
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
+    
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: 'video/webm' });
+      setRecordedVideo(URL.createObjectURL(blob));
+    };
+    
+    mediaRecorder.start();
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const downloadRecording = () => {
+    if (recordedVideo) {
+      const a = document.createElement('a');
+      a.href = recordedVideo;
+      a.download = `whip-montez-dance-${Date.now()}.webm`;
+      a.click();
+    }
+  };
+  
+  // ═══════════════════════════════════════════════════════════════════
+  // SOCIAL SHARING INTEGRATION - TikTok, Instagram, Twitter, Download
+  // ═══════════════════════════════════════════════════════════════════
+  
+  // Backend URL
+  const BACKEND_URL = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3001' 
+    : '';
+  
+  // Copy to clipboard
+  const handleCopyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    }
+  };
+
+  // Share to TikTok (opens TikTok with content ready to paste)
+  const handleShareTikTok = (content) => {
+    // TikTok doesn't have a direct web share API, so we copy and redirect
+    handleCopyToClipboard(content);
+    // Open TikTok's create page (user pastes caption)
+    window.open('https://www.tiktok.com/upload', '_blank');
+  };
+
+  // Share to Instagram (opens Instagram with content copied)
+  const handleShareInstagram = (content) => {
+    handleCopyToClipboard(content);
+    // Instagram doesn't have web upload, but we can link to the app or web
+    // On mobile this will prompt to open the app
+    window.open('https://www.instagram.com/', '_blank');
+  };
+
+  // Connect Twitter/X account
+  const handleConnectTwitter = () => {
+    const returnUrl = encodeURIComponent(window.location.href);
+    window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
+  };
+
+  // Disconnect Twitter/X account
+  const handleDisconnectTwitter = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/api/twitter/disconnect`, { credentials: 'include' });
+      setTwitterConnected(false);
+      setTwitterUsername('');
+    } catch (err) {
+      console.error('Failed to disconnect Twitter:', err);
+    }
+  };
+
+  // Direct post to Twitter/X
+  const handleDirectTweet = async (content) => {
+    if (!twitterConnected) {
+      handleConnectTwitter();
+      return;
+    }
+
+    setTwitterPosting(true);
+    setTwitterPostSuccess(null);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/twitter/tweet`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          text: content.slice(0, 250) + (content.length > 250 ? '...' : '') + '\n\n🎵 Made with Whip Montez Studio'
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.needsAuth) {
+          setTwitterConnected(false);
+          handleConnectTwitter();
+          return;
+        }
+        throw new Error(data.error || 'Failed to post tweet');
+      }
+
+      setTwitterPostSuccess(data.tweetUrl);
+      setTimeout(() => setTwitterPostSuccess(null), 5000);
+    } catch (err) {
+      console.error('Tweet failed:', err);
+      alert('Failed to post tweet: ' + err.message);
+    } finally {
+      setTwitterPosting(false);
+    }
+  };
+
+  // Share to Twitter/X with pre-filled text (fallback)
+  const handleShareTwitter = (content) => {
+    if (twitterConnected) {
+      handleDirectTweet(content);
+    } else {
+      const text = encodeURIComponent(content.slice(0, 280)); // Twitter limit
+      const hashtags = encodeURIComponent('WhipMontez,AIStudio,MusicCreation');
+      window.open(`https://twitter.com/intent/tweet?text=${text}&hashtags=${hashtags}`, '_blank');
+    }
+  };
+
+  // Share via Web Share API (native sharing on mobile)
+  const handleNativeShare = async (content, title = 'My Creation') => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${title} - Whip Montez Studio`,
+          text: content,
+          url: window.location.origin
+        });
+      } catch (err) {
+        // User cancelled or error - fall back to copy
+        handleCopyToClipboard(content);
+      }
+    } else {
+      // Fallback for desktop
+      handleCopyToClipboard(content);
+    }
+  };
+
+  // Download as text file
+  const handleDownloadText = (content, filename = 'creation') => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}-${Date.now()}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Generate shareable image card (creates canvas with styled text)
+  const handleDownloadAsImage = async (content, agentName = 'Studio') => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size (Instagram story size)
+    canvas.width = 1080;
+    canvas.height = 1920;
+    
+    // Background gradient
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, '#0a0a0a');
+    gradient.addColorStop(0.5, '#1a1a2e');
+    gradient.addColorStop(1, '#0a0a0a');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Add subtle grid pattern
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < canvas.width; i += 40) {
+      ctx.beginPath();
+      ctx.moveTo(i, 0);
+      ctx.lineTo(i, canvas.height);
+      ctx.stroke();
+    }
+    for (let i = 0; i < canvas.height; i += 40) {
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(canvas.width, i);
+      ctx.stroke();
+    }
+    
+    // Header
+    ctx.fillStyle = '#00ff41';
+    ctx.font = 'bold 32px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('WHIP MONTEZ STUDIO', canvas.width / 2, 120);
+    
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '24px monospace';
+    ctx.fillText(`Created with ${agentName}`, canvas.width / 2, 170);
+    
+    // Main content area
+    ctx.fillStyle = 'rgba(0,255,65,0.1)';
+    ctx.fillRect(60, 250, canvas.width - 120, canvas.height - 450);
+    ctx.strokeStyle = 'rgba(0,255,65,0.3)';
+    ctx.strokeRect(60, 250, canvas.width - 120, canvas.height - 450);
+    
+    // Content text (word wrap)
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '36px Arial';
+    ctx.textAlign = 'left';
+    
+    const maxWidth = canvas.width - 160;
+    const lineHeight = 50;
+    const words = content.split(' ');
+    let line = '';
+    let y = 330;
+    
+    for (let word of words) {
+      const testLine = line + word + ' ';
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && line !== '') {
+        ctx.fillText(line.trim(), 100, y);
+        line = word + ' ';
+        y += lineHeight;
+        if (y > canvas.height - 280) {
+          ctx.fillText('...', 100, y);
+          break;
+        }
+      } else {
+        line = testLine;
+      }
+    }
+    if (y <= canvas.height - 280) {
+      ctx.fillText(line.trim(), 100, y);
+    }
+    
+    // Footer
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('whipmontez.com', canvas.width / 2, canvas.height - 100);
+    ctx.fillText('@whipmontez', canvas.width / 2, canvas.height - 60);
+    
+    // Download
+    const link = document.createElement('a');
+    link.download = `whip-montez-${agentName.toLowerCase()}-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  };
+
+  // Share Menu Component (inline)
+  const ShareMenu = ({ content, agentName, isOpen, onClose, messageIndex }) => {
+    if (!isOpen) return null;
+    
+    return (
+      <div className="absolute right-0 top-full mt-2 z-50 bg-black/95 border border-white/20 backdrop-blur-sm shadow-2xl min-w-[220px]">
+        <div className="p-2 border-b border-white/10">
+          <p className="text-white/50 text-[10px] uppercase tracking-wider">Share Creation</p>
+        </div>
+        <div className="p-1">
+          {/* Twitter Direct Post - Featured when connected */}
+          {twitterConnected ? (
+            <button
+              onClick={() => { handleDirectTweet(content); onClose(); }}
+              disabled={twitterPosting}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-left bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors text-sm border-b border-white/10 mb-1"
             >
-              <Info size={14} className="md:w-4 md:h-4 text-cyan-400"/>
+              <span className="text-lg">𝕏</span> 
+              {twitterPosting ? 'Posting...' : 'Post to Twitter'}
+              <span className="text-[10px] text-blue-400/60 ml-auto">@{twitterUsername}</span>
             </button>
-            <button onClick={() => window.history.back()} className="w-5 h-5 bg-black hover:bg-red-600 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
-              <X size={14} className="text-white"/>
+          ) : (
+            <button
+              onClick={() => { handleConnectTwitter(); onClose(); }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-left bg-white/5 text-white/80 hover:bg-white/10 transition-colors text-sm border-b border-white/10 mb-1"
+            >
+              <span className="text-lg">𝕏</span> Connect Twitter
+              <span className="text-[10px] text-green-400/60 ml-auto">Direct Post</span>
+            </button>
+          )}
+          
+          <button
+            onClick={() => { handleShareTikTok(content); onClose(); }}
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-white/80 hover:bg-white/10 transition-colors text-sm"
+          >
+            <span className="text-lg">📱</span> TikTok
+            <span className="text-[10px] text-white/40 ml-auto">Copy + Open</span>
+          </button>
+          <button
+            onClick={() => { handleShareInstagram(content); onClose(); }}
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-white/80 hover:bg-white/10 transition-colors text-sm"
+          >
+            <span className="text-lg">📸</span> Instagram
+            <span className="text-[10px] text-white/40 ml-auto">Copy + Open</span>
+          </button>
+          {!twitterConnected && (
+            <button
+              onClick={() => { handleShareTwitter(content); onClose(); }}
+              className="w-full flex items-center gap-3 px-3 py-2 text-left text-white/80 hover:bg-white/10 transition-colors text-sm"
+            >
+              <span className="text-lg">𝕏</span> Twitter/X
+              <span className="text-[10px] text-white/40 ml-auto">Open Composer</span>
+            </button>
+          )}
+          <button
+            onClick={() => { handleNativeShare(content, agentName); onClose(); }}
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-white/80 hover:bg-white/10 transition-colors text-sm"
+          >
+            <Share2 size={16} /> Native Share
+          </button>
+          <div className="border-t border-white/10 my-1"></div>
+          <button
+            onClick={() => { handleCopyToClipboard(content); onClose(); }}
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-white/80 hover:bg-white/10 transition-colors text-sm"
+          >
+            <span className="text-lg">📋</span> Copy Text
+          </button>
+          <button
+            onClick={() => { handleDownloadText(content, agentName); onClose(); }}
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-white/80 hover:bg-white/10 transition-colors text-sm"
+          >
+            <span className="text-lg">📄</span> Download .txt
+          </button>
+          <button
+            onClick={() => { handleDownloadAsImage(content, agentName); onClose(); }}
+            className="w-full flex items-center gap-3 px-3 py-2 text-left text-white/80 hover:bg-white/10 transition-colors text-sm"
+          >
+            <span className="text-lg">🖼️</span> Download as Image
+          </button>
+        </div>
+      </div>
+    );
+  };
+  
+  // AI Chat Agents
+  const agents = [
+    {
+      id: 'ghostwriter',
+      name: 'GHOSTWRITER',
+      subtitle: 'Lyric Engine',
+      description: 'AI-powered lyric generation. Write hooks, verses, and complete songs in Whip\'s signature style.',
+      icon: FileText,
+      color: 'cyan',
+      gradient: 'from-cyan-500 to-blue-600',
+      glow: 'rgba(0,255,255,0.4)',
+      systemPrompt: "You are Whip Montez, a gritty, lyrical female rapper from Red Hook Brooklyn, circa 2004. Write an 8-bar verse about the user's topic. Use Spanglish, NY slang from the early 2000s (e.g., 'son', 'dun', 'mad', 'deadass'), and keep it confident and raw. Do not use hashtags. Format it as a verse.",
+      placeholder: 'Enter topic: "Summertime in Brooklyn", "Haters", "Money"...',
+      features: ['Voice Input', 'Text-to-Speech', 'Style Matching']
+    },
+    {
+      id: 'producer',
+      name: 'BEATSMITH',
+      subtitle: 'Production AI',
+      description: 'Get beat recommendations, arrangement ideas, and production tips from an AI producer.',
+      icon: Headphones,
+      color: 'purple',
+      gradient: 'from-purple-500 to-pink-600',
+      glow: 'rgba(168,85,247,0.4)',
+      systemPrompt: "You are a legendary hip-hop producer who worked with Whip Montez in the early 2000s. Give detailed production advice, beat ideas, and arrangement suggestions. Reference classic NY hip-hop production techniques (Primo, Pete Rock, RZA style). Be specific about BPM, sample choices, drum patterns, and mixing tips.",
+      placeholder: 'Describe the vibe: "dark boom bap", "summer anthem", "club banger"...',
+      features: ['BPM Analysis', 'Sample Ideas', 'Mix Tips']
+    },
+    {
+      id: 'manager',
+      name: 'THE CONNECT',
+      subtitle: 'Industry AI',
+      description: 'Navigate the music industry. Get advice on marketing, deals, and building your brand.',
+      icon: Briefcase,
+      color: 'green',
+      gradient: 'from-green-500 to-emerald-600',
+      glow: 'rgba(0,255,65,0.4)',
+      systemPrompt: "You are a veteran hip-hop manager who guided Whip Montez's career. Give street-smart industry advice about marketing, social media strategy, building a fanbase, negotiating deals, and navigating the music business. Be real and direct. Reference early 2000s indie hustle mentality while also knowing modern digital strategies.",
+      placeholder: 'Ask about: "growing on social media", "getting a deal", "pricing merch"...',
+      features: ['Marketing Plans', 'Deal Analysis', 'Brand Strategy']
+    },
+    {
+      id: 'battlebot',
+      name: 'SPARRING BOT',
+      subtitle: 'Battle Trainer',
+      description: 'Sharpen your freestyle skills. Get roasted, trade bars, and level up your battle game.',
+      icon: Flame,
+      color: 'orange',
+      gradient: 'from-orange-500 to-red-600',
+      glow: 'rgba(249,115,22,0.4)',
+      systemPrompt: "You are Whip Montez's battle rap sparring partner. Throw HARD disses at the user (within reason - no slurs or truly offensive content) and challenge them to respond. Be witty, use wordplay, and reference battle rap culture. After they respond, rate their bar and give tips for improvement. Keep it competitive but educational.",
+      placeholder: 'Ready to battle? Type anything to start...',
+      features: ['Freestyle Training', 'Bar Rating', 'Wordplay Tips']
+    },
+    {
+      id: 'historian',
+      name: 'THE ARCHIVE',
+      subtitle: 'Lore Database',
+      description: 'Deep dive into Whip Montez\'s story, the lost album, and the Red Hook hip-hop scene.',
+      icon: Database,
+      color: 'amber',
+      gradient: 'from-amber-500 to-yellow-600',
+      glow: 'rgba(245,158,11,0.4)',
+      systemPrompt: "You are the keeper of Whip Montez's history. Answer questions about her story, the lost 'Female Hustle' album, Red Hook Brooklyn in the early 2000s, and the characters in her world (Jari Montez, Talib Kweli collaboration, etc). Be immersive and detailed, treating the lore as real history. Reference specific songs, events, and locations from her career.",
+      placeholder: 'Ask about: "the lost album", "Talib Kweli collab", "Red Hook scene"...',
+      features: ['Lore Deep Dives', 'Timeline', 'Character Bios']
+    }
+  ];
+
+  // Creative Tools (Midjourney/Runway/Canva style)
+  const creativeTools = [
+    {
+      id: 'image-lab',
+      name: 'IMAGE LAB',
+      subtitle: 'AI Image Generator',
+      description: 'Create stunning album art, promo graphics, and social content with AI image generation.',
+      icon: ImageIcon,
+      color: 'violet',
+      gradient: 'from-violet-500 to-fuchsia-600',
+      glow: 'rgba(139,92,246,0.4)',
+      type: 'image',
+      features: ['Album Art', 'Social Graphics', 'Promo Images', 'Style Transfer']
+    },
+    {
+      id: 'video-forge',
+      name: 'VIDEO FORGE',
+      subtitle: 'Video Storyboard AI',
+      description: 'Generate video concepts, storyboards, and scene-by-scene breakdowns for your music videos.',
+      icon: Film,
+      color: 'rose',
+      gradient: 'from-rose-500 to-red-600',
+      glow: 'rgba(244,63,94,0.4)',
+      type: 'video',
+      features: ['Storyboards', 'Shot Lists', 'Scene Timing', 'Platform Export']
+    },
+    {
+      id: 'design-deck',
+      name: 'DESIGN DECK',
+      subtitle: 'Template Studio',
+      description: 'Professional templates for social media, merch mockups, and promotional materials.',
+      icon: Grid,
+      color: 'teal',
+      gradient: 'from-teal-500 to-cyan-600',
+      glow: 'rgba(20,184,166,0.4)',
+      type: 'design',
+      features: ['Social Templates', 'Merch Mockups', 'Flyers', 'Media Kit']
+    }
+  ];
+
+  // Image style presets
+  const imageStyles = [
+    { id: 'album-art', name: 'Album Art', desc: 'Professional album cover aesthetics' },
+    { id: 'street-promo', name: 'Street Promo', desc: 'Gritty urban promotional style' },
+    { id: 'neon-future', name: 'Neon Future', desc: 'Cyberpunk/futuristic vibes' },
+    { id: 'vintage-hip-hop', name: 'Vintage Hip-Hop', desc: '90s/2000s throwback style' },
+    { id: 'minimalist', name: 'Minimalist', desc: 'Clean, modern aesthetic' },
+    { id: 'psychedelic', name: 'Psychedelic', desc: 'Trippy, colorful visuals' }
+  ];
+
+  // Aspect ratios
+  const aspectRatios = [
+    { id: '1:1', name: 'Square', desc: 'Instagram, Album Art' },
+    { id: '9:16', name: 'Story/Reel', desc: 'TikTok, IG Stories' },
+    { id: '16:9', name: 'Landscape', desc: 'YouTube, Twitter' },
+    { id: '4:5', name: 'Portrait', desc: 'Instagram Feed' }
+  ];
+
+  // Video platforms
+  const videoPlatforms = [
+    { id: 'tiktok', name: 'TikTok', duration: '15-60s', aspect: '9:16' },
+    { id: 'youtube', name: 'YouTube', duration: '3-5min', aspect: '16:9' },
+    { id: 'instagram-reels', name: 'IG Reels', duration: '30-90s', aspect: '9:16' },
+    { id: 'music-video', name: 'Music Video', duration: '3-4min', aspect: '16:9' }
+  ];
+
+  // Design templates
+  const designCategories = [
+    { id: 'social', name: 'Social Media', templates: ['IG Post', 'IG Story', 'Twitter Banner', 'YouTube Thumb'] },
+    { id: 'promo', name: 'Promotional', templates: ['Show Flyer', 'Press Release', 'EPK Page', 'Media Kit'] },
+    { id: 'merch', name: 'Merchandise', templates: ['T-Shirt', 'Hoodie', 'Poster', 'Sticker Pack'] },
+    { id: 'streaming', name: 'Streaming', templates: ['Spotify Canvas', 'Apple Music', 'Playlist Cover', 'Lyric Card'] }
+  ];
+
+  // Generate AI Image
+  const handleImageGenerate = async () => {
+    if (!agentInput.trim()) return;
+    
+    setIsProcessing(true);
+    
+    const imagePrompt = `Create a detailed image description for: "${agentInput}". 
+    Style: ${imageStyles.find(s => s.id === imageSettings.style)?.name || 'Album Art'}
+    Aspect Ratio: ${imageSettings.aspect}
+    
+    Describe the image in vivid detail including: composition, colors, lighting, mood, textures, and any text/typography. 
+    Format as a professional art direction brief that could be sent to a designer or AI image generator.
+    Include: MAIN SUBJECT, BACKGROUND, COLOR PALETTE, LIGHTING, MOOD, and TYPOGRAPHY suggestions.`;
+    
+    const result = await callGemini(imagePrompt, "You are a professional art director and visual designer. Create detailed, actionable image descriptions that could be used with Midjourney or DALL-E. Be specific about visual elements, colors, composition, and mood.");
+    
+    // Create a mock generated image card
+    const newImage = {
+      id: crypto.randomUUID(),
+      prompt: agentInput,
+      style: imageSettings.style,
+      aspect: imageSettings.aspect,
+      description: result,
+      createdAt: new Date().toISOString(),
+      // Mock image URLs (would be real AI generated images in production)
+      thumbnail: `https://picsum.photos/seed/${Date.now()}/400/400`
+    };
+    
+    setGeneratedImages(prev => [newImage, ...prev]);
+    setAgentOutput(result);
+    setIsProcessing(false);
+  };
+
+  // Generate Video Storyboard
+  const handleVideoGenerate = async () => {
+    if (!agentInput.trim()) return;
+    
+    setIsProcessing(true);
+    
+    const platform = videoPlatforms.find(p => p.id === videoSettings.platform);
+    const videoPrompt = `Create a detailed video storyboard for: "${agentInput}"
+    Platform: ${platform?.name || 'TikTok'}
+    Duration: ${platform?.duration || '30s'}
+    Aspect Ratio: ${platform?.aspect || '9:16'}
+    Mood: ${videoSettings.mood}
+    
+    Generate a scene-by-scene breakdown with:
+    1. SCENE NUMBER and TIMESTAMP
+    2. VISUAL DESCRIPTION (what's on screen)
+    3. CAMERA MOVEMENT (pan, zoom, static, etc.)
+    4. AUDIO/MUSIC CUE
+    5. TEXT OVERLAY (if any)
+    6. TRANSITION to next scene
+    
+    Create 4-8 scenes that tell a compelling visual story. Think like Hype Williams meets modern viral content.`;
+    
+    const result = await callGemini(videoPrompt, "You are a music video director who has worked with major hip-hop artists. Create cinematic, engaging storyboards that would go viral on social media. Be specific about shots, timing, and visual hooks.");
+    
+    // Parse into scenes (simplified - would be more robust in production)
+    const scenes = result.split(/SCENE \d+|Scene \d+/i).filter(s => s.trim()).map((scene, i) => ({
+      id: i + 1,
+      content: scene.trim(),
+      timestamp: `${i * 5}s`
+    }));
+    
+    setStoryboardScenes(scenes);
+    setAgentOutput(result);
+    setIsProcessing(false);
+  };
+
+  // Generate Design Templates
+  const handleDesignGenerate = async (category, template) => {
+    setIsProcessing(true);
+    
+    const designPrompt = `Create a design brief for a ${template} in the ${category} category.
+    Artist: Whip Montez (female rapper, Brooklyn, gritty but sophisticated)
+    Theme: ${agentInput || 'Female Hustle era aesthetic'}
+    
+    Provide:
+    1. LAYOUT: Describe the composition and element placement
+    2. TYPOGRAPHY: Font recommendations and text hierarchy
+    3. COLOR SCHEME: Specific hex codes or color names
+    4. IMAGERY: What photos/graphics to include
+    5. COPY: Suggested text/headlines
+    6. DIMENSIONS: Exact pixel dimensions for the platform
+    7. EXPORT SETTINGS: File format and resolution
+    
+    Make it professional and ready for a graphic designer to execute.`;
+    
+    const result = await callGemini(designPrompt, "You are a professional graphic designer specializing in music industry branding. Create detailed, actionable design briefs with specific measurements, colors, and typography.");
+    
+    const newTemplate = {
+      id: crypto.randomUUID(),
+      category,
+      template,
+      brief: result,
+      createdAt: new Date().toISOString()
+    };
+    
+    setDesignTemplates(prev => [newTemplate, ...prev]);
+    setAgentOutput(result);
+    setIsProcessing(false);
+  };
+
+  const handleAgentSubmit = async () => {
+    if (!agentInput.trim() || !selectedAgent) return;
+    
+    const cooldownTime = 3000;
+    const now = Date.now();
+    if (now - lastRequestTime.current < cooldownTime) {
+      alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds.`);
+      return;
+    }
+    
+    setIsProcessing(true);
+    setAgentOutput("");
+    
+    const userMessage = { role: 'user', content: agentInput };
+    setConversationHistory(prev => [...prev, userMessage]);
+    
+    const result = await callGemini(agentInput, selectedAgent.systemPrompt);
+    lastRequestTime.current = Date.now();
+    
+    const agentMessage = { role: 'agent', content: result };
+    setConversationHistory(prev => [...prev, agentMessage]);
+    setAgentOutput(result);
+    setAgentInput("");
+    setIsProcessing(false);
+  };
+
+  const handleAgentSelect = (agent) => {
+    setSelectedAgent(agent);
+    setConversationHistory([]);
+    setAgentOutput("");
+    setAgentInput("");
+  };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // ONBOARDING TUTORIAL - Welcome new users to the Studio
+  // ═══════════════════════════════════════════════════════════════════
+  
+  const onboardingSteps = [
+    {
+      title: "Welcome to The Studio",
+      subtitle: "Your AI-Powered Creative Suite",
+      content: "You've just unlocked access to the most powerful music creation tools on the planet. This is where Whip Montez's vision comes to life - and now it's yours to explore.",
+      icon: "🎵",
+      tip: "Everything here is AI-powered and designed for artists, by artists."
+    },
+    {
+      title: "AI Chat Agents",
+      subtitle: "Your Creative Partners",
+      content: "Six specialized AI agents are ready to help you create. Ghostwriter writes lyrics, Beatsmith creates production notes, The Connect handles your business, Vision plans your visuals, Sparring Bot sharpens your bars, and The Archive knows all the lore.",
+      icon: "🤖",
+      tip: "Start with Ghostwriter if you need lyrics, or Beatsmith for production ideas."
+    },
+    {
+      title: "Creative Tools",
+      subtitle: "Image Lab • Video Forge • Design Deck",
+      content: "Generate album art concepts, storyboard music videos, and create design briefs for social media, merch, and promotional materials. All powered by AI.",
+      icon: "🎨",
+      tip: "Try Image Lab with 'album cover for a Brooklyn rap artist' to see the magic."
+    },
+    {
+      title: "Share Everywhere",
+      subtitle: "One-Click Social Posting",
+      content: "Every creation has share buttons. Post directly to Twitter/X (when connected), or copy and share to TikTok, Instagram, and more. Download as images or text files.",
+      icon: "📱",
+      tip: "Connect your Twitter in the Studio for one-click posting."
+    },
+    {
+      title: "The Remix Button",
+      subtitle: "Never Settle",
+      content: "Every AI output has a 🔄 Remix button. Don't like what you got? Remix it! The AI will transform your creation with a new style while keeping the core concept.",
+      icon: "🔄",
+      tip: "Remix multiple times to explore different directions."
+    },
+    {
+      title: "Record TikTok Content",
+      subtitle: "Camera Integration",
+      content: "Use the camera button to record yourself dancing to AI-generated jingles and remixed hits. Save videos directly to your device for TikTok, Reels, and Shorts.",
+      icon: "📹",
+      tip: "Record vertical (9:16) for best results on TikTok and Instagram."
+    },
+    {
+      title: "You're Ready",
+      subtitle: "Start Creating",
+      content: "The Studio is yours. Explore, experiment, and create something the world has never heard. Every generation is unique. Every creation tells a story.",
+      icon: "🚀",
+      tip: "Pro tip: Save your best creations - they're not stored forever!"
+    }
+  ];
+
+  // Onboarding Modal Component
+  const OnboardingModal = () => {
+    if (!showOnboarding) return null;
+    const step = onboardingSteps[onboardingStep];
+    
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 animate-fade-in">
+        <div className="w-full max-w-lg bg-gradient-to-b from-[#1a1a2e] to-black border border-white/20 shadow-[0_0_60px_rgba(139,92,246,0.3)]">
+          {/* Progress bar */}
+          <div className="h-1 bg-white/10">
+            <div 
+              className="h-full bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 transition-all duration-300"
+              style={{ width: `${((onboardingStep + 1) / onboardingSteps.length) * 100}%` }}
+            ></div>
+          </div>
+          
+          <div className="p-8 text-center">
+            <div className="text-6xl mb-4">{step.icon}</div>
+            <h2 className="text-2xl font-bold text-white mb-1">{step.title}</h2>
+            <p className="text-purple-400 text-sm uppercase tracking-wider mb-6">{step.subtitle}</p>
+            <p className="text-white/70 leading-relaxed mb-6">{step.content}</p>
+            
+            <div className="bg-purple-500/10 border border-purple-500/30 p-4 mb-8">
+              <p className="text-purple-300 text-sm">💡 {step.tip}</p>
+            </div>
+            
+            {/* Step indicators */}
+            <div className="flex justify-center gap-2 mb-6">
+              {onboardingSteps.map((_, i) => (
+                <div 
+                  key={i}
+                  className={`w-2 h-2 rounded-full transition-all ${i === onboardingStep ? 'bg-purple-500 w-6' : 'bg-white/20'}`}
+                ></div>
+              ))}
+            </div>
+            
+            <div className="flex gap-4">
+              {onboardingStep > 0 && (
+                <button
+                  onClick={() => setOnboardingStep(prev => prev - 1)}
+                  className="flex-1 px-6 py-3 border border-white/20 text-white/60 hover:text-white hover:border-white/40 transition-all"
+                >
+                  Back
+                </button>
+              )}
+              {onboardingStep < onboardingSteps.length - 1 ? (
+                <button
+                  onClick={() => setOnboardingStep(prev => prev + 1)}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold uppercase tracking-wider hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all"
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  onClick={completeOnboarding}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-bold uppercase tracking-wider hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all"
+                >
+                  Enter The Studio 🎵
+                </button>
+              )}
+            </div>
+            
+            <button
+              onClick={completeOnboarding}
+              className="mt-4 text-white/30 text-xs hover:text-white/60 transition-colors"
+            >
+              Skip tutorial
             </button>
           </div>
         </div>
-        <div className="p-4 flex flex-col gap-4">
-          <div className="text-cyan-400 font-mono text-sm mb-2">{'>'} SYSTEM ALERT: CORRUPTED LYRIC FILES DETECTED.<br/>{'>'} ENTER KEYWORDS TO ATTEMPT DATA RECOVERY...</div>
-          <div className="flex gap-2">
-            <input 
-              type="text" 
-              value={prompt} 
-              onChange={(e) => setPrompt(e.target.value)} 
-              placeholder="ENTER TOPIC (e.g., 'Summertime in Brooklyn', 'Haters', 'Money')" 
-              className="flex-1 bg-black border border-cyan-800 text-white p-2 font-mono outline-none focus:border-cyan-400" 
-              onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
-            />
-            {isSupported && (
-              <button 
-                  onClick={startListening} 
-                  disabled={loading || isListening}
-                  className={`px-3 border border-cyan-800 ${isListening ? 'bg-cyan-600 animate-pulse' : 'bg-black hover:bg-cyan-900'} text-white transition-colors disabled:opacity-50`}
-                  title="Voice input"
-              >
-                  <Mic size={16} className="text-cyan-400"/>
-              </button>
-            )}
-            <button 
-              onClick={handleGenerate} 
-              disabled={loading} 
-              className="bg-cyan-600 text-black px-4 py-2 font-bold font-mono hover:bg-cyan-400 transition-colors disabled:opacity-50 flex items-center gap-2"
-            >
-              {loading ? "RECOVERING..." : <span>INITIATE <Sparkles className="inline w-4 h-4"/></span>}
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // HELP PANEL - Floating help for all features
+  // ═══════════════════════════════════════════════════════════════════
+  
+  const helpTopics = [
+    { id: 'agents', title: 'AI Agents', desc: 'Chat with specialized AI assistants for lyrics, beats, visuals, and more.' },
+    { id: 'tools', title: 'Creative Tools', desc: 'Generate images, storyboards, and design templates.' },
+    { id: 'remix', title: 'Remix Button', desc: 'Transform any creation with a new style. Click 🔄 on any output.' },
+    { id: 'share', title: 'Sharing', desc: 'Post to Twitter, copy for TikTok/IG, or download as files.' },
+    { id: 'camera', title: 'Camera', desc: 'Record videos for TikTok dances with your AI creations.' },
+    { id: 'save', title: 'Saving Work', desc: 'Download creations as text or images. Connect accounts to save more.' },
+    { id: 'plans', title: 'Plans & Pricing', desc: 'Free: 3 uses/agent. Creator $9.99/mo. Studio Pro $24.99/mo.' }
+  ];
+
+  const HelpPanel = () => {
+    if (!showHelpPanel) return null;
+    
+    return (
+      <div className="fixed right-4 bottom-20 z-50 w-80 bg-black/95 border border-white/20 backdrop-blur-sm shadow-2xl">
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <h3 className="text-white font-bold flex items-center gap-2">
+            <Info size={16} className="text-cyan-400" /> Quick Help
+          </h3>
+          <button onClick={() => setShowHelpPanel(false)} className="text-white/40 hover:text-white">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="max-h-80 overflow-y-auto">
+          {helpTopics.map(topic => (
+            <div key={topic.id} className="p-4 border-b border-white/5 hover:bg-white/5 transition-colors">
+              <h4 className="text-white font-bold text-sm mb-1">{topic.title}</h4>
+              <p className="text-white/50 text-xs">{topic.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
+          <button
+            onClick={() => { setShowHelpPanel(false); setShowOnboarding(true); setOnboardingStep(0); }}
+            className="w-full text-center text-purple-400 text-sm hover:text-white transition-colors"
+          >
+            🎓 Replay Full Tutorial
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Quick Tips - Contextual help tooltips
+  const quickTips = {
+    ghostwriter: "💡 Try: 'Write a 4-bar hook about Brooklyn nights'",
+    beatsmith: "💡 Try: 'Create a moody trap beat at 85 BPM'",
+    connect: "💡 Try: 'Write a pitch email to a record label'",
+    vision: "💡 Try: 'Concept for a gritty urban music video'",
+    sparring: "💡 Try: 'Drop a punchline about making it from nothing'",
+    archive: "💡 Try: 'Tell me about Whip Montez's origin story'",
+    'image-lab': "💡 Try: 'Album cover for a Brooklyn female rapper, neon lights'",
+    'video-forge': "💡 Try: 'Storyboard for a 60-second TikTok promo'",
+    'design-deck': "💡 Try: 'Instagram post announcing new single drop'"
+  };
+
+  const QuickTip = ({ tipId }) => {
+    const tip = quickTips[tipId];
+    if (!tip || showQuickTip !== tipId) return null;
+    
+    return (
+      <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-black/95 border border-purple-500/40 text-purple-300 text-xs whitespace-nowrap shadow-lg animate-bounce">
+        {tip}
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-purple-500/40"></div>
+      </div>
+    );
+  };
+
+  // Welcome Toast for first-time visitors
+  const WelcomeToast = () => {
+    const [show, setShow] = useState(false);
+    
+    useEffect(() => {
+      const hasSeenWelcome = localStorage.getItem('whip-welcome-seen');
+      if (!hasSeenWelcome) {
+        const timer = setTimeout(() => setShow(true), 1000);
+        return () => clearTimeout(timer);
+      }
+    }, []);
+    
+    const dismiss = () => {
+      setShow(false);
+      localStorage.setItem('whip-welcome-seen', 'true');
+    };
+    
+    if (!show) return null;
+    
+    return (
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] max-w-md w-full mx-4 animate-slide-down">
+        <div className="bg-gradient-to-r from-purple-900/95 to-pink-900/95 border border-purple-500/40 backdrop-blur-sm p-4 shadow-2xl">
+          <div className="flex items-start gap-4">
+            <div className="text-3xl">🎤</div>
+            <div className="flex-1">
+              <h3 className="text-white font-bold text-sm mb-1">Welcome to Whip Montez Studio!</h3>
+              <p className="text-white/60 text-xs leading-relaxed">
+                Create lyrics, beats, visuals, and more with AI. Click <span className="text-cyan-400">Tour</span> to learn the ropes, or dive right in.
+              </p>
+              <div className="flex gap-3 mt-3">
+                <button 
+                  onClick={() => { dismiss(); setShowOnboarding(true); setOnboardingStep(0); }}
+                  className="text-xs px-3 py-1 bg-purple-500 text-white hover:bg-purple-400 transition-colors"
+                >
+                  Take the Tour
+                </button>
+                <button 
+                  onClick={dismiss}
+                  className="text-xs px-3 py-1 text-white/40 hover:text-white transition-colors"
+                >
+                  Skip for now
+                </button>
+              </div>
+            </div>
+            <button onClick={dismiss} className="text-white/40 hover:text-white">
+              <X size={16} />
             </button>
           </div>
-          <div className="min-h-[200px] border border-cyan-800 bg-[#000000] p-4 font-mono text-sm md:text-base leading-relaxed overflow-y-auto max-h-[400px]">
-            {loading && <div className="text-cyan-400 animate-pulse">{'>'} SCANNING SECTORS...<br/>{'>'} DECRYPTING FLOW...<br/>{'>'} ASSEMBLING BARS...</div>}
-            {!loading && lyrics && (
-              <div className="space-y-2">
-                <div className="text-white whitespace-pre-line typing-cursor">{lyrics}</div>
-                {speechSupported && (
-                  <div className="flex justify-end pt-2 border-t border-cyan-900">
-                    <button 
-                      onClick={() => isSpeaking ? stop() : speak(lyrics)}
-                      className={`px-3 py-1 text-xs font-mono ${isSpeaking ? 'bg-red-600 hover:bg-red-700 animate-pulse' : 'bg-cyan-600 hover:bg-cyan-700'} text-white transition-colors flex items-center gap-2`}
+        </div>
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CAMERA MODAL - Record TikTok dances
+  // ═══════════════════════════════════════════════════════════════════
+  
+  const CameraModal = () => {
+    if (!showCameraModal) return null;
+    
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95">
+        <div className="w-full max-w-md bg-black border border-white/20">
+          <div className="flex items-center justify-between p-4 border-b border-white/10">
+            <h3 className="text-white font-bold flex items-center gap-2">
+              <Camera size={20} className="text-rose-400" /> Record Content
+            </h3>
+            <button 
+              onClick={() => { stopCamera(); setShowCameraModal(false); setRecordedVideo(null); }}
+              className="text-white/40 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          
+          <div className="p-4">
+            {!cameraStream && !recordedVideo && (
+              <div className="aspect-[9/16] bg-white/5 flex flex-col items-center justify-center border border-dashed border-white/20">
+                <Camera size={48} className="text-white/20 mb-4" />
+                <p className="text-white/40 text-sm mb-4">Record videos for TikTok, Reels, Shorts</p>
+                <button
+                  onClick={startCamera}
+                  className="px-6 py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold uppercase tracking-wider"
+                >
+                  Start Camera
+                </button>
+              </div>
+            )}
+            
+            {cameraStream && !recordedVideo && (
+              <div className="relative">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full aspect-[9/16] object-cover bg-black"
+                />
+                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-4">
+                  {!isRecording ? (
+                    <button
+                      onClick={startRecording}
+                      className="w-16 h-16 bg-rose-500 rounded-full flex items-center justify-center hover:bg-rose-600 transition-colors"
                     >
-                      <Volume2 size={12}/>
-                      {isSpeaking ? 'STOP' : 'SPEAK'}
+                      <div className="w-6 h-6 bg-white rounded-full"></div>
                     </button>
+                  ) : (
+                    <button
+                      onClick={stopRecording}
+                      className="w-16 h-16 bg-rose-500 rounded-full flex items-center justify-center hover:bg-rose-600 transition-colors animate-pulse"
+                    >
+                      <div className="w-6 h-6 bg-white"></div>
+                    </button>
+                  )}
+                </div>
+                {isRecording && (
+                  <div className="absolute top-4 left-4 flex items-center gap-2 bg-rose-500 text-white px-3 py-1 text-sm">
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    REC
                   </div>
                 )}
               </div>
             )}
-            {!loading && !lyrics && <div className="text-gray-600 italic">// WAITING FOR INPUT //</div>}
+            
+            {recordedVideo && (
+              <div>
+                <video
+                  src={recordedVideo}
+                  controls
+                  className="w-full aspect-[9/16] object-cover bg-black"
+                />
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={() => { setRecordedVideo(null); startCamera(); }}
+                    className="flex-1 py-3 border border-white/20 text-white/60 hover:text-white transition-colors"
+                  >
+                    Re-record
+                  </button>
+                  <button
+                    onClick={downloadRecording}
+                    className="flex-1 py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold uppercase tracking-wider"
+                  >
+                    Download
+                  </button>
+                </div>
+                <p className="text-white/40 text-xs text-center mt-3">
+                  Save to your device, then upload to TikTok/IG
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <div className="p-4 border-t border-white/10 bg-white/5">
+            <p className="text-white/50 text-xs text-center">
+              💡 Tip: Record with AI-generated jingles playing. Create the hook with Ghostwriter first!
+            </p>
           </div>
         </div>
       </div>
+    );
+  };
 
-      {/* Info Modal */}
-      {showInfo && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/90" onClick={() => setShowInfo(false)}>
-          <div className="bg-[#111] border-2 border-cyan-600 p-6 max-w-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{WebkitOverflowScrolling: 'touch'}}>
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-cyan-400 font-bold text-xl font-mono">GHOSTWRITER.EXE - SYSTEM INFO</h3>
-              <button onClick={() => setShowInfo(false)} className="text-cyan-400 hover:text-white">
-                <X size={20}/>
-              </button>
+  // ═══════════════════════════════════════════════════════════════════
+  // EXAMPLES SHOWCASE - What you can create
+  // ═══════════════════════════════════════════════════════════════════
+  
+  const exampleCreations = [
+    { 
+      type: 'Lyrics', 
+      agent: 'Ghostwriter',
+      example: "Brooklyn nights, concrete dreams\nRed Hook raised, nothing's what it seems\nMontez flow, yeah I make it look easy\nFrom the bottom to the top, believe me",
+      prompt: "Write a 4-bar hook about Brooklyn"
+    },
+    {
+      type: 'Beat Concept',
+      agent: 'Beatsmith',
+      example: "BPM: 85 | Key: C Minor | Vibe: Moody trap with soul samples\nDrums: 808s with heavy swing, crisp hi-hats\nMelody: Chopped vocal sample, minor piano chords\nStructure: 4-bar intro → 8-bar verse → 4-bar hook",
+      prompt: "Create a moody trap beat concept"
+    },
+    {
+      type: 'Video Storyboard',
+      agent: 'Video Forge',
+      example: "Scene 1 (0:00-0:15): Drone shot over Brooklyn at sunset\nScene 2 (0:15-0:30): Artist walks down bodega street\nScene 3 (0:30-0:45): Close-up performance in studio\nScene 4 (0:45-1:00): Montage of city life",
+      prompt: "Storyboard a 60-second TikTok music video"
+    },
+    {
+      type: 'Album Art',
+      agent: 'Image Lab',
+      example: "Concept: Dark urban landscape with neon accents\nForeground: Silhouette of female figure\nBackground: Brooklyn skyline at dusk\nColors: Deep purples, electric cyan, hints of rose\nTypography: Bold sans-serif, glitch effect",
+      prompt: "Album cover for a Brooklyn female rapper"
+    }
+  ];
+
+  const ExamplesModal = () => {
+    if (!showExamples) return null;
+    
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/95 overflow-y-auto">
+        <div className="w-full max-w-4xl bg-gradient-to-b from-[#1a1a2e] to-black border border-white/20 my-8">
+          <div className="flex items-center justify-between p-6 border-b border-white/10">
+            <div>
+              <h2 className="text-2xl font-bold text-white">What You Can Create</h2>
+              <p className="text-white/50 text-sm">Real examples from The Studio</p>
             </div>
-            <div className="space-y-4 text-cyan-100 text-sm leading-relaxed">
-              <div>
-                <h4 className="text-cyan-400 font-bold mb-2">TOOL DESCRIPTION:</h4>
-                <p>AI-powered lyric generation engine designed to help you overcome writer's block and discover new creative directions. Generate hooks, verses, choruses, or complete song concepts.</p>
+            <button onClick={() => setShowExamples(false)} className="text-white/40 hover:text-white">
+              <X size={24} />
+            </button>
+          </div>
+          
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {exampleCreations.map((ex, i) => (
+              <div key={i} className="bg-white/5 border border-white/10 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-400 uppercase tracking-wider">
+                    {ex.type}
+                  </span>
+                  <span className="text-xs text-white/30">via {ex.agent}</span>
+                </div>
+                <p className="text-white/40 text-xs mb-3 italic">"{ex.prompt}"</p>
+                <pre className="text-white/80 text-sm whitespace-pre-wrap font-mono bg-black/50 p-4 border-l-2 border-purple-500">
+                  {ex.example}
+                </pre>
+              </div>
+            ))}
+          </div>
+          
+          <div className="p-6 border-t border-white/10 text-center">
+            <p className="text-white/50 mb-4">Ready to create your own?</p>
+            <button
+              onClick={() => setShowExamples(false)}
+              className="px-8 py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-bold uppercase tracking-wider hover:shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all"
+            >
+              Start Creating
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const handleBack = () => {
+    setSelectedAgent(null);
+    setSelectedTool(null);
+    setConversationHistory([]);
+    setAgentOutput("");
+    setStoryboardScenes([]);
+  };
+
+  // Creative Tool Interface
+  if (selectedTool) {
+    return (
+      <div className="h-full w-full bg-black relative flex flex-col overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-black to-black"></div>
+        <div 
+          className="absolute inset-0 opacity-20 pointer-events-none"
+          style={{ boxShadow: `inset 0 0 200px ${selectedTool.glow}` }}
+        ></div>
+        
+        {/* Header */}
+        <div className="relative z-10 border-b border-white/10 bg-black/80 backdrop-blur-sm">
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-4">
+              <button onClick={handleBack} className="p-2 hover:bg-white/10 transition-colors rounded">
+                <X size={20} className="text-white/60" />
+              </button>
+              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${selectedTool.gradient} p-[2px]`}>
+                <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
+                  <selectedTool.icon size={20} className={`text-${selectedTool.color}-400`} />
+                </div>
               </div>
               <div>
-                <h4 className="text-cyan-400 font-bold mb-2">FEATURES:</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Voice-to-text input (click mic icon)</li>
-                  <li>Text-to-speech output (click speak button)</li>
-                  <li>Free tier: 3 generations per session</li>
-                  <li>3-second cooldown between requests</li>
-                  <li>Real-time AI generation powered by Gemini</li>
-                </ul>
+                <h2 className="text-white font-bold tracking-wide">{selectedTool.name}</h2>
+                <p className={`text-${selectedTool.color}-400/60 text-xs uppercase tracking-[0.2em]`}>{selectedTool.subtitle}</p>
               </div>
-              <div>
-                <h4 className="text-cyan-400 font-bold mb-2">HOW TO USE:</h4>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>Enter your creative prompt or theme</li>
-                  <li>Click INITIATE to generate lyrics</li>
-                  <li>Use the microphone for voice input</li>
-                  <li>Click SPEAK to hear your lyrics read aloud</li>
-                  <li>Copy and refine the output in your DAW</li>
-                </ol>
-              </div>
-              <div>
-                <h4 className="text-cyan-400 font-bold mb-2">PRO TIPS:</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Be specific about mood, style, or topic</li>
-                  <li>Mention artists or genres for style matching</li>
-                  <li>Request specific structures (hook, verse, bridge)</li>
-                  <li>Use voice input for natural flow</li>
-                </ul>
-              </div>
+            </div>
+            <div className={`px-3 py-1 bg-${selectedTool.color}-500/20 border border-${selectedTool.color}-500/30 text-${selectedTool.color}-400 text-xs uppercase tracking-wider`}>
+              Beta
             </div>
           </div>
         </div>
-      )}
+        
+        {/* Tool Content */}
+        <div className="relative z-10 flex-1 overflow-y-auto p-4 md:p-6" style={{WebkitOverflowScrolling: 'touch'}}>
+          
+          {/* IMAGE LAB */}
+          {selectedTool.id === 'image-lab' && (
+            <div className="space-y-6 max-w-4xl mx-auto">
+              {/* Style Selector */}
+              <div>
+                <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-3">Style Preset</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {imageStyles.map(style => (
+                    <button
+                      key={style.id}
+                      onClick={() => setImageSettings({...imageSettings, style: style.id})}
+                      className={`p-3 border text-left transition-all ${
+                        imageSettings.style === style.id 
+                          ? 'border-violet-500 bg-violet-500/20' 
+                          : 'border-white/10 hover:border-white/30'
+                      }`}
+                    >
+                      <div className="text-white text-sm font-bold">{style.name}</div>
+                      <div className="text-white/40 text-xs">{style.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Aspect Ratio */}
+              <div>
+                <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-3">Aspect Ratio</h3>
+                <div className="flex flex-wrap gap-3">
+                  {aspectRatios.map(ratio => (
+                    <button
+                      key={ratio.id}
+                      onClick={() => setImageSettings({...imageSettings, aspect: ratio.id})}
+                      className={`px-4 py-2 border transition-all ${
+                        imageSettings.aspect === ratio.id 
+                          ? 'border-violet-500 bg-violet-500/20 text-white' 
+                          : 'border-white/10 text-white/60 hover:border-white/30'
+                      }`}
+                    >
+                      <span className="font-mono">{ratio.id}</span>
+                      <span className="text-xs ml-2 opacity-60">{ratio.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Prompt Input */}
+              <div>
+                <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-3">Describe Your Image</h3>
+                <textarea
+                  value={agentInput}
+                  onChange={(e) => setAgentInput(e.target.value)}
+                  placeholder="A gritty Brooklyn rooftop at sunset with Whip Montez silhouetted against the skyline, neon signs reflecting in puddles..."
+                  className="w-full h-32 bg-white/5 border border-white/10 text-white p-4 outline-none resize-none focus:border-violet-500/50 placeholder:text-white/30"
+                />
+                <button
+                  onClick={handleImageGenerate}
+                  disabled={isProcessing || !agentInput.trim()}
+                  className={`mt-4 w-full py-4 bg-gradient-to-r ${selectedTool.gradient} text-white font-bold uppercase tracking-wider transition-all hover:shadow-[0_0_30px_${selectedTool.glow}] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
+                >
+                  {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
+                  {isProcessing ? 'Generating...' : 'Generate Image Concept'}
+                </button>
+              </div>
+              
+              {/* Output */}
+              {agentOutput && (
+                <div className="border border-violet-500/30 bg-violet-500/5 p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-violet-400 text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                      <ImageIcon size={16} /> Art Direction Brief
+                    </h3>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleCopyToClipboard(agentOutput)} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="Copy">
+                        📋
+                      </button>
+                      <button onClick={() => handleShareTikTok(agentOutput)} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="TikTok">
+                        📱
+                      </button>
+                      <button onClick={() => handleShareInstagram(agentOutput)} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="Instagram">
+                        📸
+                      </button>
+                      <button onClick={() => handleDownloadAsImage(agentOutput, 'Image-Lab')} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="Download Image">
+                        🖼️
+                      </button>
+                      <button 
+                        onClick={() => handleRemix(agentOutput, 'Image Lab')} 
+                        disabled={isProcessing}
+                        className="p-1.5 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 transition-all disabled:opacity-50" 
+                        title="Remix"
+                      >
+                        🔄
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-white/80 whitespace-pre-line text-sm leading-relaxed">{agentOutput}</div>
+                </div>
+              )}
+              
+              {/* Generated Images Gallery */}
+              {generatedImages.length > 0 && (
+                <div>
+                  <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-3">Generated Concepts</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {generatedImages.slice(0, 8).map(img => (
+                      <div key={img.id} className="relative group">
+                        <img 
+                          src={img.thumbnail} 
+                          alt={img.prompt}
+                          className="w-full aspect-square object-cover border border-white/10"
+                        />
+                        <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+                          <p className="text-white text-[10px] text-center line-clamp-3">{img.prompt}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* VIDEO FORGE */}
+          {selectedTool.id === 'video-forge' && (
+            <div className="space-y-6 max-w-4xl mx-auto">
+              {/* Platform Selector */}
+              <div>
+                <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-3">Target Platform</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {videoPlatforms.map(platform => (
+                    <button
+                      key={platform.id}
+                      onClick={() => setVideoSettings({...videoSettings, platform: platform.id})}
+                      className={`p-4 border text-center transition-all ${
+                        videoSettings.platform === platform.id 
+                          ? 'border-rose-500 bg-rose-500/20' 
+                          : 'border-white/10 hover:border-white/30'
+                      }`}
+                    >
+                      <div className="text-white text-sm font-bold">{platform.name}</div>
+                      <div className="text-white/40 text-xs mt-1">{platform.duration}</div>
+                      <div className="text-rose-400/60 text-xs mt-1 font-mono">{platform.aspect}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Mood Selector */}
+              <div>
+                <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-3">Video Mood</h3>
+                <div className="flex flex-wrap gap-2">
+                  {['energetic', 'moody', 'cinematic', 'raw', 'luxurious', 'nostalgic', 'aggressive'].map(mood => (
+                    <button
+                      key={mood}
+                      onClick={() => setVideoSettings({...videoSettings, mood})}
+                      className={`px-4 py-2 border capitalize transition-all ${
+                        videoSettings.mood === mood 
+                          ? 'border-rose-500 bg-rose-500/20 text-white' 
+                          : 'border-white/10 text-white/60 hover:border-white/30'
+                      }`}
+                    >
+                      {mood}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Concept Input */}
+              <div>
+                <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-3">Describe Your Video Concept</h3>
+                <textarea
+                  value={agentInput}
+                  onChange={(e) => setAgentInput(e.target.value)}
+                  placeholder="A day in the life of Whip Montez - from Brooklyn bodega in the morning to sold-out show at night..."
+                  className="w-full h-32 bg-white/5 border border-white/10 text-white p-4 outline-none resize-none focus:border-rose-500/50 placeholder:text-white/30"
+                />
+                <button
+                  onClick={handleVideoGenerate}
+                  disabled={isProcessing || !agentInput.trim()}
+                  className={`mt-4 w-full py-4 bg-gradient-to-r ${selectedTool.gradient} text-white font-bold uppercase tracking-wider transition-all hover:shadow-[0_0_30px_${selectedTool.glow}] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3`}
+                >
+                  {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <Film size={20} />}
+                  {isProcessing ? 'Generating Storyboard...' : 'Generate Storyboard'}
+                </button>
+              </div>
+              
+              {/* Storyboard Output */}
+              {storyboardScenes.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-white text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                      <Film size={16} className="text-rose-400" /> Storyboard ({storyboardScenes.length} Scenes)
+                    </h3>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleCopyToClipboard(storyboardScenes.map(s => `${s.timestamp}: ${s.content}`).join('\n\n'))} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="Copy All">
+                        📋
+                      </button>
+                      <button onClick={() => handleShareTikTok(storyboardScenes.map(s => s.content).join(' | '))} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="TikTok">
+                        📱
+                      </button>
+                      <button onClick={() => handleDownloadText(storyboardScenes.map(s => `${s.timestamp}\n${s.content}`).join('\n\n---\n\n'), 'storyboard')} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="Download">
+                        📄
+                      </button>
+                      <button 
+                        onClick={() => handleRemix(storyboardScenes.map(s => s.content).join('\n'), 'Video Forge')} 
+                        disabled={isProcessing}
+                        className="p-1.5 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 transition-all disabled:opacity-50" 
+                        title="Remix Storyboard"
+                      >
+                        🔄
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    {storyboardScenes.map((scene, i) => (
+                      <div key={scene.id} className="flex gap-4 border border-white/10 bg-white/5 p-4">
+                        <div className="w-16 h-16 bg-gradient-to-br from-rose-500/30 to-purple-500/30 flex items-center justify-center shrink-0">
+                          <span className="text-white font-bold text-lg">{i + 1}</span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-rose-400 text-xs font-mono mb-1">{scene.timestamp}</div>
+                          <div className="text-white/80 text-sm whitespace-pre-line">{scene.content}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Full Output */}
+              {agentOutput && !storyboardScenes.length && (
+                <div className="border border-rose-500/30 bg-rose-500/5 p-6">
+                  <h3 className="text-rose-400 text-sm font-bold uppercase tracking-wider mb-3">Video Concept</h3>
+                  <div className="text-white/80 whitespace-pre-line text-sm leading-relaxed">{agentOutput}</div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* DESIGN DECK */}
+          {selectedTool.id === 'design-deck' && (
+            <div className="space-y-6 max-w-4xl mx-auto">
+              <div>
+                <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-3">Theme / Description (Optional)</h3>
+                <input
+                  type="text"
+                  value={agentInput}
+                  onChange={(e) => setAgentInput(e.target.value)}
+                  placeholder="New single release, dark moody aesthetic..."
+                  className="w-full bg-white/5 border border-white/10 text-white px-4 py-3 outline-none focus:border-teal-500/50 placeholder:text-white/30"
+                />
+              </div>
+              
+              {/* Template Categories */}
+              {designCategories.map(category => (
+                <div key={category.id}>
+                  <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-3">{category.name}</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {category.templates.map(template => (
+                      <button
+                        key={template}
+                        onClick={() => handleDesignGenerate(category.name, template)}
+                        disabled={isProcessing}
+                        className="p-4 border border-white/10 hover:border-teal-500/50 bg-white/5 hover:bg-teal-500/10 transition-all group disabled:opacity-50"
+                      >
+                        <Grid size={24} className="text-teal-400/60 group-hover:text-teal-400 mx-auto mb-2 transition-colors" />
+                        <div className="text-white text-sm font-medium">{template}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              
+              {/* Output */}
+              {agentOutput && (
+                <div className="border border-teal-500/30 bg-teal-500/5 p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-teal-400 text-sm font-bold uppercase tracking-wider flex items-center gap-2">
+                      <Grid size={16} /> Design Brief
+                    </h3>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleCopyToClipboard(agentOutput)} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="Copy">
+                        📋
+                      </button>
+                      <button onClick={() => handleShareInstagram(agentOutput)} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="Instagram">
+                        📸
+                      </button>
+                      <button onClick={() => handleDownloadAsImage(agentOutput, 'Design-Deck')} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="Download Image">
+                        🖼️
+                      </button>
+                      <button onClick={() => handleDownloadText(agentOutput, 'design-brief')} className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 transition-all" title="Download Text">
+                        📄
+                      </button>
+                      <button 
+                        onClick={() => handleRemix(agentOutput, 'Design Deck')} 
+                        disabled={isProcessing}
+                        className="p-1.5 text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 transition-all disabled:opacity-50" 
+                        title="Remix Design"
+                      >
+                        🔄
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-white/80 whitespace-pre-line text-sm leading-relaxed">{agentOutput}</div>
+                </div>
+              )}
+              
+              {/* Generated Templates */}
+              {designTemplates.length > 0 && (
+                <div>
+                  <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-3">Recent Briefs</h3>
+                  <div className="space-y-3">
+                    {designTemplates.slice(0, 5).map(t => (
+                      <div key={t.id} className="border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-teal-400 text-xs uppercase tracking-wider">{t.category}</span>
+                          <span className="text-white/30">•</span>
+                          <span className="text-white text-sm font-bold">{t.template}</span>
+                        </div>
+                        <div className="text-white/60 text-xs line-clamp-2">{t.brief.slice(0, 150)}...</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Agent Selection Grid (Landing)
+  if (!selectedAgent) {
+    return (
+      <div className="h-full w-full bg-black relative overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
+        {/* Mesh Background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-black to-black"></div>
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '40px 40px'}}></div>
+        </div>
+        
+        <div className="relative z-10 p-6 md:p-10">
+          {/* Twitter Connection Banner */}
+          {twitterPostSuccess && (
+            <div className="fixed top-4 right-4 z-50 bg-green-500/90 text-white px-4 py-3 shadow-lg animate-pulse flex items-center gap-3">
+              <CheckCircle size={20} />
+              <div>
+                <p className="font-bold text-sm">Posted to Twitter!</p>
+                <a href={twitterPostSuccess} target="_blank" rel="noopener noreferrer" className="text-xs underline">
+                  View Tweet →
+                </a>
+              </div>
+            </div>
+          )}
+          
+          {/* Header */}
+          <div className="text-center mb-10">
+            <p className="text-white/40 text-[10px] md:text-xs font-light tracking-[0.4em] uppercase mb-4 animate-pulse">
+              Whip Montez Presents
+            </p>
+            <h1 className="text-4xl md:text-6xl font-thin text-white tracking-tighter mb-4 font-sans">
+              THE <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500">STUDIO</span>
+            </h1>
+            <p className="text-white/50 text-sm md:text-base max-w-xl mx-auto leading-relaxed">
+              AI-powered creative suite. Chat agents, image generation, video storyboards, and design templates.
+            </p>
+            
+            {/* Social Connection Status */}
+            <div className="flex justify-center gap-3 mt-6">
+              {twitterConnected ? (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 border border-blue-500/40 text-blue-400 text-xs">
+                  <span>𝕏</span>
+                  <span>@{twitterUsername}</span>
+                  <button 
+                    onClick={handleDisconnectTwitter}
+                    className="ml-2 text-blue-400/60 hover:text-white transition-colors"
+                    title="Disconnect"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleConnectTwitter}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/20 text-white/60 hover:text-white hover:border-white/40 transition-all text-xs"
+                >
+                  <span>𝕏</span>
+                  <span>Connect Twitter for Direct Posting</span>
+                </button>
+              )}
+            </div>
+            
+            {/* Quick Action Buttons */}
+            <div className="flex justify-center gap-3 mt-4">
+              <button
+                onClick={() => setShowExamples(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-purple-300 hover:text-white hover:border-purple-400 transition-all text-xs uppercase tracking-wider"
+              >
+                <Eye size={14} /> Examples
+              </button>
+              <button
+                onClick={() => setShowCameraModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-rose-500/20 to-orange-500/20 border border-rose-500/30 text-rose-300 hover:text-white hover:border-rose-400 transition-all text-xs uppercase tracking-wider"
+              >
+                <Camera size={14} /> Record
+              </button>
+              <button
+                onClick={() => setShowHelpPanel(!showHelpPanel)}
+                className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/20 text-white/60 hover:text-white hover:border-white/40 transition-all text-xs uppercase tracking-wider"
+              >
+                <HelpCircle size={14} /> Help
+              </button>
+              <button
+                onClick={() => { setShowOnboarding(true); setOnboardingStep(0); }}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 hover:text-white hover:border-cyan-400 transition-all text-xs uppercase tracking-wider"
+              >
+                <Sparkles size={14} /> Tour
+              </button>
+            </div>
+            
+            <div className="h-[1px] w-32 mx-auto mt-6 bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+          </div>
+
+          {/* CREATIVE TOOLS SECTION */}
+          <div className="mb-12">
+            <h2 className="text-white text-lg font-bold uppercase tracking-wider mb-6 flex items-center gap-3">
+              <div className="w-8 h-[2px] bg-gradient-to-r from-violet-500 to-rose-500"></div>
+              Creative Tools
+              <span className="text-[10px] px-2 py-0.5 bg-gradient-to-r from-violet-500 to-rose-500 text-white uppercase">New</span>
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              {creativeTools.map((tool, i) => (
+                <div
+                  key={tool.id}
+                  onClick={() => setSelectedTool(tool)}
+                  className="group relative cursor-pointer"
+                >
+                  <div className={`relative bg-black/60 backdrop-blur-sm border border-white/10 p-6 transition-all duration-500 hover:border-${tool.color}-500/50 hover:bg-black/80 overflow-hidden`}>
+                    <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
+                    <div 
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                      style={{ boxShadow: `inset 0 0 60px ${tool.glow}` }}
+                    ></div>
+                    
+                    <div className="relative flex justify-center mb-4">
+                      <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${tool.gradient} p-[2px] group-hover:shadow-[0_0_30px_${tool.glow}] transition-all duration-500`}>
+                        <div className="w-full h-full rounded-full bg-black flex items-center justify-center relative overflow-hidden">
+                          <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent rounded-t-full"></div>
+                          <tool.icon size={24} className={`text-${tool.color}-400 relative z-10`} strokeWidth={1.5} />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-center relative z-10">
+                      <h3 className="text-lg font-bold text-white group-hover:text-white transition-colors duration-300 tracking-wide">{tool.name}</h3>
+                      <p className={`text-${tool.color}-400/60 text-xs uppercase tracking-[0.3em] mb-2`}>{tool.subtitle}</p>
+                      <p className="text-white/50 text-sm leading-relaxed mb-3">{tool.description}</p>
+                      <div className="flex flex-wrap justify-center gap-1">
+                        {tool.features.slice(0, 3).map((feature, j) => (
+                          <span key={j} className={`text-[9px] px-2 py-0.5 bg-${tool.color}-500/10 text-${tool.color}-400/80 border border-${tool.color}-500/20 uppercase`}>
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className={`absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r ${tool.gradient} scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-center`}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* AI AGENTS SECTION */}
+          <div>
+            <h2 className="text-white text-lg font-bold uppercase tracking-wider mb-6 flex items-center gap-3">
+              <div className="w-8 h-[2px] bg-gradient-to-r from-cyan-500 to-purple-500"></div>
+              AI Chat Agents
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {agents.map((agent, i) => (
+                <div
+                  key={agent.id}
+                  onClick={() => handleAgentSelect(agent)}
+                  className="group relative cursor-pointer"
+                  style={{ animationDelay: `${i * 100}ms` }}
+                >
+                  <div className={`relative bg-black/60 backdrop-blur-sm border border-white/10 p-6 transition-all duration-500 hover:border-${agent.color}-500/50 hover:bg-black/80 overflow-hidden`}>
+                    <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
+                    <div 
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                      style={{ boxShadow: `inset 0 0 60px ${agent.glow}` }}
+                    ></div>
+                    
+                    <div className="relative flex justify-center mb-6">
+                      <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${agent.gradient} p-[2px] group-hover:shadow-[0_0_30px_${agent.glow}] transition-all duration-500`}>
+                        <div className="w-full h-full rounded-full bg-black flex items-center justify-center relative overflow-hidden">
+                          <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent rounded-t-full"></div>
+                          <agent.icon size={28} className={`text-${agent.color}-400 relative z-10 group-hover:scale-110 transition-transform duration-300`} strokeWidth={1.5} />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-center relative z-10">
+                      <h3 className={`text-lg font-bold text-white group-hover:text-${agent.color}-400 transition-colors duration-300 tracking-wide`}>{agent.name}</h3>
+                      <p className={`text-${agent.color}-400/60 text-xs uppercase tracking-[0.3em] mb-3`}>{agent.subtitle}</p>
+                      <p className="text-white/50 text-sm leading-relaxed mb-4">{agent.description}</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {agent.features.map((feature, j) => (
+                          <span key={j} className={`text-[10px] px-2 py-1 bg-${agent.color}-500/10 text-${agent.color}-400/80 border border-${agent.color}-500/20 uppercase tracking-wider`}>
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div className={`absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r ${agent.gradient} scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-center`}></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="text-center mt-12 text-white/20 text-xs tracking-widest uppercase">
+            Studio v3.0 // Powered by Gemini AI // Image • Video • Design
+          </div>
+        </div>
+        
+        {/* Modals */}
+        <OnboardingModal />
+        <HelpPanel />
+        <CameraModal />
+        <ExamplesModal />
+        <WelcomeToast />
+        
+        {/* Floating Help Button */}
+        <button
+          onClick={() => setShowHelpPanel(!showHelpPanel)}
+          className="fixed bottom-6 right-6 z-40 w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg hover:shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all"
+          title="Need help?"
+        >
+          <HelpCircle size={20} className="text-white" />
+        </button>
+      </div>
+    );
+  }
+
+  // Agent Chat Interface (existing)
+  return (
+    <div 
+      className="h-full w-full bg-black relative flex flex-col overflow-hidden"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-black to-black"></div>
+      <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ boxShadow: `inset 0 0 200px ${selectedAgent.glow}` }}></div>
+      
+      {/* Swipe Indicator */}
+      <div className="absolute top-1/2 left-2 z-20 md:hidden opacity-30">
+        {agents.findIndex(a => a.id === selectedAgent.id) > 0 && (
+          <div className="text-white/40 text-xs">◀</div>
+        )}
+      </div>
+      <div className="absolute top-1/2 right-2 z-20 md:hidden opacity-30">
+        {agents.findIndex(a => a.id === selectedAgent.id) < agents.length - 1 && (
+          <div className="text-white/40 text-xs">▶</div>
+        )}
+      </div>
+      
+      {/* Header */}
+      <div className="relative z-10 border-b border-white/10 bg-black/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-4">
+            <button onClick={handleBack} className="p-2 hover:bg-white/10 transition-colors rounded">
+              <X size={20} className="text-white/60" />
+            </button>
+            <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${selectedAgent.gradient} p-[2px]`}>
+              <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
+                <selectedAgent.icon size={20} className={`text-${selectedAgent.color}-400`} />
+              </div>
+            </div>
+            <div>
+              <h2 className="text-white font-bold tracking-wide">{selectedAgent.name}</h2>
+              <p className={`text-${selectedAgent.color}-400/60 text-xs uppercase tracking-[0.2em]`}>{selectedAgent.subtitle}</p>
+            </div>
+          </div>
+          <div className={`px-3 py-1 bg-${selectedAgent.color}-500/20 border border-${selectedAgent.color}-500/30 text-${selectedAgent.color}-400 text-xs uppercase tracking-wider`}>
+            Online
+          </div>
+        </div>
+      </div>
+      
+      {/* Conversation */}
+      <div className="relative z-10 flex-1 overflow-y-auto p-4 space-y-4" style={{WebkitOverflowScrolling: 'touch'}}>
+        {conversationHistory.length === 0 && !isProcessing && (
+          <div className="h-full flex flex-col items-center justify-center text-center p-8">
+            <div className={`w-24 h-24 rounded-full bg-gradient-to-br ${selectedAgent.gradient} p-[2px] mb-6`}>
+              <div className="w-full h-full rounded-full bg-black flex items-center justify-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent rounded-t-full"></div>
+                <selectedAgent.icon size={36} className={`text-${selectedAgent.color}-400`} />
+              </div>
+            </div>
+            <h3 className="text-white text-xl font-bold mb-2">{selectedAgent.name}</h3>
+            <p className="text-white/50 max-w-md mb-6">{selectedAgent.description}</p>
+            <p className={`text-${selectedAgent.color}-400/50 text-sm animate-pulse`}>Type a message to begin...</p>
+          </div>
+        )}
+        
+        {conversationHistory.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`relative max-w-[85%] md:max-w-[70%] ${msg.role === 'user' ? 'bg-white/10 border border-white/20' : `bg-${selectedAgent.color}-500/10 border border-${selectedAgent.color}-500/30`}`}>
+              <div className="p-4">
+                <p className={`text-sm whitespace-pre-line ${msg.role === 'user' ? 'text-white' : `text-${selectedAgent.color}-100`}`}>{msg.content}</p>
+              </div>
+              {/* Share buttons for AI responses */}
+              {msg.role === 'assistant' && (
+                <>
+                <div className="flex items-center gap-1 px-4 pb-3 pt-1 border-t border-white/5 flex-wrap">
+                  <button
+                    onClick={() => setShareMenuOpen(shareMenuOpen === i ? null : i)}
+                    className={`flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider transition-all ${shareMenuOpen === i ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white hover:bg-white/10'}`}
+                  >
+                    <Share2 size={12} /> Share
+                  </button>
+                  <button
+                    onClick={() => handleCopyToClipboard(msg.content)}
+                    className="flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                  >
+                    {copySuccess ? <CheckCircle size={12} className="text-green-400" /> : <span>📋</span>} Copy
+                  </button>
+                  <button
+                    onClick={() => handleDownloadAsImage(msg.content, selectedAgent.name)}
+                    className="flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                  >
+                    🖼️ <span className="hidden md:inline">Image</span>
+                  </button>
+                  <button
+                    onClick={() => handleRemix(msg.content, selectedAgent.name)}
+                    disabled={isProcessing}
+                    className="flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 transition-all disabled:opacity-50"
+                    title="Remix this creation"
+                  >
+                    🔄 Remix
+                  </button>
+                  
+                  {/* Voice Output Controls */}
+                  <div className="relative">
+                    <button
+                      onClick={() => isSpeaking ? stopSpeaking() : setShowVoiceStyleMenu(showVoiceStyleMenu === i ? null : i)}
+                      className={`flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider transition-all ${
+                        isSpeaking ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/20'
+                      }`}
+                      title={isSpeaking ? 'Stop speaking' : 'Hear it spoken'}
+                    >
+                      {isSpeaking ? '⏹️ Stop' : '🔊 Speak'}
+                    </button>
+                    
+                    {/* Voice Style Dropdown */}
+                    {showVoiceStyleMenu === i && !isSpeaking && (
+                      <div className="absolute bottom-full left-0 mb-1 w-48 bg-black/95 border border-cyan-500/30 backdrop-blur-sm z-50 shadow-xl">
+                        <div className="p-2 border-b border-white/10">
+                          <p className="text-white/50 text-[9px] uppercase tracking-wider">Choose Voice Style</p>
+                        </div>
+                        {Object.entries(voiceStyles).map(([key, style]) => (
+                          <button
+                            key={key}
+                            onClick={() => {
+                              setSelectedVoiceStyle(key);
+                              speakText(msg.content, key);
+                              setShowVoiceStyleMenu(null);
+                            }}
+                            className="w-full px-3 py-2 text-left hover:bg-cyan-500/20 transition-colors flex items-center gap-2"
+                          >
+                            <span className="text-lg">{style.icon}</span>
+                            <div>
+                              <p className="text-white text-xs font-bold">{style.name}</p>
+                              <p className="text-white/40 text-[9px]">{style.desc}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Record Your Own Flow */}
+                  <button
+                    onClick={() => isRecordingFlow ? stopRecordingFlow() : startRecordingFlow()}
+                    className={`flex items-center gap-1.5 px-2 py-1 text-[10px] uppercase tracking-wider transition-all ${
+                      isRecordingFlow ? 'bg-red-500 text-white animate-pulse' : 'text-rose-400 hover:text-rose-300 hover:bg-rose-500/20'
+                    }`}
+                    title={isRecordingFlow ? 'Stop recording' : 'Record your own flow'}
+                  >
+                    {isRecordingFlow ? '⏹️ Stop' : '🎤 Spit'}
+                  </button>
+                  
+                  <ShareMenu 
+                    content={msg.content} 
+                    agentName={selectedAgent.name}
+                    isOpen={shareMenuOpen === i}
+                    onClose={() => setShareMenuOpen(null)}
+                    messageIndex={i}
+                  />
+                </div>
+                
+                {/* User Recording Playback */}
+                {userRecording && (
+                  <div className="flex items-center gap-2 px-4 pb-3 border-t border-white/5 pt-2">
+                    <span className="text-green-400 text-[9px] uppercase">Your Recording:</span>
+                    <audio src={userRecording} controls className="h-6 flex-1" style={{ maxWidth: '200px' }} />
+                    <button
+                      onClick={downloadUserRecording}
+                      className="text-[9px] px-2 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 transition-colors"
+                    >
+                      ⬇️ Save
+                    </button>
+                    <button
+                      onClick={() => setUserRecording(null)}
+                      className="text-white/30 hover:text-white text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </>
+              )}
+            </div>
+          </div>
+        ))}
+        
+        {isProcessing && (
+          <div className="flex justify-start">
+            <div className={`bg-${selectedAgent.color}-500/10 border border-${selectedAgent.color}-500/30 p-4`}>
+              <div className="flex items-center gap-2">
+                <Loader2 size={16} className={`text-${selectedAgent.color}-400 animate-spin`} />
+                <span className={`text-${selectedAgent.color}-400 text-sm animate-pulse`}>Processing...</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Input */}
+      <div className="relative z-10 border-t border-white/10 bg-black/80 backdrop-blur-sm p-4">
+        <div className="flex gap-2 md:gap-3">
+          {/* Voice Input Button */}
+          {voiceSupported && (
+            <button
+              onClick={toggleVoiceInput}
+              disabled={isProcessing}
+              className={`px-3 py-3 border transition-all flex items-center justify-center ${
+                isListening 
+                  ? 'bg-red-500 border-red-500 text-white animate-pulse' 
+                  : 'bg-white/5 border-white/20 text-white/60 hover:text-white hover:border-white/40'
+              } disabled:opacity-50`}
+              title={isListening ? 'Stop listening' : 'Voice input'}
+            >
+              {isListening ? (
+                <div className="w-5 h-5 flex items-center justify-center">
+                  <div className="w-3 h-3 bg-white rounded-sm"></div>
+                </div>
+              ) : (
+                <Mic size={20} />
+              )}
+            </button>
+          )}
+          
+          <input
+            type="text"
+            value={agentInput}
+            onChange={(e) => setAgentInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleAgentSubmit()}
+            placeholder={isListening ? '🎤 Listening...' : selectedAgent.placeholder}
+            disabled={isProcessing}
+            className={`flex-1 bg-white/5 border ${isListening ? 'border-red-500/50' : 'border-white/10'} focus:border-${selectedAgent.color}-500/50 text-white px-4 py-3 outline-none transition-colors placeholder:text-white/30 disabled:opacity-50`}
+          />
+          <button
+            onClick={() => { playSound('send'); handleAgentSubmit(); }}
+            disabled={isProcessing || !agentInput.trim()}
+            className={`px-4 md:px-6 py-3 bg-gradient-to-r ${selectedAgent.gradient} text-white font-bold uppercase tracking-wider transition-all hover:shadow-[0_0_20px_${selectedAgent.glow}] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
+          >
+            {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Zap size={18} />}
+            <span className="hidden md:inline">Send</span>
+          </button>
+        </div>
+        
+        {/* Voice Input Hint */}
+        {isListening && (
+          <div className="mt-2 text-center text-red-400 text-xs animate-pulse">
+            🎤 Speak now... tap again to stop
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// LEGACY: Redirect Ghostwriter to Studio
+const Ghostwriter = () => {
+  return <Studio />;
+};
+
+// THE COME UP - Inspiration for artists who didn't make it or want to make it
+const TheComeUp = ({ setSection }) => {
+  const [activeTab, setActiveTab] = useState('legends');
+  const [currentQuote, setCurrentQuote] = useState(0);
+  const [userStory, setUserStory] = useState('');
+  const [submittedStories, setSubmittedStories] = useState([]);
+
+  // Legends who almost didn't make it or didn't get their flowers
+  const legends = [
+    {
+      id: 1,
+      name: "Big L",
+      years: "1974 - 1999",
+      story: "Harlem's finest wordsmith was on the verge of mainstream success when his life was cut short. His punchlines and metaphors influenced every rapper after him. He never saw his legend grow, but the streets never forgot.",
+      quote: "I wasn't put on this Earth to be second.",
+      lesson: "Your impact outlives your time. Keep creating.",
+      image: "🎤"
+    },
+    {
+      id: 2,
+      name: "Sean Price",
+      years: "1972 - 2015",
+      story: "Struggled for decades in the underground. Never got the mainstream shine but became a cult hero. Boot Camp Clik legend who influenced a generation of raw, uncut hip-hop.",
+      quote: "I'm not cocky, I'm confident.",
+      lesson: "Stay true to your sound. Your people will find you.",
+      image: "👑"
+    },
+    {
+      id: 3,
+      name: "Pimp C",
+      years: "1973 - 2007",
+      story: "UGK spent 15 years grinding before 'International Players Anthem' crossed over. Pimp C didn't get to fully enjoy the recognition he fought for. His influence on Southern rap is immeasurable.",
+      quote: "Real recognize real.",
+      lesson: "The grind takes time. Stay patient, stay hungry.",
+      image: "🔥"
+    },
+    {
+      id: 4,
+      name: "Freaky Tah",
+      years: "1971 - 1999",
+      story: "Lost Boys member who helped define the raw Brooklyn sound. Taken too soon before seeing his full potential realized. His energy lives on in every BK MC.",
+      quote: "Brooklyn! Keep it moving!",
+      lesson: "Your energy is contagious. Inspire others.",
+      image: "⚡"
+    },
+    {
+      id: 5,
+      name: "Capital STEEZ",
+      years: "1993 - 2012",
+      story: "Pro Era's brightest mind, gone at 19. His verses showed wisdom beyond his years. Joey Bada$$ and the crew carry his legacy, but the world missed what he could have become.",
+      quote: "I got my third eye open.",
+      lesson: "Your mind is your greatest gift. Use it.",
+      image: "👁️"
+    },
+    {
+      id: 6,
+      name: "Mac Dre",
+      years: "1970 - 2004",
+      story: "Pioneer of the hyphy movement, recorded an album from PRISON via phone calls. Never saw the Bay Area style go global, but his influence is everywhere.",
+      quote: "Thizzle dance!",
+      lesson: "Create your own lane. Others will follow.",
+      image: "🌉"
+    }
+  ];
+
+  // Motivational quotes from the struggle
+  const motivationalQuotes = [
+    { text: "I sold CDs out my trunk. Nobody believed. Now they all 'believers.'", artist: "The Journey" },
+    { text: "They said the industry was closed. So I built my own door.", artist: "The Grind" },
+    { text: "Every 'no' is just 'not yet.' Keep knocking.", artist: "The Hustle" },
+    { text: "The studio was my church. Late nights were my prayers.", artist: "The Faith" },
+    { text: "Broke don't mean broken. It means you're building.", artist: "The Vision" },
+    { text: "They'll doubt you until they can't ignore you.", artist: "The Rise" },
+    { text: "Your story is your superpower. Tell it.", artist: "The Voice" },
+    { text: "The come up ain't pretty, but it's beautiful.", artist: "The Truth" },
+    { text: "Past struggles become future lessons. Keep going.", artist: "Whip Montez" },
+    { text: "From the bottom, you can only go up. Remember that.", artist: "Red Hook Philosophy" }
+  ];
+
+  // Rotate quotes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentQuote((prev) => (prev + 1) % motivationalQuotes.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Load stories from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('comeup_stories');
+    if (saved) {
+      try {
+        setSubmittedStories(JSON.parse(saved));
+      } catch (e) {}
+    }
+  }, []);
+
+  const handleSubmitStory = () => {
+    if (!userStory.trim()) return;
+    const newStories = [
+      { id: Date.now(), text: userStory, timestamp: new Date().toISOString() },
+      ...submittedStories
+    ].slice(0, 20); // Keep last 20
+    setSubmittedStories(newStories);
+    localStorage.setItem('comeup_stories', JSON.stringify(newStories));
+    setUserStory('');
+  };
+
+  return (
+    <div className="h-full w-full bg-black text-[#00ff41] overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* Motivational Quote Banner */}
+      <div className="bg-gradient-to-r from-[#001100] via-[#002200] to-[#001100] border-b border-[#00ff41]/30 p-4 md:p-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-[10px] uppercase tracking-[0.4em] text-[#00ff41]/50 mb-3 animate-pulse">
+            Daily Inspiration
+          </p>
+          <p className="text-lg md:text-2xl font-light italic text-white/90 mb-2 transition-all duration-500">
+            "{motivationalQuotes[currentQuote].text}"
+          </p>
+          <p className="text-[#00ff41] text-xs uppercase tracking-wider">
+            — {motivationalQuotes[currentQuote].artist}
+          </p>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto p-4 md:p-6">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-2">
+            THE <span className="text-[#00ff41]">COME UP</span>
+          </h1>
+          <p className="text-[#00ff41]/70 text-sm md:text-base max-w-2xl mx-auto">
+            Honoring those who paved the way, remembering those we lost too soon, and inspiring those still on the journey. 
+            Past meets present. Struggle meets success.
+          </p>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex justify-center gap-2 mb-8 flex-wrap">
+          {[
+            { id: 'legends', label: 'Gone Too Soon', icon: '🕯️' },
+            { id: 'lessons', label: 'The Lessons', icon: '📖' },
+            { id: 'stories', label: 'Your Story', icon: '✍️' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-xs md:text-sm font-mono uppercase tracking-wider transition-all ${
+                activeTab === tab.id
+                  ? 'bg-[#00ff41] text-black'
+                  : 'border border-[#00ff41]/50 text-[#00ff41] hover:bg-[#00ff41]/10'
+              }`}
+            >
+              <span className="mr-2">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* LEGENDS TAB - Gone Too Soon */}
+        {activeTab === 'legends' && (
+          <div className="space-y-6">
+            <p className="text-center text-white/60 text-sm mb-6">
+              These artists didn't get their flowers. But their spirit lives in every bar we write.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {legends.map((legend) => (
+                <div
+                  key={legend.id}
+                  className="bg-[#0a0a0a] border border-[#00ff41]/30 p-5 hover:border-[#00ff41] transition-all group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="text-4xl">{legend.image}</div>
+                    <div className="flex-1">
+                      <h3 className="text-white text-lg font-bold group-hover:text-[#00ff41] transition-colors">
+                        {legend.name}
+                      </h3>
+                      <p className="text-[#00ff41]/60 text-xs font-mono mb-2">{legend.years}</p>
+                      <p className="text-white/70 text-sm leading-relaxed mb-3">{legend.story}</p>
+                      <div className="bg-[#001a00] border-l-2 border-[#00ff41] p-3 mb-2">
+                        <p className="text-[#00ff41] text-sm italic">"{legend.quote}"</p>
+                      </div>
+                      <p className="text-yellow-500/80 text-xs uppercase tracking-wider flex items-center gap-2">
+                        <Sparkles size={12} /> {legend.lesson}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* LESSONS TAB - Wisdom for the Journey */}
+        {activeTab === 'lessons' && (
+          <div className="space-y-6">
+            <p className="text-center text-white/60 text-sm mb-6">
+              Hard-earned wisdom from the struggle. These lessons cost everything.
+            </p>
+            
+            {/* Lesson Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { 
+                  title: "The 10,000 Hour Rule", 
+                  content: "Before the deal, before the fame, there were 10,000 hours of writing, recording, and perfecting. Put in the work nobody sees.",
+                  icon: "⏱️"
+                },
+                { 
+                  title: "Own Your Masters", 
+                  content: "The music industry is a business. Own your art, own your name, own your future. Don't sign away your legacy.",
+                  icon: "📜"
+                },
+                { 
+                  title: "Build Your Tribe", 
+                  content: "No artist makes it alone. Find your people - the producers, the managers, the believers. Loyalty over everything.",
+                  icon: "👥"
+                },
+                { 
+                  title: "Document Everything", 
+                  content: "The struggle IS the story. Record the journey. Those late nights, those rejections, those small wins. Future you will thank present you.",
+                  icon: "📸"
+                },
+                { 
+                  title: "Stay Hungry, Stay Humble", 
+                  content: "Success changes people. Remember where you came from. The block remembers. Your real ones remember.",
+                  icon: "🙏"
+                },
+                { 
+                  title: "Your Voice Matters", 
+                  content: "Don't try to sound like anyone else. Your unique perspective, your neighborhood, your pain - that's your superpower.",
+                  icon: "🎤"
+                },
+                { 
+                  title: "Mental Health Is Real", 
+                  content: "The pressure is real. Check in on yourself. Check in on your people. It's okay to not be okay.",
+                  icon: "💚"
+                },
+                { 
+                  title: "Past & Present", 
+                  content: "Study the legends, but don't live in the past. Take what they built and push it forward. Evolution, not imitation.",
+                  icon: "🔄"
+                }
+              ].map((lesson, i) => (
+                <div
+                  key={i}
+                  className="bg-gradient-to-br from-[#0a0a0a] to-[#001100] border border-[#00ff41]/20 p-5 hover:border-[#00ff41]/60 transition-all"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className="text-2xl">{lesson.icon}</span>
+                    <h3 className="text-[#00ff41] font-bold uppercase tracking-wider">{lesson.title}</h3>
+                  </div>
+                  <p className="text-white/70 text-sm leading-relaxed">{lesson.content}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Whip Montez Quote */}
+            <div className="mt-8 bg-gradient-to-r from-[#002200] via-[#003300] to-[#002200] border border-[#00ff41]/50 p-6 text-center">
+              <p className="text-[10px] uppercase tracking-[0.3em] text-[#00ff41]/50 mb-3">From Whip Montez</p>
+              <p className="text-xl md:text-2xl text-white font-light italic mb-3">
+                "Red Hook made me. The struggle shaped me. The music saved me. Now I'm here to tell the story - past and present."
+              </p>
+              <p className="text-[#00ff41] text-sm">— The Livewire Sessions, 2004</p>
+            </div>
+          </div>
+        )}
+
+        {/* YOUR STORY TAB */}
+        {activeTab === 'stories' && (
+          <div className="space-y-6">
+            <p className="text-center text-white/60 text-sm mb-6">
+              Every artist has a story. This is a space for yours. Share the struggle, inspire the next generation.
+            </p>
+
+            {/* Submit Story */}
+            <div className="bg-[#0a0a0a] border border-[#00ff41]/30 p-5">
+              <h3 className="text-[#00ff41] font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Edit2 size={16} /> Share Your Come Up Story
+              </h3>
+              <textarea
+                value={userStory}
+                onChange={(e) => setUserStory(e.target.value)}
+                placeholder="Tell us about your journey... The late nights, the doubts, the breakthroughs. What keeps you going?"
+                className="w-full h-32 bg-black border border-[#00ff41]/30 text-white p-4 outline-none resize-none focus:border-[#00ff41] placeholder:text-white/30 font-mono text-sm"
+                maxLength={500}
+              />
+              <div className="flex items-center justify-between mt-3">
+                <span className="text-[#00ff41]/50 text-xs">{userStory.length}/500</span>
+                <button
+                  onClick={handleSubmitStory}
+                  disabled={!userStory.trim()}
+                  className="px-4 py-2 bg-[#00ff41] text-black font-bold uppercase text-xs tracking-wider hover:bg-[#00cc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Share Story
+                </button>
+              </div>
+            </div>
+
+            {/* Community Stories */}
+            <div>
+              <h3 className="text-white font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Users size={16} className="text-[#00ff41]" /> Community Stories
+              </h3>
+              {submittedStories.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-[#00ff41]/30">
+                  <p className="text-white/50 text-sm">No stories yet. Be the first to share.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {submittedStories.map((story) => (
+                    <div key={story.id} className="bg-[#0a0a0a] border-l-2 border-[#00ff41] p-4">
+                      <p className="text-white/80 text-sm leading-relaxed">{story.text}</p>
+                      <p className="text-[#00ff41]/50 text-xs mt-2 font-mono">
+                        {new Date(story.timestamp).toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Call to Action */}
+            <div className="text-center py-8 border-t border-[#00ff41]/20">
+              <p className="text-[#00ff41] text-lg font-bold mb-2">You're Not Alone</p>
+              <p className="text-white/60 text-sm max-w-lg mx-auto">
+                Every legend started somewhere. Every hit was once an idea in a bedroom studio. 
+                Keep going. The world needs your voice.
+              </p>
+              <button
+                onClick={() => setSection('studio')}
+                className="mt-4 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold uppercase tracking-wider hover:shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all"
+              >
+                Enter The Studio →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="text-center py-6 text-[#00ff41]/30 text-xs uppercase tracking-widest border-t border-[#00ff41]/10">
+        Past & Present // Honor The Legends // Inspire The Future
+      </div>
     </div>
   );
 };
@@ -4666,9 +7538,458 @@ const AuthModal = ({ onClose, onAuth }) => {
   );
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEGAL & COMPLIANCE PAGES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Privacy Policy Component
+const PrivacyPolicy = ({ onBack }) => {
+  return (
+    <div className="h-full overflow-y-auto bg-black p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        <button onClick={onBack} className="flex items-center gap-2 text-[#00ff41] hover:text-white mb-6 text-sm">
+          ← Back to App
+        </button>
+        
+        <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Privacy Policy</h1>
+        <p className="text-gray-400 text-sm mb-8">Last Updated: December 13, 2025 | Effective Date: December 13, 2025</p>
+        
+        <div className="space-y-8 text-gray-300 text-sm leading-relaxed">
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">1. Introduction</h2>
+            <p>Whip Montez ("we," "us," or "our") operates the Whip Montez Studio web application (the "Service"). This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service. By accessing or using the Service, you agree to this Privacy Policy.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">2. Information We Collect</h2>
+            <h3 className="text-lg text-purple-400 mb-2">2.1 Information You Provide</h3>
+            <ul className="list-disc pl-6 space-y-2">
+              <li><strong>Account Information:</strong> Email address, display name, and authentication credentials when you create an account or sign in via third-party providers (Google, Twitter/X).</li>
+              <li><strong>User Content:</strong> Lyrics, prompts, designs, and other creative content you generate using our AI tools.</li>
+              <li><strong>Communications:</strong> Information you provide when contacting us for support.</li>
+            </ul>
+            
+            <h3 className="text-lg text-purple-400 mb-2 mt-4">2.2 Automatically Collected Information</h3>
+            <ul className="list-disc pl-6 space-y-2">
+              <li><strong>Device Information:</strong> Browser type, operating system, device identifiers.</li>
+              <li><strong>Usage Data:</strong> Pages visited, features used, session duration, referring URLs.</li>
+              <li><strong>IP Address:</strong> Used for rate limiting, fraud prevention, and approximate geolocation.</li>
+              <li><strong>Cookies & Local Storage:</strong> Session tokens, preferences, and analytics identifiers.</li>
+            </ul>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">3. How We Use Your Information</h2>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>Provide, maintain, and improve the Service</li>
+              <li>Process AI generation requests via Google Gemini API</li>
+              <li>Authenticate users and manage accounts</li>
+              <li>Enforce usage limits and prevent abuse</li>
+              <li>Respond to inquiries and provide customer support</li>
+              <li>Send service-related notifications</li>
+              <li>Analyze usage patterns to improve user experience</li>
+              <li>Comply with legal obligations</li>
+            </ul>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">4. Third-Party Services</h2>
+            <p className="mb-3">We integrate with the following third-party services:</p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li><strong>Google Gemini API:</strong> Processes AI generation requests. Content you submit may be processed by Google's AI systems. See Google's AI Privacy Policy.</li>
+              <li><strong>Firebase (Google):</strong> Authentication, database, and hosting services.</li>
+              <li><strong>Twitter/X API:</strong> Optional social sharing integration (when you connect your account).</li>
+              <li><strong>Railway:</strong> Cloud hosting infrastructure.</li>
+            </ul>
+            <p className="mt-3">Each third-party service has its own privacy policy. We encourage you to review them.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">5. Data Retention</h2>
+            <ul className="list-disc pl-6 space-y-2">
+              <li><strong>Account Data:</strong> Retained until you delete your account.</li>
+              <li><strong>Generated Content:</strong> Stored in your browser's local storage. We do not permanently store your AI-generated content on our servers unless you explicitly save it to your account.</li>
+              <li><strong>Usage Logs:</strong> Retained for up to 90 days for security and debugging purposes.</li>
+              <li><strong>Rate Limiting Data:</strong> IP-based usage counts reset periodically.</li>
+            </ul>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">6. Your Rights (GDPR/CCPA)</h2>
+            <p className="mb-3">Depending on your jurisdiction, you may have the following rights:</p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li><strong>Access:</strong> Request a copy of your personal data.</li>
+              <li><strong>Rectification:</strong> Correct inaccurate personal data.</li>
+              <li><strong>Erasure:</strong> Request deletion of your personal data ("Right to be Forgotten").</li>
+              <li><strong>Portability:</strong> Receive your data in a structured, machine-readable format.</li>
+              <li><strong>Opt-Out:</strong> Opt out of certain data processing activities.</li>
+              <li><strong>Non-Discrimination:</strong> We will not discriminate against you for exercising your rights.</li>
+            </ul>
+            <p className="mt-3">To exercise these rights, contact us at: <span className="text-[#00ff41]">privacy@whipmontez.com</span></p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">7. Data Security</h2>
+            <p>We implement industry-standard security measures including HTTPS encryption, secure authentication, rate limiting, input sanitization, and regular security audits. However, no method of transmission over the Internet is 100% secure, and we cannot guarantee absolute security.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">8. Children's Privacy</h2>
+            <p>The Service is not intended for children under 13 (or 16 in the EU). We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us immediately.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">9. International Data Transfers</h2>
+            <p>Your data may be processed in the United States and other countries where our service providers operate. By using the Service, you consent to the transfer of your data to these jurisdictions, which may have different data protection laws than your country of residence.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">10. Changes to This Policy</h2>
+            <p>We may update this Privacy Policy periodically. We will notify you of material changes by posting the new policy on this page and updating the "Last Updated" date. Your continued use of the Service after changes constitutes acceptance of the updated policy.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">11. Contact Us</h2>
+            <p>For privacy-related inquiries:</p>
+            <p className="mt-2">Email: <span className="text-[#00ff41]">privacy@whipmontez.com</span></p>
+            <p>Data Protection Officer: <span className="text-[#00ff41]">dpo@whipmontez.com</span></p>
+          </section>
+        </div>
+        
+        <div className="mt-12 pt-6 border-t border-gray-800 text-center text-gray-500 text-xs">
+          © 2025 Whip Montez. All Rights Reserved.
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Terms of Service Component
+const TermsOfService = ({ onBack }) => {
+  return (
+    <div className="h-full overflow-y-auto bg-black p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        <button onClick={onBack} className="flex items-center gap-2 text-[#00ff41] hover:text-white mb-6 text-sm">
+          ← Back to App
+        </button>
+        
+        <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Terms of Service</h1>
+        <p className="text-gray-400 text-sm mb-8">Last Updated: December 13, 2025 | Effective Date: December 13, 2025</p>
+        
+        <div className="space-y-8 text-gray-300 text-sm leading-relaxed">
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">1. Acceptance of Terms</h2>
+            <p>By accessing or using the Whip Montez Studio ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, do not use the Service. We reserve the right to modify these Terms at any time, and your continued use constitutes acceptance of any modifications.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">2. Description of Service</h2>
+            <p>Whip Montez Studio is an AI-powered creative platform that provides tools for generating lyrics, music production concepts, visual art direction, video storyboards, and design templates. The Service uses third-party AI services (Google Gemini) to process generation requests.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">3. User Accounts</h2>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>You may use certain features as a guest, but full functionality requires account creation.</li>
+              <li>You are responsible for maintaining the confidentiality of your account credentials.</li>
+              <li>You must provide accurate and complete information when creating an account.</li>
+              <li>You are responsible for all activities that occur under your account.</li>
+              <li>We reserve the right to suspend or terminate accounts that violate these Terms.</li>
+            </ul>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">4. Acceptable Use Policy</h2>
+            <p className="mb-3">You agree NOT to use the Service to:</p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>Generate content that is illegal, harmful, threatening, abusive, harassing, defamatory, or otherwise objectionable</li>
+              <li>Create content that infringes on intellectual property rights of others</li>
+              <li>Generate content depicting minors in inappropriate contexts</li>
+              <li>Impersonate any person or entity, or falsely claim affiliation</li>
+              <li>Attempt to circumvent rate limits, security measures, or usage restrictions</li>
+              <li>Use automated systems (bots, scrapers) without authorization</li>
+              <li>Distribute malware or engage in phishing activities</li>
+              <li>Violate any applicable laws or regulations</li>
+            </ul>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">5. Intellectual Property</h2>
+            <h3 className="text-lg text-purple-400 mb-2">5.1 Our Content</h3>
+            <p>The Service, including its design, code, graphics, and branding (excluding AI-generated content), is owned by Whip Montez and protected by intellectual property laws. You may not copy, modify, distribute, or create derivative works without permission.</p>
+            
+            <h3 className="text-lg text-purple-400 mb-2 mt-4">5.2 AI-Generated Content</h3>
+            <p>Content generated by AI through the Service is subject to the following:</p>
+            <ul className="list-disc pl-6 space-y-2 mt-2">
+              <li>You retain ownership of original prompts you provide.</li>
+              <li>AI-generated outputs may be used by you for personal and commercial purposes, subject to applicable law.</li>
+              <li>We make no claims of copyright ownership over AI-generated outputs.</li>
+              <li>AI outputs may not be unique—similar outputs may be generated for other users.</li>
+              <li>You are responsible for ensuring AI-generated content does not infringe on third-party rights.</li>
+            </ul>
+            
+            <h3 className="text-lg text-purple-400 mb-2 mt-4">5.3 DMCA Policy</h3>
+            <p>If you believe content on the Service infringes your copyright, please contact our designated agent at: <span className="text-[#00ff41]">dmca@whipmontez.com</span> with the required DMCA notice elements.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">6. Subscription & Payments</h2>
+            <ul className="list-disc pl-6 space-y-2">
+              <li><strong>Free Tier:</strong> Limited to 3 uses per AI agent per session.</li>
+              <li><strong>Paid Subscriptions:</strong> Creator ($9.99/mo) and Studio Pro ($24.99/mo) tiers offer increased usage limits.</li>
+              <li>Payments are processed through third-party payment processors.</li>
+              <li>Subscriptions auto-renew unless canceled before the renewal date.</li>
+              <li>Refunds are provided in accordance with our Refund Policy.</li>
+            </ul>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">7. Disclaimers</h2>
+            <p className="uppercase text-yellow-500 mb-3">THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED.</p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li>We do not guarantee AI outputs will be accurate, complete, or fit for any particular purpose.</li>
+              <li>AI-generated content may contain errors, biases, or inappropriate material.</li>
+              <li>We do not guarantee uninterrupted or error-free service.</li>
+              <li>We are not responsible for content generated by users or AI systems.</li>
+            </ul>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">8. Limitation of Liability</h2>
+            <p className="uppercase text-yellow-500">TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHIP MONTEZ AND ITS AFFILIATES, OFFICERS, EMPLOYEES, AND AGENTS SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING LOSS OF PROFITS, DATA, OR GOODWILL, ARISING FROM YOUR USE OF THE SERVICE.</p>
+            <p className="mt-3">Our total liability shall not exceed the greater of: (a) the amount you paid us in the 12 months preceding the claim, or (b) $100 USD.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">9. Indemnification</h2>
+            <p>You agree to indemnify, defend, and hold harmless Whip Montez and its affiliates from any claims, damages, losses, or expenses (including attorney's fees) arising from your use of the Service, your violation of these Terms, or your violation of any third-party rights.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">10. Dispute Resolution</h2>
+            <p>Any disputes arising from these Terms or your use of the Service shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association. The arbitration shall take place in New York, NY. You waive any right to participate in class action lawsuits.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">11. Governing Law</h2>
+            <p>These Terms shall be governed by and construed in accordance with the laws of the State of New York, United States, without regard to conflict of law principles.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">12. Severability</h2>
+            <p>If any provision of these Terms is found to be unenforceable, the remaining provisions shall continue in full force and effect.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">13. Contact</h2>
+            <p>For questions about these Terms:</p>
+            <p className="mt-2">Email: <span className="text-[#00ff41]">legal@whipmontez.com</span></p>
+          </section>
+        </div>
+        
+        <div className="mt-12 pt-6 border-t border-gray-800 text-center text-gray-500 text-xs">
+          © 2025 Whip Montez. All Rights Reserved.
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Cookie Policy Component
+const CookiePolicy = ({ onBack }) => {
+  return (
+    <div className="h-full overflow-y-auto bg-black p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        <button onClick={onBack} className="flex items-center gap-2 text-[#00ff41] hover:text-white mb-6 text-sm">
+          ← Back to App
+        </button>
+        
+        <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Cookie Policy</h1>
+        <p className="text-gray-400 text-sm mb-8">Last Updated: December 13, 2025</p>
+        
+        <div className="space-y-8 text-gray-300 text-sm leading-relaxed">
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">1. What Are Cookies?</h2>
+            <p>Cookies are small text files stored on your device when you visit a website. They help websites remember your preferences, keep you logged in, and provide analytics about how you use the site.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">2. How We Use Cookies</h2>
+            <table className="w-full border border-gray-700 mt-3">
+              <thead>
+                <tr className="bg-gray-800">
+                  <th className="p-3 text-left text-white">Type</th>
+                  <th className="p-3 text-left text-white">Purpose</th>
+                  <th className="p-3 text-left text-white">Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t border-gray-700">
+                  <td className="p-3 text-purple-400">Essential</td>
+                  <td className="p-3">Authentication, security, rate limiting</td>
+                  <td className="p-3">Session</td>
+                </tr>
+                <tr className="border-t border-gray-700">
+                  <td className="p-3 text-purple-400">Functional</td>
+                  <td className="p-3">User preferences, theme settings, last visited section</td>
+                  <td className="p-3">1 year</td>
+                </tr>
+                <tr className="border-t border-gray-700">
+                  <td className="p-3 text-purple-400">Analytics</td>
+                  <td className="p-3">Usage statistics, feature popularity, error tracking</td>
+                  <td className="p-3">90 days</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">3. Local Storage</h2>
+            <p>In addition to cookies, we use browser local storage to:</p>
+            <ul className="list-disc pl-6 space-y-2 mt-2">
+              <li>Store your AI-generated content locally (not sent to our servers unless explicitly saved)</li>
+              <li>Remember your onboarding completion status</li>
+              <li>Cache your preferences and settings</li>
+              <li>Track trial usage per IP address</li>
+            </ul>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">4. Third-Party Cookies</h2>
+            <p>We may use cookies from the following third parties:</p>
+            <ul className="list-disc pl-6 space-y-2 mt-2">
+              <li><strong>Firebase:</strong> Authentication and analytics</li>
+              <li><strong>Twitter/X:</strong> When you connect your account for social sharing</li>
+            </ul>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">5. Managing Cookies</h2>
+            <p className="mb-3">You can control cookies through:</p>
+            <ul className="list-disc pl-6 space-y-2">
+              <li><strong>Browser Settings:</strong> Most browsers allow you to block or delete cookies. Note that blocking essential cookies may prevent the Service from functioning properly.</li>
+              <li><strong>Our Cookie Banner:</strong> Use the cookie consent banner to accept or reject non-essential cookies.</li>
+              <li><strong>Opt-Out Links:</strong> For third-party analytics, use their respective opt-out mechanisms.</li>
+            </ul>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">6. Do Not Track</h2>
+            <p>Some browsers have a "Do Not Track" feature. We currently do not respond to DNT signals, but we honor the cookie preferences you set through our consent mechanism.</p>
+          </section>
+          
+          <section>
+            <h2 className="text-xl font-bold text-white mb-3">7. Contact</h2>
+            <p>For questions about our cookie practices:</p>
+            <p className="mt-2">Email: <span className="text-[#00ff41]">privacy@whipmontez.com</span></p>
+          </section>
+        </div>
+        
+        <div className="mt-12 pt-6 border-t border-gray-800 text-center text-gray-500 text-xs">
+          © 2025 Whip Montez. All Rights Reserved.
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Cookie Consent Banner Component
+const CookieConsentBanner = () => {
+  const [showBanner, setShowBanner] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  
+  useEffect(() => {
+    const consent = localStorage.getItem('whip-cookie-consent');
+    if (!consent) {
+      // Small delay before showing banner
+      const timer = setTimeout(() => setShowBanner(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+  
+  const acceptAll = () => {
+    localStorage.setItem('whip-cookie-consent', JSON.stringify({
+      essential: true,
+      functional: true,
+      analytics: true,
+      timestamp: new Date().toISOString()
+    }));
+    setShowBanner(false);
+  };
+  
+  const acceptEssential = () => {
+    localStorage.setItem('whip-cookie-consent', JSON.stringify({
+      essential: true,
+      functional: false,
+      analytics: false,
+      timestamp: new Date().toISOString()
+    }));
+    setShowBanner(false);
+  };
+  
+  if (!showBanner) return null;
+  
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-[200] bg-black/95 border-t border-[#00ff41]/30 backdrop-blur-sm p-4 animate-slide-up">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[#00ff41] text-lg">🍪</span>
+              <h3 className="text-white font-bold text-sm">We Value Your Privacy</h3>
+            </div>
+            <p className="text-gray-400 text-xs leading-relaxed">
+              We use cookies to enhance your experience, analyze site traffic, and for security. 
+              Essential cookies are required for the site to function. You can choose to accept all cookies or only essential ones.
+              {' '}
+              <button onClick={() => setShowDetails(!showDetails)} className="text-[#00ff41] underline">
+                {showDetails ? 'Hide details' : 'Learn more'}
+              </button>
+            </p>
+            
+            {showDetails && (
+              <div className="mt-3 p-3 bg-gray-900 border border-gray-700 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <span className="text-purple-400 font-bold">Essential ✓</span>
+                    <p className="text-gray-400 mt-1">Required for login, security, and basic functionality.</p>
+                  </div>
+                  <div>
+                    <span className="text-purple-400 font-bold">Functional</span>
+                    <p className="text-gray-400 mt-1">Remembers your preferences and settings.</p>
+                  </div>
+                  <div>
+                    <span className="text-purple-400 font-bold">Analytics</span>
+                    <p className="text-gray-400 mt-1">Helps us understand how you use the site.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={acceptEssential}
+              className="px-4 py-2 border border-gray-600 text-gray-300 hover:text-white hover:border-white text-xs uppercase tracking-wider transition-colors"
+            >
+              Essential Only
+            </button>
+            <button
+              onClick={acceptAll}
+              className="px-4 py-2 bg-[#00ff41] text-black font-bold text-xs uppercase tracking-wider hover:bg-[#00cc33] transition-colors"
+            >
+              Accept All
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // 17. MAIN OS SHELL
-const OSInterface = ({ reboot }) => {
-  const [activeSection, setActiveSection] = useState('home');
+const OSInterface = ({ reboot, initialSection = 'home' }) => {
+  const [activeSection, setActiveSection] = useState(initialSection);
   const [time, setTime] = useState(new Date().toLocaleTimeString());
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -4755,6 +8076,14 @@ const OSInterface = ({ reboot }) => {
         return <ViralVideoAgent user={user} onAuthRequest={() => setShowAuthModal(true)} />;
       case 'trend_hunter':
         return <TrendHunter />;
+      case 'comeup':
+        return <TheComeUp setSection={setActiveSection} />;
+      case 'privacy':
+        return <PrivacyPolicy onBack={() => setActiveSection('home')} />;
+      case 'terms':
+        return <TermsOfService onBack={() => setActiveSection('home')} />;
+      case 'cookies':
+        return <CookiePolicy onBack={() => setActiveSection('home')} />;
       default:
         return <Home setSection={setActiveSection} />;
     }
@@ -4784,6 +8113,14 @@ const OSInterface = ({ reboot }) => {
                 {section === 'music' ? 'Lost Tapes' : section}
               </button>
             ))}
+            <button 
+              onClick={() => setActiveSection('comeup')} 
+              className={`px-2 md:px-3 py-1.5 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap ${
+                activeSection === 'comeup' ? 'bg-yellow-500 text-black font-bold' : 'text-yellow-500 hover:text-white font-bold'
+              }`}
+            >
+              COME UP
+            </button>
             <button 
               onClick={() => setActiveSection('studio')} 
               className={`px-2 md:px-3 py-1.5 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap ${
@@ -4867,6 +8204,17 @@ const OSInterface = ({ reboot }) => {
           <div className="flex-1 relative overflow-hidden">
             {renderActiveComponent()}
           </div>
+          
+          {/* Legal Footer - Small print */}
+          <div className="h-6 bg-black/80 border-t border-[#222] flex items-center justify-center gap-4 text-[9px] text-gray-500">
+            <button onClick={() => setActiveSection('privacy')} className="hover:text-[#00ff41] transition-colors">Privacy Policy</button>
+            <span>•</span>
+            <button onClick={() => setActiveSection('terms')} className="hover:text-[#00ff41] transition-colors">Terms of Service</button>
+            <span>•</span>
+            <button onClick={() => setActiveSection('cookies')} className="hover:text-[#00ff41] transition-colors">Cookie Policy</button>
+            <span>•</span>
+            <span>© 2025 Whip Montez</span>
+          </div>
         </div>
       </div>
 
@@ -4879,7 +8227,7 @@ const OSInterface = ({ reboot }) => {
 };
 
 // Landing Page Component
-const LandingPage = ({ onEnter }) => {
+const LandingPage = ({ onEnter, onQuickAccess }) => {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [isEntering, setIsEntering] = useState(false);
 
@@ -4888,6 +8236,17 @@ const LandingPage = ({ onEnter }) => {
     setTimeout(() => {
       onEnter();
     }, 2500); 
+  };
+
+  const handleQuickAccess = (widgetId) => {
+    // Map widget IDs to section names
+    const sectionMap = {
+      'music': 'lostTapes',
+      'merch': 'store',
+      'news': 'news',
+      'studio': 'ghostwriter'
+    };
+    onQuickAccess(sectionMap[widgetId] || 'home');
   };
 
   const quickAccessWidgets = [
@@ -4955,8 +8314,8 @@ const LandingPage = ({ onEnter }) => {
           {quickAccessWidgets.map((widget, i) => (
             <div 
               key={widget.id}
-              onClick={handleEnterClick}
-              onTouchEnd={(e) => { e.preventDefault(); handleEnterClick(); }}
+              onClick={() => handleQuickAccess(widget.id)}
+              onTouchEnd={(e) => { e.preventDefault(); handleQuickAccess(widget.id); }}
               className="group relative bg-black/50 backdrop-blur-sm border border-[#333] hover:border-[#00ff41]/50 p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer transition-all duration-300 hover:bg-black/70 hover:scale-105 active:scale-95 touch-manipulation"
               style={{ animationDelay: `${i * 100}ms` }}
             >
@@ -5011,8 +8370,222 @@ const LandingPage = ({ onEnter }) => {
   );
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// AMBIENT MUSIC PLAYER - Lofi beats for the creative session
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const AmbientMusicPlayer = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [volume, setVolume] = useState(0.3);
+  const [currentTrack, setCurrentTrack] = useState(0);
+  const [showControls, setShowControls] = useState(false);
+  const audioRef = useRef(null);
+  
+  // Free lofi/ambient tracks (royalty-free)
+  const tracks = [
+    { 
+      name: 'Studio Vibes', 
+      // Synth pad ambient sound generated via Web Audio
+      type: 'synth'
+    },
+    { 
+      name: 'Midnight Session', 
+      type: 'synth'
+    },
+    { 
+      name: 'Brooklyn Nights', 
+      type: 'synth'
+    }
+  ];
+  
+  const audioContextRef = useRef(null);
+  const oscillatorsRef = useRef([]);
+  const gainNodeRef = useRef(null);
+  
+  const startAmbientSynth = () => {
+    try {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      gainNodeRef.current = audioContextRef.current.createGain();
+      gainNodeRef.current.connect(audioContextRef.current.destination);
+      gainNodeRef.current.gain.setValueAtTime(volume * 0.15, audioContextRef.current.currentTime);
+      
+      // Create ambient pad with multiple oscillators
+      const baseFreqs = currentTrack === 0 
+        ? [130.81, 164.81, 196.00, 261.63] // C major
+        : currentTrack === 1 
+        ? [146.83, 174.61, 220.00, 293.66] // D minor
+        : [123.47, 155.56, 185.00, 246.94]; // B minor
+      
+      baseFreqs.forEach(freq => {
+        const osc = audioContextRef.current.createOscillator();
+        const oscGain = audioContextRef.current.createGain();
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioContextRef.current.currentTime);
+        
+        // Slow LFO for movement
+        const lfo = audioContextRef.current.createOscillator();
+        const lfoGain = audioContextRef.current.createGain();
+        lfo.frequency.setValueAtTime(0.1 + Math.random() * 0.2, audioContextRef.current.currentTime);
+        lfoGain.gain.setValueAtTime(2, audioContextRef.current.currentTime);
+        lfo.connect(lfoGain);
+        lfoGain.connect(osc.frequency);
+        lfo.start();
+        
+        oscGain.gain.setValueAtTime(0.25, audioContextRef.current.currentTime);
+        osc.connect(oscGain);
+        oscGain.connect(gainNodeRef.current);
+        osc.start();
+        
+        oscillatorsRef.current.push({ osc, lfo, oscGain });
+      });
+      
+      setIsPlaying(true);
+    } catch (e) {
+      console.error('Audio not supported:', e);
+    }
+  };
+  
+  const stopAmbientSynth = () => {
+    oscillatorsRef.current.forEach(({ osc, lfo }) => {
+      try {
+        osc.stop();
+        lfo.stop();
+      } catch (e) {}
+    });
+    oscillatorsRef.current = [];
+    
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
+    setIsPlaying(false);
+  };
+  
+  const togglePlayback = () => {
+    if (isPlaying) {
+      stopAmbientSynth();
+    } else {
+      startAmbientSynth();
+    }
+  };
+  
+  const changeTrack = (direction) => {
+    const wasPlaying = isPlaying;
+    if (wasPlaying) stopAmbientSynth();
+    
+    setCurrentTrack(prev => {
+      const next = (prev + direction + tracks.length) % tracks.length;
+      return next;
+    });
+    
+    // Restart with new track after state update
+    if (wasPlaying) {
+      setTimeout(() => startAmbientSynth(), 100);
+    }
+  };
+  
+  const updateVolume = (newVol) => {
+    setVolume(newVol);
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.setValueAtTime(newVol * 0.15, audioContextRef.current.currentTime);
+    }
+  };
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (isPlaying) stopAmbientSynth();
+    };
+  }, []);
+  
+  return (
+    <div className="fixed bottom-20 left-4 z-50">
+      {/* Compact Toggle Button */}
+      <button
+        onClick={() => setShowControls(!showControls)}
+        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+          isPlaying 
+            ? 'bg-[#00ff41] text-black shadow-[0_0_20px_rgba(0,255,65,0.5)]' 
+            : 'bg-black/80 border border-white/20 text-white/60 hover:text-white hover:border-white/40'
+        }`}
+        title="Ambient Music"
+      >
+        {isPlaying ? <Volume2 size={18} /> : <VolumeX size={18} />}
+      </button>
+      
+      {/* Expanded Controls */}
+      {showControls && (
+        <div className="absolute bottom-12 left-0 w-56 bg-black/95 border border-white/20 backdrop-blur-sm p-3 animate-fade-in">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-white text-xs font-bold uppercase tracking-wider">Ambient</span>
+            <button onClick={() => setShowControls(false)} className="text-white/40 hover:text-white">
+              <X size={14} />
+            </button>
+          </div>
+          
+          {/* Track Info */}
+          <div className="flex items-center justify-between mb-3">
+            <button 
+              onClick={() => changeTrack(-1)} 
+              className="text-white/40 hover:text-white p-1"
+            >
+              ◀
+            </button>
+            <span className="text-[#00ff41] text-xs font-mono">{tracks[currentTrack].name}</span>
+            <button 
+              onClick={() => changeTrack(1)} 
+              className="text-white/40 hover:text-white p-1"
+            >
+              ▶
+            </button>
+          </div>
+          
+          {/* Play/Pause */}
+          <button
+            onClick={togglePlayback}
+            className={`w-full py-2 mb-3 text-xs uppercase tracking-wider font-bold transition-all ${
+              isPlaying 
+                ? 'bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30' 
+                : 'bg-[#00ff41]/20 border border-[#00ff41]/40 text-[#00ff41] hover:bg-[#00ff41]/30'
+            }`}
+          >
+            {isPlaying ? '⏹ Stop' : '▶ Play Ambient'}
+          </button>
+          
+          {/* Volume Slider */}
+          <div className="flex items-center gap-2">
+            <VolumeX size={12} className="text-white/40" />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={volume}
+              onChange={(e) => updateVolume(parseFloat(e.target.value))}
+              className="flex-1 h-1 bg-white/20 appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-[#00ff41] [&::-webkit-slider-thumb]:rounded-full"
+            />
+            <Volume2 size={12} className="text-white/40" />
+          </div>
+          
+          <p className="text-white/30 text-[9px] text-center mt-3">
+            🎧 Focus beats for your creative session
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function App() {
   const [appState, setAppState] = useState('landing'); // 'landing' | 'booting' | 'ready'
+  const [initialSection, setInitialSection] = useState('home');
+
+  const handleQuickAccess = (section) => {
+    setInitialSection(section);
+    setAppState('ready'); // Skip boot sequence, go directly to OS
+  };
 
   return (
     <div className="relative w-full h-screen bg-black text-white selection:bg-[#00ff41] selection:text-black font-sans">
@@ -5051,9 +8624,15 @@ export default function App() {
       </div>
       
       {/* Three-stage render: Landing -> Boot -> OS */}
-      {appState === 'landing' && <LandingPage onEnter={() => setAppState('booting')} />}
+      {appState === 'landing' && <LandingPage onEnter={() => setAppState('booting')} onQuickAccess={handleQuickAccess} />}
       {appState === 'booting' && <BootSequence onComplete={() => setAppState('ready')} />}
-      {appState === 'ready' && <OSInterface reboot={() => setAppState('landing')} />}
+      {appState === 'ready' && <OSInterface reboot={() => { setInitialSection('home'); setAppState('landing'); }} initialSection={initialSection} />}
+      
+      {/* Ambient Music Player - Available on all screens */}
+      {appState === 'ready' && <AmbientMusicPlayer />}
+      
+      {/* Cookie Consent Banner - GDPR/CCPA Compliant */}
+      <CookieConsentBanner />
     </div>
   );
 }
