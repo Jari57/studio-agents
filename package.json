@@ -16,5 +16,4 @@
     "start": "cd backend && npm start"
   },
   "postinstall": "cd backend && npm install && if exist ..\\frontend\\dist (rd /s /q backend\\public & mkdir backend\\public & xcopy /E /I /Y ..\\frontend\\dist backend\\public)"
-  }
 }
