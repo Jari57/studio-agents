@@ -330,40 +330,9 @@ const SubscriptionProvider = ({ children }) => {
     fetchIP();
   }, []);
 
-  // Load subscription from Firebase if user is logged in
-  useEffect(() => {
-    if (!auth || !db) return;
-    
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user && user.email) {
-        setUserEmail(user.email);
-        
-        // Load subscription status from Firestore
-        try {
-          const userDocRef = doc(db, 'users', user.uid);
-          onSnapshot(userDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              if (data.subscription) {
-                setTier(data.subscription.tier || 'free');
-                setSubscriptionExpiry(data.subscription.expiry?.toDate() || null);
-              }
-              if (data.savedCreations) {
-                setSavedCreations(data.savedCreations);
-              }
-            }
-          });
-        } catch (err) {
-          console.error('Error loading subscription:', err);
-        }
-      } else {
-        setUserEmail(null);
-        setTier('free');
-      }
-    });
-    
-    return () => unsubscribe();
-  }, []);
+  // NOTE: Duplicate auth listener disabled - auth handled in OSInterface
+  // This was causing Studio to blink by triggering re-renders on every auth state change
+  // useEffect(() => { /* disabled */ }, []);
 
   // Check if subscription is valid
   const isSubscriptionActive = () => {
@@ -5575,19 +5544,18 @@ const CommunityHub = ({ setSection }) => {
       { id: '3', user: "Livewire_Fan", content: "Red Hook Diaries is a classic. No skips.", likes: 24, replies: [], createdAt: { seconds: (Date.now() - 86400000) / 1000 } }
   ];
 
+  // NOTE: Auth listener removed from here - only fetch posts
+  // Auth state is centrally managed in OSInterface to prevent blink
   useEffect(() => {
-    if (!db || !auth) {
-        // Offline Mode Initialization
-        setUser({ uid: "demo-user", isAnonymous: true });
+    if (!db) {
         setPosts(demoPosts);
         return;
     }
-    const unsubAuth = onAuthStateChanged(auth, setUser);
     const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'community_posts'), orderBy('createdAt', 'desc'));
     const unsubData = onSnapshot(q, (snapshot) => {
       setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
-    return () => { unsubAuth(); unsubData(); };
+    return () => { unsubData(); };
   }, []);
 
   const handlePost = async () => {
@@ -7182,6 +7150,8 @@ const TrendHunter = () => {
 
 // 16. STUDIO HUB - 2026 ULTRA-MODERN NEURAL INTERFACE
 const StudioHub = ({ setSection }) => {
+  const [activeAgent, setActiveAgent] = useState('ghostwriter'); // Track selected agent for sidebar
+
   const agents = [
     {
       id: 'ghostwriter',
@@ -7190,7 +7160,7 @@ const StudioHub = ({ setSection }) => {
       icon: Sparkles,
       gradient: 'from-cyan-400 to-cyan-600',
       description: 'AI-powered lyric generation • Voice input • Text-to-speech',
-      action: () => setSection('ghostwriter')
+      action: () => { setActiveAgent('ghostwriter'); setSection('ghostwriter'); }
     },
     {
       id: 'chat',
@@ -7199,7 +7169,7 @@ const StudioHub = ({ setSection }) => {
       icon: MessageSquare,
       gradient: 'from-pink-400 to-pink-600',
       description: 'Conversational AI assistant • Creative collaboration',
-      action: () => setSection('chat')
+      action: () => { setActiveAgent('chat'); setSection('chat'); }
     },
     {
       id: 'battle',
@@ -7208,7 +7178,7 @@ const StudioHub = ({ setSection }) => {
       icon: Flame,
       gradient: 'from-red-400 to-red-600',
       description: 'Battle rap simulator • Real-time AI disses • NYC slang',
-      action: () => setSection('battle')
+      action: () => { setActiveAgent('battle'); setSection('battle'); }
     },
     {
       id: 'ar_suite',
@@ -7217,7 +7187,7 @@ const StudioHub = ({ setSection }) => {
       icon: Zap,
       gradient: 'from-blue-400 to-blue-600',
       description: 'Augmented reality concepts • Immersive experiences',
-      action: () => setSection('ar_suite')
+      action: () => { setActiveAgent('ar_suite'); setSection('ar_suite'); }
     },
     {
       id: 'crates',
@@ -7226,7 +7196,7 @@ const StudioHub = ({ setSection }) => {
       icon: Disc,
       gradient: 'from-yellow-400 to-yellow-600',
       description: 'Sample discovery • Production inspiration • BPM/Key info',
-      action: () => setSection('crates')
+      action: () => { setActiveAgent('crates'); setSection('crates'); }
     },
     {
       id: 'album_art',
@@ -7235,7 +7205,7 @@ const StudioHub = ({ setSection }) => {
       icon: ImageIcon,
       gradient: 'from-pink-400 to-pink-600',
       description: 'AI album cover concepts • Visual design ideas',
-      action: () => setSection('album_art')
+      action: () => { setActiveAgent('album_art'); setSection('album_art'); }
     },
     {
       id: 'viral_video',
@@ -7244,7 +7214,7 @@ const StudioHub = ({ setSection }) => {
       icon: Video,
       gradient: 'from-cyan-400 to-cyan-600',
       description: 'TikTok/Reels concepts • Viral content strategy',
-      action: () => setSection('viral_video')
+      action: () => { setActiveAgent('viral_video'); setSection('viral_video'); }
     },
     {
       id: 'trend_hunter',
@@ -7253,144 +7223,133 @@ const StudioHub = ({ setSection }) => {
       icon: Hash,
       gradient: 'from-violet-400 to-fuchsia-600',
       description: 'Hashtag analysis • Social media intelligence • Real-time trends',
-      action: () => setSection('trend_hunter')
+      action: () => { setActiveAgent('trend_hunter'); setSection('trend_hunter'); }
     }
   ];
 
   return (
-    <div className="h-full w-full relative overflow-y-auto bg-black" style={{WebkitOverflowScrolling: 'touch'}}>
-      {/* Glossy Background Effects */}
-      <div className="fixed inset-0 bg-gradient-to-br from-black via-gray-900 to-black"></div>
-      <div className="fixed inset-0 opacity-30">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-0 left-1/3 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+    <div className="h-full w-full relative flex bg-black" style={{WebkitOverflowScrolling: 'touch'}}>
+      {/* LEFT SIDEBAR - AGENT NAVIGATOR */}
+      <div className="hidden md:flex flex-col w-64 bg-black border-r border-[#00ff41]/20 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
+        <div className="p-4 border-b border-[#00ff41]/20">
+          <h3 className="text-xs font-mono font-bold text-[#00ff41] tracking-wider drop-shadow-[0_0_10px_rgba(0,255,65,0.5)]">AI_STUDIO.SYS</h3>
+          <p className="text-[9px] text-gray-600 mt-1 font-mono">SELECT AGENT_TO_INITIALIZE</p>
+        </div>
+        <div className="flex-1 space-y-1 p-2">
+          {agents.map((agent) => (
+            <button
+              key={agent.id}
+              onClick={agent.action}
+              className={`w-full text-left px-3 py-2 transition-all text-[11px] font-mono border ${
+                activeAgent === agent.id
+                  ? 'bg-[#00ff41]/10 border-[#00ff41] text-[#00ff41] shadow-[0_0_10px_rgba(0,255,65,0.3)]'
+                  : 'border-[#333] text-gray-500 hover:border-[#00ff41]/40 hover:bg-black/80 hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <agent.icon size={12} />
+                <span className="font-bold tracking-wider">{agent.title.split(' ')[0]}</span>
+              </div>
+              <div className="text-[9px] text-gray-700 ml-4 mt-0.5">{agent.subtitle}</div>
+            </button>
+          ))}
+        </div>
+        <div className="p-3 border-t border-[#00ff41]/20 text-center bg-black/50">
+          <div className="text-[9px] text-gray-600 font-mono">AGENTS_ONLINE: {agents.length}</div>
+          <div className="text-[9px] text-[#00ff41] font-bold mt-1 animate-pulse">● SYSTEM_READY</div>
+        </div>
       </div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
-        {/* Header */}
-        <div className="text-center mb-12 md:mb-16">
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 bg-gradient-to-r from-cyan-500/10 to-pink-500/10 backdrop-blur-xl border border-white/10 rounded-full">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span className="text-xs font-mono text-gray-400 tracking-wider">AI STUDIO ONLINE</span>
-          </div>
-          
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black mb-4 tracking-tight">
-            <span className="bg-gradient-to-r from-white via-gray-200 to-white bg-clip-text text-transparent" style={{
-              textShadow: '0 0 80px rgba(255,255,255,0.1)'
-            }}>
-              STUDIO AGENTS
-            </span>
-          </h1>
-          
-          <p className="text-gray-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-            AI-powered creative tools trained on hip-hop culture and music production
-          </p>
-        </div>
+      {/* MAIN CONTENT */}
+      <div className="flex-1 relative overflow-y-auto bg-black" style={{WebkitOverflowScrolling: 'touch'}}>
+        {/* Dark gradient background matching landing page */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#051a05] via-black to-black pointer-events-none"></div>
 
-        {/* Agent Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+          {/* Header matching landing page style */}
+          <div className="text-center mb-12 md:mb-16">
+            <p className="text-[#00ff41]/70 text-[10px] md:text-xs font-light tracking-[0.2em] md:tracking-[0.6em] uppercase mb-6 animate-pulse select-none font-sans">
+              AI Studio System Online
+            </p>
+            
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-thin text-[#00ff41] tracking-tighter drop-shadow-[0_0_20px_rgba(0,255,65,0.8)] select-none scale-y-125 transform mb-4 font-sans">
+              STUDIO AGENTS
+            </h1>
+            
+            <p className="text-white/40 text-xs font-light tracking-[0.3em] md:tracking-[0.8em] mt-4 uppercase">
+              Eight Creative Tools Restored
+            </p>
+          </div>
+
+        {/* Agent Cards Grid - Landing page style */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {agents.map((agent, index) => (
             <div
               key={agent.id}
               onClick={agent.action}
               onTouchEnd={(e) => { e.preventDefault(); agent.action(); }}
-              className="group relative cursor-pointer touch-manipulation"
+              className="group relative bg-black/50 backdrop-blur-sm border border-[#333] hover:border-[#00ff41]/50 p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer transition-all duration-300 hover:bg-black/70 hover:scale-105 active:scale-95 touch-manipulation"
               style={{ 
                 animation: 'fadeInUp 0.6s ease-out forwards',
                 animationDelay: `${index * 0.1}s`,
                 opacity: 0
               }}
             >
-              {/* Glossy Card */}
-              <div className="relative h-full bg-gradient-to-br from-white/5 via-white/[0.02] to-transparent backdrop-blur-2xl border border-white/10 rounded-3xl p-6 overflow-hidden transition-all duration-500 hover:scale-105 hover:border-white/20 hover:shadow-2xl hover:shadow-white/5">
-                
-                {/* Gradient Glow on Hover */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${agent.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`}></div>
-                
-                {/* Icon */}
-                <div className="relative mb-6">
-                  <div className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${agent.gradient} shadow-lg transition-all duration-500 group-hover:scale-110 group-hover:shadow-2xl`}>
-                    <agent.icon size={24} className="text-white" strokeWidth={2.5} />
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="relative space-y-3">
-                  <div>
-                    <h3 className="text-lg font-black text-white mb-1 tracking-tight">
-                      {agent.title}
-                    </h3>
-                    <p className={`text-[10px] font-mono tracking-wider uppercase bg-gradient-to-r ${agent.gradient} bg-clip-text text-transparent font-bold`}>
-                      {agent.subtitle}
-                    </p>
-                  </div>
-
-                  <p className="text-gray-400 text-xs leading-relaxed">
-                    {agent.description}
-                  </p>
-                </div>
-
-                {/* Launch Button */}
-                <div className="mt-6 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <span className={`text-xs font-mono font-bold bg-gradient-to-r ${agent.gradient} bg-clip-text text-transparent`}>
-                    LAUNCH
-                  </span>
-                  <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${agent.gradient} animate-pulse`}></div>
-                </div>
-
-                {/* Shine Effect */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
-                </div>
+              {/* Icon with retro terminal style */}
+              <div className="p-3 rounded-full bg-gradient-to-br from-[#111] to-black shadow-[inset_0_2px_5px_rgba(0,0,0,1)] group-hover:shadow-[0_0_20px_rgba(0,255,65,0.3)] transition-all duration-300">
+                <agent.icon 
+                  size={24} 
+                  className="text-[#444] group-hover:text-[#00ff41] transition-colors duration-300 group-hover:drop-shadow-[0_0_10px_#00ff41]" 
+                  strokeWidth={2}
+                />
               </div>
+
+              {/* Title */}
+              <h3 className="text-sm md:text-base font-mono font-bold text-gray-600 group-hover:text-[#00ff41] tracking-wider transition-colors duration-300 text-center">
+                {agent.title.split(' ')[0]}
+              </h3>
+              
+              {/* Subtitle */}
+              <p className="text-[10px] font-mono tracking-wider uppercase text-gray-700 group-hover:text-[#00ff41]/70 transition-colors duration-300 text-center">
+                {agent.subtitle}
+              </p>
+
+              {/* Bottom indicator line */}
+              <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#00ff41] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center shadow-[0_0_10px_#00ff41]"></div>
             </div>
           ))}
         </div>
 
-        {/* Bottom Status */}
+        {/* Bottom Status - Terminal style */}
         <div className="mt-12 md:mt-16 text-center">
-          <div className="inline-flex items-center gap-4 px-6 py-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-full">
+          <div className="inline-flex items-center gap-4 px-6 py-3 bg-black/50 backdrop-blur-sm border border-[#00ff41]/20 font-mono">
             <div className="flex items-center gap-2">
-              <Zap size={14} className="text-cyan-400" />
-              <span className="text-xs font-mono text-gray-400">8 AGENTS ACTIVE</span>
+              <span className="text-[#00ff41] animate-pulse">●</span>
+              <span className="text-xs text-gray-500 tracking-wider">{agents.length}_AGENTS_ACTIVE</span>
             </div>
-            <div className="w-px h-4 bg-white/20"></div>
+            <div className="w-px h-4 bg-[#00ff41]/20"></div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono text-gray-400">RESPONSE TIME: <span className="text-green-400">~2s</span></span>
+              <span className="text-xs text-gray-500 tracking-wider">AVG_RESPONSE: <span className="text-[#00ff41]">~2s</span></span>
             </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
     </div>
-  );
+      
+    <style>{`
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    `}</style>
+  </div>
+);
 };
 
 // AUTH MODAL COMPONENT
@@ -7994,46 +7953,53 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const authInitialized = useRef(false); // Guard against multiple initializations
 
   useEffect(() => {
     // 1. Start System Clock
     const timer = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000);
 
-    // 2. Initialize Auth
+    // 2. Initialize Auth - ONLY ONCE with guard to prevent Strict Mode double-init
     let unsubscribe = () => {};
 
-    const initAuth = async () => {
-      // If no auth instance (Offline/Demo mode)
-      if (!auth) {
-        console.log("OS running in Offline/Demo Mode");
-        setUser({ uid: "guest", isAnonymous: true });
-        return;
-      }
+    if (!authInitialized.current) {
+      authInitialized.current = true;
 
-      // If auth exists, set up listener and sign in
-      try {
-        unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-          if (currentUser) {
-            setUser(currentUser);
-          } else {
-             // Fallback if auth state is null but auth object exists (rare)
-             setUser(null); 
-          }
-        });
-
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+      const initAuth = async () => {
+        // If no auth instance (Offline/Demo mode)
+        if (!auth) {
+          console.log("OS running in Offline/Demo Mode");
+          setUser({ uid: "guest", isAnonymous: true });
+          return;
         }
-      } catch (error) {
-        // Auth failed (e.g., anonymous auth disabled) - use guest mode
-        console.log("Running in guest mode (auth not configured)");
-        setUser({ uid: "guest", isAnonymous: true });
-      }
-    };
 
-    initAuth();
+        // If auth exists, set up listener and sign in
+        try {
+          // CRITICAL FIX: Sign in FIRST, then set up listener
+          // This prevents the listener from firing on null->user transition
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+
+          // Now set listener - only fires on subsequent changes
+          unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            if (currentUser) {
+              setUser(currentUser);
+            } else {
+               setUser({ uid: "guest", isAnonymous: true }); 
+            }
+          });
+        } catch (error) {
+          // Auth failed (e.g., anonymous auth disabled) - use guest mode
+          console.log("Running in guest mode (auth not configured)");
+          setUser({ uid: "guest", isAnonymous: true });
+        }
+      };
+
+      initAuth();
+    }
     
     return () => { 
       clearInterval(timer); 
