@@ -327,7 +327,7 @@ app.get('/api/models', async (req, res) => {
 // GENERATION ROUTE
 app.post('/api/generate', generationLimiter, async (req, res) => {
   try {
-    let { prompt, systemInstruction } = req.body;
+    let { prompt, systemInstruction, model: requestedModel } = req.body;
     
     // 🛡️ INPUT VALIDATION & SANITIZATION
     if (!prompt || typeof prompt !== 'string') {
@@ -340,6 +340,20 @@ app.post('/api/generate', generationLimiter, async (req, res) => {
     // 🛡️ Sanitize inputs
     const sanitizedPrompt = sanitizeInput(prompt, 5000);
     const sanitizedSystemInstruction = sanitizeInput(systemInstruction || '', 1000);
+    
+    // 🛡️ Validate model name (only allow known Gemini models)
+    const allowedModels = [
+      'gemini-2.0-flash-exp',
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-pro',
+      'gemini-1.5-pro-latest',
+      'gemini-pro',
+      'gemini-pro-vision'
+    ];
+    const sanitizedModel = (typeof requestedModel === 'string' && allowedModels.includes(requestedModel)) 
+      ? requestedModel 
+      : null;
     
     // 🛡️ Check for prompt injection attempts
     const promptSafety = validatePromptSafety(sanitizedPrompt);
@@ -373,7 +387,8 @@ app.post('/api/generate', generationLimiter, async (req, res) => {
         throw new Error("Server missing API Key. Check backend/.env");
     }
 
-    const desiredModel = process.env.GENERATIVE_MODEL || "gemini-2.0-flash-exp";
+    // Use requested model if valid, otherwise fall back to env var or default
+    const desiredModel = sanitizedModel || process.env.GENERATIVE_MODEL || "gemini-2.0-flash-exp";
     const model = genAI.getGenerativeModel({ 
       model: desiredModel,
       systemInstruction: sanitizedSystemInstruction || undefined
@@ -389,9 +404,10 @@ app.post('/api/generate', generationLimiter, async (req, res) => {
       ip: req.ip,
       duration: `${duration}ms`,
       outputLength: text.length,
-      model: desiredModel
+      model: desiredModel,
+      requestedModel: requestedModel || 'default'
     });
-    res.json({ output: text });
+    res.json({ output: text, model: desiredModel });
 
   } catch (error) {
     const msg = error && error.message ? error.message : String(error);
@@ -632,6 +648,394 @@ app.get('/api/twitter/disconnect', (req, res) => {
   res.clearCookie('twitter_refresh');
   res.json({ success: true, message: 'Disconnected from Twitter' });
 });
+
+// =============================================================================
+// 💳 STRIPE PAYMENT INTEGRATION
+// =============================================================================
+
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+let stripe = null;
+
+if (STRIPE_SECRET_KEY) {
+  const Stripe = require('stripe');
+  stripe = new Stripe(STRIPE_SECRET_KEY, {
+    apiVersion: '2023-10-16'
+  });
+  logger.info('💳 Stripe initialized successfully');
+} else {
+  logger.warn('⚠️ STRIPE_SECRET_KEY not set - payment features disabled');
+}
+
+// Stripe Price IDs - You'll create these in the Stripe Dashboard
+// https://dashboard.stripe.com/products
+const STRIPE_PRICES = {
+  creator: process.env.STRIPE_PRICE_CREATOR || 'price_creator_monthly',  // $9.99/mo
+  studio: process.env.STRIPE_PRICE_STUDIO || 'price_studio_monthly'      // $24.99/mo
+};
+
+// Initialize Firebase Admin for server-side subscription management
+let firebaseAdmin = null;
+let adminDb = null;
+const FIREBASE_SERVICE_ACCOUNT = process.env.FIREBASE_SERVICE_ACCOUNT;
+
+if (FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    const admin = require('firebase-admin');
+    const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
+    
+    if (!admin.apps.length) {
+      firebaseAdmin = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+      adminDb = admin.firestore();
+      logger.info('🔥 Firebase Admin initialized successfully');
+    }
+  } catch (err) {
+    logger.error('❌ Firebase Admin init failed', { error: err.message });
+  }
+} else {
+  logger.warn('⚠️ FIREBASE_SERVICE_ACCOUNT not set - subscription sync disabled');
+}
+
+// POST /api/stripe/create-checkout-session - Create a Stripe Checkout session
+app.post('/api/stripe/create-checkout-session', async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Payment system not configured' });
+  }
+
+  const { tier, userId, userEmail, successUrl, cancelUrl } = req.body;
+
+  if (!tier || !['creator', 'studio'].includes(tier)) {
+    return res.status(400).json({ error: 'Invalid subscription tier' });
+  }
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User must be logged in to subscribe' });
+  }
+
+  const priceId = STRIPE_PRICES[tier];
+  
+  try {
+    // Check if user already has a Stripe customer ID
+    let customerId = null;
+    if (adminDb) {
+      const userDoc = await adminDb.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        customerId = userDoc.data()?.stripeCustomerId;
+      }
+    }
+
+    const sessionParams = {
+      payment_method_types: ['card'],
+      line_items: [{ price: priceId, quantity: 1 }],
+      mode: 'subscription',
+      success_url: successUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: cancelUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=cancelled`,
+      client_reference_id: userId,
+      metadata: {
+        userId,
+        tier,
+        userEmail: userEmail || ''
+      }
+    };
+
+    if (customerId) {
+      sessionParams.customer = customerId;
+    } else if (userEmail) {
+      sessionParams.customer_email = userEmail;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    logger.info('💳 Checkout session created', { sessionId: session.id, tier, userId: userId.slice(0, 8) + '...' });
+
+    res.json({ 
+      sessionId: session.id,
+      url: session.url 
+    });
+  } catch (err) {
+    logger.error('❌ Stripe checkout error', { error: err.message });
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// POST /api/stripe/webhook - Handle Stripe webhook events
+// IMPORTANT: This must use raw body, not JSON parsed
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Payment system not configured' });
+  }
+
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    if (STRIPE_WEBHOOK_SECRET) {
+      event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+    } else {
+      // For testing without webhook signature verification
+      event = JSON.parse(req.body.toString());
+      logger.warn('⚠️ Webhook signature verification skipped (no secret configured)');
+    }
+  } catch (err) {
+    logger.error('❌ Webhook signature verification failed', { error: err.message });
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  logger.info('💳 Webhook received', { type: event.type });
+
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        await handleSuccessfulCheckout(session);
+        break;
+      }
+      
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object;
+        await handleSubscriptionUpdate(subscription);
+        break;
+      }
+      
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object;
+        await handleSubscriptionCancelled(subscription);
+        break;
+      }
+      
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object;
+        await handlePaymentFailed(invoice);
+        break;
+      }
+
+      default:
+        logger.info('💳 Unhandled webhook event', { type: event.type });
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    logger.error('❌ Webhook handler error', { error: err.message, type: event.type });
+    res.status(500).json({ error: 'Webhook handler failed' });
+  }
+});
+
+// Handle successful checkout - activate subscription
+async function handleSuccessfulCheckout(session) {
+  const userId = session.client_reference_id || session.metadata?.userId;
+  const tier = session.metadata?.tier || 'creator';
+  const customerId = session.customer;
+  const subscriptionId = session.subscription;
+
+  if (!userId) {
+    logger.error('❌ No userId in checkout session');
+    return;
+  }
+
+  logger.info('💳 Processing successful checkout', { userId: userId.slice(0, 8) + '...', tier });
+
+  if (adminDb) {
+    try {
+      // Get subscription details from Stripe
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      await adminDb.collection('users').doc(userId).set({
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscriptionId,
+        subscriptionTier: tier,
+        subscriptionStatus: 'active',
+        subscriptionStart: new Date(subscription.current_period_start * 1000),
+        subscriptionEnd: new Date(subscription.current_period_end * 1000),
+        updatedAt: new Date()
+      }, { merge: true });
+
+      logger.info('✅ Subscription saved to Firebase', { userId: userId.slice(0, 8) + '...', tier });
+    } catch (err) {
+      logger.error('❌ Failed to save subscription', { error: err.message });
+    }
+  }
+}
+
+// Handle subscription updates (upgrade/downgrade)
+async function handleSubscriptionUpdate(subscription) {
+  if (!adminDb) return;
+
+  const customerId = subscription.customer;
+  
+  try {
+    // Find user by Stripe customer ID
+    const usersSnapshot = await adminDb.collection('users')
+      .where('stripeCustomerId', '==', customerId)
+      .limit(1)
+      .get();
+
+    if (usersSnapshot.empty) {
+      logger.warn('⚠️ No user found for customer', { customerId: customerId.slice(0, 8) + '...' });
+      return;
+    }
+
+    const userDoc = usersSnapshot.docs[0];
+    const priceId = subscription.items.data[0]?.price?.id;
+    
+    // Determine tier from price ID
+    let tier = 'creator';
+    if (priceId === STRIPE_PRICES.studio) tier = 'studio';
+
+    await userDoc.ref.update({
+      subscriptionTier: tier,
+      subscriptionStatus: subscription.status,
+      subscriptionEnd: new Date(subscription.current_period_end * 1000),
+      updatedAt: new Date()
+    });
+
+    logger.info('✅ Subscription updated', { userId: userDoc.id.slice(0, 8) + '...', tier, status: subscription.status });
+  } catch (err) {
+    logger.error('❌ Failed to update subscription', { error: err.message });
+  }
+}
+
+// Handle subscription cancellation
+async function handleSubscriptionCancelled(subscription) {
+  if (!adminDb) return;
+
+  const customerId = subscription.customer;
+  
+  try {
+    const usersSnapshot = await adminDb.collection('users')
+      .where('stripeCustomerId', '==', customerId)
+      .limit(1)
+      .get();
+
+    if (!usersSnapshot.empty) {
+      const userDoc = usersSnapshot.docs[0];
+      await userDoc.ref.update({
+        subscriptionTier: 'free',
+        subscriptionStatus: 'cancelled',
+        updatedAt: new Date()
+      });
+      
+      logger.info('✅ Subscription cancelled', { userId: userDoc.id.slice(0, 8) + '...' });
+    }
+  } catch (err) {
+    logger.error('❌ Failed to process cancellation', { error: err.message });
+  }
+}
+
+// Handle failed payment
+async function handlePaymentFailed(invoice) {
+  if (!adminDb) return;
+
+  const customerId = invoice.customer;
+  
+  try {
+    const usersSnapshot = await adminDb.collection('users')
+      .where('stripeCustomerId', '==', customerId)
+      .limit(1)
+      .get();
+
+    if (!usersSnapshot.empty) {
+      const userDoc = usersSnapshot.docs[0];
+      await userDoc.ref.update({
+        subscriptionStatus: 'past_due',
+        paymentFailedAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      logger.info('⚠️ Payment failed - subscription past due', { userId: userDoc.id.slice(0, 8) + '...' });
+    }
+  } catch (err) {
+    logger.error('❌ Failed to process payment failure', { error: err.message });
+  }
+}
+
+// GET /api/stripe/subscription-status - Check user's subscription status
+app.get('/api/stripe/subscription-status', async (req, res) => {
+  const { userId } = req.query;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId required' });
+  }
+
+  if (!adminDb) {
+    // Return free tier if Firebase not configured
+    return res.json({ tier: 'free', status: 'none' });
+  }
+
+  try {
+    const userDoc = await adminDb.collection('users').doc(userId).get();
+    
+    if (!userDoc.exists) {
+      return res.json({ tier: 'free', status: 'none' });
+    }
+
+    const data = userDoc.data();
+    const now = new Date();
+    const subscriptionEnd = data.subscriptionEnd?.toDate?.() || data.subscriptionEnd;
+
+    // Check if subscription is still valid
+    if (data.subscriptionStatus === 'active' && subscriptionEnd && subscriptionEnd > now) {
+      return res.json({
+        tier: data.subscriptionTier || 'creator',
+        status: 'active',
+        expiresAt: subscriptionEnd.toISOString(),
+        customerId: data.stripeCustomerId
+      });
+    }
+
+    return res.json({ 
+      tier: 'free', 
+      status: data.subscriptionStatus || 'none',
+      expiredAt: subscriptionEnd?.toISOString?.()
+    });
+  } catch (err) {
+    logger.error('❌ Failed to check subscription', { error: err.message });
+    res.status(500).json({ error: 'Failed to check subscription' });
+  }
+});
+
+// POST /api/stripe/create-portal-session - Customer portal for managing subscription
+app.post('/api/stripe/create-portal-session', async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Payment system not configured' });
+  }
+
+  const { userId, returnUrl } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId required' });
+  }
+
+  try {
+    // Get customer ID from Firebase
+    let customerId = null;
+    if (adminDb) {
+      const userDoc = await adminDb.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        customerId = userDoc.data()?.stripeCustomerId;
+      }
+    }
+
+    if (!customerId) {
+      return res.status(404).json({ error: 'No subscription found for this user' });
+    }
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?from=portal`
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    logger.error('❌ Portal session error', { error: err.message });
+    res.status(500).json({ error: 'Failed to create portal session' });
+  }
+});
+
+// =============================================================================
+// END STRIPE INTEGRATION
+// =============================================================================
 
 const HOST = '0.0.0.0'; // Bind to all interfaces for Railway
 const server = app.listen(PORT, HOST, () => {

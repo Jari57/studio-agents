@@ -7,7 +7,7 @@ import {
   Hash, Grid, Headphones, Activity, Zap, Wallet, Power, Sliders, Briefcase, 
   RefreshCw, ToggleLeft, ToggleRight, Filter, Plus, Trash2, Edit2, Upload,
   Camera, TrendingUp, Users, Image as ImageIcon, Link as LinkIcon, Loader2,
-  Info, Volume2, HelpCircle, Eye, Volume1, VolumeX
+  Info, Volume2, HelpCircle, Eye, Volume1, VolumeX, Feather, Copy, ChevronRight
 } from 'lucide-react';
 
 // --- FIREBASE IMPORTS ---
@@ -94,7 +94,21 @@ const validateAndSanitizePrompt = (prompt) => {
   return sanitized;
 };
 
-const callGemini = async (prompt, systemInstruction = "", useSearch = false) => {
+// Global model state (can be changed by user in Studio settings)
+let selectedAIModel = 'gemini-2.0-flash-exp';
+const getSelectedModel = () => selectedAIModel;
+const setSelectedModel = (model) => { selectedAIModel = model; };
+
+// Available models for selection
+const AVAILABLE_MODELS = [
+  { id: 'gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash', desc: 'Fastest, experimental', tier: 'fast' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', desc: 'Fast & efficient', tier: 'fast' },
+  { id: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash Latest', desc: 'Latest flash version', tier: 'fast' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', desc: 'Most capable', tier: 'pro' },
+  { id: 'gemini-1.5-pro-latest', name: 'Gemini 1.5 Pro Latest', desc: 'Latest pro version', tier: 'pro' },
+];
+
+const callGemini = async (prompt, systemInstruction = "", useSearch = false, modelOverride = null) => {
   // 🛡️ Validate and sanitize inputs at function entry
   try {
     var sanitizedPrompt = validateAndSanitizePrompt(prompt);
@@ -146,6 +160,8 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
   const delays = [1000, 2000, 4000, 8000, 16000];
   
   // Image generation also routes through backend proxy (was previously direct to Gemini)
+  const modelToUse = modelOverride || getSelectedModel();
+  
   if (prompt.includes("Album Cover")) {
     // Route through backend instead of direct API call
     for (let i = 0; i <= delays.length; i++) {
@@ -153,7 +169,11 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
         const response = await fetch(BACKEND_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: sanitizedPrompt, systemInstruction: "Generate an album cover image description" })
+          body: JSON.stringify({ 
+            prompt: sanitizedPrompt, 
+            systemInstruction: "Generate an album cover image description",
+            model: modelToUse
+          })
         });
 
         if (!response.ok) {
@@ -187,7 +207,11 @@ const callGemini = async (prompt, systemInstruction = "", useSearch = false) => 
       const response = await fetch(BACKEND_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: sanitizedPrompt, systemInstruction: sanitizedSystemInstruction }),
+        body: JSON.stringify({ 
+          prompt: sanitizedPrompt, 
+          systemInstruction: sanitizedSystemInstruction,
+          model: modelToUse
+        }),
         signal: controller.signal
       });
       
@@ -297,6 +321,58 @@ const SubscriptionProvider = ({ children }) => {
   const [savedCreations, setSavedCreations] = useState([]);
   const [showPaywall, setShowPaywall] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [stripeCustomerId, setStripeCustomerId] = useState(null);
+
+  // Check subscription status from backend
+  const checkSubscriptionStatus = async (userId) => {
+    if (!userId) return;
+    
+    try {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const BACKEND_URL = isLocal ? 'http://localhost:3001' : '';
+      
+      const response = await fetch(`${BACKEND_URL}/api/stripe/subscription-status?userId=${userId}`);
+      const data = await response.json();
+      
+      if (data.tier && data.tier !== 'free') {
+        setTier(data.tier);
+        setStripeCustomerId(data.customerId);
+        if (data.expiresAt) {
+          setSubscriptionExpiry(new Date(data.expiresAt));
+        }
+        console.log('✅ Subscription loaded:', data.tier);
+      }
+    } catch (err) {
+      console.warn('Could not check subscription status:', err);
+    }
+  };
+
+  // Open customer portal for managing subscription
+  const openCustomerPortal = async (userId) => {
+    if (!userId) return;
+    
+    try {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const BACKEND_URL = isLocal ? 'http://localhost:3001' : '';
+      
+      const response = await fetch(`${BACKEND_URL}/api/stripe/create-portal-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          returnUrl: window.location.href
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      console.error('Could not open customer portal:', err);
+    }
+  };
 
   // Get IP address for trial tracking
   useEffect(() => {
@@ -328,6 +404,26 @@ const SubscriptionProvider = ({ children }) => {
     };
     
     fetchIP();
+  }, []);
+
+  // Check for payment success in URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    
+    if (paymentStatus === 'success') {
+      // Clear URL params
+      window.history.replaceState({}, '', window.location.pathname);
+      // Show success message (could be a toast)
+      console.log('🎉 Payment successful! Subscription activated.');
+      // Refresh subscription status
+      if (auth?.currentUser?.uid) {
+        setTimeout(() => checkSubscriptionStatus(auth.currentUser.uid), 1000);
+      }
+    } else if (paymentStatus === 'cancelled') {
+      window.history.replaceState({}, '', window.location.pathname);
+      console.log('Payment cancelled');
+    }
   }, []);
 
   // NOTE: Duplicate auth listener disabled - auth handled in OSInterface
@@ -459,6 +555,9 @@ const SubscriptionProvider = ({ children }) => {
     saveCreation,
     getCreationsForAgent,
     deleteCreation,
+    checkSubscriptionStatus,
+    openCustomerPortal,
+    stripeCustomerId,
     PRICING_TIERS
   };
 
@@ -501,8 +600,63 @@ const validateEmail = (email) => {
 };
 
 // Paywall Modal Component
-const PaywallModal = ({ onClose, onUpgrade }) => {
+const PaywallModal = ({ onClose, onUpgrade, user }) => {
   const { PRICING_TIERS, tier: currentTier } = useSubscription();
+  const [loading, setLoading] = useState(null); // Track which tier is loading
+  const [error, setError] = useState('');
+
+  const handleSubscribe = async (tierKey) => {
+    // Free tier doesn't need payment
+    if (tierKey === 'free') {
+      onUpgrade('free');
+      onClose();
+      return;
+    }
+
+    // Must be logged in to subscribe
+    if (!user?.uid) {
+      setError('Please sign in first to subscribe');
+      return;
+    }
+
+    setLoading(tierKey);
+    setError('');
+
+    try {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const BACKEND_URL = isLocal ? 'http://localhost:3001' : '';
+      
+      const response = await fetch(`${BACKEND_URL}/api/stripe/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tier: tierKey,
+          userId: user.uid,
+          userEmail: user.email,
+          successUrl: `${window.location.origin}?payment=success`,
+          cancelUrl: `${window.location.origin}?payment=cancelled`
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+    } catch (err) {
+      console.error('Checkout error:', err);
+      setError(err.message || 'Payment system unavailable');
+    } finally {
+      setLoading(null);
+    }
+  };
   
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
@@ -524,6 +678,12 @@ const PaywallModal = ({ onClose, onUpgrade }) => {
           <p className="text-white/60 max-w-lg mx-auto">
             Built for social media creators who want AI-powered content creation at their fingertips.
           </p>
+          {!user?.uid && (
+            <p className="text-yellow-400 text-sm mt-2">⚠️ Sign in required to subscribe</p>
+          )}
+          {error && (
+            <p className="text-red-400 text-sm mt-2 bg-red-900/20 px-4 py-2 rounded">❌ {error}</p>
+          )}
         </div>
         
         {/* Pricing Cards */}
@@ -561,17 +721,17 @@ const PaywallModal = ({ onClose, onUpgrade }) => {
               </ul>
               
               <button
-                onClick={() => onUpgrade(key)}
-                disabled={key === currentTier}
+                onClick={() => handleSubscribe(key)}
+                disabled={key === currentTier || loading === key}
                 className={`w-full py-3 font-bold uppercase tracking-wider transition-all ${
                   key === currentTier 
                     ? 'bg-white/10 text-white/40 cursor-not-allowed'
                     : plan.popular
                       ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-black hover:shadow-[0_0_30px_rgba(0,255,255,0.4)]'
                       : 'bg-white/10 text-white hover:bg-white/20'
-                }`}
+                } ${loading === key ? 'opacity-50 cursor-wait' : ''}`}
               >
-                {key === currentTier ? 'Current Plan' : key === 'free' ? 'Start Free' : 'Subscribe'}
+                {loading === key ? 'CONNECTING...' : key === currentTier ? 'Current Plan' : key === 'free' ? 'Start Free' : 'Subscribe'}
               </button>
             </div>
           ))}
@@ -875,160 +1035,479 @@ const BackgroundCarousel = ({ images }) => {
   );
 };
 
+// ============================================================================
+// AGENT CONTAINER - Consistent wrapper for all AI agents
+// ============================================================================
+const AgentContainer = ({ 
+  title, 
+  icon: Icon, 
+  accentColor = 'cyan', 
+  children,
+  headerExtra = null 
+}) => {
+  // Unique color configurations for each agent - all distinct!
+  const colorConfig = {
+    // GHOSTWRITER / ALBUM ART - Electric Cyan/Aqua
+    cyan: { 
+      border: 'border-cyan-400/60', 
+      headerBg: 'bg-gradient-to-r from-cyan-500 via-sky-400 to-blue-400', 
+      shadow: 'shadow-[0_0_50px_rgba(0,255,255,0.3)]',
+      glow: 'from-cyan-900/50',
+      topBorder: 'from-cyan-300 via-sky-300 to-blue-300',
+      accent: '#00ffff'
+    },
+    // LYRIC RECOVERY - Hot Magenta/Fuchsia
+    magenta: { 
+      border: 'border-fuchsia-400/60', 
+      headerBg: 'bg-gradient-to-r from-fuchsia-600 via-pink-500 to-rose-400', 
+      shadow: 'shadow-[0_0_50px_rgba(217,70,239,0.3)]',
+      glow: 'from-fuchsia-900/50',
+      topBorder: 'from-fuchsia-300 via-pink-300 to-rose-300',
+      accent: '#d946ef'
+    },
+    // RAP BATTLE - Crimson Fire
+    crimson: { 
+      border: 'border-red-500/60', 
+      headerBg: 'bg-gradient-to-r from-red-600 via-rose-500 to-orange-500', 
+      shadow: 'shadow-[0_0_50px_rgba(220,38,38,0.3)]',
+      glow: 'from-red-900/50',
+      topBorder: 'from-red-400 via-rose-400 to-orange-400',
+      accent: '#dc2626'
+    },
+    // CRATE DIGGER - Deep Ocean Indigo
+    indigo: { 
+      border: 'border-indigo-400/60', 
+      headerBg: 'bg-gradient-to-r from-indigo-600 via-blue-500 to-violet-500', 
+      shadow: 'shadow-[0_0_50px_rgba(99,102,241,0.3)]',
+      glow: 'from-indigo-900/50',
+      topBorder: 'from-indigo-300 via-blue-300 to-violet-300',
+      accent: '#6366f1'
+    },
+    // AR SUITE - Royal Gold
+    gold: { 
+      border: 'border-amber-400/60', 
+      headerBg: 'bg-gradient-to-r from-amber-500 via-yellow-400 to-orange-400', 
+      shadow: 'shadow-[0_0_50px_rgba(245,158,11,0.3)]',
+      glow: 'from-amber-900/50',
+      topBorder: 'from-amber-300 via-yellow-200 to-orange-300',
+      accent: '#f59e0b'
+    },
+    // TREND HUNTER - Ultraviolet Purple
+    ultraviolet: { 
+      border: 'border-violet-400/60', 
+      headerBg: 'bg-gradient-to-r from-violet-600 via-purple-500 to-fuchsia-500', 
+      shadow: 'shadow-[0_0_50px_rgba(139,92,246,0.3)]',
+      glow: 'from-violet-900/50',
+      topBorder: 'from-violet-300 via-purple-300 to-fuchsia-300',
+      accent: '#8b5cf6'
+    },
+    // VIRAL VIDEO - Sunset Coral
+    coral: { 
+      border: 'border-orange-400/60', 
+      headerBg: 'bg-gradient-to-r from-orange-500 via-red-400 to-pink-500', 
+      shadow: 'shadow-[0_0_50px_rgba(249,115,22,0.3)]',
+      glow: 'from-orange-900/50',
+      topBorder: 'from-orange-300 via-red-300 to-pink-300',
+      accent: '#f97316'
+    },
+    // SONGWRITERS STUDIO - Matrix Neon Green
+    neon: { 
+      border: 'border-[#00ff41]/60', 
+      headerBg: 'bg-gradient-to-r from-emerald-500 via-green-400 to-lime-400', 
+      shadow: 'shadow-[0_0_50px_rgba(0,255,65,0.3)]',
+      glow: 'from-emerald-900/50',
+      topBorder: 'from-emerald-300 via-green-300 to-lime-300',
+      accent: '#00ff41'
+    },
+    // Legacy colors for backwards compatibility
+    pink: { 
+      border: 'border-pink-500/50', 
+      headerBg: 'bg-gradient-to-r from-pink-600 via-rose-500 to-red-500', 
+      shadow: 'shadow-[0_0_40px_rgba(236,72,153,0.25)]',
+      glow: 'from-pink-950/40',
+      topBorder: 'from-pink-400 via-rose-400 to-red-400',
+      accent: '#ec4899'
+    },
+    red: { 
+      border: 'border-red-500/50', 
+      headerBg: 'bg-gradient-to-r from-red-600 via-orange-500 to-amber-500', 
+      shadow: 'shadow-[0_0_40px_rgba(239,68,68,0.25)]',
+      glow: 'from-red-950/40',
+      topBorder: 'from-red-400 via-orange-400 to-amber-400',
+      accent: '#ef4444'
+    },
+    blue: { 
+      border: 'border-blue-500/50', 
+      headerBg: 'bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500', 
+      shadow: 'shadow-[0_0_40px_rgba(59,130,246,0.25)]',
+      glow: 'from-blue-950/40',
+      topBorder: 'from-blue-400 via-indigo-400 to-purple-400',
+      accent: '#3b82f6'
+    },
+    yellow: { 
+      border: 'border-yellow-500/50', 
+      headerBg: 'bg-gradient-to-r from-yellow-500 via-amber-500 to-orange-500', 
+      shadow: 'shadow-[0_0_40px_rgba(234,179,8,0.25)]',
+      glow: 'from-yellow-950/40',
+      topBorder: 'from-yellow-300 via-amber-400 to-orange-400',
+      accent: '#eab308'
+    },
+    violet: { 
+      border: 'border-violet-500/50', 
+      headerBg: 'bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600', 
+      shadow: 'shadow-[0_0_40px_rgba(139,92,246,0.25)]',
+      glow: 'from-violet-950/40',
+      topBorder: 'from-violet-400 via-fuchsia-400 to-pink-400',
+      accent: '#8b5cf6'
+    },
+    green: { 
+      border: 'border-[#00ff41]/50', 
+      headerBg: 'bg-gradient-to-r from-emerald-600 via-[#00cc33] to-[#00ff41]', 
+      shadow: 'shadow-[0_0_40px_rgba(0,255,65,0.25)]',
+      glow: 'from-[#002200]',
+      topBorder: 'from-emerald-400 via-green-400 to-[#00ff41]',
+      accent: '#00ff41'
+    }
+  };
+
+  const colors = colorConfig[accentColor] || colorConfig.cyan;
+
+  return (
+    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-hidden bg-gradient-to-br from-black via-[#0a0a0a] to-[#050505]" style={{WebkitOverflowScrolling: 'touch'}}>
+      {/* Radial gradient background glow */}
+      <div className={`absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] ${colors.glow} via-black to-black pointer-events-none`}></div>
+      
+      {/* Animated background particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-gradient-radial from-current to-transparent rounded-full blur-3xl animate-pulse" style={{color: accentColor === 'green' ? '#00ff41' : accentColor}}></div>
+        <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-gradient-radial from-current to-transparent rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s', color: accentColor === 'green' ? '#00ff41' : accentColor}}></div>
+      </div>
+      
+      {/* Main content card - consistent sizing */}
+      <div className={`relative z-10 w-full max-w-4xl h-full max-h-[calc(100vh-120px)] bg-[#0d0d0d]/95 backdrop-blur-xl border ${colors.border} ${colors.shadow} flex flex-col overflow-hidden rounded-lg`}>
+        {/* Gradient top border accent - like TrendHunter */}
+        <div className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${colors.topBorder}`}></div>
+        
+        {/* Consistent header bar */}
+        <div className={`${colors.headerBg} text-white px-4 py-2.5 flex justify-between items-center shrink-0`}>
+          <div className="flex items-center gap-2">
+            {Icon && <Icon size={18} className="opacity-90 drop-shadow-lg"/>}
+            <span className="font-bold text-sm tracking-wide drop-shadow-lg">{title}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {headerExtra}
+          </div>
+        </div>
+        
+        {/* Content area - fills remaining space */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden" style={{WebkitOverflowScrolling: 'touch'}}>
+          {children}
+        </div>
+        
+        {/* Bottom glow effect */}
+        <div className={`absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t ${colors.glow} to-transparent pointer-events-none opacity-50`}></div>
+      </div>
+    </div>
+  );
+};
+
 // 2. HOME
 const Home = ({ setSection }) => {
   const [hoveredItem, setHoveredItem] = useState(null);
 
-  const homeCarouselImages = [
-    'https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1600&h=900&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1576186726580-a816e8b12896?w=1600&h=900&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1598653222000-6b7b7a552625?w=1600&h=900&fit=crop&q=80',
-    'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=1600&h=900&fit=crop&q=80'
-  ];
-
-  const widgets = [
+  // AI Agent widgets (the Studio tools)
+  const agentWidgets = [
     {
       id: 'ghostwriter',
       title: 'GHOST',
-      subtitle: 'AI_LYRIC_ENGINE',
+      subtitle: 'AI Lyric Engine',
       icon: Sparkles,
-      color: 'text-[#00ff41]',
-      borderColor: 'border-[#00ff41]',
-      hoverBg: 'hover:bg-[#00ff41]/10',
-      shadow: 'group-hover:shadow-[0_0_20px_rgba(0,255,65,0.3)]',
-      content: 'GENERATE VERSES',
+      color: '#00ff41',
       action: () => setSection('ghostwriter')
     },
     {
       id: 'chat',
       title: 'CIPHER',
-      subtitle: 'AI_CONVERSATION',
+      subtitle: 'AI Conversation',
       icon: MessageSquare,
-      color: 'text-cyan-500',
-      borderColor: 'border-cyan-500',
-      hoverBg: 'hover:bg-cyan-500/10',
-      shadow: 'group-hover:shadow-[0_0_20px_rgba(6,182,212,0.3)]',
-      content: 'TALK TO AI',
+      color: '#06b6d4',
       action: () => setSection('chat')
     },
     {
       id: 'battle',
       title: 'BATTLE',
-      subtitle: 'RAP_COMPETITION',
+      subtitle: 'Rap Competition',
       icon: Mic,
-      color: 'text-pink-500',
-      borderColor: 'border-pink-500',
-      hoverBg: 'hover:bg-pink-500/10',
-      shadow: 'group-hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]',
-      content: 'CHALLENGE AI',
+      color: '#ec4899',
       action: () => setSection('battle')
     },
     {
       id: 'ar_suite',
       title: 'A&R',
-      subtitle: 'ARTIST_DEVELOPMENT',
+      subtitle: 'Artist Development',
       icon: User,
-      color: 'text-purple-500',
-      borderColor: 'border-purple-500',
-      hoverBg: 'hover:bg-purple-500/10',
-      shadow: 'group-hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]',
-      content: 'CAREER INSIGHTS',
+      color: '#a855f7',
       action: () => setSection('ar_suite')
     },
     {
       id: 'crates',
       title: 'CRATE',
-      subtitle: 'SAMPLE_DISCOVERY',
+      subtitle: 'Sample Discovery',
       icon: Disc,
-      color: 'text-yellow-500',
-      borderColor: 'border-yellow-500',
-      hoverBg: 'hover:bg-yellow-500/10',
-      shadow: 'group-hover:shadow-[0_0_20px_rgba(234,179,8,0.3)]',
-      content: 'DIG FOR SOUNDS',
+      color: '#eab308',
       action: () => setSection('crates')
     },
     {
       id: 'viral_video',
       title: 'VIRAL',
-      subtitle: 'VIDEO_CONCEPTS',
+      subtitle: 'Video Concepts',
       icon: Video,
-      borderColor: 'border-red-500',
-      color: 'text-red-500',
-      hoverBg: 'hover:bg-red-500/10',
-      shadow: 'group-hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]',
-      content: 'CREATE VIDEOS',
+      color: '#ef4444',
       action: () => setSection('viral_video')
     }
   ];
 
+  // Navigation widgets (site sections)
+  const navWidgets = [
+    {
+      id: 'bio',
+      title: 'BIO',
+      subtitle: 'Artist Profile',
+      description: 'The complete story of Whip Montez',
+      icon: User,
+      color: '#00ff41',
+      action: () => setSection('bio')
+    },
+    {
+      id: 'music',
+      title: 'AUDIO',
+      subtitle: 'Lost Tapes',
+      description: 'Stream unreleased tracks & albums',
+      icon: Music,
+      color: '#f97316',
+      action: () => { console.log('Navigating to music'); setSection('music'); }
+    },
+    {
+      id: 'news',
+      title: 'NEWS',
+      subtitle: 'The Feed',
+      description: 'Live hip-hop news & updates',
+      icon: Newspaper,
+      color: '#06b6d4',
+      action: () => setSection('news')
+    },
+    {
+      id: 'community',
+      title: 'COMMUNITY',
+      subtitle: 'The Block',
+      description: 'Connect with other fans',
+      icon: Users,
+      color: '#a855f7',
+      action: () => setSection('community')
+    },
+    {
+      id: 'comeup',
+      title: 'COME UP',
+      subtitle: 'Mentorship',
+      description: 'Learn from the journey',
+      icon: TrendingUp,
+      color: '#10b981',
+      action: () => setSection('comeup')
+    },
+    {
+      id: 'studio',
+      title: 'STUDIO',
+      subtitle: 'AI Tools',
+      description: 'All 8 AI agents in one place',
+      icon: Sparkles,
+      color: '#ec4899',
+      action: () => setSection('studio')
+    }
+  ];
+
   return (
-    <div className="relative h-full w-full overflow-y-auto overflow-x-hidden flex flex-col font-sans" style={{WebkitOverflowScrolling: 'touch'}}>
-      <BackgroundCarousel images={homeCarouselImages} />
+    <div className="h-full w-full overflow-y-auto overflow-x-hidden flex flex-col bg-black" style={{WebkitOverflowScrolling: 'touch'}}>
       
-      <div className="relative z-30 flex-1 flex flex-col justify-between p-3 md:p-12 bg-gradient-to-t from-black via-transparent to-black/40 min-h-full max-w-[2400px] mx-auto w-full">
+      <div className="flex-1 flex flex-col p-4 md:p-8 lg:p-12 min-h-full max-w-[1600px] mx-auto w-full">
         
-        {/* Top Section: Branding */}
-        <div className="flex justify-between items-start w-full mb-4 md:mb-0">
-          <div className="animate-fade-in">
-            <h1 className="chrome-text text-4xl sm:text-6xl md:text-9xl font-black uppercase tracking-tighter leading-none opacity-90 drop-shadow-2xl">
-              Whip<br/>Montez
+        {/* Hero Section - Whip Montez Branding */}
+        <div className="flex flex-col md:flex-row justify-between items-start w-full mb-8 md:mb-12">
+          <div className="mb-6 md:mb-0">
+            <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-[#00ff41]/60 mb-2">
+              Alternative Reality Experience
+            </p>
+            <h1 className="text-5xl sm:text-6xl md:text-8xl font-thin text-[#00ff41] tracking-tighter leading-[0.9] mb-4" style={{textShadow: '0 0 40px rgba(0,255,65,0.4)'}}>
+              WHIP<br/>MONTEZ
             </h1>
-            <div className="flex items-center gap-2 mt-2 md:mt-4">
-              <div className="h-[2px] w-8 md:w-12 bg-[#00ff41]"></div>
-              <p className="text-[#00ff41] text-[9px] md:text-xs tracking-[0.2em] md:tracking-[0.3em] font-mono bg-black/50 px-2">RESTORED_SESSION_2004</p>
+            <div className="flex items-center gap-3">
+              <div className="h-[1px] w-12 bg-[#00ff41]/40"></div>
+              <p className="text-white/50 text-xs tracking-[0.2em] font-mono">RESTORED OS • 2004</p>
             </div>
           </div>
           
-          <div className="flex flex-col items-end gap-2 md:gap-4">
-            <LivewireLogo />
-
-            <div className="hidden md:block text-right">
-               <div className="text-white font-mono text-xs opacity-50">SYSTEM_STATUS</div>
-               <div className="text-[#00ff41] font-mono text-sm animate-pulse">ONLINE</div>
+          <div className="flex flex-col items-end gap-4">
+            <div className="text-right">
+              <p className="text-[#00ff41] text-2xl md:text-3xl font-thin tracking-tight" style={{textShadow: '0 0 20px rgba(0,255,65,0.4)'}}>LIVEWIRE</p>
+              <p className="text-white/40 text-[10px] tracking-[0.3em] uppercase">Entertainment NYC</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-[#00ff41] rounded-full animate-pulse"></div>
+              <span className="text-[#00ff41]/70 text-xs font-mono">SYSTEM ONLINE</span>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 min-h-[20px]"></div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4 w-full pb-4">
-          {widgets.map((widget, i) => (
-            <div 
-              key={widget.id}
-              onClick={widget.action}
-              onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), widget.action())}
-              tabIndex={0}
-              role="button"
-              aria-label={`${widget.content} - ${widget.subtitle}`}
-              onMouseEnter={() => setHoveredItem(widget.title)}
-              onMouseLeave={() => setHoveredItem(null)}
-              className={`
-                group relative h-28 md:h-32 border-t-2 bg-black/80 backdrop-blur-md p-3 md:p-4 cursor-pointer transition-all duration-300
-                flex flex-col justify-between overflow-hidden active:scale-95
-                ${widget.borderColor} ${widget.hoverBg} ${widget.shadow} hover:-translate-y-2
-                focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black
-              `}
-              style={{ [widget.borderColor.replace('border-', 'ringColor')]: widget.color }}
-            >
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.2)_50%)] bg-[length:100%_4px] pointer-events-none opacity-50"></div>
-              
-              <div className="flex justify-between items-start relative z-10">
-                 <widget.icon size={20} className={`md:w-6 md:h-6 ${widget.color} transition-transform group-hover:scale-110 duration-300`} />
-                 <span className="text-[9px] md:text-[10px] font-mono text-gray-500 group-hover:text-white transition-colors">{String(i + 1).padStart(2, '0')}</span>
+        {/* ARE Introduction Section */}
+        <div className="mb-10 md:mb-14">
+          <div className="bg-[#050505] border border-[#00ff41]/20 rounded-lg p-6 md:p-8" style={{boxShadow: '0 0 40px rgba(0,255,65,0.05)'}}>
+            <div className="flex flex-col md:flex-row gap-6 md:gap-10">
+              <div className="flex-1">
+                <h2 className="text-lg md:text-xl font-light text-white mb-3">Welcome to the Restored OS</h2>
+                <p className="text-gray-400 text-sm leading-relaxed mb-4">
+                  Step into an <span className="text-[#00ff41]">Alternative Reality Experience</span> that resurrects a lost moment in hip-hop history. Whip Montez was a real Brooklyn MC on the verge of breaking through in the early 2000s—collaborating with Erick Sermon and Talib Kweli before her debut album vanished into obscurity.
+                </p>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  This digital time capsule reconstructs what should have been—the website, the streaming presence, the interactive fan experience that Whip Montez deserved but never had.
+                </p>
               </div>
-
-              <div className="relative z-10">
-                 <h3 className={`text-base md:text-xl font-black uppercase tracking-tight text-white leading-none mb-1 group-hover:tracking-widest transition-all duration-300`}>
-                   {widget.title}
-                 </h3>
-                 <div className={`text-[8px] md:text-[9px] font-mono uppercase tracking-wider ${widget.color} truncate`}>
-                   <>{'>'} {widget.subtitle}</>
-                 </div>
+              <div className="flex flex-col gap-3 md:w-64">
+                <button 
+                  onClick={() => setSection('bio')}
+                  className="bg-[#00ff41]/10 border border-[#00ff41]/30 text-[#00ff41] px-4 py-3 text-sm font-medium rounded hover:bg-[#00ff41]/20 hover:border-[#00ff41]/50 transition-all flex items-center justify-center gap-2"
+                >
+                  <User size={16} /> Discover Her Story
+                </button>
+                <button 
+                  onClick={() => setSection('music')}
+                  className="bg-white/5 border border-white/10 text-white/70 px-4 py-3 text-sm font-medium rounded hover:bg-white/10 hover:border-white/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <Music size={16} /> Listen to Lost Tapes
+                </button>
               </div>
-
-              <div className={`absolute -bottom-10 -right-10 w-20 h-20 md:w-24 md:h-24 ${widget.color.replace('text-', 'bg-')}/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
             </div>
-          ))}
+          </div>
+        </div>
+
+        {/* Navigation Widgets - Site Sections */}
+        <div className="mb-10 md:mb-14">
+          <div className="flex items-center gap-3 mb-6">
+            <h3 className="text-white/80 text-sm font-medium uppercase tracking-wider">Explore</h3>
+            <div className="flex-1 h-[1px] bg-white/10"></div>
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
+            {navWidgets.map((widget) => (
+              <div 
+                key={widget.id}
+                onClick={widget.action}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), widget.action())}
+                tabIndex={0}
+                role="button"
+                aria-label={`${widget.title} - ${widget.description}`}
+                className="group relative bg-[#0a0a0a] border border-white/10 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:border-opacity-50 overflow-hidden"
+                style={{ 
+                  '--widget-color': widget.color,
+                  boxShadow: hoveredItem === widget.id ? `0 0 30px ${widget.color}20` : 'none'
+                }}
+                onMouseEnter={() => setHoveredItem(widget.id)}
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                <div className="relative z-10">
+                  <widget.icon 
+                    size={24} 
+                    className="mb-3 transition-all duration-300 group-hover:scale-110"
+                    style={{ color: widget.color, opacity: hoveredItem === widget.id ? 1 : 0.7 }}
+                  />
+                  <h4 className="text-white font-medium text-sm mb-1 group-hover:text-white transition-colors">{widget.title}</h4>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider" style={{ color: hoveredItem === widget.id ? widget.color : undefined, opacity: hoveredItem === widget.id ? 0.8 : 1 }}>
+                    {widget.subtitle}
+                  </p>
+                </div>
+                
+                {/* Hover glow effect */}
+                <div 
+                  className="absolute -bottom-8 -right-8 w-24 h-24 rounded-full blur-2xl opacity-0 group-hover:opacity-30 transition-opacity duration-500"
+                  style={{ backgroundColor: widget.color }}
+                ></div>
+                
+                {/* Border glow on hover */}
+                <div 
+                  className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                  style={{ boxShadow: `inset 0 0 0 1px ${widget.color}40` }}
+                ></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* AI Studio Agents */}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-6">
+            <h3 className="text-white/80 text-sm font-medium uppercase tracking-wider">AI Studio</h3>
+            <div className="flex-1 h-[1px] bg-white/10"></div>
+            <button 
+              onClick={() => setSection('studio')}
+              className="text-[10px] text-[#00ff41]/70 hover:text-[#00ff41] transition-colors uppercase tracking-wider flex items-center gap-1"
+            >
+              View All <ChevronRight size={12} />
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
+            {agentWidgets.map((widget, i) => (
+              <div 
+                key={widget.id}
+                onClick={widget.action}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), widget.action())}
+                tabIndex={0}
+                role="button"
+                aria-label={`${widget.title} - ${widget.subtitle}`}
+                className="group relative bg-[#0a0a0a] border border-white/10 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:border-opacity-50 overflow-hidden"
+                style={{ 
+                  '--widget-color': widget.color,
+                  boxShadow: hoveredItem === `agent-${widget.id}` ? `0 0 30px ${widget.color}20` : 'none'
+                }}
+                onMouseEnter={() => setHoveredItem(`agent-${widget.id}`)}
+                onMouseLeave={() => setHoveredItem(null)}
+              >
+                <div className="absolute top-2 right-2 text-[9px] font-mono text-gray-600 group-hover:text-gray-400 transition-colors">
+                  {String(i + 1).padStart(2, '0')}
+                </div>
+                
+                <div className="relative z-10">
+                  <widget.icon 
+                    size={20} 
+                    className="mb-3 transition-all duration-300 group-hover:scale-110"
+                    style={{ color: widget.color, opacity: hoveredItem === `agent-${widget.id}` ? 1 : 0.7 }}
+                  />
+                  <h4 className="text-white font-medium text-sm mb-1">{widget.title}</h4>
+                  <p className="text-[9px] text-gray-500 uppercase tracking-wider" style={{ color: hoveredItem === `agent-${widget.id}` ? widget.color : undefined, opacity: hoveredItem === `agent-${widget.id}` ? 0.8 : 1 }}>
+                    {widget.subtitle}
+                  </p>
+                </div>
+                
+                {/* Hover glow effect */}
+                <div 
+                  className="absolute -bottom-8 -right-8 w-20 h-20 rounded-full blur-2xl opacity-0 group-hover:opacity-30 transition-opacity duration-500"
+                  style={{ backgroundColor: widget.color }}
+                ></div>
+                
+                {/* Border glow on hover */}
+                <div 
+                  className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                  style={{ boxShadow: `inset 0 0 0 1px ${widget.color}40` }}
+                ></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-auto pt-8 border-t border-white/5">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] text-gray-600">
+            <p>WHIP MONTEZ RESTORED OS • ALTERNATIVE REALITY EXPERIENCE • 2025</p>
+            <p className="font-mono">LIVEWIRE ENTERTAINMENT NYC</p>
+          </div>
         </div>
 
       </div>
@@ -1157,58 +1636,58 @@ const Bio = ({ setSection, user = null }) => {
   };
 
   return (
-    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
+    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto bg-black" style={{WebkitOverflowScrolling: 'touch'}}>
       <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/60 z-10 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-black z-10 pointer-events-none"></div>
       
-      {/* Main Profile Container - 2004 Flash Site Style */}
-      <div className="relative z-30 w-full max-w-5xl h-[90vh] md:h-[85vh] bg-[#0f0f0f] border-2 border-[#333] flex flex-col md:flex-row shadow-2xl my-4">
+      {/* Main Profile Container - Premium Glossy Design */}
+      <div className="relative z-30 w-full max-w-5xl h-[90vh] md:h-[85vh] bg-[#050505] border border-[#00ff41]/20 rounded-lg flex flex-col md:flex-row my-4" style={{boxShadow: '0 0 60px rgba(0, 255, 65, 0.08)'}}>
         
-        {/* Left Sidebar: ID Card / Navigation */}
-        <div className="w-full md:w-80 bg-[#111] border-b md:border-r md:border-b-0 border-[#333] p-3 md:p-6 flex flex-row md:flex-col gap-3 md:gap-6 overflow-x-auto md:overflow-x-visible shrink-0">
-           <div className="w-32 h-32 md:w-full md:aspect-square bg-[#222] border-4 border-[#333] relative overflow-hidden group shrink-0">
+        {/* Left Sidebar: ID Card / Navigation - Glossy Style */}
+        <div className="w-full md:w-80 bg-[#0a0a0a] border-b md:border-r md:border-b-0 border-white/10 p-3 md:p-6 flex flex-row md:flex-col gap-3 md:gap-6 overflow-x-auto md:overflow-x-visible shrink-0">
+           <div className="w-32 h-32 md:w-full md:aspect-square bg-[#111] border border-white/10 relative overflow-hidden group shrink-0 rounded-lg">
              <img 
                src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=800&q=80" 
                className="w-full h-full object-cover grayscale contrast-125 group-hover:scale-110 transition-transform duration-500" 
                alt="Whip Montez"
              />
-             <div className="absolute bottom-1 right-1 md:bottom-2 md:right-2 bg-[#00ff41] text-black text-[9px] md:text-xs font-bold px-1 md:px-2 py-0.5 animate-pulse">
+             <div className="absolute bottom-1 right-1 md:bottom-2 md:right-2 bg-[#00ff41] text-black text-[9px] md:text-xs font-bold px-1 md:px-2 py-0.5">
                  ONLINE
              </div>
            </div>
 
            <div className="flex-1 md:flex-none space-y-1">
-             <h2 className="text-lg md:text-2xl font-black text-white tracking-tighter uppercase">Whip Montez</h2>
-             <p className="text-[#00ff41] font-mono text-[10px] md:text-xs">RED HOOK, BROOKLYN</p>
+             <h2 className="text-lg md:text-2xl font-light text-white tracking-tight uppercase">Whip Montez</h2>
+             <p className="text-[#00ff41]/80 font-mono text-[10px] md:text-xs">RED HOOK, BROOKLYN</p>
              <p className="text-gray-500 font-mono text-[10px] md:text-xs">LIVEWIRE RECORDS</p>
            
              <div className="hidden md:block md:flex-1 space-y-2 pt-4">
-               <button onClick={() => setSection('music')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+               <button onClick={() => setSection('music')} className="w-full bg-[#0a0a0a] border border-white/10 text-gray-300 py-3 text-xs font-medium tracking-widest hover:bg-[#00ff41]/10 hover:text-[#00ff41] hover:border-[#00ff41]/30 transition-all flex items-center justify-center gap-2 rounded">
                    <Disc size={14}/> DISCOGRAPHY
                </button>
-               <button onClick={() => setSection('tour')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+               <button onClick={() => setSection('tour')} className="w-full bg-[#0a0a0a] border border-white/10 text-gray-300 py-3 text-xs font-medium tracking-widest hover:bg-[#00ff41]/10 hover:text-[#00ff41] hover:border-[#00ff41]/30 transition-all flex items-center justify-center gap-2 rounded">
                    <Calendar size={14}/> TOUR DATES
                </button>
-               <button onClick={() => setSection('news')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+               <button onClick={() => setSection('news')} className="w-full bg-[#0a0a0a] border border-white/10 text-gray-300 py-3 text-xs font-medium tracking-widest hover:bg-[#00ff41]/10 hover:text-[#00ff41] hover:border-[#00ff41]/30 transition-all flex items-center justify-center gap-2 rounded">
                    <Newspaper size={14}/> NEWS
                </button>
-               <button onClick={() => window.open('https://www.youtube.com/results?search_query=90s+hip+hop', '_blank')} className="w-full bg-[#1a1a1a] border border-[#333] text-gray-300 py-3 text-xs font-bold tracking-widest hover:bg-[#00ff41] hover:text-black hover:border-[#00ff41] transition-all flex items-center justify-center gap-2">
+               <button onClick={() => window.open('https://www.youtube.com/results?search_query=90s+hip+hop', '_blank')} className="w-full bg-[#0a0a0a] border border-white/10 text-gray-300 py-3 text-xs font-medium tracking-widest hover:bg-[#00ff41]/10 hover:text-[#00ff41] hover:border-[#00ff41]/30 transition-all flex items-center justify-center gap-2 rounded">
                    <Video size={14}/> VIDEOS
                </button>
              </div>
 
-             <div className="hidden md:block border-t border-[#333] pt-4 mt-4">
+             <div className="hidden md:block border-t border-white/10 pt-4 mt-4">
                <p className="text-[10px] text-gray-500 font-mono mb-2">MANAGEMENT:</p>
-               <div className="text-xs text-white font-bold">JARI MONTEZ (Brother/Manager)</div>
+               <div className="text-xs text-white font-medium">JARI MONTEZ (Brother/Manager)</div>
                <div className="text-xs text-gray-400">jari@livewire-ent.com</div>
              </div>
 
              {/* Admin Login Section */}
-             <div className="hidden md:block border-t border-[#333] pt-4 mt-4">
+             <div className="hidden md:block border-t border-white/10 pt-4 mt-4">
                <button 
                  onClick={() => setIsAdmin(!isAdmin)}
-                 className={`w-full py-2 text-[10px] font-bold tracking-widest uppercase border transition-all ${
-                   isAdmin ? 'bg-[#00ff41] text-black border-[#00ff41]' : 'border-[#333] text-gray-600 hover:border-gray-400'
+                 className={`w-full py-2 text-[10px] font-medium tracking-widest uppercase border transition-all rounded ${
+                   isAdmin ? 'bg-[#00ff41] text-black border-[#00ff41]' : 'border-white/10 text-gray-600 hover:border-[#00ff41]/30 hover:text-[#00ff41]'
                  }`}
                >
                  {isAdmin ? 'ADMIN MODE: ON' : 'GALLERY ADMIN'}
@@ -1218,44 +1697,49 @@ const Bio = ({ setSection, user = null }) => {
         </div>
 
         {/* Right Content: Bio Text & Stats */}
-        <div className="flex-1 bg-[#0a0a0a] flex flex-col relative overflow-hidden min-h-0">
-           {/* Header */}
-           <div className="h-10 md:h-16 bg-[#00ff41] text-black px-3 md:p-4 flex justify-between items-center shrink-0">
-             <h1 className="text-lg md:text-4xl font-black tracking-tighter">
-               {viewMode === 'bio' ? 'OFFICIAL PROFILE' : viewMode === 'memory' ? 'MEMORY LANE' : 'THE STORY'}
-             </h1>
+        <div className="flex-1 bg-black flex flex-col relative overflow-hidden min-h-0">
+           {/* Header - Glossy Professional Style */}
+           <div className="bg-[#050505] border-b border-[#00ff41]/20 px-4 md:px-6 py-4 flex justify-between items-center shrink-0">
+             <div>
+               <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-[#00ff41]/60 mb-1">
+                 {viewMode === 'bio' ? 'Official Profile' : viewMode === 'memory' ? 'Photo Archives' : 'Alternative Reality Experience'}
+               </p>
+               <h1 className="text-2xl md:text-4xl font-thin text-[#00ff41] tracking-tighter drop-shadow-[0_0_8px_rgba(0,255,65,0.5)]">
+                 {viewMode === 'bio' ? 'WHIP MONTEZ' : viewMode === 'memory' ? 'MEMORY LANE' : 'THE STORY'}
+               </h1>
+             </div>
              <div className="flex items-center gap-1">
-               {/* Toggle Buttons */}
+               {/* Toggle Buttons - Refined Style */}
                <button
                  onClick={() => setViewMode('bio')}
-                 className={`px-2 md:px-4 py-2 md:py-3 text-[10px] md:text-sm font-black tracking-wider border-2 transition-all ${
+                 className={`px-3 md:px-4 py-2 text-[10px] md:text-xs font-medium tracking-wider border transition-all rounded ${
                    viewMode === 'bio' 
-                     ? 'bg-black text-[#00ff41] border-[#00ff41] shadow-[0_0_10px_rgba(0,255,65,0.5)]' 
-                     : 'bg-transparent text-black border-black hover:bg-black/10'
+                     ? 'bg-[#00ff41]/10 text-[#00ff41] border-[#00ff41]/40' 
+                     : 'bg-transparent text-white/50 border-white/10 hover:border-white/30 hover:text-white/70'
                  }`}
                >
                  BIO
                </button>
                <button
                  onClick={() => setViewMode('story')}
-                 className={`px-2 md:px-4 py-2 md:py-3 text-[10px] md:text-sm font-black tracking-wider border-2 transition-all ${
+                 className={`px-3 md:px-4 py-2 text-[10px] md:text-xs font-medium tracking-wider border transition-all rounded flex items-center gap-1 ${
                    viewMode === 'story' 
-                     ? 'bg-black text-[#00ff41] border-[#00ff41] shadow-[0_0_10px_rgba(0,255,65,0.5)]' 
-                     : 'bg-transparent text-black border-black hover:bg-black/10'
+                     ? 'bg-[#00ff41]/10 text-[#00ff41] border-[#00ff41]/40' 
+                     : 'bg-transparent text-white/50 border-white/10 hover:border-white/30 hover:text-white/70'
                  }`}
                >
-                 <ShieldAlert size={14} className="inline mr-1" />
+                 <ShieldAlert size={12} />
                  STORY
                </button>
                <button
                  onClick={() => setViewMode('memory')}
-                 className={`px-2 md:px-4 py-2 md:py-3 text-[10px] md:text-sm font-black tracking-wider border-2 transition-all ${
+                 className={`px-3 md:px-4 py-2 text-[10px] md:text-xs font-medium tracking-wider border transition-all rounded flex items-center gap-1 ${
                    viewMode === 'memory' 
-                     ? 'bg-black text-[#00ff41] border-[#00ff41] shadow-[0_0_10px_rgba(0,255,65,0.5)]' 
-                     : 'bg-transparent text-black border-black hover:bg-black/10'
+                     ? 'bg-[#00ff41]/10 text-[#00ff41] border-[#00ff41]/40' 
+                     : 'bg-transparent text-white/50 border-white/10 hover:border-white/30 hover:text-white/70'
                  }`}
                >
-                 <Camera size={14} className="inline mr-1" />
+                 <Camera size={12} />
                  MEMORY
                </button>
              </div>
@@ -1270,14 +1754,14 @@ const Bio = ({ setSection, user = null }) => {
                    {/* Hero Section */}
                    <div className="text-center space-y-6 mb-12">
                      <div className="inline-block">
-                       <div className="text-[#00ff41]/70 text-xs font-mono tracking-[0.2em] md:tracking-[0.6em] uppercase mb-4 animate-pulse">
+                       <div className="text-[#00ff41]/60 text-xs font-mono tracking-[0.2em] md:tracking-[0.5em] uppercase mb-4">
                          Alternative Reality Experience
                        </div>
-                       <h1 className="text-4xl md:text-6xl font-thin text-[#00ff41] tracking-tighter drop-shadow-[0_0_10px_rgba(0,255,65,0.8)] mb-6">
+                       <h1 className="text-4xl md:text-6xl font-thin text-[#00ff41] tracking-tighter drop-shadow-[0_0_10px_rgba(0,255,65,0.6)] mb-6">
                          WHIP MONTEZ
                        </h1>
-                       <div className="h-[2px] w-32 bg-[#00ff41] shadow-[0_0_20px_#00ff41] mx-auto mb-4"></div>
-                       <p className="text-white/60 text-sm tracking-[0.2em] md:tracking-[0.4em] uppercase">
+                       <div className="h-[1px] w-32 bg-[#00ff41]/50 mx-auto mb-4"></div>
+                       <p className="text-white/50 text-sm tracking-[0.2em] md:tracking-[0.3em] uppercase">
                          The Restored Experience
                        </p>
                      </div>
@@ -1286,65 +1770,65 @@ const Bio = ({ setSection, user = null }) => {
                    {/* The Full Story */}
                    <div className="prose prose-invert max-w-none space-y-8 text-gray-300 leading-relaxed">
                      {/* Introduction */}
-                     <div className="bg-gradient-to-r from-[#00ff41]/10 to-transparent border-l-4 border-[#00ff41] p-6">
-                       <h2 className="text-2xl md:text-3xl font-black text-white mb-4 tracking-tight">
+                     <div className="bg-[#0a0a0a] border-l-2 border-[#00ff41]/40 p-6 rounded-r">
+                       <h2 className="text-xl md:text-2xl font-light text-white mb-4 tracking-tight">
                          WHAT IS THIS?
                        </h2>
-                       <p className="text-base md:text-lg font-mono leading-relaxed">
+                       <p className="text-sm md:text-base font-mono leading-relaxed text-gray-400">
                          Welcome to the <strong className="text-[#00ff41]">WHIP MONTEZ: Restored OS</strong>—an Alternative Reality Experience (ARE) that resurrects a lost moment in hip-hop history. This isn't just a website. It's a digital time capsule, a reconstructed operating system from 2000-2004, built to honor an artist who never got her moment in the spotlight.
                        </p>
                      </div>
 
                      {/* The Artist's Story */}
                      <div>
-                       <h3 className="text-xl md:text-2xl font-black text-[#00ff41] mb-4 uppercase tracking-wide border-b border-[#333] pb-2">
+                       <h3 className="text-lg md:text-xl font-light text-white mb-4 uppercase tracking-wide border-b border-white/10 pb-2">
                          THE ARTIST WHO TIME FORGOT
                        </h3>
-                       <p className="text-sm md:text-base">
+                       <p className="text-sm md:text-base text-gray-400">
                          <strong className="text-white">Whip Montez</strong> was real. Born Wanda Altagracia Almonte in Brooklyn's Red Hook Housing Projects, she was a Dominican-American MC who was on the verge of breaking through in the early 2000s. She collaborated with legends like <strong className="text-white">Erick Sermon</strong> and <strong className="text-white">Talib Kweli</strong>. She performed alongside <strong className="text-white">Mobb Deep</strong> and <strong className="text-white">Slum Village</strong>. She had the talent, the connections, and the drive.
                        </p>
-                       <p className="text-sm md:text-base mt-4">
+                       <p className="text-sm md:text-base mt-4 text-gray-400">
                          But her debut album, <em className="text-white">"Can't Nobody Whip Montez,"</em> never dropped. The industry moved on. Digital distribution was in its infancy. Independent artists without major label backing often disappeared without a trace. Whip Montez became one of hip-hop's countless "what ifs"—a brilliant artist whose music was never properly archived, celebrated, or remembered.
                        </p>
-                       <p className="text-sm md:text-base mt-4 italic text-gray-400">
+                       <p className="text-sm md:text-base mt-4 italic text-gray-500">
                          Until now.
                        </p>
                      </div>
 
                      {/* The Vision */}
-                     <div className="bg-[#0a0a0a] border border-[#333] p-6 rounded">
-                       <h3 className="text-xl md:text-2xl font-black text-[#00ff41] mb-4 uppercase tracking-wide">
+                     <div className="bg-[#0a0a0a] border border-white/10 p-6 rounded">
+                       <h3 className="text-lg md:text-xl font-light text-white mb-4 uppercase tracking-wide">
                          THE VISION: RESTORING WHAT WAS LOST
                        </h3>
-                       <p className="text-sm md:text-base">
+                       <p className="text-sm md:text-base text-gray-400">
                          This project was created by <strong className="text-white">Jari Montez</strong>, Whip's brother and former manager. After 20+ years, he's reconstructing the digital experience that never existed—the official website, the streaming presence, the interactive fan hub that Whip deserved but never had.
                        </p>
-                       <p className="text-sm md:text-base mt-4">
+                       <p className="text-sm md:text-base mt-4 text-gray-400">
                          Using cutting-edge AI technology and modern web development, we've built an <strong className="text-[#00ff41]">Alternative Reality Operating System</strong> that simulates what Whip's career might have looked like if the timing had been different. It's part memorial, part what-if scenario, part interactive art project.
                        </p>
                      </div>
 
                      {/* Why This Matters */}
                      <div>
-                       <h3 className="text-xl md:text-2xl font-black text-[#00ff41] mb-4 uppercase tracking-wide border-b border-[#333] pb-2">
+                       <h3 className="text-lg md:text-xl font-light text-white mb-4 uppercase tracking-wide border-b border-white/10 pb-2">
                          WHY THIS MATTERS
                        </h3>
                        <div className="grid md:grid-cols-2 gap-6">
                          <div className="space-y-3">
                            <div className="flex items-start gap-3">
-                             <div className="w-2 h-2 bg-[#00ff41] rounded-full mt-2 shrink-0"></div>
+                             <div className="w-1.5 h-1.5 bg-[#00ff41]/60 rounded-full mt-2 shrink-0"></div>
                              <div>
-                               <strong className="text-white block mb-1">Preserving Lost Voices</strong>
-                               <p className="text-xs md:text-sm text-gray-400">
+                               <strong className="text-white font-medium block mb-1">Preserving Lost Voices</strong>
+                               <p className="text-xs md:text-sm text-gray-500">
                                  Countless talented artists from the pre-streaming era vanished without proper documentation. This project honors them all.
                                </p>
                              </div>
                            </div>
                            <div className="flex items-start gap-3">
-                             <div className="w-2 h-2 bg-[#00ff41] rounded-full mt-2 shrink-0"></div>
+                             <div className="w-1.5 h-1.5 bg-[#00ff41]/60 rounded-full mt-2 shrink-0"></div>
                              <div>
-                               <strong className="text-white block mb-1">Female Representation</strong>
-                               <p className="text-xs md:text-sm text-gray-400">
+                               <strong className="text-white font-medium block mb-1">Female Representation</strong>
+                               <p className="text-xs md:text-sm text-gray-500">
                                  The early 2000s hip-hop scene was overwhelmingly male. Whip fought for her place and deserves to be remembered.
                                </p>
                              </div>
@@ -1352,19 +1836,19 @@ const Bio = ({ setSection, user = null }) => {
                          </div>
                          <div className="space-y-3">
                            <div className="flex items-start gap-3">
-                             <div className="w-2 h-2 bg-[#00ff41] rounded-full mt-2 shrink-0"></div>
+                             <div className="w-1.5 h-1.5 bg-[#00ff41]/60 rounded-full mt-2 shrink-0"></div>
                              <div>
-                               <strong className="text-white block mb-1">Tech Meets Art</strong>
-                               <p className="text-xs md:text-sm text-gray-400">
+                               <strong className="text-white font-medium block mb-1">Tech Meets Art</strong>
+                               <p className="text-xs md:text-sm text-gray-500">
                                  This experiment shows how AI and modern tools can resurrect and reimagine lost cultural moments.
                                </p>
                              </div>
                            </div>
                            <div className="flex items-start gap-3">
-                             <div className="w-2 h-2 bg-[#00ff41] rounded-full mt-2 shrink-0"></div>
+                             <div className="w-1.5 h-1.5 bg-[#00ff41]/60 rounded-full mt-2 shrink-0"></div>
                              <div>
-                               <strong className="text-white block mb-1">Family Legacy</strong>
-                               <p className="text-xs md:text-sm text-gray-400">
+                               <strong className="text-white font-medium block mb-1">Family Legacy</strong>
+                               <p className="text-xs md:text-sm text-gray-500">
                                  A brother's love letter to his sister—ensuring her story doesn't end in obscurity.
                                </p>
                              </div>
@@ -1374,84 +1858,84 @@ const Bio = ({ setSection, user = null }) => {
                      </div>
 
                      {/* The Features */}
-                     <div className="bg-gradient-to-b from-[#0a0a0a] to-black border-t-4 border-b-4 border-[#00ff41] p-6 my-8">
-                       <h3 className="text-xl md:text-2xl font-black text-white mb-6 uppercase tracking-wide text-center">
+                     <div className="bg-[#050505] border border-[#00ff41]/20 p-6 my-8 rounded">
+                       <h3 className="text-lg md:text-xl font-light text-white mb-6 uppercase tracking-wide text-center">
                          EXPLORE THE RESTORED OS
                        </h3>
                        <div className="grid md:grid-cols-3 gap-4">
-                         <div className="bg-black/50 border border-[#333] p-4 hover:border-[#00ff41] transition-all group">
-                           <div className="text-[#00ff41] mb-2"><Sparkles size={24} /></div>
-                           <h4 className="text-white font-bold mb-2 group-hover:text-[#00ff41] transition-colors">AI GHOSTWRITER</h4>
-                           <p className="text-xs text-gray-400">Generate custom verses in Whip's style using advanced AI trained on her lyrical patterns.</p>
+                         <div className="bg-black border border-white/10 p-4 hover:border-[#00ff41]/30 transition-all group rounded">
+                           <div className="text-[#00ff41]/70 mb-2"><Sparkles size={24} /></div>
+                           <h4 className="text-white font-medium mb-2 group-hover:text-[#00ff41] transition-colors">AI GHOSTWRITER</h4>
+                           <p className="text-xs text-gray-500">Generate custom verses in Whip's style using advanced AI trained on her lyrical patterns.</p>
                          </div>
-                         <div className="bg-black/50 border border-[#333] p-4 hover:border-cyan-500 transition-all group">
-                           <div className="text-cyan-500 mb-2"><MessageSquare size={24} /></div>
-                           <h4 className="text-white font-bold mb-2 group-hover:text-cyan-500 transition-colors">SIDEKICK CIPHER</h4>
-                           <p className="text-xs text-gray-400">Chat with an AI recreation of Whip's personality and perspective on hip-hop.</p>
+                         <div className="bg-black border border-white/10 p-4 hover:border-cyan-500/30 transition-all group rounded">
+                           <div className="text-cyan-500/70 mb-2"><MessageSquare size={24} /></div>
+                           <h4 className="text-white font-medium mb-2 group-hover:text-cyan-500 transition-colors">SIDEKICK CIPHER</h4>
+                           <p className="text-xs text-gray-500">Chat with an AI recreation of Whip's personality and perspective on hip-hop.</p>
                          </div>
-                         <div className="bg-black/50 border border-[#333] p-4 hover:border-pink-500 transition-all group">
-                           <div className="text-pink-500 mb-2"><Mic size={24} /></div>
-                           <h4 className="text-white font-bold mb-2 group-hover:text-pink-500 transition-colors">RAP BATTLE</h4>
-                           <p className="text-xs text-gray-400">Go bar-for-bar with an AI opponent in real-time freestyle battles.</p>
+                         <div className="bg-black border border-white/10 p-4 hover:border-pink-500/30 transition-all group rounded">
+                           <div className="text-pink-500/70 mb-2"><Mic size={24} /></div>
+                           <h4 className="text-white font-medium mb-2 group-hover:text-pink-500 transition-colors">RAP BATTLE</h4>
+                           <p className="text-xs text-gray-500">Go bar-for-bar with an AI opponent in real-time freestyle battles.</p>
                          </div>
-                         <div className="bg-black/50 border border-[#333] p-4 hover:border-purple-500 transition-all group">
-                           <div className="text-purple-500 mb-2"><User size={24} /></div>
-                           <h4 className="text-white font-bold mb-2 group-hover:text-purple-500 transition-colors">A&R OFFICE</h4>
-                           <p className="text-xs text-gray-400">Get career advice, release strategies, and industry insights from AI.</p>
+                         <div className="bg-black border border-white/10 p-4 hover:border-purple-500/30 transition-all group rounded">
+                           <div className="text-purple-500/70 mb-2"><User size={24} /></div>
+                           <h4 className="text-white font-medium mb-2 group-hover:text-purple-500 transition-colors">A&R OFFICE</h4>
+                           <p className="text-xs text-gray-500">Get career advice, release strategies, and industry insights from AI.</p>
                          </div>
-                         <div className="bg-black/50 border border-[#333] p-4 hover:border-yellow-500 transition-all group">
-                           <div className="text-yellow-500 mb-2"><Disc size={24} /></div>
-                           <h4 className="text-white font-bold mb-2 group-hover:text-yellow-500 transition-colors">CRATE DIGGER</h4>
-                           <p className="text-xs text-gray-400">Discover obscure samples and production techniques from the golden era.</p>
+                         <div className="bg-black border border-white/10 p-4 hover:border-yellow-500/30 transition-all group rounded">
+                           <div className="text-yellow-500/70 mb-2"><Disc size={24} /></div>
+                           <h4 className="text-white font-medium mb-2 group-hover:text-yellow-500 transition-colors">CRATE DIGGER</h4>
+                           <p className="text-xs text-gray-500">Discover obscure samples and production techniques from the golden era.</p>
                          </div>
-                         <div className="bg-black/50 border border-[#333] p-4 hover:border-red-500 transition-all group">
-                           <div className="text-red-500 mb-2"><Video size={24} /></div>
-                           <h4 className="text-white font-bold mb-2 group-hover:text-red-500 transition-colors">VIRAL VIDEO AI</h4>
-                           <p className="text-xs text-gray-400">Generate music video concepts and promotional content ideas.</p>
+                         <div className="bg-black border border-white/10 p-4 hover:border-red-500/30 transition-all group rounded">
+                           <div className="text-red-500/70 mb-2"><Video size={24} /></div>
+                           <h4 className="text-white font-medium mb-2 group-hover:text-red-500 transition-colors">VIRAL VIDEO AI</h4>
+                           <p className="text-xs text-gray-500">Generate music video concepts and promotional content ideas.</p>
                          </div>
                        </div>
                      </div>
 
                      {/* Additional Features */}
                      <div>
-                       <h3 className="text-xl md:text-2xl font-black text-[#00ff41] mb-4 uppercase tracking-wide border-b border-[#333] pb-2">
+                       <h3 className="text-lg md:text-xl font-light text-white mb-4 uppercase tracking-wide border-b border-white/10 pb-2">
                          PLUS: AUTHENTIC 2000s EXPERIENCE
                        </h3>
                        <div className="space-y-4">
-                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-[#00ff41] p-4">
-                           <Radio className="text-[#00ff41] shrink-0" size={20} />
+                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-[#00ff41]/30 p-4 rounded-r">
+                           <Radio className="text-[#00ff41]/70 shrink-0" size={20} />
                            <div>
-                             <strong className="text-white block mb-1">Lost Tapes Audio Player</strong>
-                             <p className="text-xs md:text-sm text-gray-400">Stream Whip's unreleased tracks with a retro Flash-style music player interface.</p>
+                             <strong className="text-white font-medium block mb-1">Lost Tapes Audio Player</strong>
+                             <p className="text-xs md:text-sm text-gray-500">Stream Whip's unreleased tracks with a retro Flash-style music player interface.</p>
                            </div>
                          </div>
-                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-cyan-500 p-4">
-                           <Globe className="text-cyan-500 shrink-0" size={20} />
+                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-cyan-500/30 p-4 rounded-r">
+                           <Globe className="text-cyan-500/70 shrink-0" size={20} />
                            <div>
-                             <strong className="text-white block mb-1">Live Hip-Hop News Feed</strong>
-                             <p className="text-xs md:text-sm text-gray-400">Real-time entertainment news with trending social media posts from X, Reddit, Instagram.</p>
+                             <strong className="text-white font-medium block mb-1">Live Hip-Hop News Feed</strong>
+                             <p className="text-xs md:text-sm text-gray-500">Real-time entertainment news with trending social media posts from X, Reddit, Instagram.</p>
                            </div>
                          </div>
-                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-purple-500 p-4">
-                           <ShoppingBag className="text-purple-500 shrink-0" size={20} />
+                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-purple-500/30 p-4 rounded-r">
+                           <ShoppingBag className="text-purple-500/70 shrink-0" size={20} />
                            <div>
-                             <strong className="text-white block mb-1">Livewire Merch Store</strong>
-                             <p className="text-xs md:text-sm text-gray-400">Browse vintage-style merchandise with Y2K aesthetic and secure checkout.</p>
+                             <strong className="text-white font-medium block mb-1">Livewire Merch Store</strong>
+                             <p className="text-xs md:text-sm text-gray-500">Browse vintage-style merchandise with Y2K aesthetic and secure checkout.</p>
                            </div>
                          </div>
-                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-pink-500 p-4">
-                           <Camera className="text-pink-500 shrink-0" size={20} />
+                         <div className="flex items-start gap-4 bg-[#0a0a0a] border-l-2 border-pink-500/30 p-4 rounded-r">
+                           <Camera className="text-pink-500/70 shrink-0" size={20} />
                            <div>
-                             <strong className="text-white block mb-1">Memory Lane Gallery</strong>
-                             <p className="text-xs md:text-sm text-gray-400">Archival photos from Red Hook, studio sessions, and live performances.</p>
+                             <strong className="text-white font-medium block mb-1">Memory Lane Gallery</strong>
+                             <p className="text-xs md:text-sm text-gray-500">Archival photos from Red Hook, studio sessions, and live performances.</p>
                            </div>
                          </div>
                        </div>
                      </div>
 
                      {/* The Tech */}
-                     <div className="bg-[#0a0a0a] border border-[#333] p-6 rounded">
-                       <h3 className="text-xl md:text-2xl font-black text-[#00ff41] mb-4 uppercase tracking-wide">
+                     <div className="bg-[#0a0a0a] border border-white/10 p-6 rounded">
+                       <h3 className="text-lg md:text-xl font-light text-white mb-4 uppercase tracking-wide">
                          HOW IT WAS BUILT
                        </h3>
                        <p className="text-sm md:text-base mb-4">
@@ -1523,11 +2007,11 @@ const Bio = ({ setSection, user = null }) => {
                      </div>
 
                      {/* The Disclaimer */}
-                     <div className="border-t-2 border-b-2 border-[#00ff41] bg-gradient-to-r from-[#00ff41]/5 to-transparent p-6 my-8">
+                     <div className="border border-[#00ff41]/20 bg-[#00ff41]/5 p-6 my-8 rounded">
                        <div className="flex items-start gap-4">
-                         <ShieldAlert className="text-[#00ff41] shrink-0" size={32} />
+                         <ShieldAlert className="text-[#00ff41]/60 shrink-0" size={28} />
                          <div>
-                           <h3 className="text-lg md:text-xl font-black text-white mb-3 uppercase">
+                           <h3 className="text-base md:text-lg font-medium text-white mb-3 uppercase">
                              IMPORTANT: THIS IS AN ALTERNATIVE REALITY
                            </h3>
                            <p className="text-sm md:text-base text-gray-300 leading-relaxed">
@@ -1542,13 +2026,13 @@ const Bio = ({ setSection, user = null }) => {
 
                      {/* Closing */}
                      <div className="text-center space-y-4 pt-8">
-                       <div className="h-[2px] w-32 bg-[#00ff41] shadow-[0_0_20px_#00ff41] mx-auto mb-6"></div>
-                       <p className="text-base md:text-lg font-mono text-white/80 italic">
+                       <div className="h-[1px] w-32 bg-[#00ff41]/40 mx-auto mb-6"></div>
+                       <p className="text-base md:text-lg font-mono text-white/60 italic">
                          "This is for every artist who never got their shot.<br/>
                          For every voice that was silenced too soon.<br/>
                          For Whip Montez, and all the Lost Tapes."
                        </p>
-                       <p className="text-sm text-[#00ff41] font-mono tracking-wider">
+                       <p className="text-sm text-[#00ff41]/70 font-mono tracking-wider">
                          — JARI MONTEZ, 2025
                        </p>
                        <div className="pt-6">
@@ -1563,26 +2047,29 @@ const Bio = ({ setSection, user = null }) => {
              ) : viewMode === 'bio' ? (
                // BIO CONTENT
                <>
-                 {/* Bio Header - Full Width */}
-                 <div className="bg-black border-t-4 border-b-4 border-[#00ff41] p-5 md:p-6 mb-8">
-                   <h2 className="text-2xl md:text-4xl font-black text-[#00ff41] mb-2 uppercase tracking-tight">
-                     OFFICIAL PROFILE
+                 {/* Bio Header - Glossy Style */}
+                 <div className="bg-[#050505] border-b border-[#00ff41]/20 px-5 md:px-6 py-5 mb-8">
+                   <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-[#00ff41]/50 mb-2">
+                     Official Profile
+                   </p>
+                   <h2 className="text-2xl md:text-3xl font-thin text-white tracking-tight uppercase mb-2">
+                     Artist Biography
                    </h2>
-                   <p className="text-gray-400 text-xs md:text-sm font-mono">
-                     Artist Bio • Stats • Career Highlights • Featured Photos
+                   <p className="text-gray-500 text-xs md:text-sm font-mono">
+                     Stats • Career Highlights • Featured Photos
                    </p>
                  </div>
 
                <div className="max-w-2xl mx-auto space-y-4 md:space-y-8 px-3 md:px-8">
                  {/* Artist Statement */}
-                 <blockquote className="border-l-4 border-[#00ff41] pl-6 py-2">
-                   <p className="text-lg md:text-xl font-mono text-white leading-relaxed">
+                 <blockquote className="border-l-2 border-[#00ff41]/30 pl-6 py-2">
+                   <p className="text-lg md:text-xl font-mono text-white/80 leading-relaxed">
                       "I’ve paid my dues… I’ve developed my skills… I am ready."
                    </p>
                  </blockquote>
 
                  {/* Stats Grid */}
-                 <div className="grid grid-cols-2 gap-3 md:gap-4 border-y border-[#333] py-4 md:py-6 my-4 md:my-6">
+                 <div className="grid grid-cols-2 gap-3 md:gap-4 border-y border-white/10 py-4 md:py-6 my-4 md:my-6">
                    <div>
                       <div className="text-[9px] md:text-[10px] text-gray-500 font-mono uppercase">Name</div>
                       <div className="text-white font-mono text-xs md:text-base">Wanda Altagracia Almonte</div>
@@ -1623,7 +2110,7 @@ const Bio = ({ setSection, user = null }) => {
                       With a good number of showcases and college shows, she has opened up for notable artists like 112, Slum Village, and the Infamous Mobb Deep to name a few. This has definitely helped her expand her fan base and create a buzz for her. Last year, WHIP had several overseas performances, in particular, the Dominican Republic, Coral Hamaca Resort, where she blessed over 2,000 screaming fans. "Those shows were crazy, because they really appreciate artist that make trips to their country. In DR, they held me down like I was in BK."
                    </p>
 
-                   <h3 className="text-white text-base md:text-lg font-black uppercase tracking-wider border-b border-[#00ff41] pb-2 mb-4 mt-6">Breaking Barriers: Female Dominance in the Game</h3>
+                   <h3 className="text-white text-base md:text-lg font-light uppercase tracking-wide border-b border-white/10 pb-2 mb-4 mt-6">Breaking Barriers: Female Dominance in the Game</h3>
                    
                    <p>
                       In an era dominated by male voices, Whip Montez was carving out her own lane in hip-hop with an unapologetic confidence that couldn't be ignored. At a time when female MCs were expected to choose between being "hard" or "commercial," Whip refused to be boxed in. She brought raw lyricism, street credibility, and genuine storytelling to every track—proving that a woman from Red Hook could hold her own on any stage or cipher.
@@ -1637,7 +2124,7 @@ const Bio = ({ setSection, user = null }) => {
                       The early 2000s hip-hop scene was notoriously challenging for female artists, but Whip Montez thrived in that environment. Her performances alongside industry heavyweights like Mobb Deep and Slum Village weren't novelty acts—she earned those spots through undeniable talent and relentless work ethic. Crowds didn't just tolerate a female opening act; they became fans, recognizing that her energy and skill matched anyone in the game.
                    </p>
 
-                   <h3 className="text-white text-base md:text-lg font-black uppercase tracking-wider border-b border-[#00ff41] pb-2 mb-4 mt-6">The Brother Behind The Vision</h3>
+                   <h3 className="text-white text-base md:text-lg font-light uppercase tracking-wide border-b border-white/10 pb-2 mb-4 mt-6">The Brother Behind The Vision</h3>
                    
                    <p>
                       Behind every great artist is someone who believed in them first. For Whip Montez, that person was her brother and manager, <strong className="text-white">Jari Montez</strong>. While Whip was perfecting her craft in the booth and on stage, Jari was navigating the complex business of hip-hop—booking shows, negotiating deals, and ensuring his sister's voice would be heard beyond Red Hook.
@@ -1655,7 +2142,7 @@ const Bio = ({ setSection, user = null }) => {
                       Jari's role went beyond typical management—he was a protector, strategist, and believer. In an industry known for exploitation and broken promises, having family in your corner wasn't just an advantage; it was survival. He paved the way, cleared the obstacles, and ensured that every opportunity was maximized. The Livewire legacy wasn't built by one person—it was a family affair, with Jari and Whip moving as one unit toward a shared vision of success.
                    </p>
 
-                   <h3 className="text-white text-base md:text-lg font-black uppercase tracking-wider border-b border-[#00ff41] pb-2 mb-4 mt-8">Memories: The Journey in Pictures</h3>
+                   <h3 className="text-white text-base md:text-lg font-light uppercase tracking-wide border-b border-white/10 pb-2 mb-4 mt-8">Memories: The Journey in Pictures</h3>
                    
                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 my-6">
                      {featuredPhotos.length > 0 ? (
@@ -1695,28 +2182,31 @@ const Bio = ({ setSection, user = null }) => {
                         : `Photo gallery showcasing studio sessions, live performances, and behind-the-scenes moments from the Livewire era. Check back soon for updates.`}
                    </p>
 
-                   <p className="mt-8 text-[#00ff41] font-bold border-t border-[#333] pt-4">
+                   <p className="mt-8 text-[#00ff41]/70 font-medium border-t border-white/10 pt-4">
                       {'>'} SYSTEM NOTE: Artist Profile Last Updated: DEC 12 2025
                    </p>
                  </div>
                </div>
                </>
              ) : (
-               // MEMORY LANE GALLERY
+               // MEMORY LANE GALLERY - Glossy High-Fidelity Style
                <div className="w-full min-h-full">
-                 <div className="bg-black border-t-4 border-b-4 border-[#00ff41] p-5 md:p-6 mb-8">
-                   <h2 className="text-2xl md:text-4xl font-black text-[#00ff41] mb-2 uppercase tracking-tight">
+                 <div className="bg-[#050505] border-b border-[#00ff41]/20 px-5 md:px-6 py-5 mb-8">
+                   <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-[#00ff41]/50 mb-2">
+                     Photo Archives
+                   </p>
+                   <h2 className="text-2xl md:text-3xl font-thin text-[#00ff41] tracking-tighter drop-shadow-[0_0_8px_rgba(0,255,65,0.5)] mb-2">
                      MEMORY LANE
                    </h2>
-                   <p className="text-gray-400 text-xs md:text-sm font-mono">
+                   <p className="text-gray-500 text-xs md:text-sm font-mono">
                      Studio Sessions • Live Shows • Behind The Scenes • 2000-2004
                    </p>
                  </div>
 
                  {/* Admin Upload (only show if authenticated) */}
                  {isAdmin && (
-                   <div className="bg-[#1a1a1a] border-2 border-[#00ff41] p-4 md:p-6 mb-6 md:mb-8">
-                     <h3 className="text-[#00ff41] font-bold text-base md:text-lg mb-3 flex items-center gap-2 uppercase">
+                   <div className="bg-[#0a0a0a] border border-[#00ff41]/30 p-4 md:p-6 mb-6 md:mb-8 rounded mx-4">
+                     <h3 className="text-[#00ff41]/80 font-medium text-base md:text-lg mb-3 flex items-center gap-2 uppercase">
                        <Upload size={18} />
                        ADMIN: Upload Photo
                      </h3>
@@ -1725,12 +2215,12 @@ const Bio = ({ setSection, user = null }) => {
                          type="file"
                          accept="image/*"
                          onChange={(e) => setUploadFile(e.target.files[0])}
-                         className="flex-1 bg-[#0a0a0a] border border-[#00ff41] text-white px-3 py-2 text-sm font-mono"
+                         className="flex-1 bg-black border border-white/20 text-white px-3 py-2 text-sm font-mono rounded"
                        />
                        <button
                          onClick={handleUpload}
                          disabled={!uploadFile || uploading}
-                         className="bg-[#00ff41] text-black px-6 py-2 font-bold text-sm uppercase disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#00cc33] transition-colors"
+                         className="bg-[#00ff41] text-black px-6 py-2 font-medium text-sm uppercase disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#00cc33] transition-colors rounded"
                        >
                          {uploading ? 'UPLOADING...' : 'UPLOAD'}
                        </button>
@@ -1741,26 +2231,26 @@ const Bio = ({ setSection, user = null }) => {
                          id="featuredCheck"
                          checked={uploadAsFeatured}
                          onChange={(e) => setUploadAsFeatured(e.target.checked)}
-                         className="w-4 h-4 bg-[#0a0a0a] border-[#00ff41]"
+                         className="w-4 h-4 bg-black border-white/20"
                        />
-                       <label htmlFor="featuredCheck" className="text-xs text-gray-300 font-mono cursor-pointer">
+                       <label htmlFor="featuredCheck" className="text-xs text-gray-400 font-mono cursor-pointer">
                          ⭐ Featured (Show in Bio section)
                        </label>
                      </div>
                      {uploadFile && (
-                       <div className="mt-2 text-xs text-gray-300 font-mono">
+                       <div className="mt-2 text-xs text-gray-400 font-mono">
                          Selected: {uploadFile.name}
                        </div>
                      )}
                    </div>
                  )}
 
-                 {/* Photo Grid */}
-                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6">
+                 {/* Photo Grid - Glossy Cards */}
+                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6 px-4">
                    {photos.length > 0 ? (
                      photos.map((photo) => (
-                       <div key={photo.id} className="group relative bg-[#111] border border-[#222] hover:border-[#00ff41]/50 transition-all duration-300 flex flex-col">
-                         <div className="aspect-[3/4] overflow-hidden relative bg-[#050505]">
+                       <div key={photo.id} className="group relative bg-[#0a0a0a] border border-white/10 hover:border-[#00ff41]/30 transition-all duration-300 flex flex-col rounded overflow-hidden" style={{boxShadow: '0 0 20px rgba(0, 0, 0, 0.3)'}}>
+                         <div className="aspect-[3/4] overflow-hidden relative bg-black">
                            <img 
                              src={photo.url} 
                              alt={photo.caption || 'Memory'} 
@@ -1768,13 +2258,13 @@ const Bio = ({ setSection, user = null }) => {
                            />
                            {/* Watermark */}
                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                             <div className="text-white/10 text-2xl md:text-4xl font-black uppercase tracking-widest transform rotate-[-25deg] select-none" style={{textShadow: '0 0 40px rgba(0,0,0,0.5)'}}>
+                             <div className="text-white/5 text-2xl md:text-4xl font-thin uppercase tracking-widest transform rotate-[-25deg] select-none">
                                RED HOOK
                              </div>
                            </div>
                            {/* Featured badge */}
                            {photo.featured && (
-                             <div className="absolute top-2 left-2 bg-[#00ff41] text-black px-2 py-1 text-[9px] font-bold uppercase flex items-center gap-1">
+                             <div className="absolute top-2 left-2 bg-[#00ff41] text-black px-2 py-1 text-[9px] font-medium uppercase flex items-center gap-1 rounded">
                                ⭐ FEATURED
                              </div>
                            )}
@@ -1782,7 +2272,7 @@ const Bio = ({ setSection, user = null }) => {
                            {isAdmin && (
                              <button
                                onClick={() => toggleFeatured(photo.id, photo.featured)}
-                               className="absolute top-2 right-2 bg-black/80 hover:bg-black text-[#00ff41] p-2 text-xs font-bold border border-[#00ff41] opacity-0 group-hover:opacity-100 transition-opacity"
+                               className="absolute top-2 right-2 bg-black/80 hover:bg-black text-[#00ff41] p-2 text-xs font-medium border border-[#00ff41]/30 opacity-0 group-hover:opacity-100 transition-opacity rounded"
                                title={photo.featured ? 'Remove from Bio' : 'Add to Bio'}
                              >
                                {photo.featured ? '⭐' : '☆'}
@@ -1790,19 +2280,19 @@ const Bio = ({ setSection, user = null }) => {
                            )}
                            {/* Caption overlay */}
                            <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 bg-gradient-to-t from-black via-black/80 to-transparent">
-                             <div className="text-[#00ff41] text-xs md:text-sm font-mono font-bold uppercase tracking-wider">
+                             <div className="text-[#00ff41]/80 text-xs md:text-sm font-mono font-medium uppercase tracking-wider">
                                {photo.caption || 'RED HOOK ARCHIVES'}
                              </div>
                              {photo.uploadedAt && (
-                               <div className="text-gray-400 text-[9px] md:text-[10px] font-mono mt-1">
+                               <div className="text-gray-500 text-[9px] md:text-[10px] font-mono mt-1">
                                  {new Date(photo.uploadedAt).toLocaleDateString()}
                                </div>
                              )}
                            </div>
                          </div>
                          {/* Metadata below image */}
-                         <div className="p-2 md:p-3 flex-1 flex flex-col justify-between bg-[#111]">
-                           <div className="text-[10px] md:text-xs text-gray-400 font-mono truncate">
+                         <div className="p-2 md:p-3 flex-1 flex flex-col justify-between bg-[#0a0a0a]">
+                           <div className="text-[10px] md:text-xs text-gray-500 font-mono truncate">
                              {photo.caption || 'Untitled Memory'}
                            </div>
                          </div>
@@ -1811,15 +2301,15 @@ const Bio = ({ setSection, user = null }) => {
                    ) : (
                      // Placeholder grid
                      [...Array(24)].map((_, i) => (
-                       <div key={i} className="group relative bg-[#111] border border-[#222] hover:border-[#00ff41]/30 transition-all duration-300 flex flex-col">
-                         <div className="aspect-[3/4] overflow-hidden relative bg-[#050505]">
+                       <div key={i} className="group relative bg-[#0a0a0a] border border-white/10 hover:border-[#00ff41]/20 transition-all duration-300 flex flex-col rounded overflow-hidden">
+                         <div className="aspect-[3/4] overflow-hidden relative bg-black">
                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                             <Camera size={48} className="mb-3 opacity-20 text-[#00ff41] group-hover:opacity-40 transition-opacity" />
-                             <div className="text-sm md:text-base font-mono font-bold text-gray-600 group-hover:text-gray-500">SLOT {i + 1}</div>
+                             <Camera size={48} className="mb-3 opacity-10 text-[#00ff41] group-hover:opacity-30 transition-opacity" />
+                             <div className="text-sm md:text-base font-mono font-light text-gray-600 group-hover:text-gray-500">SLOT {i + 1}</div>
                              <div className="text-[9px] md:text-xs font-mono opacity-50 mt-1 text-gray-700">Awaiting Upload</div>
                            </div>
                          </div>
-                         <div className="p-2 md:p-3 bg-[#111]">
+                         <div className="p-2 md:p-3 bg-[#0a0a0a]">
                            <div className="text-[10px] text-gray-700 font-mono">Empty Slot</div>
                          </div>
                        </div>
@@ -1855,8 +2345,96 @@ const MusicPlayer = () => {
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [volume, setVolume] = useState(0.8);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState('');
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const audioRef = useRef(null);
   const urlCacheRef = useRef({}); // Cache Firebase Storage URLs
+  const recognitionRef = useRef(null);
+  
+  // Voice recognition setup
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+      
+      recognitionRef.current.onresult = (event) => {
+        const command = event.results[0][0].transcript.toLowerCase();
+        setVoiceStatus(`Heard: "${command}"`);
+        processVoiceCommand(command);
+        setTimeout(() => setVoiceStatus(''), 3000);
+      };
+      
+      recognitionRef.current.onerror = (event) => {
+        setVoiceStatus(`Error: ${event.error}`);
+        setIsListening(false);
+        setTimeout(() => setVoiceStatus(''), 3000);
+      };
+      
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+    
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+    };
+  }, []);
+
+  const processVoiceCommand = (command) => {
+    if (command.includes('play') && !command.includes('pause')) {
+      if (currentTrack) {
+        setIsPlaying(true);
+        setVoiceStatus('▶ Playing...');
+      } else if (albums[0]?.tracks[0]) {
+        setCurrentTrack(albums[0].tracks[0]);
+        setIsPlaying(true);
+        setVoiceStatus('▶ Playing first track...');
+      }
+    } else if (command.includes('pause') || command.includes('stop')) {
+      setIsPlaying(false);
+      setVoiceStatus('⏸ Paused');
+    } else if (command.includes('next') || command.includes('skip')) {
+      handleNext();
+      setVoiceStatus('⏭ Next track');
+    } else if (command.includes('previous') || command.includes('back')) {
+      handlePrevious();
+      setVoiceStatus('⏮ Previous track');
+    } else if (command.includes('volume up') || command.includes('louder')) {
+      const newVol = Math.min(1, volume + 0.2);
+      setVolume(newVol);
+      if (audioRef.current) audioRef.current.volume = newVol;
+      setVoiceStatus(`🔊 Volume: ${Math.round(newVol * 100)}%`);
+    } else if (command.includes('volume down') || command.includes('quieter') || command.includes('softer')) {
+      const newVol = Math.max(0, volume - 0.2);
+      setVolume(newVol);
+      if (audioRef.current) audioRef.current.volume = newVol;
+      setVoiceStatus(`🔉 Volume: ${Math.round(newVol * 100)}%`);
+    } else if (command.includes('mute')) {
+      setVolume(0);
+      if (audioRef.current) audioRef.current.volume = 0;
+      setVoiceStatus('🔇 Muted');
+    } else {
+      setVoiceStatus(`Command not recognized: "${command}"`);
+    }
+  };
+
+  const startVoiceControl = () => {
+    if (recognitionRef.current && !isListening) {
+      setIsListening(true);
+      setVoiceStatus('Listening...');
+      recognitionRef.current.start();
+    }
+  };
   
   const albums = [
     {
@@ -2050,242 +2628,447 @@ const MusicPlayer = () => {
 
   const currentLyrics = getLyricsForAlbum(selectedAlbumId);
 
+  // Format time helper
+  const formatTime = (seconds) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="h-full flex flex-col relative bg-[#0a0a0a] overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
-      {/* Header */}
-      <div className="h-10 md:h-12 border-b border-[#333] bg-[#111] flex items-center px-2 md:px-4 justify-between shrink-0">
-        <div className="flex items-center gap-1 md:gap-2">
-          <Disc size={14} className="md:w-[18px] md:h-[18px] text-[#00ff41]" />
-          <span className="font-bold tracking-widest text-[10px] md:text-sm text-white">
-            <span className="hidden sm:inline">EVIDENCE_LOCKER // </span>AUDIO_ARCHIVE
-          </span>
+    <div className="h-full flex flex-col relative bg-black overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
+      
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <div className="absolute inset-0 z-50 bg-black/95 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-[#050505] border border-[#00ff41]/30 rounded-lg overflow-hidden" style={{boxShadow: '0 0 60px rgba(0,255,65,0.1)'}}>
+            <div className="bg-[#00ff41]/10 border-b border-[#00ff41]/20 px-6 py-4">
+              <h2 className="text-2xl md:text-3xl font-thin text-[#00ff41] tracking-tight" style={{textShadow: '0 0 30px rgba(0,255,65,0.4)'}}>
+                Welcome to the Lost Tapes
+              </h2>
+              <p className="text-[#00ff41]/60 text-xs mt-1 tracking-wider">AUDIO ARCHIVE • RESTORED 2004</p>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <p className="text-gray-400 text-sm leading-relaxed">
+                You've accessed the <span className="text-white">Evidence Locker</span> — a collection of unreleased recordings, basement freestyles, and mixtape cuts that were never meant to see the light of day. Until now.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-black border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 bg-orange-500/10 border border-orange-500/30 rounded flex items-center justify-center">
+                      <Play size={14} className="text-orange-400" />
+                    </div>
+                    <h4 className="text-white font-medium text-sm">Playback Controls</h4>
+                  </div>
+                  <p className="text-gray-500 text-xs leading-relaxed">Click any track to play. Use the deck controls or keyboard shortcuts for navigation.</p>
+                </div>
+                
+                <div className="bg-black border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 bg-purple-500/10 border border-purple-500/30 rounded flex items-center justify-center">
+                      <Mic size={14} className="text-purple-400" />
+                    </div>
+                    <h4 className="text-white font-medium text-sm">Voice Commands</h4>
+                  </div>
+                  <p className="text-gray-500 text-xs leading-relaxed">Say "play", "pause", "next", "previous", "volume up/down" to control hands-free.</p>
+                </div>
+                
+                <div className="bg-black border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 bg-cyan-500/10 border border-cyan-500/30 rounded flex items-center justify-center">
+                      <Disc size={14} className="text-cyan-400" />
+                    </div>
+                    <h4 className="text-white font-medium text-sm">3 Lost Tapes</h4>
+                  </div>
+                  <p className="text-gray-500 text-xs leading-relaxed">Livewire Sessions, Red Hook Diaries, and The Stoop — 15 tracks total from 2001-2004.</p>
+                </div>
+                
+                <div className="bg-black border border-white/10 rounded-lg p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-8 h-8 bg-red-500/10 border border-red-500/30 rounded flex items-center justify-center">
+                      <Video size={14} className="text-red-400" />
+                    </div>
+                    <h4 className="text-white font-medium text-sm">Video Footage</h4>
+                  </div>
+                  <p className="text-gray-500 text-xs leading-relaxed">Some tracks include rare video clips. Look for the video icon next to tracks.</p>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setShowOnboarding(false)}
+                className="w-full bg-[#00ff41]/10 border border-[#00ff41]/30 text-[#00ff41] py-3 text-sm font-medium rounded hover:bg-[#00ff41]/20 hover:border-[#00ff41]/50 transition-all flex items-center justify-center gap-2"
+              >
+                <Headphones size={16} /> Enter the Archive
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="text-[8px] md:text-[10px] font-mono text-gray-500 hidden sm:block">TOTAL_SIZE: 4.2GB</div>
+      )}
+
+      {/* Header - Glossy Style */}
+      <div className="bg-[#050505] border-b border-[#00ff41]/20 shrink-0">
+        <div className="px-4 md:px-6 py-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-orange-400/60 mb-1">Audio Archive</p>
+              <h2 className="text-xl md:text-2xl font-thin text-orange-400 tracking-tight flex items-center gap-3" style={{textShadow: '0 0 20px rgba(249,115,22,0.4)'}}>
+                <Disc size={20} className="opacity-70" /> THE LOST TAPES
+              </h2>
+            </div>
+            <div className="flex items-center gap-3">
+              {/* Lyrics Button */}
+              <button 
+                onClick={() => setShowLyrics(!showLyrics)}
+                className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-medium transition-all ${
+                  showLyrics 
+                    ? 'bg-purple-500/20 border border-purple-500/50 text-purple-400' 
+                    : 'bg-[#0a0a0a] border border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                }`}
+              >
+                <Feather size={14} />
+                Lyrics
+              </button>
+              {/* Voice Control Button */}
+              <button 
+                onClick={startVoiceControl}
+                disabled={!recognitionRef.current || isListening}
+                className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-medium transition-all ${
+                  isListening 
+                    ? 'bg-red-500/20 border border-red-500/50 text-red-400 animate-pulse' 
+                    : 'bg-[#0a0a0a] border border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                }`}
+              >
+                <Mic size={14} />
+                {isListening ? 'Listening...' : 'Voice'}
+              </button>
+              <button 
+                onClick={() => setShowOnboarding(true)}
+                className="bg-[#0a0a0a] border border-white/10 text-gray-400 px-3 py-2 text-xs font-medium flex items-center gap-2 hover:text-white hover:border-white/20 transition-colors rounded"
+              >
+                <HelpCircle size={14}/> Help
+              </button>
+            </div>
+          </div>
+          
+          {/* Voice Status */}
+          {voiceStatus && (
+            <div className="mt-3 bg-[#0a0a0a] border border-orange-500/20 rounded px-3 py-2 text-orange-400 text-xs font-mono">
+              {voiceStatus}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {/* Video Modal */}
         {showVideoModal && (
-          <div className="absolute inset-0 z-50 bg-black/90 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm">
-            <div className="w-full max-w-3xl border-2 border-[#00ff41] bg-black shadow-[0_0_50px_rgba(0,255,65,0.2)] flex flex-col">
-              <div className="h-7 md:h-8 bg-[#00ff41] flex items-center justify-between px-2">
-                <span className="text-black font-bold text-[10px] md:text-xs font-mono">MEDIA_PLAYER_V1.EXE</span>
-                <X size={14} className="md:w-4 md:h-4 text-black cursor-pointer hover:bg-white/20" onClick={() => setShowVideoModal(false)} />
+          <div className="absolute inset-0 z-50 bg-black/95 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm">
+            <div className="w-full max-w-3xl bg-[#050505] border border-white/10 rounded-lg overflow-hidden" style={{boxShadow: '0 0 60px rgba(0,0,0,0.5)'}}>
+              <div className="h-10 bg-[#0a0a0a] border-b border-white/10 flex items-center justify-between px-4">
+                <span className="text-white font-medium text-xs">Video Player — {currentTrack?.title}</span>
+                <button onClick={() => setShowVideoModal(false)} className="text-gray-500 hover:text-white transition-colors">
+                  <X size={16} />
+                </button>
               </div>
-              <div className="aspect-video bg-[#111] relative overflow-hidden flex items-center justify-center">
-                <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+              <div className="aspect-video bg-black relative overflow-hidden flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-[#00ff41] text-3xl md:text-4xl mb-4 animate-pulse"><Play size={48} className="md:w-16 md:h-16"/></div>
-                  <p className="text-gray-500 font-mono text-xs md:text-sm">BUFFERING VIDEO FEED...</p>
-                  <p className="text-gray-700 text-[10px] md:text-xs mt-2">SOURCE: {currentTrack?.title}</p>
+                  <div className="w-16 h-16 bg-orange-500/10 border border-orange-500/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Play size={24} className="text-orange-400 ml-1" />
+                  </div>
+                  <p className="text-gray-500 text-sm">Video footage loading...</p>
+                  <p className="text-gray-600 text-xs mt-2">Source: {currentTrack?.title}</p>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Album List - Hidden on mobile, shown on tablet+ */}
-        <div className="hidden md:flex md:w-1/4 md:min-w-[200px] border-r border-[#333] bg-[#050505] flex-col">
-          <div className="p-2 border-b border-[#333] bg-[#1a1a1a] text-[10px] text-gray-400 font-mono sticky top-0">DIRECTORY_TREE</div>
+        {/* Lyrics Modal */}
+        {showLyrics && (
+          <div className="absolute inset-0 z-50 bg-black/95 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm overflow-y-auto">
+            <div className="w-full max-w-2xl bg-[#050505] border border-purple-500/30 rounded-lg overflow-hidden" style={{boxShadow: '0 0 60px rgba(168,85,247,0.1)'}}>
+              <div className="bg-purple-500/10 border-b border-purple-500/20 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-thin text-purple-400 tracking-tight flex items-center gap-2" style={{textShadow: '0 0 20px rgba(168,85,247,0.4)'}}>
+                    <Feather size={18} /> Lyric Analysis
+                  </h2>
+                  <p className="text-purple-400/60 text-xs mt-1">{activeAlbum.title}</p>
+                </div>
+                <button onClick={() => setShowLyrics(false)} className="text-gray-500 hover:text-white transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                <p className="text-gray-400 text-sm leading-relaxed">
+                  Decoded excerpts and annotations from the <span className="text-purple-400">{activeAlbum.title}</span> sessions. Hover over lines to reveal context and translations.
+                </p>
+                
+                <div className="space-y-4">
+                  {currentLyrics.map((line, i) => (
+                    <div key={i} className="group cursor-pointer bg-black border border-white/5 rounded-lg p-4 hover:border-purple-500/30 transition-all">
+                      <div className="text-white text-sm mb-2 flex items-start gap-3">
+                        <span className="text-purple-400/50 font-mono text-xs mt-0.5">{String(i + 1).padStart(2, '0')}</span>
+                        <span className="italic">"{line.es}"</span>
+                      </div>
+                      <div className="pl-7 space-y-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="text-purple-400/80 text-xs font-medium">{line.en}</div>
+                        <div className="text-gray-600 text-[11px]">{line.note}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="text-center text-gray-600 text-xs pt-4 border-t border-white/5">
+                  Hover over lines to reveal translations and notes
+                </div>
+                
+                <button 
+                  onClick={() => setShowLyrics(false)}
+                  className="w-full bg-purple-500/10 border border-purple-500/30 text-purple-400 py-3 text-sm font-medium rounded hover:bg-purple-500/20 transition-all"
+                >
+                  Close Lyrics
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Album Sidebar */}
+        <div className="hidden lg:flex lg:w-64 border-r border-white/5 bg-[#050505] flex-col">
+          <div className="p-3 border-b border-white/5 bg-black/50">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider">Select Tape</p>
+          </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {albums.map(album => (
               <div 
                 key={album.id}
                 onClick={() => setSelectedAlbumId(album.id)}
-                className={`p-3 cursor-pointer border-l-2 transition-all group ${
-                  selectedAlbumId === album.id ? `bg-[#111] ${album.color.replace('text-', 'border-')} border-l-4` : 'border-transparent hover:bg-[#111] hover:border-gray-600'
+                className={`p-4 cursor-pointer rounded-lg transition-all group ${
+                  selectedAlbumId === album.id 
+                    ? 'bg-[#0a0a0a] border border-white/10' 
+                    : 'border border-transparent hover:bg-[#0a0a0a] hover:border-white/5'
                 }`}
+                style={{ boxShadow: selectedAlbumId === album.id ? `0 0 20px ${album.color.includes('red') ? 'rgba(239,68,68,0.1)' : album.color.includes('cyan') ? 'rgba(34,211,238,0.1)' : 'rgba(0,255,65,0.1)'}` : 'none' }}
               >
-                <div className={`font-bold text-xs md:text-sm mb-1 group-hover:text-white ${selectedAlbumId === album.id ? 'text-white' : 'text-gray-400'}`}>{album.title}</div>
-                <div className="text-[10px] font-mono text-gray-600 group-hover:text-gray-400">{album.date}</div>
+                <div className={`font-medium text-sm mb-1 ${selectedAlbumId === album.id ? 'text-white' : 'text-gray-400 group-hover:text-white'}`}>
+                  {album.title}
+                </div>
+                <div className="text-[10px] text-gray-600">{album.date} • {album.tracks.length} tracks</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Mobile Album Selector - Dropdown on mobile */}
-        <div className="md:hidden border-b border-[#333] bg-[#050505] p-2">
+        {/* Mobile Album Selector */}
+        <div className="lg:hidden border-b border-white/5 bg-[#050505] p-3">
           <select 
             value={selectedAlbumId}
             onChange={(e) => setSelectedAlbumId(e.target.value)}
-            className="w-full bg-[#111] border border-[#333] text-white p-2 text-sm font-mono focus:border-[#00ff41] focus:outline-none"
+            className="w-full bg-black border border-white/10 text-white p-3 text-sm rounded focus:border-orange-500/30 focus:outline-none"
           >
             {albums.map(album => (
-              <option key={album.id} value={album.id}>{album.title}</option>
+              <option key={album.id} value={album.id}>{album.title} ({album.tracks.length} tracks)</option>
             ))}
           </select>
         </div>
 
-        <div className="flex-1 flex flex-col bg-black/80 overflow-hidden">
-          <div className="p-3 md:p-4 border-b border-[#333] bg-[#0a0a0a]">
-            <h2 className={`text-xl md:text-4xl font-black chrome-text mb-1 md:mb-2`}>{activeAlbum.title}</h2>
-            <p className="text-gray-400 font-mono text-[10px] md:text-xs">{activeAlbum.description}</p>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col bg-black overflow-hidden">
+          {/* Album Header */}
+          <div className="p-4 md:p-6 border-b border-white/5 bg-[#050505]">
+            <h2 className={`text-2xl md:text-4xl font-thin tracking-tight mb-2 ${activeAlbum.color}`} style={{textShadow: `0 0 30px ${activeAlbum.color.includes('red') ? 'rgba(239,68,68,0.3)' : activeAlbum.color.includes('cyan') ? 'rgba(34,211,238,0.3)' : 'rgba(0,255,65,0.3)'}`}}>
+              {activeAlbum.title}
+            </h2>
+            <p className="text-gray-500 text-sm">{activeAlbum.description}</p>
           </div>
           
-          <div className="flex-1 overflow-y-auto p-0">
-            {/* Desktop: Table view */}
-            <table className="hidden md:table w-full text-left border-collapse">
-              <thead className="bg-[#111] text-[10px] text-gray-500 font-mono sticky top-0">
-                <tr>
-                  <th className="p-2 border-b border-[#333] w-10">#</th>
-                  <th className="p-2 border-b border-[#333]">TITLE</th>
-                  <th className="p-2 border-b border-[#333] w-24">CREATED</th>
-                  <th className="p-2 border-b border-[#333] text-right w-16">MEDIA</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeAlbum.tracks.map((track, i) => (
-                  <tr 
-                    key={track.id}
-                    className={`group cursor-pointer text-xs md:text-sm font-mono transition-colors ${currentTrack?.id === track.id ? 'bg-[#00ff41]/20 text-[#00ff41]' : 'hover:bg-[#111] text-gray-300'}`}
-                  >
-                    <td className="p-3 border-b border-[#333]/50 text-gray-600 group-hover:text-white" onClick={() => handleTrackClick(track)}>
-                      {currentTrack?.id === track.id && isPlaying ? <div className="animate-pulse text-[#00ff41]">▶</div> : (i + 1).toString().padStart(2, '0')}
-                    </td>
-                    <td className="p-3 border-b border-[#333]/50 font-bold" onClick={() => handleTrackClick(track)}>{track.title}</td>
-                    <td className="p-3 border-b border-[#333]/50 text-gray-600 font-mono text-[10px]">{track.date}</td>
-                    <td className="p-3 border-b border-[#333]/50 text-right">
-                      {track.video && (
-                        <Video 
-                          size={14} 
-                          className="inline text-gray-500 hover:text-[#00ff41] transition-colors"
-                          onClick={(e) => { e.stopPropagation(); setCurrentTrack(track); setShowVideoModal(true); }}
-                        />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Mobile: Card view */}
-            <div className="md:hidden">
-              {activeAlbum.tracks.map((track, i) => (
-                <div
-                  key={track.id}
-                  onClick={() => handleTrackClick(track)}
-                  className={`p-4 border-b border-[#333]/50 cursor-pointer transition-colors ${
-                    currentTrack?.id === track.id ? 'bg-[#00ff41]/20' : 'active:bg-[#111]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`text-sm font-mono ${currentTrack?.id === track.id ? 'text-[#00ff41]' : 'text-gray-600'}`}>
-                      {currentTrack?.id === track.id && isPlaying ? (
-                        <div className="animate-pulse text-[#00ff41] text-base">▶</div>
-                      ) : (
-                        (i + 1).toString().padStart(2, '0')
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className={`font-bold text-sm truncate ${currentTrack?.id === track.id ? 'text-[#00ff41]' : 'text-gray-300'}`}>
-                        {track.title}
+          {/* Track List */}
+          <div className="flex-1 overflow-y-auto">
+            {activeAlbum.tracks.map((track, i) => (
+              <div
+                key={track.id}
+                onClick={() => handleTrackClick(track)}
+                className={`px-4 md:px-6 py-4 border-b border-white/5 cursor-pointer transition-all group ${
+                  currentTrack?.id === track.id 
+                    ? 'bg-orange-500/5 border-l-2 border-l-orange-500' 
+                    : 'hover:bg-white/[0.02] border-l-2 border-l-transparent'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`w-8 text-center font-mono text-sm ${currentTrack?.id === track.id ? 'text-orange-400' : 'text-gray-600 group-hover:text-white'}`}>
+                    {currentTrack?.id === track.id && isPlaying ? (
+                      <div className="flex items-center justify-center gap-0.5">
+                        {[1,2,3].map(bar => (
+                          <div key={bar} className="w-0.5 bg-orange-400 animate-pulse" style={{ height: `${8 + Math.random() * 8}px`, animationDelay: `${bar * 0.1}s` }}></div>
+                        ))}
                       </div>
-                      <div className="text-[10px] font-mono text-gray-600 mt-0.5">{track.date}</div>
+                    ) : (
+                      (i + 1).toString().padStart(2, '0')
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-medium text-sm truncate ${currentTrack?.id === track.id ? 'text-orange-400' : 'text-white'}`}>
+                      {track.title}
                     </div>
+                    <div className="text-[11px] text-gray-600 mt-0.5">{track.duration} • {track.date}</div>
+                  </div>
+                  <div className="flex items-center gap-3">
                     {track.video && (
-                      <Video 
-                        size={16} 
-                        className="text-gray-500 shrink-0"
+                      <button
                         onClick={(e) => { e.stopPropagation(); setCurrentTrack(track); setShowVideoModal(true); }}
-                      />
+                        className="text-gray-600 hover:text-orange-400 transition-colors"
+                      >
+                        <Video size={16} />
+                      </button>
                     )}
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="w-1/3 min-w-[300px] border-l border-[#333] bg-[#080808] flex flex-col hidden md:flex">
-          {/* Alpine-style Deck */}
-          <div className="p-6 bg-[#111] border-b border-[#333]">
-             <div className="bg-[#0f281f] border-2 border-[#333] rounded-sm p-4 shadow-inner relative overflow-hidden h-32 flex flex-col justify-between mb-4">
-                {/* Loading Overlay */}
-                {audioLoading && (
-                  <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 animate-pulse">
-                    <Disc size={32} className="text-emerald-400 animate-spin mb-2" style={{ animationDuration: '1s' }} />
-                    <div className="text-emerald-400 text-xs font-mono tracking-wider">LOADING AUDIO...</div>
-                    <div className="flex gap-1 mt-2">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="w-1 h-1 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }}></div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.1)_50%,rgba(0,0,0,0)_50%)] bg-[length:100%_4px] pointer-events-none"></div>
-                <div className="flex justify-between text-[10px] text-emerald-600/60 font-mono">
-                    <span>SRC: TAPE</span>
-                    <span>VOL: 24</span>
+        {/* Player Sidebar */}
+        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-white/5 bg-[#050505] flex flex-col">
+          {/* Now Playing Display */}
+          <div className="p-5 bg-black border-b border-white/5">
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-4 relative overflow-hidden" style={{boxShadow: '0 0 30px rgba(0,0,0,0.5)'}}>
+              {/* Loading Overlay */}
+              {audioLoading && (
+                <div className="absolute inset-0 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center z-10">
+                  <Loader2 size={24} className="text-orange-400 animate-spin mb-2" />
+                  <div className="text-orange-400 text-xs">Loading track...</div>
                 </div>
-                <div className="font-mono text-emerald-400 text-lg whitespace-nowrap overflow-hidden">
-                    <span className={`block ${isPlaying ? 'animate-marquee' : ''}`}>{currentTrack ? `${currentTrack.title} - WHIP MONTEZ` : "INSERT CASSETTE..."}</span>
+              )}
+              
+              <div className="text-[10px] text-gray-600 uppercase tracking-wider mb-3">Now Playing</div>
+              
+              <div className="font-medium text-white text-sm mb-1 truncate">
+                {currentTrack ? currentTrack.title : 'Select a track'}
+              </div>
+              <div className="text-xs text-gray-500 mb-4">
+                {currentTrack ? 'Whip Montez' : '—'}
+              </div>
+              
+              {/* Visualizer */}
+              <div className="h-12 flex items-end justify-center gap-0.5 mb-4">
+                {[...Array(24)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className="w-1 bg-orange-500/60 rounded-t transition-all duration-100"
+                    style={{ 
+                      height: isPlaying ? `${10 + Math.random() * 90}%` : '4px', 
+                      opacity: 0.3 + Math.random() * 0.7 
+                    }} 
+                  />
+                ))}
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mb-3">
+                <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-orange-500 rounded-full transition-all duration-200"
+                    style={{ width: duration ? `${(currentTime / duration) * 100}%` : '0%' }}
+                  ></div>
                 </div>
-                <div className="w-full flex gap-0.5 items-end justify-center h-10">
-                   {[...Array(32)].map((_, i) => (
-                     <div 
-                        key={i} 
-                        className={`w-1.5 bg-emerald-500/80 ${isPlaying ? 'animate-pulse' : ''}`} 
-                        style={{ 
-                          height: isPlaying ? `${20 + Math.random() * 60}%` : '2px', 
-                          opacity: 0.5 + Math.random() * 0.5,
-                          animationDuration: `${0.2 + Math.random() * 0.5}s`
-                        }} 
-                     />
-                   ))}
+                <div className="flex justify-between text-[10px] text-gray-600 mt-1 font-mono">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
                 </div>
-             </div>
-             
-             <div className="grid grid-cols-4 gap-2">
+              </div>
+
+              {/* Volume Control */}
+              <div className="flex items-center gap-2 mb-4">
                 <button 
-                  onClick={handlePrevious}
-                  onTouchEnd={(e) => { e.preventDefault(); handlePrevious(); }}
-                  className="bg-[#222] h-10 rounded border-b-2 border-black active:border-b-0 active:translate-y-[2px] flex items-center justify-center text-[#666] hover:text-[#00ff41] transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                  onClick={() => {
+                    const newVol = volume === 0 ? 0.8 : 0;
+                    setVolume(newVol);
+                    if (audioRef.current) audioRef.current.volume = newVol;
+                  }}
+                  className="text-gray-500 hover:text-white transition-colors"
                 >
-                  <Rewind size={16}/>
+                  {volume === 0 ? <VolumeX size={14} /> : volume < 0.5 ? <Volume1 size={14} /> : <Volume2 size={14} />}
                 </button>
-                <button 
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  onTouchEnd={(e) => { e.preventDefault(); if (!audioLoading && currentTrack) setIsPlaying(!isPlaying); }}
-                  className={`bg-[#222] h-10 rounded border-b-2 border-black active:border-b-0 active:translate-y-[2px] flex items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${
-                    audioLoading ? 'text-emerald-400 cursor-wait' : 'text-[#666] hover:text-[#00ff41]'
-                  }`}
-                  disabled={audioLoading || !currentTrack}
-                >
-                  {audioLoading ? <Loader2 size={16} className="animate-spin"/> : isPlaying ? <Pause size={16}/> : <Play size={16}/>}
-                </button>
-                <button 
-                  onClick={handleStop}
-                  onTouchEnd={(e) => { e.preventDefault(); handleStop(); }}
-                  className="bg-[#222] h-10 rounded border-b-2 border-black active:border-b-0 active:translate-y-[2px] flex items-center justify-center text-[#666] hover:text-[#00ff41] transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                >
-                  <div className="w-3 h-3 bg-current rounded-sm"></div>
-                </button>
-                <button 
-                  onClick={handleNext}
-                  onTouchEnd={(e) => { e.preventDefault(); handleNext(); }}
-                  className="bg-[#222] h-10 rounded border-b-2 border-black active:border-b-0 active:translate-y-[2px] flex items-center justify-center text-[#666] hover:text-[#00ff41] transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
-                >
-                  <div className="flex"><Play size={10}/><Play size={10}/></div>
-                </button>
-             </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="1" 
+                  step="0.05"
+                  value={volume}
+                  onChange={(e) => {
+                    const newVol = parseFloat(e.target.value);
+                    setVolume(newVol);
+                    if (audioRef.current) audioRef.current.volume = newVol;
+                  }}
+                  className="flex-1 h-1 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-400"
+                />
+                <span className="text-[10px] text-gray-600 font-mono w-8">{Math.round(volume * 100)}%</span>
+              </div>
+            </div>
+            
+            {/* Transport Controls */}
+            <div className="grid grid-cols-4 gap-2 mt-4">
+              <button 
+                onClick={handlePrevious}
+                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all"
+              >
+                <Rewind size={18}/>
+              </button>
+              <button 
+                onClick={() => currentTrack && setIsPlaying(!isPlaying)}
+                disabled={audioLoading || !currentTrack}
+                className={`bg-orange-500/10 border border-orange-500/30 h-12 rounded-lg flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isPlaying ? 'text-orange-400' : 'text-orange-400 hover:bg-orange-500/20'
+                }`}
+              >
+                {audioLoading ? <Loader2 size={18} className="animate-spin"/> : isPlaying ? <Pause size={18}/> : <Play size={18} className="ml-0.5"/>}
+              </button>
+              <button 
+                onClick={handleStop}
+                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all"
+              >
+                <div className="w-4 h-4 bg-current rounded"></div>
+              </button>
+              <button 
+                onClick={handleNext}
+                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all"
+              >
+                <div className="flex"><Play size={12}/><Play size={12}/></div>
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 p-4 bg-black/90 relative overflow-hidden">
-            <div className={`absolute top-0 right-0 ${activeAlbum.color.replace('text-', 'bg-')} text-black text-[10px] font-bold px-2 py-1`}>DECODER_V2.0</div>
-            <h3 className="text-sm font-bold mb-4 text-gray-300 flex items-center gap-2"><Terminal size={12}/> LYRIC_ANALYSIS</h3>
-            <div className="space-y-4">
-              {currentLyrics.map((line, i) => (
-                <div key={i} className="group cursor-help">
-                  <div className="text-white font-mono text-sm border-b border-dashed border-gray-700 pb-1 group-hover:border-[#00ff41] group-hover:text-[#00ff41] transition-colors">"{line.es}"</div>
-                  <div className="h-0 group-hover:h-auto overflow-hidden transition-all duration-300">
-                    <div className="pt-2 pl-2 border-l-2 border-[#00ff41] mt-1">
-                      <div className="text-gray-400 text-xs font-bold">EN: {line.en}</div>
-                      <div className="text-gray-600 text-[10px] italic">NOTE: {line.note}</div>
-                    </div>
-                  </div>
+          {/* Voice Commands Quick Reference */}
+          <div className="flex-1 p-4 bg-black/50 overflow-y-auto">
+            <h3 className="text-xs font-medium text-gray-400 mb-3 flex items-center gap-2">
+              <Mic size={12} /> Voice Commands
+            </h3>
+            <div className="space-y-2 text-[11px]">
+              {[
+                { cmd: '"Play"', desc: 'Start playback' },
+                { cmd: '"Pause" / "Stop"', desc: 'Pause playback' },
+                { cmd: '"Next" / "Skip"', desc: 'Next track' },
+                { cmd: '"Previous" / "Back"', desc: 'Previous track' },
+                { cmd: '"Volume up"', desc: 'Increase volume' },
+                { cmd: '"Volume down"', desc: 'Decrease volume' },
+                { cmd: '"Mute"', desc: 'Mute audio' }
+              ].map((item, i) => (
+                <div key={i} className="flex justify-between items-center py-1.5 border-b border-white/5">
+                  <span className="text-orange-400/80 font-mono">{item.cmd}</span>
+                  <span className="text-gray-600">{item.desc}</span>
                 </div>
               ))}
-              <div className="text-center mt-8 text-gray-700 text-[10px]">HOVER TO TRANSLATE</div>
+            </div>
+            
+            <div className="mt-4 p-3 bg-[#0a0a0a] border border-white/5 rounded-lg">
+              <p className="text-[10px] text-gray-600 leading-relaxed">
+                Click the <span className="text-orange-400">Voice</span> button in the header, then speak a command. Voice recognition works best in a quiet environment.
+              </p>
             </div>
           </div>
         </div>
@@ -2294,7 +3077,21 @@ const MusicPlayer = () => {
       {/* Hidden audio element for playback */}
       <audio 
         ref={audioRef} 
-        onEnded={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          handleNext(); // Auto-advance to next track
+        }}
+        onTimeUpdate={() => {
+          if (audioRef.current) {
+            setCurrentTime(audioRef.current.currentTime);
+          }
+        }}
+        onLoadedMetadata={() => {
+          if (audioRef.current) {
+            setDuration(audioRef.current.duration);
+            audioRef.current.volume = volume;
+          }
+        }}
         onError={(e) => console.error("Audio playback error:", e)}
         playsInline
         preload="auto"
@@ -2314,18 +3111,19 @@ const TourHistory = () => {
   ];
 
   return (
-    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
+    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto bg-gradient-to-br from-black via-[#0a0a0a] to-[#050505]" style={{WebkitOverflowScrolling: 'touch'}}>
       <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/70 z-10 pointer-events-none"></div>
-      <div className="relative z-30 w-full max-w-5xl h-[85vh] bg-[#111] border border-[#333] shadow-2xl flex flex-col font-sans my-4">
-        <div className="bg-[#2d2d2d] text-gray-400 px-2 py-1 flex justify-between items-center border-b border-[#444] shadow-none">
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/40 z-10 pointer-events-none"></div>
+      <div className="relative z-30 w-full max-w-5xl h-[85vh] bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f] border border-[#333] rounded-lg shadow-2xl flex flex-col font-sans my-4 backdrop-blur-sm" style={{boxShadow: '0 20px 60px rgba(0, 255, 65, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)'}}>
+        <div className="bg-gradient-to-r from-[#1a1a1a] to-[#0f0f0f] text-gray-400 px-2 py-1 flex justify-between items-center border-b border-[#444]/50 shadow-none">
            <div className="flex items-center gap-2">
              <Globe size={14} className="text-[#00ff41]"/>
-             <span className="text-[10px] md:text-xs font-bold text-gray-300 font-sans"><span className="hidden sm:inline">TicketHub 2004 - </span>Livewire Events</span>
+             <span className="text-[10px] md:text-xs font-bold text-gray-300 font-sans"><span className="hidden sm:inline">Agent Studio Tour - </span>Live Events</span>
            </div>
         </div>
         <div className="flex-1 overflow-y-auto bg-[#050505] p-0 text-gray-300">
-           <div className="bg-[#111] text-white p-3 md:p-4 border-b-2 border-[#00ff41] flex justify-between items-end">
+           <div className="bg-gradient-to-r from-[#1a1a1a] to-[#0f0f0f] text-white p-3 md:p-4 border-b-2 border-[#00ff41]/50 flex justify-between items-end">
+
              <div>
                <h1 className="text-xl sm:text-2xl md:text-4xl font-black tracking-tighter mb-1 italic font-sans text-white">TICKET_HUB <span className="text-[#00ff41]">2004</span></h1>
              </div>
@@ -2441,38 +3239,51 @@ const TourHistory = () => {
 
 // 6. STYLE ARCHIVE (Merch Store)
 const StyleArchive = () => {
-  // Fallback Data if Firebase Unavailable
+  // Fallback Data - Whip Montez Branded Merch
   const fallbackItems = [
-      { id: 'm1', name: "Livewire Official Tee - Black", category: "Shirts", price: 35, image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=500&q=80", desc: "Classic Logo Black" },
-      { id: 'm2', name: "Whip Montez Red Hook Hoodie", category: "Hoodies", price: 85, image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500&q=80", desc: "Heavyweight Cotton" },
-      { id: 'm3', name: "Livewire Cargo Pants", category: "Pants", price: 95, image: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500&q=80", desc: "Tactical Pockets" },
-      { id: 'm4', name: "Whip Tour Backpack '04", category: "Bags", price: 60, image: "https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?w=500&q=80", desc: "Canvas Rucksack" },
-      { id: 'm5', name: "Graffiti Logo Joggers", category: "Pants", price: 70, image: "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=500&q=80", desc: "All-over Print" },
-      { id: 'm6', name: "Whip Montez Bandana Pack", category: "Accessories", price: 20, image: "https://images.unsplash.com/photo-1616956873272-942c9f86d1e3?w=500&q=80", desc: "3 Colors" },
-      { id: 'm7', name: "Livewire Velour Track Top", category: "Hoodies", price: 110, image: "https://images.unsplash.com/photo-1564584217132-2271feaeb3c5?w=500&q=80", desc: "Navy Blue" },
-      { id: 'm8', name: "Whip Montez Snapback Hat", category: "Accessories", price: 30, image: "https://images.unsplash.com/photo-1575428652377-a2d80e2277fc?w=500&q=80", desc: "Embroidered Logo" },
-      { id: 'm9', name: "Livewire 2004 Album Tee", category: "Shirts", price: 40, image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=500&q=80", desc: "Album Art Print" },
-      { id: 'm10', name: "Red Hook Bomber Jacket", category: "Jackets", price: 150, image: "https://images.unsplash.com/photo-1520367691844-1049d43e9340?w=500&q=80", desc: "Heavy Satin Shell" },
-      { id: 'm11', name: "Montez Skull Beanie", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=500&q=80", desc: "Winter Wear" },
-      { id: 'm12', name: "Livewire Utility Vest", category: "Jackets", price: 90, image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=500&q=80", desc: "Multi-Pocket" },
-      { id: 'm13', name: "Whip Cropped Tee", category: "Shirts", price: 30, image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80", desc: "Female Fit" },
-      { id: 'm14', name: "Montez Logo Socks", category: "Accessories", price: 15, image: "https://images.unsplash.com/photo-1586350977771-b3b0abd50c82?w=500&q=80", desc: "Mid-Calf" },
-      { id: 'm15', name: "Digital Camo Hoodie", category: "Hoodies", price: 90, image: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80", desc: "Digital Print" },
-      { id: 'm16', name: "Signature Wristband Set", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1611652022419-a9419f74343a?w=500&q=80", desc: "Livewire x Montez" },
-      { id: 'm17', name: "Whip Montez Denim Jacket", category: "Jackets", price: 140, image: "https://images.unsplash.com/photo-1601333144130-8cbb312386b6?w=500&q=80", desc: "Vintage Wash" },
-      { id: 'm18', name: "Brooklyn Nights Long Sleeve", category: "Shirts", price: 45, image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=500&q=80", desc: "Thermal Cotton" },
-      { id: 'm19', name: "Montez Chain Link Bracelet", category: "Accessories", price: 55, image: "https://images.unsplash.com/photo-1573408301185-9146fe634ad0?w=500&q=80", desc: "Stainless Steel" },
-      { id: 'm20', name: "Red Hook Crewneck", category: "Hoodies", price: 75, image: "https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=500&q=80", desc: "Embroidered Logo" },
-      { id: 'm21', name: "Livewire Track Jacket", category: "Jackets", price: 120, image: "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?w=500&q=80", desc: "Retro Stripes" },
-      { id: 'm22', name: "Whip Montez Tank Top", category: "Shirts", price: 28, image: "https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?w=500&q=80", desc: "Summer Edition" },
-      { id: 'm23', name: "Brooklyn Born Duffle Bag", category: "Bags", price: 85, image: "https://images.unsplash.com/photo-1547949003-9792a18a2601?w=500&q=80", desc: "Gym & Travel" },
-      { id: 'm24', name: "Montez Logo Bucket Hat", category: "Accessories", price: 35, image: "https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=500&q=80", desc: "Reversible" },
-      { id: 'm25', name: "Livewire Windbreaker", category: "Jackets", price: 95, image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=500&q=80", desc: "Water Resistant" },
-      { id: 'm26', name: "Red Hook Sweatpants", category: "Pants", price: 65, image: "https://images.unsplash.com/photo-1552902865-b72c031ac5ea?w=500&q=80", desc: "Relaxed Fit" },
-      { id: 'm27', name: "Whip Montez Crossbody Bag", category: "Bags", price: 50, image: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=500&q=80", desc: "Urban Essential" },
-      { id: 'm28', name: "Brooklyn Camo Shorts", category: "Pants", price: 55, image: "https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=500&q=80", desc: "Summer Wear" },
-      { id: 'm29', name: "Livewire Zip Hoodie", category: "Hoodies", price: 95, image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&q=80", desc: "Full Front Zip" },
-      { id: 'm30', name: "Montez Era Tour Tee '04", category: "Shirts", price: 50, image: "https://images.unsplash.com/photo-1571542617696-6136d2c4760d?w=500&q=80", desc: "Limited Edition" }
+      // WHIP MONTEZ LOGO COLLECTION
+      { id: 'm1', name: "WHIP MONTEZ Logo Tee - Black", category: "Shirts", price: 35, image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=500&q=80", desc: "Neon green logo on black cotton", collection: "Logo" },
+      { id: 'm2', name: "WHIP MONTEZ Logo Tee - White", category: "Shirts", price: 35, image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&q=80", desc: "Black logo on white cotton", collection: "Logo" },
+      { id: 'm3', name: "LIVEWIRE NYC Hoodie", category: "Hoodies", price: 85, image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500&q=80", desc: "Livewire Entertainment logo back print", collection: "Logo" },
+      
+      // BOOT SEQUENCE COLLECTION - Terminal/Retro OS themed
+      { id: 'm4', name: "SYSTEM_READY Boot Sequence Tee", category: "Shirts", price: 45, image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=500&q=80", desc: "Terminal boot text full print", collection: "Boot Sequence" },
+      { id: 'm5', name: "RESTORED_OS Hoodie", category: "Hoodies", price: 95, image: "https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?w=500&q=80", desc: "Boot sequence code on sleeves", collection: "Boot Sequence" },
+      { id: 'm6', name: "C:\\WHIP_MONTEZ\\ Long Sleeve", category: "Shirts", price: 50, image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=500&q=80", desc: "File path typography design", collection: "Boot Sequence" },
+      { id: 'm7', name: "INITIALIZING... Crewneck", category: "Hoodies", price: 75, image: "https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=500&q=80", desc: "Loading bar animation print", collection: "Boot Sequence" },
+      
+      // AI AGENT COLLECTION - Studio tools themed
+      { id: 'm8', name: "GHOST Agent Tee", category: "Shirts", price: 40, image: "https://images.unsplash.com/photo-1571542617696-6136d2c4760d?w=500&q=80", desc: "Ghostwriter AI lyric engine logo", collection: "AI Agents" },
+      { id: 'm9', name: "CIPHER Agent Hoodie", category: "Hoodies", price: 90, image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&q=80", desc: "Cipher conversation bot emblem", collection: "AI Agents" },
+      { id: 'm10', name: "BATTLE Agent Tee", category: "Shirts", price: 40, image: "https://images.unsplash.com/photo-1503341455253-b2e723bb3dbb?w=500&q=80", desc: "Rap battle competition graphic", collection: "AI Agents" },
+      { id: 'm11', name: "A&R Agent Bomber", category: "Jackets", price: 150, image: "https://images.unsplash.com/photo-1520367691844-1049d43e9340?w=500&q=80", desc: "Artist development embroidered patch", collection: "AI Agents" },
+      { id: 'm12', name: "CRATE Agent Tee", category: "Shirts", price: 40, image: "https://images.unsplash.com/photo-1564584217132-2271feaeb3c5?w=500&q=80", desc: "Sample digger vinyl graphic", collection: "AI Agents" },
+      { id: 'm13', name: "VIRAL Agent Windbreaker", category: "Jackets", price: 95, image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=500&q=80", desc: "Video concepts trending design", collection: "AI Agents" },
+      { id: 'm14', name: "8 AGENTS All-Over Print Hoodie", category: "Hoodies", price: 110, image: "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?w=500&q=80", desc: "All 8 AI agent icons pattern", collection: "AI Agents" },
+      
+      // BIO SEQUENCE / TIMELINE COLLECTION
+      { id: 'm15', name: "BROOKLYN 2004 Vintage Tee", category: "Shirts", price: 45, image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=500&q=80", desc: "Whip's origin story timeline", collection: "Bio Sequence" },
+      { id: 'm16', name: "RED HOOK DIARIES Hoodie", category: "Hoodies", price: 95, image: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500&q=80", desc: "Album artwork back print", collection: "Bio Sequence" },
+      { id: 'm17', name: "ERICK SERMON SESSIONS Tee", category: "Shirts", price: 50, image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=500&q=80", desc: "Collaboration era graphic", collection: "Bio Sequence" },
+      { id: 'm18', name: "LIVEWIRE SESSIONS Jacket", category: "Jackets", price: 140, image: "https://images.unsplash.com/photo-1601333144130-8cbb312386b6?w=500&q=80", desc: "Debut album tour jacket replica", collection: "Bio Sequence" },
+      { id: 'm19', name: "TALIB KWELI Feature Tee", category: "Shirts", price: 50, image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=500&q=80", desc: "Conscious hip-hop collab print", collection: "Bio Sequence" },
+      
+      // ACCESSORIES
+      { id: 'm20', name: "WHIP MONTEZ Snapback", category: "Accessories", price: 35, image: "https://images.unsplash.com/photo-1575428652377-a2d80e2277fc?w=500&q=80", desc: "Embroidered neon green logo", collection: "Logo" },
+      { id: 'm21', name: "SYSTEM_READY Beanie", category: "Accessories", price: 28, image: "https://images.unsplash.com/photo-1576871337622-98d48d1cf531?w=500&q=80", desc: "Boot sequence knit pattern", collection: "Boot Sequence" },
+      { id: 'm22', name: "AI STUDIO Crossbody Bag", category: "Bags", price: 55, image: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=500&q=80", desc: "Agent icons utility bag", collection: "AI Agents" },
+      { id: 'm23', name: "LIVEWIRE Duffle Bag", category: "Bags", price: 85, image: "https://images.unsplash.com/photo-1547949003-9792a18a2601?w=500&q=80", desc: "Tour-ready travel bag", collection: "Logo" },
+      { id: 'm24', name: "WHIP MONTEZ Bandana 3-Pack", category: "Accessories", price: 25, image: "https://images.unsplash.com/photo-1616956873272-942c9f86d1e3?w=500&q=80", desc: "Logo, Boot, Agent designs", collection: "Logo" },
+      
+      // PANTS
+      { id: 'm25', name: "RESTORED_OS Cargo Pants", category: "Pants", price: 95, image: "https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=500&q=80", desc: "Terminal text cargo pockets", collection: "Boot Sequence" },
+      { id: 'm26', name: "WHIP MONTEZ Joggers", category: "Pants", price: 70, image: "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=500&q=80", desc: "Logo stripe down leg", collection: "Logo" },
+      { id: 'm27', name: "AI AGENTS Sweatpants", category: "Pants", price: 65, image: "https://images.unsplash.com/photo-1552902865-b72c031ac5ea?w=500&q=80", desc: "Agent icons scattered print", collection: "AI Agents" },
+      
+      // LIMITED EDITION
+      { id: 'm28', name: "ARE Experience Box Set Tee", category: "Shirts", price: 60, image: "https://images.unsplash.com/photo-1571542617696-6136d2c4760d?w=500&q=80", desc: "Alternative Reality Experience limited", collection: "Limited" },
+      { id: 'm29', name: "THE COME UP Mentorship Hoodie", category: "Hoodies", price: 100, image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=500&q=80", desc: "Mentorship program exclusive", collection: "Limited" },
+      { id: 'm30', name: "EVIDENCE_LOCKER Varsity Jacket", category: "Jackets", price: 175, image: "https://images.unsplash.com/photo-1520367691844-1049d43e9340?w=500&q=80", desc: "Lost Tapes audio archive special", collection: "Limited" }
   ];
 
   const [items, setItems] = useState(fallbackItems);
@@ -4376,7 +5187,7 @@ const Studio = () => {
         {/* Tool Content */}
         <div className="relative z-10 flex-1 overflow-y-auto p-4 md:p-6" style={{WebkitOverflowScrolling: 'touch'}}>
           
-          {/* IMAGE LAB */}
+          {/* Image Generation Tool */}
           {selectedTool.id === 'image-lab' && (
             <div className="space-y-6 max-w-4xl mx-auto">
               {/* Style Selector */}
@@ -5174,95 +5985,465 @@ const Studio = () => {
   );
 };
 
-// LEGACY: Redirect Ghostwriter to Studio
-const Ghostwriter = () => {
-  return <Studio />;
-};
-
-// THE COME UP - Inspiration for artists who didn't make it or want to make it
+// THE COME UP - A Deep Mentorship & Growth Platform for Artists
 const TheComeUp = ({ setSection }) => {
-  const [activeTab, setActiveTab] = useState('legends');
+  const [activeTab, setActiveTab] = useState('pillars');
   const [currentQuote, setCurrentQuote] = useState(0);
   const [userStory, setUserStory] = useState('');
   const [submittedStories, setSubmittedStories] = useState([]);
+  const [expandedLesson, setExpandedLesson] = useState(null);
 
-  // Legends who almost didn't make it or didn't get their flowers
-  const legends = [
+  // The Four Pillars of The Come Up - Deep mentorship framework
+  const pillars = [
     {
-      id: 1,
-      name: "Big L",
-      years: "1974 - 1999",
-      story: "Harlem's finest wordsmith was on the verge of mainstream success when his life was cut short. His punchlines and metaphors influenced every rapper after him. He never saw his legend grow, but the streets never forgot.",
-      quote: "I wasn't put on this Earth to be second.",
-      lesson: "Your impact outlives your time. Keep creating.",
-      image: "🎤"
+      id: 'craft',
+      title: "MASTER YOUR CRAFT",
+      subtitle: "The 10,000 Hour Truth",
+      color: "from-cyan-500 to-blue-600",
+      borderColor: "border-cyan-500",
+      description: "Before the deal, before the fame, before anyone knows your name—there are thousands of hours in the dark. This is where legends are forged.",
+      deepDive: `The music industry sells a seductive myth: overnight success. Social media amplifies it—a clip goes viral, a song blows up, suddenly someone's famous. But behind every "overnight" success is a story nobody told you. The years of practice. The rejected demos. The gigs nobody attended. This is the hidden curriculum of greatness, and understanding it will change how you approach your own come up.
+
+**The Hidden Years: What They Don't Show You**
+
+Jay-Z was turned down by every major label in the industry before starting Roc-A-Fella Records in 1995 with Damon Dash and Kareem "Biggs" Burke. He was 26 years old—ancient by today's industry standards—and had been rapping since he was 9. That's 17 years of development before "Reasonable Doubt." According to a 2010 interview with Vanity Fair, he had notebooks filled with verses from his teenage years that never saw the light of day.
+
+Kendrick Lamar released his first mixtape in 2003 at age 16. Section.80 didn't drop until 2011. That's eight years of grinding in Compton, developing his storytelling ability and technical precision. In an interview with Complex, Kendrick's longtime collaborator Dave Free said Kendrick would rewrite verses 20 or 30 times until they were perfect—not good, perfect.
+
+J. Cole approached Jay-Z outside a recording studio in 2007 and handed him a demo. Jay didn't even listen to it. Cole tried again. And again. He slept on a bus in New York City, crashed on couches, and kept creating. It took three years before he finally got signed to Roc Nation. His first major label debut, Cole World, didn't come until 2011—four years after that first rejection.
+
+Source: Complex Magazine, Vanity Fair, The Breakfast Club interviews
+
+**The 10,000 Hour Rule: What It Actually Means**
+
+Malcolm Gladwell popularized the 10,000-hour rule in his book "Outliers," citing research by psychologist Anders Ericsson. But there's a crucial detail people miss: it's not just any practice. It's deliberate practice—focused, uncomfortable, intentional improvement.
+
+Here's what 10,000 hours looks like for a rapper:
+
+- 3 hours daily for 10 years = 10,950 hours
+- 5 hours daily for 6 years = 10,950 hours
+- 8 hours daily for 3.5 years = 10,220 hours
+
+Most artists never hit 1,000 hours. They write when inspired (which means rarely). They record when convenient (which means inconsistently). They study their influences casually (which means superficially). This is why most never break through.
+
+*Deliberate Practice for Rappers Looks Like:*
+
+Writing exercises: Take a random topic and write 16 bars in 15 minutes. Do this daily. The goal isn't quality—it's building the muscle. Your brain needs to learn to generate ideas under pressure. According to research published in the Journal of Expertise, this type of constrained creative practice develops neural pathways that make creativity more accessible.
+
+Flow studies: Pick an artist known for technical skill—Eminem, Kendrick, J.I.D, Doja Cat—and dissect one verse. Count syllables per bar. Map the rhyme scheme. Identify internal rhymes, multisyllables, and flow switches. Then try to recreate the pattern with your own words. This is how you internalize techniques your ear recognizes but your brain hasn't decoded.
+
+Recording practice: Record something every week, even if it never leaves your hard drive. Hearing yourself back is the fastest feedback loop. Your cringes are data. The parts that make you uncomfortable are exactly where you need to grow.
+
+**The Bedroom Studio Revolution**
+
+We are living in the most democratized era of music creation in human history. In 1990, a professional recording studio setup cost $100,000+. Today, you can produce professional-quality music with a $500 laptop and free software. FL Studio, Logic Pro, Ableton, GarageBand—these tools didn't exist a generation ago.
+
+According to Statista, over 60,000 songs are uploaded to Spotify daily. This is both opportunity and challenge. The barrier to creation is gone. The barrier to attention is higher than ever.
+
+What separates the artists who break through? Consistent output over time. Building a body of work that shows development. Treating their bedroom studio like a training facility, not a hobby room.
+
+**When to Take Your Craft to the Next Level**
+
+Ask yourself these questions:
+
+- Have you written 100+ complete songs? If not, you're still in the fundamentals phase.
+- Can you write a verse in under 30 minutes when you have to? If not, your creative pipeline needs development.
+- Do people outside your immediate circle share your music without you asking? If not, the product isn't ready for serious investment.
+- When you listen to your music from a year ago, do you hear clear improvement? If not, your practice isn't deliberate enough.
+
+**Next Steps: Your 90-Day Craft Development Plan**
+
+Week 1-4: Foundation
+- Write every single day, minimum 30 minutes
+- Complete at least 4 full songs (verse-hook-verse-hook-bridge format)
+- Study one classic album per week (break down production, lyrics, sequencing)
+
+Week 5-8: Expansion
+- Collaborate with at least 2 artists outside your usual circle
+- Experiment with a flow or style you've never tried
+- Record in a different environment (even just a friend's place)
+
+Week 9-12: Refinement
+- Focus on your 3 strongest songs and re-record with intention
+- Get feedback from someone whose opinion you respect AND fear
+- Perform live or do a live stream—performing reveals weaknesses recording hides
+
+**The Uncomfortable Truth**
+
+Your first 100 songs are practice. This isn't pessimism—it's liberation. When you accept that you're in the developmental phase, every session becomes about learning, not proving. You stop trying to create your magnum opus every time you sit down, and you start accumulating the skills that will make your magnum opus possible.
+
+The craft doesn't care about your potential. It doesn't care about your dreams or your vision or how badly you want it. The craft only responds to one thing: the work you actually put in.
+
+There are no shortcuts. But there is a path. And it's walked one bar at a time.`,
+      mentorTip: "Your first 100 songs will be practice. Make peace with that.",
+      studioLink: "ghostwriter",
+      studioText: "Train your writing in the Ghost Studio"
     },
     {
-      id: 2,
-      name: "Sean Price",
-      years: "1972 - 2015",
-      story: "Struggled for decades in the underground. Never got the mainstream shine but became a cult hero. Boot Camp Clik legend who influenced a generation of raw, uncut hip-hop.",
-      quote: "I'm not cocky, I'm confident.",
-      lesson: "Stay true to your sound. Your people will find you.",
-      image: "👑"
+      id: 'business',
+      title: "OWN YOUR BUSINESS",
+      subtitle: "The Money & Masters Reality",
+      color: "from-amber-500 to-orange-600",
+      borderColor: "border-amber-500",
+      description: "The music industry has broken more artists than drugs ever did. Understanding the business isn't optional—it's survival.",
+      deepDive: `The music industry is one of the most exploitative businesses in existence. This isn't cynicism—it's documented history. From the Motown artists who died broke to the modern streaming era where a million plays pays less than minimum wage, the system is designed to extract value from creators. Your job isn't to hope it treats you fairly. Your job is to understand the game so well that you can't be taken advantage of.
+
+**The Masters Conversation: Why Ownership Is Everything**
+
+Your masters are the original recordings of your music. Whoever owns them controls how your art is used, licensed, and monetized—potentially forever. When Prince changed his name to an unpronounceable symbol in 1993, it wasn't a publicity stunt. It was a protest against Warner Bros.' ownership of his masters. He literally wrote "SLAVE" on his face during performances.
+
+Taylor Swift re-recording her entire catalog starting in 2021 wasn't petty—it was a $300 million business decision to reclaim her legacy from Scooter Braun's acquisition of Big Machine Records. According to Billboard, her re-recorded "Taylor's Version" albums have outperformed the originals in streaming and sales.
+
+Here's what happens when you don't own your masters:
+- The label can license your song to a political campaign you disagree with
+- The label can sell your catalog to a private equity firm (this is happening constantly now)
+- The label keeps 85%+ of streaming revenue, forever
+- You can't control how your music is used in films, commercials, or samples
+- Your heirs inherit nothing but the right to 15% of royalties (if that)
+
+Source: Recording Industry Association of America, Billboard, Prince's 1996 interview with Larry King
+
+**The 360 Deal Trap: Understanding Modern Contracts**
+
+In the old model, labels made money from record sales and artists kept touring, merch, and other revenue streams. The 360 deal—now standard—changes everything. Labels take a percentage of:
+
+- Recording royalties (traditional)
+- Publishing (your songwriting income)
+- Touring (live performance revenue)
+- Merchandise
+- Sponsorships and endorsements
+- Acting or other entertainment income
+
+According to a 2021 analysis by the Music Industry Research Association, the average 360 deal gives labels 25-35% of touring revenue and 20-30% of merchandise sales. On top of the 85% they already take from recordings.
+
+*Why Artists Sign These Deals*
+
+Desperation. The advance—typically $50,000 to $500,000 for new artists—feels life-changing when you're broke. But it's not a gift. It's a loan against future royalties, paid back at your unfavorable royalty rate. Do the math:
+
+Say you get a $100,000 advance with a 15% royalty rate. You need to generate $666,666 in revenue before you see another dollar. At $0.003 per stream (Spotify's average payout), that's 222 million streams just to break even on the advance. Most artists never recoup.
+
+Source: Spotify artist payout data, Music Business Worldwide
+
+**What You Should Own: Non-Negotiables**
+
+Before you sign anything, understand these terms:
+
+Publishing Rights: Publishing is your songwriting income—separate from your recording income. ASCAP, BMI, and SESAC collect performance royalties when your song plays on radio, TV, or in public venues. Publishing deals typically split revenue 50/50 (writer's share vs. publisher's share). Never give up 100% of your publishing. Aim for 75/25 or 70/30 in your favor at minimum.
+
+Master Reversion: If you must sign a deal that includes masters, negotiate a reversion clause. This means ownership returns to you after a set period (typically 5-10 years) or after the label recoups their costs. Many artists don't know this is even possible.
+
+Creative Control: Approval rights over album art, single selection, release dates, and marketing. Without these, the label can drop a project you hate.
+
+Accounting Rights: The right to audit the label's books. Industry studies suggest 30-40% of artists are underpaid due to "accounting errors." Without audit rights, you'll never know.
+
+**Building Your Business Infrastructure Now**
+
+Don't wait until you're "famous" to set up the basics:
+
+Form an LLC: This separates your personal assets from your business. If you get sued, they can't take your house. It also makes taxes simpler and looks professional to industry partners. Cost: $50-500 depending on your state.
+
+Get an EIN: An Employer Identification Number from the IRS. It's free and takes 5 minutes. You'll need this for business bank accounts and professional contracts.
+
+Register with a PRO: Join ASCAP, BMI, or SESAC (you can only join one). This ensures you get paid when your music is publicly performed. It's free to join. Millions of dollars in royalties go unclaimed every year because artists didn't register.
+
+Set up a publishing administrator: Companies like Songtrust, TuneCore Publishing, or CD Baby Pro collect publishing royalties you'd otherwise miss—from international sources, YouTube, TikTok, etc. They take 10-15% but find money you'd never see otherwise.
+
+**When to Take a Deal (And When to Walk)**
+
+Take a deal when:
+- You've proven you can build an audience independently
+- The label offers something you can't do yourself (radio promotion, sync licensing connections, international distribution)
+- The terms are reasonable (50/50 publishing minimum, master reversion clause, creative control)
+- You have a lawyer who has reviewed everything
+
+Walk away when:
+- They pressure you to sign quickly ("this offer expires Friday")
+- They won't negotiate any terms
+- The advance is small but the commitment is long (multiple albums)
+- Your gut says something's wrong
+
+**The DIY Path: Building Without a Label**
+
+According to a 2023 report by MIDiA Research, independent artists now capture 35% of global streaming market share—up from 27% in 2018. Artists like Chance the Rapper, Macklemore, and Nipsey Hussle proved that independence isn't just possible—it can be more profitable.
+
+The formula:
+- Release music consistently (every 6-8 weeks for singles, annually for projects)
+- Build direct fan relationships (email list, Discord, Patreon)
+- Control your distribution (DistroKid, TuneCore, AWAL)
+- Reinvest revenue into marketing and production
+- Build slowly, own everything
+
+**Next Steps: Your 30-Day Business Foundation**
+
+Week 1:
+- Form an LLC in your state (LegalZoom, Incfile, or your state's website)
+- Get an EIN from IRS.gov
+- Open a business bank account (separate from personal)
+
+Week 2:
+- Register with ASCAP or BMI
+- Sign up for a publishing administrator (Songtrust recommended for beginners)
+- Create a simple spreadsheet to track all music income and expenses
+
+Week 3:
+- Research entertainment lawyers in your city (you don't need to hire one yet—just know who's out there)
+- Read at least one music business book: "All You Need to Know About the Music Business" by Donald Passman is the industry bible
+
+Week 4:
+- Audit your current music: Are all your songs registered? Are you collecting all possible royalties?
+- Set up Google Alerts for your artist name to monitor usage
+
+The artists who survive this industry aren't the most talented. They're the most informed.`,
+      mentorTip: "Never sign anything without a lawyer. A $500 consultation can save you $500,000.",
+      studioLink: "ar_suite",
+      studioText: "Analyze your music's market potential"
     },
     {
-      id: 3,
-      name: "Pimp C",
-      years: "1973 - 2007",
-      story: "UGK spent 15 years grinding before 'International Players Anthem' crossed over. Pimp C didn't get to fully enjoy the recognition he fought for. His influence on Southern rap is immeasurable.",
-      quote: "Real recognize real.",
-      lesson: "The grind takes time. Stay patient, stay hungry.",
-      image: "🔥"
+      id: 'mental',
+      title: "PROTECT YOUR MIND",
+      subtitle: "The Silent Battle",
+      color: "from-emerald-500 to-teal-600",
+      borderColor: "border-emerald-500",
+      description: "The industry has a body count. Not just the ones we lost—but the ones who lost themselves. Mental health isn't soft. It's survival.",
+      deepDive: `We turn artists into martyrs after they die. We share their lyrics about depression, point out the "signs we missed," and promise to do better. Then we forget until the next headline. The music industry has a mental health crisis that's not being addressed with the urgency it deserves. Understanding this reality—and building systems to protect yourself—isn't optional. It's how you survive long enough to make the art that matters.
+
+**The Ones We Lost: A Incomplete List**
+
+Mac Miller died in 2018 from an accidental overdose. He was 26. In the years before his death, he was openly discussing his struggles with depression and substance abuse in interviews and music. The industry kept booking him.
+
+Juice WRLD died in 2019 from an accidental drug overdose. He was 21. His entire artistic identity was built around emotional vulnerability and pain. He told interviewers he made music to help others feel less alone. He was making hundreds of millions for his label while struggling to find peace.
+
+Pop Smoke was murdered in 2020. He was 20. Nipsey Hussle was murdered in 2019. He was 33. XXXTentacion was murdered in 2018. He was 20. The violence isn't separate from the mental health conversation—it's connected to an industry that often exploits trauma and neighborhood affiliations for marketability.
+
+Lil Peep died in 2017 from an accidental overdose. He was 21. Aviici died by suicide in 2018. He was 28. Chester Bennington of Linkin Park died by suicide in 2017. He was 41. These aren't isolated incidents. They're symptoms of a systemic failure.
+
+Source: Rolling Stone, Complex, Billboard obituaries and investigations
+
+**Why Artists Are Uniquely Vulnerable**
+
+According to a 2019 study published in the British Journal of Psychiatry, musicians are three times more likely to experience depression than the general population. A 2021 survey by the Music Industry Research Association found that 73% of independent musicians have experienced symptoms of mental illness.
+
+The reasons are structural:
+
+Financial Instability: Unlike most professions, music income is wildly unpredictable. You might make $10,000 one month and $500 the next. This chronic financial stress creates constant anxiety. According to a 2022 survey by the Future of Music Coalition, the median income for working musicians in the US is around $35,000—and that includes touring and teaching income, not just recording.
+
+Emotional Labor: The job literally requires vulnerability. The music that connects is honest. But constantly mining your trauma, relationships, and struggles for content takes a psychological toll. There's no emotional off switch.
+
+Parasocial Relationships: Millions of people feel like they know you from your music. They project their own feelings onto you. They feel entitled to access. Social media amplifies this to an unhealthy degree. Setting boundaries feels like "letting fans down."
+
+Identity Fusion: When your art is your identity, career struggles feel like personal failures. Writer's block becomes an existential crisis. A bad review feels like rejection of your entire being. This is psychologically dangerous.
+
+Normalization of Substance Use: From lean culture in hip-hop to cocaine in rock to alcohol everywhere, substances are woven into music industry social fabric. Using becomes normalized, even expected. "It helps me create" becomes "I can't create without it."
+
+**The Warning Signs You Need to Know**
+
+In yourself:
+- Creating feels like an obligation rather than an expression
+- You're using substances to perform, record, or deal with industry stress
+- Isolation that feels protective but is actually avoidance
+- Physical symptoms: insomnia, appetite changes, chronic fatigue, headaches
+- Irritability that's disproportionate to triggers
+- Thoughts of self-harm or hopelessness
+- Feeling like your real self and your artist persona are completely separate people
+
+In others:
+- Withdrawal from usual activities and relationships
+- Dramatic changes in behavior or personality
+- Giving away possessions or "putting affairs in order"
+- Increased substance use
+- Talking about being a burden or not belonging
+- Expressions of hopelessness about the future
+
+**Building Your Support System**
+
+Your mental health is not a solo mission. The artists who thrive long-term have intentional support structures:
+
+A Therapist Who Gets It: Look specifically for therapists experienced with creative industries or high-profile clients. Organizations like MusiCares (run by the Recording Academy) offer free mental health services for music professionals. The Jed Foundation partners with labels and venues to provide resources. Backline.care was founded specifically for music industry mental health.
+
+Friends Outside the Industry: People who knew you before music and will know you if music goes away. These relationships provide perspective that's impossible to get from people whose livelihoods are connected to yours.
+
+Physical Activity: The mind-body connection isn't woo-woo—it's neuroscience. Exercise releases endorphins, reduces cortisol, and provides a sense of accomplishment independent from music. According to research from Harvard Medical School, regular exercise is as effective as medication for mild to moderate depression.
+
+A Creative Outlet That Isn't Monetized: Paint. Write in a journal. Play an instrument you never perform with. Cook. Do something creative that has no commercial pressure. Remember what creating felt like before it became your job.
+
+Boundaries, Enforced: Social media hours. Times you're "off." People who are and aren't allowed to contact you about business. These feel impossible when you're hungry for success, but they're what allow sustainable careers.
+
+**Practical Mental Health Protocol**
+
+Daily:
+- Some form of physical movement (walk, gym, dance, anything)
+- 10+ minutes without screens
+- One genuine human interaction (text doesn't count)
+
+Weekly:
+- At least one full day away from music work
+- Check-in with someone you trust about how you're really doing
+- Review your substance use honestly (if applicable)
+
+Monthly:
+- Therapy session (non-negotiable, not "when I can afford it"—there are free resources)
+- Evaluate: Is music currently giving or taking energy?
+- Review boundaries: What's working? What's slipping?
+
+Quarterly:
+- Career check-in: Are you growing, or just busy?
+- Relationship audit: Who actually supports you? Who drains you?
+- Physical health checkup
+
+**Crisis Resources (Save These)**
+
+- 988 Suicide & Crisis Lifeline (call or text 988 in the US)
+- Crisis Text Line (text HOME to 741741)
+- SAMHSA National Helpline: 1-800-662-4357
+- MusiCares Health & Human Services: 1-800-687-4227
+- Backline.care: Free mental health resources for music industry
+- The Jed Foundation: jedfoundation.org
+
+**The Permission You Need to Hear**
+
+Asking for help isn't weakness. It's not a sign that you're not "built for this." The strongest people you admire have support systems—they're just not posting about it.
+
+Taking breaks doesn't mean you're giving up. It means you're investing in longevity.
+
+Saying no to opportunities that harm you isn't soft. It's smart.
+
+Your value as a human being is not determined by your output, your streams, your followers, or your chart positions. You existed before music and you matter outside of it.
+
+The goal isn't to be unbreakable. Unbreakable things shatter. The goal is to be flexible—to bend without snapping, to struggle without being destroyed, to build a life where your art enhances your existence instead of consuming it.
+
+You can't make great art if you're not alive to make it.`,
+      mentorTip: "Check in on your people. The ones who seem the strongest often struggle the most.",
+      studioLink: null,
+      studioText: null
     },
     {
-      id: 4,
-      name: "Freaky Tah",
-      years: "1971 - 1999",
-      story: "Lost Boys member who helped define the raw Brooklyn sound. Taken too soon before seeing his full potential realized. His energy lives on in every BK MC.",
-      quote: "Brooklyn! Keep it moving!",
-      lesson: "Your energy is contagious. Inspire others.",
-      image: "⚡"
-    },
-    {
-      id: 5,
-      name: "Capital STEEZ",
-      years: "1993 - 2012",
-      story: "Pro Era's brightest mind, gone at 19. His verses showed wisdom beyond his years. Joey Bada$$ and the crew carry his legacy, but the world missed what he could have become.",
-      quote: "I got my third eye open.",
-      lesson: "Your mind is your greatest gift. Use it.",
-      image: "👁️"
-    },
-    {
-      id: 6,
-      name: "Mac Dre",
-      years: "1970 - 2004",
-      story: "Pioneer of the hyphy movement, recorded an album from PRISON via phone calls. Never saw the Bay Area style go global, but his influence is everywhere.",
-      quote: "Thizzle dance!",
-      lesson: "Create your own lane. Others will follow.",
-      image: "🌉"
+      id: 'legacy',
+      title: "BUILD YOUR LEGACY",
+      subtitle: "Beyond The Charts",
+      color: "from-violet-500 to-purple-600",
+      borderColor: "border-violet-500",
+      description: "Hits fade. Trends die. What remains is the impact you had on people's lives and the path you paved for those behind you.",
+      deepDive: `Tupac Shakur sold over 75 million records worldwide. But when researchers and activists reference him today, they're not talking about sales. They're citing his analysis of systemic inequality, his articulation of pain that millions felt but couldn't express. His legacy isn't platinum plaques—it's the ongoing conversation he started.
+
+Nipsey Hussle won one Grammy. He had zero Billboard #1 singles during his lifetime. But his legacy is transformative: Marathon Clothing, a smart store in the heart of Crenshaw. Vector 90, a coworking space and STEM center for underserved youth. A generation of artists who learned from watching him that ownership matters more than exposure. He turned his neighborhood into an economic incubator. That's legacy.
+
+Your legacy isn't what you achieve. It's what you leave behind. And you can start building it right now, regardless of where you are in your career.
+
+**The Three Levels of Legacy**
+
+*Level 1: The Art*
+
+The music itself. Albums that outlive you. Songs that become anthems for moments you'll never witness. This is the foundation, but alone, it's fragile. Music gets forgotten faster than we want to admit. According to research by Luminate (formerly Nielsen Music), the average song's peak streaming period is 3-6 weeks. Then it declines. The vast majority of recorded music in history is effectively lost—unstreamed, unplayed, forgotten.
+
+What makes art endure? Connection to something larger than the moment. Bob Marley's music survived because it addressed universal themes of justice, love, and resistance. 2Pac's music survived because it articulated a specific experience with universal resonance. Lauryn Hill's "Miseducation" survived because it spoke to truths that transcend 1998.
+
+To build Level 1 legacy: Create art that isn't just about your current mood or the current trend. Address themes that will matter in 20 years. Document your specific experience so thoroughly that it becomes universal.
+
+*Level 2: The Community*
+
+Who did you bring up with you? What doors did you open for others? The artists who mentor the next generation create geometric impact. Every person you help goes on to help others. Your influence multiplies beyond your direct reach.
+
+J. Cole's Dreamville isn't just a label—it's a community development project. He signs artists, but more importantly, he creates infrastructure that allows independent creators to learn from his success. The Dreamville Festival in North Carolina brings economic activity to a region often overlooked by major events.
+
+According to a 2022 study by the University of Southern California, artists who actively mentor others are more likely to have longer, more sustainable careers. The community you build becomes a support system that sustains you too.
+
+To build Level 2 legacy: Find one artist behind you on the path and offer what you have. It doesn't have to be money. Knowledge, connections, encouragement—these compound over time. As you grow, formalize it: bring artists on tour, share studio time, make introductions.
+
+*Level 3: The Institution*
+
+The businesses, foundations, and structures you build. These outlive your participation in them. They create value when you're not there.
+
+Dr. Dre's Beats headphones sold to Apple for $3 billion in 2014. But the less-discussed legacy is Aftermath Entertainment—a label that launched Eminem, 50 Cent, and Kendrick Lamar. The institution continued producing culture-shifting artists long after Dre stepped back from his own recording career.
+
+Russell Simmons' personal failures are well-documented, but Def Jam Records—which he co-founded in a dorm room in 1984—is still operating today. It launched Run-DMC, LL Cool J, Beastie Boys, Jay-Z, Kanye West, and hundreds of others. The institution outlived his participation in it.
+
+Sean "Diddy" Combs built Revolt TV, a media platform that continues to operate independently from his personal brand. Bad Boy Records fundamentally changed the conversation about artist ownership in the 90s. Institutions can be separated from their founders.
+
+To build Level 3 legacy: Start thinking beyond projects. What would a business look like? What problem in your community could you solve? What infrastructure is missing for artists like you? You don't need to build it now—but you should be designing it.
+
+**The Whip Montez Philosophy: Where You're From Meets Where You're Going**
+
+Red Hook, Brooklyn isn't a neighborhood with many platinum rappers. It's not Manhattan. It's not even the Brooklyn that gets gentrified in think pieces. But that's exactly why it matters.
+
+Where you come from doesn't limit where you can go. But it should never be forgotten. The specific details of your experience—the streets, the sounds, the people—are what make your art authentic. The biggest mistake artists make is trying to sound like they're from everywhere, and ending up sounding like they're from nowhere.
+
+But legacy requires more than remembrance. It requires building something. Nipsey didn't just rap about Crenshaw—he invested in it. He created jobs there. He made it possible for kids there to see a different path. That's the integration of past and present, place and aspiration.
+
+**Practical Legacy Building: Starting Now**
+
+Document Your Journey: Your struggle is someone else's roadmap. The process, the mistakes, the lessons—these are valuable. Keep a journal. Make process videos. Be honest about what's hard. Future artists will find this and be encouraged.
+
+Own Something in Your Community: This doesn't require wealth. Start a newsletter for local artists. Host a monthly cipher. Create a Discord for independent musicians from your city. When you have more resources, think about physical presence—a studio, a venue, a store.
+
+Create Opportunities, Not Just Art: Book a show and put other artists on the bill. Create a compilation and feature unknowns. Share your contacts with artists who need them. Every door you open for others expands your legacy beyond your individual output.
+
+Be Honest About Your Failures: Success stories inspire, but failure stories teach. Talk about the deals that fell through. The relationships that ended. The times you wanted to quit. Vulnerability builds trust, and trust is the foundation of legacy.
+
+Think in Decades, Not Months: What do you want your career to look like in 10 years? 20 years? 30 years? Most artists only plan for the next project. Legacy-builders plan generations ahead.
+
+**The Long Game: Fame vs. Impact**
+
+Fame is fragile. You can be famous and miserable. You can be famous and broke. You can be famous and forgotten within a decade.
+
+Relevance is temporary. Sounds go out of style. Trends move on. The artists who chase relevance are on an exhausting treadmill, constantly reinventing to stay current.
+
+But impact? Impact is permanent. It's the kid who heard your song and decided not to give up. It's the business owner who opened their store because you showed it was possible. It's the conversation that's still happening 20 years from now because you started it.
+
+The question isn't "Will I be remembered?" You might not be. Most people aren't. The question is: "What will I have contributed?" And that question can be answered positively regardless of commercial success.
+
+**Next Steps: Building Your Legacy Framework**
+
+This Week:
+- Write down your vision: What do you want to be remembered for?
+- Identify one person earlier in their journey you could help
+- Start documenting your process (voice memos, notes, anything)
+
+This Month:
+- Research legacy-building artists in your genre: How did they do it?
+- Create something of value for your community (doesn't have to be music)
+- Have a conversation about long-term vision with someone you trust
+
+This Year:
+- Formalize your mentorship: Regular check-ins with at least one developing artist
+- Start planning an institutional project (even if it's years away from execution)
+- Review: Is your current path leading to the legacy you envisioned?
+
+**The Final Word**
+
+You're not just building a career. You're writing a story that will be told long after you're gone. Every decision, every relationship, every project contributes to that story.
+
+The artists we remember—the ones with true legacy—all have something in common: they thought beyond themselves. They built more than music. They left something behind.
+
+The time to start is now. Not when you're famous. Not when you're rich. Not when you "make it." Now.
+
+What will you build?`,
+      mentorTip: "The best time to think about legacy is before you need one.",
+      studioLink: "studio",
+      studioText: "Start building in The Studio"
     }
   ];
 
-  // Motivational quotes from the struggle
-  const motivationalQuotes = [
-    { text: "I sold CDs out my trunk. Nobody believed. Now they all 'believers.'", artist: "The Journey" },
-    { text: "They said the industry was closed. So I built my own door.", artist: "The Grind" },
-    { text: "Every 'no' is just 'not yet.' Keep knocking.", artist: "The Hustle" },
-    { text: "The studio was my church. Late nights were my prayers.", artist: "The Faith" },
-    { text: "Broke don't mean broken. It means you're building.", artist: "The Vision" },
-    { text: "They'll doubt you until they can't ignore you.", artist: "The Rise" },
-    { text: "Your story is your superpower. Tell it.", artist: "The Voice" },
-    { text: "The come up ain't pretty, but it's beautiful.", artist: "The Truth" },
-    { text: "Past struggles become future lessons. Keep going.", artist: "Whip Montez" },
-    { text: "From the bottom, you can only go up. Remember that.", artist: "Red Hook Philosophy" }
+  // Wisdom from the journey - rotating quotes
+  const wisdomQuotes = [
+    { text: "I sold CDs out my trunk. Nobody believed. Now they all 'believers.'", source: "The Underground Years" },
+    { text: "They said the industry was closed. So I built my own door.", source: "The Independent Path" },
+    { text: "Every 'no' is just 'not yet.' Keep knocking until they can't ignore you.", source: "The Persistence Files" },
+    { text: "The studio was my church. Late nights were my prayers. The mic was my confession.", source: "The Sacred Sessions" },
+    { text: "Broke don't mean broken. It means you haven't arrived yet.", source: "The Vision Board" },
+    { text: "They'll doubt you until they can't ignore you. Then they'll claim they always knew.", source: "The Revisionist History" },
+    { text: "Your story is your superpower. The pain makes the art hit different.", source: "The Authenticity Advantage" },
+    { text: "The come up ain't pretty, but it's beautiful. Every scar is a lesson.", source: "The Transformation" },
+    { text: "Past struggles become future lessons. Keep going—your future self is watching.", source: "The Whip Montez Sessions" },
+    { text: "From the bottom, you can only go up. Remember that when the ceiling feels low.", source: "Red Hook Philosophy" },
+    { text: "The industry will test you in ways you can't imagine. Know yourself before they try to define you.", source: "The Identity Wars" },
+    { text: "Success is a rental. You have to pay the rent every day.", source: "The Maintenance Manual" }
   ];
 
   // Rotate quotes
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentQuote((prev) => (prev + 1) % motivationalQuotes.length);
-    }, 8000);
+      setCurrentQuote((prev) => (prev + 1) % wisdomQuotes.length);
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -5281,197 +6462,293 @@ const TheComeUp = ({ setSection }) => {
     const newStories = [
       { id: Date.now(), text: userStory, timestamp: new Date().toISOString() },
       ...submittedStories
-    ].slice(0, 20); // Keep last 20
+    ].slice(0, 20);
     setSubmittedStories(newStories);
     localStorage.setItem('comeup_stories', JSON.stringify(newStories));
     setUserStory('');
   };
 
   return (
-    <div className="h-full w-full bg-black text-[#00ff41] overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-      {/* Motivational Quote Banner */}
-      <div className="bg-gradient-to-r from-[#001100] via-[#002200] to-[#001100] border-b border-[#00ff41]/30 p-4 md:p-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-[10px] uppercase tracking-[0.4em] text-[#00ff41]/50 mb-3 animate-pulse">
-            Daily Inspiration
+    <div className="h-full w-full bg-black text-white overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+      {/* Cinematic Header */}
+      <div className="relative bg-gradient-to-b from-[#0a1a0a] via-[#001100] to-black border-b border-[#00ff41]/30 overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-radial from-emerald-500/30 to-transparent rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-gradient-radial from-cyan-500/20 to-transparent rounded-full blur-3xl animate-pulse" style={{animationDelay: '2s'}}></div>
+        </div>
+        
+        <div className="relative z-10 max-w-5xl mx-auto px-4 py-12 md:py-20 text-center">
+          <p className="text-[10px] md:text-xs uppercase tracking-[0.5em] text-[#00ff41]/70 mb-4 animate-pulse">
+            A Mentorship Platform for Independent Artists
           </p>
-          <p className="text-lg md:text-2xl font-light italic text-white/90 mb-2 transition-all duration-500">
-            "{motivationalQuotes[currentQuote].text}"
+          <h1 className="text-4xl md:text-6xl font-thin text-[#00ff41] tracking-tighter drop-shadow-[0_0_10px_rgba(0,255,65,0.8)] mb-6">
+            THE COME UP
+          </h1>
+          <div className="h-[2px] w-32 bg-[#00ff41] shadow-[0_0_20px_#00ff41] mx-auto mb-4"></div>
+          <p className="text-white/60 text-sm md:text-lg max-w-2xl mx-auto leading-relaxed mb-8">
+            Real knowledge from the trenches. No sugarcoating. No gatekeeping. 
+            Just the lessons that took decades to learn—delivered in minutes.
           </p>
-          <p className="text-[#00ff41] text-xs uppercase tracking-wider">
-            — {motivationalQuotes[currentQuote].artist}
-          </p>
+          
+          {/* Rotating Wisdom Quote */}
+          <div className="bg-black/50 backdrop-blur-sm border border-white/20 rounded-lg p-6 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl font-light italic text-white/90 mb-2 transition-all duration-700">
+              "{wisdomQuotes[currentQuote].text}"
+            </p>
+            <p className="text-white/40 text-xs uppercase tracking-wider">
+              — {wisdomQuotes[currentQuote].source}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto p-4 md:p-6">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-2">
-            THE <span className="text-[#00ff41]">COME UP</span>
-          </h1>
-          <p className="text-[#00ff41]/70 text-sm md:text-base max-w-2xl mx-auto">
-            Honoring those who paved the way, remembering those we lost too soon, and inspiring those still on the journey. 
-            Past meets present. Struggle meets success.
-          </p>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="flex justify-center gap-2 mb-8 flex-wrap">
+      <div className="max-w-5xl mx-auto p-4 md:p-8">
+        {/* Tab Navigation - Enhanced */}
+        <div className="flex justify-center gap-2 md:gap-4 mb-10 flex-wrap">
           {[
-            { id: 'legends', label: 'Gone Too Soon', icon: '🕯️' },
-            { id: 'lessons', label: 'The Lessons', icon: '📖' },
-            { id: 'stories', label: 'Your Story', icon: '✍️' }
+            { id: 'pillars', label: 'The Four Pillars' },
+            { id: 'toolkit', label: 'Artist Toolkit' },
+            { id: 'stories', label: 'Your Journey' }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 text-xs md:text-sm font-mono uppercase tracking-wider transition-all ${
+              className={`px-5 py-3 text-xs md:text-sm font-bold uppercase tracking-wider transition-all rounded-lg ${
                 activeTab === tab.id
-                  ? 'bg-[#00ff41] text-black'
-                  : 'border border-[#00ff41]/50 text-[#00ff41] hover:bg-[#00ff41]/10'
+                  ? 'bg-gradient-to-r from-[#00ff41] to-emerald-500 text-black shadow-[0_0_30px_rgba(0,255,65,0.4)]'
+                  : 'bg-white/5 border border-white/20 text-white/70 hover:border-[#00ff41]/50 hover:text-[#00ff41]'
               }`}
             >
-              <span className="mr-2">{tab.icon}</span>
               {tab.label}
             </button>
           ))}
         </div>
 
-        {/* LEGENDS TAB - Gone Too Soon */}
-        {activeTab === 'legends' && (
-          <div className="space-y-6">
-            <p className="text-center text-white/60 text-sm mb-6">
-              These artists didn't get their flowers. But their spirit lives in every bar we write.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {legends.map((legend) => (
+        {/* PILLARS TAB - The Four Pillars of Success */}
+        {activeTab === 'pillars' && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">The Four Pillars of The Come Up</h2>
+              <p className="text-white/50 text-sm md:text-base max-w-2xl mx-auto">
+                Success in music isn't luck—it's architecture. These four pillars hold up every sustainable career. 
+                Master them, or watch your foundation crumble.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {pillars.map((pillar) => (
                 <div
-                  key={legend.id}
-                  className="bg-[#0a0a0a] border border-[#00ff41]/30 p-5 hover:border-[#00ff41] transition-all group"
+                  key={pillar.id}
+                  className={`relative bg-gradient-to-br from-black via-[#0a0a0a] to-[#050505] border border-[#00ff41]/30 rounded-xl overflow-hidden transition-all duration-300 hover:border-[#00ff41]/80 hover:shadow-[0_0_50px_rgba(0,255,65,0.3)] group`}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="text-4xl">{legend.image}</div>
-                    <div className="flex-1">
-                      <h3 className="text-white text-lg font-bold group-hover:text-[#00ff41] transition-colors">
-                        {legend.name}
+                  {/* Top gradient accent bar - Whip Montez neon green */}
+                  <div className="h-1 bg-gradient-to-r from-[#00ff41] via-[#00ff41] to-emerald-400 shadow-[0_0_10px_rgba(0,255,65,0.8)]"></div>
+                  
+                  <div className="p-6">
+                    <div className="mb-4">
+                      <h3 className="text-xl font-black text-white">
+                        {pillar.title}
                       </h3>
-                      <p className="text-[#00ff41]/60 text-xs font-mono mb-2">{legend.years}</p>
-                      <p className="text-white/70 text-sm leading-relaxed mb-3">{legend.story}</p>
-                      <div className="bg-[#001a00] border-l-2 border-[#00ff41] p-3 mb-2">
-                        <p className="text-[#00ff41] text-sm italic">"{legend.quote}"</p>
-                      </div>
-                      <p className="text-yellow-500/80 text-xs uppercase tracking-wider flex items-center gap-2">
-                        <Sparkles size={12} /> {legend.lesson}
+                      <p className="text-white/40 text-xs uppercase tracking-wider">{pillar.subtitle}</p>
+                    </div>
+                    
+                    <p className="text-white/70 text-sm leading-relaxed mb-4">{pillar.description}</p>
+                    
+                    {/* Mentor Tip */}
+                    <div className="bg-white/5 border-l-2 border-white/30 p-3 mb-4">
+                      <p className="text-white/80 text-sm">
+                        <span className="font-bold">Mentor Tip:</span> {pillar.mentorTip}
                       </p>
                     </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setExpandedLesson(expandedLesson === pillar.id ? null : pillar.id)}
+                        className={`px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all rounded ${
+                          expandedLesson === pillar.id 
+                            ? 'bg-[#00ff41] text-black' 
+                            : 'bg-white/10 text-white hover:bg-white/20'
+                        }`}
+                      >
+                        {expandedLesson === pillar.id ? 'Close Deep Dive' : 'Read Deep Dive'}
+                      </button>
+                      
+                      {pillar.studioLink && (
+                        <button
+                          onClick={() => setSection(pillar.studioLink)}
+                          className={`px-4 py-2 text-xs font-bold uppercase tracking-wider bg-gradient-to-r ${pillar.color} text-white rounded hover:shadow-lg transition-all`}
+                        >
+                          {pillar.studioText} →
+                        </button>
+                      )}
+                    </div>
                   </div>
+                  
+                  {/* Expanded Deep Dive */}
+                  {expandedLesson === pillar.id && (
+                    <div className="border-t border-white/10 bg-[#050505] p-6 animate-fade-in">
+                      <div className="prose prose-invert prose-sm max-w-none">
+                        {pillar.deepDive.split('\n\n').map((paragraph, i) => {
+                          const trimmed = paragraph.trim();
+                          // Header with ** on both ends
+                          if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+                            return <h4 key={i} className="text-white font-bold text-lg mt-6 mb-3">{trimmed.slice(2, -2)}</h4>;
+                          }
+                          // Subheader with single * 
+                          if (trimmed.startsWith('*') && !trimmed.startsWith('**') && trimmed.includes('*')) {
+                            const match = trimmed.match(/^\*([^*]+)\*(.*)$/);
+                            if (match) {
+                              return <h5 key={i} className="text-white/90 font-semibold mt-5 mb-2 text-base">{match[1]}{match[2]}</h5>;
+                            }
+                          }
+                          // Bullet list
+                          if (trimmed.startsWith('- ')) {
+                            const items = trimmed.split('\n').filter(line => line.trim().startsWith('- '));
+                            return (
+                              <ul key={i} className="list-none space-y-2 my-4 pl-2">
+                                {items.map((item, j) => (
+                                  <li key={j} className="text-white/70 text-sm leading-relaxed flex items-start gap-2">
+                                    <span className="text-white/50 mt-1">→</span>
+                                    <span>{item.replace(/^-\s*/, '')}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            );
+                          }
+                          // Source/citation (starts with "Source:" or "—")
+                          if (trimmed.startsWith('Source:') || trimmed.startsWith('—')) {
+                            return <p key={i} className="text-white/40 text-xs italic mt-2 mb-4">{trimmed}</p>;
+                          }
+                          // Regular paragraph
+                          if (trimmed.length > 0) {
+                            return <p key={i} className="text-white/70 text-sm leading-relaxed mb-4">{trimmed}</p>;
+                          }
+                          return null;
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* LESSONS TAB - Wisdom for the Journey */}
-        {activeTab === 'lessons' && (
-          <div className="space-y-6">
-            <p className="text-center text-white/60 text-sm mb-6">
-              Hard-earned wisdom from the struggle. These lessons cost everything.
-            </p>
-            
-            {/* Lesson Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* TOOLKIT TAB - Practical Resources */}
+        {activeTab === 'toolkit' && (
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">The Artist Toolkit</h2>
+              <p className="text-white/50 text-sm md:text-base max-w-2xl mx-auto">
+                Your Studio agents aren't just AI—they're training partners for every aspect of your career. 
+                Here's how to use them strategically.
+              </p>
+            </div>
+
+            {/* Studio Agents as Tools */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
-                { 
-                  title: "The 10,000 Hour Rule", 
-                  content: "Before the deal, before the fame, there were 10,000 hours of writing, recording, and perfecting. Put in the work nobody sees.",
-                  icon: "⏱️"
-                },
-                { 
-                  title: "Own Your Masters", 
-                  content: "The music industry is a business. Own your art, own your name, own your future. Don't sign away your legacy.",
-                  icon: "📜"
-                },
-                { 
-                  title: "Build Your Tribe", 
-                  content: "No artist makes it alone. Find your people - the producers, the managers, the believers. Loyalty over everything.",
-                  icon: "👥"
-                },
-                { 
-                  title: "Document Everything", 
-                  content: "The struggle IS the story. Record the journey. Those late nights, those rejections, those small wins. Future you will thank present you.",
-                  icon: "📸"
-                },
-                { 
-                  title: "Stay Hungry, Stay Humble", 
-                  content: "Success changes people. Remember where you came from. The block remembers. Your real ones remember.",
-                  icon: "🙏"
-                },
-                { 
-                  title: "Your Voice Matters", 
-                  content: "Don't try to sound like anyone else. Your unique perspective, your neighborhood, your pain - that's your superpower.",
-                  icon: "🎤"
-                },
-                { 
-                  title: "Mental Health Is Real", 
-                  content: "The pressure is real. Check in on yourself. Check in on your people. It's okay to not be okay.",
-                  icon: "💚"
-                },
-                { 
-                  title: "Past & Present", 
-                  content: "Study the legends, but don't live in the past. Take what they built and push it forward. Evolution, not imitation.",
-                  icon: "🔄"
-                }
-              ].map((lesson, i) => (
+                { name: "Songwriter's Studio", link: "ghostwriter", use: "Daily writing practice. Feed it prompts, challenge yourself with different flows and perspectives." },
+                { name: "Lyric Recovery", link: "chat", use: "When you have a melody but need words. When you're stuck mid-verse. It finishes what you start." },
+                { name: "Cipher Dojo", link: "battle", use: "Sharpen your punchlines. Practice battle rap without the ego. Get uncomfortable." },
+                { name: "Crate Digger", link: "crates", use: "Sample discovery. Genre exploration. Find sounds you didn't know you needed." },
+                { name: "A&R Dashboard", link: "ar_suite", use: "Get honest feedback before you release. Understand your market position." },
+                { name: "Album Art Generator", link: "album_art", use: "Visualize your concepts. Generate artwork ideas. Build your visual identity." },
+                { name: "Viral Video Agent", link: "viral_video", use: "Content strategy for socials. Concept generation. Stay relevant in the algorithm." },
+                { name: "Trend Hunter", link: "trend_hunter", use: "Market intelligence. See what's moving. Don't chase trends—understand them." }
+              ].map((agent, i) => (
                 <div
                   key={i}
-                  className="bg-gradient-to-br from-[#0a0a0a] to-[#001100] border border-[#00ff41]/20 p-5 hover:border-[#00ff41]/60 transition-all"
+                  onClick={() => setSection(agent.link)}
+                  className="bg-black/50 border border-[#00ff41]/30 rounded-lg p-5 cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.3)] transition-all group"
                 >
-                  <div className="flex items-center gap-3 mb-3">
-                    <span className="text-2xl">{lesson.icon}</span>
-                    <h3 className="text-[#00ff41] font-bold uppercase tracking-wider">{lesson.title}</h3>
-                  </div>
-                  <p className="text-white/70 text-sm leading-relaxed">{lesson.content}</p>
+                  <h4 className="font-bold text-white mb-2 group-hover:text-[#00ff41]">{agent.name}</h4>
+                  <p className="text-white/60 text-xs leading-relaxed mb-3">{agent.use}</p>
+                  <p className="text-[#00ff41]/70 text-xs font-bold uppercase tracking-wider group-hover:text-[#00ff41]">
+                    Open Agent →
+                  </p>
                 </div>
               ))}
             </div>
 
-            {/* Whip Montez Quote */}
-            <div className="mt-8 bg-gradient-to-r from-[#002200] via-[#003300] to-[#002200] border border-[#00ff41]/50 p-6 text-center">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-[#00ff41]/50 mb-3">From Whip Montez</p>
-              <p className="text-xl md:text-2xl text-white font-light italic mb-3">
-                "Red Hook made me. The struggle shaped me. The music saved me. Now I'm here to tell the story - past and present."
+            {/* Weekly Practice Framework */}
+            <div className="bg-gradient-to-br from-[#001a00] to-[#000a00] border border-[#00ff41]/30 rounded-xl p-6 md:p-8">
+              <h3 className="text-xl font-bold text-white mb-4">
+                The Weekly Come Up Schedule
+              </h3>
+              <p className="text-white/60 text-sm mb-6">Structure creates freedom. Here's a suggested weekly practice using your Studio agents.</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { day: "MON/THU", focus: "WRITING", task: "30 min in Songwriter's Studio. Different prompt each day.", color: "text-emerald-400" },
+                  { day: "TUE/FRI", focus: "STUDY", task: "Crate Digger session. Analyze one sample. Learn the history.", color: "text-indigo-400" },
+                  { day: "WED", focus: "BATTLE", task: "Cipher Dojo. Push your punchlines. Record yourself.", color: "text-red-400" },
+                  { day: "SAT", focus: "CONTENT", task: "Viral Video + Trend Hunter. Plan your week's social strategy.", color: "text-violet-400" }
+                ].map((schedule, i) => (
+                  <div key={i} className="bg-black/50 border border-white/10 rounded-lg p-4">
+                    <p className={`font-bold text-sm ${schedule.color}`}>{schedule.day}</p>
+                    <p className="text-white text-xs font-bold uppercase tracking-wider mb-2">{schedule.focus}</p>
+                    <p className="text-white/60 text-xs">{schedule.task}</p>
+                  </div>
+                ))}
+              </div>
+              
+              <p className="text-white/40 text-xs mt-4 text-center italic">
+                Sunday is rest. Or studio time if you're really locked in. Either way—no judgment.
               </p>
-              <p className="text-[#00ff41] text-sm">— The Livewire Sessions, 2004</p>
+            </div>
+
+            {/* Resource Links */}
+            <div className="bg-black/50 border border-white/10 rounded-xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4">External Resources</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  <p className="text-white font-bold">Business & Legal</p>
+                  <p className="text-white/60">• ASCAP / BMI / SESAC - Performance rights organizations</p>
+                  <p className="text-white/60">• DistroKid / TuneCore - Distribution</p>
+                  <p className="text-white/60">• Volunteer Lawyers for the Arts - Free legal help</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-white font-bold">Mental Health</p>
+                  <p className="text-white/60">• 988 - Suicide & Crisis Lifeline</p>
+                  <p className="text-white/60">• Text HOME to 741741 - Crisis Text Line</p>
+                  <p className="text-white/60">• MusicCares - Industry-specific support</p>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* YOUR STORY TAB */}
+        {/* YOUR JOURNEY TAB */}
         {activeTab === 'stories' && (
-          <div className="space-y-6">
-            <p className="text-center text-white/60 text-sm mb-6">
-              Every artist has a story. This is a space for yours. Share the struggle, inspire the next generation.
-            </p>
+          <div className="space-y-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">Your Come Up Story</h2>
+              <p className="text-white/50 text-sm md:text-base max-w-2xl mx-auto">
+                Every artist has a journey. The late nights, the doubts, the small wins nobody saw. 
+                This is a space to share yours—and to draw strength from others.
+              </p>
+            </div>
 
             {/* Submit Story */}
-            <div className="bg-[#0a0a0a] border border-[#00ff41]/30 p-5">
-              <h3 className="text-[#00ff41] font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
-                <Edit2 size={16} /> Share Your Come Up Story
+            <div className="bg-gradient-to-br from-[#0a0a0a] to-black border border-[#00ff41]/30 rounded-xl p-6">
+              <h3 className="text-white font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Edit2 size={18} /> Share Your Journey
               </h3>
               <textarea
                 value={userStory}
                 onChange={(e) => setUserStory(e.target.value)}
-                placeholder="Tell us about your journey... The late nights, the doubts, the breakthroughs. What keeps you going?"
-                className="w-full h-32 bg-black border border-[#00ff41]/30 text-white p-4 outline-none resize-none focus:border-[#00ff41] placeholder:text-white/30 font-mono text-sm"
-                maxLength={500}
+                placeholder="Where did you start? What kept you going when it was hard? What's a lesson you learned the hard way? This is your space to be real..."
+                className="w-full h-40 bg-black border border-[#00ff41]/30 text-white p-4 outline-none resize-none focus:border-[#00ff41] placeholder:text-white/30 font-mono text-sm rounded-lg"
+                maxLength={1000}
               />
-              <div className="flex items-center justify-between mt-3">
-                <span className="text-[#00ff41]/50 text-xs">{userStory.length}/500</span>
+              <div className="flex items-center justify-between mt-4">
+                <span className="text-white/40 text-xs">{userStory.length}/1000</span>
                 <button
                   onClick={handleSubmitStory}
                   disabled={!userStory.trim()}
-                  className="px-4 py-2 bg-[#00ff41] text-black font-bold uppercase text-xs tracking-wider hover:bg-[#00cc33] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-gradient-to-r from-[#00ff41] to-emerald-500 text-black font-bold uppercase text-xs tracking-wider hover:shadow-[0_0_20px_rgba(0,255,65,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
                 >
                   Share Story
                 </button>
@@ -5481,19 +6758,19 @@ const TheComeUp = ({ setSection }) => {
             {/* Community Stories */}
             <div>
               <h3 className="text-white font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Users size={16} className="text-[#00ff41]" /> Community Stories
+                <Users size={18} /> Community Stories
               </h3>
               {submittedStories.length === 0 ? (
-                <div className="text-center py-12 border border-dashed border-[#00ff41]/30">
-                  <p className="text-white/50 text-sm">No stories yet. Be the first to share.</p>
+                <div className="text-center py-16 border border-dashed border-white/20 rounded-xl">
+                  <p className="text-white/40 text-sm">No stories yet. Be the first to share your journey.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {submittedStories.map((story) => (
-                    <div key={story.id} className="bg-[#0a0a0a] border-l-2 border-[#00ff41] p-4">
+                    <div key={story.id} className="bg-[#0a0a0a] border-l-4 border-[#00ff41] p-5 rounded-r-lg">
                       <p className="text-white/80 text-sm leading-relaxed">{story.text}</p>
-                      <p className="text-[#00ff41]/50 text-xs mt-2 font-mono">
-                        {new Date(story.timestamp).toLocaleDateString()}
+                      <p className="text-[#00ff41]/50 text-xs mt-3 font-mono">
+                        {new Date(story.timestamp).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                       </p>
                     </div>
                   ))}
@@ -5502,15 +6779,15 @@ const TheComeUp = ({ setSection }) => {
             </div>
 
             {/* Call to Action */}
-            <div className="text-center py-8 border-t border-[#00ff41]/20">
-              <p className="text-[#00ff41] text-lg font-bold mb-2">You're Not Alone</p>
-              <p className="text-white/60 text-sm max-w-lg mx-auto">
-                Every legend started somewhere. Every hit was once an idea in a bedroom studio. 
-                Keep going. The world needs your voice.
+            <div className="text-center py-12 bg-gradient-to-r from-transparent via-[#00ff41]/5 to-transparent border-y border-[#00ff41]/20 rounded-xl">
+              <p className="text-white text-xl md:text-2xl font-bold mb-3">You're Not Alone in This</p>
+              <p className="text-white/50 text-sm max-w-lg mx-auto mb-6">
+                Every legend started where you are. Every hit was once an idea in a bedroom studio. 
+                The difference between them and you? They didn't stop.
               </p>
               <button
                 onClick={() => setSection('studio')}
-                className="mt-4 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-500 text-white font-bold uppercase tracking-wider hover:shadow-[0_0_20px_rgba(236,72,153,0.5)] transition-all"
+                className="px-8 py-4 bg-gradient-to-r from-[#00ff41] to-emerald-500 text-black font-black uppercase tracking-wider rounded-lg hover:shadow-[0_0_30px_rgba(0,255,65,0.5)] transition-all"
               >
                 Enter The Studio →
               </button>
@@ -5520,8 +6797,8 @@ const TheComeUp = ({ setSection }) => {
       </div>
 
       {/* Footer */}
-      <div className="text-center py-6 text-[#00ff41]/30 text-xs uppercase tracking-widest border-t border-[#00ff41]/10">
-        Past & Present // Honor The Legends // Inspire The Future
+      <div className="text-center py-8 text-white/20 text-xs uppercase tracking-widest border-t border-white/5">
+        Past & Present // The Come Up // Whip Montez
       </div>
     </div>
   );
@@ -5623,125 +6900,134 @@ const CommunityHub = ({ setSection }) => {
   };
 
   return (
-    <div className="h-full w-full relative overflow-hidden bg-[#0a0a0a] font-mono flex flex-col">
-      <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-0 pointer-events-none"></div>
+    <div className="h-full w-full relative overflow-hidden bg-black font-mono flex flex-col">
       
-      {/* Header - Terminal Style */}
-      <div className="relative z-10 border-b border-[#333] bg-[#111] shrink-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between px-3 md:px-6 py-2 md:py-0 md:h-16 gap-2 md:gap-0">
-          <div className="flex items-center gap-2 md:gap-3">
-             <Users size={16} className="md:w-5 md:h-5 text-[#00ff41]" />
-             <h2 className="text-sm md:text-xl font-bold text-white tracking-wider md:tracking-widest uppercase">THE_BLOCK<span className="text-[#00ff41] animate-pulse">_FEED</span></h2>
-          </div>
-          <div className="flex items-center gap-2 w-full md:w-auto">
-            <div className="flex-1 md:flex-initial md:w-64 flex items-center gap-2 bg-[#050505] border border-[#333] px-2 py-1">
-              <Search size={12} className="text-[#00ff41] shrink-0"/>
-              <input 
-                type="text" 
-                placeholder="SEARCH POSTS..."
-                className="flex-1 bg-transparent text-white text-xs font-mono outline-none placeholder-gray-600 min-w-0"
-                onChange={(e) => {
-                  const term = e.target.value.toLowerCase();
-                  if (term) {
-                    const filtered = posts.filter(p => 
-                      p.content?.toLowerCase().includes(term) || 
-                      p.user?.toLowerCase().includes(term)
-                    );
-                    setPosts(filtered.length ? filtered : posts);
-                  }
-                }}
-              />
+      {/* Header - Glossy Style */}
+      <div className="relative z-10 bg-[#050505] border-b border-[#00ff41]/20 shrink-0">
+        <div className="max-w-4xl mx-auto px-4 md:px-6 py-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-purple-400/60 mb-1">
+                Fan Community
+              </p>
+              <h2 className="text-2xl md:text-3xl font-thin text-purple-400 tracking-tight flex items-center gap-3" style={{textShadow: '0 0 20px rgba(168,85,247,0.4)'}}>
+                <Users size={24} className="opacity-70" /> THE BLOCK
+              </h2>
             </div>
-            <button 
-              onClick={() => setSection('chat')}
-              className="bg-[#00ff41]/10 border border-[#00ff41] text-[#00ff41] px-2 md:px-4 py-1 font-bold text-[9px] md:text-xs flex items-center gap-1 md:gap-2 hover:bg-[#00ff41] hover:text-black transition-colors shrink-0"
-            >
-              <MessageSquare size={12} className="md:w-[14px] md:h-[14px]"/><span className="hidden sm:inline">PRIVATE MSG</span><span className="sm:hidden">MSG</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 bg-black border border-white/10 px-3 py-2 rounded">
+                <Search size={14} className="text-gray-500"/>
+                <input 
+                  type="text" 
+                  placeholder="Search posts..."
+                  className="bg-transparent text-white text-xs font-mono outline-none placeholder-gray-600 w-40"
+                  onChange={(e) => {
+                    const term = e.target.value.toLowerCase();
+                    if (term) {
+                      const filtered = posts.filter(p => 
+                        p.content?.toLowerCase().includes(term) || 
+                        p.user?.toLowerCase().includes(term)
+                      );
+                      setPosts(filtered.length ? filtered : posts);
+                    }
+                  }}
+                />
+              </div>
+              <button 
+                onClick={() => setSection('chat')}
+                className="bg-purple-500/10 border border-purple-500/30 text-purple-400 px-3 py-2 text-xs font-medium flex items-center gap-2 hover:bg-purple-500/20 hover:border-purple-500/50 transition-colors rounded"
+              >
+                <MessageSquare size={14}/> Chat
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="relative z-10 flex-1 overflow-y-auto p-3 md:p-6 max-w-4xl mx-auto w-full" style={{WebkitOverflowScrolling: 'touch'}}>
-        <div className="space-y-3 md:space-y-6">
+      <div className="relative z-10 flex-1 overflow-y-auto p-4 md:p-6 max-w-4xl mx-auto w-full" style={{WebkitOverflowScrolling: 'touch'}}>
+        
+        {/* Welcome Banner */}
+        <div className="bg-[#0a0a0a] border border-purple-500/20 rounded-lg p-5 mb-6" style={{boxShadow: '0 0 30px rgba(168,85,247,0.05)'}}>
+          <h3 className="text-white font-medium text-sm mb-2">Welcome to The Block</h3>
+          <p className="text-gray-500 text-xs leading-relaxed">
+            Connect with other Whip Montez fans. Share thoughts, memories, and reactions. This is your space to discuss the Alternative Reality Experience and celebrate the legacy.
+          </p>
+        </div>
+        
+        <div className="space-y-4">
           
-          {/* Input Area - Terminal Style */}
-          <div className="border border-[#333] bg-[#050505] p-2 md:p-4 relative">
-             <div className="text-[#00ff41] text-[10px] md:text-xs mb-1 md:mb-2">{'>'} INITIATE BROADCAST:</div>
+          {/* Input Area - Glossy Style */}
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-4 relative">
              <textarea 
                value={newPost}
                onChange={(e) => setNewPost(e.target.value)}
-               placeholder="Write to the block..." 
-               className="w-full bg-[#111] border border-[#333] text-white text-xs md:text-sm p-2 md:p-3 outline-none resize-none h-16 md:h-20 font-mono focus:border-[#00ff41] transition-colors mb-2"
+               placeholder="Share your thoughts with the community..." 
+               className="w-full bg-black border border-white/10 text-white text-sm p-3 outline-none resize-none h-20 font-sans rounded focus:border-purple-500/30 transition-colors mb-3 placeholder-gray-600"
              ></textarea>
              
              {showMediaInput && (
-                 <div className="flex items-center gap-2 mb-2 bg-[#111] p-1 border border-[#333]">
-                     <LinkIcon size={14} className="text-[#00ff41]"/>
+                 <div className="flex items-center gap-2 mb-3 bg-black border border-white/10 p-2 rounded">
+                     <LinkIcon size={14} className="text-purple-400"/>
                      <input 
                          type="text" 
                          value={mediaUrl}
                          onChange={(e) => setMediaUrl(e.target.value)}
-                         placeholder="MEDIA_URL (IMG/VIDEO)..."
-                         className="flex-1 bg-transparent text-white text-xs outline-none font-mono"
+                         placeholder="Paste image or video URL..."
+                         className="flex-1 bg-transparent text-white text-xs outline-none placeholder-gray-600"
                      />
                  </div>
              )}
              
              <div className="flex justify-between items-center">
-               <div className="flex gap-2 md:gap-4 text-gray-500">
-                 <button onClick={() => setShowMediaInput(!showMediaInput)} className={`hover:text-[#00ff41] transition-colors ${showMediaInput ? 'text-[#00ff41]' : ''}`}><ImageIcon size={14} className="md:w-4 md:h-4"/></button>
-                 <button onClick={() => setShowMediaInput(!showMediaInput)} className="hover:text-[#00ff41] transition-colors"><Video size={14} className="md:w-4 md:h-4"/></button>
+               <div className="flex gap-3 text-gray-600">
+                 <button onClick={() => setShowMediaInput(!showMediaInput)} className={`hover:text-purple-400 transition-colors ${showMediaInput ? 'text-purple-400' : ''}`}><ImageIcon size={16}/></button>
+                 <button onClick={() => setShowMediaInput(!showMediaInput)} className="hover:text-purple-400 transition-colors"><Video size={16}/></button>
                </div>
                <button 
                  onClick={handlePost}
-                 onTouchEnd={(e) => { e.preventDefault(); if (newPostContent.trim()) handlePost(); }}
-                 className="bg-[#00ff41] text-black px-3 md:px-6 py-1 text-[10px] md:text-xs font-black hover:bg-white transition-colors uppercase touch-manipulation"
+                 className="bg-purple-500/10 border border-purple-500/30 text-purple-400 px-5 py-2 text-xs font-medium rounded hover:bg-purple-500/20 hover:border-purple-500/50 transition-colors"
                >
-                 TRANSMIT
+                 Post
                </button>
              </div>
           </div>
 
-          {/* Posts Feed - Terminal Style */}
+          {/* Posts Feed - Glossy Style */}
           {posts.map(post => (
-            <div key={post.id} className="border border-[#333] bg-[#111] p-2 md:p-4 hover:border-[#00ff41]/50 transition-colors relative group">
-              <div className="flex items-start justify-between mb-2 md:mb-3">
-                <div className="flex items-center gap-2 md:gap-3">
-                  <div className="w-6 h-6 md:w-8 md:h-8 bg-[#222] border border-[#333] flex items-center justify-center shrink-0">
-                     <span className="text-[#00ff41] font-bold text-[10px] md:text-xs">{post.user.charAt(0)}</span>
+            <div key={post.id} className="bg-[#0a0a0a] border border-white/10 rounded-lg p-4 hover:border-purple-500/20 transition-colors group">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-purple-500/10 border border-purple-500/30 rounded-full flex items-center justify-center">
+                     <span className="text-purple-400 font-medium text-xs">{post.user.charAt(0)}</span>
                   </div>
-                  <div className="min-w-0">
-                    <div className="text-white font-bold text-[10px] md:text-xs uppercase flex items-center gap-1 md:gap-2 flex-wrap">
-                      <span className="truncate">{post.user}</span>
-                      <span className="text-[8px] md:text-[9px] bg-[#00ff41]/10 text-[#00ff41] px-1 border border-[#00ff41]/30 shrink-0">CITIZEN</span>
+                  <div>
+                    <div className="text-white font-medium text-sm flex items-center gap-2">
+                      <span>{post.user}</span>
+                      <span className="text-[9px] bg-purple-500/10 text-purple-400/70 px-1.5 py-0.5 rounded">FAN</span>
                     </div>
-                    <div className="text-gray-600 text-[9px] md:text-[10px] mt-0.5 font-mono">
-                      {post.createdAt?.seconds ? new Date(post.createdAt.seconds * 1000).toLocaleString() : 'JUST NOW'}
+                    <div className="text-gray-600 text-[10px] mt-0.5">
+                      {post.createdAt?.seconds ? new Date(post.createdAt.seconds * 1000).toLocaleString() : 'Just now'}
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className="text-gray-300 text-xs md:text-sm font-mono leading-relaxed pl-8 md:pl-11 mb-2 md:mb-3">
+              <div className="text-gray-300 text-sm leading-relaxed mb-3 pl-11">
                 {post.content}
               </div>
 
               {post.mediaUrl && (
                   <div className="pl-11 mb-3">
                       {post.mediaType === 'video' ? (
-                          <div className="aspect-video bg-black border border-[#333] rounded-lg overflow-hidden shadow-lg">
+                          <div className="aspect-video bg-black border border-white/10 rounded-lg overflow-hidden">
                               <video src={post.mediaUrl} controls className="w-full h-full object-cover" />
                           </div>
                       ) : post.mediaType === 'vertical_video' ? (
-                          <div className="max-w-[250px] aspect-[9/16] bg-black border-4 border-gray-800 rounded-2xl overflow-hidden shadow-2xl mx-auto relative group-hover:scale-105 transition-transform">
-                              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-20 h-4 bg-black rounded-b-xl z-20"></div>
-                              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-10 h-1 bg-white/50 rounded-full z-20"></div>
+                          <div className="max-w-[200px] aspect-[9/16] bg-black border border-white/10 rounded-xl overflow-hidden mx-auto">
                               <video src={post.mediaUrl} controls className="w-full h-full object-cover" />
                           </div>
                       ) : (
-                          <div className="rounded-lg border border-[#333] overflow-hidden shadow-lg">
+                          <div className="rounded-lg border border-white/10 overflow-hidden">
                               <img src={post.mediaUrl} alt="Post Attachment" className="w-full h-full object-cover" onError={(e) => e.target.style.display = 'none'} />
                           </div>
                       )}
@@ -5749,22 +7035,20 @@ const CommunityHub = ({ setSection }) => {
               )}
               
               {/* Actions Bar */}
-              <div className="flex gap-6 text-[10px] text-gray-500 font-mono border-t border-[#333] pt-2 pl-11">
+              <div className="flex gap-6 text-xs text-gray-500 border-t border-white/5 pt-3 pl-11">
                 <button 
                   onClick={() => handleLike(post.id, post.likes)}
-                  onTouchEnd={(e) => { e.preventDefault(); handleLike(post.id, post.likes); }}
-                  className="flex items-center gap-1 hover:text-[#00ff41] transition-colors touch-manipulation"
+                  className="flex items-center gap-1.5 hover:text-purple-400 transition-colors"
                 >
-                  <Heart size={12}/> 
-                  <span>{post.likes || 0} LIKES</span>
+                  <Heart size={14}/> 
+                  <span>{post.likes || 0}</span>
                 </button>
                 <button 
                   onClick={() => setReplyingTo(replyingTo === post.id ? null : post.id)}
-                  onTouchEnd={(e) => { e.preventDefault(); setReplyingTo(replyingTo === post.id ? null : post.id); }}
-                  className="flex items-center gap-1 hover:text-[#00ff41] transition-colors touch-manipulation"
+                  className="flex items-center gap-1.5 hover:text-purple-400 transition-colors"
                 >
-                  <MessageCircle size={12}/> 
-                  <span>REPLY ({post.replies?.length || 0})</span>
+                  <MessageCircle size={14}/> 
+                  <span>Reply ({post.replies?.length || 0})</span>
                 </button>
               </div>
 
@@ -5776,16 +7060,16 @@ const CommunityHub = ({ setSection }) => {
                   {replyingTo === post.id && (
                     <div className="flex gap-2 mb-3">
                       <input 
-                        className="flex-1 bg-[#050505] border border-[#333] text-white text-xs p-1 outline-none font-mono focus:border-[#00ff41]"
+                        className="flex-1 bg-black border border-white/10 text-white text-sm p-2 outline-none rounded focus:border-purple-500/30 transition-colors"
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
-                        placeholder="Reply..."
+                        placeholder="Write a reply..."
                         onKeyPress={(e) => e.key === 'Enter' && handleReply(post.id)}
                         autoFocus
                       />
                       <button 
                         onClick={() => handleReply(post.id)}
-                        className="bg-[#333] text-white px-3 text-[10px] font-bold hover:bg-[#00ff41] hover:text-black uppercase"
+                        className="bg-purple-500/10 border border-purple-500/30 text-purple-400 px-4 text-xs font-medium rounded hover:bg-purple-500/20 transition-colors"
                       >
                         Send
                       </button>
@@ -5794,10 +7078,10 @@ const CommunityHub = ({ setSection }) => {
 
                   {/* Reply List */}
                   {post.replies?.length > 0 && (
-                    <div className="space-y-1 border-l border-[#333] pl-3">
+                    <div className="space-y-2 border-l border-white/10 pl-3">
                       {post.replies.map((reply, idx) => (
-                         <div key={idx} className="text-xs font-mono">
-                            <span className="text-[#00ff41] font-bold mr-2">{reply.user}:</span>
+                         <div key={idx} className="text-sm">
+                            <span className="text-purple-400/80 font-medium mr-2">{reply.user}</span>
                             <span className="text-gray-400">{reply.text}</span>
                          </div>
                       ))}
@@ -5810,9 +7094,10 @@ const CommunityHub = ({ setSection }) => {
           ))}
           
           {posts.length === 0 && (
-            <div className="text-center py-20 border-2 border-dashed border-[#333] text-gray-600 text-xs font-mono">
-              <Activity size={48} className="text-gray-800 mx-auto mb-4"/>
-              <div className="text-gray-600 font-mono text-xs tracking-widest">NO SIGNAL DETECTED</div>
+            <div className="text-center py-16 border border-dashed border-white/10 rounded-lg">
+              <Users size={40} className="text-gray-700 mx-auto mb-4"/>
+              <div className="text-gray-500 text-sm mb-2">No posts yet</div>
+              <div className="text-gray-600 text-xs">Be the first to share something with the community</div>
             </div>
           )}
         </div>
@@ -5821,101 +7106,277 @@ const CommunityHub = ({ setSection }) => {
   );
 };
 
-// 9. SIDEKICK CHAT
-const SidekickChat = () => {
-  const [messages, setMessages] = useState([
-    { sender: 'whip', text: "Yo, who's this? How'd you tap into my drive?" }
-  ]);
+// 9. SONGWRITER'S STUDIO - AI Writing Partner
+const SongwritersStudio = () => {
+  const [mode, setMode] = useState('hook'); // 'hook', 'verse', 'bridge', 'freestyle'
   const [input, setInput] = useState("");
+  const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
-  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_sidekick', 3);
+  const [history, setHistory] = useState([]);
+  const [rhymeScheme, setRhymeScheme] = useState('AABB');
+  const [mood, setMood] = useState('hype');
+  const lastRequestTime = useRef(0);
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_songwriter', 5);
+  const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
+    setInput(prev => prev ? prev + ' ' + transcript : transcript);
+  });
+  const { speak, stop, isSpeaking, isSupported: speechSupported } = useSpeechSynthesis();
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const modes = [
+    { id: 'hook', label: 'HOOK', icon: '🎤', desc: 'Catchy chorus lines' },
+    { id: 'verse', label: 'VERSE', icon: '📝', desc: '16-bar verses' },
+    { id: 'bridge', label: 'BRIDGE', icon: '🌉', desc: 'Transitional sections' },
+    { id: 'freestyle', label: 'FREE', icon: '⚡', desc: 'Stream of consciousness' }
+  ];
 
-  useEffect(scrollToBottom, [messages]);
+  const moods = [
+    { id: 'hype', label: '🔥 HYPE', color: 'from-orange-500 to-red-500' },
+    { id: 'dark', label: '🌙 DARK', color: 'from-purple-600 to-gray-900' },
+    { id: 'smooth', label: '🎷 SMOOTH', color: 'from-blue-500 to-cyan-400' },
+    { id: 'introspective', label: '💭 DEEP', color: 'from-emerald-600 to-teal-500' },
+    { id: 'party', label: '🎉 PARTY', color: 'from-pink-500 to-yellow-400' }
+  ];
 
-  const handleSend = async () => {
+  const rhymeSchemes = ['AABB', 'ABAB', 'ABBA', 'AAAA', 'FREE'];
+
+  const handleGenerate = async () => {
     if (!input.trim()) return;
-    if (!canUse) {
-      setMessages(prev => [...prev, { sender: 'system', text: `FREE LIMIT REACHED: ${limit} free Sidekick replies used.` }]);
-      setInput("");
+
+    const cooldownTime = 2000;
+    const now = Date.now();
+    if (now - lastRequestTime.current < cooldownTime) {
       return;
     }
-    const userMsg = { sender: 'user', text: input };
-    setMessages(prev => [...prev, userMsg]);
-    setInput("");
+
+    if (!canUse) {
+      setOutput(`⚠️ FREE LIMIT REACHED\n\n${limit} free generations used.\nUpgrade for unlimited access.`);
+      return;
+    }
+
     setLoading(true);
+    setOutput("");
     consume();
+
+    const modePrompts = {
+      hook: `Write a catchy, memorable hook/chorus for a hip-hop track. Make it 4-8 lines, rhythmic, and easy to remember. Theme: ${input}. Mood: ${mood}. Include a tagline that could become iconic.`,
+      verse: `Write a 16-bar verse with ${rhymeScheme} rhyme scheme. Theme: ${input}. Mood: ${mood}. Include internal rhymes, wordplay, and vivid imagery. Format with line breaks.`,
+      bridge: `Write a bridge section (8 lines) that provides contrast and builds tension. Theme: ${input}. Mood: ${mood}. It should feel like a transition that elevates the song.`,
+      freestyle: `Write a raw, unfiltered freestyle flow. No rules, just bars. Starting point: ${input}. Mood: ${mood}. Be creative, unexpected, and hard-hitting.`
+    };
+
+    const systemPrompt = `You are a legendary hip-hop songwriter with credits on classic albums. Write lyrics in the style of NYC golden era mixed with modern flows. Be creative, authentic, and avoid clichés. Output ONLY the lyrics, no explanations. Use proper line breaks.`;
+
+    const responseText = await callGemini(modePrompts[mode], systemPrompt);
     
-    const systemPrompt = "You are Whip Montez, a female rapper from 2004. Your hard drive has been found in 2025. You are suspicious. Speak in early 2000s NY slang. Keep responses relatively short, like an Instant Message.";
-    const chatHistory = messages.map(m => `${m.sender === 'user' ? 'Stranger' : 'Whip'}: ${m.text}`).join('\n') + `\nStranger: ${input}\nWhip:`;
+    setOutput(responseText);
+    setHistory(prev => [{
+      mode,
+      mood,
+      input,
+      output: responseText,
+      timestamp: new Date().toLocaleTimeString()
+    }, ...prev].slice(0, 10));
     
-    const responseText = await callGemini(chatHistory, systemPrompt);
-    setMessages(prev => [...prev, { sender: 'whip', text: responseText }]);
+    lastRequestTime.current = Date.now();
     setLoading(false);
   };
 
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(output);
+  };
+
   return (
-    <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-4">
-      <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10"></div>
-      <div className="relative z-20 w-full max-w-md bg-[#d4d0c8] border-2 border-white shadow-2xl flex flex-col h-[500px]">
-        <div className="bg-gradient-to-r from-[#003399] to-[#0099cc] text-white px-2 py-1 flex justify-between items-center select-none">
-           <div className="flex items-center gap-1 text-xs font-bold font-sans">
-             <MessageSquare size={12} className="text-yellow-400"/>
-             <span>Instant Message - WhipMntz04</span>
-           </div>
-           <div className="flex gap-1">
-             <button className="w-4 h-4 bg-[#d4d0c8] border border-white border-r-gray-500 border-b-gray-500 text-black text-[10px] flex items-center justify-center">_</button>
-             <button className="w-4 h-4 bg-[#d4d0c8] border border-white border-r-gray-500 border-b-gray-500 text-black text-[10px] flex items-center justify-center">X</button>
-           </div>
+    <AgentContainer 
+      title="SONGWRITER'S STUDIO" 
+      icon={Feather} 
+      accentColor="neon"
+      headerExtra={
+        <div className="flex items-center gap-2 text-[10px] font-mono">
+          <Sparkles size={12} className="text-green-300"/>
+          <span className="hidden sm:inline">AI PARTNER</span>
         </div>
-        <div className="bg-[#d4d0c8] text-black text-[10px] px-2 border-b border-gray-400 flex gap-2 font-sans py-0.5">
-           <span className="underline">F</span>ile <span className="underline">E</span>dit <span className="underline">I</span>nsert <span className="underline">P</span>eople
+      }
+    >
+      <div className="h-full flex flex-col">
+        {/* Mode Selector */}
+        <div className="p-3 md:p-4 bg-[#111] border-b border-green-500/30 shrink-0">
+          <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
+            {modes.map(m => (
+              <button
+                key={m.id}
+                onClick={() => setMode(m.id)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                  mode === m.id 
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-lg shadow-green-500/30' 
+                    : 'bg-black/50 text-gray-400 border border-green-500/20 hover:border-green-500/50'
+                }`}
+              >
+                <span>{m.icon}</span>
+                <span>{m.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Mood & Rhyme Controls */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-3">
+            <div className="flex-1">
+              <label className="text-[10px] text-gray-500 font-mono mb-1 block">MOOD</label>
+              <div className="flex gap-1 flex-wrap">
+                {moods.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setMood(m.id)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
+                      mood === m.id 
+                        ? `bg-gradient-to-r ${m.color} text-white` 
+                        : 'bg-black/50 text-gray-500 hover:text-white'
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {mode === 'verse' && (
+              <div>
+                <label className="text-[10px] text-gray-500 font-mono mb-1 block">RHYME SCHEME</label>
+                <div className="flex gap-1">
+                  {rhymeSchemes.map(rs => (
+                    <button
+                      key={rs}
+                      onClick={() => setRhymeScheme(rs)}
+                      className={`px-2 py-1 rounded text-[10px] font-mono font-bold transition-all ${
+                        rhymeScheme === rs 
+                          ? 'bg-green-600 text-white' 
+                          : 'bg-black/50 text-gray-500 hover:text-white'
+                      }`}
+                    >
+                      {rs}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Input Area */}
+          <div className="flex gap-2">
+            <div className="flex-1 flex items-center bg-black border border-green-500/50 rounded-lg overflow-hidden focus-within:border-green-400 transition-colors">
+              <input 
+                type="text" 
+                value={input} 
+                onChange={(e) => setInput(e.target.value)} 
+                placeholder={mode === 'hook' ? "What's the hook about? (e.g., rising from nothing)" : mode === 'verse' ? "Theme or story for the verse..." : mode === 'bridge' ? "What transition or emotion?" : "Start with anything..."} 
+                className="flex-1 bg-transparent text-white p-3 text-sm font-mono outline-none" 
+                onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
+              />
+              {isSupported && (
+                <button 
+                  onClick={startListening} 
+                  disabled={loading || isListening}
+                  className={`px-3 ${isListening ? 'bg-green-600 animate-pulse' : 'hover:bg-green-900/50'} text-white transition-colors disabled:opacity-50`}
+                  title="Voice input"
+                >
+                  <Mic size={18}/>
+                </button>
+              )}
+            </div>
+            <button 
+              onClick={handleGenerate} 
+              disabled={loading || !input.trim()} 
+              className="bg-gradient-to-r from-green-600 to-emerald-500 text-white px-6 py-3 text-sm font-bold hover:from-green-500 hover:to-emerald-400 uppercase disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all rounded-lg shadow-lg shadow-green-500/30"
+            >
+              {loading ? <RefreshCw size={18} className="animate-spin"/> : <Zap size={18}/>}
+            </button>
+          </div>
         </div>
-        <div className="flex-1 bg-white border-2 border-inset border-gray-400 m-1 p-2 overflow-y-auto font-sans text-sm">
-           {messages.map((msg, idx) => (
-             <div key={idx} className="mb-1">
-                <span className={`font-bold ${msg.sender === 'user' ? 'text-red-600' : 'text-blue-700'}`}>
-                  {msg.sender === 'user' ? 'You' : 'WhipMntz04'}:
-                </span>
-                <span className="ml-1 font-comic">{msg.text}</span>
-             </div>
-           ))}
-           {loading && <div className="text-gray-500 italic text-xs">WhipMntz04 is typing...</div>}
-           <div ref={messagesEndRef} />
-        </div>
-        <div className="h-24 bg-white border-2 border-inset border-gray-400 m-1 mt-0 p-2 font-sans">
-           <div className="flex gap-2 mb-1 border-b border-gray-200 pb-1">
-             <button className="text-xs font-bold text-blue-600 hover:bg-gray-100 px-1 rounded">A</button>
-             <button className="text-xs font-bold text-gray-600 hover:bg-gray-100 px-1 rounded">A</button>
-             <button className="text-xs font-bold text-gray-600 hover:bg-gray-100 px-1 rounded">B</button>
-             <button className="text-xs font-bold text-gray-600 hover:bg-gray-100 px-1 rounded">I</button>
-             <button className="text-xs font-bold text-gray-600 hover:bg-gray-100 px-1 rounded">U</button>
-           </div>
-           <textarea 
-             className="w-full h-12 outline-none resize-none text-sm font-comic"
-             value={input}
-             onChange={(e) => setInput(e.target.value)}
-             onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
-             autoFocus
-           />
-        </div>
-        <div className="flex justify-between p-1 bg-[#d4d0c8]">
-           <button className="px-3 py-0.5 border border-white border-r-gray-600 border-b-gray-600 text-xs shadow-sm bg-[#d4d0c8] active:border-gray-600 active:border-r-white">Warn</button>
-           <button className="px-3 py-0.5 border border-white border-r-gray-600 border-b-gray-600 text-xs shadow-sm bg-[#d4d0c8] active:border-gray-600 active:border-r-white">Block</button>
-           <button 
-             onClick={handleSend}
-             className="px-6 py-0.5 border border-white border-r-gray-600 border-b-gray-600 text-xs font-bold active:border-gray-600 active:border-r-white"
-           >
-             Send
-           </button>
+
+        {/* Output Area */}
+        <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-[#0a0a0a]" style={{WebkitOverflowScrolling: 'touch'}}>
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-12 text-green-400">
+              <RefreshCw size={32} className="animate-spin mb-4"/>
+              <span className="text-sm font-mono animate-pulse">CRAFTING {mode.toUpperCase()}...</span>
+            </div>
+          )}
+
+          {!loading && output && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-400 font-bold text-sm">{modes.find(m => m.id === mode)?.icon} {mode.toUpperCase()}</span>
+                  <span className="text-[10px] text-gray-500 font-mono">• {moods.find(m => m.id === mood)?.label}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {speechSupported && (
+                    <button 
+                      onClick={() => isSpeaking ? stop() : speak(output)}
+                      className={`flex items-center gap-1 text-[10px] transition-colors ${isSpeaking ? 'text-green-400' : 'text-gray-500 hover:text-green-400'}`}
+                    >
+                      {isSpeaking ? <VolumeX size={12}/> : <Volume2 size={12}/>} {isSpeaking ? 'STOP' : 'SPEAK'}
+                    </button>
+                  )}
+                  <button 
+                    onClick={copyToClipboard}
+                    className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-green-400 transition-colors"
+                  >
+                    <Copy size={12}/> COPY
+                  </button>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-green-900/20 to-black border border-green-500/30 rounded-lg p-4">
+                <pre className="text-white font-mono text-sm whitespace-pre-wrap leading-relaxed">{output}</pre>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleGenerate}
+                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-green-400 transition-colors border border-green-500/20 px-3 py-1 rounded hover:border-green-500/50"
+                >
+                  <RefreshCw size={12}/> REGENERATE
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!loading && !output && (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-600">
+              <Feather size={48} className="mb-4 text-green-500/30"/>
+              <span className="text-lg font-bold text-white mb-2">WRITER'S BLOCK?</span>
+              <span className="text-sm text-center max-w-md">Enter a theme, feeling, or concept above and let the AI help craft your next verse, hook, or bridge.</span>
+            </div>
+          )}
+
+          {/* History Section */}
+          {history.length > 0 && !loading && (
+            <div className="mt-6 pt-4 border-t border-green-500/20">
+              <h3 className="text-[10px] font-mono text-gray-500 mb-3">RECENT GENERATIONS</h3>
+              <div className="space-y-2">
+                {history.slice(0, 5).map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setMode(item.mode);
+                      setMood(item.mood);
+                      setInput(item.input);
+                      setOutput(item.output);
+                    }}
+                    className="w-full text-left p-2 bg-black/50 border border-green-500/10 rounded hover:border-green-500/30 transition-colors group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-white text-xs font-bold truncate flex-1">{item.input}</span>
+                      <span className="text-[10px] text-gray-600 font-mono">{item.timestamp}</span>
+                    </div>
+                    <div className="text-[10px] text-gray-500 mt-1">
+                      {modes.find(m => m.id === item.mode)?.icon} {item.mode.toUpperCase()} • {moods.find(m => m.id === item.mood)?.label}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </AgentContainer>
   );
 };
 
@@ -6005,69 +7466,72 @@ const NewsArchive = () => {
   return (
     <div className="h-full w-full relative overflow-hidden flex items-center justify-center p-4">
       <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10"></div>
-      <div className={`relative z-30 w-full max-w-6xl h-[85vh] shadow-[0_0_40px_rgba(0,255,65,0.1)] flex flex-col font-mono text-gray-300 transition-colors duration-500 ${mode === 'historical' ? 'bg-[#0a0a0a]' : 'bg-[#050510]'}`}>
-        <div className={`${mode === 'historical' ? 'bg-[#00ff41] text-black' : 'bg-cyan-500 text-black'} p-4 md:p-6 border-t-4 border-b-4 ${mode === 'historical' ? 'border-[#00ff41]' : 'border-cyan-500'} flex justify-between items-end transition-colors duration-500`}>
+      <div className="absolute inset-0 bg-black z-10"></div>
+      <div className={`relative z-30 w-full max-w-6xl h-[85vh] flex flex-col font-mono text-gray-300 transition-colors duration-500 bg-[#050505] border border-[#00ff41]/20 rounded-lg`} style={{boxShadow: '0 0 60px rgba(0, 255, 65, 0.08)'}}>
+        {/* News Header - Refined Glossy Style */}
+        <div className="bg-[#050505] px-4 md:px-6 py-5 border-b border-[#00ff41]/20 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 transition-colors duration-500 rounded-t-lg">
            <div>
-             <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none flex items-center gap-4">
-               <Globe size={48} strokeWidth={2.5}/> {mode === 'historical' ? 'THE_FEED_2004' : 'LIVE_HIP_HOP'}
+             <p className="text-[10px] md:text-xs uppercase tracking-[0.3em] text-[#00ff41]/50 mb-2 flex items-center gap-2">
+               <Globe size={14}/> {mode === 'historical' ? 'Archive Mode' : 'Real-Time News & Trending'}
+             </p>
+             <h1 className={`text-2xl md:text-4xl font-thin tracking-tighter leading-none ${mode === 'historical' ? 'text-[#00ff41]' : 'text-cyan-400'}`} style={{textShadow: mode === 'historical' ? '0 0 10px rgba(0,255,65,0.4)' : '0 0 10px rgba(34,211,238,0.4)'}}>
+               {mode === 'historical' ? 'THE FEED 2004' : 'LIVE HIP-HOP'}
              </h1>
-             <p className="text-xs md:text-sm font-bold mt-1 opacity-80">{mode === 'historical' ? 'ARCHIVE MODE' : 'REAL-TIME NEWS & TRENDING'}</p>
            </div>
            
-           <div className="flex items-center gap-4">
-              <div className="flex-1 max-w-xl flex items-center gap-2 bg-black/30 p-3 rounded border-2 border-black">
-                <Search size={20} className="text-black ml-1"/>
+           <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="flex-1 md:max-w-md flex items-center gap-2 bg-black border border-white/10 px-3 py-2 rounded">
+                <Search size={16} className="text-gray-500"/>
                 <input 
                   type="text" 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder={mode === 'historical' ? "SEARCH ARCHIVES..." : "SEARCH (e.g. 'Drake beef')"}
-                  className="bg-transparent border-none outline-none text-black font-black text-base md:text-lg w-full placeholder-black/60"
+                  placeholder={mode === 'historical' ? "Search archives..." : "Search (e.g. 'Drake beef')"}
+                  className="bg-transparent border-none outline-none text-white font-normal text-sm w-full placeholder-gray-600"
                   onKeyPress={(e) => e.key === 'Enter' && fetchNews(mode)}
                 />
                 {mode === 'live' && (
-                    <button onClick={() => fetchLiveNews()} className="bg-black text-cyan-500 px-4 py-2 text-sm font-black rounded border-2 border-black hover:border-cyan-400 transition-all">SEARCH</button>
+                    <button onClick={() => fetchLiveNews()} className="bg-cyan-500/10 text-cyan-400 px-3 py-1 text-xs font-medium rounded border border-cyan-500/30 hover:border-cyan-400/50 transition-all">SEARCH</button>
                 )}
              </div>
              
-              <div className="flex items-center gap-3 bg-black/30 p-2 rounded border-2 border-black">
-                  <span className={`text-xs md:text-sm font-black ${mode === 'historical' ? 'text-black opacity-100' : 'text-black opacity-50'}`}>2004</span>
-                  <button onClick={() => fetchNews(mode === 'historical' ? 'live' : 'historical')} disabled={loading} className="focus:outline-none">
-                    {mode === 'historical' ? <ToggleLeft size={36} /> : <ToggleRight size={36} />}
+              <div className="flex items-center gap-2 bg-black border border-white/10 px-3 py-2 rounded">
+                  <span className={`text-[10px] md:text-xs font-medium ${mode === 'historical' ? 'text-[#00ff41]' : 'text-gray-600'}`}>2004</span>
+                  <button onClick={() => fetchNews(mode === 'historical' ? 'live' : 'historical')} disabled={loading} className={`focus:outline-none transition-colors ${mode === 'historical' ? 'text-[#00ff41]' : 'text-cyan-400'}`}>
+                    {mode === 'historical' ? <ToggleLeft size={28} /> : <ToggleRight size={28} />}
                   </button>
-                  <span className={`text-xs md:text-sm font-black ${mode === 'live' ? 'text-black opacity-100' : 'text-black opacity-50'}`}>LIVE</span>
+                  <span className={`text-[10px] md:text-xs font-medium ${mode === 'live' ? 'text-cyan-400' : 'text-gray-600'}`}>LIVE</span>
                </div>
            </div>
         </div>
         
         <div className="flex-1 flex overflow-hidden relative">
-           {loading && <div className="absolute inset-0 bg-black/90 z-50 flex items-center justify-center"><RefreshCw size={48} className="animate-spin text-cyan-500" /></div>}
+           {loading && <div className="absolute inset-0 bg-black/90 z-50 flex items-center justify-center"><RefreshCw size={48} className="animate-spin text-cyan-500/70" /></div>}
            
            {/* Left Panel - Trending Social */}
-           <div className="hidden md:block w-80 bg-[#0a0a0a] border-r border-[#333] flex flex-col shrink-0">
-             <div className="p-4 border-b border-[#333] flex items-center justify-between shrink-0">
-               <h3 className="font-black text-cyan-500 text-sm flex items-center gap-2">
-                 <TrendingUp size={16} /> TRENDING NOW
+           <div className="hidden md:flex w-80 bg-[#0a0a0a] border-r border-white/10 flex-col shrink-0">
+             <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
+               <h3 className="font-medium text-cyan-400/80 text-sm flex items-center gap-2">
+                 <TrendingUp size={14} /> TRENDING NOW
                </h3>
-               <button onClick={refreshTrending} className="text-gray-500 hover:text-cyan-500 transition-colors">
+               <button onClick={refreshTrending} className="text-gray-600 hover:text-cyan-400 transition-colors">
                  <RefreshCw size={14} />
                </button>
              </div>
              <div className="flex-1 overflow-y-auto p-3 space-y-3 max-h-[calc(100vh-200px)]" style={{ scrollbarWidth: 'thin', scrollbarColor: '#00ff41 #0a0a0a' }}>
                {trendingPosts.map((post, i) => (
-                 <div key={i} className="bg-[#111] border border-[#222] p-3 rounded hover:border-cyan-500/50 transition-all cursor-pointer">
+                 <div key={i} className="bg-black border border-white/10 p-3 rounded hover:border-cyan-500/30 transition-all cursor-pointer">
                    <div className="flex items-start gap-2 mb-2">
                      <span className="text-lg">{post.icon}</span>
                      <div className="flex-1 min-w-0">
                        <div className="flex items-center gap-2 text-xs">
-                         <span className={`font-bold ${post.color}`}>{post.username}</span>
+                         <span className={`font-medium ${post.color}`}>{post.username}</span>
                          <span className="text-gray-600">• {post.time}</span>
                        </div>
                      </div>
                    </div>
-                   <p className="text-xs text-gray-300 leading-relaxed mb-2">{post.text}</p>
-                   <div className="flex items-center gap-3 text-xs text-gray-500">
+                   <p className="text-xs text-gray-400 leading-relaxed mb-2">{post.text}</p>
+                   <div className="flex items-center gap-3 text-xs text-gray-600">
                      <span>❤️ {post.likes}</span>
                      <span className="text-gray-700">•</span>
                      <span className="text-gray-600">{post.platform}</span>
@@ -6075,34 +7539,34 @@ const NewsArchive = () => {
                  </div>
                ))}
              </div>
-             <div className="p-3 border-t border-[#333] text-center">
+             <div className="p-3 border-t border-white/10 text-center">
                <p className="text-[9px] text-gray-600 uppercase tracking-wider">Updated Every 5 Minutes</p>
              </div>
            </div>
            
            {/* Main News Feed */}
-           <div className="flex-1 overflow-y-auto bg-[#0a0a0a] p-4 space-y-4">
+           <div className="flex-1 overflow-y-auto bg-black p-4 space-y-4">
              {mode === 'live' && (
-               <div className="bg-red-900/20 border border-red-500 p-3 rounded flex items-center gap-3">
+               <div className="bg-red-900/10 border border-red-500/30 p-3 rounded flex items-center gap-3">
                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                 <span className="text-red-400 text-xs font-bold uppercase tracking-wider">Live Feed Active • Searching Real-Time Sources</span>
+                 <span className="text-red-400/80 text-xs font-medium uppercase tracking-wider">Live Feed Active • Searching Real-Time Sources</span>
                </div>
              )}
              {newsItems.map((item) => (
-               <div key={item.id} className="border border-[#333] bg-[#111] p-4 hover:border-cyan-500 transition-all group">
+               <div key={item.id} className="border border-white/10 bg-[#0a0a0a] p-4 hover:border-cyan-500/30 transition-all group rounded">
                    <div className="flex items-start justify-between mb-2">
                      <div className="flex-1">
-                       <h2 className="text-lg md:text-xl font-bold text-white mb-1 group-hover:text-cyan-500 transition-colors">{item.title}</h2>
-                       <p className="text-sm text-gray-400 leading-relaxed">{item.content}</p>
+                       <h2 className="text-base md:text-lg font-medium text-white mb-1 group-hover:text-cyan-400 transition-colors">{item.title}</h2>
+                       <p className="text-sm text-gray-500 leading-relaxed">{item.content}</p>
                      </div>
                    </div>
                    <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
-                     <span className="text-cyan-500 font-bold">{item.source}</span>
-                     <span className="text-gray-600">•</span>
-                     <span className="text-gray-500">{item.date}</span>
-                     {item.time && <><span className="text-gray-600">•</span><span className="text-gray-500">{item.time}</span></>}
+                     <span className="text-cyan-400/80 font-medium">{item.source}</span>
+                     <span className="text-gray-700">•</span>
+                     <span className="text-gray-600">{item.date}</span>
+                     {item.time && <><span className="text-gray-700">•</span><span className="text-gray-600">{item.time}</span></>}
                      {item.tags && item.tags.map(tag => (
-                       <span key={tag} className="bg-cyan-900/30 text-cyan-400 px-2 py-0.5 rounded text-[10px] font-bold">#{tag}</span>
+                       <span key={tag} className="bg-cyan-500/10 text-cyan-400/80 px-2 py-0.5 rounded text-[10px] font-medium">#{tag}</span>
                      ))}
                    </div>
                </div>
@@ -6111,6 +7575,137 @@ const NewsArchive = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+// 10.5 LYRIC RECOVERY - NEW HIGH-FIDELITY DESIGN
+const LyricRecovery = () => {
+  const [history, setHistory] = useState([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const endRef = useRef(null);
+  const lastRequestTime = useRef(0);
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_ghostwriter', 5);
+  const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
+    setInput(prev => prev ? prev + ' ' + transcript : transcript);
+  });
+  const { speak, stop, isSpeaking, isSupported: speechSupported } = useSpeechSynthesis();
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [history]);
+
+  const handleGenerate = async () => {
+    if (!input.trim()) return;
+
+    const cooldownTime = 3000;
+    const now = Date.now();
+    if (now - lastRequestTime.current < cooldownTime) {
+      alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds.`);
+      return;
+    }
+
+    if (!canUse) {
+      setHistory(prev => [...prev, { sender: 'ai', text: `FREE LIMIT REACHED: ${limit} free generations used.` }]);
+      return;
+    }
+    consume();
+    
+    const userMsg = { sender: 'user', text: input };
+    setHistory(prev => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
+
+    const systemPrompt = "You are a legendary hip-hop ghostwriter from 2004, channeling the golden era of NYC rap. Write creative, hard-hitting lyrics with clever wordplay, internal rhymes, and authentic street poetry. Keep responses focused on the bars - no explanations needed.";
+    const responseText = await callGemini(input, systemPrompt);
+    
+    lastRequestTime.current = Date.now();
+    setHistory(prev => [...prev, { sender: 'ai', text: responseText }]);
+    setLoading(false);
+  };
+
+  return (
+    <AgentContainer 
+      title="LYRIC RECOVERY" 
+      icon={Sparkles} 
+      accentColor="magenta"
+    >
+      <div className="h-full flex flex-col">
+        {/* Chat Area */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4" style={{WebkitOverflowScrolling: 'touch'}}>
+          {history.length === 0 && (
+            <div className="text-center text-gray-500 py-12">
+              <Sparkles size={48} className="mx-auto mb-4 text-cyan-500/30" />
+              <p className="text-sm font-mono tracking-wide">ENTER A TOPIC OR CONCEPT</p>
+              <p className="text-xs text-gray-600 mt-2">AI will craft lyrics in the style of 2004 NYC hip-hop</p>
+            </div>
+          )}
+          {history.map((msg, i) => (
+            <div key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] md:max-w-[80%] px-4 py-3 rounded-lg relative ${
+                msg.sender === 'user' 
+                  ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white' 
+                  : 'bg-gradient-to-r from-[#1f1f1f] to-[#181818] text-gray-200 border border-white/5'
+              }`} style={{boxShadow: msg.sender === 'user' ? '0 4px 15px rgba(0,255,255,0.2)' : '0 4px 15px rgba(0,0,0,0.3)'}}>
+                <p className="text-sm md:text-base whitespace-pre-wrap relative z-10">{msg.text}</p>
+                {msg.sender === 'ai' && speechSupported && (
+                  <button 
+                    onClick={() => isSpeaking ? stop() : speak(msg.text)}
+                    className="absolute -bottom-2 -right-2 w-8 h-8 bg-gradient-to-r from-cyan-600 to-cyan-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform border border-white/20"
+                  >
+                    {isSpeaking ? <VolumeX size={14} className="text-white"/> : <Volume2 size={14} className="text-white"/>}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-gradient-to-r from-[#1f1f1f] to-[#181818] px-4 py-3 rounded-lg border border-white/5">
+                <Loader2 className="w-5 h-5 animate-spin text-cyan-400"/>
+              </div>
+            </div>
+          )}
+          <div ref={endRef}/>
+        </div>
+
+        {/* Input Area */}
+        <div className="p-3 md:p-4 border-t border-white/10 bg-[#111] shrink-0">
+          <div className="flex gap-2 md:gap-3">
+            {isSupported && (
+              <button 
+                onClick={startListening}
+                className={`w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all border ${
+                  isListening 
+                    ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border-cyan-400 shadow-[0_0_20px_rgba(0,255,255,0.4)]' 
+                    : 'bg-[#1a1a1a] text-gray-400 hover:text-cyan-400 border-white/10 hover:border-cyan-500/50'
+                }`}
+              >
+                <Mic size={18}/>
+              </button>
+            )}
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleGenerate()}
+              placeholder="Write a hook about Brooklyn nights..."
+              className="flex-1 bg-[#1a1a1a] text-white px-4 py-2 md:py-3 rounded-lg text-sm md:text-base border border-white/10 focus:border-cyan-500/50 focus:outline-none placeholder-gray-500 transition-colors"
+            />
+            <button 
+              onClick={handleGenerate}
+              disabled={loading || !input.trim()}
+              className="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white rounded-lg font-bold tracking-wide text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(0,255,255,0.3)] transition-all"
+            >
+              {loading ? 'WRITING...' : 'GENERATE'}
+            </button>
+          </div>
+          <div className="text-center mt-2">
+            <span className="text-[10px] text-gray-600 font-mono">{canUse ? `${limit - (parseInt(localStorage.getItem('aiAgentUsage_ghostwriter') || '0'))} FREE USES LEFT` : 'LIMIT REACHED'}</span>
+          </div>
+        </div>
+      </div>
+    </AgentContainer>
   );
 };
 
@@ -6166,106 +7761,124 @@ const RapBattle = () => {
   };
 
   return (
-    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
-      <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
-      <div className="relative z-30 w-full max-w-2xl h-[85vh] md:h-[70vh] bg-[#111] border border-red-700 shadow-[0_0_20px_rgba(220,38,38,0.4)] flex flex-col my-4">
-        <div className="bg-red-700 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm shrink-0">
-           <span className="flex items-center gap-1 md:gap-2"><Flame size={14} className="md:w-[18px] md:h-[18px]"/><span className="hidden sm:inline">CIPHER_DOJO.EXE</span><span className="sm:hidden">BATTLE</span></span>
-           <div className="flex gap-1">
-             <button 
-               onClick={() => setShowInfo(true)}
-               className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-red-900 transition-colors flex items-center justify-center"
-               title="Info"
-             >
-               <Info size={14} className="md:w-4 md:h-4 text-red-400"/>
-             </button>
-             <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-red-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
-               <X size={14} className="md:w-4 md:h-4 text-white"/>
-             </button>
-           </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-3 md:space-y-4 bg-black/90" style={{WebkitOverflowScrolling: 'touch'}}>
-           {history.map((turn, i) => (
-             <div key={i} className={`flex ${turn.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] md:max-w-[70%] p-2 md:p-3 border-l-4 ${turn.sender === 'user' ? 'border-red-500 bg-red-900/20 text-right' : 'border-red-500 bg-red-900/20 text-left'}`}>
-                   <div className={`text-[9px] md:text-[10px] font-bold mb-1 ${turn.sender === 'user' ? 'text-red-500' : 'text-red-500'}`}>{turn.sender === 'user' ? 'YOU' : 'RIVAL MC'}</div>
-                   <div className="text-white font-mono text-xs md:text-sm whitespace-pre-wrap">{turn.text}</div>
+    <AgentContainer 
+      title="CIPHER DOJO" 
+      icon={Flame} 
+      accentColor="crimson"
+      headerExtra={
+        <button 
+          onClick={() => setShowInfo(true)}
+          className="w-7 h-7 bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-all flex items-center justify-center rounded-full border border-white/10"
+          title="Info"
+        >
+          <Info size={14} className="text-white/80"/>
+        </button>
+      }
+    >
+      <div className="h-full flex flex-col">
+        {/* Chat Area */}
+        <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-5 bg-gradient-to-b from-[#111] to-[#0a0a0a]" style={{WebkitOverflowScrolling: 'touch'}}>
+          {history.map((turn, i) => (
+            <div key={i} className={`flex ${turn.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] md:max-w-[75%] relative overflow-hidden rounded-lg ${turn.sender === 'user' 
+                ? 'bg-gradient-to-br from-red-600/30 to-red-900/20 border border-red-500/30' 
+                : 'bg-gradient-to-br from-white/10 to-white/5 border border-white/10'}`}
+                style={{boxShadow: turn.sender === 'user' ? '0 4px 20px rgba(239,68,68,0.2)' : '0 4px 20px rgba(0,0,0,0.3)'}}
+              >
+                <div className="relative z-10 p-3 md:p-4">
+                  <div className={`text-[9px] md:text-[10px] font-bold mb-1.5 tracking-widest ${turn.sender === 'user' ? 'text-red-400' : 'text-white/60'}`}>
+                    {turn.sender === 'user' ? '► YOU' : '◄ RIVAL MC'}
+                  </div>
+                  <div className="text-white font-mono text-xs md:text-sm whitespace-pre-wrap leading-relaxed">{turn.text}</div>
                 </div>
-             </div>
-           ))}
-           {loading && <div className="text-red-500 animate-pulse text-[10px] md:text-xs font-mono">Rival is writing a diss...</div>}
-           <div ref={endRef}></div>
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-gradient-to-br from-white/10 to-white/5 border border-white/10 rounded-lg p-4 flex items-center gap-3">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-bounce" style={{animationDelay: '0ms'}}></div>
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-bounce" style={{animationDelay: '150ms'}}></div>
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-bounce" style={{animationDelay: '300ms'}}></div>
+                </div>
+                <span className="text-red-400 text-xs font-mono tracking-wider">RIVAL WRITING...</span>
+              </div>
+            </div>
+          )}
+          <div ref={endRef}></div>
         </div>
-        <div className="p-2 md:p-4 bg-[#1a1a1a] border-t border-[#333] flex gap-2 shrink-0">
-           <input 
-             type="text" value={input} onChange={(e) => setInput(e.target.value)} 
-             placeholder="Spit your bars here..." 
-             className="flex-1 bg-black border border-[#333] text-white p-2 font-mono text-xs md:text-sm outline-none focus:border-red-500" 
-             onKeyPress={(e) => e.key === 'Enter' && handleBattle()} 
-           />
-           {isSupported && (
-             <button 
-                 onClick={startListening} 
-                 disabled={loading || isListening}
-                 className={`px-2 md:px-3 border border-[#333] ${isListening ? 'bg-red-600 animate-pulse' : 'bg-black hover:bg-red-900'} text-white transition-colors disabled:opacity-50`}
-                 title="Voice input"
-             >
-                 <Mic size={16} className="md:w-5 md:h-5"/>
-             </button>
-           )}
-           <button onClick={handleBattle} disabled={loading} className="bg-red-600 text-white px-4 md:px-6 py-2 font-bold font-mono hover:bg-red-500 transition-colors uppercase disabled:opacity-50 active:scale-95">SPIT</button>
+        
+        {/* Input Area */}
+        <div className="p-3 md:p-4 bg-[#111] border-t border-white/10 flex gap-2 md:gap-3 shrink-0">
+          <input 
+            type="text" value={input} onChange={(e) => setInput(e.target.value)} 
+            placeholder="Spit your bars here..." 
+            className="flex-1 bg-black/50 border border-white/10 text-white p-3 font-mono text-xs md:text-sm outline-none focus:border-red-500/50 rounded-lg transition-all placeholder:text-white/30" 
+            onKeyPress={(e) => e.key === 'Enter' && handleBattle()} 
+          />
+          {isSupported && (
+            <button 
+              onClick={startListening} 
+              disabled={loading || isListening}
+              className={`px-3 md:px-4 rounded-lg border transition-all disabled:opacity-50 ${isListening 
+                ? 'bg-red-600 border-red-500 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]' 
+                : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-red-500/50'}`}
+              title="Voice input"
+            >
+              <Mic size={18} className={`md:w-5 md:h-5 ${isListening ? 'text-white' : 'text-white/60'}`}/>
+            </button>
+          )}
+          <button 
+            onClick={handleBattle} 
+            disabled={loading} 
+            className="bg-gradient-to-r from-red-600 to-red-500 text-white px-5 md:px-8 py-3 font-bold tracking-wider hover:from-red-500 hover:to-red-400 transition-all uppercase disabled:opacity-50 active:scale-95 rounded-lg"
+          >
+            SPIT
+          </button>
         </div>
       </div>
 
       {/* Info Modal */}
       {showInfo && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/90" onClick={() => setShowInfo(false)}>
-          <div className="bg-[#111] border-2 border-red-700 p-6 max-w-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{WebkitOverflowScrolling: 'touch'}}>
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-red-500 font-bold text-xl font-mono">CIPHER_DOJO.EXE - SYSTEM INFO</h3>
-              <button onClick={() => setShowInfo(false)} className="text-red-500 hover:text-white">
-                <X size={20}/>
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/95 backdrop-blur-sm" onClick={() => setShowInfo(false)}>
+          <div 
+            className="relative bg-gradient-to-b from-[#1a1a1a] to-[#0f0f0f] border border-white/10 rounded-lg p-6 max-w-2xl max-h-[80vh] overflow-y-auto" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{WebkitOverflowScrolling: 'touch', boxShadow: '0 20px 60px rgba(239,68,68,0.2)'}}
+          >
+            <div className="flex justify-between items-start mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-gradient-to-r from-red-600 to-red-500">
+                  <Flame size={20} className="text-white"/>
+                </div>
+                <div>
+                  <h3 className="text-white font-bold text-xl tracking-wide">CIPHER DOJO</h3>
+                  <p className="text-red-400/60 text-xs tracking-widest">BATTLE.EXE</p>
+                </div>
+              </div>
+              <button onClick={() => setShowInfo(false)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center border border-white/10 transition-all">
+                <X size={16} className="text-white/60"/>
               </button>
             </div>
-            <div className="space-y-4 text-gray-100 text-sm leading-relaxed">
-              <div>
-                <h4 className="text-red-500 font-bold mb-2">TOOL DESCRIPTION:</h4>
-                <p>AI-powered battle rap opponent inspired by 2004 Brooklyn hip-hop culture. Test your lyrical skills against an opponent who responds with aggressive, witty disses.</p>
+            <div className="space-y-5 text-gray-100 text-sm leading-relaxed">
+              <div className="bg-white/5 rounded-lg p-4 border border-white/5">
+                <h4 className="text-red-400 font-bold mb-2 tracking-wider text-xs uppercase">Tool Description</h4>
+                <p className="text-white/80">AI-powered battle rap opponent inspired by 2004 Brooklyn hip-hop culture. Test your lyrical skills against an opponent who responds with aggressive, witty disses.</p>
               </div>
-              <div>
-                <h4 className="text-red-500 font-bold mb-2">FEATURES:</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Voice-to-text input for natural flow</li>
-                  <li>Real-time AI responses with NYC slang</li>
-                  <li>Free tier: 3 battle rounds per session</li>
-                  <li>3-second cooldown between bars</li>
-                  <li>Chat-style battle history</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-red-500 font-bold mb-2">HOW TO USE:</h4>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>Type or voice your battle bars</li>
-                  <li>Click SPIT to challenge the AI</li>
-                  <li>Get a diss track response in seconds</li>
-                  <li>Keep battling to sharpen your skills</li>
-                </ol>
-              </div>
-              <div>
-                <h4 className="text-red-500 font-bold mb-2">PRO TIPS:</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Use metaphors and wordplay for impact</li>
-                  <li>Reference Brooklyn/NYC culture</li>
-                  <li>Keep bars concise (2-4 lines)</li>
-                  <li>Focus on flow and rhyme schemes</li>
+              <div className="bg-white/5 rounded-lg p-4 border border-white/5">
+                <h4 className="text-red-400 font-bold mb-2 tracking-wider text-xs uppercase">Features</h4>
+                <ul className="space-y-2 text-white/80">
+                  <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>Voice-to-text input for natural flow</li>
+                  <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>Real-time AI responses with NYC slang</li>
+                  <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>Free tier: 3 battle rounds per session</li>
                 </ul>
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </AgentContainer>
   );
 };
 
@@ -6279,6 +7892,7 @@ const CrateDigger = () => {
   const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
     setMood(prev => prev ? prev + ' ' + transcript : transcript);
   });
+  const { speak, stop, isSpeaking, isSupported: speechSupported } = useSpeechSynthesis();
 
   const handleDig = async () => {
     // 🛡️ Validate and sanitize mood input
@@ -6318,48 +7932,59 @@ const CrateDigger = () => {
   };
 
   return (
-    <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
-      <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
-      <div className="relative z-30 w-full max-w-3xl h-[85vh] md:h-[80vh] bg-[#111] border border-yellow-600 shadow-[0_0_20px_rgba(250,204,21,0.4)] flex flex-col my-4">
-        <div className="bg-yellow-600 text-black px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm">
-           <span className="flex items-center gap-2"><Disc size={16} className="md:w-[18px] md:h-[18px]"/> <span className="hidden sm:inline">CRATE_DIGGER_PRO.EXE</span><span className="sm:hidden">CRATE DIGGER</span></span>
-           <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-yellow-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
-             <X size={14} className="md:w-4 md:h-4 text-white"/>
-           </button>
-        </div>
-        <div className="p-3 md:p-6 bg-[#1a1a1a] border-b border-[#333]">
+    <AgentContainer 
+      title="CRATE DIGGER" 
+      icon={Disc} 
+      accentColor="indigo"
+    >
+      <div className="h-full flex flex-col">
+        <div className="p-3 md:p-6 bg-[#111] border-b border-[#333] shrink-0">
            <h2 className="text-white font-black text-lg md:text-2xl mb-2">FIND THE PERFECT SAMPLE</h2>
            <div className="flex flex-col sm:flex-row gap-2">
              <div className="flex gap-2 flex-1">
-               <input type="text" value={mood} onChange={(e) => setMood(e.target.value)} placeholder="Enter a vibe..." className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 font-mono text-sm md:text-base outline-none focus:border-yellow-600" onKeyPress={(e) => e.key === 'Enter' && handleDig()} />
+               <input type="text" value={mood} onChange={(e) => setMood(e.target.value)} placeholder="Enter a vibe..." className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 font-mono text-sm md:text-base outline-none focus:border-yellow-600 rounded-lg" onKeyPress={(e) => e.key === 'Enter' && handleDig()} />
                {isSupported && (
                  <button 
                      onClick={startListening} 
                      disabled={loading || isListening}
-                     className={`px-2 md:px-3 border border-[#333] ${isListening ? 'bg-yellow-600 animate-pulse' : 'bg-black hover:bg-yellow-900'} text-white transition-colors disabled:opacity-50`}
+                     className={`px-2 md:px-3 border border-[#333] rounded-lg ${isListening ? 'bg-yellow-600 animate-pulse' : 'bg-black hover:bg-yellow-900'} text-white transition-colors disabled:opacity-50`}
                      title="Voice input"
                  >
                      <Mic size={16} className="md:w-5 md:h-5"/>
                  </button>
                )}
              </div>
-             <button onClick={handleDig} disabled={loading} className="bg-yellow-600 text-black px-6 py-2 md:py-3 font-bold hover:bg-yellow-500 text-sm md:text-base whitespace-nowrap active:scale-95 transition-transform">DIG</button>
+             <button onClick={handleDig} disabled={loading} className="bg-yellow-600 text-black px-6 py-2 md:py-3 font-bold hover:bg-yellow-500 text-sm md:text-base whitespace-nowrap active:scale-95 transition-transform rounded-lg">DIG</button>
            </div>
         </div>
         <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-[#0a0a0a]">
+           {samples.length === 0 && (
+             <div className="text-center text-gray-500 py-12">
+               <Disc size={48} className="mx-auto mb-4 text-yellow-500/30" />
+               <p className="text-sm font-mono tracking-wide">ENTER A VIBE TO DIG</p>
+               <p className="text-xs text-gray-600 mt-2">AI will find obscure 70s/80s samples</p>
+             </div>
+           )}
            {samples.map((sample, i) => (
-             <div key={i} className="flex gap-3 md:gap-4 p-3 md:p-4 border border-[#333] bg-[#111] mb-2 hover:border-yellow-600">
+             <div key={i} className="flex gap-3 md:gap-4 p-3 md:p-4 border border-[#333] bg-[#111] mb-2 hover:border-yellow-600 rounded-lg transition-colors">
                 <div className="flex-1">
                    <div className="text-yellow-600 text-[10px] md:text-xs font-bold mb-1">{sample.year} // {sample.artist}</div>
                    <div className="text-white font-black text-base md:text-xl">{sample.track}</div>
                    <div className="text-gray-400 text-xs md:text-sm mt-1">{sample.desc}</div>
+                   {speechSupported && (
+                     <button 
+                       onClick={() => speak(`${sample.artist}, ${sample.track}, from ${sample.year}. ${sample.desc}`)}
+                       className="mt-2 flex items-center gap-1 text-[10px] text-gray-500 hover:text-yellow-400 transition-colors"
+                     >
+                       <Volume2 size={12}/> HEAR INFO
+                     </button>
+                   )}
                 </div>
              </div>
            ))}
         </div>
       </div>
-    </div>
+    </AgentContainer>
   );
 };
 
@@ -6373,6 +7998,7 @@ const ARSuite = () => {
   const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
     setDemoText(prev => prev ? prev + '\n' + transcript : transcript);
   });
+  const { speak, stop, isSpeaking, isSupported: speechSupported } = useSpeechSynthesis();
 
   const handleReview = async () => {
     if (!demoText.trim()) return;
@@ -6417,63 +8043,68 @@ const ARSuite = () => {
   };
 
   return (
-    <div className="h-full w-full relative flex flex-col items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
-      <BackgroundCarousel images={[]} />
-      <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
-      <div className="relative z-30 w-full max-w-4xl h-[85vh] bg-[#1a1a1a] border border-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)] flex flex-col my-4">
-        <div className="bg-blue-600 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold text-xs md:text-sm">
-          <span className="flex items-center gap-2"><Briefcase size={16} className="md:w-[18px] md:h-[18px]"/> <span className="hidden sm:inline">A&R_DASHBOARD.EXE</span><span className="sm:hidden">A&R</span></span>
-          <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-blue-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
-            <X size={14} className="md:w-4 md:h-4 text-white"/>
-          </button>
-        </div>
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          <div className="w-full md:w-1/2 p-3 md:p-6 border-b md:border-r md:border-b-0 border-[#333] flex flex-col">
-             <textarea className="flex-1 bg-black border border-[#333] text-white p-3 md:p-4 font-mono text-xs md:text-sm resize-none focus:border-blue-500 outline-none mb-2" placeholder="Paste lyrics..." value={demoText} onChange={(e) => setDemoText(e.target.value)} />
-             <div className="flex gap-2">
-               {isSupported && (
-                 <button 
-                     onClick={startListening} 
-                     disabled={loading || isListening}
-                     className={`px-3 py-2 border border-[#333] ${isListening ? 'bg-blue-600 animate-pulse' : 'bg-black hover:bg-blue-900'} text-white transition-colors disabled:opacity-50 flex items-center gap-2 text-xs`}
-                 >
-                     <Mic size={16}/> {isListening ? 'LISTENING...' : 'VOICE'}
-                 </button>
-               )}
-               <button onClick={handleReview} disabled={loading} className="flex-1 bg-blue-600 text-white py-2 md:py-3 font-bold hover:bg-blue-500 uppercase disabled:opacity-50 text-xs md:text-sm active:scale-95 transition-transform">
-                  {loading ? "ANALYZING RHYMES..." : "SUBMIT FOR REVIEW"}
+    <AgentContainer 
+      title="A&R DASHBOARD" 
+      icon={Briefcase} 
+      accentColor="gold"
+    >
+      <div className="h-full flex flex-col md:flex-row">
+        {/* Input Panel */}
+        <div className="w-full md:w-1/2 p-3 md:p-6 border-b md:border-r md:border-b-0 border-[#333] flex flex-col bg-[#0a0a0a]">
+           <textarea className="flex-1 bg-black border border-[#333] text-white p-3 md:p-4 font-mono text-xs md:text-sm resize-none focus:border-blue-500 outline-none mb-2 rounded-lg min-h-[200px]" placeholder="Paste lyrics for A&R review..." value={demoText} onChange={(e) => setDemoText(e.target.value)} />
+           <div className="flex gap-2">
+             {isSupported && (
+               <button 
+                   onClick={startListening} 
+                   disabled={loading || isListening}
+                   className={`px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-blue-600 animate-pulse' : 'bg-black hover:bg-blue-900'} text-white transition-colors disabled:opacity-50 flex items-center gap-2 text-xs`}
+               >
+                   <Mic size={16}/> {isListening ? 'LISTENING...' : 'VOICE'}
                </button>
+             )}
+             <button onClick={handleReview} disabled={loading} className="flex-1 bg-blue-600 text-white py-2 md:py-3 font-bold hover:bg-blue-500 uppercase disabled:opacity-50 text-xs md:text-sm active:scale-95 transition-transform rounded-lg">
+                {loading ? "ANALYZING RHYMES..." : "SUBMIT FOR REVIEW"}
+             </button>
+           </div>
+        </div>
+        
+        {/* Results Panel */}
+        <div className="w-full md:w-1/2 p-3 md:p-6 bg-[#111] overflow-y-auto">
+           {!loading && !feedback && (
+             <div className="text-center text-gray-500 py-12">
+               <Briefcase size={48} className="mx-auto mb-4 text-blue-500/30" />
+               <p className="text-sm font-mono tracking-wide">SUBMIT LYRICS FOR REVIEW</p>
+               <p className="text-xs text-gray-600 mt-2">AI A&R will score your commercial and street appeal</p>
              </div>
-          </div>
-          <div className="w-full md:w-1/2 p-3 md:p-6 bg-[#111] overflow-y-auto">
-             {loading && (
-                 <div className="text-blue-500 animate-pulse text-base md:text-xl font-mono flex flex-col items-center py-10">
-                     <RefreshCw size={24} className="md:w-8 md:h-8 mb-4 animate-spin"/>
-                     A&R IS PROCESSING...
-                 </div>
-             )}
-             {feedback && (
-               <div className="space-y-4 md:space-y-6">
-                 <div className="flex gap-3 md:gap-4 text-center">
-                   <div className="flex-1 bg-black border border-blue-600 p-3 md:p-4"><div className="text-[10px] md:text-xs text-gray-500">RADIO</div><div className="text-2xl md:text-3xl font-black text-white">{feedback.commercial}/10</div></div>
-                   <div className="flex-1 bg-black border border-red-600 p-3 md:p-4"><div className="text-[10px] md:text-xs text-gray-500">STREETS</div><div className="text-2xl md:text-3xl font-black text-white">{feedback.street}/10</div></div>
-                 </div>
-                 <div className="bg-black/50 p-3 md:p-4 border-l-4 border-blue-600 text-xs md:text-sm text-gray-300">{feedback.critique}</div>
+           )}
+           {loading && (
+               <div className="text-blue-500 animate-pulse text-base md:text-xl font-mono flex flex-col items-center py-10">
+                   <RefreshCw size={24} className="md:w-8 md:h-8 mb-4 animate-spin"/>
+                   A&R IS PROCESSING...
                </div>
-             )}
-             {feedback && (
-               <div className="space-y-4 md:space-y-6">
-                 <div className="flex gap-3 md:gap-4 text-center">
-                   <div className="flex-1 bg-black border border-blue-600 p-3 md:p-4"><div className="text-[10px] md:text-xs text-gray-500">RADIO</div><div className="text-2xl md:text-3xl font-black text-white">{feedback.commercial}/10</div></div>
-                   <div className="flex-1 bg-black border border-red-600 p-3 md:p-4"><div className="text-[10px] md:text-xs text-gray-500">STREETS</div><div className="text-2xl md:text-3xl font-black text-white">{feedback.street}/10</div></div>
-                 </div>
-                 <div className="bg-black/50 p-3 md:p-4 border-l-4 border-blue-600 text-xs md:text-sm text-gray-300">{feedback.critique}</div>
+           )}
+           {feedback && (
+             <div className="space-y-4 md:space-y-6">
+               <div className="flex gap-3 md:gap-4 text-center">
+                 <div className="flex-1 bg-black border border-blue-600 p-3 md:p-4 rounded-lg"><div className="text-[10px] md:text-xs text-gray-500">RADIO</div><div className="text-2xl md:text-3xl font-black text-white">{feedback.commercial}/10</div></div>
+                 <div className="flex-1 bg-black border border-red-600 p-3 md:p-4 rounded-lg"><div className="text-[10px] md:text-xs text-gray-500">STREETS</div><div className="text-2xl md:text-3xl font-black text-white">{feedback.street}/10</div></div>
                </div>
-             )}
-          </div>
+               <div className="bg-black/50 p-3 md:p-4 border-l-4 border-blue-600 text-xs md:text-sm text-gray-300 rounded-r-lg">
+                 {feedback.critique}
+                 {speechSupported && (
+                   <button 
+                     onClick={() => isSpeaking ? stop() : speak(feedback.critique)}
+                     className={`mt-2 flex items-center gap-1 text-[10px] transition-colors ${isSpeaking ? 'text-blue-400' : 'text-gray-500 hover:text-blue-400'}`}
+                   >
+                     {isSpeaking ? <VolumeX size={12}/> : <Volume2 size={12}/>} {isSpeaking ? 'STOP' : 'HEAR FEEDBACK'}
+                   </button>
+                 )}
+               </div>
+             </div>
+           )}
         </div>
       </div>
-    </div>
+    </AgentContainer>
   );
 };
 
@@ -6483,11 +8114,19 @@ const AlbumArtGenerator = ({ user, onAuthRequest }) => {
     const [imageUrl, setImageUrl] = useState(null);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [format, setFormat] = useState('square');
     const lastRequestTime = useRef(0);
-  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_albumart', 3);
+    const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_albumart', 3);
     const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
       setPrompt(prev => prev ? prev + ' ' + transcript : transcript);
     });
+
+    const formats = [
+      { id: 'square', name: 'ALBUM COVER', icon: '💿', size: '1:1', desc: 'Spotify, Apple Music' },
+      { id: 'youtube', name: 'YT THUMBNAIL', icon: '▶️', size: '16:9', desc: 'YouTube, Vimeo' },
+      { id: 'story', name: 'STORY/REEL', icon: '📱', size: '9:16', desc: 'IG Stories, TikTok' },
+      { id: 'banner', name: 'BANNER', icon: '🖼️', size: '3:1', desc: 'Twitter/X Header' }
+    ];
     
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
@@ -6562,93 +8201,107 @@ const AlbumArtGenerator = ({ user, onAuthRequest }) => {
     };
 
     return (
-        <div className="h-full w-full relative flex flex-col items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
-            <BackgroundCarousel images={[]} />
-            <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
-            <div className="relative z-20 w-full max-w-4xl h-[90vh] md:h-[85vh] bg-[#1a1a1a] border border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.4)] flex flex-col my-4">
-                <div className="bg-pink-600 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold shrink-0">
-                    <span className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-                      <Camera size={14} className="md:w-[18px] md:h-[18px]"/> 
-                      <span className="hidden sm:inline">ALBUM_ART_GENERATOR.EXE</span>
-                      <span className="sm:hidden">ALBUM_ART_GEN</span>
-                    </span>
-                    <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-pink-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
-                      <X size={14} className="md:w-4 md:h-4 text-white"/>
-                    </button>
-                </div>
+        <AgentContainer 
+          title="ALBUM ART GENERATOR" 
+          icon={Camera} 
+          accentColor="cyan"
+        >
+          <div className="h-full flex flex-col">
+            <div className="p-3 md:p-6 bg-[#111] border-b border-[#333] shrink-0">
+                <h2 className="text-white font-black text-sm md:text-xl mb-2">GENERATE COVER ART</h2>
                 
-                <div className="p-3 md:p-6 bg-[#111] border-b border-[#333] shrink-0">
-                    <h2 className="text-white font-black text-sm md:text-xl mb-2">GENERATE COVER ART</h2>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="flex gap-2 flex-1">
-                          <input 
-                              type="text" 
-                              value={prompt} 
-                              onChange={(e) => setPrompt(e.target.value)} 
-                              placeholder="Describe your album cover..." 
-                              className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:border-pink-500" 
-                              onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
-                          />
-                          {isSupported && (
-                            <button 
-                                onClick={startListening} 
-                                disabled={loading || isListening}
-                                className={`px-2 md:px-3 py-2 border border-[#333] ${isListening ? 'bg-pink-600 animate-pulse' : 'bg-black hover:bg-pink-900'} text-white transition-colors disabled:opacity-50`}
-                                title="Voice input"
-                            >
-                                <Mic size={16} className="md:w-5 md:h-5"/>
-                            </button>
-                          )}
-                        </div>
-                        <button 
-                            onClick={handleGenerate} 
-                            disabled={loading} 
-                            className="bg-pink-600 text-white px-4 md:px-6 py-2 md:py-3 text-xs md:text-sm font-bold hover:bg-pink-500 uppercase disabled:opacity-50 active:scale-95 transition-transform"
-                        >
-                            {loading ? "PROCESSING..." : "GENERATE"}
-                        </button>
-                    </div>
+                {/* Format Selector */}
+                <div className="mb-3">
+                  <label className="text-[10px] text-gray-500 font-mono mb-1 block">FORMAT</label>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {formats.map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => setFormat(f.id)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap ${
+                          format === f.id 
+                            ? 'bg-gradient-to-r from-pink-600 to-fuchsia-500 text-white shadow-lg shadow-pink-500/30' 
+                            : 'bg-black/50 text-gray-400 border border-pink-500/20 hover:border-pink-500/50'
+                        }`}
+                      >
+                        <span>{f.icon}</span>
+                        <span>{f.name}</span>
+                        <span className="text-[8px] opacity-60">({f.size})</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-[#0a0a0a] flex items-center justify-center" style={{WebkitOverflowScrolling: 'touch'}}>
-                    {loading && (
-                        <div className="text-pink-500 animate-pulse text-sm md:text-xl font-mono flex flex-col items-center">
-                            <RefreshCw size={24} className="md:w-8 md:h-8 mb-4 animate-spin"/>
-                            <span className="text-xs md:text-base">SCANNING THE GRID FOR IMAGES...</span>
-                        </div>
-                    )}
-                    {imageUrl && !loading && (
-                        <div className="w-full max-w-[280px] sm:max-w-xs md:max-w-md aspect-square border-2 md:border-4 border-white shadow-[0_0_20px_rgba(236,72,153,0.5)] relative">
-                            <img src={imageUrl} alt="Generated Album Art" className="w-full h-full object-cover"/>
-                            <div className="absolute top-1 md:top-2 left-1 md:left-2 bg-black/70 text-white text-[9px] md:text-[10px] font-mono px-1 md:px-2 py-0.5 md:py-1">RESULT: {prompt.substring(0, 20)}...</div>
-                            <div className="absolute bottom-1 md:bottom-2 right-1 md:right-2 flex gap-1 md:gap-2">
-                              <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className="bg-cyan-600 text-white text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 hover:bg-cyan-500 transition-colors active:scale-95 disabled:opacity-50 flex items-center gap-1"
-                                title="Save to library"
-                              >
-                                <Heart size={10} className="md:w-3 md:h-3"/> {saving ? 'SAVING...' : 'SAVE'}
-                              </button>
-                              <a 
-                                href={imageUrl} 
-                                download={`album-art-${Date.now()}.png`}
-                                className="bg-[#00ff41] text-black text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 hover:bg-white transition-colors active:scale-95 inline-block"
-                              >
-                                DOWNLOAD
-                              </a>
-                            </div>
-                        </div>
-                    )}
-                    {!imageUrl && !loading && (
-                        <div className="text-gray-600 text-center font-mono text-xs md:text-sm">
-                            <Camera size={32} className="md:w-12 md:h-12 mx-auto mb-4 text-gray-700"/>
-                            AWAITING ART GENERATION REQUEST.
-                        </div>
-                    )}
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex gap-2 flex-1">
+                      <input 
+                          type="text" 
+                          value={prompt} 
+                          onChange={(e) => setPrompt(e.target.value)} 
+                          placeholder="Describe your album cover..." 
+                          className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:border-pink-500 rounded-lg" 
+                          onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
+                      />
+                      {isSupported && (
+                        <button 
+                            onClick={startListening} 
+                            disabled={loading || isListening}
+                            className={`px-2 md:px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-pink-600 animate-pulse' : 'bg-black hover:bg-pink-900'} text-white transition-colors disabled:opacity-50`}
+                            title="Voice input"
+                        >
+                            <Mic size={16} className="md:w-5 md:h-5"/>
+                        </button>
+                      )}
+                    </div>
+                    <button 
+                        onClick={handleGenerate} 
+                        disabled={loading} 
+                        className="bg-pink-600 text-white px-4 md:px-6 py-2 md:py-3 text-xs md:text-sm font-bold hover:bg-pink-500 uppercase disabled:opacity-50 active:scale-95 transition-transform rounded-lg"
+                    >
+                        {loading ? "PROCESSING..." : "GENERATE"}
+                    </button>
                 </div>
             </div>
-        </div>
+
+            <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-[#0a0a0a] flex items-center justify-center" style={{WebkitOverflowScrolling: 'touch'}}>
+                {loading && (
+                    <div className="text-pink-500 animate-pulse text-sm md:text-xl font-mono flex flex-col items-center">
+                        <RefreshCw size={24} className="md:w-8 md:h-8 mb-4 animate-spin"/>
+                        <span className="text-xs md:text-base">SCANNING THE GRID FOR IMAGES...</span>
+                    </div>
+                )}
+                {imageUrl && !loading && (
+                    <div className="w-full max-w-[280px] sm:max-w-xs md:max-w-md aspect-square border-2 md:border-4 border-white shadow-[0_0_20px_rgba(236,72,153,0.5)] relative rounded-lg overflow-hidden">
+                        <img src={imageUrl} alt="Generated Album Art" className="w-full h-full object-cover"/>
+                        <div className="absolute top-1 md:top-2 left-1 md:left-2 bg-black/70 text-white text-[9px] md:text-[10px] font-mono px-1 md:px-2 py-0.5 md:py-1 rounded">RESULT: {prompt.substring(0, 20)}...</div>
+                        <div className="absolute bottom-1 md:bottom-2 right-1 md:right-2 flex gap-1 md:gap-2">
+                          <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="bg-cyan-600 text-white text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 hover:bg-cyan-500 transition-colors active:scale-95 disabled:opacity-50 flex items-center gap-1 rounded"
+                            title="Save to library"
+                          >
+                            <Heart size={10} className="md:w-3 md:h-3"/> {saving ? 'SAVING...' : 'SAVE'}
+                          </button>
+                          <a 
+                            href={imageUrl} 
+                            download={`album-art-${Date.now()}.png`}
+                            className="bg-[#00ff41] text-black text-[10px] md:text-xs font-bold px-2 md:px-3 py-1 hover:bg-white transition-colors active:scale-95 inline-block rounded"
+                          >
+                            DOWNLOAD
+                          </a>
+                        </div>
+                    </div>
+                )}
+                {!imageUrl && !loading && (
+                    <div className="text-gray-600 text-center font-mono text-xs md:text-sm">
+                        <Camera size={32} className="md:w-12 md:h-12 mx-auto mb-4 text-pink-500/30"/>
+                        AWAITING ART GENERATION REQUEST.
+                    </div>
+                )}
+            </div>
+          </div>
+        </AgentContainer>
     );
 };
 
@@ -6657,12 +8310,171 @@ const ViralVideoAgent = ({ user, onAuthRequest }) => {
     const [trackIdea, setTrackIdea] = useState("");
     const [concepts, setConcepts] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [isWhipMode, setIsWhipMode] = useState(false);
+    const [platform, setPlatform] = useState('all');
     const lastRequestTime = useRef(0);
-  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_viral', 3);
+    const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_viral', 3);
     const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
       setTrackIdea(prev => prev ? prev + ' ' + transcript : transcript);
     });
+    const { speak, stop, isSpeaking, isSupported: speechSupported } = useSpeechSynthesis();
+
+    const platforms = [
+      { id: 'all', name: 'ALL PLATFORMS', icon: '🌐', color: 'from-violet-500 to-fuchsia-500' },
+      { id: 'tiktok', name: 'TIKTOK', icon: '🎵', color: 'from-cyan-400 to-pink-500' },
+      { id: 'reels', name: 'IG REELS', icon: '📸', color: 'from-purple-500 to-pink-500' },
+      { id: 'shorts', name: 'YT SHORTS', icon: '▶️', color: 'from-red-500 to-red-600' },
+      { id: 'twitter', name: 'X/TWITTER', icon: '𝕏', color: 'from-gray-600 to-gray-800' }
+    ];
+
+    const handleGenerate = async () => {
+      if (!trackIdea.trim()) return;
+      
+      const cooldownTime = 3000;
+      const now = Date.now();
+      if (now - lastRequestTime.current < cooldownTime) {
+        alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds.`);
+        return;
+      }
+
+      if (!canUse) {
+        setConcepts([{ concept: 'LIMIT REACHED', visual: `${limit} free uses consumed.`, trend: 'N/A', shots: [], platform: 'SYSTEM' }]);
+        return;
+      }
+      consume();
+
+      setLoading(true);
+      setConcepts([]);
+      
+      const platformContext = platform === 'all' 
+        ? 'optimized for TikTok, Instagram Reels, and YouTube Shorts' 
+        : `specifically optimized for ${platforms.find(p => p.id === platform)?.name}`;
+      
+      const systemPrompt = `You are a viral video director specializing in short-form content ${platformContext}. Create 3 music video concepts with platform-specific trends and formats. JSON format: [{ concept: string, visual: string, trend: string, shots: string[], platform: string, duration: string, hook: string }]. No markdown.`;
+      const responseText = await callGemini(trackIdea, systemPrompt);
+      
+      try {
+        const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        setConcepts(JSON.parse(cleanText));
+      } catch (e) { 
+        console.error("Parse error", e);
+        setConcepts([{ concept: 'PARSE ERROR', visual: 'Could not parse response', trend: 'N/A', shots: [] }]);
+      }
+      lastRequestTime.current = Date.now();
+      setLoading(false);
+    };
+
+    return (
+      <AgentContainer 
+        title="VIRAL VIDEO AGENT" 
+        icon={Video} 
+        accentColor="coral"
+      >
+        <div className="h-full flex flex-col">
+          <div className="p-3 md:p-6 bg-[#111] border-b border-[#333] shrink-0">
+            <h2 className="text-white font-black text-sm md:text-xl mb-2">GENERATE VIDEO CONCEPTS</h2>
+            
+            {/* Platform Selector */}
+            <div className="mb-3">
+              <label className="text-[10px] text-gray-500 font-mono mb-1 block">TARGET PLATFORM</label>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {platforms.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setPlatform(p.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap ${
+                      platform === p.id 
+                        ? `bg-gradient-to-r ${p.color} text-white shadow-lg` 
+                        : 'bg-black/50 text-gray-400 border border-violet-500/20 hover:border-violet-500/50'
+                    }`}
+                  >
+                    <span>{p.icon}</span>
+                    <span>{p.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex gap-2 flex-1">
+                <input 
+                    type="text" 
+                    value={trackIdea} 
+                    onChange={(e) => setTrackIdea(e.target.value)} 
+                    placeholder="Describe your track or concept..." 
+                    className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:border-violet-500 rounded-lg" 
+                    onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
+                />
+                {isSupported && (
+                  <button 
+                      onClick={startListening} 
+                      disabled={loading || isListening}
+                      className={`px-2 md:px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-violet-600 animate-pulse' : 'bg-black hover:bg-violet-900'} text-white transition-colors disabled:opacity-50`}
+                      title="Voice input"
+                  >
+                      <Mic size={16} className="md:w-5 md:h-5"/>
+                  </button>
+                )}
+              </div>
+              <button 
+                  onClick={handleGenerate} 
+                  disabled={loading} 
+                  className="bg-violet-600 text-white px-4 md:px-6 py-2 md:py-3 text-xs md:text-sm font-bold hover:bg-violet-500 uppercase disabled:opacity-50 active:scale-95 transition-transform rounded-lg"
+              >
+                  {loading ? "GENERATING..." : "GENERATE"}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-[#0a0a0a]">
+            {concepts.length === 0 && !loading && (
+              <div className="text-center text-gray-500 py-12">
+                <Video size={48} className="mx-auto mb-4 text-violet-500/30" />
+                <p className="text-sm font-mono tracking-wide">ENTER TRACK IDEA</p>
+                <p className="text-xs text-gray-600 mt-2">AI will generate viral video concepts</p>
+              </div>
+            )}
+            {loading && (
+              <div className="text-violet-500 animate-pulse text-sm md:text-xl font-mono flex flex-col items-center py-10">
+                <RefreshCw size={24} className="md:w-8 md:h-8 mb-4 animate-spin"/>
+                GENERATING CONCEPTS...
+              </div>
+            )}
+            {concepts.map((concept, i) => (
+              <div key={i} className="p-4 border border-[#333] bg-[#111] mb-3 rounded-lg hover:border-violet-600 transition-colors">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-violet-400 text-[10px] md:text-xs font-bold">CONCEPT #{i + 1} // {concept.trend}</div>
+                  <div className="flex items-center gap-2">
+                    {speechSupported && (
+                      <button 
+                        onClick={() => speak(`${concept.concept}. ${concept.visual}`)}
+                        className="text-[9px] text-gray-500 hover:text-violet-400 transition-colors"
+                      >
+                        <Volume2 size={12}/>
+                      </button>
+                    )}
+                    {concept.platform && <span className="text-[9px] bg-violet-600/30 text-violet-300 px-2 py-0.5 rounded">{concept.platform}</span>}
+                    {concept.duration && <span className="text-[9px] bg-fuchsia-600/30 text-fuchsia-300 px-2 py-0.5 rounded">⏱️ {concept.duration}</span>}
+                  </div>
+                </div>
+                <div className="text-white font-black text-base md:text-xl mb-2">{concept.concept}</div>
+                {concept.hook && (
+                  <div className="text-fuchsia-400 text-xs italic mb-2 border-l-2 border-fuchsia-500 pl-2">"Hook: {concept.hook}"</div>
+                )}
+                <div className="text-gray-400 text-xs md:text-sm">{concept.visual}</div>
+                {concept.shots && concept.shots.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {concept.shots.map((shot, j) => (
+                      <span key={j} className="text-[10px] bg-violet-600/20 text-violet-300 px-2 py-1 rounded">{shot}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </AgentContainer>
+    );
+};
 
 // 19. TREND HUNTER - SOCIAL INTELLIGENCE AI AGENT
 const TrendHunter = () => {
@@ -6676,6 +8488,7 @@ const TrendHunter = () => {
   const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
     setHashtag(prev => prev ? prev + ' ' + transcript.replace('#', '') : transcript.replace('#', ''));
   });
+  const { speak, stop, isSpeaking, isSupported: speechSupported } = useSpeechSynthesis();
 
   const platforms = [
     { id: 'all', name: 'ALL PLATFORMS', icon: '🌐' },
@@ -6757,42 +8570,18 @@ const TrendHunter = () => {
   };
 
   return (
-    <div className="h-full w-full relative flex flex-col items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
-      {/* Neural Network Background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div 
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(139,92,246,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.1) 1px, transparent 1px)',
-            backgroundSize: '50px 50px',
-            animation: 'gridMove 20s linear infinite'
-          }}
-        ></div>
-        <div className="absolute top-20 left-20 w-96 h-96 bg-violet-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-fuchsia-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-      </div>
-
-      <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
-
-      <div className="relative z-20 w-full max-w-6xl h-[90vh] md:h-[85vh] bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] border border-violet-500/50 shadow-[0_0_50px_rgba(139,92,246,0.4)] flex flex-col backdrop-blur-xl my-4">
-        {/* Window Header */}
-        <div className="bg-gradient-to-r from-violet-600 via-fuchsia-600 to-pink-600 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold shrink-0">
-          <span className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-            <TrendingUp size={14} className="md:w-[18px] md:h-[18px]"/> 
-            <span className="hidden sm:inline">TREND_HUNTER_AI.EXE</span>
-            <span className="sm:hidden">TREND_HUNTER</span>
-          </span>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 text-[10px] font-mono mr-2">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-              <span className="hidden sm:inline">SCANNING</span>
-            </div>
-            <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black/50 hover:bg-black flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
-              <X size={14} className="md:w-4 md:h-4 text-white"/>
-            </button>
-          </div>
+    <AgentContainer 
+      title="TREND HUNTER" 
+      icon={TrendingUp} 
+      accentColor="ultraviolet"
+      headerExtra={
+        <div className="flex items-center gap-2 text-[10px] font-mono">
+          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+          <span className="hidden sm:inline">SCANNING</span>
         </div>
-
+      }
+    >
+      <div className="h-full flex flex-col">
         {/* Search Interface */}
         <div className="p-3 md:p-6 bg-[#111] border-b border-violet-500/30 shrink-0">
           <h2 className="text-white font-black text-sm md:text-xl mb-3">REAL-TIME HASHTAG INTELLIGENCE</h2>
@@ -6800,7 +8589,7 @@ const TrendHunter = () => {
           {/* Hashtag Input */}
           <div className="flex flex-col gap-3">
             <div className="flex gap-2">
-              <div className="flex-1 flex items-center bg-black border border-violet-500/50 focus-within:border-violet-400 transition-colors">
+              <div className="flex-1 flex items-center bg-black border border-violet-500/50 focus-within:border-violet-400 transition-colors rounded-lg">
                 <span className="px-3 text-violet-400 font-bold text-lg">#</span>
                 <input 
                   type="text" 
@@ -6824,7 +8613,7 @@ const TrendHunter = () => {
               <button 
                 onClick={handleSearch} 
                 disabled={loading || !hashtag.trim()} 
-                className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold hover:from-violet-500 hover:to-fuchsia-500 uppercase disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all shadow-lg shadow-violet-500/50"
+                className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold hover:from-violet-500 hover:to-fuchsia-500 uppercase disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all rounded-lg"
               >
                 {loading ? "SCANNING..." : "ANALYZE"}
               </button>
@@ -6838,7 +8627,7 @@ const TrendHunter = () => {
                   <button 
                     key={p.id}
                     onClick={() => setPlatform(p.id)}
-                    className={`px-2 py-1 text-[10px] font-mono border transition-all cursor-pointer ${
+                    className={`px-2 py-1 text-[10px] font-mono border rounded transition-all cursor-pointer ${
                       platform === p.id 
                         ? 'bg-violet-600 border-violet-400 text-white' 
                         : 'bg-black border-violet-500/30 text-gray-400 hover:border-violet-500/50'
@@ -6854,7 +8643,7 @@ const TrendHunter = () => {
                   <button 
                     key={sort}
                     onClick={() => setSortBy(sort)}
-                    className={`px-2 py-1 text-[10px] font-mono uppercase border transition-all cursor-pointer ${
+                    className={`px-2 py-1 text-[10px] font-mono uppercase border rounded transition-all cursor-pointer ${
                       sortBy === sort 
                         ? 'bg-fuchsia-600 border-fuchsia-400 text-white' 
                         : 'bg-black border-fuchsia-500/30 text-gray-400 hover:border-fuchsia-500/50'
@@ -6865,29 +8654,24 @@ const TrendHunter = () => {
                 ))}
               </div>
             </div>
-
-            {/* Usage Counter */}
-            <div className="text-[10px] font-mono text-gray-500">
-              FREE SEARCHES: {limit - (canUse ? 0 : 1)} / {limit} REMAINING
-            </div>
           </div>
         </div>
 
         {/* Results Grid */}
         <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-[#0a0a0a]" style={{WebkitOverflowScrolling: 'touch'}}>
           {loading && (
-            <div className="text-violet-400 animate-pulse text-sm md:text-xl font-mono flex flex-col items-center justify-center h-full">
+            <div className="text-violet-400 animate-pulse text-sm md:text-xl font-mono flex flex-col items-center justify-center py-12">
               <RefreshCw size={32} className="md:w-12 md:h-12 mb-4 animate-spin"/>
               <span className="text-xs md:text-base">SCRAPING SOCIAL MEDIA...</span>
-              <span className="text-[10px] text-gray-500 mt-2">ANALYZING #{hashtag} ON {platform.toUpperCase()}</span>
+              <span className="text-[10px] text-gray-500 mt-2">ANALYZING #{hashtag}</span>
             </div>
           )}
 
           {!loading && results.length === 0 && (
-            <div className="text-gray-600 text-center font-mono text-xs md:text-sm flex flex-col items-center justify-center h-full">
-              <TrendingUp size={48} className="md:w-16 md:h-16 mx-auto mb-4 text-gray-700"/>
+            <div className="text-gray-600 text-center font-mono text-xs md:text-sm flex flex-col items-center justify-center py-12">
+              <TrendingUp size={48} className="md:w-16 md:h-16 mx-auto mb-4 text-violet-500/30"/>
               <span className="text-lg font-bold text-white mb-2">AGENT READY</span>
-              <span>Enter a hashtag to analyze trending content across social platforms.</span>
+              <span>Enter a hashtag to analyze trending content.</span>
             </div>
           )}
 
@@ -6895,7 +8679,7 @@ const TrendHunter = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-violet-500/30">
                 <h3 className="text-violet-400 font-bold text-sm md:text-lg">
-                  TRENDING ANALYSIS: #{hashtag} ({results.length} POSTS)
+                  #{hashtag} ({results.length} POSTS)
                 </h3>
                 <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500">
                   <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
@@ -6906,17 +8690,15 @@ const TrendHunter = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {results.map((post, index) => (
                   <div 
-                    key={`${post.platform}-${post.username}-${index}`}
-                    className="relative group bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-sm border border-violet-500/20 rounded-lg p-4 hover:border-violet-400/50 hover:shadow-lg hover:shadow-violet-500/20 transition-all duration-300"
+                    key={`${post.platform}-${index}`}
+                    className="relative group bg-gradient-to-br from-white/5 to-white/0 border border-violet-500/20 rounded-lg p-4 hover:border-violet-400/50 transition-all"
                   >
-                    {/* Trending Badge */}
                     {post.trending && (
-                      <div className="absolute top-2 right-2 bg-gradient-to-r from-pink-500 to-red-500 text-white text-[8px] font-bold px-2 py-1 rounded flex items-center gap-1 animate-pulse">
+                      <div className="absolute top-2 right-2 bg-gradient-to-r from-pink-500 to-red-500 text-white text-[8px] font-bold px-2 py-1 rounded flex items-center gap-1">
                         🔥 TRENDING
                       </div>
                     )}
 
-                    {/* Platform & User */}
                     <div className="flex items-center gap-3 mb-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center font-bold text-white text-sm">
                         {post.username?.charAt(0).toUpperCase() || '?'}
@@ -6927,50 +8709,34 @@ const TrendHunter = () => {
                       </div>
                     </div>
 
-                    {/* Post Content */}
-                    <p className="text-gray-300 text-xs leading-relaxed mb-3 line-clamp-3">
-                      {post.text}
-                    </p>
+                    <p className="text-gray-300 text-xs leading-relaxed mb-3 line-clamp-3">{post.text}</p>
 
-                    {/* Metrics */}
-                    <div className="grid grid-cols-2 gap-2 pt-3 border-t border-white/10">
-                      <div className="text-center">
-                        <div className="text-white font-bold text-sm">{post.views?.toLocaleString() || 0}</div>
-                        <div className="text-[9px] text-gray-500 font-mono">VIEWS</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-white font-bold text-sm">{post.likes?.toLocaleString() || 0}</div>
-                        <div className="text-[9px] text-gray-500 font-mono">LIKES</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-white font-bold text-sm">{post.comments?.toLocaleString() || 0}</div>
-                        <div className="text-[9px] text-gray-500 font-mono">COMMENTS</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-white font-bold text-sm">{post.shares?.toLocaleString() || 0}</div>
-                        <div className="text-[9px] text-gray-500 font-mono">SHARES</div>
-                      </div>
-                    </div>
-
-                    {/* Engagement Rate */}
-                    {post.engagementRate && (
-                      <div className="mt-3 pt-3 border-t border-white/10">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-gray-500 font-mono">ENGAGEMENT RATE</span>
-                          <span className="text-fuchsia-400 font-bold">{post.engagementRate}%</span>
-                        </div>
-                        <div className="w-full bg-black/50 h-1 rounded-full mt-1 overflow-hidden">
-                          <div 
-                            className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(parseFloat(post.engagementRate) * 10, 100)}%` }}
-                          ></div>
-                        </div>
-                      </div>
+                    {speechSupported && (
+                      <button 
+                        onClick={() => speak(`${post.username} on ${post.platform} says: ${post.text}`)}
+                        className="mb-2 flex items-center gap-1 text-[10px] text-gray-500 hover:text-violet-400 transition-colors"
+                      >
+                        <Volume2 size={12}/> HEAR POST
+                      </button>
                     )}
 
-                    {/* Timestamp */}
-                    <div className="mt-2 text-[9px] text-gray-600 font-mono">
-                      {post.timestamp || 'Unknown time'}
+                    <div className="grid grid-cols-4 gap-2 pt-3 border-t border-white/10">
+                      <div className="text-center">
+                        <div className="text-white font-bold text-xs">{post.views?.toLocaleString() || 0}</div>
+                        <div className="text-[8px] text-gray-500">VIEWS</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-white font-bold text-xs">{post.likes?.toLocaleString() || 0}</div>
+                        <div className="text-[8px] text-gray-500">LIKES</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-white font-bold text-xs">{post.comments?.toLocaleString() || 0}</div>
+                        <div className="text-[8px] text-gray-500">COMMENTS</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-white font-bold text-xs">{post.shares?.toLocaleString() || 0}</div>
+                        <div className="text-[8px] text-gray-500">SHARES</div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -6979,178 +8745,176 @@ const TrendHunter = () => {
           )}
         </div>
       </div>
-    </div>
+    </AgentContainer>
   );
 };
 
-    const handleGenerate = async () => {
-        if (!trackIdea.trim()) return;
-
-        // Cooldown check
-        const cooldownTime = 3000; // 3 seconds
-        const now = Date.now();
-        if (now - lastRequestTime.current < cooldownTime) {
-            alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds before generating new concepts.`);
-            return;
-        }
-
-        if (!canUse) {
-          setConcepts([{ concept: 'FREE LIMIT REACHED', visual: `${limit} free Viral Video runs used.`, trend: 'LIMIT', shots: ['Upgrade required'] }]);
-          return;
-        }
-
-        consume();
-
-        setLoading(true);
-        setConcepts([]);
-
-        let prompt = isWhipMode
-            ? `Generate video ideas for a Whip Montez track based on: ${trackIdea}`
-            : `Generate general music video ideas based on: ${trackIdea}`;
-        
-        let systemPrompt = "You are the Viral Video Agent (VVA) for Livewire Entertainment, specializing in short-form social media video trends (TikTok, Reels). Given a track idea, generate a JSON array of 3 distinct music video concepts designed for maximum viral impact. Format: [{ 'concept': 'Short Title', 'visual': 'Brief visual description', 'trend': 'Current Trend Style (e.g., POV, Seamless Transition)', 'shots': ['Shot 1', 'Shot 2'] }]. Do not use markdown backticks or formatting outside the JSON array.";
-
-        if (isWhipMode) {
-             systemPrompt = "You are the Viral Video Agent (VVA) for Livewire Entertainment. Generate 3 concepts focused on Whip Montez's 2004 aesthetic (NYC, boom-bap, red hook) but optimized for 2025 social media trends. JSON output only.";
-        }
-
-        const responseText = await callGemini(prompt, systemPrompt);
-
-        try {
-            const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-            const parsedConcepts = JSON.parse(cleanJson);
-            setConcepts(parsedConcepts);
-        } catch (e) {
-            console.error("Failed to parse VVA response:", e);
-            setConcepts([{ concept: "ERROR", visual: "Failed to load concepts. Check API status.", trend: "SYSTEM FAIL", shots: ["System Failure"] }]);
-        }
-        lastRequestTime.current = Date.now();
-        setLoading(false);
-    };
-    
-    const handleUpload = (platform) => {
-        // Simple simulation of an upload action
-        alert(`Simulating upload of current concept to ${platform}...\nStatus: Publishing concept to Livewire servers.`);
-    }
-
-
-    return (
-        <div className="h-full w-full relative flex flex-col items-center justify-center p-2 md:p-4 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
-            <BackgroundCarousel images={[]} />
-            <div className="absolute inset-0 bg-black/80 z-10 pointer-events-none"></div>
-            <div className="relative z-20 w-full max-w-5xl h-[90vh] md:h-[85vh] bg-[#1a1a1a] border border-cyan-500 shadow-[0_0_30px_rgba(0,255,255,0.4)] flex flex-col my-4">
-                <div className="bg-cyan-700 text-white px-3 md:px-4 py-2 flex justify-between items-center font-bold shrink-0">
-                    <span className="flex items-center gap-1 md:gap-2 text-xs md:text-sm">
-                      <TrendingUp size={14} className="md:w-[18px] md:h-[18px]"/> 
-                      <span className="hidden sm:inline">VIRAL_VIDEO_AGENT.EXE</span>
-                      <span className="sm:hidden">VIRAL_VID_AGENT</span>
-                    </span>
-                    <button onClick={() => window.history.back()} className="w-5 h-5 md:w-6 md:h-6 bg-black hover:bg-cyan-900 flex items-center justify-center transition-colors cursor-pointer" aria-label="Close">
-                      <X size={14} className="md:w-4 md:h-4 text-white"/>
-                    </button>
-                </div>
-                
-                <div className="p-3 md:p-6 bg-[#111] border-b border-[#333] shrink-0">
-                    <h2 className="text-white font-black text-sm md:text-xl mb-2 md:mb-3">GENERATE VIRAL CONCEPTS</h2>
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 md:mb-4 gap-2">
-                        <div className="flex items-center gap-2 text-[10px] md:text-xs font-mono text-gray-400">
-                             MODE: 
-                             <button onClick={() => setIsWhipMode(!isWhipMode)} className="flex items-center gap-1 border border-cyan-800 px-1.5 md:px-2 py-0.5 bg-black hover:border-cyan-500 transition-colors active:scale-95">
-                                {isWhipMode ? <ToggleRight size={14} className="md:w-4 md:h-4 text-cyan-500"/> : <ToggleLeft size={14} className="md:w-4 md:h-4 text-gray-500"/>}
-                                <span className="hidden sm:inline">{isWhipMode ? "WHIP MONTEZ SPECIFIC" : "GENERAL TRENDS"}</span>
-                                <span className="sm:hidden">{isWhipMode ? "WHIP" : "GENERAL"}</span>
-                             </button>
-                        </div>
-                        <button onClick={() => setConcepts([])} className="text-[10px] md:text-xs text-gray-500 hover:text-red-500 flex items-center gap-1 active:scale-95">
-                            <Trash2 size={10} className="md:w-3 md:h-3"/> CLEAR RESULTS
-                        </button>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="flex gap-2 flex-1">
-                          <input 
-                              type="text" 
-                              value={trackIdea} 
-                              onChange={(e) => setTrackIdea(e.target.value)} 
-                              placeholder={isWhipMode ? "Enter key elements of your new Whip Montez track..." : "Enter track mood or title for general concepts..."} 
-                              className="flex-1 bg-black border border-cyan-800 text-white p-2 md:p-3 text-xs md:text-sm font-mono outline-none focus:border-cyan-500" 
-                              onKeyPress={(e) => e.key === 'Enter' && handleGenerate()} 
-                          />
-                          {isSupported && (
-                            <button 
-                                onClick={startListening} 
-                                disabled={loading || isListening}
-                                className={`px-2 md:px-3 py-2 border border-cyan-800 ${isListening ? 'bg-cyan-600 animate-pulse' : 'bg-black hover:bg-cyan-900'} text-white transition-colors disabled:opacity-50`}
-                                title="Voice input"
-                            >
-                                <Mic size={16} className="md:w-5 md:h-5"/>
-                            </button>
-                          )}
-                        </div>
-                        <button 
-                            onClick={handleGenerate} 
-                            disabled={loading} 
-                            className="bg-cyan-600 text-black px-4 md:px-6 py-2 md:py-3 text-xs md:text-sm font-bold hover:bg-cyan-500 uppercase disabled:opacity-50 active:scale-95 shrink-0"
-                        >
-                            {loading ? "ANALYZING..." : "GENERATE CONCEPTS"}
-                        </button>
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-[#0a0a0a] space-y-4 md:space-y-6" style={{WebkitOverflowScrolling: 'touch'}}>
-                    {loading && (
-                        <div className="text-cyan-400 animate-pulse text-sm md:text-xl font-mono flex flex-col items-center py-10">
-                            <RefreshCw size={24} className="md:w-8 md:h-8 mb-4 animate-spin"/>
-                            <span className="text-xs md:text-base">SCANNING VIRAL TRENDS...</span>
-                        </div>
-                    )}
-                    {concepts.length > 0 && !loading && (
-                        <div className="space-y-4 md:space-y-6">
-                            <h3 className="text-cyan-400 font-bold text-sm md:text-lg border-b border-cyan-800 pb-2">RECOMMENDED VIRAL CONCEPTS ({concepts.length})</h3>
-                            
-                            {/* Upload Buttons */}
-                            <div className="flex flex-col sm:flex-row gap-2 md:gap-4">
-                                <span className="text-[10px] md:text-xs font-mono text-gray-500 sm:pt-3">DISTRIBUTE CONCEPT TO:</span>
-                                <div className="flex gap-2 flex-wrap">
-                                  <button onClick={() => handleUpload("TikTok")} className="bg-white text-black font-bold text-[10px] md:text-xs px-2 md:px-3 py-1 md:py-1.5 hover:bg-gray-200 active:scale-95">TIKTOK</button>
-                                  <button onClick={() => handleUpload("Instagram")} className="bg-white text-black font-bold text-[10px] md:text-xs px-2 md:px-3 py-1 md:py-1.5 hover:bg-gray-200 active:scale-95">INSTAGRAM REELS</button>
-                                  <button onClick={() => handleUpload("Facebook")} className="bg-white text-black font-bold text-[10px] md:text-xs px-2 md:px-3 py-1 md:py-1.5 hover:bg-gray-200 active:scale-95">FACEBOOK SHORTS</button>
-                                </div>
-                            </div>
-                            
-                            {concepts.map((concept, index) => (
-                                <div key={index} className="bg-[#111] border border-cyan-900 p-3 md:p-4 shadow-md">
-                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 md:mb-3 gap-2">
-                                        <h4 className="text-white font-black text-sm md:text-xl flex items-center gap-2 flex-wrap">
-                                            <span className="break-words">{concept.concept}</span>
-                                            <span className="text-[10px] md:text-xs text-black bg-cyan-400 font-bold px-1.5 md:px-2 py-0.5 shrink-0">{concept.trend}</span>
-                                        </h4>
-                                    </div>
-                                    <p className="text-gray-400 text-xs md:text-sm italic mb-2 md:mb-3">{concept.visual}</p>
-                                    <div className="mt-2 md:mt-3">
-                                        <h5 className="text-cyan-500 text-[10px] md:text-xs font-bold uppercase mb-1">KEY SHOTS:</h5>
-                                        <ul className="text-gray-500 text-[10px] md:text-xs space-y-0.5 list-disc list-inside">
-                                            {concept.shots.map((shot, i) => <li key={i}>{shot}</li>)}
-                                        </ul>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    {!concepts.length && !loading && (
-                        <div className="text-gray-600 text-center font-mono text-xs md:text-sm py-10">
-                            <TrendingUp size={32} className="md:w-12 md:h-12 mx-auto mb-4 text-gray-700"/>
-                            AGENT READY. ENTER A TRACK IDEA ABOVE.
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
 // 16. STUDIO HUB - 2026 ULTRA-MODERN NEURAL INTERFACE
-const StudioHub = ({ setSection }) => {
-  const [activeAgent, setActiveAgent] = useState('ghostwriter'); // Track selected agent for sidebar
+// Now includes persistent sidebar that stays visible when viewing individual agents
+const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => {
+  // Track which agent is selected - null means show the main grid
+  const [selectedAgent, setSelectedAgent] = useState(initialAgent);
+  // Model selection state
+  const [currentModel, setCurrentModel] = useState(getSelectedModel());
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  // Landing page view state
+  const [showLanding, setShowLanding] = useState(true);
+  const [expandedAgent, setExpandedAgent] = useState(null);
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [selectedPath, setSelectedPath] = useState(null);
+
+  // Update global model when local state changes
+  const handleModelChange = (modelId) => {
+    setSelectedModel(modelId);
+    setCurrentModel(modelId);
+    setShowModelSelector(false);
+  };
+
+  // Helper to select an agent (internal navigation, sidebar persists)
+  const selectAgent = (agentId) => {
+    setSelectedAgent(agentId);
+    setShowLanding(false);
+    setShowOnboarding(false);
+  };
+
+  // Helper to go back to the main grid
+  const backToGrid = () => {
+    setSelectedAgent(null);
+  };
+
+  // Helper to enter the studio from landing
+  const enterStudio = () => {
+    setShowLanding(false);
+  };
+
+  // Start onboarding flow
+  const startOnboarding = () => {
+    setShowOnboarding(true);
+    setOnboardingStep(0);
+    setSelectedPath(null);
+  };
+
+  // Onboarding steps content
+  const onboardingSteps = [
+    {
+      id: 'welcome',
+      title: "Welcome to The Studio",
+      content: "This is your creative control room—eight AI agents built to give independent artists the tools that used to require a label deal.",
+      detail: "Every agent in The Studio was designed to solve a real problem artists face: finishing lyrics at 3 AM with no co-writer, understanding how A&Rs evaluate demos, finding samples no one else has heard. Take 2 minutes to learn how this works, and you'll get 10x more value out of every session."
+    },
+    {
+      id: 'philosophy',
+      title: "How This Works",
+      content: "These aren't magic buttons. They're creative partners.",
+      detail: "The best artists use AI as a starting point, not an ending point. Generate ideas, get unstuck, explore directions you wouldn't have considered—then make it yours. The goal isn't to create WITH the AI. It's to create FASTER and DEEPER because of it. Your voice stays your voice. The tools just remove the friction."
+    },
+    {
+      id: 'paths',
+      title: "What Brings You Here?",
+      content: "Choose your path to get personalized recommendations.",
+      detail: "Different goals require different tools. Tell us what you're trying to accomplish today, and we'll show you exactly where to start."
+    },
+    {
+      id: 'recommendation',
+      title: "Your Recommended Starting Point",
+      content: "Based on your goal, here's where to begin.",
+      detail: "This recommendation is based on how other artists with similar goals have found success. But remember—all eight agents are available to you. Explore freely."
+    },
+    {
+      id: 'tips',
+      title: "Pro Tips for Better Results",
+      content: "The more context you give, the better the output.",
+      detail: "Be specific about style, mood, and references. If you want something that sounds like early 2000s boom bap, say that. If you want a hook about resilience that doesn't sound cliché, say that. The AI responds to detail. Vague prompts get generic results."
+    }
+  ];
+
+  // Path options for step 3
+  const pathOptions = [
+    { id: 'write', label: "I need to write", icon: Feather, description: "Lyrics, hooks, verses, songs", recommended: ['songwriter', 'ghostwriter'] },
+    { id: 'produce', label: "I need production help", icon: Disc, description: "Beats, samples, sounds", recommended: ['crates', 'ar_suite'] },
+    { id: 'grow', label: "I need to grow my audience", icon: Hash, description: "Content, trends, virality", recommended: ['viral_video', 'trend_hunter'] },
+    { id: 'compete', label: "I need to sharpen my skills", icon: Flame, description: "Battle, freestyle, punchlines", recommended: ['battle'] },
+    { id: 'brand', label: "I need visual identity", icon: ImageIcon, description: "Album art, aesthetics", recommended: ['album_art'] },
+    { id: 'explore', label: "I just want to explore", icon: Sparkles, description: "Show me everything", recommended: null }
+  ];
+
+  // Get recommendation based on selected path
+  const getRecommendation = () => {
+    if (!selectedPath) return null;
+    const path = pathOptions.find(p => p.id === selectedPath);
+    if (!path || !path.recommended) return null;
+    return path.recommended[0]; // Primary recommendation
+  };
+
+  // Agent data with full marketing descriptions
+  const agentDetails = {
+    ghostwriter: {
+      title: "LYRIC RECOVERY",
+      subtitle: "Voice-to-Verse Technology",
+      tagline: "Finish what you started.",
+      description: "In the early 2000s, countless verses were lost to crashed hard drives, stolen notebooks, and fading memories. The Lyric Recovery tool was built to resurrect that energy—to help artists who have melodies without words, hooks without verses, ideas without execution. Speak your concept, hum your flow, or type your fragments. The AI completes your thought while preserving your voice. This isn't about replacing creativity—it's about unlocking what's already inside you. Perfect for artists who know what they want to say but can't find the words, or those who need a writing partner at 3 AM when no one else is awake.",
+      whoFor: "Artists with unfinished ideas, vocalists who think in melodies, writers fighting creative blocks.",
+      howTo: "Speak or type your concept. The AI analyzes your style and generates completions that match your voice."
+    },
+    songwriter: {
+      title: "SONGWRITER'S STUDIO",
+      subtitle: "The 24/7 Writing Room",
+      tagline: "Your permanent seat at the table.",
+      description: "Before streaming, before social media, the writing room was sacred. Artists would camp out for days, trading verses, building chemistry, creating magic. But those rooms were gatekept—you needed connections, co-signs, or contracts to get inside. The Songwriter's Studio democratizes that experience. It's an AI writing partner trained on decades of song structure, rhyme schemes, and storytelling techniques. Feed it a concept, a mood, a title—and it generates hooks, verses, bridges, and full songs. Use it as a starting point, a sounding board, or a creative sparring partner. The room is always open. The seat is always yours.",
+      whoFor: "Independent artists without writing teams, producers seeking toplines, anyone building their catalog.",
+      howTo: "Choose a format (hook, verse, full song). Provide your concept. Refine until it feels like you wrote it."
+    },
+    battle: {
+      title: "CIPHER DOJO",
+      subtitle: "The Practice Ring",
+      tagline: "Sharpen your sword without drawing blood.",
+      description: "Battle rap built careers. From Harlem to Detroit, from URL to KOTD, the ability to freestyle and battle separated legends from pretenders. But practicing battle rap is hard—you need opponents, you need pressure, you need someone willing to take your best shot. The Cipher Dojo is that opponent. An AI trained on punchlines, flips, and the ruthless wit of NYC street battles. It won't go easy on you. It learns your style, finds your weaknesses, and forces you to level up. No egos. No beef. Just pure skill development. Step into the dojo when you want to sharpen your sword—step out when you're ready for the real thing.",
+      whoFor: "Battle rappers preparing for competition, freestylers building their arsenal, anyone who wants quicker wit.",
+      howTo: "Choose your intensity level. The AI throws bars. You respond. It adapts to your style and pushes your limits."
+    },
+    ar_suite: {
+      title: "A&R DASHBOARD",
+      subtitle: "Industry Intelligence System",
+      tagline: "See your music through their eyes.",
+      description: "A&R executives decide careers. They listen to hundreds of songs daily, looking for that undefinable 'it factor' that separates a demo from a deal. The A&R Dashboard gives you access to that perspective before you submit. Upload your track and receive analysis on commercial viability, production quality, market positioning, and competitive landscape. Understand how your music stacks up against current releases. Identify your unique selling points and potential weaknesses. This isn't about changing your art to fit the market—it's about understanding the market so you can navigate it strategically. Know what you're walking into before you walk in.",
+      whoFor: "Artists preparing for label meetings, independent releases seeking market fit, managers evaluating talent.",
+      howTo: "Describe your track or upload details. Receive a comprehensive analysis with actionable insights."
+    },
+    crates: {
+      title: "CRATE DIGGER",
+      subtitle: "Sample Discovery Engine",
+      tagline: "Find the sounds they haven't found yet.",
+      description: "Every classic hip-hop beat started with a discovery—a forgotten soul record, an obscure jazz session, a B-side that became a foundation. Crate digging was an art form, requiring patience, knowledge, and intuition. The Crate Digger brings that experience digital. Tell it what you're looking for—a mood, an era, a genre, a feeling—and it surfaces samples you've never heard. Get BPM, key information, and historical context. Understand the story behind the sound before you flip it. This tool doesn't replace the hunt; it expands your crates beyond what any physical collection could offer. The deepest cuts are always waiting to be found.",
+      whoFor: "Producers seeking sample inspiration, beatmakers exploring new genres, DJs building setlists.",
+      howTo: "Describe the vibe you're chasing. Receive curated sample suggestions with context and technical details."
+    },
+    album_art: {
+      title: "ALBUM ART GENERATOR",
+      subtitle: "Visual Identity System",
+      tagline: "See what your sound looks like.",
+      description: "The cover is the first impression. Before anyone presses play, they see your visual identity—and they make assumptions. Does the art match the music? Does it communicate who you are? In the era of thumbnail scrolling, your album art works overtime. The Album Art Generator transforms your concepts into visual directions. Describe your project's mood, themes, and aesthetic references. Receive AI-generated concepts that capture your vision. Use them as inspiration for final artwork, or as communication tools when briefing designers. Your music has a look—this tool helps you find it before you finalize it.",
+      whoFor: "Artists developing visual identity, designers seeking inspiration, anyone releasing music.",
+      howTo: "Describe your project's themes, mood, and visual references. Generate concepts to guide your final artwork."
+    },
+    viral_video: {
+      title: "VIRAL VIDEO AGENT",
+      subtitle: "Content Strategy System",
+      tagline: "Break through the noise.",
+      description: "The algorithm decides who gets heard. TikTok, Reels, Shorts—these platforms launched more careers than radio ever did, but their rules are opaque and constantly changing. The Viral Video Agent decodes the content game. Input your song, your aesthetic, your goals—and receive video concepts optimized for engagement. Understand hook placement, visual trends, caption strategies, and posting timing. This isn't about gaming the system; it's about understanding it well enough to work within it authentically. Your music deserves to be heard. The Viral Video Agent helps you package it for the platforms that matter.",
+      whoFor: "Artists building social presence, content creators seeking concepts, anyone trying to grow organically.",
+      howTo: "Share your track and goals. Receive video concepts with hooks, visual suggestions, and strategic timing."
+    },
+    trend_hunter: {
+      title: "TREND HUNTER",
+      subtitle: "Real-Time Intelligence",
+      tagline: "Don't chase trends. Understand them.",
+      description: "By the time you see a trend on your timeline, it's already too late to ride it. The artists who catch waves are the ones who see them forming. Trend Hunter provides real-time intelligence on what's moving in music, culture, and social media. Track hashtag velocity, monitor emerging sounds, identify regional breakouts before they go national. Use this data not to copy what's popular, but to understand where attention is flowing—and position your authentic voice in that current. Trend-chasing kills careers. Trend-understanding builds them. Stay informed without losing yourself.",
+      whoFor: "Artists planning releases, marketers timing campaigns, anyone who wants to move at the speed of culture.",
+      howTo: "Query specific topics or browse broad categories. Receive real-time data with historical context and projections."
+    }
+  };
 
   const agents = [
     {
@@ -7160,16 +8924,16 @@ const StudioHub = ({ setSection }) => {
       icon: Sparkles,
       gradient: 'from-cyan-400 to-cyan-600',
       description: 'AI-powered lyric generation • Voice input • Text-to-speech',
-      action: () => { setActiveAgent('ghostwriter'); setSection('ghostwriter'); }
+      action: () => selectAgent('ghostwriter')
     },
     {
-      id: 'chat',
-      title: 'AI SIDEKICK CHAT',
-      subtitle: 'SIDEKICK.EXE',
-      icon: MessageSquare,
-      gradient: 'from-pink-400 to-pink-600',
-      description: 'Conversational AI assistant • Creative collaboration',
-      action: () => { setActiveAgent('chat'); setSection('chat'); }
+      id: 'songwriter',
+      title: 'SONGWRITER STUDIO',
+      subtitle: 'WRITER.EXE',
+      icon: Feather,
+      gradient: 'from-green-400 to-emerald-600',
+      description: 'AI writing partner • Hooks • Verses • Bridges',
+      action: () => selectAgent('songwriter')
     },
     {
       id: 'battle',
@@ -7178,7 +8942,7 @@ const StudioHub = ({ setSection }) => {
       icon: Flame,
       gradient: 'from-red-400 to-red-600',
       description: 'Battle rap simulator • Real-time AI disses • NYC slang',
-      action: () => { setActiveAgent('battle'); setSection('battle'); }
+      action: () => selectAgent('battle')
     },
     {
       id: 'ar_suite',
@@ -7187,7 +8951,7 @@ const StudioHub = ({ setSection }) => {
       icon: Zap,
       gradient: 'from-blue-400 to-blue-600',
       description: 'Augmented reality concepts • Immersive experiences',
-      action: () => { setActiveAgent('ar_suite'); setSection('ar_suite'); }
+      action: () => selectAgent('ar_suite')
     },
     {
       id: 'crates',
@@ -7196,7 +8960,7 @@ const StudioHub = ({ setSection }) => {
       icon: Disc,
       gradient: 'from-yellow-400 to-yellow-600',
       description: 'Sample discovery • Production inspiration • BPM/Key info',
-      action: () => { setActiveAgent('crates'); setSection('crates'); }
+      action: () => selectAgent('crates')
     },
     {
       id: 'album_art',
@@ -7205,7 +8969,7 @@ const StudioHub = ({ setSection }) => {
       icon: ImageIcon,
       gradient: 'from-pink-400 to-pink-600',
       description: 'AI album cover concepts • Visual design ideas',
-      action: () => { setActiveAgent('album_art'); setSection('album_art'); }
+      action: () => selectAgent('album_art')
     },
     {
       id: 'viral_video',
@@ -7214,7 +8978,7 @@ const StudioHub = ({ setSection }) => {
       icon: Video,
       gradient: 'from-cyan-400 to-cyan-600',
       description: 'TikTok/Reels concepts • Viral content strategy',
-      action: () => { setActiveAgent('viral_video'); setSection('viral_video'); }
+      action: () => selectAgent('viral_video')
     },
     {
       id: 'trend_hunter',
@@ -7223,40 +8987,82 @@ const StudioHub = ({ setSection }) => {
       icon: Hash,
       gradient: 'from-violet-400 to-fuchsia-600',
       description: 'Hashtag analysis • Social media intelligence • Real-time trends',
-      action: () => { setActiveAgent('trend_hunter'); setSection('trend_hunter'); }
+      action: () => selectAgent('trend_hunter')
     }
   ];
 
+  // Render the selected agent component
+  const renderAgentContent = () => {
+    switch (selectedAgent) {
+      case 'ghostwriter':
+        return <LyricRecovery />;
+      case 'songwriter':
+        return <SongwritersStudio />;
+      case 'battle':
+        return <RapBattle />;
+      case 'crates':
+        return <CrateDigger />;
+      case 'ar_suite':
+        return <ARSuite />;
+      case 'album_art':
+        return <AlbumArtGenerator user={user} onAuthRequest={onAuthRequest} />;
+      case 'viral_video':
+        return <ViralVideoAgent user={user} onAuthRequest={onAuthRequest} />;
+      case 'trend_hunter':
+        return <TrendHunter />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="h-full w-full relative flex bg-black" style={{WebkitOverflowScrolling: 'touch'}}>
-      {/* LEFT SIDEBAR - AGENT NAVIGATOR */}
-      <div className="hidden md:flex flex-col w-64 bg-black border-r border-[#00ff41]/20 overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
-        <div className="p-4 border-b border-[#00ff41]/20">
-          <h3 className="text-xs font-mono font-bold text-[#00ff41] tracking-wider drop-shadow-[0_0_10px_rgba(0,255,65,0.5)]">AI_STUDIO.SYS</h3>
-          <p className="text-[9px] text-gray-600 mt-1 font-mono">SELECT AGENT_TO_INITIALIZE</p>
+      {/* LEFT SIDEBAR - AGENT NAVIGATOR - Single Column */}
+      <div className="hidden md:flex flex-col w-20 bg-black border-r border-[#333] overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
+        <div className="p-3 border-b border-[#333] text-center">
+          <h3 className="text-[8px] font-mono font-bold text-[#00ff41] tracking-wider drop-shadow-[0_0_10px_rgba(0,255,65,0.5)]">STUDIO</h3>
         </div>
-        <div className="flex-1 space-y-1 p-2">
-          {agents.map((agent) => (
-            <button
-              key={agent.id}
-              onClick={agent.action}
-              className={`w-full text-left px-3 py-2 transition-all text-[11px] font-mono border ${
-                activeAgent === agent.id
-                  ? 'bg-[#00ff41]/10 border-[#00ff41] text-[#00ff41] shadow-[0_0_10px_rgba(0,255,65,0.3)]'
-                  : 'border-[#333] text-gray-500 hover:border-[#00ff41]/40 hover:bg-black/80 hover:text-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <agent.icon size={12} />
-                <span className="font-bold tracking-wider">{agent.title.split(' ')[0]}</span>
-              </div>
-              <div className="text-[9px] text-gray-700 ml-4 mt-0.5">{agent.subtitle}</div>
-            </button>
-          ))}
+        <div className="flex-1 flex flex-col gap-2 p-2 overflow-y-auto">
+          {agents.map((agent) => {
+            // Extract primary color from gradient for unique styling
+            const colorMatch = agent.gradient.match(/from-(\w+)-/);
+            const primaryColor = colorMatch ? colorMatch[1] : 'green';
+            const colorClasses = {
+              cyan: { border: 'border-cyan-500/50', activeBorder: 'border-cyan-400', icon: 'text-cyan-400', glow: 'drop-shadow-[0_0_8px_#00ffff]', shadow: 'shadow-[0_0_15px_rgba(0,255,255,0.2)]', line: 'bg-cyan-400' },
+              pink: { border: 'border-pink-500/50', activeBorder: 'border-pink-400', icon: 'text-pink-400', glow: 'drop-shadow-[0_0_8px_#ec4899]', shadow: 'shadow-[0_0_15px_rgba(236,72,153,0.2)]', line: 'bg-pink-400' },
+              red: { border: 'border-red-500/50', activeBorder: 'border-red-400', icon: 'text-red-400', glow: 'drop-shadow-[0_0_8px_#ef4444]', shadow: 'shadow-[0_0_15px_rgba(239,68,68,0.2)]', line: 'bg-red-400' },
+              blue: { border: 'border-blue-500/50', activeBorder: 'border-blue-400', icon: 'text-blue-400', glow: 'drop-shadow-[0_0_8px_#3b82f6]', shadow: 'shadow-[0_0_15px_rgba(59,130,246,0.2)]', line: 'bg-blue-400' },
+              yellow: { border: 'border-yellow-500/50', activeBorder: 'border-yellow-400', icon: 'text-yellow-400', glow: 'drop-shadow-[0_0_8px_#eab308]', shadow: 'shadow-[0_0_15px_rgba(234,179,8,0.2)]', line: 'bg-yellow-400' },
+              violet: { border: 'border-violet-500/50', activeBorder: 'border-violet-400', icon: 'text-violet-400', glow: 'drop-shadow-[0_0_8px_#8b5cf6]', shadow: 'shadow-[0_0_15px_rgba(139,92,246,0.2)]', line: 'bg-violet-400' },
+              green: { border: 'border-[#00ff41]/50', activeBorder: 'border-[#00ff41]', icon: 'text-[#00ff41]', glow: 'drop-shadow-[0_0_8px_#00ff41]', shadow: 'shadow-[0_0_15px_rgba(0,255,65,0.2)]', line: 'bg-[#00ff41]' }
+            };
+            const colors = colorClasses[primaryColor] || colorClasses.green;
+            const isActive = selectedAgent === agent.id;
+            
+            return (
+              <button
+                key={agent.id}
+                onClick={agent.action}
+                title={agent.title}
+                className={`group w-full aspect-square flex items-center justify-center transition-all duration-300 border rounded-lg bg-black/50 backdrop-blur-sm relative overflow-hidden ${
+                  isActive
+                    ? `${colors.activeBorder} ${colors.shadow} bg-black/70`
+                    : `border-[#333] hover:${colors.border} hover:bg-black/70`
+                }`}
+              >
+                {/* Icon only for compact sidebar */}
+                <agent.icon 
+                  size={22} 
+                  className={`transition-all duration-300 ${isActive ? colors.icon + ' ' + colors.glow : 'text-[#555] group-hover:' + colors.icon}`}
+                />
+                {/* Left indicator line for active state */}
+                <div className={`absolute left-0 inset-y-0 w-[2px] ${colors.line} transition-transform duration-300 origin-center ${isActive ? 'scale-y-100' : 'scale-y-0 group-hover:scale-y-100'}`}></div>
+              </button>
+            );
+          })}
         </div>
-        <div className="p-3 border-t border-[#00ff41]/20 text-center bg-black/50">
-          <div className="text-[9px] text-gray-600 font-mono">AGENTS_ONLINE: {agents.length}</div>
-          <div className="text-[9px] text-[#00ff41] font-bold mt-1 animate-pulse">● SYSTEM_READY</div>
+        <div className="p-2 border-t border-[#333] text-center bg-black/50">
+          <div className="text-[8px] text-[#00ff41] font-bold animate-pulse">●</div>
         </div>
       </div>
 
@@ -7265,9 +9071,463 @@ const StudioHub = ({ setSection }) => {
         {/* Dark gradient background matching landing page */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#051a05] via-black to-black pointer-events-none"></div>
 
-        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+        {/* LANDING PAGE VIEW */}
+        {showLanding && !selectedAgent ? (
+          <div className="relative z-10 h-full overflow-y-auto bg-black">
+            {/* Hero Section - Clean solid background, no grain */}
+            <div className="relative bg-[#050505] border-b border-white/5">
+              <div className="max-w-5xl mx-auto px-4 py-16 md:py-24 text-center">
+                <p className="text-[10px] md:text-xs uppercase tracking-[0.5em] text-white/40 mb-4">
+                  The Restored Operating System
+                </p>
+                <h1 className="text-4xl md:text-6xl font-thin text-[#00ff41] tracking-tighter drop-shadow-[0_0_10px_rgba(0,255,65,0.8)] mb-6">
+                  THE STUDIO
+                </h1>
+                <div className="h-[1px] w-24 bg-[#00ff41]/50 mx-auto mb-6"></div>
+                <p className="text-white/50 text-sm md:text-base max-w-2xl mx-auto leading-relaxed mb-8">
+                  Eight AI agents built to give independent artists the tools that used to require 
+                  a label deal, a budget, and connections. This is where the ARE meets action.
+                </p>
+                
+                <button
+                  onClick={enterStudio}
+                  className="px-8 py-4 bg-[#00ff41] text-black uppercase tracking-wider rounded hover:shadow-[0_0_20px_rgba(0,255,65,0.4)] transition-all text-sm"
+                >
+                  Enter The Studio
+                </button>
+              </div>
+            </div>
+
+            {/* The Vision Section */}
+            <div className="max-w-5xl mx-auto px-4 py-16">
+              <div className="mb-16">
+                <h2 className="text-xl md:text-2xl text-white mb-6">What Is This?</h2>
+                <div className="bg-[#0a0a0a] border-l-2 border-[#00ff41]/30 p-6 mb-8">
+                  <p className="text-white/70 text-sm leading-relaxed">
+                    In the early 2000s, Whip Montez was on the verge of breaking through. She had the talent, 
+                    the collaborations, the momentum—but the industry gatekeepers kept the doors closed. 
+                    The resources that could have launched her career were locked behind label deals and 
+                    executive relationships. This restored operating system imagines a different reality: 
+                    what if those tools had been accessible to everyone?
+                  </p>
+                </div>
+                <p className="text-white/50 text-sm leading-relaxed">
+                  The Studio is an Alternative Reality Experience—a functioning suite of AI-powered creative 
+                  tools wrapped in the aesthetic of a recovered 2004 operating system. These agents aren't 
+                  just features. They're a statement: the resources that used to require a deal should be 
+                  available to anyone with talent and drive.
+                </p>
+              </div>
+
+              {/* Agent Showcase - Matching Come Up toolkit styling */}
+              <div className="mb-16">
+                <h2 className="text-xl md:text-2xl text-white mb-8">The Eight Agents</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {agents.map((agent) => {
+                    const details = agentDetails[agent.id];
+                    const isExpanded = expandedAgent === agent.id;
+                    
+                    return (
+                      <div 
+                        key={agent.id}
+                        className="bg-black/50 border border-[#00ff41]/30 rounded-lg p-5 cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group"
+                        onClick={() => setExpandedAgent(isExpanded ? null : agent.id)}
+                      >
+                        {/* Agent Header */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded bg-[#00ff41]/10 flex items-center justify-center">
+                              <agent.icon size={16} className="text-[#00ff41]/70" />
+                            </div>
+                            <div>
+                              <h4 className="text-white group-hover:text-[#00ff41] transition-colors text-sm">{details?.title || agent.title}</h4>
+                              <p className="text-white/40 text-xs">{details?.tagline}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); agent.action(); }}
+                            className="px-3 py-1.5 text-[10px] uppercase tracking-wider bg-white/10 text-white rounded hover:bg-[#00ff41] hover:text-black transition-all"
+                          >
+                            Launch
+                          </button>
+                        </div>
+                        
+                        <p className="text-white/50 text-xs leading-relaxed mb-3">
+                          {details?.description?.slice(0, 120)}...
+                        </p>
+                        
+                        <p className="text-[#00ff41]/60 text-xs uppercase tracking-wider group-hover:text-[#00ff41] transition-colors">
+                          {isExpanded ? 'Less ↑' : 'More ↓'}
+                        </p>
+                        
+                        {/* Expanded Content */}
+                        {isExpanded && details && (
+                          <div className="mt-4 pt-4 border-t border-white/10">
+                            <p className="text-white/60 text-xs leading-relaxed mb-4">
+                              {details.description}
+                            </p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="bg-[#0a0a0a] p-3 rounded">
+                                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-1">Who It's For</p>
+                                <p className="text-white/70 text-xs">{details.whoFor}</p>
+                              </div>
+                              <div className="bg-[#0a0a0a] p-3 rounded">
+                                <p className="text-white/40 text-[10px] uppercase tracking-wider mb-1">How To Use</p>
+                                <p className="text-white/70 text-xs">{details.howTo}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Connection to The Come Up - Same styling as toolkit cards */}
+              <div className="mb-16">
+                <h2 className="text-xl md:text-2xl text-white mb-6">Part of Something Bigger</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div 
+                    onClick={() => setSection('come_up')}
+                    className="bg-black/50 border border-[#00ff41]/30 p-5 rounded-lg cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group"
+                  >
+                    <h4 className="text-white mb-2 group-hover:text-[#00ff41] transition-colors">The Come Up</h4>
+                    <p className="text-white/50 text-xs leading-relaxed mb-3">
+                      Mentorship content that teaches the four pillars of artist development: 
+                      Craft, Business, Mental Health, and Legacy.
+                    </p>
+                    <p className="text-[#00ff41]/60 text-xs uppercase tracking-wider group-hover:text-[#00ff41] transition-colors">
+                      Explore →
+                    </p>
+                  </div>
+                  <div 
+                    onClick={() => setSection('about')}
+                    className="bg-black/50 border border-[#00ff41]/30 p-5 rounded-lg cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group"
+                  >
+                    <h4 className="text-white mb-2 group-hover:text-[#00ff41] transition-colors">The Story</h4>
+                    <p className="text-white/50 text-xs leading-relaxed mb-3">
+                      Learn about Whip Montez—the real artist this experience honors. 
+                      Understand the Alternative Reality Experience.
+                    </p>
+                    <p className="text-[#00ff41]/60 text-xs uppercase tracking-wider group-hover:text-[#00ff41] transition-colors">
+                      Read →
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Start - Clean, minimal */}
+              <div className="text-center py-12 border-t border-white/5">
+                <h2 className="text-lg md:text-xl text-white mb-4">Ready to Create?</h2>
+                <p className="text-white/50 text-sm max-w-lg mx-auto mb-8">
+                  The Studio agents are free to use. No account required to start.
+                </p>
+                <div className="flex flex-wrap justify-center gap-4">
+                  <button
+                    onClick={enterStudio}
+                    className="px-8 py-3 bg-[#00ff41] text-black uppercase tracking-wider rounded hover:shadow-[0_0_20px_rgba(0,255,65,0.4)] transition-all text-sm"
+                  >
+                    Enter The Studio
+                  </button>
+                  <button
+                    onClick={startOnboarding}
+                    className="px-8 py-3 bg-white/5 border border-white/10 text-white/70 uppercase tracking-wider rounded hover:bg-white/10 hover:text-white transition-all text-sm"
+                  >
+                    Learn First
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="text-center py-8 text-white/20 text-[10px] uppercase tracking-widest border-t border-white/5">
+                Past & Present // The Studio // Whip Montez
+              </div>
+            </div>
+
+            {/* Onboarding Modal */}
+            {showOnboarding && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+                <div className="relative w-full max-w-2xl mx-4 bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden">
+                  {/* Progress bar */}
+                  <div className="h-1 bg-white/5">
+                    <div 
+                      className="h-full bg-[#00ff41] transition-all duration-500"
+                      style={{ width: `${((onboardingStep + 1) / onboardingSteps.length) * 100}%` }}
+                    />
+                  </div>
+
+                  {/* Close button */}
+                  <button 
+                    onClick={() => setShowOnboarding(false)}
+                    className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+
+                  {/* Step indicator */}
+                  <div className="px-6 pt-6 pb-2">
+                    <p className="text-[10px] uppercase tracking-widest text-[#00ff41]/60">
+                      Step {onboardingStep + 1} of {onboardingSteps.length}
+                    </p>
+                  </div>
+
+                  {/* Content */}
+                  <div className="px-6 pb-6">
+                    <h3 className="text-xl md:text-2xl text-white mb-3">
+                      {onboardingSteps[onboardingStep].title}
+                    </h3>
+                    <p className="text-white/70 text-sm mb-4">
+                      {onboardingSteps[onboardingStep].content}
+                    </p>
+                    <p className="text-white/50 text-xs leading-relaxed mb-6">
+                      {onboardingSteps[onboardingStep].detail}
+                    </p>
+
+                    {/* Path Selection (Step 3) */}
+                    {onboardingStep === 2 && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                        {pathOptions.map(path => (
+                          <button
+                            key={path.id}
+                            onClick={() => setSelectedPath(path.id)}
+                            className={`p-4 rounded-lg border text-left transition-all ${
+                              selectedPath === path.id
+                                ? 'border-[#00ff41] bg-[#00ff41]/10'
+                                : 'border-white/10 bg-white/5 hover:border-white/20'
+                            }`}
+                          >
+                            <path.icon size={20} className={selectedPath === path.id ? 'text-[#00ff41]' : 'text-white/50'} />
+                            <p className={`text-xs mt-2 ${selectedPath === path.id ? 'text-white' : 'text-white/70'}`}>
+                              {path.label}
+                            </p>
+                            <p className="text-[10px] text-white/40 mt-1">{path.description}</p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Recommendation (Step 4) */}
+                    {onboardingStep === 3 && selectedPath && (
+                      <div className="mb-6">
+                        {selectedPath === 'explore' ? (
+                          <div className="bg-white/5 border border-white/10 rounded-lg p-5">
+                            <p className="text-white/70 text-sm mb-3">
+                              No specific recommendation—explore freely! Here's a suggested order to get a feel for everything:
+                            </p>
+                            <ol className="text-white/50 text-xs space-y-2 list-decimal list-inside">
+                              <li>Start with <span className="text-[#00ff41]">Songwriter's Studio</span> to see how writing works</li>
+                              <li>Try the <span className="text-[#00ff41]">Cipher Dojo</span> for some interactive fun</li>
+                              <li>Check <span className="text-[#00ff41]">Trend Hunter</span> to see real-time data</li>
+                              <li>Generate some <span className="text-[#00ff41]">Album Art</span> for visual inspiration</li>
+                            </ol>
+                          </div>
+                        ) : (
+                          <div className="bg-[#00ff41]/5 border border-[#00ff41]/30 rounded-lg p-5">
+                            {(() => {
+                              const path = pathOptions.find(p => p.id === selectedPath);
+                              const rec = getRecommendation();
+                              const agent = rec ? agentDetails[rec] : null;
+                              return (
+                                <>
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-10 h-10 rounded-lg bg-[#00ff41]/10 flex items-center justify-center">
+                                      <Sparkles size={20} className="text-[#00ff41]" />
+                                    </div>
+                                    <div>
+                                      <p className="text-[#00ff41] text-sm">{agent?.title || rec}</p>
+                                      <p className="text-white/40 text-xs">{agent?.tagline}</p>
+                                    </div>
+                                  </div>
+                                  <p className="text-white/60 text-xs leading-relaxed">
+                                    {agent?.description?.slice(0, 200)}...
+                                  </p>
+                                  {path?.recommended?.length > 1 && (
+                                    <p className="text-white/40 text-[10px] mt-3">
+                                      Also check out: {path.recommended.slice(1).map(r => agentDetails[r]?.title).join(', ')}
+                                    </p>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Pro Tips (Step 5) */}
+                    {onboardingStep === 4 && (
+                      <div className="space-y-3 mb-6">
+                        {[
+                          { tip: "Be specific about style and references", example: "\"Write a hook about loyalty in the style of early Jay-Z\"" },
+                          { tip: "Iterate and refine", example: "Generate 3-4 options, then ask the AI to combine the best elements" },
+                          { tip: "Use your own words first", example: "Start with a line you've written, then ask for completions" },
+                          { tip: "Save what resonates", example: "Copy outputs to your notes immediately—inspiration fades fast" }
+                        ].map((item, i) => (
+                          <div key={i} className="bg-white/5 border-l-2 border-[#00ff41]/30 p-3">
+                            <p className="text-white/70 text-xs">{item.tip}</p>
+                            <p className="text-white/40 text-[10px] italic mt-1">{item.example}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Navigation */}
+                  <div className="px-6 pb-6 flex justify-between items-center">
+                    <button
+                      onClick={() => setOnboardingStep(Math.max(0, onboardingStep - 1))}
+                      className={`text-xs text-white/50 hover:text-white transition-colors ${onboardingStep === 0 ? 'invisible' : ''}`}
+                    >
+                      ← Back
+                    </button>
+                    
+                    {onboardingStep < onboardingSteps.length - 1 ? (
+                      <button
+                        onClick={() => {
+                          if (onboardingStep === 2 && !selectedPath) return; // Require path selection
+                          setOnboardingStep(onboardingStep + 1);
+                        }}
+                        disabled={onboardingStep === 2 && !selectedPath}
+                        className={`px-6 py-2 text-xs uppercase tracking-wider rounded transition-all ${
+                          onboardingStep === 2 && !selectedPath
+                            ? 'bg-white/10 text-white/30 cursor-not-allowed'
+                            : 'bg-[#00ff41] text-black hover:shadow-[0_0_20px_rgba(0,255,65,0.4)]'
+                        }`}
+                      >
+                        Continue
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setShowOnboarding(false);
+                          const rec = getRecommendation();
+                          if (rec) {
+                            selectAgent(rec);
+                          } else {
+                            enterStudio();
+                          }
+                        }}
+                        className="px-6 py-2 bg-[#00ff41] text-black text-xs uppercase tracking-wider rounded hover:shadow-[0_0_20px_rgba(0,255,65,0.4)] transition-all"
+                      >
+                        {selectedPath === 'explore' ? 'Enter The Studio' : 'Start Creating'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : selectedAgent ? (
+          /* Agent View - renders the selected agent with X button */
+          <div className="relative z-10 h-full flex flex-col">
+            {/* Consistent header bar with X button */}
+            <div className="px-4 py-3 border-b border-[#333] bg-black/80 backdrop-blur-sm flex justify-between items-center">
+              <button 
+                onClick={backToGrid}
+                className="flex items-center gap-2 text-xs font-mono text-gray-400 hover:text-[#00ff41] transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>BACK TO STUDIO</span>
+              </button>
+              
+              {/* Model indicator in agent view */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 text-[10px] font-mono text-gray-500">
+                  <Cpu size={12} className="text-[#00ff41]"/>
+                  <span className="hidden sm:inline">MODEL:</span>
+                  <span className="text-[#00ff41]">{AVAILABLE_MODELS.find(m => m.id === currentModel)?.name || 'Default'}</span>
+                </div>
+                <button 
+                  onClick={backToGrid}
+                  className="w-8 h-8 bg-white/10 hover:bg-white/20 backdrop-blur-sm flex items-center justify-center transition-all cursor-pointer rounded-full border border-white/10"
+                  aria-label="Close"
+                >
+                  <X size={16} className="text-white"/>
+                </button>
+              </div>
+            </div>
+            {/* Agent Content */}
+            <div className="flex-1 overflow-y-auto">
+              {renderAgentContent()}
+            </div>
+          </div>
+        ) : (
+          /* Main Grid View */
+          <div className="relative z-10">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+          {/* Back to Landing Link */}
+          <div className="flex justify-center mb-4">
+            <button
+              onClick={() => setShowLanding(true)}
+              className="text-xs text-white/40 hover:text-[#00ff41] transition-colors flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              About The Studio
+            </button>
+          </div>
+          
           {/* Header matching landing page style */}
           <div className="text-center mb-12 md:mb-16">
+            {/* Model Selector */}
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <button
+                  onClick={() => setShowModelSelector(!showModelSelector)}
+                  className="flex items-center gap-2 px-4 py-2 bg-black/50 border border-[#333] rounded-lg text-xs font-mono text-gray-400 hover:text-[#00ff41] hover:border-[#00ff41]/50 transition-all"
+                >
+                  <Cpu size={14} className="text-[#00ff41]"/>
+                  <span className="hidden sm:inline">MODEL:</span>
+                  <span className="text-[#00ff41] font-bold">{AVAILABLE_MODELS.find(m => m.id === currentModel)?.name || currentModel}</span>
+                  <svg className={`w-3 h-3 transition-transform ${showModelSelector ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showModelSelector && (
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-72 bg-black/95 border border-[#333] rounded-lg shadow-2xl z-50 overflow-hidden backdrop-blur-xl">
+                    <div className="p-2 border-b border-[#333] text-[10px] font-mono text-gray-500">
+                      SELECT AI MODEL
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {AVAILABLE_MODELS.map(model => (
+                        <button
+                          key={model.id}
+                          onClick={() => handleModelChange(model.id)}
+                          className={`w-full p-3 text-left transition-all border-b border-[#222] last:border-0 ${
+                            currentModel === model.id 
+                              ? 'bg-[#00ff41]/10 border-l-2 border-l-[#00ff41]' 
+                              : 'hover:bg-white/5'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`font-bold text-sm ${currentModel === model.id ? 'text-[#00ff41]' : 'text-white'}`}>
+                              {model.name}
+                            </span>
+                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-mono ${
+                              model.tier === 'pro' 
+                                ? 'bg-violet-500/20 text-violet-400' 
+                                : 'bg-cyan-500/20 text-cyan-400'
+                            }`}>
+                              {model.tier.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-gray-500 mt-1">{model.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="p-2 border-t border-[#333] text-[9px] font-mono text-gray-600 text-center">
+                      PRO models are slower but more capable
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <p className="text-[#00ff41]/70 text-[10px] md:text-xs font-light tracking-[0.2em] md:tracking-[0.6em] uppercase mb-6 animate-pulse select-none font-sans">
               AI Studio System Online
             </p>
@@ -7281,43 +9541,57 @@ const StudioHub = ({ setSection }) => {
             </p>
           </div>
 
-        {/* Agent Cards Grid - Landing page style */}
+        {/* Agent Cards Grid - Landing page style with unique colors */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-          {agents.map((agent, index) => (
-            <div
-              key={agent.id}
-              onClick={agent.action}
-              onTouchEnd={(e) => { e.preventDefault(); agent.action(); }}
-              className="group relative bg-black/50 backdrop-blur-sm border border-[#333] hover:border-[#00ff41]/50 p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer transition-all duration-300 hover:bg-black/70 hover:scale-105 active:scale-95 touch-manipulation"
-              style={{ 
-                animation: 'fadeInUp 0.6s ease-out forwards',
-                animationDelay: `${index * 0.1}s`,
-                opacity: 0
-              }}
-            >
-              {/* Icon with retro terminal style */}
-              <div className="p-3 rounded-full bg-gradient-to-br from-[#111] to-black shadow-[inset_0_2px_5px_rgba(0,0,0,1)] group-hover:shadow-[0_0_20px_rgba(0,255,65,0.3)] transition-all duration-300">
-                <agent.icon 
-                  size={24} 
-                  className="text-[#444] group-hover:text-[#00ff41] transition-colors duration-300 group-hover:drop-shadow-[0_0_10px_#00ff41]" 
-                  strokeWidth={2}
-                />
+          {agents.map((agent, index) => {
+            // Extract primary color from gradient for unique hover effects
+            const colorMatch = agent.gradient.match(/from-(\w+)-/);
+            const primaryColor = colorMatch ? colorMatch[1] : 'green';
+            const colorClasses = {
+              cyan: { border: 'hover:border-cyan-500/50', text: 'group-hover:text-cyan-400', shadow: 'group-hover:shadow-[0_0_20px_rgba(0,255,255,0.3)]', glow: 'group-hover:drop-shadow-[0_0_10px_#00ffff]', line: 'bg-cyan-400' },
+              pink: { border: 'hover:border-pink-500/50', text: 'group-hover:text-pink-400', shadow: 'group-hover:shadow-[0_0_20px_rgba(236,72,153,0.3)]', glow: 'group-hover:drop-shadow-[0_0_10px_#ec4899]', line: 'bg-pink-400' },
+              red: { border: 'hover:border-red-500/50', text: 'group-hover:text-red-400', shadow: 'group-hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]', glow: 'group-hover:drop-shadow-[0_0_10px_#ef4444]', line: 'bg-red-400' },
+              blue: { border: 'hover:border-blue-500/50', text: 'group-hover:text-blue-400', shadow: 'group-hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]', glow: 'group-hover:drop-shadow-[0_0_10px_#3b82f6]', line: 'bg-blue-400' },
+              yellow: { border: 'hover:border-yellow-500/50', text: 'group-hover:text-yellow-400', shadow: 'group-hover:shadow-[0_0_20px_rgba(234,179,8,0.3)]', glow: 'group-hover:drop-shadow-[0_0_10px_#eab308]', line: 'bg-yellow-400' },
+              violet: { border: 'hover:border-violet-500/50', text: 'group-hover:text-violet-400', shadow: 'group-hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]', glow: 'group-hover:drop-shadow-[0_0_10px_#8b5cf6]', line: 'bg-violet-400' },
+              green: { border: 'hover:border-[#00ff41]/50', text: 'group-hover:text-[#00ff41]', shadow: 'group-hover:shadow-[0_0_20px_rgba(0,255,65,0.3)]', glow: 'group-hover:drop-shadow-[0_0_10px_#00ff41]', line: 'bg-[#00ff41]' }
+            };
+            const colors = colorClasses[primaryColor] || colorClasses.green;
+            
+            return (
+              <div
+                key={agent.id}
+                onClick={agent.action}
+                onTouchEnd={(e) => { e.preventDefault(); agent.action(); }}
+                className={`group relative bg-black/50 backdrop-blur-sm border border-[#333] ${colors.border} p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer transition-all duration-300 hover:bg-black/70 hover:scale-105 active:scale-95 touch-manipulation animate-fade-in`}
+                style={{ 
+                  animationDelay: `${index * 0.1}s`
+                }}
+              >
+                {/* Icon with unique color glow */}
+                <div className={`p-3 rounded-full bg-gradient-to-br from-[#111] to-black shadow-[inset_0_2px_5px_rgba(0,0,0,1)] ${colors.shadow} transition-all duration-300`}>
+                  <agent.icon 
+                    size={24} 
+                    className={`text-[#444] ${colors.text} transition-colors duration-300 ${colors.glow}`} 
+                    strokeWidth={2}
+                  />
+                </div>
+
+                {/* Title */}
+                <h3 className={`text-sm md:text-base font-mono font-bold text-gray-600 ${colors.text} tracking-wider transition-colors duration-300 text-center`}>
+                  {agent.title.split(' ')[0]}
+                </h3>
+                
+                {/* Subtitle */}
+                <p className={`text-[10px] font-mono tracking-wider uppercase text-gray-700 ${colors.text} opacity-70 transition-colors duration-300 text-center`}>
+                  {agent.subtitle}
+                </p>
+
+                {/* Bottom indicator line with unique color */}
+                <div className={`absolute inset-x-0 bottom-0 h-[2px] ${colors.line} scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center shadow-[0_0_10px_currentColor]`}></div>
               </div>
-
-              {/* Title */}
-              <h3 className="text-sm md:text-base font-mono font-bold text-gray-600 group-hover:text-[#00ff41] tracking-wider transition-colors duration-300 text-center">
-                {agent.title.split(' ')[0]}
-              </h3>
-              
-              {/* Subtitle */}
-              <p className="text-[10px] font-mono tracking-wider uppercase text-gray-700 group-hover:text-[#00ff41]/70 transition-colors duration-300 text-center">
-                {agent.subtitle}
-              </p>
-
-              {/* Bottom indicator line */}
-              <div className="absolute inset-x-0 bottom-0 h-[2px] bg-[#00ff41] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center shadow-[0_0_10px_#00ff41]"></div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Bottom Status - Terminal style */}
@@ -7334,7 +9608,9 @@ const StudioHub = ({ setSection }) => {
           </div>
         </div>
       </div>
-    </div>
+          </div>
+        )}
+      </div>
       
     <style>{`
       @keyframes fadeInUp {
@@ -8023,25 +10299,25 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
       case 'community':
         return <CommunityHub setSection={setActiveSection} />;
       case 'studio':
-        return <StudioHub setSection={setActiveSection} />;
+        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} />;
       case 'ghostwriter':
-        return <Ghostwriter />;
+        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="ghostwriter" />;
       case 'chat':
-        return <SidekickChat />;
+        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="chat" />;
       case 'battle':
-        return <RapBattle />;
+        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="battle" />;
       case 'crates':
-        return <CrateDigger />;
+        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="crates" />;
       case 'news':
         return <NewsArchive />;
       case 'ar_suite':
-        return <ARSuite />;
+        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="ar_suite" />;
       case 'album_art':
-        return <AlbumArtGenerator user={user} onAuthRequest={() => setShowAuthModal(true)} />;
+        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="album_art" />;
       case 'viral_video':
-        return <ViralVideoAgent user={user} onAuthRequest={() => setShowAuthModal(true)} />;
+        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="viral_video" />;
       case 'trend_hunter':
-        return <TrendHunter />;
+        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="trend_hunter" />;
       case 'comeup':
         return <TheComeUp setSection={setActiveSection} />;
       case 'privacy':
@@ -8276,7 +10552,7 @@ const LandingPage = ({ onEnter, onQuickAccess }) => {
         </div>
 
         {/* Quick Access Widgets */}
-        <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-3xl transition-all duration-700 ${isEntering ? 'opacity-0 scale-0' : 'opacity-100 scale-100'}`}>
+        <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-3xl transition-all duration-700 ${isEntering ? 'hidden' : 'block'}`}>
           {quickAccessWidgets.map((widget, i) => (
             <div 
               key={widget.id}
@@ -8300,7 +10576,7 @@ const LandingPage = ({ onEnter, onQuickAccess }) => {
           ))}
         </div>
 
-        <div className={`relative group cursor-pointer transition-all duration-700 touch-manipulation ${isEntering ? 'opacity-0 scale-0 pointer-events-none' : 'opacity-100 scale-100'}`} onClick={handleEnterClick} onTouchEnd={(e) => { e.preventDefault(); handleEnterClick(); }}>
+        <div className={`relative group cursor-pointer transition-all duration-700 touch-manipulation ${isEntering ? 'hidden' : 'block'}`} onClick={handleEnterClick} onTouchEnd={(e) => { e.preventDefault(); handleEnterClick(); }}>
           {/* Outer Ring Animation */}
           <div className="absolute inset-[-10px] border border-dashed border-[#00ff41]/20 rounded-full w-[calc(100%+20px)] h-[calc(100%+20px)] opacity-0 group-hover:opacity-100 animate-[spin_8s_linear_infinite] pointer-events-none transition-opacity duration-700"></div>
           
@@ -8322,7 +10598,7 @@ const LandingPage = ({ onEnter, onQuickAccess }) => {
         </div>
       </div>
       
-      <div className={`absolute bottom-8 w-full px-4 md:px-8 flex flex-col md:flex-row justify-between items-center text-[#00ff41]/30 font-mono text-[10px] tracking-widest uppercase gap-2 transition-opacity duration-1000 ${isEntering ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`absolute bottom-8 w-full px-4 md:px-8 flex flex-col md:flex-row justify-between items-center text-[#00ff41]/30 font-mono text-[10px] tracking-widest uppercase gap-2 transition-opacity duration-1000 ${isEntering ? 'hidden' : 'block'}`}>
         <span className="text-center md:text-left">Quick_Access_Available // Press Power to Boot Full System</span>
         <button 
           onClick={() => setShowDisclaimer(true)}
@@ -8586,7 +10862,6 @@ export default function App() {
       <div className="absolute inset-0 z-[100] pointer-events-none overflow-hidden touch-none">
         <div className="crt-overlay absolute inset-0"></div>
         <div className="scanline"></div>
-        <div className="absolute inset-0 bg-black opacity-10 pointer-events-none mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
       </div>
       
       {/* Three-stage render: Landing -> Boot -> OS */}
