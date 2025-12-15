@@ -7810,12 +7810,10 @@ const SongwritersStudio = () => {
 const NewsArchive = () => {
   const [mode, setMode] = useState('live'); // 'historical' or 'live'
   const [newsItems, setNewsItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [trendingPosts, setTrendingPosts] = useState([]);
-  const [cachedLiveNews, setCachedLiveNews] = useState(null);
   const [cached2004News, setCached2004News] = useState(null);
-  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_news', 5);
 
   // Default 2004-era hip-hop news (AI will generate more when toggled)
@@ -7835,35 +7833,67 @@ const NewsArchive = () => {
     { platform: 'TikTok', icon: '🎵', username: '@hiphopvibes', time: '3h', text: 'This beat is going CRAZY viral 🔥', likes: '2.1M', color: 'text-cyan-400' }
   ];
 
-  // Pre-fetch both live and 2004 news on component mount
+  // Fetch real live news from backend API
+  const fetchLiveNewsFromAPI = async () => {
+    try {
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const baseUrl = isLocal ? 'http://localhost:3001' : '';
+      
+      const response = await fetch(`${baseUrl}/api/news`);
+      const data = await response.json();
+      
+      if (data.articles && data.articles.length > 0) {
+        return data.articles;
+      }
+      return null;
+    } catch (e) {
+      console.error('Failed to fetch live news:', e);
+      return null;
+    }
+  };
+
+  // Fetch live news on mount
   useEffect(() => {
-    const prefetchData = async () => {
+    const loadNews = async () => {
       setLoading(true);
       
-      // Start both fetches in parallel for faster loading
-      const [liveData, historicalData] = await Promise.all([
-        fetchNewsData('live'),
-        fetchNewsData('2004')
-      ]);
+      // Fetch real news from backend API
+      const liveNews = await fetchLiveNewsFromAPI();
       
-      setCachedLiveNews(liveData);
-      setCached2004News(historicalData);
+      if (liveNews && liveNews.length > 0) {
+        setNewsItems(liveNews);
+      } else {
+        // Fallback to showing a message
+        setNewsItems([{
+          id: 0,
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase(),
+          time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+          source: 'SYSTEM',
+          author: '',
+          title: 'CONNECTING TO NEWS FEEDS...',
+          content: 'Fetching the latest hip-hop news from Complex, Pitchfork, Billboard and more.',
+          tags: ['LOADING']
+        }]);
+      }
       
-      // Set initial display based on mode
-      setNewsItems(mode === 'live' ? liveData : historicalData);
       setTrendingPosts(defaultTrending);
       setLoading(false);
-      setInitialLoadDone(true);
     };
     
-    prefetchData();
+    loadNews();
   }, []);
 
-  // Fetch news data helper (returns data, doesn't set state)
-  const fetchNewsData = async (fetchMode) => {
-    if (fetchMode === '2004' || fetchMode === 'historical') {
-      // Generate AI 2004-era hip-hop news with rich content
-      const systemPrompt = `You are a premium hip-hop journalism aggregator from December 2004. Generate 8 in-depth news articles from that era with RICH, DETAILED content like a real magazine would publish.
+  // Fetch 2004-era news using AI
+  const fetch2004News = async () => {
+    if (!canUse) {
+      setNewsItems([{ id: 0, date: "", time: "", source: "SYSTEM", author: "", title: `FREE LIMIT REACHED: ${limit} free news pulls used.`, content: "", tags: ["LIMIT"] }]);
+      return;
+    }
+    consume();
+    
+    setLoading(true);
+    
+    const systemPrompt = `You are a premium hip-hop journalism aggregator from December 2004. Generate 8 in-depth news articles from that era with RICH, DETAILED content like a real magazine would publish.
 
 Include diverse sources: THE SOURCE, XXL, VIBE, MTV NEWS, BET.COM, ALLHIPHOP, SOHH, MURDER DOG, SCRATCH MAGAZINE, OKAYPLAYER, MEDIA TAKE OUT (gossip style), TMZ (breaking news style).
 
@@ -7883,85 +7913,23 @@ Format as JSON array:
 }]
 
 Make each article feel substantial and newsworthy. No markdown.`;
-      
-      try {
-        const response = await callGemini("detailed hip hop news articles from December 2004, album reviews, artist interviews, industry news, celebrity gossip", systemPrompt, false);
-        const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanJson);
-      } catch (e) {
-        return default2004News;
-      }
-    } else {
-      // Fetch real current hip-hop news with rich content from diverse sources
-      const systemPrompt = `You are a premium real-time hip-hop news aggregator for December 2025. Generate 10 CURRENT, REAL, IN-DEPTH hip-hop news articles based on what's actually happening now.
-
-Pull from diverse outlets including GOSSIP and ENTERTAINMENT sites:
-- Music Press: COMPLEX, XXL, BILLBOARD, PITCHFORK, ROLLING STONE, THE FADER, GENIUS, HOT NEW HIP HOP
-- Entertainment/Gossip: TMZ, MEDIA TAKE OUT (MTO), SHADE ROOM, HOLLYWOOD UNLOCKED, BALLER ALERT, WORLDSTARHIPHOP
-- Social/Community: REDDIT r/hiphopheads, TWITTER/X trending
-- Lifestyle: HYPEBEAST, HIGHSNOBIETY
-
-Cover: new album/single releases, chart movements, BEEFS AND DRAMA, relationship news, legal issues, label signings, tour announcements, viral moments, producer news, fashion/brand collabs, streaming milestones, social media beef, celebrity sightings, industry tea.
-
-Include current artists: Drake, Kendrick Lamar, Travis Scott, Future, Metro Boomin, 21 Savage, Lil Baby, Gunna, Ice Spice, Sexyy Red, GloRilla, Megan Thee Stallion, Nicki Minaj, Cardi B, J. Cole, Tyler the Creator, A$AP Rocky, etc.
-
-Format as JSON array:
-[{
-  "id": 1,
-  "date": "DEC 14 2025",
-  "time": "11:23 PM EST",
-  "source": "TMZ/MEDIA TAKE OUT/SHADE ROOM/COMPLEX/etc",
-  "author": "Journalist Name or Staff",
-  "title": "HEADLINE IN CAPS - MAKE IT COMPELLING AND CLICKABLE",
-  "content": "Write 4-6 detailed sentences. For gossip sources like TMZ/MTO, include juicy details, insider sources, 'allegedly' statements. For music press, include quotes, streaming numbers, critical takes. Make it feel authentic to each outlet's voice.",
-  "tags": ["TAG1", "TAG2", "TAG3"],
-  "category": "NEW MUSIC/BEEF/DRAMA/VIRAL/GOSSIP/LEGAL/CHARTS"
-}]
-
-Mix hard news with entertainment gossip. Make it current and engaging. No markdown.`;
-      
-      try {
-        const response = await callGemini("latest hip hop news December 2025 TMZ MediaTakeOut Reddit hiphopheads, Drake Kendrick beef, rap drama gossip, new releases, trending", systemPrompt, true);
-        const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanJson);
-      } catch (e) {
-        return default2004News; // Fallback
-      }
-    }
-  };
-
-  const fetchLiveNews = async () => {
-    if (!canUse) {
-      setNewsItems([{ id: 0, date: "", time: "", source: "SYSTEM", author: "", title: `FREE LIMIT REACHED: ${limit} free news pulls used.`, content: "", tags: ["LIMIT"] }]);
-      return;
-    }
-    consume();
     
-    setLoading(true);
-    const data = await fetchNewsData('live');
-    setCachedLiveNews(data);
-    setNewsItems(data);
-    setLoading(false);
-  };
-
-  const fetch2004News = async () => {
-    if (!canUse) {
-      setNewsItems([{ id: 0, date: "", time: "", source: "SYSTEM", author: "", title: `FREE LIMIT REACHED: ${limit} free news pulls used.`, content: "", tags: ["LIMIT"] }]);
-      return;
+    try {
+      const response = await callGemini("detailed hip hop news articles from December 2004, album reviews, artist interviews, industry news, celebrity gossip", systemPrompt, false);
+      const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
+      const data = JSON.parse(cleanJson);
+      setCached2004News(data);
+      setNewsItems(data);
+    } catch (e) {
+      setNewsItems(default2004News);
     }
-    consume();
     
-    setLoading(true);
-    const data = await fetchNewsData('2004');
-    setCached2004News(data);
-    setNewsItems(data);
     setLoading(false);
   };
 
   const fetchNews = async (selectedMode) => {
     setMode(selectedMode);
     
-    // Use cached data if available for instant switching
     if (selectedMode === 'historical') {
       if (cached2004News) {
         setNewsItems(cached2004News);
@@ -7969,11 +7937,13 @@ Mix hard news with entertainment gossip. Make it current and engaging. No markdo
         await fetch2004News();
       }
     } else {
-      if (cachedLiveNews) {
-        setNewsItems(cachedLiveNews);
-      } else {
-        await fetchLiveNews();
+      // Fetch fresh live news
+      setLoading(true);
+      const liveNews = await fetchLiveNewsFromAPI();
+      if (liveNews && liveNews.length > 0) {
+        setNewsItems(liveNews);
       }
+      setLoading(false);
     }
   };
 
