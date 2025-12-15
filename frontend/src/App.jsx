@@ -2453,11 +2453,11 @@ const MusicPlayer = () => {
       color: "text-[#00ff41]", 
       tapeColor: "border-[#00ff41]",
       tracks: [
-        { id: 101, title: "Freestyle (Kanye Beat)", duration: "2:15", date: "2004-02-14", video: true, audioUrl: "Whip Montez Kanye beat freestyle 4.mp3" },
-        { id: 102, title: "Feat. Ali Vegas (50 Cent Beat)", duration: "3:42", date: "2004-03-01", video: false, audioUrl: "Whip Montez 50 Freestyle Whip_Veg.mp3" },
-        { id: 103, title: "Sprung (Remix)", duration: "3:30", date: "2004-04-20", video: true, audioUrl: "Whip Montez SprungRemix_whip.mp3" },
-        { id: 104, title: "Push It (Remix)", duration: "3:15", date: "2004-05-10", video: false, audioUrl: "Whip Montez Push it.mp3" },
-        { id: 105, title: "Freestyle (Jim Jones Beat)", duration: "2:50", date: "2004-06-05", video: true, audioUrl: "Whip Montez Jim jones freestyle.mp3" }
+        { id: 101, title: "Freestyle (Kanye Beat)", duration: "2:15", date: "2004-02-14", video: true, audioUrl: "audio/whip-montez-kanye-freestyle.mp3" },
+        { id: 102, title: "Feat. Ali Vegas (50 Cent Beat)", duration: "3:42", date: "2004-03-01", video: false, audioUrl: "audio/whip-montez-50-freestyle.mp3" },
+        { id: 103, title: "Sprung (Remix)", duration: "3:30", date: "2004-04-20", video: true, audioUrl: "audio/whip-montez-sprung-remix.mp3" },
+        { id: 104, title: "Push It (Remix)", duration: "3:15", date: "2004-05-10", video: false, audioUrl: "audio/whip-montez-push-it.mp3" },
+        { id: 105, title: "Freestyle (Jim Jones Beat)", duration: "2:50", date: "2004-06-05", video: true, audioUrl: "audio/whip-montez-jim-jones-freestyle.mp3" }
       ]
     },
     {
@@ -2468,11 +2468,11 @@ const MusicPlayer = () => {
       color: "text-red-500",
       tapeColor: "border-red-500",
       tracks: [
-        { id: 201, title: "Stand Up", duration: "2:50", date: "2002-09-11", video: true, audioUrl: "02 Stand Up.mp3" },
-        { id: 202, title: "Brooklyn Anthem feat. Alfonzo Hunter", duration: "3:15", date: "2002-12-01", video: false, audioUrl: "Brooklyn Anthem feat. Alfonzo Hunter.mp3" },
-        { id: 203, title: "Sit Back n Remain (Freestyle)", duration: "2:10", date: "2003-02-14", video: false, audioUrl: "Sit Back n Remain (freesstyle).mp3" },
-        { id: 204, title: "YoungStar", duration: "1:20", date: "2003-07-04", video: false, audioUrl: "Whip Montez YoungStar.mp3" },
-        { id: 205, title: "No Matter You Say", duration: "4:00", date: "2003-08-14", video: true, audioUrl: "No Matter You Say.mp3" }
+        { id: 201, title: "Stand Up", duration: "2:50", date: "2002-09-11", video: true, audioUrl: "audio/whip-montez-stand-up.mp3" },
+        { id: 202, title: "Brooklyn Anthem feat. Alfonzo Hunter", duration: "3:15", date: "2002-12-01", video: false, audioUrl: "audio/whip-montez-brooklyn-anthem.mp3" },
+        { id: 203, title: "Sit Back n Remain (Freestyle)", duration: "2:10", date: "2003-02-14", video: false, audioUrl: "audio/whip-montez-sit-back-remain.mp3" },
+        { id: 204, title: "YoungStar", duration: "1:20", date: "2003-07-04", video: false, audioUrl: "audio/whip-montez-youngstar.mp3" },
+        { id: 205, title: "No Matter You Say", duration: "4:00", date: "2003-08-14", video: true, audioUrl: "audio/whip-montez-no-matter.mp3" }
       ]
     },
     {
@@ -2483,11 +2483,11 @@ const MusicPlayer = () => {
       color: "text-cyan-400",
       tapeColor: "border-cyan-400",
       tracks: [
-        { id: 301, title: "U Catching Feelings", duration: "3:20", date: "2001-07-15", video: false, audioUrl: "U Catching Feelings.mp3" },
-        { id: 302, title: "Only You", duration: "3:45", date: "2001-07-20", video: false, audioUrl: "Only You.mp3" },
-        { id: 303, title: "Dear GOD", duration: "4:10", date: "2001-08-01", video: true, audioUrl: "Whip Montez Dear GOD.mp3" },
-        { id: 304, title: "I Use to Love feat. Kia", duration: "3:55", date: "2001-08-10", video: false, audioUrl: "Whip Montez Feat. Kia I use to love.mp3" },
-        { id: 305, title: "It Gets Hard", duration: "3:30", date: "2001-08-15", video: false, audioUrl: "08 It gets hard.mp3" }
+        { id: 301, title: "U Catching Feelings", duration: "3:20", date: "2001-07-15", video: false, audioUrl: "audio/whip-montez-catching-feelings.mp3" },
+        { id: 302, title: "Only You", duration: "3:45", date: "2001-07-20", video: false, audioUrl: "audio/whip-montez-only-you.mp3" },
+        { id: 303, title: "Dear GOD", duration: "4:10", date: "2001-08-01", video: true, audioUrl: "audio/whip-montez-dear-god.mp3" },
+        { id: 304, title: "I Use to Love feat. Kia", duration: "3:55", date: "2001-08-10", video: false, audioUrl: "audio/whip-montez-i-use-to-love.mp3" },
+        { id: 305, title: "It Gets Hard", duration: "3:30", date: "2001-08-15", video: false, audioUrl: "audio/whip-montez-it-gets-hard.mp3" }
       ]
     }
   ];
