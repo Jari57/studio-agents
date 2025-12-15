@@ -2506,13 +2506,16 @@ const MusicPlayer = () => {
     let canPlayListener = null;
     let errorListener = null;
     
+    console.log("🎵 Loading track:", currentTrack.title, "URL:", currentTrack.audioUrl);
+    
     const loadAndPlay = async () => {
       try {
         setAudioLoading(true);
         setAudioError(false);
         
         // Error handler
-        errorListener = () => {
+        errorListener = (e) => {
+          console.error("❌ Audio error event:", e);
           setAudioLoading(false);
           setAudioError(true);
           setIsPlaying(false);
@@ -2524,14 +2527,15 @@ const MusicPlayer = () => {
         let url;
         const audioPath = currentTrack.audioUrl;
         
+        console.log("🔍 Storage available:", !!storage, "Audio path:", audioPath);
+        
         if (storage && audioPath) {
           try {
             const storageRef = ref(storage, audioPath);
             url = await getDownloadURL(storageRef);
             console.log("✅ Firebase Storage URL:", url);
           } catch (e) {
-            // Firebase storage failed, try backend static path
-            console.log("Firebase Storage not available, trying static path...");
+            console.log("⚠️ Firebase Storage failed:", e.message, "- trying static path...");
             // Use same origin for production (Railway serves both frontend and static files)
             url = `/${audioPath}`;
             console.log("📁 Trying static URL:", url);
@@ -2539,9 +2543,11 @@ const MusicPlayer = () => {
         } else {
           // Direct path for local development or when storage isn't configured
           url = `/${audioPath}`;
+          console.log("📁 Using direct path:", url);
         }
         
         // Set source
+        console.log("🎧 Setting audio src to:", url);
         audio.src = url;
         
         // Wait for audio to be ready before playing
@@ -2580,18 +2586,26 @@ const MusicPlayer = () => {
     const audio = audioRef.current;
     
     // Control playback whenever isPlaying changes
+    console.log("▶️ Play state changed:", isPlaying, "Audio src:", audio.src, "Paused:", audio.paused);
+    
     if (audio.src) {
       if (isPlaying) {
         // Only play if not already playing
         if (audio.paused) {
-          audio.play().catch(err => console.log("Play error:", err));
+          console.log("▶️ Attempting to play...");
+          audio.play()
+            .then(() => console.log("✅ Playback started"))
+            .catch(err => console.log("❌ Play error:", err.message));
         }
       } else {
         // Only pause if currently playing
         if (!audio.paused) {
+          console.log("⏸️ Pausing...");
           audio.pause();
         }
       }
+    } else {
+      console.log("⚠️ No audio source set yet");
     }
   }, [isPlaying]);
 
@@ -3146,14 +3160,27 @@ const MusicPlayer = () => {
             <div className="grid grid-cols-4 gap-2 mt-4">
               <button 
                 onClick={handlePrevious}
-                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all"
+                onTouchEnd={(e) => { e.preventDefault(); handlePrevious(); }}
+                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95"
               >
                 <Rewind size={18}/>
               </button>
               <button 
-                onClick={() => currentTrack && setIsPlaying(!isPlaying)}
+                onClick={() => {
+                  if (currentTrack) {
+                    console.log("Play button clicked, current state:", isPlaying);
+                    setIsPlaying(!isPlaying);
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  if (currentTrack) {
+                    console.log("Play button touched, current state:", isPlaying);
+                    setIsPlaying(!isPlaying);
+                  }
+                }}
                 disabled={audioLoading || !currentTrack}
-                className={`bg-orange-500/10 border border-orange-500/30 h-12 rounded-lg flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`bg-orange-500/10 border border-orange-500/30 h-12 rounded-lg flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 ${
                   isPlaying ? 'text-orange-400' : 'text-orange-400 hover:bg-orange-500/20'
                 }`}
               >
@@ -3161,13 +3188,15 @@ const MusicPlayer = () => {
               </button>
               <button 
                 onClick={handleStop}
-                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all"
+                onTouchEnd={(e) => { e.preventDefault(); handleStop(); }}
+                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95"
               >
                 <div className="w-4 h-4 bg-current rounded"></div>
               </button>
               <button 
                 onClick={handleNext}
-                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all"
+                onTouchEnd={(e) => { e.preventDefault(); handleNext(); }}
+                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95"
               >
                 <div className="flex"><Play size={12}/><Play size={12}/></div>
               </button>
