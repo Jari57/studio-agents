@@ -2825,6 +2825,7 @@ const MusicPlayer = () => {
               
               <button 
                 onClick={() => setShowOnboarding(false)}
+                onTouchEnd={(e) => { e.preventDefault(); setShowOnboarding(false); }}
                 className="w-full bg-[#00ff41]/10 border border-[#00ff41]/30 text-[#00ff41] py-3 text-sm font-medium rounded hover:bg-[#00ff41]/20 hover:border-[#00ff41]/50 transition-all flex items-center justify-center gap-2 touch-manipulation active:scale-[0.98]"
               >
                 <Headphones size={16} /> Enter the Archive
@@ -2848,6 +2849,7 @@ const MusicPlayer = () => {
               {/* Lyrics Button */}
               <button 
                 onClick={() => setShowLyrics(!showLyrics)}
+                onTouchEnd={(e) => { e.preventDefault(); setShowLyrics(!showLyrics); }}
                 className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-medium transition-all touch-manipulation ${
                   showLyrics 
                     ? 'bg-purple-500/20 border border-purple-500/50 text-purple-400' 
@@ -2860,6 +2862,7 @@ const MusicPlayer = () => {
               {/* Voice Control Button */}
               <button 
                 onClick={startVoiceControl}
+                onTouchEnd={(e) => { e.preventDefault(); if (recognitionRef.current && !isListening) startVoiceControl(); }}
                 disabled={!recognitionRef.current || isListening}
                 className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-medium transition-all touch-manipulation ${
                   isListening 
@@ -2872,6 +2875,7 @@ const MusicPlayer = () => {
               </button>
               <button 
                 onClick={() => setShowOnboarding(true)}
+                onTouchEnd={(e) => { e.preventDefault(); setShowOnboarding(true); }}
                 className="bg-[#0a0a0a] border border-white/10 text-gray-400 px-3 py-2 text-xs font-medium flex items-center gap-2 hover:text-white hover:border-white/20 transition-colors rounded touch-manipulation"
               >
                 <HelpCircle size={14}/> Help
@@ -2899,7 +2903,7 @@ const MusicPlayer = () => {
             <div className="w-full max-w-3xl bg-[#050505] border border-white/10 rounded-lg overflow-hidden" style={{boxShadow: '0 0 60px rgba(0,0,0,0.5)'}}>
               <div className="h-10 bg-[#0a0a0a] border-b border-white/10 flex items-center justify-between px-4">
                 <span className="text-white font-medium text-xs">Video Player — {currentTrack?.title}</span>
-                <button onClick={() => setShowVideoModal(false)} className="text-gray-500 hover:text-white transition-colors">
+                <button onClick={() => setShowVideoModal(false)} onTouchEnd={(e) => { e.preventDefault(); setShowVideoModal(false); }} className="text-gray-500 hover:text-white transition-colors touch-manipulation p-2">
                   <X size={16} />
                 </button>
               </div>
@@ -2931,7 +2935,7 @@ const MusicPlayer = () => {
                   </h2>
                   <p className="text-purple-400/60 text-xs mt-1">{currentTrack?.title || 'Select a track'}</p>
                 </div>
-                <button onClick={() => setShowLyrics(false)} className="text-gray-500 hover:text-white transition-colors p-2 touch-manipulation">
+                <button onClick={() => setShowLyrics(false)} onTouchEnd={(e) => { e.preventDefault(); setShowLyrics(false); }} className="text-gray-500 hover:text-white transition-colors p-2 touch-manipulation">
                   <X size={20} />
                 </button>
               </div>
@@ -2961,7 +2965,8 @@ const MusicPlayer = () => {
                 
                 <button 
                   onClick={() => setShowLyrics(false)}
-                  className="w-full bg-purple-500/10 border border-purple-500/30 text-purple-400 py-3 text-sm font-medium rounded hover:bg-purple-500/20 transition-all"
+                  onTouchEnd={(e) => { e.preventDefault(); setShowLyrics(false); }}
+                  className="w-full bg-purple-500/10 border border-purple-500/30 text-purple-400 py-3 text-sm font-medium rounded hover:bg-purple-500/20 transition-all touch-manipulation"
                 >
                   Close Lyrics
                 </button>
@@ -2980,6 +2985,7 @@ const MusicPlayer = () => {
               <button 
                 key={album.id}
                 onClick={() => setSelectedAlbumId(album.id)}
+                onTouchEnd={(e) => { e.preventDefault(); setSelectedAlbumId(album.id); }}
                 className={`w-full text-left p-4 cursor-pointer rounded-lg transition-all group touch-manipulation ${
                   selectedAlbumId === album.id 
                     ? 'bg-[#0a0a0a] border border-white/10' 
