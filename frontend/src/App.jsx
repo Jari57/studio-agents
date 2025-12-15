@@ -8036,45 +8036,36 @@ Make each article feel substantial and newsworthy. No markdown.`;
                ))}
              </div>
              <div className="p-3 border-t border-white/10 text-center">
-               <p className="text-[9px] text-gray-600 uppercase tracking-wider">Powered by r/hiphopheads</p>
+               <p className="text-[9px] text-gray-600 uppercase tracking-wider">Powered by Pitchfork</p>
              </div>
            </div>
            
            {/* Main News Feed */}
            <div className="flex-1 overflow-y-auto bg-black p-4 space-y-4">
              {mode === 'live' && (
-               <div className="bg-orange-900/10 border border-orange-500/30 p-3 rounded flex items-center gap-3">
-                 <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                 <span className="text-orange-400/80 text-xs font-medium uppercase tracking-wider">Live Feed • r/hiphopheads</span>
+               <div className="bg-cyan-900/10 border border-cyan-500/30 p-3 rounded flex items-center gap-3">
+                 <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></div>
+                 <span className="text-cyan-400/80 text-xs font-medium uppercase tracking-wider">Live Feed • Pitchfork News</span>
                </div>
              )}
              {newsItems.map((item) => (
                <div 
                  key={item.id} 
-                 className="border border-white/10 bg-[#0a0a0a] p-4 hover:border-orange-500/30 transition-all group rounded cursor-pointer"
-                 onClick={() => item.redditUrl && window.open(item.redditUrl, '_blank')}
+                 className="border border-white/10 bg-[#0a0a0a] p-4 hover:border-cyan-500/30 transition-all group rounded cursor-pointer"
+                 onClick={() => item.url && window.open(item.url, '_blank')}
                >
                    <div className="flex items-start justify-between mb-2">
                      <div className="flex-1">
-                       <h2 className="text-base md:text-lg font-medium text-white mb-1 group-hover:text-orange-400 transition-colors leading-tight">{item.title}</h2>
+                       <h2 className="text-base md:text-lg font-medium text-white mb-1 group-hover:text-cyan-400 transition-colors leading-tight">{item.title}</h2>
                        {item.content && <p className="text-sm text-gray-500 leading-relaxed mt-2">{item.content}</p>}
                      </div>
-                     {item.image && (
-                       <img src={item.image} alt="" className="w-16 h-16 object-cover rounded ml-3 opacity-80" />
-                     )}
                    </div>
                    <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
-                     <span className="text-orange-400/80 font-medium">{item.source}</span>
+                     <span className="text-cyan-400/80 font-medium">{item.source}</span>
                      {item.time && <><span className="text-gray-700">•</span><span className="text-gray-500">{item.time}</span></>}
                      {item.author && <><span className="text-gray-700">•</span><span className="text-gray-600">{item.author}</span></>}
-                     {item.upvotes !== undefined && (
-                       <><span className="text-gray-700">•</span><span className="text-orange-500/70">⬆ {item.upvotes >= 1000 ? (item.upvotes/1000).toFixed(1)+'k' : item.upvotes}</span></>
-                     )}
-                     {item.comments !== undefined && (
-                       <><span className="text-gray-700">•</span><span className="text-gray-500">💬 {item.comments}</span></>
-                     )}
                      {item.tags && item.tags.map(tag => (
-                       <span key={tag} className="bg-orange-500/10 text-orange-400/80 px-2 py-0.5 rounded text-[10px] font-medium">{tag}</span>
+                       <span key={tag} className="bg-cyan-500/10 text-cyan-400/80 px-2 py-0.5 rounded text-[10px] font-medium">{tag}</span>
                      ))}
                    </div>
                </div>

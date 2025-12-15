@@ -571,10 +571,10 @@ app.get('/api/concerts', async (req, res) => {
 });
 
 // ==================== HIP-HOP NEWS API ====================
-// Fetches real-time hip-hop news from Reddit r/hiphopheads
+// Fetches real-time music news from Pitchfork RSS
 
 let newsCache = { data: null, timestamp: 0 };
-const NEWS_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes for near real-time
+const NEWS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 app.get('/api/news', async (req, res) => {
   try {
@@ -586,93 +586,89 @@ app.get('/api/news', async (req, res) => {
       return res.json(newsCache.data);
     }
     
-    const fetchWithTimeout = async (url, timeout = 8000) => {
-      const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), timeout);
-      try {
-        const response = await fetch(url, { 
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json'
-          }
-        });
-        clearTimeout(id);
-        return response;
-      } catch (e) {
-        clearTimeout(id);
-        throw e;
-      }
-    };
-    
     let articles = [];
     
-    // Primary: Reddit r/hiphopheads (real-time, free, reliable)
+    // Primary: Pitchfork RSS (reliable, music-focused)
     try {
-      // Use old.reddit.com which is more reliable for JSON API
-      const redditUrl = 'https://old.reddit.com/r/hiphopheads/hot.json?limit=25&raw_json=1';
-      logger.info('Fetching from Reddit...', { url: redditUrl });
-      const response = await fetchWithTimeout(redditUrl, 10000);
+      const pitchforkUrl = 'https://pitchfork.com/feed/feed-news/rss';
+      logger.info('Fetching from Pitchfork RSS...');
       
-      logger.info('Reddit response', { status: response.status, ok: response.ok });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
+      const response = await fetch(pitchforkUrl, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/rss+xml, application/xml, text/xml'
+        }
+      });
+      clearTimeout(timeoutId);
       
       if (response.ok) {
-        const data = await response.json();
-        const posts = data?.data?.children || [];
-        logger.info('Reddit posts found', { count: posts.length });
+        const xmlText = await response.text();
         
-        articles = posts
-          .filter(p => !p.data.stickied) // Skip pinned posts
-          .slice(0, 20)
-          .map((post, i) => {
-            const d = post.data;
-            const createdDate = new Date(d.created_utc * 1000);
-            const now = new Date();
-            const hoursAgo = Math.floor((now - createdDate) / (1000 * 60 * 60));
-            const minsAgo = Math.floor((now - createdDate) / (1000 * 60));
-            
-            // Determine time display
-            let timeAgo = '';
-            if (minsAgo < 60) {
-              timeAgo = `${minsAgo}m ago`;
-            } else if (hoursAgo < 24) {
-              timeAgo = `${hoursAgo}h ago`;
-            } else {
-              timeAgo = createdDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            }
-            
-            // Extract flair/tags
-            const flair = d.link_flair_text || '';
-            const tags = [];
-            if (flair) tags.push(flair.toUpperCase());
-            if (d.domain && !d.domain.includes('reddit')) tags.push(d.domain.toUpperCase().replace('WWW.', '').split('.')[0]);
-            
-            return {
-              id: i + 1,
-              redditId: d.id,
-              date: createdDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase(),
-              time: timeAgo,
-              source: 'R/HIPHOPHEADS',
-              author: `u/${d.author}`,
-              title: d.title?.toUpperCase().slice(0, 120) || 'UNTITLED',
-              content: d.selftext?.slice(0, 300) || (d.is_self ? '' : `Link: ${d.domain}`),
-              url: d.url?.startsWith('/r/') ? `https://reddit.com${d.url}` : d.url,
-              redditUrl: `https://reddit.com${d.permalink}`,
-              image: d.thumbnail && d.thumbnail.startsWith('http') ? d.thumbnail : null,
-              upvotes: d.ups,
-              comments: d.num_comments,
-              tags: tags.length > 0 ? tags : ['HIPHOP'],
-              flair: flair
-            };
-          });
+        // Parse RSS XML
+        const items = xmlText.match(/<item>[\s\S]*?<\/item>/g) || [];
+        logger.info(`Found ${items.length} Pitchfork items`);
         
-        logger.info(`Fetched ${articles.length} posts from Reddit`);
+        articles = items.slice(0, 20).map((item, i) => {
+          const getTag = (tag) => {
+            const match = item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));
+            return match ? match[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : '';
+          };
+          
+          const title = getTag('title');
+          const link = getTag('link');
+          const description = getTag('description');
+          const pubDate = getTag('pubDate');
+          const creator = getTag('dc:creator') || getTag('creator');
+          const category = getTag('category');
+          const keywords = getTag('media:keywords') || getTag('keywords');
+          
+          const dateObj = pubDate ? new Date(pubDate) : new Date();
+          const hoursAgo = Math.floor((Date.now() - dateObj) / (1000 * 60 * 60));
+          const minsAgo = Math.floor((Date.now() - dateObj) / (1000 * 60));
+          
+          let timeAgo = '';
+          if (minsAgo < 60) {
+            timeAgo = `${minsAgo}m ago`;
+          } else if (hoursAgo < 24) {
+            timeAgo = `${hoursAgo}h ago`;
+          } else if (hoursAgo < 48) {
+            timeAgo = 'Yesterday';
+          } else {
+            timeAgo = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          }
+          
+          // Build tags from category and keywords
+          const tags = [];
+          if (category) tags.push(category.toUpperCase());
+          if (keywords) {
+            keywords.split(',').slice(0, 2).forEach(k => tags.push(k.trim().toUpperCase()));
+          }
+          if (tags.length === 0) tags.push('MUSIC');
+          
+          return {
+            id: i + 1,
+            date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase(),
+            time: timeAgo,
+            source: 'PITCHFORK',
+            author: creator || 'Staff',
+            title: title?.toUpperCase().slice(0, 150) || 'UNTITLED',
+            content: description?.replace(/<[^>]*>/g, '').slice(0, 300) || '',
+            url: link,
+            tags: tags.slice(0, 3)
+          };
+        });
+        
+        logger.info(`Parsed ${articles.length} articles from Pitchfork`);
       }
     } catch (e) {
-      logger.warn('Reddit fetch failed', { error: e.message });
+      logger.warn('Pitchfork fetch failed', { error: e.message });
     }
     
-    // Fallback if Reddit fails
+    // Fallback if Pitchfork fails
     if (articles.length === 0) {
       const nowDate = new Date();
       articles = [
@@ -682,11 +678,9 @@ app.get('/api/news', async (req, res) => {
           time: 'Just now', 
           source: 'SYSTEM', 
           author: 'Staff', 
-          title: 'CONNECTING TO HIP-HOP NEWS FEED...', 
-          content: 'Loading the latest from r/hiphopheads. Refresh in a moment.', 
-          tags: ['LOADING'],
-          upvotes: 0,
-          comments: 0
+          title: 'CONNECTING TO NEWS FEED...', 
+          content: 'Loading the latest music news. Please refresh in a moment.', 
+          tags: ['LOADING']
         }
       ];
     }
@@ -694,8 +688,7 @@ app.get('/api/news', async (req, res) => {
     const result = { 
       articles, 
       total: articles.length, 
-      source: 'reddit',
-      subreddit: 'hiphopheads',
+      source: 'pitchfork',
       cached: false, 
       fetchedAt: new Date().toISOString() 
     };
