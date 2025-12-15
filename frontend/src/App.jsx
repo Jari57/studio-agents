@@ -23,21 +23,14 @@ let db = null;
 let storage = null;
 
 try {
-  console.log('🔥 Firebase init check - __firebase_config defined:', typeof __firebase_config !== 'undefined');
   if (typeof __firebase_config !== 'undefined' && __firebase_config) {
     const firebaseConfig = JSON.parse(__firebase_config);
-    console.log('🔥 Firebase config parsed, storageBucket:', firebaseConfig.storageBucket);
     if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "demo") {
       app = initializeApp(firebaseConfig);
       auth = getAuth(app);
       db = getFirestore(app);
       storage = getStorage(app);
-      console.log('✅ Firebase initialized successfully, storage:', !!storage);
-    } else {
-      console.log('⚠️ Firebase config missing apiKey or is demo');
     }
-  } else {
-    console.log('⚠️ No __firebase_config variable found');
   }
 } catch (e) {
   console.error("Firebase initialization failed:", e);
@@ -2531,8 +2524,6 @@ const MusicPlayer = () => {
         let url = null;
         const audioPath = currentTrack.audioUrl;
         
-        console.log('🎵 Loading audio:', audioPath, '| Storage available:', !!storage);
-        
         if (storage && audioPath) {
           // Try multiple Firebase Storage paths in order
           const pathsToTry = [
@@ -2543,41 +2534,30 @@ const MusicPlayer = () => {
           
           for (const path of pathsToTry) {
             try {
-              console.log('🔍 Trying Firebase path:', path);
               const storageRef = ref(storage, path);
               url = await getDownloadURL(storageRef);
-              console.log('✅ Audio found at Firebase path:', path);
               break; // Found it, stop trying
             } catch (e) {
-              console.log('❌ Not found at:', path, e.code || e.message);
+              // Continue to next path
             }
           }
-        } else {
-          console.log('⚠️ Firebase Storage not available, storage =', storage);
         }
         
         // If Firebase didn't work, try static paths
         if (!url) {
           url = `/${audioPath}`;
-          console.log('📁 Falling back to static path:', url);
         }
-        
-        console.log('🎧 Final audio URL:', url);
         
         // Set source
         audio.src = url;
         
         // Wait for audio to be ready before playing
         canPlayListener = () => {
-          console.log('🔊 canplay event fired, shouldAutoPlay:', shouldAutoPlay);
           setAudioLoading(false);
           setAudioError(false);
           if (shouldAutoPlay) {
             // Autoplay may be blocked on mobile unless initiated by a user gesture.
-            audio.play().then(() => {
-              console.log('▶️ play() succeeded, paused:', audio.paused, 'volume:', audio.volume);
-            }).catch((e) => {
-              console.log('⏸️ play() failed:', e.name, e.message);
+            audio.play().catch(() => {
               // Keep UI responsive even if autoplay is blocked.
               setIsPlaying(false);
             });
@@ -2586,7 +2566,6 @@ const MusicPlayer = () => {
         
         audio.addEventListener('canplay', canPlayListener, { once: true });
         audio.load();
-        console.log('📥 audio.load() called');
         
       } catch (err) {
         console.log("Audio load error:", err);
@@ -2614,21 +2593,16 @@ const MusicPlayer = () => {
     // Control playback whenever isPlaying changes
     // Note: On mobile Safari/Chrome, play() can be blocked unless called directly
     // from a user gesture. We still try here as a fallback.
-    console.log('🎮 Play/pause effect: isPlaying=', isPlaying, 'audio.src=', !!audio.src, 'paused=', audio.paused);
     if (audio.src) {
       if (isPlaying) {
         if (audio.paused) {
-          audio.play().then(() => {
-            console.log('▶️ Manual play succeeded');
-          }).catch((e) => {
-            console.log('⏸️ Manual play failed:', e.name, e.message);
+          audio.play().catch(() => {
             setIsPlaying(false);
           });
         }
       } else {
         if (!audio.paused) {
           audio.pause();
-          console.log('⏹️ Audio paused');
         }
       }
     }
@@ -2637,7 +2611,6 @@ const MusicPlayer = () => {
   const activeAlbum = albums.find(a => a.id === selectedAlbumId) || albums[0];
 
   const handleTrackClick = (track) => {
-    console.log('🎯 Track clicked:', track.title);
     if (currentTrack?.id === track.id) {
       setIsPlaying(!isPlaying);
     } else {
@@ -11118,8 +11091,8 @@ export default function App() {
       {appState === 'booting' && <BootSequence onComplete={() => setAppState('ready')} />}
       {appState === 'ready' && <OSInterface reboot={() => { setInitialSection('home'); setAppState('landing'); }} initialSection={initialSection} />}
       
-      {/* Ambient Music Player - Temporarily disabled for testing */}
-      {/* {appState === 'ready' && <AmbientMusicPlayer />} */}
+      {/* Ambient Music Player - Available on all screens */}
+      {appState === 'ready' && <AmbientMusicPlayer />}
       
       {/* Cookie Consent Banner - GDPR/CCPA Compliant */}
       <CookieConsentBanner />
