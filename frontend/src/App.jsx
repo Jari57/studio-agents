@@ -659,12 +659,17 @@ const PaywallModal = ({ onClose, onUpgrade, user }) => {
   };
   
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm">
-      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-black border border-white/20 p-6 md:p-8" style={{WebkitOverflowScrolling: 'touch'}}>
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); onClose(); } }}
+    >
+      <div className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-black border border-white/20 p-6 md:p-8 touch-manipulation" style={{WebkitOverflowScrolling: 'touch'}}>
         {/* Close Button */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-white/60 hover:text-white transition-colors"
+          onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }}
+          className="absolute top-4 right-4 p-2 text-white/60 hover:text-white transition-colors touch-manipulation"
         >
           <X size={24} />
         </button>
@@ -1400,11 +1405,12 @@ const Home = ({ setSection }) => {
               <div 
                 key={widget.id}
                 onClick={widget.action}
+                onTouchEnd={(e) => { e.preventDefault(); widget.action(); }}
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), widget.action())}
                 tabIndex={0}
                 role="button"
                 aria-label={`${widget.title} - ${widget.description}`}
-                className="group relative bg-[#0a0a0a] border border-white/10 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:border-opacity-50 overflow-hidden"
+                className="group relative bg-[#0a0a0a] border border-white/10 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:border-opacity-50 overflow-hidden touch-manipulation active:scale-95 active:opacity-80"
                 style={{ 
                   '--widget-color': widget.color,
                   boxShadow: hoveredItem === widget.id ? `0 0 30px ${widget.color}20` : 'none'
@@ -1458,11 +1464,12 @@ const Home = ({ setSection }) => {
               <div 
                 key={widget.id}
                 onClick={widget.action}
+                onTouchEnd={(e) => { e.preventDefault(); widget.action(); }}
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), widget.action())}
                 tabIndex={0}
                 role="button"
                 aria-label={`${widget.title} - ${widget.subtitle}`}
-                className="group relative bg-[#0a0a0a] border border-white/10 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:border-opacity-50 overflow-hidden"
+                className="group relative bg-[#0a0a0a] border border-white/10 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:border-opacity-50 overflow-hidden touch-manipulation active:scale-95 active:opacity-80"
                 style={{ 
                   '--widget-color': widget.color,
                   boxShadow: hoveredItem === `agent-${widget.id}` ? `0 0 30px ${widget.color}20` : 'none'
@@ -2345,6 +2352,7 @@ const MusicPlayer = () => {
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
+  const [audioError, setAudioError] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showLyrics, setShowLyrics] = useState(false);
   const [volume, setVolume] = useState(0.8);
@@ -2491,16 +2499,32 @@ const MusicPlayer = () => {
     const audio = audioRef.current;
     const shouldAutoPlay = isPlaying;
     let canPlayListener = null;
+    let errorListener = null;
     
     const loadAndPlay = async () => {
       try {
         setAudioLoading(true);
+        setAudioError(false);
+        
+        // Error handler
+        errorListener = () => {
+          setAudioLoading(false);
+          setAudioError(true);
+          setIsPlaying(false);
+          console.log("Audio file not available:", currentTrack.audioUrl);
+        };
+        audio.addEventListener('error', errorListener, { once: true });
         
         // Get the URL
         let url;
         if (storage && currentTrack.audioUrl) {
-          const storageRef = ref(storage, currentTrack.audioUrl);
-          url = await getDownloadURL(storageRef);
+          try {
+            const storageRef = ref(storage, currentTrack.audioUrl);
+            url = await getDownloadURL(storageRef);
+          } catch (e) {
+            // Firebase storage failed, try local path
+            url = `/${currentTrack.audioUrl}`;
+          }
         } else {
           url = `/${currentTrack.audioUrl}`;
         }
@@ -2511,6 +2535,7 @@ const MusicPlayer = () => {
         // Wait for audio to be ready before playing
         canPlayListener = () => {
           setAudioLoading(false);
+          setAudioError(false);
           if (shouldAutoPlay) {
             audio.play().catch(err => console.log("Play error:", err));
           }
@@ -2520,18 +2545,9 @@ const MusicPlayer = () => {
         audio.load();
         
       } catch (err) {
-        console.log("Audio load error, trying direct path:", err);
-        audio.src = `/${currentTrack.audioUrl}`;
-        
-        canPlayListener = () => {
-          setAudioLoading(false);
-          if (shouldAutoPlay) {
-            audio.play().catch(err => console.log("Play error:", err));
-          }
-        };
-        
-        audio.addEventListener('canplay', canPlayListener, { once: true });
-        audio.load();
+        console.log("Audio load error:", err);
+        setAudioLoading(false);
+        setAudioError(true);
       }
     };
     
@@ -2613,20 +2629,101 @@ const MusicPlayer = () => {
     }
   };
 
-  const getLyricsForAlbum = (id) => {
-    switch(id) {
-      case 'tape1': return [
-        { es: "Flow so cold it burns", en: "Reference to the Kanye beat intro", note: "Opening bars." },
-        { es: "Ali Vegas on the track", en: "Queens meets Brooklyn", note: "The collaboration." }
-      ];
-      default: return [
-        { es: "Buscando mi dinero", en: "Looking for my money", note: "Hustle culture." },
-        { es: "Siempre leal", in: "Always loyal", note: "Livewire code." }
-      ];
-    }
+  // Get lyrics/description for current track
+  const getLyricsForTrack = (trackId) => {
+    const lyricsData = {
+      // Livewire Sessions tracks
+      101: [
+        { line: "[Verse 1 - Brooklyn declaration over Kanye production]", note: "Opening statement" },
+        { line: "[Hook - Red Hook origin story]", note: "Hood anthem" },
+        { line: "[Verse 2 - Livewire label reference]", note: "Industry verse" },
+        { line: "[Bridge - Flow and skill demonstration]", note: "Technical flex" },
+        { line: "[Outro - 2004 timestamp]", note: "Era signature" }
+      ],
+      102: [
+        { line: "[Intro - Ali Vegas collaboration announcement]", note: "Queens meets Brooklyn" },
+        { line: "[Verse 1 - 50 Cent beat flip]", note: "Beat commentary" },
+        { line: "[Ali Vegas Verse]", note: "Feature verse" },
+        { line: "[Whip Montez Verse 2]", note: "Response bars" },
+        { line: "[Outro - NYC unity theme]", note: "Borough bridge" }
+      ],
+      103: [
+        { line: "[Remix intro over T-Pain original]", note: "Sample credit" },
+        { line: "[Verse 1 - Brooklyn heat]", note: "Hood energy" },
+        { line: "[Hook - Sprung concept flip]", note: "Theme adaptation" },
+        { line: "[Verse 2 - Street perspective]", note: "Narrative shift" }
+      ],
+      104: [
+        { line: "[Salt-N-Pepa sample intro]", note: "Classic flip" },
+        { line: "[Verse 1 - Push to the limit theme]", note: "Motivation" },
+        { line: "[Hook - Energy and persistence]", note: "Anthem section" },
+        { line: "[Verse 2 - Block to success journey]", note: "Come up story" }
+      ],
+      105: [
+        { line: "[Dipset beat tribute]", note: "Harlem connection" },
+        { line: "[Verse 1 - Jim Jones style adaptation]", note: "Capo status" },
+        { line: "[Hook - NYC street declaration]", note: "Borough bridge" },
+        { line: "[Verse 2 - Whip's perspective]", note: "Personal verse" }
+      ],
+      // Red Hook Diaries tracks
+      201: [
+        { line: "[Stand Up anthem opening]", note: "Block party energy" },
+        { line: "[Verse 1 - Red Hook soldiers]", note: "Hood dedication" },
+        { line: "[Hook - Brooklyn rise call]", note: "Unity theme" },
+        { line: "[Verse 2 - Project to avenue grind]", note: "Hustle narrative" }
+      ],
+      202: [
+        { line: "[Reggae-influenced intro]", note: "Genre fusion" },
+        { line: "[Verse 1 - Bob Marley tribute]", note: "Caribbean influence" },
+        { line: "[Brooklyn street adaptation]", note: "Local perspective" }
+      ],
+      203: [
+        { line: "[G-Unit beat flip]", note: "Queens production tribute" },
+        { line: "[Verse 1 - Street certified]", note: "Hood credentials" },
+        { line: "[Hook - Taking what's hot]", note: "Remix philosophy" }
+      ],
+      204: [
+        { line: "[Studio session intro]", note: "Recording scene" },
+        { line: "[Verse 1 - Red dot recording]", note: "Late night bars" },
+        { line: "[Verse 2 - Headshot bars]", note: "Lyrical prowess" }
+      ],
+      205: [
+        { line: "[Westcoast meets Eastcoast]", note: "Coast fusion" },
+        { line: "[Verse 1 - Gangsta remix]", note: "Street tales" },
+        { line: "[Hook - Streets on repeat]", note: "Block anthem" }
+      ],
+      // The Stoop tracks
+      301: [
+        { line: "[The Stoop as stage concept]", note: "Brooklyn imagery" },
+        { line: "[Verse 1 - Every verse is a page]", note: "Storytelling theme" }
+      ],
+      302: [
+        { line: "[Graveyard shift narrative]", note: "Hustle hours" },
+        { line: "[Verse 1 - Mic and future duality]", note: "Dream vs reality" }
+      ],
+      303: [
+        { line: "[Mama's prayers opening]", note: "Family tribute" },
+        { line: "[Verse 1 - Red Hook raised, Brooklyn made]", note: "Origin verse" }
+      ],
+      304: [
+        { line: "[Live performance energy]", note: "Crowd ready" },
+        { line: "[Verse 1 - Bass drop heavy]", note: "Show time" },
+        { line: "[Hook - Flow steady declaration]", note: "Confidence" }
+      ],
+      305: [
+        { line: "[Album outro vibes]", note: "Story complete" },
+        { line: "[Final verse - Stoop to world journey]", note: "Mission statement" },
+        { line: "[Closing thoughts - Archive complete]", note: "Tape end" }
+      ]
+    };
+    
+    return lyricsData[trackId] || [
+      { line: "[Track from the archive]", note: "Unreleased material" },
+      { line: "[Full transcription coming soon]", note: "Check back for updates" }
+    ];
   };
 
-  const currentLyrics = getLyricsForAlbum(selectedAlbumId);
+  const currentLyrics = currentTrack ? getLyricsForTrack(currentTrack.id) : getLyricsForTrack(101);
 
   // Format time helper
   const formatTime = (seconds) => {
@@ -2641,8 +2738,12 @@ const MusicPlayer = () => {
       
       {/* Onboarding Modal */}
       {showOnboarding && (
-        <div className="absolute inset-0 z-50 bg-black/95 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm">
-          <div className="w-full max-w-2xl bg-[#050505] border border-[#00ff41]/30 rounded-lg overflow-hidden" style={{boxShadow: '0 0 60px rgba(0,255,65,0.1)'}}>
+        <div 
+          className="absolute inset-0 z-50 bg-black/95 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm"
+          onClick={(e) => e.target === e.currentTarget && setShowOnboarding(false)}
+          onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); setShowOnboarding(false); } }}
+        >
+          <div className="w-full max-w-2xl bg-[#050505] border border-[#00ff41]/30 rounded-lg overflow-hidden touch-manipulation" style={{boxShadow: '0 0 60px rgba(0,255,65,0.1)'}}>
             <div className="bg-[#00ff41]/10 border-b border-[#00ff41]/20 px-6 py-4">
               <h2 className="text-2xl md:text-3xl font-thin text-[#00ff41] tracking-tight" style={{textShadow: '0 0 30px rgba(0,255,65,0.4)'}}>
                 Welcome to the Lost Tapes
@@ -2765,7 +2866,11 @@ const MusicPlayer = () => {
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {/* Video Modal */}
         {showVideoModal && (
-          <div className="absolute inset-0 z-50 bg-black/95 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm">
+          <div 
+            className="absolute inset-0 z-50 bg-black/95 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm"
+            onClick={(e) => e.target === e.currentTarget && setShowVideoModal(false)}
+            onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); setShowVideoModal(false); } }}
+          >
             <div className="w-full max-w-3xl bg-[#050505] border border-white/10 rounded-lg overflow-hidden" style={{boxShadow: '0 0 60px rgba(0,0,0,0.5)'}}>
               <div className="h-10 bg-[#0a0a0a] border-b border-white/10 flex items-center justify-between px-4">
                 <span className="text-white font-medium text-xs">Video Player — {currentTrack?.title}</span>
@@ -2788,35 +2893,38 @@ const MusicPlayer = () => {
 
         {/* Lyrics Modal */}
         {showLyrics && (
-          <div className="absolute inset-0 z-50 bg-black/95 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm overflow-y-auto">
+          <div 
+            className="absolute inset-0 z-50 bg-black/95 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm overflow-y-auto"
+            onClick={(e) => e.target === e.currentTarget && setShowLyrics(false)}
+            onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); setShowLyrics(false); } }}
+          >
             <div className="w-full max-w-2xl bg-[#050505] border border-purple-500/30 rounded-lg overflow-hidden" style={{boxShadow: '0 0 60px rgba(168,85,247,0.1)'}}>
               <div className="bg-purple-500/10 border-b border-purple-500/20 px-6 py-4 flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-thin text-purple-400 tracking-tight flex items-center gap-2" style={{textShadow: '0 0 20px rgba(168,85,247,0.4)'}}>
-                    <Feather size={18} /> Lyric Analysis
+                    <Feather size={18} /> Lyrics
                   </h2>
-                  <p className="text-purple-400/60 text-xs mt-1">{activeAlbum.title}</p>
+                  <p className="text-purple-400/60 text-xs mt-1">{currentTrack?.title || 'Select a track'}</p>
                 </div>
-                <button onClick={() => setShowLyrics(false)} className="text-gray-500 hover:text-white transition-colors">
+                <button onClick={() => setShowLyrics(false)} className="text-gray-500 hover:text-white transition-colors p-2 touch-manipulation">
                   <X size={20} />
                 </button>
               </div>
               
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
                 <p className="text-gray-400 text-sm leading-relaxed">
-                  Decoded excerpts and annotations from the <span className="text-purple-400">{activeAlbum.title}</span> sessions. Hover over lines to reveal context and translations.
+                  Lyrics from <span className="text-purple-400">{currentTrack?.title || 'the archive'}</span>. Tap lines to reveal annotations.
                 </p>
                 
-                <div className="space-y-4">
-                  {currentLyrics.map((line, i) => (
-                    <div key={i} className="group cursor-pointer bg-black border border-white/5 rounded-lg p-4 hover:border-purple-500/30 transition-all">
+                <div className="space-y-3">
+                  {currentLyrics.map((lyric, i) => (
+                    <div key={i} className="group cursor-pointer bg-black border border-white/5 rounded-lg p-4 hover:border-purple-500/30 active:border-purple-500/50 transition-all touch-manipulation">
                       <div className="text-white text-sm mb-2 flex items-start gap-3">
                         <span className="text-purple-400/50 font-mono text-xs mt-0.5">{String(i + 1).padStart(2, '0')}</span>
-                        <span className="italic">"{line.es}"</span>
+                        <span className="italic">"{lyric.line}"</span>
                       </div>
-                      <div className="pl-7 space-y-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <div className="text-purple-400/80 text-xs font-medium">{line.en}</div>
-                        <div className="text-gray-600 text-[11px]">{line.note}</div>
+                      <div className="pl-7 space-y-1 opacity-60 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300">
+                        <div className="text-gray-500 text-[11px]">📝 {lyric.note}</div>
                       </div>
                     </div>
                   ))}
@@ -2942,6 +3050,17 @@ const MusicPlayer = () => {
                 <div className="absolute inset-0 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center z-10">
                   <Loader2 size={24} className="text-orange-400 animate-spin mb-2" />
                   <div className="text-orange-400 text-xs">Loading track...</div>
+                </div>
+              )}
+              
+              {/* Error Overlay */}
+              {audioError && !audioLoading && (
+                <div className="absolute inset-0 bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center z-10 p-4">
+                  <div className="w-10 h-10 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mb-3">
+                    <X size={20} className="text-red-400" />
+                  </div>
+                  <div className="text-red-400 text-xs text-center mb-2">Audio Unavailable</div>
+                  <div className="text-gray-500 text-[10px] text-center">Upload MP3 to Firebase Storage or frontend/public folder</div>
                 </div>
               )}
               
@@ -3629,11 +3748,15 @@ const StyleArchive = () => {
 
       {/* CART */}
       {isCartOpen && (
-        <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end" onClick={(e) => e.target === e.currentTarget && setIsCartOpen(false)}>
-          <div className="w-full sm:max-w-md bg-[#111] border-l border-[#333] shadow-2xl flex flex-col h-full animate-slide-in-right">
+        <div 
+          className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex justify-end" 
+          onClick={(e) => e.target === e.currentTarget && setIsCartOpen(false)}
+          onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); setIsCartOpen(false); } }}
+        >
+          <div className="w-full sm:max-w-md bg-[#111] border-l border-[#333] shadow-2xl flex flex-col h-full animate-slide-in-right touch-manipulation">
             <div className="h-12 md:h-16 border-b border-[#333] flex items-center justify-between px-3 md:px-6 shrink-0">
               <h2 className="text-base md:text-xl font-black uppercase tracking-tighter text-white">CART ({cart.length})</h2>
-              <button onClick={() => setIsCartOpen(false)} onTouchEnd={(e) => { e.preventDefault(); setIsCartOpen(false); }} className="touch-manipulation"><X size={20} className="text-gray-400 hover:text-white"/></button>
+              <button onClick={() => setIsCartOpen(false)} onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setIsCartOpen(false); }} className="touch-manipulation p-2"><X size={20} className="text-gray-400 hover:text-white"/></button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4" style={{WebkitOverflowScrolling: 'touch'}}>
               {cart.map((item, i) => (
@@ -9683,8 +9806,12 @@ const AuthModal = ({ onClose, onAuth }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 animate-fade-in">
-      <div className="w-full max-w-md bg-[#1a1a1a] border-2 border-cyan-500 shadow-[0_0_40px_rgba(0,255,255,0.4)]">
+    <div 
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/90 animate-fade-in"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); onClose(); } }}
+    >
+      <div className="w-full max-w-md bg-[#1a1a1a] border-2 border-cyan-500 shadow-[0_0_40px_rgba(0,255,255,0.4)] touch-manipulation">
         <div className="bg-cyan-700 text-white px-4 py-2 flex justify-between items-center">
           <span className="font-mono font-bold text-sm flex items-center gap-2">
             <User size={16}/> USER_AUTH.EXE
@@ -10347,8 +10474,9 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
             {['home', 'bio', 'music', 'tour', 'style', 'community', 'news'].map(section => (
               <button 
                 key={section}
-                onClick={() => setActiveSection(section)} 
-                className={`px-2 md:px-3 py-1.5 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap ${
+                onClick={() => setActiveSection(section)}
+                onTouchEnd={(e) => { e.preventDefault(); setActiveSection(section); }}
+                className={`px-2 md:px-3 py-2 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap touch-manipulation active:opacity-70 ${
                   activeSection === section ? 'bg-[#00ff41] text-black' : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -10356,16 +10484,18 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
               </button>
             ))}
             <button 
-              onClick={() => setActiveSection('comeup')} 
-              className={`px-2 md:px-3 py-1.5 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap ${
+              onClick={() => setActiveSection('comeup')}
+              onTouchEnd={(e) => { e.preventDefault(); setActiveSection('comeup'); }}
+              className={`px-2 md:px-3 py-2 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap touch-manipulation active:opacity-70 ${
                 activeSection === 'comeup' ? 'bg-yellow-500 text-black font-bold' : 'text-yellow-500 hover:text-white font-bold'
               }`}
             >
               COME UP
             </button>
             <button 
-              onClick={() => setActiveSection('studio')} 
-              className={`px-2 md:px-3 py-1.5 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap ${
+              onClick={() => setActiveSection('studio')}
+              onTouchEnd={(e) => { e.preventDefault(); setActiveSection('studio'); }}
+              className={`px-2 md:px-3 py-2 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap touch-manipulation active:opacity-70 ${
                 activeSection === 'studio' ? 'bg-pink-500 text-black font-bold' : 'text-pink-500 hover:text-white font-bold'
               }`}
             >
