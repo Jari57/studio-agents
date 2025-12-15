@@ -23,14 +23,21 @@ let db = null;
 let storage = null;
 
 try {
+  console.log('🔥 Firebase init check - __firebase_config defined:', typeof __firebase_config !== 'undefined');
   if (typeof __firebase_config !== 'undefined' && __firebase_config) {
     const firebaseConfig = JSON.parse(__firebase_config);
+    console.log('🔥 Firebase config parsed, storageBucket:', firebaseConfig.storageBucket);
     if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "demo") {
       app = initializeApp(firebaseConfig);
       auth = getAuth(app);
       db = getFirestore(app);
       storage = getStorage(app);
+      console.log('✅ Firebase initialized successfully, storage:', !!storage);
+    } else {
+      console.log('⚠️ Firebase config missing apiKey or is demo');
     }
+  } else {
+    console.log('⚠️ No __firebase_config variable found');
   }
 } catch (e) {
   console.error("Firebase initialization failed:", e);
@@ -2513,7 +2520,7 @@ const MusicPlayer = () => {
         
         // Error handler
         errorListener = (e) => {
-          console.error('Audio load error:', e);
+          console.error('Audio element error:', audio.error);
           setAudioLoading(false);
           setAudioError(true);
           setIsPlaying(false);
@@ -2523,6 +2530,8 @@ const MusicPlayer = () => {
         // Get the URL - try Firebase Storage with multiple path patterns
         let url = null;
         const audioPath = currentTrack.audioUrl;
+        
+        console.log('🎵 Loading audio:', audioPath, '| Storage available:', !!storage);
         
         if (storage && audioPath) {
           // Try multiple Firebase Storage paths in order
@@ -2534,21 +2543,26 @@ const MusicPlayer = () => {
           
           for (const path of pathsToTry) {
             try {
+              console.log('🔍 Trying Firebase path:', path);
               const storageRef = ref(storage, path);
               url = await getDownloadURL(storageRef);
-              console.log('Audio found at Firebase path:', path);
+              console.log('✅ Audio found at Firebase path:', path);
               break; // Found it, stop trying
             } catch (e) {
-              // Continue to next path
+              console.log('❌ Not found at:', path, e.code || e.message);
             }
           }
+        } else {
+          console.log('⚠️ Firebase Storage not available, storage =', storage);
         }
         
         // If Firebase didn't work, try static paths
         if (!url) {
           url = `/${audioPath}`;
-          console.log('Falling back to static path:', url);
+          console.log('📁 Falling back to static path:', url);
         }
+        
+        console.log('🎧 Final audio URL:', url);
         
         // Set source
         audio.src = url;
