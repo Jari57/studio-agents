@@ -10718,7 +10718,7 @@ const LandingPage = ({ onEnter, onQuickAccess }) => {
       'music': 'music',
       'merch': 'style',
       'news': 'news',
-      'studio': 'ghostwriter'
+      'studio': 'studio'
     };
     onQuickAccess(sectionMap[widgetId] || 'home');
   };
