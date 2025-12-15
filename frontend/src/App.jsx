@@ -3429,13 +3429,69 @@ const MusicPlayer = () => {
 
 // 5. TOUR ARCHIVE (Restored Ticket Hub)
 const TourHistory = () => {
-  const dates = [
-    { city: "RED HOOK, NY", venue: "THE REC CENTER", date: "AUG 14 2004", status: "SOLD OUT", price: "$15.00", seats: "0", info: "Homecoming Show" },
-    { city: "HARLEM, NY", venue: "APOLLO THEATER", date: "SEP 02 2004", status: "COMPLETED", price: "$25.00", seats: "0", info: "Opener for Mobb Deep" },
-    { city: "TORONTO, ON", venue: "OPERA HOUSE", date: "OCT 05 2004", status: "SELLING FAST", price: "$22.00 CAD", seats: "42", info: "First Canadian Date" },
-    { city: "PHILADELPHIA, PA", venue: "THE TROCADERO", date: "OCT 12 2004", status: "AVAILABLE", price: "$20.00", seats: "150", info: "w/ Beanie Sigel" },
-    { city: "BOSTON, MA", venue: "PARADISE ROCK CLUB", date: "OCT 15 2004", status: "AVAILABLE", price: "$18.00", seats: "85", info: "All Ages" }
-  ];
+  const [concerts, setConcerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationName, setLocationName] = useState('');
+
+  // Get user location and fetch concerts
+  useEffect(() => {
+    const fetchConcerts = async (lat, lon) => {
+      try {
+        setLoading(true);
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const baseUrl = isLocal ? 'http://localhost:3001' : '';
+        
+        let url = `${baseUrl}/api/concerts`;
+        if (lat && lon) {
+          url += `?lat=${lat}&lon=${lon}&range=75`;
+        }
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.concerts && data.concerts.length > 0) {
+          setConcerts(data.concerts);
+        } else {
+          setError('No concerts found in your area');
+        }
+      } catch (err) {
+        console.error('Failed to fetch concerts:', err);
+        setError('Could not load concerts. Try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Try to get user's location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lon: longitude });
+          setLocationName('your area');
+          fetchConcerts(latitude, longitude);
+        },
+        (err) => {
+          console.log('Location denied, using default:', err.message);
+          setLocationName('major cities');
+          fetchConcerts(); // Fetch without location
+        },
+        { timeout: 5000, enableHighAccuracy: false }
+      );
+    } else {
+      setLocationName('major cities');
+      fetchConcerts();
+    }
+  }, []);
+
+  // Format price
+  const formatPrice = (priceRange) => {
+    if (!priceRange) return 'See tickets';
+    if (priceRange.low === priceRange.high) return `$${priceRange.low}`;
+    return `$${priceRange.low} - $${priceRange.high}`;
+  };
 
   return (
     <div className="h-full w-full relative flex items-center justify-center p-2 md:p-4 overflow-y-auto bg-gradient-to-br from-black via-[#0a0a0a] to-[#050505]" style={{WebkitOverflowScrolling: 'touch'}}>
@@ -3445,116 +3501,154 @@ const TourHistory = () => {
         <div className="bg-gradient-to-r from-[#1a1a1a] to-[#0f0f0f] text-gray-400 px-2 py-1 flex justify-between items-center border-b border-[#444]/50 shadow-none">
            <div className="flex items-center gap-2">
              <Globe size={14} className="text-[#00ff41]"/>
-             <span className="text-[10px] md:text-xs font-bold text-gray-300 font-sans"><span className="hidden sm:inline">Agent Studio Tour - </span>Live Events</span>
+             <span className="text-[10px] md:text-xs font-bold text-gray-300 font-sans">Live Concerts Near You</span>
            </div>
+           {locationName && (
+             <span className="text-[10px] text-gray-500 flex items-center gap-1">
+               <MapPin size={10} /> {locationName}
+             </span>
+           )}
         </div>
         <div className="flex-1 overflow-y-auto bg-[#050505] p-0 text-gray-300">
            <div className="bg-gradient-to-r from-[#1a1a1a] to-[#0f0f0f] text-white p-3 md:p-4 border-b-2 border-[#00ff41]/50 flex justify-between items-end">
-
              <div>
-               <h1 className="text-xl sm:text-2xl md:text-4xl font-black tracking-tighter mb-1 italic font-sans text-white">TICKET_HUB <span className="text-[#00ff41]">2004</span></h1>
+               <h1 className="text-xl sm:text-2xl md:text-4xl font-black tracking-tighter mb-1 italic font-sans text-white">CONCERT <span className="text-[#00ff41]">FINDER</span></h1>
+               <p className="text-[10px] md:text-xs text-gray-500">Hip-Hop, R&B & Mainstream Shows</p>
              </div>
            </div>
            
+           {/* Loading State */}
+           {loading && (
+             <div className="flex flex-col items-center justify-center py-20">
+               <Loader2 size={32} className="text-[#00ff41] animate-spin mb-4" />
+               <p className="text-gray-500 text-sm">Finding concerts near you...</p>
+             </div>
+           )}
+           
+           {/* Error State */}
+           {error && !loading && (
+             <div className="flex flex-col items-center justify-center py-20 px-4">
+               <div className="w-16 h-16 bg-orange-500/10 border border-orange-500/30 rounded-full flex items-center justify-center mb-4">
+                 <Music size={24} className="text-orange-400" />
+               </div>
+               <p className="text-gray-400 text-sm text-center mb-4">{error}</p>
+               <button 
+                 onClick={() => window.location.reload()}
+                 className="bg-[#00ff41] text-black px-4 py-2 text-xs font-bold rounded hover:bg-white transition-colors"
+               >
+                 Retry
+               </button>
+             </div>
+           )}
+
            {/* Desktop: Table view */}
-           <div className="p-4 hidden md:block">
-             <table className="w-full text-left border-collapse border border-[#333] bg-[#050505] text-xs md:text-sm shadow-none font-sans">
-                <thead className="bg-[#1a1a1a] text-[#00ff41]">
-                  <tr>
-                    <th className="p-2 border border-[#333] w-16 text-center">DATE</th>
-                    <th className="p-2 border border-[#333]">EVENT / VENUE</th>
-                    <th className="p-2 border border-[#333] w-24">CITY</th>
-                    <th className="p-2 border border-[#333] w-20">PRICE</th>
-                    <th className="p-2 border border-[#333] w-24 text-center">ACTION</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dates.map((gig, i) => (
-                    <tr key={i} className={`border-b border-[#333] ${i % 2 === 0 ? 'bg-[#0a0a0a]' : 'bg-[#0f0f0f]'} hover:bg-[#1a1a1a] transition-colors group`}>
-                      <td className="p-2 border-r border-[#333] font-bold text-gray-400 whitespace-nowrap text-center">
-                        <div className="flex flex-col items-center leading-tight">
-                          <span className="text-[10px] uppercase text-gray-600">{gig.date.split(' ')[0]}</span>
-                          <span className="text-lg text-white font-black group-hover:text-[#00ff41] transition-colors">{gig.date.split(' ')[1]}</span>
-                          <span className="text-[9px] text-gray-600">{gig.date.split(' ')[2]}</span>
-                        </div>
-                      </td>
-                      <td className="p-2 border-r border-[#333] align-top">
-                        <div className="font-bold text-white uppercase underline cursor-pointer hover:text-[#00ff41]">WHIP MONTEZ - LIVE</div>
-                        <div className="text-[11px] text-gray-400 font-bold mt-0.5">{gig.venue}</div>
-                        <div className="text-[10px] text-gray-600 italic mb-1">{gig.info}</div>
-                        <div className="flex gap-3 mt-1 text-[9px] text-blue-400 font-bold">
-                           <span className="flex items-center gap-0.5 cursor-pointer hover:text-white"><MapPin size={10}/> VIEW MAP</span>
-                           <span className="flex items-center gap-0.5 cursor-pointer hover:text-white"><Grid size={10}/> SEATING CHART</span>
-                        </div>
-                      </td>
-                      <td className="p-2 border-r border-[#333] font-bold text-gray-400 align-middle text-[11px]">{gig.city}</td>
-                      <td className="p-2 border-r border-[#333] font-mono text-[#00ff41] font-bold align-middle">{gig.price}</td>
-                      <td className="p-2 border-r border-[#333] text-center font-bold align-middle">
-                        {gig.status === 'SOLD OUT' ? <span className="text-red-500">0</span> : gig.status === 'CANCELLED' ? <span className="text-gray-600">-</span> : gig.status === 'COMPLETED' ? (
-                          <span className="text-gray-500 font-bold text-[10px]">CLOSED</span>
-                        ) : (
-                          <button className="bg-[#00ff41] text-black border border-[#00ff41] px-3 py-1 text-[10px] font-black hover:bg-white hover:border-white transition-colors flex items-center justify-center gap-1 mx-auto w-full">
-                            <Ticket size={10} strokeWidth={3}/> BUY
-                          </button>
-                        )}
-                      </td>
+           {!loading && !error && concerts.length > 0 && (
+             <div className="p-4 hidden md:block">
+               <table className="w-full text-left border-collapse border border-[#333] bg-[#050505] text-xs md:text-sm shadow-none font-sans">
+                  <thead className="bg-[#1a1a1a] text-[#00ff41]">
+                    <tr>
+                      <th className="p-2 border border-[#333] w-20 text-center">DATE</th>
+                      <th className="p-2 border border-[#333]">EVENT / VENUE</th>
+                      <th className="p-2 border border-[#333] w-28">LOCATION</th>
+                      <th className="p-2 border border-[#333] w-28">PRICE</th>
+                      <th className="p-2 border border-[#333] w-24 text-center">ACTION</th>
                     </tr>
-                  ))}
-                </tbody>
-             </table>
-           </div>
+                  </thead>
+                  <tbody>
+                    {concerts.map((concert, i) => (
+                      <tr key={concert.id || i} className={`border-b border-[#333] ${i % 2 === 0 ? 'bg-[#0a0a0a]' : 'bg-[#0f0f0f]'} hover:bg-[#1a1a1a] transition-colors group`}>
+                        <td className="p-2 border-r border-[#333] font-bold text-gray-400 whitespace-nowrap text-center">
+                          <div className="flex flex-col items-center leading-tight">
+                            <span className="text-[10px] uppercase text-gray-600">{concert.date?.split(',')[0]}</span>
+                            <span className="text-base text-white font-black group-hover:text-[#00ff41] transition-colors">{concert.date?.split(' ')[1]}</span>
+                            <span className="text-[9px] text-gray-600">{concert.time}</span>
+                          </div>
+                        </td>
+                        <td className="p-2 border-r border-[#333] align-top">
+                          <div className="font-bold text-white uppercase text-sm">{concert.title}</div>
+                          <div className="text-[11px] text-gray-400 font-bold mt-0.5">{concert.venue?.name}</div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {concert.performers?.slice(0, 3).map((p, idx) => (
+                              <span key={idx} className="text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">
+                                {p.name}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="p-2 border-r border-[#333] font-bold text-gray-400 align-middle text-[11px]">
+                          {concert.venue?.city}, {concert.venue?.state}
+                        </td>
+                        <td className="p-2 border-r border-[#333] font-mono text-[#00ff41] font-bold align-middle text-sm">
+                          {formatPrice(concert.priceRange)}
+                        </td>
+                        <td className="p-2 border-r border-[#333] text-center font-bold align-middle">
+                          <a 
+                            href={concert.ticketUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="bg-[#00ff41] text-black border border-[#00ff41] px-3 py-1.5 text-[10px] font-black hover:bg-white hover:border-white transition-colors flex items-center justify-center gap-1 mx-auto"
+                          >
+                            <Ticket size={12} strokeWidth={3}/> TICKETS
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+               </table>
+             </div>
+           )}
            
            {/* Mobile: Card view */}
-           <div className="md:hidden p-3 space-y-3">
-             {dates.map((gig, i) => (
-               <div key={i} className="border border-[#333] bg-[#0a0a0a] p-3">
-                 <div className="flex justify-between items-start mb-2">
-                   <div>
-                     <div className="text-white font-bold text-sm uppercase">WHIP MONTEZ - LIVE</div>
-                     <div className="text-[11px] text-gray-400 font-bold">{gig.venue}</div>
+           {!loading && !error && concerts.length > 0 && (
+             <div className="md:hidden p-3 space-y-3">
+               {concerts.map((concert, i) => (
+                 <div key={concert.id || i} className="border border-[#333] bg-[#0a0a0a] p-3 rounded-lg">
+                   <div className="flex gap-3">
+                     {concert.image && (
+                       <img 
+                         src={concert.image} 
+                         alt={concert.title}
+                         className="w-16 h-16 object-cover rounded"
+                       />
+                     )}
+                     <div className="flex-1 min-w-0">
+                       <div className="text-white font-bold text-sm uppercase truncate">{concert.title}</div>
+                       <div className="text-[11px] text-gray-400 font-bold truncate">{concert.venue?.name}</div>
+                       <div className="text-[10px] text-gray-600">{concert.venue?.city}, {concert.venue?.state}</div>
+                     </div>
                    </div>
-                   <div className="text-right">
-                     <div className="text-[#00ff41] font-mono font-bold text-sm">{gig.price}</div>
-                     <div className="text-[10px] text-gray-600">{gig.date}</div>
+                   <div className="flex flex-wrap gap-1 mt-2">
+                     {concert.performers?.slice(0, 2).map((p, idx) => (
+                       <span key={idx} className="text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">
+                         {p.name}
+                       </span>
+                     ))}
+                   </div>
+                   <div className="flex justify-between items-center mt-3 pt-2 border-t border-white/10">
+                     <div>
+                       <div className="text-[#00ff41] font-mono font-bold text-sm">{formatPrice(concert.priceRange)}</div>
+                       <div className="text-[10px] text-gray-500">{concert.date} • {concert.time}</div>
+                     </div>
+                     <a 
+                       href={concert.ticketUrl} 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="bg-[#00ff41] text-black px-4 py-2 text-xs font-black hover:bg-white transition-colors flex items-center gap-1 rounded"
+                     >
+                       <Ticket size={14} strokeWidth={3}/> GET TICKETS
+                     </a>
                    </div>
                  </div>
-                 <div className="text-[10px] text-gray-600 mb-2">{gig.city}</div>
-                 <div className="text-[10px] text-gray-500 italic mb-2">{gig.info}</div>
-                 <div className="flex justify-between items-center">
-                   <div className="text-[10px] text-gray-600 font-bold">
-                     {gig.seats} {gig.seats === "0" ? "SOLD OUT" : "seats left"}
-                   </div>
-                   {gig.status === 'SOLD OUT' ? (
-                     <span className="text-red-500 text-xs font-bold">SOLD OUT</span>
-                   ) : gig.status === 'COMPLETED' ? (
-                     <span className="text-gray-500 text-xs font-bold">CLOSED</span>
-                   ) : (
-                     <button className="bg-[#00ff41] text-black px-4 py-1.5 text-xs font-black hover:bg-white transition-colors flex items-center gap-1">
-                       <Ticket size={12} strokeWidth={3}/> BUY NOW
-                     </button>
-                   )}
-                 </div>
-               </div>
-             ))}
-           </div>
+               ))}
+             </div>
+           )}
              
            {/* Footer Legal */}
            <div className="p-3 md:p-4">
-             <div className="mt-6 border-t border-[#333] pt-2 flex flex-col gap-1">
-                <div className="flex flex-wrap gap-2 md:gap-4 text-[9px] md:text-[10px] text-gray-500 font-bold underline">
-                   <span className="hover:text-white cursor-pointer">Privacy Policy</span>
-                   <span className="hover:text-white cursor-pointer">Terms of Use</span>
-                   <span className="hover:text-white cursor-pointer">Purchase Policy</span>
-                   <span className="hover:text-white cursor-pointer">Sell Tickets</span>
-                </div>
-                <div className="text-[8px] md:text-[9px] text-gray-600 font-mono mt-2">
-                   * All times are Eastern Standard Time. Prices do not include service fees ($4.50) or facility charges.<br/>
-                   * Livewire Entertainment is not responsible for lost or stolen tickets.
-                </div>
-                <div className="mt-4 flex items-center gap-2 opacity-50">
-                   <div className="h-5 md:h-6 w-8 md:w-10 border border-gray-600 bg-black flex items-center justify-center text-[7px] md:text-[8px] font-bold text-gray-400 italic">VISA</div>
-                   <div className="h-5 md:h-6 w-8 md:w-10 border border-gray-600 bg-black flex items-center justify-center text-[7px] md:text-[8px] font-bold text-gray-400 italic">MC</div>
-                   <div className="h-5 md:h-6 w-8 md:w-10 border border-gray-600 bg-black flex items-center justify-center text-[7px] md:text-[8px] font-bold text-gray-400 italic">AMEX</div>
+             <div className="mt-4 border-t border-[#333] pt-3">
+                <div className="text-[9px] text-gray-600 text-center">
+                   Powered by SeatGeek • Prices and availability subject to change<br/>
+                   Tap any event to purchase tickets on the official vendor site
                 </div>
              </div>
            </div>

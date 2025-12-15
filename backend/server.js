@@ -449,6 +449,122 @@ const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET;
 const TWITTER_CALLBACK_URL = process.env.TWITTER_CALLBACK_URL || 
   (isDevelopment ? 'http://localhost:3001/api/twitter/callback' : 'https://whipmontez.com/api/twitter/callback');
 
+// ==================== CONCERTS API ====================
+// Fetches real hip-hop and mainstream concerts from SeatGeek API
+
+const SEATGEEK_CLIENT_ID = process.env.SEATGEEK_CLIENT_ID || 'MzU5NzAxNTZ8MTczNDE0NTA2My44OTU5NzA2';
+
+// Cache concerts for 30 minutes to reduce API calls
+let concertsCache = { data: null, timestamp: 0, location: null };
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+
+app.get('/api/concerts', async (req, res) => {
+  try {
+    const { lat, lon, range = 50 } = req.query;
+    
+    // Check cache - use cached data if same location and not expired
+    const cacheKey = `${lat}-${lon}`;
+    const now = Date.now();
+    if (concertsCache.data && 
+        concertsCache.location === cacheKey && 
+        (now - concertsCache.timestamp) < CACHE_DURATION) {
+      logger.info('Returning cached concerts');
+      return res.json(concertsCache.data);
+    }
+    
+    // Build SeatGeek API URL
+    let apiUrl = `https://api.seatgeek.com/2/events?client_id=${SEATGEEK_CLIENT_ID}&per_page=25&type=concert&sort=datetime_local.asc`;
+    
+    // Add genre filter for hip-hop/rap/r&b
+    apiUrl += '&genres.slug=hip-hop,rap,r-and-b,pop';
+    
+    // Add location if provided
+    if (lat && lon) {
+      apiUrl += `&lat=${lat}&lon=${lon}&range=${range}mi`;
+    } else {
+      // Default to major US cities rotation for variety
+      const cities = [
+        { lat: 40.7128, lon: -74.0060 },  // NYC
+        { lat: 34.0522, lon: -118.2437 }, // LA
+        { lat: 41.8781, lon: -87.6298 },  // Chicago
+        { lat: 29.7604, lon: -95.3698 },  // Houston
+        { lat: 33.4484, lon: -112.0740 }  // Phoenix
+      ];
+      const city = cities[Math.floor(Math.random() * cities.length)];
+      apiUrl += `&lat=${city.lat}&lon=${city.lon}&range=100mi`;
+    }
+    
+    logger.info('Fetching concerts from SeatGeek', { hasLocation: !!(lat && lon) });
+    
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) {
+      throw new Error(`SeatGeek API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Transform to our format
+    const concerts = (data.events || []).map(event => ({
+      id: event.id,
+      title: event.title || event.short_title,
+      performers: (event.performers || []).map(p => ({
+        name: p.name,
+        image: p.image,
+        genres: p.genres?.map(g => g.name) || []
+      })),
+      venue: {
+        name: event.venue?.name,
+        city: event.venue?.city,
+        state: event.venue?.state,
+        address: event.venue?.address,
+        location: {
+          lat: event.venue?.location?.lat,
+          lon: event.venue?.location?.lon
+        }
+      },
+      datetime: event.datetime_local,
+      date: event.datetime_local ? new Date(event.datetime_local).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
+      }) : null,
+      time: event.datetime_local ? new Date(event.datetime_local).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit'
+      }) : null,
+      priceRange: event.stats?.lowest_price && event.stats?.highest_price 
+        ? { low: event.stats.lowest_price, high: event.stats.highest_price }
+        : null,
+      ticketUrl: event.url,
+      image: event.performers?.[0]?.image || null,
+      popularity: event.score || 0
+    }));
+    
+    const result = { 
+      concerts, 
+      total: data.meta?.total || concerts.length,
+      location: lat && lon ? 'custom' : 'default'
+    };
+    
+    // Update cache
+    concertsCache = { data: result, timestamp: now, location: cacheKey };
+    
+    logger.info(`Returning ${concerts.length} concerts`);
+    res.json(result);
+    
+  } catch (err) {
+    logger.error('Concerts API error', { error: err.message });
+    res.status(500).json({ 
+      error: 'Failed to fetch concerts', 
+      details: err.message,
+      // Fallback data
+      concerts: [],
+      total: 0 
+    });
+  }
+});
+
 // Generate PKCE code verifier and challenge
 const generatePKCE = () => {
   const verifier = crypto.randomBytes(32).toString('base64url');
