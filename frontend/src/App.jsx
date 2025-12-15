@@ -1417,15 +1417,12 @@ const Home = ({ setSection }) => {
           
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
             {navWidgets.map((widget) => (
-              <div 
+              <button 
                 key={widget.id}
                 onClick={widget.action}
-                onTouchEnd={(e) => { e.preventDefault(); widget.action(); }}
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), widget.action())}
-                tabIndex={0}
-                role="button"
                 aria-label={`${widget.title} - ${widget.description}`}
-                className="group relative bg-[#0a0a0a] border border-white/10 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:border-opacity-50 overflow-hidden touch-manipulation active:scale-95 active:opacity-80"
+                className="group relative bg-[#0a0a0a] border border-white/10 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:border-opacity-50 overflow-hidden touch-manipulation active:scale-95 active:opacity-80 text-left"
                 style={{ 
                   '--widget-color': widget.color,
                   boxShadow: hoveredItem === widget.id ? `0 0 30px ${widget.color}20` : 'none'
@@ -1456,7 +1453,7 @@ const Home = ({ setSection }) => {
                   className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
                   style={{ boxShadow: `inset 0 0 0 1px ${widget.color}40` }}
                 ></div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -1476,15 +1473,12 @@ const Home = ({ setSection }) => {
           
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
             {agentWidgets.map((widget, i) => (
-              <div 
+              <button 
                 key={widget.id}
                 onClick={widget.action}
-                onTouchEnd={(e) => { e.preventDefault(); widget.action(); }}
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), widget.action())}
-                tabIndex={0}
-                role="button"
                 aria-label={`${widget.title} - ${widget.subtitle}`}
-                className="group relative bg-[#0a0a0a] border border-white/10 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:border-opacity-50 overflow-hidden touch-manipulation active:scale-95 active:opacity-80"
+                className="group relative bg-[#0a0a0a] border border-white/10 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:border-opacity-50 overflow-hidden touch-manipulation active:scale-95 active:opacity-80 text-left"
                 style={{ 
                   '--widget-color': widget.color,
                   boxShadow: hoveredItem === `agent-${widget.id}` ? `0 0 30px ${widget.color}20` : 'none'
@@ -1519,7 +1513,7 @@ const Home = ({ setSection }) => {
                   className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
                   style={{ boxShadow: `inset 0 0 0 1px ${widget.color}40` }}
                 ></div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -9745,10 +9739,9 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
             const colors = colorClasses[primaryColor] || colorClasses.green;
             
             return (
-              <div
+              <button
                 key={agent.id}
                 onClick={agent.action}
-                onTouchEnd={(e) => { e.preventDefault(); agent.action(); }}
                 className={`group relative bg-black/50 backdrop-blur-sm border border-[#333] ${colors.border} p-4 md:p-6 flex flex-col items-center gap-3 cursor-pointer transition-all duration-300 hover:bg-black/70 hover:scale-105 active:scale-95 touch-manipulation animate-fade-in`}
                 style={{ 
                   animationDelay: `${index * 0.1}s`
@@ -9775,7 +9768,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
 
                 {/* Bottom indicator line with unique color */}
                 <div className={`absolute inset-x-0 bottom-0 h-[2px] ${colors.line} scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center shadow-[0_0_10px_currentColor]`}></div>
-              </div>
+              </button>
             );
           })}
         </div>
