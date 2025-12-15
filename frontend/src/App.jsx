@@ -10434,19 +10434,22 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
     // Set initial history state on first mount only
     if (!historyInitialized.current) {
       historyInitialized.current = true;
-      // Replace current entry so initial state is in history
-      window.history.replaceState({ section: initialSection }, '', `#${initialSection}`);
+      // Push a base entry first, then the current section
+      // This ensures there's always a "home" to go back to
+      window.history.replaceState({ section: 'home' }, '', '#home');
+      if (initialSection !== 'home') {
+        window.history.pushState({ section: initialSection }, '', `#${initialSection}`);
+      }
     }
 
     const handlePopState = (event) => {
       if (event.state?.section) {
         setActiveSection(event.state.section);
       } else {
-        // If no state, try to parse from hash
-        const hash = window.location.hash.replace('#', '');
-        if (hash) {
-          setActiveSection(hash);
-        }
+        // If no state (user trying to leave app), stay on home
+        // Push home state to prevent leaving
+        window.history.pushState({ section: 'home' }, '', '#home');
+        setActiveSection('home');
       }
     };
 
