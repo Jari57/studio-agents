@@ -7448,7 +7448,7 @@ const SongwritersStudio = () => {
                 <button 
                   onClick={startListening} 
                   disabled={loading || isListening}
-                  className={`px-3 ${isListening ? 'bg-green-600 animate-pulse' : 'hover:bg-green-900/50'} text-white transition-colors disabled:opacity-50`}
+                  className={`px-3 touch-manipulation ${isListening ? 'bg-green-600 animate-pulse' : 'hover:bg-green-900/50'} text-white transition-colors disabled:opacity-50`}
                   title="Voice input"
                 >
                   <Mic size={18}/>
@@ -7849,7 +7849,7 @@ const LyricRecovery = () => {
             {isSupported && (
               <button 
                 onClick={startListening}
-                className={`w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all border ${
+                className={`w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all border touch-manipulation ${
                   isListening 
                     ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border-cyan-400 shadow-[0_0_20px_rgba(0,255,255,0.4)]' 
                     : 'bg-[#1a1a1a] text-gray-400 hover:text-cyan-400 border-white/10 hover:border-cyan-500/50'
@@ -7995,7 +7995,7 @@ const RapBattle = () => {
             <button 
               onClick={startListening} 
               disabled={loading || isListening}
-              className={`px-3 md:px-4 rounded-lg border transition-all disabled:opacity-50 ${isListening 
+              className={`px-3 md:px-4 rounded-lg border transition-all disabled:opacity-50 touch-manipulation ${isListening 
                 ? 'bg-red-600 border-red-500 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]' 
                 : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-red-500/50'}`}
               title="Voice input"
@@ -8121,7 +8121,7 @@ const CrateDigger = () => {
                  <button 
                      onClick={startListening} 
                      disabled={loading || isListening}
-                     className={`px-2 md:px-3 border border-[#333] rounded-lg ${isListening ? 'bg-yellow-600 animate-pulse' : 'bg-black hover:bg-yellow-900'} text-white transition-colors disabled:opacity-50`}
+                     className={`touch-manipulation px-2 md:px-3 border border-[#333] rounded-lg ${isListening ? 'bg-yellow-600 animate-pulse' : 'bg-black hover:bg-yellow-900'} text-white transition-colors disabled:opacity-50`}
                      title="Voice input"
                  >
                      <Mic size={16} className="md:w-5 md:h-5"/>
@@ -8231,7 +8231,7 @@ const ARSuite = () => {
                <button 
                    onClick={startListening} 
                    disabled={loading || isListening}
-                   className={`px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-blue-600 animate-pulse' : 'bg-black hover:bg-blue-900'} text-white transition-colors disabled:opacity-50 flex items-center gap-2 text-xs`}
+                   className={`touch-manipulation px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-blue-600 animate-pulse' : 'bg-black hover:bg-blue-900'} text-white transition-colors disabled:opacity-50 flex items-center gap-2 text-xs`}
                >
                    <Mic size={16}/> {isListening ? 'LISTENING...' : 'VOICE'}
                </button>
@@ -8420,7 +8420,7 @@ const AlbumArtGenerator = ({ user, onAuthRequest }) => {
                         <button 
                             onClick={startListening} 
                             disabled={loading || isListening}
-                            className={`px-2 md:px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-pink-600 animate-pulse' : 'bg-black hover:bg-pink-900'} text-white transition-colors disabled:opacity-50`}
+                            className={`touch-manipulation px-2 md:px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-pink-600 animate-pulse' : 'bg-black hover:bg-pink-900'} text-white transition-colors disabled:opacity-50`}
                             title="Voice input"
                         >
                             <Mic size={16} className="md:w-5 md:h-5"/>
@@ -8582,7 +8582,7 @@ const ViralVideoAgent = ({ user, onAuthRequest }) => {
                   <button 
                       onClick={startListening} 
                       disabled={loading || isListening}
-                      className={`px-2 md:px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-violet-600 animate-pulse' : 'bg-black hover:bg-violet-900'} text-white transition-colors disabled:opacity-50`}
+                      className={`touch-manipulation px-2 md:px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-violet-600 animate-pulse' : 'bg-black hover:bg-violet-900'} text-white transition-colors disabled:opacity-50`}
                       title="Voice input"
                   >
                       <Mic size={16} className="md:w-5 md:h-5"/>
@@ -8777,7 +8777,7 @@ const TrendHunter = () => {
                   <button 
                       onClick={startListening} 
                       disabled={loading || isListening}
-                      className={`px-2 md:px-3 ${isListening ? 'bg-violet-600 animate-pulse' : 'hover:bg-violet-900/50'} text-white transition-colors disabled:opacity-50`}
+                      className={`touch-manipulation px-2 md:px-3 ${isListening ? 'bg-violet-600 animate-pulse' : 'hover:bg-violet-900/50'} text-white transition-colors disabled:opacity-50`}
                       title="Voice input"
                   >
                       <Mic size={16} className="md:w-5 md:h-5"/>
@@ -9220,7 +9220,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                 key={agent.id}
                 onClick={agent.action}
                 title={agent.title}
-                className={`group w-full aspect-square flex items-center justify-center transition-all duration-300 border rounded-lg bg-black/50 backdrop-blur-sm relative overflow-hidden ${
+                className={`group w-full aspect-square flex items-center justify-center transition-all duration-300 border rounded-lg bg-black/50 backdrop-blur-sm relative overflow-hidden touch-manipulation ${
                   isActive
                     ? `${colors.activeBorder} ${colors.shadow} bg-black/70`
                     : `border-[#333] hover:${colors.border} hover:bg-black/70`
@@ -9306,7 +9306,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                     return (
                       <div 
                         key={agent.id}
-                        className="bg-black/50 border border-[#00ff41]/30 rounded-lg p-5 cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group"
+                        className="bg-black/50 border border-[#00ff41]/30 rounded-lg p-5 cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group touch-manipulation"
                         onClick={() => setExpandedAgent(isExpanded ? null : agent.id)}
                       >
                         {/* Agent Header */}
@@ -9322,7 +9322,8 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); agent.action(); }}
-                            className="px-3 py-1.5 text-[10px] uppercase tracking-wider bg-white/10 text-white rounded hover:bg-[#00ff41] hover:text-black transition-all"
+                            onTouchEnd={(e) => { e.stopPropagation(); }}
+                            className="px-3 py-1.5 text-[10px] uppercase tracking-wider bg-white/10 text-white rounded hover:bg-[#00ff41] hover:text-black transition-all touch-manipulation"
                           >
                             Launch
                           </button>
