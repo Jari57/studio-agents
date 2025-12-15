@@ -7556,75 +7556,131 @@ const NewsArchive = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [trendingPosts, setTrendingPosts] = useState([]);
-  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_news', 3);
+  const [cachedLiveNews, setCachedLiveNews] = useState(null);
+  const [cached2004News, setCached2004News] = useState(null);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_news', 5);
 
-  const defaultHistorical = [
-    { id: 1, date: "DEC 12 2025", time: "11:23 PM EST", source: "LIVEWIRE DAILY", author: "B. Wilson", title: "WHIP MONTEZ CATALOG RESTORED: LOST TAPES DISCOVERED", content: "After 20+ years, the complete unreleased archive of Brooklyn's Whip Montez has been digitally restored and made available online.", tags: ["HIPHOP", "RESTORATION", "NYC"] },
-    { id: 2, date: "DEC 10 2025", time: "02:15 PM EST", source: "HIP HOP DX", author: "Staff", title: "RED HOOK DIARIES REACHES CULT CLASSIC STATUS", content: "The 2004 mixtape that never got proper distribution is now considered one of NYC's hidden gems.", tags: ["CLASSIC", "UNDERGROUND"] },
-    { id: 3, date: "DEC 08 2025", time: "09:30 AM EST", source: "COMPLEX", author: "K. Rodriguez", title: "ERICK SERMON ON DISCOVERING WHIP MONTEZ", content: "The Def Squad legend recalls finding the Red Hook lyricist in a basement cipher back in 2004.", tags: ["INTERVIEW", "LEGENDS"] },
-    { id: 4, date: "DEC 05 2025", time: "04:20 PM EST", source: "BROOKLYN VEGAN", author: "Local", title: "THE STOOP: HOW A 2001 TAPE INFLUENCED NYC RAP", content: "Musicologists trace the DNA of modern Brooklyn hip-hop back to this forgotten project.", tags: ["HISTORY", "BROOKLYN"] },
-    { id: 5, date: "DEC 01 2025", time: "12:00 PM EST", source: "PITCHFORK", author: "M. Chen", title: "LIVEWIRE SESSIONS: THE LOST ALBUM THAT TIME FORGOT", content: "A deep dive into the unreleased 2004 debut that features production from legendary NYC beatmakers.", tags: ["REVIEW", "ANALYSIS"] },
-    { id: 6, date: "NOV 28 2025", time: "06:45 PM EST", source: "THE FADER", author: "Editorial", title: "WHIP MONTEZ REUNION SHOW SELLS OUT IN MINUTES", content: "Brooklyn fans crash ticket website trying to secure spots for the first live performance in over 20 years.", tags: ["LIVE", "EVENTS"] },
-    { id: 7, date: "NOV 25 2025", time: "03:15 PM EST", source: "REVOLT", author: "Video Team", title: "UNRELEASED FREESTYLE FOOTAGE SURFACES ONLINE", content: "Rare clips from 2004 Red Hook ciphers show Whip Montez battling alongside Ali Vegas and other NYC legends.", tags: ["VIDEO", "ARCHIVE"] },
-    { id: 8, date: "NOV 20 2025", time: "10:30 AM EST", source: "VIBE", author: "R. Jackson", title: "THE LIVEWIRE MOVEMENT: NYC'S FORGOTTEN LABEL", content: "How Erick Sermon's indie imprint almost changed the game before the digital era hit.", tags: ["LABEL", "INDUSTRY"] },
-    { id: 9, date: "NOV 15 2025", time: "08:00 PM EST", source: "MASS APPEAL", author: "Culture Desk", title: "SAMPLE BREAKDOWN: WHIP MONTEZ'S PRODUCTION SECRETS", content: "Producers analyze the dusty breaks and obscure loops that made the Red Hook sound so distinctive.", tags: ["PRODUCTION", "BEATS"] },
-    { id: 10, date: "NOV 10 2025", time: "01:45 PM EST", source: "HYPEBEAST", author: "Fashion", title: "WHIP MONTEZ MERCH DROP: VINTAGE 2004 AESTHETIC", content: "Limited edition Livewire gear featuring original album artwork sells out in hours, fueling collector market.", tags: ["FASHION", "MERCH"] }
+  // Default 2004-era hip-hop news (AI will generate more when toggled)
+  const default2004News = [
+    { id: 1, date: "DEC 12 2004", time: "11:23 PM EST", source: "THE SOURCE", author: "Staff", title: "KANYE WEST'S 'COLLEGE DROPOUT' RESHAPES HIP-HOP", content: "The Chicago producer-turned-rapper's debut album continues to dominate charts, proving backpack rap can go mainstream.", tags: ["HIPHOP", "ALBUMS", "CHICAGO"] },
+    { id: 2, date: "DEC 10 2004", time: "02:15 PM EST", source: "XXL", author: "Staff", title: "EMINEM ANNOUNCES HIATUS AFTER ENCORE TOUR", content: "The Detroit rapper hints at stepping back from music following his fourth studio album's massive success.", tags: ["DETROIT", "TOURING"] },
+    { id: 3, date: "DEC 08 2004", time: "09:30 AM EST", source: "VIBE", author: "K. Rodriguez", title: "JAY-Z'S RETIREMENT: ONE YEAR LATER", content: "Industry insiders discuss how Hov's departure has shifted the NYC rap landscape and who's filling the void.", tags: ["NYC", "INDUSTRY"] },
+    { id: 4, date: "DEC 05 2004", time: "04:20 PM EST", source: "HIP HOP DX", author: "Local", title: "DIPSET DOMINATES NEW YORK STREETS", content: "Cam'ron and the Diplomats continue their reign with mixtapes flooding every borough.", tags: ["NYC", "MIXTAPES"] },
+    { id: 5, date: "DEC 01 2004", time: "12:00 PM EST", source: "COMPLEX", author: "M. Chen", title: "CRUNK MUSIC TAKES OVER THE SOUTH", content: "Lil Jon and the Eastside Boyz lead the charge as Atlanta's sound goes national.", tags: ["ATL", "CRUNK"] }
   ];
 
   const defaultTrending = [
-    { platform: 'X', icon: '𝕏', username: '@HipHopDaily', time: '2m', text: '🔥 New Kendrick album dropping midnight EST confirmed', likes: '24.5K', color: 'text-blue-400' },
-    { platform: 'Reddit', icon: '🎧', username: 'r/hiphopheads', time: '15m', text: '[FRESH] Travis Scott - FE!N (Official Video)', likes: '892', color: 'text-orange-500' },
-    { platform: 'Instagram', icon: '📸', username: '@complexmusic', time: '1h', text: 'Drake spotted in studio with Metro Boomin 👀', likes: '156K', color: 'text-pink-500' },
-    { platform: 'X', icon: '𝕏', username: '@XXL', time: '2h', text: 'Breaking: J. Cole announces surprise EP this Friday', likes: '18.2K', color: 'text-blue-400' },
-    { platform: 'TikTok', icon: '🎵', username: '@hiphopvibes', time: '3h', text: 'This beat is going CRAZY on my FYP 🔥', likes: '2.1M', color: 'text-cyan-400' }
+    { platform: 'X', icon: '𝕏', username: '@HipHopDaily', time: '2m', text: '🔥 New music dropping this week - who are you most excited for?', likes: '24.5K', color: 'text-blue-400' },
+    { platform: 'Reddit', icon: '🎧', username: 'r/hiphopheads', time: '15m', text: '[DISCUSSION] Most underrated albums of 2024?', likes: '892', color: 'text-orange-500' },
+    { platform: 'Instagram', icon: '📸', username: '@rapradar', time: '1h', text: 'Studio session looking crazy 👀🔥', likes: '156K', color: 'text-pink-500' },
+    { platform: 'X', icon: '𝕏', username: '@XXL', time: '2h', text: 'Breaking: Major announcement coming this Friday', likes: '18.2K', color: 'text-blue-400' },
+    { platform: 'TikTok', icon: '🎵', username: '@hiphopvibes', time: '3h', text: 'This beat is going CRAZY viral 🔥', likes: '2.1M', color: 'text-cyan-400' }
   ];
 
+  // Pre-fetch both live and 2004 news on component mount
   useEffect(() => {
-    if (mode === 'historical') {
-      setNewsItems(defaultHistorical);
+    const prefetchData = async () => {
+      setLoading(true);
+      
+      // Start both fetches in parallel for faster loading
+      const [liveData, historicalData] = await Promise.all([
+        fetchNewsData('live'),
+        fetchNewsData('2004')
+      ]);
+      
+      setCachedLiveNews(liveData);
+      setCached2004News(historicalData);
+      
+      // Set initial display based on mode
+      setNewsItems(mode === 'live' ? liveData : historicalData);
+      setTrendingPosts(defaultTrending);
+      setLoading(false);
+      setInitialLoadDone(true);
+    };
+    
+    prefetchData();
+  }, []);
+
+  // Fetch news data helper (returns data, doesn't set state)
+  const fetchNewsData = async (fetchMode) => {
+    if (fetchMode === '2004' || fetchMode === 'historical') {
+      // Generate AI 2004-era hip-hop news
+      const systemPrompt = `You are a hip-hop news aggregator from December 2004. Generate 8 realistic news headlines from that era. Include: album releases, beefs, industry moves, rising artists from 2004 (Kanye, 50 Cent, Usher, Lil Jon, T.I., Jadakiss, Destiny's Child, etc). Format as JSON array: [{ "id": 1, "date": "DEC 12 2004", "time": "11:23 PM EST", "source": "THE SOURCE/XXL/VIBE/etc", "author": "Staff", "title": "HEADLINE IN CAPS", "content": "2-3 sentences of details", "tags": ["TAG1", "TAG2"] }]. Make it feel authentic to 2004. No markdown.`;
+      
+      try {
+        const response = await callGemini("hip hop news from December 2004", systemPrompt, false);
+        const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanJson);
+      } catch (e) {
+        return default2004News;
+      }
     } else {
-      fetchLiveNews();
+      // Fetch real current hip-hop news
+      const systemPrompt = `You are a real-time hip hop news aggregator for December 2025. Generate 10 CURRENT, REAL hip hop/rap news headlines based on what's actually happening now. Include: new releases, trending artists (Drake, Kendrick, Travis Scott, Future, Metro Boomin, Ice Spice, Sexyy Red, etc), beefs/drama, industry news, viral moments. Format as JSON array: [{ "id": 1, "date": "DEC 14 2025", "time": "11:23 PM EST", "source": "COMPLEX/XXL/BILLBOARD/PITCHFORK/etc", "author": "Staff", "title": "HEADLINE IN CAPS", "content": "2-3 sentences of details", "tags": ["TAG1", "TAG2"] }]. Make it current and real. No markdown.`;
+      
+      try {
+        const response = await callGemini("latest hip hop news December 2025, trending rap artists, new album releases", systemPrompt, true);
+        const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanJson);
+      } catch (e) {
+        return default2004News; // Fallback
+      }
     }
-    setTrendingPosts(defaultTrending);
-  }, [mode]);
+  };
 
   const fetchLiveNews = async () => {
-    setLoading(true);
-    const query = searchTerm || "latest hip hop news, trending rap artists, new album releases, hip hop industry news";
-    const systemPrompt = `You are a real-time hip hop news aggregator for December 2025. Generate 10 current, plausible hip hop/rap news headlines. Include: new releases, trending artists, beef/drama, industry news, viral moments. Format as JSON array: [{ "id": 1, "date": "DEC 12 2025", "time": "11:23 PM EST", "source": "COMPLEX/XXL/BILLBOARD/etc", "author": "Staff", "title": "HEADLINE IN CAPS", "content": "2-3 sentences of details", "tags": ["TAG1", "TAG2"] }]. Make it feel current and real. No markdown formatting.`;
-
     if (!canUse) {
       setNewsItems([{ id: 0, date: "", time: "", source: "SYSTEM", author: "", title: `FREE LIMIT REACHED: ${limit} free news pulls used.`, content: "", tags: ["LIMIT"] }]);
-      setLoading(false);
       return;
     }
     consume();
+    
+    setLoading(true);
+    const data = await fetchNewsData('live');
+    setCachedLiveNews(data);
+    setNewsItems(data);
+    setLoading(false);
+  };
 
-    try {
-      const response = await callGemini(query, systemPrompt, true); // Use search for live mode
-      const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
-      setNewsItems(JSON.parse(cleanJson));
-    } catch (e) {
-      setNewsItems(defaultHistorical);
+  const fetch2004News = async () => {
+    if (!canUse) {
+      setNewsItems([{ id: 0, date: "", time: "", source: "SYSTEM", author: "", title: `FREE LIMIT REACHED: ${limit} free news pulls used.`, content: "", tags: ["LIMIT"] }]);
+      return;
     }
+    consume();
+    
+    setLoading(true);
+    const data = await fetchNewsData('2004');
+    setCached2004News(data);
+    setNewsItems(data);
     setLoading(false);
   };
 
   const fetchNews = async (selectedMode) => {
     setMode(selectedMode);
+    
+    // Use cached data if available for instant switching
     if (selectedMode === 'historical') {
-      setNewsItems(defaultHistorical);
-      setLoading(false);
+      if (cached2004News) {
+        setNewsItems(cached2004News);
+      } else {
+        await fetch2004News();
+      }
     } else {
-      await fetchLiveNews();
+      if (cachedLiveNews) {
+        setNewsItems(cachedLiveNews);
+      } else {
+        await fetchLiveNews();
+      }
     }
   };
 
   const refreshTrending = async () => {
-    const systemPrompt = `Generate 5 fake but plausible trending social media posts about hip hop from X (Twitter), Reddit, Instagram, TikTok in December 2025. Format as JSON: [{ "platform": "X/Reddit/Instagram/TikTok", "icon": "emoji", "username": "@handle or r/sub", "time": "2m/1h/etc", "text": "Post content", "likes": "24.5K/892/etc", "color": "text-blue-400/text-orange-500/etc" }]. No markdown.`;
+    const systemPrompt = `Generate 5 realistic trending social media posts about hip hop from X (Twitter), Reddit, Instagram, TikTok in December 2025. Use current artists and topics. Format as JSON: [{ "platform": "X/Reddit/Instagram/TikTok", "icon": "emoji", "username": "@handle or r/sub", "time": "2m/1h/etc", "text": "Post content", "likes": "24.5K/892/etc", "color": "text-blue-400/text-orange-500/etc" }]. No markdown.`;
     
     try {
-      const response = await callGemini("trending hip hop social media posts", systemPrompt, false);
+      const response = await callGemini("trending hip hop social media posts December 2025", systemPrompt, false);
       const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
       setTrendingPosts(JSON.parse(cleanJson));
     } catch (e) {
@@ -7659,9 +7715,9 @@ const NewsArchive = () => {
                   className="bg-transparent border-none outline-none text-white font-normal text-sm w-full placeholder-gray-600"
                   onKeyPress={(e) => e.key === 'Enter' && fetchNews(mode)}
                 />
-                {mode === 'live' && (
-                    <button onClick={() => fetchLiveNews()} className="bg-cyan-500/10 text-cyan-400 px-3 py-1 text-xs font-medium rounded border border-cyan-500/30 hover:border-cyan-400/50 transition-all">SEARCH</button>
-                )}
+                <button onClick={() => mode === 'live' ? fetchLiveNews() : fetch2004News()} className={`${mode === 'live' ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 hover:border-cyan-400/50' : 'bg-[#00ff41]/10 text-[#00ff41] border-[#00ff41]/30 hover:border-[#00ff41]/50'} px-3 py-1 text-xs font-medium rounded border transition-all`}>
+                  {loading ? '...' : 'REFRESH'}
+                </button>
              </div>
              
               <div className="flex items-center gap-2 bg-black border border-white/10 px-3 py-2 rounded">
