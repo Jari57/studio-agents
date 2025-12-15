@@ -797,6 +797,12 @@ const useVoiceInput = (onResult) => {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef(null);
+  const onResultRef = useRef(onResult);
+  
+  // Keep the callback ref updated
+  useEffect(() => {
+    onResultRef.current = onResult;
+  }, [onResult]);
 
   useEffect(() => {
     // Check if browser supports speech recognition
@@ -810,7 +816,8 @@ const useVoiceInput = (onResult) => {
 
       recognitionRef.current.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
-        onResult(transcript);
+        console.log('Voice transcript:', transcript);
+        onResultRef.current(transcript);
         setIsListening(false);
       };
 
@@ -822,6 +829,8 @@ const useVoiceInput = (onResult) => {
       recognitionRef.current.onend = () => {
         setIsListening(false);
       };
+    } else {
+      console.log('Speech recognition not supported');
     }
 
     return () => {
@@ -829,11 +838,12 @@ const useVoiceInput = (onResult) => {
         recognitionRef.current.stop();
       }
     };
-  }, [onResult]);
+  }, []); // No dependencies - only initialize once
 
   const startListening = () => {
     if (recognitionRef.current && !isListening) {
       try {
+        console.log('Starting voice recognition...');
         recognitionRef.current.start();
         setIsListening(true);
       } catch (error) {
