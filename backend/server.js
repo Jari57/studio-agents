@@ -496,7 +496,12 @@ app.get('/api/concerts', async (req, res) => {
     
     logger.info('Fetching concerts from SeatGeek', { hasLocation: !!(lat && lon) });
     
-    const response = await fetch(apiUrl);
+    const response = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`SeatGeek API error: ${response.status}`);
@@ -588,7 +593,8 @@ app.get('/api/news', async (req, res) => {
         const response = await fetch(url, { 
           signal: controller.signal,
           headers: {
-            'User-Agent': 'WhipMontezApp/1.0'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json'
           }
         });
         clearTimeout(id);
@@ -604,11 +610,15 @@ app.get('/api/news', async (req, res) => {
     // Primary: Reddit r/hiphopheads (real-time, free, reliable)
     try {
       const redditUrl = 'https://www.reddit.com/r/hiphopheads/hot.json?limit=25';
+      logger.info('Fetching from Reddit...', { url: redditUrl });
       const response = await fetchWithTimeout(redditUrl);
+      
+      logger.info('Reddit response', { status: response.status, ok: response.ok });
       
       if (response.ok) {
         const data = await response.json();
         const posts = data?.data?.children || [];
+        logger.info('Reddit posts found', { count: posts.length });
         
         articles = posts
           .filter(p => !p.data.stickied) // Skip pinned posts
