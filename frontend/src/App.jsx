@@ -7446,7 +7446,8 @@ const SongwritersStudio = () => {
               />
               {isSupported && (
                 <button 
-                  onClick={startListening} 
+                  onClick={startListening}
+                  onTouchEnd={(e) => { e.preventDefault(); if (!loading && !isListening) startListening(); }}
                   disabled={loading || isListening}
                   className={`px-3 touch-manipulation ${isListening ? 'bg-green-600 animate-pulse' : 'hover:bg-green-900/50'} text-white transition-colors disabled:opacity-50`}
                   title="Voice input"
@@ -7849,6 +7850,7 @@ const LyricRecovery = () => {
             {isSupported && (
               <button 
                 onClick={startListening}
+                onTouchEnd={(e) => { e.preventDefault(); startListening(); }}
                 className={`w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center transition-all border touch-manipulation ${
                   isListening 
                     ? 'bg-gradient-to-r from-cyan-600 to-cyan-500 text-white border-cyan-400 shadow-[0_0_20px_rgba(0,255,255,0.4)]' 
@@ -7993,7 +7995,8 @@ const RapBattle = () => {
           />
           {isSupported && (
             <button 
-              onClick={startListening} 
+              onClick={startListening}
+              onTouchEnd={(e) => { e.preventDefault(); if (!loading && !isListening) startListening(); }}
               disabled={loading || isListening}
               className={`px-3 md:px-4 rounded-lg border transition-all disabled:opacity-50 touch-manipulation ${isListening 
                 ? 'bg-red-600 border-red-500 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]' 
@@ -8119,7 +8122,8 @@ const CrateDigger = () => {
                <input type="text" value={mood} onChange={(e) => setMood(e.target.value)} placeholder="Enter a vibe..." className="flex-1 bg-black border border-[#333] text-white p-2 md:p-3 font-mono text-sm md:text-base outline-none focus:border-yellow-600 rounded-lg" onKeyPress={(e) => e.key === 'Enter' && handleDig()} />
                {isSupported && (
                  <button 
-                     onClick={startListening} 
+                     onClick={startListening}
+                     onTouchEnd={(e) => { e.preventDefault(); if (!loading && !isListening) startListening(); }}
                      disabled={loading || isListening}
                      className={`touch-manipulation px-2 md:px-3 border border-[#333] rounded-lg ${isListening ? 'bg-yellow-600 animate-pulse' : 'bg-black hover:bg-yellow-900'} text-white transition-colors disabled:opacity-50`}
                      title="Voice input"
@@ -8229,7 +8233,8 @@ const ARSuite = () => {
            <div className="flex gap-2">
              {isSupported && (
                <button 
-                   onClick={startListening} 
+                   onClick={startListening}
+                   onTouchEnd={(e) => { e.preventDefault(); if (!loading && !isListening) startListening(); }}
                    disabled={loading || isListening}
                    className={`touch-manipulation px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-blue-600 animate-pulse' : 'bg-black hover:bg-blue-900'} text-white transition-colors disabled:opacity-50 flex items-center gap-2 text-xs`}
                >
@@ -8418,7 +8423,8 @@ const AlbumArtGenerator = ({ user, onAuthRequest }) => {
                       />
                       {isSupported && (
                         <button 
-                            onClick={startListening} 
+                            onClick={startListening}
+                            onTouchEnd={(e) => { e.preventDefault(); if (!loading && !isListening) startListening(); }}
                             disabled={loading || isListening}
                             className={`touch-manipulation px-2 md:px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-pink-600 animate-pulse' : 'bg-black hover:bg-pink-900'} text-white transition-colors disabled:opacity-50`}
                             title="Voice input"
@@ -8580,7 +8586,8 @@ const ViralVideoAgent = ({ user, onAuthRequest }) => {
                 />
                 {isSupported && (
                   <button 
-                      onClick={startListening} 
+                      onClick={startListening}
+                      onTouchEnd={(e) => { e.preventDefault(); if (!loading && !isListening) startListening(); }}
                       disabled={loading || isListening}
                       className={`touch-manipulation px-2 md:px-3 py-2 border border-[#333] rounded-lg ${isListening ? 'bg-violet-600 animate-pulse' : 'bg-black hover:bg-violet-900'} text-white transition-colors disabled:opacity-50`}
                       title="Voice input"
@@ -8775,7 +8782,8 @@ const TrendHunter = () => {
                 />
                 {isSupported && (
                   <button 
-                      onClick={startListening} 
+                      onClick={startListening}
+                      onTouchEnd={(e) => { e.preventDefault(); if (!loading && !isListening) startListening(); }}
                       disabled={loading || isListening}
                       className={`touch-manipulation px-2 md:px-3 ${isListening ? 'bg-violet-600 animate-pulse' : 'hover:bg-violet-900/50'} text-white transition-colors disabled:opacity-50`}
                       title="Voice input"
