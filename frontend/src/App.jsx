@@ -2520,18 +2520,25 @@ const MusicPlayer = () => {
         };
         audio.addEventListener('error', errorListener, { once: true });
         
-        // Get the URL
+        // Get the URL - try Firebase Storage first, then backend static files
         let url;
-        if (storage && currentTrack.audioUrl) {
+        const audioPath = currentTrack.audioUrl;
+        
+        if (storage && audioPath) {
           try {
-            const storageRef = ref(storage, currentTrack.audioUrl);
+            const storageRef = ref(storage, audioPath);
             url = await getDownloadURL(storageRef);
+            console.log("✅ Firebase Storage URL:", url);
           } catch (e) {
-            // Firebase storage failed, try local path
-            url = `/${currentTrack.audioUrl}`;
+            // Firebase storage failed, try backend static path
+            console.log("Firebase Storage not available, trying static path...");
+            // Use same origin for production (Railway serves both frontend and static files)
+            url = `/${audioPath}`;
+            console.log("📁 Trying static URL:", url);
           }
         } else {
-          url = `/${currentTrack.audioUrl}`;
+          // Direct path for local development or when storage isn't configured
+          url = `/${audioPath}`;
         }
         
         // Set source
