@@ -574,7 +574,7 @@ app.get('/api/concerts', async (req, res) => {
 // Fetches real-time hip-hop news from Reddit r/hiphopheads
 
 let newsCache = { data: null, timestamp: 0 };
-const NEWS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for near real-time
+const NEWS_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes for near real-time
 
 app.get('/api/news', async (req, res) => {
   try {
@@ -609,9 +609,10 @@ app.get('/api/news', async (req, res) => {
     
     // Primary: Reddit r/hiphopheads (real-time, free, reliable)
     try {
-      const redditUrl = 'https://www.reddit.com/r/hiphopheads/hot.json?limit=25';
+      // Use old.reddit.com which is more reliable for JSON API
+      const redditUrl = 'https://old.reddit.com/r/hiphopheads/hot.json?limit=25&raw_json=1';
       logger.info('Fetching from Reddit...', { url: redditUrl });
-      const response = await fetchWithTimeout(redditUrl);
+      const response = await fetchWithTimeout(redditUrl, 10000);
       
       logger.info('Reddit response', { status: response.status, ok: response.ok });
       
