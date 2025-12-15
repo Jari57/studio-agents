@@ -9306,8 +9306,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                     return (
                       <div 
                         key={agent.id}
-                        className="bg-black/50 border border-[#00ff41]/30 rounded-lg p-5 cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group touch-manipulation"
-                        onClick={() => setExpandedAgent(isExpanded ? null : agent.id)}
+                        className="bg-black/50 border border-[#00ff41]/30 rounded-lg p-5 hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group touch-manipulation"
                       >
                         {/* Agent Header */}
                         <div className="flex items-start justify-between mb-3">
@@ -9322,7 +9321,6 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); agent.action(); }}
-                            onTouchEnd={(e) => { e.stopPropagation(); }}
                             className="px-3 py-1.5 text-[10px] uppercase tracking-wider bg-white/10 text-white rounded hover:bg-[#00ff41] hover:text-black transition-all touch-manipulation"
                           >
                             Launch
@@ -9333,9 +9331,12 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                           {details?.description?.slice(0, 120)}...
                         </p>
                         
-                        <p className="text-[#00ff41]/60 text-xs uppercase tracking-wider group-hover:text-[#00ff41] transition-colors">
+                        <button 
+                          onClick={() => setExpandedAgent(isExpanded ? null : agent.id)}
+                          className="text-[#00ff41]/60 text-xs uppercase tracking-wider hover:text-[#00ff41] transition-colors touch-manipulation"
+                        >
                           {isExpanded ? 'Less ↑' : 'More ↓'}
-                        </p>
+                        </button>
                         
                         {/* Expanded Content */}
                         {isExpanded && details && (
@@ -9365,9 +9366,9 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
               <div className="mb-16">
                 <h2 className="text-xl md:text-2xl text-white mb-6">Part of Something Bigger</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div 
+                  <button 
                     onClick={() => setSection('comeup')}
-                    className="bg-black/50 border border-[#00ff41]/30 p-5 rounded-lg cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group"
+                    className="bg-black/50 border border-[#00ff41]/30 p-5 rounded-lg cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group text-left touch-manipulation"
                   >
                     <h4 className="text-white mb-2 group-hover:text-[#00ff41] transition-colors">The Come Up</h4>
                     <p className="text-white/50 text-xs leading-relaxed mb-3">
@@ -9377,10 +9378,10 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                     <p className="text-[#00ff41]/60 text-xs uppercase tracking-wider group-hover:text-[#00ff41] transition-colors">
                       Explore →
                     </p>
-                  </div>
-                  <div 
+                  </button>
+                  <button 
                     onClick={() => setSection('bio')}
-                    className="bg-black/50 border border-[#00ff41]/30 p-5 rounded-lg cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group"
+                    className="bg-black/50 border border-[#00ff41]/30 p-5 rounded-lg cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group text-left touch-manipulation"
                   >
                     <h4 className="text-white mb-2 group-hover:text-[#00ff41] transition-colors">The Story</h4>
                     <p className="text-white/50 text-xs leading-relaxed mb-3">
@@ -9390,7 +9391,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                     <p className="text-[#00ff41]/60 text-xs uppercase tracking-wider group-hover:text-[#00ff41] transition-colors">
                       Read →
                     </p>
-                  </div>
+                  </button>
                 </div>
               </div>
 
@@ -9403,13 +9404,13 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                 <div className="flex flex-wrap justify-center gap-4">
                   <button
                     onClick={enterStudio}
-                    className="px-8 py-3 bg-[#00ff41] text-black uppercase tracking-wider rounded hover:shadow-[0_0_20px_rgba(0,255,65,0.4)] transition-all text-sm"
+                    className="px-8 py-3 bg-[#00ff41] text-black uppercase tracking-wider rounded hover:shadow-[0_0_20px_rgba(0,255,65,0.4)] transition-all text-sm touch-manipulation"
                   >
                     Enter The Studio
                   </button>
                   <button
                     onClick={startOnboarding}
-                    className="px-8 py-3 bg-white/5 border border-white/10 text-white/70 uppercase tracking-wider rounded hover:bg-white/10 hover:text-white transition-all text-sm"
+                    className="px-8 py-3 bg-white/5 border border-white/10 text-white/70 uppercase tracking-wider rounded hover:bg-white/10 hover:text-white transition-all text-sm touch-manipulation"
                   >
                     Learn First
                   </button>
