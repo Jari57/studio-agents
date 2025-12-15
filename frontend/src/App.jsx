@@ -2506,8 +2506,6 @@ const MusicPlayer = () => {
     let canPlayListener = null;
     let errorListener = null;
     
-    console.log("🎵 Loading track:", currentTrack.title, "URL:", currentTrack.audioUrl);
-    
     const loadAndPlay = async () => {
       try {
         setAudioLoading(true);
@@ -2515,11 +2513,9 @@ const MusicPlayer = () => {
         
         // Error handler
         errorListener = (e) => {
-          console.error("❌ Audio error event:", e);
           setAudioLoading(false);
           setAudioError(true);
           setIsPlaying(false);
-          console.log("Audio file not available:", currentTrack.audioUrl);
         };
         audio.addEventListener('error', errorListener, { once: true });
         
@@ -2527,27 +2523,20 @@ const MusicPlayer = () => {
         let url;
         const audioPath = currentTrack.audioUrl;
         
-        console.log("🔍 Storage available:", !!storage, "Audio path:", audioPath);
-        
         if (storage && audioPath) {
           try {
             const storageRef = ref(storage, audioPath);
             url = await getDownloadURL(storageRef);
-            console.log("✅ Firebase Storage URL:", url);
           } catch (e) {
-            console.log("⚠️ Firebase Storage failed:", e.message, "- trying static path...");
             // Use same origin for production (Railway serves both frontend and static files)
             url = `/${audioPath}`;
-            console.log("📁 Trying static URL:", url);
           }
         } else {
           // Direct path for local development or when storage isn't configured
           url = `/${audioPath}`;
-          console.log("📁 Using direct path:", url);
         }
         
         // Set source
-        console.log("🎧 Setting audio src to:", url);
         audio.src = url;
         
         // Wait for audio to be ready before playing
@@ -2555,7 +2544,11 @@ const MusicPlayer = () => {
           setAudioLoading(false);
           setAudioError(false);
           if (shouldAutoPlay) {
-            audio.play().catch(err => console.log("Play error:", err));
+            // Autoplay may be blocked on mobile unless initiated by a user gesture.
+            audio.play().catch(() => {
+              // Keep UI responsive even if autoplay is blocked.
+              setIsPlaying(false);
+            });
           }
         };
         
@@ -2586,26 +2579,20 @@ const MusicPlayer = () => {
     const audio = audioRef.current;
     
     // Control playback whenever isPlaying changes
-    console.log("▶️ Play state changed:", isPlaying, "Audio src:", audio.src, "Paused:", audio.paused);
-    
+    // Note: On mobile Safari/Chrome, play() can be blocked unless called directly
+    // from a user gesture. We still try here as a fallback.
     if (audio.src) {
       if (isPlaying) {
-        // Only play if not already playing
         if (audio.paused) {
-          console.log("▶️ Attempting to play...");
-          audio.play()
-            .then(() => console.log("✅ Playback started"))
-            .catch(err => console.log("❌ Play error:", err.message));
+          audio.play().catch(() => {
+            setIsPlaying(false);
+          });
         }
       } else {
-        // Only pause if currently playing
         if (!audio.paused) {
-          console.log("⏸️ Pausing...");
           audio.pause();
         }
       }
-    } else {
-      console.log("⚠️ No audio source set yet");
     }
   }, [isPlaying]);
 
@@ -2615,10 +2602,6 @@ const MusicPlayer = () => {
     if (currentTrack?.id === track.id) {
       setIsPlaying(!isPlaying);
     } else {
-      // For desktop: preserve user gesture by calling play immediately
-      if (audioRef.current) {
-        audioRef.current.play().catch(() => {}); // This preserves the gesture
-      }
       setCurrentTrack(track);
       setIsPlaying(true);
     }
@@ -3159,24 +3142,31 @@ const MusicPlayer = () => {
             {/* Transport Controls */}
             <div className="grid grid-cols-4 gap-2 mt-4">
               <button 
-                onClick={handlePrevious}
-                onTouchEnd={(e) => { e.preventDefault(); handlePrevious(); }}
+                onPointerUp={() => handlePrevious()}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95"
               >
                 <Rewind size={18}/>
               </button>
               <button 
-                onClick={() => {
-                  if (currentTrack) {
-                    console.log("Play button clicked, current state:", isPlaying);
-                    setIsPlaying(!isPlaying);
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  if (currentTrack) {
-                    console.log("Play button touched, current state:", isPlaying);
-                    setIsPlaying(!isPlaying);
+                onPointerUp={async () => {
+                  if (!currentTrack || audioLoading || !audioRef.current) return;
+                  const audio = audioRef.current;
+
+                  // Start playback directly from the user gesture for mobile browsers.
+                  if (!isPlaying) {
+                    try {
+                      // If source isn't ready yet, mark playing and let the loader handle it.
+                      if (audio.src) {
+                        await audio.play();
+                      }
+                      setIsPlaying(true);
+                    } catch (e) {
+                      setIsPlaying(false);
+                      setAudioError(true);
+                    }
+                  } else {
+                    try { audio.pause(); } catch (e) {}
+                    setIsPlaying(false);
                   }
                 }}
                 disabled={audioLoading || !currentTrack}
@@ -3187,15 +3177,13 @@ const MusicPlayer = () => {
                 {audioLoading ? <Loader2 size={18} className="animate-spin"/> : isPlaying ? <Pause size={18}/> : <Play size={18} className="ml-0.5"/>}
               </button>
               <button 
-                onClick={handleStop}
-                onTouchEnd={(e) => { e.preventDefault(); handleStop(); }}
+                onPointerUp={() => handleStop()}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95"
               >
                 <div className="w-4 h-4 bg-current rounded"></div>
               </button>
               <button 
-                onClick={handleNext}
-                onTouchEnd={(e) => { e.preventDefault(); handleNext(); }}
+                onPointerUp={() => handleNext()}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95"
               >
                 <div className="flex"><Play size={12}/><Play size={12}/></div>
