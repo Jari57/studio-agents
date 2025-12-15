@@ -8051,16 +8051,29 @@ Make each article feel substantial and newsworthy. No markdown.`;
              {newsItems.map((item) => (
                <div 
                  key={item.id} 
-                 className="border border-white/10 bg-[#0a0a0a] p-4 hover:border-cyan-500/30 transition-all group rounded cursor-pointer"
-                 onClick={() => item.url && window.open(item.url, '_blank')}
+                 className="border border-white/10 bg-[#0a0a0a] p-4 hover:border-cyan-500/30 active:border-cyan-400 transition-all group rounded cursor-pointer select-none"
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   if (item.url) {
+                     window.open(item.url, '_blank', 'noopener,noreferrer');
+                   }
+                 }}
+                 onTouchEnd={(e) => {
+                   // Handle touch on mobile
+                   if (item.url) {
+                     window.open(item.url, '_blank', 'noopener,noreferrer');
+                   }
+                 }}
+                 role="button"
+                 tabIndex={0}
                >
-                   <div className="flex items-start justify-between mb-2">
+                   <div className="flex items-start justify-between mb-2 pointer-events-none">
                      <div className="flex-1">
                        <h2 className="text-base md:text-lg font-medium text-white mb-1 group-hover:text-cyan-400 transition-colors leading-tight">{item.title}</h2>
                        {item.content && <p className="text-sm text-gray-500 leading-relaxed mt-2">{item.content}</p>}
                      </div>
                    </div>
-                   <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
+                   <div className="flex flex-wrap items-center gap-3 mt-3 text-xs pointer-events-none">
                      <span className="text-cyan-400/80 font-medium">{item.source}</span>
                      {item.time && <><span className="text-gray-700">•</span><span className="text-gray-500">{item.time}</span></>}
                      {item.author && <><span className="text-gray-700">•</span><span className="text-gray-600">{item.author}</span></>}
