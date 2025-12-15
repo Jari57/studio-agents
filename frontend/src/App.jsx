@@ -7605,22 +7605,66 @@ const NewsArchive = () => {
   // Fetch news data helper (returns data, doesn't set state)
   const fetchNewsData = async (fetchMode) => {
     if (fetchMode === '2004' || fetchMode === 'historical') {
-      // Generate AI 2004-era hip-hop news
-      const systemPrompt = `You are a hip-hop news aggregator from December 2004. Generate 8 realistic news headlines from that era. Include: album releases, beefs, industry moves, rising artists from 2004 (Kanye, 50 Cent, Usher, Lil Jon, T.I., Jadakiss, Destiny's Child, etc). Format as JSON array: [{ "id": 1, "date": "DEC 12 2004", "time": "11:23 PM EST", "source": "THE SOURCE/XXL/VIBE/etc", "author": "Staff", "title": "HEADLINE IN CAPS", "content": "2-3 sentences of details", "tags": ["TAG1", "TAG2"] }]. Make it feel authentic to 2004. No markdown.`;
+      // Generate AI 2004-era hip-hop news with rich content
+      const systemPrompt = `You are a premium hip-hop journalism aggregator from December 2004. Generate 8 in-depth news articles from that era with RICH, DETAILED content like a real magazine would publish.
+
+Include diverse sources: THE SOURCE, XXL, VIBE, MTV NEWS, BET.COM, ALLHIPHOP, SOHH, MURDER DOG, SCRATCH MAGAZINE, OKAYPLAYER, MEDIA TAKE OUT (gossip style), TMZ (breaking news style).
+
+Cover: album releases, studio sessions, beefs/rivalries, label drama, tour announcements, interviews, rising artists (Kanye West, 50 Cent, Usher, Lil Jon, T.I., Jadakiss, Young Jeezy, Game, Ciara, etc), producer spotlights, regional scenes, DRAMA and GOSSIP.
+
+Format as JSON array:
+[{
+  "id": 1,
+  "date": "DEC 12 2004",
+  "time": "11:23 PM EST",
+  "source": "THE SOURCE",
+  "author": "Journalist Name",
+  "title": "HEADLINE IN CAPS - MAKE IT COMPELLING",
+  "content": "Write 4-6 detailed sentences like a real news article. Include quotes from artists, specific details about events, context about why it matters, and what's next. Make it feel like premium hip-hop journalism.",
+  "tags": ["TAG1", "TAG2", "TAG3"],
+  "category": "ALBUMS/BEEF/INDUSTRY/RISING STARS/PRODUCTION/TOURING/GOSSIP"
+}]
+
+Make each article feel substantial and newsworthy. No markdown.`;
       
       try {
-        const response = await callGemini("hip hop news from December 2004", systemPrompt, false);
+        const response = await callGemini("detailed hip hop news articles from December 2004, album reviews, artist interviews, industry news, celebrity gossip", systemPrompt, false);
         const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanJson);
       } catch (e) {
         return default2004News;
       }
     } else {
-      // Fetch real current hip-hop news
-      const systemPrompt = `You are a real-time hip hop news aggregator for December 2025. Generate 10 CURRENT, REAL hip hop/rap news headlines based on what's actually happening now. Include: new releases, trending artists (Drake, Kendrick, Travis Scott, Future, Metro Boomin, Ice Spice, Sexyy Red, etc), beefs/drama, industry news, viral moments. Format as JSON array: [{ "id": 1, "date": "DEC 14 2025", "time": "11:23 PM EST", "source": "COMPLEX/XXL/BILLBOARD/PITCHFORK/etc", "author": "Staff", "title": "HEADLINE IN CAPS", "content": "2-3 sentences of details", "tags": ["TAG1", "TAG2"] }]. Make it current and real. No markdown.`;
+      // Fetch real current hip-hop news with rich content from diverse sources
+      const systemPrompt = `You are a premium real-time hip-hop news aggregator for December 2025. Generate 10 CURRENT, REAL, IN-DEPTH hip-hop news articles based on what's actually happening now.
+
+Pull from diverse outlets including GOSSIP and ENTERTAINMENT sites:
+- Music Press: COMPLEX, XXL, BILLBOARD, PITCHFORK, ROLLING STONE, THE FADER, GENIUS, HOT NEW HIP HOP
+- Entertainment/Gossip: TMZ, MEDIA TAKE OUT (MTO), SHADE ROOM, HOLLYWOOD UNLOCKED, BALLER ALERT, WORLDSTARHIPHOP
+- Social/Community: REDDIT r/hiphopheads, TWITTER/X trending
+- Lifestyle: HYPEBEAST, HIGHSNOBIETY
+
+Cover: new album/single releases, chart movements, BEEFS AND DRAMA, relationship news, legal issues, label signings, tour announcements, viral moments, producer news, fashion/brand collabs, streaming milestones, social media beef, celebrity sightings, industry tea.
+
+Include current artists: Drake, Kendrick Lamar, Travis Scott, Future, Metro Boomin, 21 Savage, Lil Baby, Gunna, Ice Spice, Sexyy Red, GloRilla, Megan Thee Stallion, Nicki Minaj, Cardi B, J. Cole, Tyler the Creator, A$AP Rocky, etc.
+
+Format as JSON array:
+[{
+  "id": 1,
+  "date": "DEC 14 2025",
+  "time": "11:23 PM EST",
+  "source": "TMZ/MEDIA TAKE OUT/SHADE ROOM/COMPLEX/etc",
+  "author": "Journalist Name or Staff",
+  "title": "HEADLINE IN CAPS - MAKE IT COMPELLING AND CLICKABLE",
+  "content": "Write 4-6 detailed sentences. For gossip sources like TMZ/MTO, include juicy details, insider sources, 'allegedly' statements. For music press, include quotes, streaming numbers, critical takes. Make it feel authentic to each outlet's voice.",
+  "tags": ["TAG1", "TAG2", "TAG3"],
+  "category": "NEW MUSIC/BEEF/DRAMA/VIRAL/GOSSIP/LEGAL/CHARTS"
+}]
+
+Mix hard news with entertainment gossip. Make it current and engaging. No markdown.`;
       
       try {
-        const response = await callGemini("latest hip hop news December 2025, trending rap artists, new album releases", systemPrompt, true);
+        const response = await callGemini("latest hip hop news December 2025 TMZ MediaTakeOut Reddit hiphopheads, Drake Kendrick beef, rap drama gossip, new releases, trending", systemPrompt, true);
         const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleanJson);
       } catch (e) {
