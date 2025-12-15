@@ -1239,39 +1239,39 @@ const Home = ({ setSection }) => {
   const agentWidgets = [
     {
       id: 'ghostwriter',
-      title: 'GHOST',
+      title: 'GHOSTWRITER',
       subtitle: 'AI Lyric Engine',
       icon: Sparkles,
-      color: '#00ff41',
+      color: '#06b6d4',
       action: () => setSection('ghostwriter')
     },
     {
-      id: 'chat',
-      title: 'CIPHER',
-      subtitle: 'AI Conversation',
-      icon: MessageSquare,
-      color: '#06b6d4',
-      action: () => setSection('chat')
+      id: 'songwriter',
+      title: 'SONGWRITER',
+      subtitle: 'Studio Writer',
+      icon: Feather,
+      color: '#10b981',
+      action: () => setSection('songwriter')
     },
     {
       id: 'battle',
-      title: 'BATTLE',
-      subtitle: 'Rap Competition',
-      icon: Mic,
-      color: '#ec4899',
+      title: 'RAP BATTLE',
+      subtitle: 'Battle Simulator',
+      icon: Flame,
+      color: '#ef4444',
       action: () => setSection('battle')
     },
     {
       id: 'ar_suite',
-      title: 'A&R',
+      title: 'A&R OFFICE',
       subtitle: 'Artist Development',
-      icon: User,
+      icon: Briefcase,
       color: '#a855f7',
       action: () => setSection('ar_suite')
     },
     {
       id: 'crates',
-      title: 'CRATE',
+      title: 'CRATE DIGGER',
       subtitle: 'Sample Discovery',
       icon: Disc,
       color: '#eab308',
@@ -1279,10 +1279,10 @@ const Home = ({ setSection }) => {
     },
     {
       id: 'viral_video',
-      title: 'VIRAL',
-      subtitle: 'Video Concepts',
+      title: 'VIRAL VIDEO',
+      subtitle: 'Content Strategy',
       icon: Video,
-      color: '#ef4444',
+      color: '#06b6d4',
       action: () => setSection('viral_video')
     }
   ];
@@ -2848,7 +2848,7 @@ const MusicPlayer = () => {
               {/* Lyrics Button */}
               <button 
                 onClick={() => setShowLyrics(!showLyrics)}
-                className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-medium transition-all touch-manipulation ${
                   showLyrics 
                     ? 'bg-purple-500/20 border border-purple-500/50 text-purple-400' 
                     : 'bg-[#0a0a0a] border border-white/10 text-gray-400 hover:text-white hover:border-white/20'
@@ -2861,7 +2861,7 @@ const MusicPlayer = () => {
               <button 
                 onClick={startVoiceControl}
                 disabled={!recognitionRef.current || isListening}
-                className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-medium transition-all touch-manipulation ${
                   isListening 
                     ? 'bg-red-500/20 border border-red-500/50 text-red-400 animate-pulse' 
                     : 'bg-[#0a0a0a] border border-white/10 text-gray-400 hover:text-white hover:border-white/20'
@@ -2872,7 +2872,7 @@ const MusicPlayer = () => {
               </button>
               <button 
                 onClick={() => setShowOnboarding(true)}
-                className="bg-[#0a0a0a] border border-white/10 text-gray-400 px-3 py-2 text-xs font-medium flex items-center gap-2 hover:text-white hover:border-white/20 transition-colors rounded"
+                className="bg-[#0a0a0a] border border-white/10 text-gray-400 px-3 py-2 text-xs font-medium flex items-center gap-2 hover:text-white hover:border-white/20 transition-colors rounded touch-manipulation"
               >
                 <HelpCircle size={14}/> Help
               </button>
@@ -3001,7 +3001,7 @@ const MusicPlayer = () => {
           <select 
             value={selectedAlbumId}
             onChange={(e) => setSelectedAlbumId(e.target.value)}
-            className="w-full bg-black border border-white/10 text-white p-3 text-sm rounded focus:border-orange-500/30 focus:outline-none"
+            className="w-full bg-black border border-white/10 text-white p-3 text-sm rounded focus:border-orange-500/30 focus:outline-none touch-manipulation"
           >
             {albums.map(album => (
               <option key={album.id} value={album.id}>{album.title} ({album.tracks.length} tracks)</option>
@@ -3134,7 +3134,7 @@ const MusicPlayer = () => {
                     setVolume(newVol);
                     if (audioRef.current) audioRef.current.volume = newVol;
                   }}
-                  className="text-gray-500 hover:text-white transition-colors"
+                  className="text-gray-500 hover:text-white transition-colors touch-manipulation"
                 >
                   {volume === 0 ? <VolumeX size={14} /> : volume < 0.5 ? <Volume1 size={14} /> : <Volume2 size={14} />}
                 </button>
@@ -3159,7 +3159,7 @@ const MusicPlayer = () => {
             <div className="grid grid-cols-4 gap-2 mt-4">
               <button 
                 onPointerUp={() => handlePrevious()}
-                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95"
+                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <Rewind size={18}/>
               </button>
@@ -3186,7 +3186,7 @@ const MusicPlayer = () => {
                   }
                 }}
                 disabled={audioLoading || !currentTrack}
-                className={`bg-orange-500/10 border border-orange-500/30 h-12 rounded-lg flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 ${
+                className={`bg-orange-500/10 border border-orange-500/30 h-12 rounded-lg flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 touch-manipulation ${
                   isPlaying ? 'text-orange-400' : 'text-orange-400 hover:bg-orange-500/20'
                 }`}
               >
@@ -3194,13 +3194,13 @@ const MusicPlayer = () => {
               </button>
               <button 
                 onPointerUp={() => handleStop()}
-                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95"
+                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <div className="w-4 h-4 bg-current rounded"></div>
               </button>
               <button 
                 onPointerUp={() => handleNext()}
-                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95"
+                className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <div className="flex"><Play size={12}/><Play size={12}/></div>
               </button>
@@ -6819,7 +6819,7 @@ What will you build?`,
               {[
                 { name: "Songwriter's Studio", link: "ghostwriter", use: "Daily writing practice. Feed it prompts, challenge yourself with different flows and perspectives." },
                 { name: "Lyric Recovery", link: "chat", use: "When you have a melody but need words. When you're stuck mid-verse. It finishes what you start." },
-                { name: "Cipher Dojo", link: "battle", use: "Sharpen your punchlines. Practice battle rap without the ego. Get uncomfortable." },
+                { name: "Rap Battle", link: "battle", use: "Sharpen your punchlines. Practice battle rap without the ego. Get uncomfortable." },
                 { name: "Crate Digger", link: "crates", use: "Sample discovery. Genre exploration. Find sounds you didn't know you needed." },
                 { name: "A&R Dashboard", link: "ar_suite", use: "Get honest feedback before you release. Understand your market position." },
                 { name: "Album Art Generator", link: "album_art", use: "Visualize your concepts. Generate artwork ideas. Build your visual identity." },
@@ -6851,7 +6851,7 @@ What will you build?`,
                 {[
                   { day: "MON/THU", focus: "WRITING", task: "30 min in Songwriter's Studio. Different prompt each day.", color: "text-emerald-400" },
                   { day: "TUE/FRI", focus: "STUDY", task: "Crate Digger session. Analyze one sample. Learn the history.", color: "text-indigo-400" },
-                  { day: "WED", focus: "BATTLE", task: "Cipher Dojo. Push your punchlines. Record yourself.", color: "text-red-400" },
+                  { day: "WED", focus: "BATTLE", task: "Rap Battle. Push your punchlines. Record yourself.", color: "text-red-400" },
                   { day: "SAT", focus: "CONTENT", task: "Viral Video + Trend Hunter. Plan your week's social strategy.", color: "text-violet-400" }
                 ].map((schedule, i) => (
                   <div key={i} className="bg-black/50 border border-white/10 rounded-lg p-4">
@@ -7895,9 +7895,9 @@ const LyricRecovery = () => {
 
   return (
     <AgentContainer 
-      title="LYRIC RECOVERY" 
+      title="GHOSTWRITER" 
       icon={Sparkles} 
-      accentColor="magenta"
+      accentColor="cyan"
     >
       <div className="h-full flex flex-col">
         {/* Chat Area */}
@@ -8032,7 +8032,7 @@ const RapBattle = () => {
 
   return (
     <AgentContainer 
-      title="CIPHER DOJO" 
+      title="RAP BATTLE" 
       icon={Flame} 
       accentColor="crimson"
       headerExtra={
@@ -8124,7 +8124,7 @@ const RapBattle = () => {
                   <Flame size={20} className="text-white"/>
                 </div>
                 <div>
-                  <h3 className="text-white font-bold text-xl tracking-wide">CIPHER DOJO</h3>
+                  <h3 className="text-white font-bold text-xl tracking-wide">RAP BATTLE</h3>
                   <p className="text-red-400/60 text-xs tracking-widest">BATTLE.EXE</p>
                 </div>
               </div>
@@ -8316,9 +8316,9 @@ const ARSuite = () => {
 
   return (
     <AgentContainer 
-      title="A&R DASHBOARD" 
+      title="A&R OFFICE" 
       icon={Briefcase} 
-      accentColor="gold"
+      accentColor="purple"
     >
       <div className="h-full flex flex-col md:flex-row">
         {/* Input Panel */}
@@ -9127,56 +9127,56 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
   // Agent data with full marketing descriptions
   const agentDetails = {
     ghostwriter: {
-      title: "LYRIC RECOVERY",
-      subtitle: "Voice-to-Verse Technology",
+      title: "GHOSTWRITER",
+      subtitle: "AI Lyric Engine",
       tagline: "Finish what you started.",
-      description: "In the early 2000s, countless verses were lost to crashed hard drives, stolen notebooks, and fading memories. The Lyric Recovery tool was built to resurrect that energy—to help artists who have melodies without words, hooks without verses, ideas without execution. Speak your concept, hum your flow, or type your fragments. The AI completes your thought while preserving your voice. This isn't about replacing creativity—it's about unlocking what's already inside you. Perfect for artists who know what they want to say but can't find the words, or those who need a writing partner at 3 AM when no one else is awake.",
+      description: "In the early 2000s, countless verses were lost to crashed hard drives, stolen notebooks, and fading memories. The Ghostwriter was built to resurrect that energy—to help artists who have melodies without words, hooks without verses, ideas without execution. Speak your concept, hum your flow, or type your fragments. The AI completes your thought while preserving your voice. This isn't about replacing creativity—it's about unlocking what's already inside you. Perfect for artists who know what they want to say but can't find the words, or those who need a writing partner at 3 AM when no one else is awake.",
       whoFor: "Artists with unfinished ideas, vocalists who think in melodies, writers fighting creative blocks.",
       howTo: "Speak or type your concept. The AI analyzes your style and generates completions that match your voice."
     },
     songwriter: {
-      title: "SONGWRITER'S STUDIO",
-      subtitle: "The 24/7 Writing Room",
+      title: "SONGWRITER",
+      subtitle: "Studio Writer",
       tagline: "Your permanent seat at the table.",
-      description: "Before streaming, before social media, the writing room was sacred. Artists would camp out for days, trading verses, building chemistry, creating magic. But those rooms were gatekept—you needed connections, co-signs, or contracts to get inside. The Songwriter's Studio democratizes that experience. It's an AI writing partner trained on decades of song structure, rhyme schemes, and storytelling techniques. Feed it a concept, a mood, a title—and it generates hooks, verses, bridges, and full songs. Use it as a starting point, a sounding board, or a creative sparring partner. The room is always open. The seat is always yours.",
+      description: "Before streaming, before social media, the writing room was sacred. Artists would camp out for days, trading verses, building chemistry, creating magic. But those rooms were gatekept—you needed connections, co-signs, or contracts to get inside. The Songwriter democratizes that experience. It's an AI writing partner trained on decades of song structure, rhyme schemes, and storytelling techniques. Feed it a concept, a mood, a title—and it generates hooks, verses, bridges, and full songs. Use it as a starting point, a sounding board, or a creative sparring partner. The room is always open. The seat is always yours.",
       whoFor: "Independent artists without writing teams, producers seeking toplines, anyone building their catalog.",
       howTo: "Choose a format (hook, verse, full song). Provide your concept. Refine until it feels like you wrote it."
     },
     battle: {
-      title: "CIPHER DOJO",
-      subtitle: "The Practice Ring",
+      title: "RAP BATTLE",
+      subtitle: "Battle Simulator",
       tagline: "Sharpen your sword without drawing blood.",
-      description: "Battle rap built careers. From Harlem to Detroit, from URL to KOTD, the ability to freestyle and battle separated legends from pretenders. But practicing battle rap is hard—you need opponents, you need pressure, you need someone willing to take your best shot. The Cipher Dojo is that opponent. An AI trained on punchlines, flips, and the ruthless wit of NYC street battles. It won't go easy on you. It learns your style, finds your weaknesses, and forces you to level up. No egos. No beef. Just pure skill development. Step into the dojo when you want to sharpen your sword—step out when you're ready for the real thing.",
+      description: "Battle rap built careers. From Harlem to Detroit, from URL to KOTD, the ability to freestyle and battle separated legends from pretenders. But practicing battle rap is hard—you need opponents, you need pressure, you need someone willing to take your best shot. Rap Battle is that opponent. An AI trained on punchlines, flips, and the ruthless wit of NYC street battles. It won't go easy on you. It learns your style, finds your weaknesses, and forces you to level up. No egos. No beef. Just pure skill development. Step in when you want to sharpen your sword—step out when you're ready for the real thing.",
       whoFor: "Battle rappers preparing for competition, freestylers building their arsenal, anyone who wants quicker wit.",
       howTo: "Choose your intensity level. The AI throws bars. You respond. It adapts to your style and pushes your limits."
     },
     ar_suite: {
-      title: "A&R DASHBOARD",
-      subtitle: "Industry Intelligence System",
+      title: "A&R OFFICE",
+      subtitle: "Artist Development",
       tagline: "See your music through their eyes.",
-      description: "A&R executives decide careers. They listen to hundreds of songs daily, looking for that undefinable 'it factor' that separates a demo from a deal. The A&R Dashboard gives you access to that perspective before you submit. Upload your track and receive analysis on commercial viability, production quality, market positioning, and competitive landscape. Understand how your music stacks up against current releases. Identify your unique selling points and potential weaknesses. This isn't about changing your art to fit the market—it's about understanding the market so you can navigate it strategically. Know what you're walking into before you walk in.",
+      description: "A&R executives decide careers. They listen to hundreds of songs daily, looking for that undefinable 'it factor' that separates a demo from a deal. The A&R Office gives you access to that perspective before you submit. Upload your track and receive analysis on commercial viability, production quality, market positioning, and competitive landscape. Understand how your music stacks up against current releases. Identify your unique selling points and potential weaknesses. This isn't about changing your art to fit the market—it's about understanding the market so you can navigate it strategically. Know what you're walking into before you walk in.",
       whoFor: "Artists preparing for label meetings, independent releases seeking market fit, managers evaluating talent.",
       howTo: "Describe your track or upload details. Receive a comprehensive analysis with actionable insights."
     },
     crates: {
       title: "CRATE DIGGER",
-      subtitle: "Sample Discovery Engine",
+      subtitle: "Sample Discovery",
       tagline: "Find the sounds they haven't found yet.",
       description: "Every classic hip-hop beat started with a discovery—a forgotten soul record, an obscure jazz session, a B-side that became a foundation. Crate digging was an art form, requiring patience, knowledge, and intuition. The Crate Digger brings that experience digital. Tell it what you're looking for—a mood, an era, a genre, a feeling—and it surfaces samples you've never heard. Get BPM, key information, and historical context. Understand the story behind the sound before you flip it. This tool doesn't replace the hunt; it expands your crates beyond what any physical collection could offer. The deepest cuts are always waiting to be found.",
       whoFor: "Producers seeking sample inspiration, beatmakers exploring new genres, DJs building setlists.",
       howTo: "Describe the vibe you're chasing. Receive curated sample suggestions with context and technical details."
     },
     album_art: {
-      title: "ALBUM ART GENERATOR",
-      subtitle: "Visual Identity System",
+      title: "ALBUM ART",
+      subtitle: "Visual Generator",
       tagline: "See what your sound looks like.",
-      description: "The cover is the first impression. Before anyone presses play, they see your visual identity—and they make assumptions. Does the art match the music? Does it communicate who you are? In the era of thumbnail scrolling, your album art works overtime. The Album Art Generator transforms your concepts into visual directions. Describe your project's mood, themes, and aesthetic references. Receive AI-generated concepts that capture your vision. Use them as inspiration for final artwork, or as communication tools when briefing designers. Your music has a look—this tool helps you find it before you finalize it.",
+      description: "The cover is the first impression. Before anyone presses play, they see your visual identity—and they make assumptions. Does the art match the music? Does it communicate who you are? In the era of thumbnail scrolling, your album art works overtime. The Album Art generator transforms your concepts into visual directions. Describe your project's mood, themes, and aesthetic references. Receive AI-generated concepts that capture your vision. Use them as inspiration for final artwork, or as communication tools when briefing designers. Your music has a look—this tool helps you find it before you finalize it.",
       whoFor: "Artists developing visual identity, designers seeking inspiration, anyone releasing music.",
       howTo: "Describe your project's themes, mood, and visual references. Generate concepts to guide your final artwork."
     },
     viral_video: {
-      title: "VIRAL VIDEO AGENT",
-      subtitle: "Content Strategy System",
+      title: "VIRAL VIDEO",
+      subtitle: "Content Strategy",
       tagline: "Break through the noise.",
       description: "The algorithm decides who gets heard. TikTok, Reels, Shorts—these platforms launched more careers than radio ever did, but their rules are opaque and constantly changing. The Viral Video Agent decodes the content game. Input your song, your aesthetic, your goals—and receive video concepts optimized for engagement. Understand hook placement, visual trends, caption strategies, and posting timing. This isn't about gaming the system; it's about understanding it well enough to work within it authentically. Your music deserves to be heard. The Viral Video Agent helps you package it for the platforms that matter.",
       whoFor: "Artists building social presence, content creators seeking concepts, anyone trying to grow organically.",
@@ -9195,8 +9195,8 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
   const agents = [
     {
       id: 'ghostwriter',
-      title: 'LYRIC RECOVERY TOOL',
-      subtitle: 'GHOSTWRITER.EXE',
+      title: 'GHOSTWRITER',
+      subtitle: 'GHOST.EXE',
       icon: Sparkles,
       gradient: 'from-cyan-400 to-cyan-600',
       description: 'AI-powered lyric generation • Voice input • Text-to-speech',
@@ -9204,7 +9204,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
     },
     {
       id: 'songwriter',
-      title: 'SONGWRITER STUDIO',
+      title: 'SONGWRITER',
       subtitle: 'WRITER.EXE',
       icon: Feather,
       gradient: 'from-green-400 to-emerald-600',
@@ -9213,7 +9213,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
     },
     {
       id: 'battle',
-      title: 'CIPHER DOJO',
+      title: 'RAP BATTLE',
       subtitle: 'BATTLE.EXE',
       icon: Flame,
       gradient: 'from-red-400 to-red-600',
@@ -9222,17 +9222,17 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
     },
     {
       id: 'ar_suite',
-      title: 'AR EXPERIENCE SUITE',
-      subtitle: 'AR_SUITE.EXE',
-      icon: Zap,
-      gradient: 'from-blue-400 to-blue-600',
-      description: 'Augmented reality concepts • Immersive experiences',
+      title: 'A&R OFFICE',
+      subtitle: 'AR.EXE',
+      icon: Briefcase,
+      gradient: 'from-purple-400 to-purple-600',
+      description: 'Artist development • Demo reviews • Industry feedback',
       action: () => selectAgent('ar_suite')
     },
     {
       id: 'crates',
       title: 'CRATE DIGGER',
-      subtitle: 'SAMPLES.EXE',
+      subtitle: 'CRATES.EXE',
       icon: Disc,
       gradient: 'from-yellow-400 to-yellow-600',
       description: 'Sample discovery • Production inspiration • BPM/Key info',
@@ -9240,7 +9240,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
     },
     {
       id: 'album_art',
-      title: 'ALBUM ART GENERATOR',
+      title: 'ALBUM ART',
       subtitle: 'ARTGEN.EXE',
       icon: ImageIcon,
       gradient: 'from-pink-400 to-pink-600',
@@ -9249,7 +9249,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
     },
     {
       id: 'viral_video',
-      title: 'VIRAL VIDEO AGENT',
+      title: 'VIRAL VIDEO',
       subtitle: 'VIRAL.EXE',
       icon: Video,
       gradient: 'from-cyan-400 to-cyan-600',
@@ -9258,7 +9258,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
     },
     {
       id: 'trend_hunter',
-      title: 'TREND HUNTER AI',
+      title: 'TREND HUNTER',
       subtitle: 'TRENDS.EXE',
       icon: Hash,
       gradient: 'from-violet-400 to-fuchsia-600',
@@ -9597,7 +9597,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                             </p>
                             <ol className="text-white/50 text-xs space-y-2 list-decimal list-inside">
                               <li>Start with <span className="text-[#00ff41]">Songwriter's Studio</span> to see how writing works</li>
-                              <li>Try the <span className="text-[#00ff41]">Cipher Dojo</span> for some interactive fun</li>
+                              <li>Try the <span className="text-[#00ff41]">Rap Battle</span> for some interactive fun</li>
                               <li>Check <span className="text-[#00ff41]">Trend Hunter</span> to see real-time data</li>
                               <li>Generate some <span className="text-[#00ff41]">Album Art</span> for visual inspiration</li>
                             </ol>
