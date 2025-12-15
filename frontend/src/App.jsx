@@ -9148,6 +9148,8 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
     switch (selectedAgent) {
       case 'ghostwriter':
         return <LyricRecovery />;
+      case 'chat':
+        return <LyricRecovery />;
       case 'songwriter':
         return <SongwritersStudio />;
       case 'battle':
@@ -9341,7 +9343,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                 <h2 className="text-xl md:text-2xl text-white mb-6">Part of Something Bigger</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div 
-                    onClick={() => setSection('come_up')}
+                    onClick={() => setSection('comeup')}
                     className="bg-black/50 border border-[#00ff41]/30 p-5 rounded-lg cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group"
                   >
                     <h4 className="text-white mb-2 group-hover:text-[#00ff41] transition-colors">The Come Up</h4>
@@ -9354,7 +9356,7 @@ const StudioHub = ({ setSection, user, onAuthRequest, initialAgent = null }) => 
                     </p>
                   </div>
                   <div 
-                    onClick={() => setSection('about')}
+                    onClick={() => setSection('bio')}
                     className="bg-black/50 border border-[#00ff41]/30 p-5 rounded-lg cursor-pointer hover:border-[#00ff41] hover:shadow-[0_0_30px_rgba(0,255,65,0.2)] transition-all group"
                   >
                     <h4 className="text-white mb-2 group-hover:text-[#00ff41] transition-colors">The Story</h4>
@@ -10386,6 +10388,46 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const authInitialized = useRef(false); // Guard against multiple initializations
+  const historyInitialized = useRef(false);
+
+  const isLocalHost = (() => {
+    if (typeof window === 'undefined') return false;
+    const host = window.location?.hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1';
+  })();
+
+  // Navigation helper that also pushes to browser history
+  const navigateTo = useCallback((section) => {
+    if (section !== activeSection) {
+      window.history.pushState({ section }, '', `#${section}`);
+      setActiveSection(section);
+    }
+  }, [activeSection]);
+
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    // Set initial history state on first mount only
+    if (!historyInitialized.current) {
+      historyInitialized.current = true;
+      // Replace current entry so initial state is in history
+      window.history.replaceState({ section: initialSection }, '', `#${initialSection}`);
+    }
+
+    const handlePopState = (event) => {
+      if (event.state?.section) {
+        setActiveSection(event.state.section);
+      } else {
+        // If no state, try to parse from hash
+        const hash = window.location.hash.replace('#', '');
+        if (hash) {
+          setActiveSection(hash);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [initialSection]);
 
   useEffect(() => {
     // 1. Start System Clock
@@ -10398,6 +10440,13 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
       authInitialized.current = true;
 
       const initAuth = async () => {
+        // Local dev: avoid noisy Identity Toolkit calls and use guest mode.
+        // Production: always attempt Firebase auth so Storage/Firestore rules can rely on request.auth.
+        if (isLocalHost) {
+          setUser({ uid: 'guest', isAnonymous: true });
+          return;
+        }
+
         // If no auth instance (Offline/Demo mode)
         if (!auth) {
           console.log("OS running in Offline/Demo Mode");
@@ -10425,7 +10474,9 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
           });
         } catch (error) {
           // Auth failed (e.g., anonymous auth disabled) - use guest mode
-          console.log("Running in guest mode (auth not configured)");
+          const code = error?.code || 'unknown';
+          const message = error?.message || String(error);
+          console.warn("Firebase auth init failed; running in guest mode", { code, message });
           setUser({ uid: "guest", isAnonymous: true });
         }
       };
@@ -10443,9 +10494,9 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
   const renderActiveComponent = () => {
     switch (activeSection) {
       case 'home':
-        return <Home setSection={setActiveSection} />;
+        return <Home setSection={navigateTo} />;
       case 'bio':
-        return <Bio setSection={setActiveSection} user={user} />;
+        return <Bio setSection={navigateTo} user={user} />;
       case 'music':
         return <MusicPlayer />;
       case 'tour':
@@ -10453,43 +10504,43 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
       case 'style':
         return <StyleArchive />;
       case 'community':
-        return <CommunityHub setSection={setActiveSection} />;
+        return <CommunityHub setSection={navigateTo} />;
       case 'studio':
-        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} />;
+        return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} />;
       case 'ghostwriter':
-        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="ghostwriter" />;
+        return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="ghostwriter" />;
       case 'chat':
-        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="chat" />;
+        return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="chat" />;
       case 'battle':
-        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="battle" />;
+        return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="battle" />;
       case 'crates':
-        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="crates" />;
+        return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="crates" />;
       case 'news':
         return <NewsArchive />;
       case 'ar_suite':
-        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="ar_suite" />;
+        return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="ar_suite" />;
       case 'album_art':
-        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="album_art" />;
+        return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="album_art" />;
       case 'viral_video':
-        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="viral_video" />;
+        return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="viral_video" />;
       case 'trend_hunter':
-        return <StudioHub setSection={setActiveSection} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="trend_hunter" />;
+        return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="trend_hunter" />;
       case 'comeup':
-        return <TheComeUp setSection={setActiveSection} />;
+        return <TheComeUp setSection={navigateTo} />;
       case 'privacy':
-        return <PrivacyPolicy onBack={() => setActiveSection('home')} />;
+        return <PrivacyPolicy onBack={() => navigateTo('home')} />;
       case 'terms':
-        return <TermsOfService onBack={() => setActiveSection('home')} />;
+        return <TermsOfService onBack={() => navigateTo('home')} />;
       case 'cookies':
-        return <CookiePolicy onBack={() => setActiveSection('home')} />;
+        return <CookiePolicy onBack={() => navigateTo('home')} />;
       default:
-        return <Home setSection={setActiveSection} />;
+        return <Home setSection={navigateTo} />;
     }
   };
 
 
   return (
-    <div className="flex flex-col h-screen w-full relative z-10">
+    <div className="flex flex-col h-screen w-full relative z-10 min-h-0">
       {/* Top navigation bar - scrollable on mobile */}
       <div className="h-auto md:h-10 bg-[#111] border-b border-[#333] flex flex-col md:flex-row items-start md:items-center justify-between px-2 md:px-4 py-2 md:py-0 select-none overflow-x-auto">
         <div className="flex items-center gap-2 md:gap-4 min-w-max w-full md:w-auto mb-2 md:mb-0">
@@ -10503,8 +10554,8 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
             {['home', 'bio', 'music', 'tour', 'style', 'community', 'news'].map(section => (
               <button 
                 key={section}
-                onClick={() => setActiveSection(section)}
-                onTouchEnd={(e) => { e.preventDefault(); setActiveSection(section); }}
+                onClick={() => navigateTo(section)}
+                onTouchEnd={(e) => { e.preventDefault(); navigateTo(section); }}
                 className={`px-2 md:px-3 py-2 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap touch-manipulation active:opacity-70 ${
                   activeSection === section ? 'bg-[#00ff41] text-black' : 'text-gray-400 hover:text-white'
                 }`}
@@ -10513,8 +10564,8 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
               </button>
             ))}
             <button 
-              onClick={() => setActiveSection('comeup')}
-              onTouchEnd={(e) => { e.preventDefault(); setActiveSection('comeup'); }}
+              onClick={() => navigateTo('comeup')}
+              onTouchEnd={(e) => { e.preventDefault(); navigateTo('comeup'); }}
               className={`px-2 md:px-3 py-2 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap touch-manipulation active:opacity-70 ${
                 activeSection === 'comeup' ? 'bg-yellow-500 text-black font-bold' : 'text-yellow-500 hover:text-white font-bold'
               }`}
@@ -10522,8 +10573,8 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
               COME UP
             </button>
             <button 
-              onClick={() => setActiveSection('studio')}
-              onTouchEnd={(e) => { e.preventDefault(); setActiveSection('studio'); }}
+              onClick={() => navigateTo('studio')}
+              onTouchEnd={(e) => { e.preventDefault(); navigateTo('studio'); }}
               className={`px-2 md:px-3 py-2 md:py-1 text-[10px] md:text-xs font-mono uppercase transition-colors whitespace-nowrap touch-manipulation active:opacity-70 ${
                 activeSection === 'studio' ? 'bg-pink-500 text-black font-bold' : 'text-pink-500 hover:text-white font-bold'
               }`}
@@ -10588,8 +10639,8 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
       )}
 
       {/* Main content area */}
-      <div className="flex-1 relative overflow-hidden bg-black">
-        <div className="absolute inset-1 md:inset-2 border border-[#333] flex flex-col bg-[#050505]">
+      <div className="flex-1 relative overflow-hidden bg-black min-h-0">
+        <div className="absolute inset-1 md:inset-2 border border-[#333] flex flex-col bg-[#050505] min-h-0">
           <div className="h-6 md:h-8 bg-[#1a1a1a] border-b border-[#333] flex items-center justify-between px-2">
             <div className="text-[10px] md:text-xs text-gray-400 font-mono flex items-center gap-2">
               <Terminal size={10} className="md:w-3 md:h-3" /> 
@@ -10602,17 +10653,17 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
             </div>
           </div>
           
-          <div className="flex-1 relative overflow-hidden">
+          <div className="flex-1 relative overflow-hidden min-h-0">
             {renderActiveComponent()}
           </div>
           
           {/* Legal Footer - Small print */}
           <div className="h-6 bg-black/80 border-t border-[#222] flex items-center justify-center gap-4 text-[9px] text-gray-500">
-            <button onClick={() => setActiveSection('privacy')} className="hover:text-[#00ff41] transition-colors">Privacy Policy</button>
+            <button onClick={() => navigateTo('privacy')} className="hover:text-[#00ff41] transition-colors">Privacy Policy</button>
             <span>•</span>
-            <button onClick={() => setActiveSection('terms')} className="hover:text-[#00ff41] transition-colors">Terms of Service</button>
+            <button onClick={() => navigateTo('terms')} className="hover:text-[#00ff41] transition-colors">Terms of Service</button>
             <span>•</span>
-            <button onClick={() => setActiveSection('cookies')} className="hover:text-[#00ff41] transition-colors">Cookie Policy</button>
+            <button onClick={() => navigateTo('cookies')} className="hover:text-[#00ff41] transition-colors">Cookie Policy</button>
             <span>•</span>
             <span>© 2025 Whip Montez</span>
           </div>
@@ -10640,10 +10691,10 @@ const LandingPage = ({ onEnter, onQuickAccess }) => {
   };
 
   const handleQuickAccess = (widgetId) => {
-    // Map widget IDs to section names
+    // Map widget IDs to section names that exist in renderActiveComponent
     const sectionMap = {
-      'music': 'lostTapes',
-      'merch': 'store',
+      'music': 'music',
+      'merch': 'style',
       'news': 'news',
       'studio': 'ghostwriter'
     };
