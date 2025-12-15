@@ -899,6 +899,57 @@ const useSpeechSynthesis = () => {
   return { speak, stop, isSpeaking, isSupported };
 };
 
+// Custom hook for swipe gesture detection
+const useSwipeNavigation = (sections, activeSection, navigateTo) => {
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const touchEndX = useRef(null);
+  
+  const minSwipeDistance = 50; // Minimum distance for a swipe
+  const maxVerticalDistance = 100; // Max vertical movement allowed (to distinguish from scroll)
+
+  const onTouchStart = useCallback((e) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchStartY.current = e.targetTouches[0].clientY;
+    touchEndX.current = null;
+  }, []);
+
+  const onTouchMove = useCallback((e) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distanceX = touchStartX.current - touchEndX.current;
+    const distanceY = Math.abs((touchStartY.current || 0) - (touchEndX.current || 0));
+    const isHorizontalSwipe = Math.abs(distanceX) > minSwipeDistance && distanceY < maxVerticalDistance;
+    
+    if (isHorizontalSwipe) {
+      const currentIndex = sections.indexOf(activeSection);
+      
+      if (distanceX > 0) {
+        // Swipe left -> go to next section
+        if (currentIndex < sections.length - 1) {
+          navigateTo(sections[currentIndex + 1]);
+        }
+      } else {
+        // Swipe right -> go to previous section
+        if (currentIndex > 0) {
+          navigateTo(sections[currentIndex - 1]);
+        }
+      }
+    }
+    
+    // Reset
+    touchStartX.current = null;
+    touchStartY.current = null;
+    touchEndX.current = null;
+  }, [sections, activeSection, navigateTo]);
+
+  return { onTouchStart, onTouchMove, onTouchEnd };
+};
+
 // Helper function to save generations to Firestore
 const saveToLibrary = async (user, type, content, metadata = {}) => {
   if (!user || user.isAnonymous) {
@@ -2614,6 +2665,13 @@ const MusicPlayer = () => {
 
   const activeAlbum = albums.find(a => a.id === selectedAlbumId) || albums[0];
 
+  // Auto-load first track on mount so play button works immediately
+  useEffect(() => {
+    if (!currentTrack && albums[0]?.tracks[0]) {
+      setCurrentTrack(albums[0].tracks[0]);
+    }
+  }, []);
+
   const handleTrackClick = (track) => {
     if (currentTrack?.id === track.id) {
       setIsPlaying(!isPlaying);
@@ -2759,7 +2817,7 @@ const MusicPlayer = () => {
   };
 
   return (
-    <div className="h-full flex flex-col relative bg-black overflow-hidden">
+    <div className="h-full w-full flex flex-col relative bg-black overflow-hidden">
       
       {/* Onboarding Modal */}
       {showOnboarding && (
@@ -2819,48 +2877,48 @@ const MusicPlayer = () => {
 
       {/* Header - Glossy Style */}
       <div className="bg-[#050505] border-b border-[#00ff41]/20 shrink-0">
-        <div className="px-4 md:px-6 py-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.3em] text-orange-400/60 mb-1">Audio Archive</p>
-              <h2 className="text-xl md:text-2xl font-thin text-orange-400 tracking-tight flex items-center gap-3" style={{textShadow: '0 0 20px rgba(249,115,22,0.4)'}}>
-                <Disc size={20} className="opacity-70" /> THE LOST TAPES
+        <div className="px-3 md:px-6 py-2 md:py-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] text-orange-400/60">Archive</p>
+              <h2 className="text-base md:text-2xl font-thin text-orange-400 tracking-tight flex items-center gap-2" style={{textShadow: '0 0 20px rgba(249,115,22,0.4)'}}>
+                <Disc size={16} className="opacity-70 shrink-0 md:w-5 md:h-5" /> <span className="truncate">THE LOST TAPES</span>
               </h2>
             </div>
-            <div className="flex items-center gap-3">
-              {/* Lyrics Button */}
+            <div className="flex items-center gap-1 md:gap-3 shrink-0">
+              {/* Lyrics Button - icon only on mobile */}
               <button 
                 onClick={() => setShowLyrics(!showLyrics)}
                 onTouchEnd={(e) => { e.preventDefault(); setShowLyrics(!showLyrics); }}
-                className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-medium transition-all touch-manipulation ${
+                className={`flex items-center justify-center gap-1 md:gap-2 w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 rounded text-xs font-medium transition-all touch-manipulation ${
                   showLyrics 
                     ? 'bg-purple-500/20 border border-purple-500/50 text-purple-400' 
                     : 'bg-[#0a0a0a] border border-white/10 text-gray-400 hover:text-white hover:border-white/20'
                 }`}
               >
                 <Feather size={14} />
-                Lyrics
+                <span className="hidden md:inline">Lyrics</span>
               </button>
-              {/* Voice Control Button */}
+              {/* Voice Control Button - icon only on mobile */}
               <button 
                 onClick={startVoiceControl}
                 onTouchEnd={(e) => { e.preventDefault(); if (recognitionRef.current && !isListening) startVoiceControl(); }}
                 disabled={!recognitionRef.current || isListening}
-                className={`flex items-center gap-2 px-4 py-2 rounded text-xs font-medium transition-all touch-manipulation ${
+                className={`flex items-center justify-center gap-1 md:gap-2 w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 rounded text-xs font-medium transition-all touch-manipulation ${
                   isListening 
                     ? 'bg-red-500/20 border border-red-500/50 text-red-400 animate-pulse' 
                     : 'bg-[#0a0a0a] border border-white/10 text-gray-400 hover:text-white hover:border-white/20'
                 }`}
               >
                 <Mic size={14} />
-                {isListening ? 'Listening...' : 'Voice'}
+                <span className="hidden md:inline">{isListening ? 'Listening...' : 'Voice'}</span>
               </button>
               <button 
                 onClick={() => setShowOnboarding(true)}
                 onTouchEnd={(e) => { e.preventDefault(); setShowOnboarding(true); }}
-                className="bg-[#0a0a0a] border border-white/10 text-gray-400 px-3 py-2 text-xs font-medium flex items-center gap-2 hover:text-white hover:border-white/20 transition-colors rounded touch-manipulation"
+                className="bg-[#0a0a0a] border border-white/10 text-gray-400 w-8 h-8 md:w-auto md:h-auto md:px-3 md:py-2 text-xs font-medium flex items-center justify-center gap-2 hover:text-white hover:border-white/20 transition-colors rounded touch-manipulation"
               >
-                <HelpCircle size={14}/> Help
+                <HelpCircle size={14}/><span className="hidden md:inline">Help</span>
               </button>
             </div>
           </div>
@@ -2985,11 +3043,11 @@ const MusicPlayer = () => {
         </div>
 
         {/* Mobile Album Selector */}
-        <div className="lg:hidden border-b border-white/5 bg-[#050505] p-3">
+        <div className="lg:hidden border-b border-white/5 bg-[#050505] px-3 py-2">
           <select 
             value={selectedAlbumId}
             onChange={(e) => setSelectedAlbumId(e.target.value)}
-            className="w-full bg-black border border-white/10 text-white p-3 text-sm rounded focus:border-orange-500/30 focus:outline-none touch-manipulation"
+            className="w-full bg-black border border-white/10 text-white p-2 text-xs rounded focus:border-orange-500/30 focus:outline-none touch-manipulation"
           >
             {albums.map(album => (
               <option key={album.id} value={album.id}>{album.title} ({album.tracks.length} tracks)</option>
@@ -2999,28 +3057,49 @@ const MusicPlayer = () => {
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col bg-black overflow-hidden min-h-0">
-          {/* Album Header */}
-          <div className="p-4 md:p-6 border-b border-white/5 bg-[#050505]">
-            <h2 className={`text-2xl md:text-4xl font-thin tracking-tight mb-2 ${activeAlbum.color}`} style={{textShadow: `0 0 30px ${activeAlbum.color.includes('red') ? 'rgba(239,68,68,0.3)' : activeAlbum.color.includes('cyan') ? 'rgba(34,211,238,0.3)' : 'rgba(0,255,65,0.3)'}`}}>
-              {activeAlbum.title}
-            </h2>
-            <p className="text-gray-500 text-sm">{activeAlbum.description}</p>
+          {/* Album Header with Play All button */}
+          <div className="px-3 py-2 md:p-6 border-b border-white/5 bg-[#050505] flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h2 className={`text-lg md:text-4xl font-thin tracking-tight truncate ${activeAlbum.color}`} style={{textShadow: `0 0 30px ${activeAlbum.color.includes('red') ? 'rgba(239,68,68,0.3)' : activeAlbum.color.includes('cyan') ? 'rgba(34,211,238,0.3)' : 'rgba(0,255,65,0.3)'}`}}>
+                {activeAlbum.title}
+              </h2>
+              <p className="text-gray-500 text-xs md:text-sm truncate">{activeAlbum.description}</p>
+            </div>
+            {/* Play All Button */}
+            <button
+              onClick={() => {
+                if (activeAlbum.tracks.length > 0) {
+                  setCurrentTrack(activeAlbum.tracks[0]);
+                  setIsPlaying(true);
+                }
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                if (activeAlbum.tracks.length > 0) {
+                  setCurrentTrack(activeAlbum.tracks[0]);
+                  setIsPlaying(true);
+                }
+              }}
+              className="shrink-0 bg-orange-500 text-black px-3 py-2 md:px-4 md:py-2 rounded-full text-xs md:text-sm font-bold flex items-center gap-1 md:gap-2 hover:bg-orange-400 active:scale-95 transition-all touch-manipulation"
+            >
+              <Play size={14} className="md:w-4 md:h-4" /> <span>PLAY ALL</span>
+            </button>
           </div>
           
           {/* Track List */}
-          <div className="flex-1 overflow-y-auto min-h-0" style={{WebkitOverflowScrolling: 'touch'}}>
+          <div className="flex-1 overflow-y-auto min-h-0 pb-16 lg:pb-0" style={{WebkitOverflowScrolling: 'touch'}}>
             {activeAlbum.tracks.map((track, i) => (
               <button
                 key={track.id}
                 onClick={() => handleTrackClick(track)}
                 onTouchEnd={(e) => { e.preventDefault(); handleTrackClick(track); }}
-                className={`w-full text-left px-4 md:px-6 py-4 border-b border-white/5 cursor-pointer transition-all group touch-manipulation ${
+                className={`w-full text-left px-3 md:px-6 py-3 md:py-4 border-b border-white/5 cursor-pointer transition-all group touch-manipulation ${
                   currentTrack?.id === track.id 
                     ? 'bg-orange-500/5 border-l-2 border-l-orange-500' 
                     : 'hover:bg-white/[0.02] border-l-2 border-l-transparent'
                 }`}
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                   <div className={`w-8 text-center font-mono text-sm ${currentTrack?.id === track.id ? 'text-orange-400' : 'text-gray-600 group-hover:text-white'}`}>
                     {currentTrack?.id === track.id && isPlaying ? (
                       <div className="flex items-center justify-center gap-0.5">
@@ -3055,8 +3134,8 @@ const MusicPlayer = () => {
           </div>
         </div>
 
-        {/* Player Sidebar */}
-        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-white/5 bg-[#050505] flex flex-col min-h-0 lg:max-h-full overflow-hidden">
+        {/* Desktop Player Sidebar - Hidden on mobile */}
+        <div className="hidden lg:flex lg:w-80 border-l border-white/5 bg-[#050505] flex-col max-h-full overflow-hidden">
           {/* Now Playing Display */}
           <div className="p-5 bg-black border-b border-white/5">
             <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-4 relative overflow-hidden" style={{boxShadow: '0 0 30px rgba(0,0,0,0.5)'}}>
@@ -3075,7 +3154,7 @@ const MusicPlayer = () => {
                     <X size={20} className="text-red-400" />
                   </div>
                   <div className="text-red-400 text-xs text-center mb-2">Audio Unavailable</div>
-                  <div className="text-gray-500 text-[10px] text-center">Upload MP3 to Firebase Storage or frontend/public folder</div>
+                  <div className="text-gray-500 text-[10px] text-center">Upload MP3 to Firebase Storage</div>
                 </div>
               )}
               
@@ -3149,7 +3228,6 @@ const MusicPlayer = () => {
             <div className="grid grid-cols-4 gap-2 mt-4">
               <button 
                 onClick={() => handlePrevious()}
-                onTouchEnd={(e) => { e.preventDefault(); handlePrevious(); }}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <Rewind size={18}/>
@@ -3158,14 +3236,9 @@ const MusicPlayer = () => {
                 onClick={async () => {
                   if (!currentTrack || audioLoading || !audioRef.current) return;
                   const audio = audioRef.current;
-
-                  // Start playback directly from the user gesture for mobile browsers.
                   if (!isPlaying) {
                     try {
-                      // If source isn't ready yet, mark playing and let the loader handle it.
-                      if (audio.src) {
-                        await audio.play();
-                      }
+                      if (audio.src) await audio.play();
                       setIsPlaying(true);
                     } catch (e) {
                       setIsPlaying(false);
@@ -3185,14 +3258,12 @@ const MusicPlayer = () => {
               </button>
               <button 
                 onClick={() => handleStop()}
-                onTouchEnd={(e) => { e.preventDefault(); handleStop(); }}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <div className="w-4 h-4 bg-current rounded"></div>
               </button>
               <button 
                 onClick={() => handleNext()}
-                onTouchEnd={(e) => { e.preventDefault(); handleNext(); }}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <div className="flex"><Play size={12}/><Play size={12}/></div>
@@ -3200,7 +3271,7 @@ const MusicPlayer = () => {
             </div>
           </div>
 
-          {/* Voice Commands Quick Reference */}
+          {/* Voice Commands Quick Reference - Desktop only */}
           <div className="flex-1 p-4 bg-black/50 overflow-y-auto min-h-0" style={{WebkitOverflowScrolling: 'touch'}}>
             <h3 className="text-xs font-medium text-gray-400 mb-3 flex items-center gap-2">
               <Mic size={12} /> Voice Commands
@@ -3221,11 +3292,85 @@ const MusicPlayer = () => {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Mobile Fixed Player Bar - Only shown on mobile */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-orange-500/30 z-40 safe-area-bottom">
+          {/* Progress bar at top of mobile player */}
+          <div className="h-1 bg-white/10">
+            <div 
+              className="h-full bg-orange-500 transition-all duration-200"
+              style={{ width: duration ? `${(currentTime / duration) * 100}%` : '0%' }}
+            ></div>
+          </div>
+          
+          <div className="px-3 py-2 flex items-center gap-3">
+            {/* Track Info */}
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-white text-xs truncate">
+                {currentTrack ? currentTrack.title : 'Select a track'}
+              </div>
+              <div className="text-[10px] text-gray-500">
+                {currentTrack ? `${formatTime(currentTime)} / ${formatTime(duration)}` : '—'}
+              </div>
+            </div>
             
-            <div className="mt-4 p-3 bg-[#0a0a0a] border border-white/5 rounded-lg">
-              <p className="text-[10px] text-gray-600 leading-relaxed">
-                Click the <span className="text-orange-400">Voice</span> button in the header, then speak a command. Voice recognition works best in a quiet environment.
-              </p>
+            {/* Compact Transport Controls */}
+            <div className="flex items-center gap-1">
+              <button 
+                onClick={() => handlePrevious()}
+                onTouchEnd={(e) => { e.preventDefault(); handlePrevious(); }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 active:text-white touch-manipulation"
+              >
+                <Rewind size={18}/>
+              </button>
+              <button 
+                onClick={async () => {
+                  if (!currentTrack || audioLoading || !audioRef.current) return;
+                  const audio = audioRef.current;
+                  if (!isPlaying) {
+                    try {
+                      if (audio.src) await audio.play();
+                      setIsPlaying(true);
+                    } catch (e) {
+                      setIsPlaying(false);
+                      setAudioError(true);
+                    }
+                  } else {
+                    try { audio.pause(); } catch (e) {}
+                    setIsPlaying(false);
+                  }
+                }}
+                onTouchEnd={async (e) => {
+                  e.preventDefault();
+                  if (!currentTrack || audioLoading || !audioRef.current) return;
+                  const audio = audioRef.current;
+                  if (!isPlaying) {
+                    try {
+                      if (audio.src) await audio.play();
+                      setIsPlaying(true);
+                    } catch (e) {
+                      setIsPlaying(false);
+                      setAudioError(true);
+                    }
+                  } else {
+                    try { audio.pause(); } catch (e) {}
+                    setIsPlaying(false);
+                  }
+                }}
+                disabled={audioLoading || !currentTrack}
+                className="w-12 h-12 bg-orange-500 rounded-full flex items-center justify-center text-black disabled:opacity-50 active:scale-95 touch-manipulation"
+              >
+                {audioLoading ? <Loader2 size={20} className="animate-spin"/> : isPlaying ? <Pause size={20}/> : <Play size={20} className="ml-0.5"/>}
+              </button>
+              <button 
+                onClick={() => handleNext()}
+                onTouchEnd={(e) => { e.preventDefault(); handleNext(); }}
+                className="w-10 h-10 flex items-center justify-center text-gray-400 active:text-white touch-manipulation"
+              >
+                <div className="flex"><Play size={12}/><Play size={12}/></div>
+              </button>
             </div>
           </div>
         </div>
@@ -10641,6 +10786,8 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
   const authInitialized = useRef(false); // Guard against multiple initializations
   const historyInitialized = useRef(false);
 
+  // Define navigation sections for swipe gestures (main menu order)
+  const navigationSections = ['home', 'bio', 'music', 'tour', 'style', 'community', 'news', 'comeup', 'studio'];
   const isLocalHost = (() => {
     if (typeof window === 'undefined') return false;
     const host = window.location?.hostname;
@@ -10654,6 +10801,13 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
       setActiveSection(section);
     }
   }, [activeSection]);
+
+  // Swipe navigation hook
+  const { onTouchStart, onTouchMove, onTouchEnd } = useSwipeNavigation(
+    navigationSections,
+    activeSection,
+    navigateTo
+  );
 
   // Handle browser back/forward buttons
   useEffect(() => {
@@ -10894,8 +11048,13 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
         />
       )}
 
-      {/* Main content area */}
-      <div className="flex-1 relative overflow-hidden bg-black min-h-0">
+      {/* Main content area - with swipe navigation */}
+      <div 
+        className="flex-1 relative overflow-hidden bg-black min-h-0"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <div className="absolute inset-1 md:inset-2 border border-[#333] flex flex-col bg-[#050505] min-h-0">
           <div className="h-6 md:h-8 bg-[#1a1a1a] border-b border-[#333] flex items-center justify-between px-2">
             <div className="text-[10px] md:text-xs text-gray-400 font-mono flex items-center gap-2">
@@ -10922,6 +11081,20 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
             <button onClick={() => navigateTo('cookies')} className="hover:text-[#00ff41] transition-colors">Cookie Policy</button>
             <span>•</span>
             <span>© 2025 Whip Montez</span>
+          </div>
+          
+          {/* Mobile swipe indicator dots */}
+          <div className="md:hidden absolute bottom-7 left-0 right-0 flex justify-center gap-1 py-1 pointer-events-none">
+            {navigationSections.map((section, i) => (
+              <div 
+                key={section}
+                className={`w-1.5 h-1.5 rounded-full transition-all ${
+                  activeSection === section || (navigationSections.indexOf(activeSection) === -1 && section === 'home')
+                    ? 'bg-[#00ff41] scale-125' 
+                    : 'bg-gray-600'
+                }`}
+              />
+            ))}
           </div>
         </div>
       </div>
