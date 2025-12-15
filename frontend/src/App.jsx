@@ -267,7 +267,8 @@ const PRICING_TIERS = {
   },
   creator: {
     name: 'CREATOR',
-    price: 9.99,
+    price: 4.99,
+    yearlyPrice: 39,
     interval: 'month',
     usesPerAgent: 100,
     audioSeconds: 30,
@@ -284,7 +285,8 @@ const PRICING_TIERS = {
   },
   studio: {
     name: 'STUDIO PRO',
-    price: 24.99,
+    price: 14.99,
+    yearlyPrice: 99,
     interval: 'month',
     usesPerAgent: -1, // Unlimited
     audioSeconds: 60,
@@ -296,8 +298,11 @@ const PRICING_TIERS = {
       'Custom agent personalities',
       'Batch generation',
       'Team collaboration (up to 3)',
-      'Priority support'
-    ]
+      'Priority support',
+      '🎁 THE WHIP EXPERIENCE (Bonus!)'
+    ],
+    bonus: 'THE WHIP EXPERIENCE',
+    bonusDescription: 'Exclusive access to Lost Tapes archive, behind-the-scenes content, and direct mentorship sessions'
   }
 };
 
