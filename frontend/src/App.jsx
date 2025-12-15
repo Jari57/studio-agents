@@ -2764,62 +2764,44 @@ const MusicPlayer = () => {
       {/* Onboarding Modal */}
       {showOnboarding && (
         <div 
-          className="absolute inset-0 z-50 bg-black/95 flex items-center justify-center p-4 md:p-8 backdrop-blur-sm"
+          className="absolute inset-0 z-50 bg-black/95 flex items-start justify-center p-4 pt-8 md:p-8 backdrop-blur-sm overflow-y-auto"
+          style={{WebkitOverflowScrolling: 'touch'}}
           onClick={(e) => e.target === e.currentTarget && setShowOnboarding(false)}
           onTouchEnd={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); setShowOnboarding(false); } }}
         >
-          <div className="w-full max-w-2xl bg-[#050505] border border-[#00ff41]/30 rounded-lg overflow-hidden touch-manipulation" style={{boxShadow: '0 0 60px rgba(0,255,65,0.1)'}}>
-            <div className="bg-[#00ff41]/10 border-b border-[#00ff41]/20 px-6 py-4">
-              <h2 className="text-2xl md:text-3xl font-thin text-[#00ff41] tracking-tight" style={{textShadow: '0 0 30px rgba(0,255,65,0.4)'}}>
+          <div className="w-full max-w-2xl bg-[#050505] border border-[#00ff41]/30 rounded-lg overflow-hidden touch-manipulation my-auto" style={{boxShadow: '0 0 60px rgba(0,255,65,0.1)'}}>
+            <div className="bg-[#00ff41]/10 border-b border-[#00ff41]/20 px-4 md:px-6 py-3 md:py-4">
+              <h2 className="text-xl md:text-3xl font-thin text-[#00ff41] tracking-tight" style={{textShadow: '0 0 30px rgba(0,255,65,0.4)'}}>
                 Welcome to the Lost Tapes
               </h2>
-              <p className="text-[#00ff41]/60 text-xs mt-1 tracking-wider">AUDIO ARCHIVE • RESTORED 2004</p>
+              <p className="text-[#00ff41]/60 text-[10px] md:text-xs mt-1 tracking-wider">AUDIO ARCHIVE • RESTORED 2004</p>
             </div>
             
-            <div className="p-6 space-y-6">
-              <p className="text-gray-400 text-sm leading-relaxed">
-                You've accessed the <span className="text-white">Evidence Locker</span> — a collection of unreleased recordings, basement freestyles, and mixtape cuts that were never meant to see the light of day. Until now.
+            <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+              <p className="text-gray-400 text-xs md:text-sm leading-relaxed">
+                You've accessed the <span className="text-white">Evidence Locker</span> — unreleased recordings and basement freestyles from 2001-2004.
               </p>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-black border border-white/10 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 bg-orange-500/10 border border-orange-500/30 rounded flex items-center justify-center">
-                      <Play size={14} className="text-orange-400" />
+              {/* Simplified mobile layout - 2 items instead of 4 on mobile */}
+              <div className="grid grid-cols-2 gap-2 md:gap-4">
+                <div className="bg-black border border-white/10 rounded-lg p-3 md:p-4">
+                  <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
+                    <div className="w-6 h-6 md:w-8 md:h-8 bg-orange-500/10 border border-orange-500/30 rounded flex items-center justify-center">
+                      <Play size={12} className="text-orange-400 md:w-[14px] md:h-[14px]" />
                     </div>
-                    <h4 className="text-white font-medium text-sm">Playback Controls</h4>
+                    <h4 className="text-white font-medium text-xs md:text-sm">Playback</h4>
                   </div>
-                  <p className="text-gray-500 text-xs leading-relaxed">Click any track to play. Use the deck controls or keyboard shortcuts for navigation.</p>
+                  <p className="text-gray-500 text-[10px] md:text-xs leading-relaxed hidden md:block">Tap any track to play.</p>
                 </div>
                 
-                <div className="bg-black border border-white/10 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 bg-purple-500/10 border border-purple-500/30 rounded flex items-center justify-center">
-                      <Mic size={14} className="text-purple-400" />
+                <div className="bg-black border border-white/10 rounded-lg p-3 md:p-4">
+                  <div className="flex items-center gap-2 md:gap-3 mb-1 md:mb-2">
+                    <div className="w-6 h-6 md:w-8 md:h-8 bg-cyan-500/10 border border-cyan-500/30 rounded flex items-center justify-center">
+                      <Disc size={12} className="text-cyan-400 md:w-[14px] md:h-[14px]" />
                     </div>
-                    <h4 className="text-white font-medium text-sm">Voice Commands</h4>
+                    <h4 className="text-white font-medium text-xs md:text-sm">3 Tapes</h4>
                   </div>
-                  <p className="text-gray-500 text-xs leading-relaxed">Say "play", "pause", "next", "previous", "volume up/down" to control hands-free.</p>
-                </div>
-                
-                <div className="bg-black border border-white/10 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 bg-cyan-500/10 border border-cyan-500/30 rounded flex items-center justify-center">
-                      <Disc size={14} className="text-cyan-400" />
-                    </div>
-                    <h4 className="text-white font-medium text-sm">3 Lost Tapes</h4>
-                  </div>
-                  <p className="text-gray-500 text-xs leading-relaxed">Livewire Sessions, Red Hook Diaries, and The Stoop — 15 tracks total from 2001-2004.</p>
-                </div>
-                
-                <div className="bg-black border border-white/10 rounded-lg p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-8 h-8 bg-red-500/10 border border-red-500/30 rounded flex items-center justify-center">
-                      <Video size={14} className="text-red-400" />
-                    </div>
-                    <h4 className="text-white font-medium text-sm">Video Footage</h4>
-                  </div>
-                  <p className="text-gray-500 text-xs leading-relaxed">Some tracks include rare video clips. Look for the video icon next to tracks.</p>
+                  <p className="text-gray-500 text-[10px] md:text-xs leading-relaxed hidden md:block">15 tracks total.</p>
                 </div>
               </div>
               
