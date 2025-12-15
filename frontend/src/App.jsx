@@ -3025,6 +3025,7 @@ const MusicPlayer = () => {
               <button
                 key={track.id}
                 onClick={() => handleTrackClick(track)}
+                onTouchEnd={(e) => { e.preventDefault(); handleTrackClick(track); }}
                 className={`w-full text-left px-4 md:px-6 py-4 border-b border-white/5 cursor-pointer transition-all group touch-manipulation ${
                   currentTrack?.id === track.id 
                     ? 'bg-orange-500/5 border-l-2 border-l-orange-500' 
@@ -3053,7 +3054,8 @@ const MusicPlayer = () => {
                     {track.video && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setCurrentTrack(track); setShowVideoModal(true); }}
-                        className="text-gray-600 hover:text-orange-400 transition-colors"
+                        onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); setCurrentTrack(track); setShowVideoModal(true); }}
+                        className="text-gray-600 hover:text-orange-400 transition-colors touch-manipulation p-2"
                       >
                         <Video size={16} />
                       </button>
@@ -3158,13 +3160,14 @@ const MusicPlayer = () => {
             {/* Transport Controls */}
             <div className="grid grid-cols-4 gap-2 mt-4">
               <button 
-                onPointerUp={() => handlePrevious()}
+                onClick={() => handlePrevious()}
+                onTouchEnd={(e) => { e.preventDefault(); handlePrevious(); }}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <Rewind size={18}/>
               </button>
               <button 
-                onPointerUp={async () => {
+                onClick={async () => {
                   if (!currentTrack || audioLoading || !audioRef.current) return;
                   const audio = audioRef.current;
 
@@ -3193,13 +3196,15 @@ const MusicPlayer = () => {
                 {audioLoading ? <Loader2 size={18} className="animate-spin"/> : isPlaying ? <Pause size={18}/> : <Play size={18} className="ml-0.5"/>}
               </button>
               <button 
-                onPointerUp={() => handleStop()}
+                onClick={() => handleStop()}
+                onTouchEnd={(e) => { e.preventDefault(); handleStop(); }}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <div className="w-4 h-4 bg-current rounded"></div>
               </button>
               <button 
-                onPointerUp={() => handleNext()}
+                onClick={() => handleNext()}
+                onTouchEnd={(e) => { e.preventDefault(); handleNext(); }}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <div className="flex"><Play size={12}/><Play size={12}/></div>
@@ -8756,27 +8761,86 @@ const TrendHunter = () => {
   const [hashtag, setHashtag] = useState("");
   const [platform, setPlatform] = useState('all');
   const [results, setResults] = useState([]);
+  const [topHashtags, setTopHashtags] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingTop, setLoadingTop] = useState(false);
   const [sortBy, setSortBy] = useState('views');
+  const [activeTab, setActiveTab] = useState('search'); // 'search' or 'top100'
   const lastRequestTime = useRef(0);
-  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_trendhunter', 5);
+  const { canUse, consume, limit } = useFreeLimit('aiAgentUsage_trendhunter', 10);
   const { isListening, isSupported, startListening } = useVoiceInput((transcript) => {
     setHashtag(prev => prev ? prev + ' ' + transcript.replace('#', '') : transcript.replace('#', ''));
   });
   const { speak, stop, isSpeaking, isSupported: speechSupported } = useSpeechSynthesis();
 
   const platforms = [
-    { id: 'all', name: 'ALL PLATFORMS', icon: '🌐' },
-    { id: 'twitter', name: 'TWITTER/X', icon: '🐦' },
+    { id: 'all', name: 'ALL', icon: '🌐' },
+    { id: 'twitter', name: 'X/TWITTER', icon: '𝕏' },
     { id: 'instagram', name: 'INSTAGRAM', icon: '📸' },
     { id: 'tiktok', name: 'TIKTOK', icon: '🎵' },
-    { id: 'reddit', name: 'REDDIT', icon: '🤖' }
+    { id: 'reddit', name: 'REDDIT', icon: '🤖' },
+    { id: 'youtube', name: 'YOUTUBE', icon: '▶️' }
   ];
+
+  const categories = [
+    { id: 'hiphop', name: 'HIP-HOP', icon: '🎤' },
+    { id: 'music', name: 'MUSIC', icon: '🎵' },
+    { id: 'viral', name: 'VIRAL', icon: '🔥' },
+    { id: 'culture', name: 'CULTURE', icon: '🌍' }
+  ];
+
+  // Fetch top 100 trending hashtags
+  const fetchTop100 = async (category = 'hiphop') => {
+    if (!canUse) {
+      setTopHashtags([{ rank: 0, tag: 'LIMIT_REACHED', posts: 0, growth: 0, platform: 'SYSTEM' }]);
+      return;
+    }
+    consume();
+    setLoadingTop(true);
+    
+    const categoryName = categories.find(c => c.id === category)?.name || 'HIP-HOP';
+    
+    const systemPrompt = `You are Trend Hunter, a real-time social media intelligence system for December 2025. Generate the TOP 50 trending hashtags in the ${categoryName} category across TikTok, Instagram, Twitter/X, and YouTube. 
+
+For hip-hop include: artist names, album releases, viral songs, dance challenges, rap battles, producer tags, label hashtags, viral moments, memes.
+
+Return JSON array (no markdown): 
+[{
+  "rank": 1,
+  "tag": "hashtagWithoutSymbol",
+  "posts": 2500000,
+  "growth": "+45%",
+  "platform": "TIKTOK/INSTAGRAM/X/YOUTUBE",
+  "description": "Why it's trending in 1 sentence",
+  "velocity": "🔥🔥🔥" (1-5 fire emojis for heat level)
+}]
+
+Make it current and realistic for December 2025. Include actual trending artists like Drake, Kendrick, Travis Scott, Ice Spice, Sexyy Red, etc.`;
+
+    try {
+      const response = await callGemini(`Top 50 trending ${categoryName} hashtags on social media December 2025, TikTok trends, Instagram trends, Twitter/X trends`, systemPrompt, true);
+      const cleanJson = response.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(cleanJson);
+      setTopHashtags(parsed);
+    } catch (e) {
+      console.error('Top 100 fetch failed:', e);
+      // Fallback with sample data
+      setTopHashtags([
+        { rank: 1, tag: 'Drake', posts: 15000000, growth: '+12%', platform: 'ALL', description: 'New album buzz', velocity: '🔥🔥🔥🔥🔥' },
+        { rank: 2, tag: 'KendrickLamar', posts: 12000000, growth: '+8%', platform: 'X', description: 'Tour announcements', velocity: '🔥🔥🔥🔥' },
+        { rank: 3, tag: 'IceSpice', posts: 9500000, growth: '+25%', platform: 'TIKTOK', description: 'Viral dance challenge', velocity: '🔥🔥🔥🔥🔥' },
+        { rank: 4, tag: 'TravisScott', posts: 8200000, growth: '+15%', platform: 'INSTAGRAM', description: 'New single drops', velocity: '🔥🔥🔥🔥' },
+        { rank: 5, tag: 'NewMusic', posts: 7800000, growth: '+5%', platform: 'ALL', description: 'Fresh releases trending', velocity: '🔥🔥🔥' }
+      ]);
+    } finally {
+      setLoadingTop(false);
+    }
+  };
 
   const handleSearch = async () => {
     if (!hashtag.trim()) return;
 
-    const cooldownTime = 5000;
+    const cooldownTime = 3000;
     const now = Date.now();
     if (now - lastRequestTime.current < cooldownTime) {
       alert(`COOLDOWN: Please wait ${((cooldownTime - (now - lastRequestTime.current)) / 1000).toFixed(1)} seconds.`);
@@ -8787,7 +8851,7 @@ const TrendHunter = () => {
       setResults([{ 
         platform: 'SYSTEM', 
         username: 'LIMIT_REACHED', 
-        text: `FREE LIMIT: ${limit} searches used. Agent requires cooldown.`,
+        text: `FREE LIMIT: ${limit} searches used.`,
         views: 0,
         engagement: 0,
         trending: false
@@ -8800,14 +8864,31 @@ const TrendHunter = () => {
     setResults([]);
     lastRequestTime.current = now;
 
-    const platformText = platform === 'all' ? 'Twitter, Instagram, TikTok, and Reddit' : platforms.find(p => p.id === platform)?.name;
+    const platformText = platform === 'all' ? 'Twitter/X, Instagram, TikTok, YouTube, and Reddit' : platforms.find(p => p.id === platform)?.name;
     
-    const query = `Find and analyze the top 15 most ${sortBy === 'views' ? 'viewed' : sortBy === 'engagement' ? 'engaging' : 'recent'} posts with hashtag #${hashtag} on ${platformText}. Include post content, platform, username, view count, likes, comments, shares, and trending status. Return realistic social media data.`;
-    
-    const systemPrompt = `You are Trend Hunter, a social media intelligence AI. Return JSON array of social posts: [{ platform: string, username: string, text: string, views: number, likes: number, comments: number, shares: number, timestamp: string, trending: boolean, engagementRate: number }]. Make data realistic for ${new Date().getFullYear()}. Do not use markdown formatting.`;
+    const systemPrompt = `You are Trend Hunter, a real-time social media intelligence AI for December 2025. Analyze the hashtag #${hashtag} and return the TOP 15 most ${sortBy === 'views' ? 'viewed' : sortBy === 'engagement' ? 'engaging' : 'recent'} posts from ${platformText}.
+
+Return JSON array (no markdown):
+[{
+  "platform": "TIKTOK/INSTAGRAM/X/YOUTUBE/REDDIT",
+  "username": "@realUsername",
+  "displayName": "Creator Name",
+  "verified": true/false,
+  "text": "Full post content/caption",
+  "views": 1500000,
+  "likes": 250000,
+  "comments": 15000,
+  "shares": 45000,
+  "timestamp": "2h ago",
+  "trending": true/false,
+  "engagementRate": 8.5,
+  "contentType": "VIDEO/IMAGE/TEXT/REEL/STORY"
+}]
+
+Make data realistic and current for December 2025. Include real influencers, artists, content creators in the hip-hop space.`;
 
     try {
-      const response = await callGemini(query, systemPrompt, true);
+      const response = await callGemini(`Top 15 posts with hashtag #${hashtag} on ${platformText} December 2025, social media analytics, engagement data`, systemPrompt, true);
       let parsed = [];
       
       try {
@@ -8816,7 +8897,9 @@ const TrendHunter = () => {
       } catch (e) {
         parsed = [{
           platform: platform === 'all' ? 'MULTI-PLATFORM' : platformText,
-          username: 'trending_user',
+          username: '@trending_user',
+          displayName: 'Trending Creator',
+          verified: true,
           text: `Top posts for #${hashtag} are showing strong engagement across ${platformText}. Content is trending with viral potential.`,
           views: Math.floor(Math.random() * 500000) + 100000,
           likes: Math.floor(Math.random() * 50000) + 10000,
@@ -8824,7 +8907,8 @@ const TrendHunter = () => {
           shares: Math.floor(Math.random() * 10000) + 2000,
           timestamp: 'Just now',
           trending: true,
-          engagementRate: (Math.random() * 10 + 5).toFixed(1)
+          engagementRate: (Math.random() * 10 + 5).toFixed(1),
+          contentType: 'VIDEO'
         }];
       }
 
@@ -8833,8 +8917,8 @@ const TrendHunter = () => {
       console.error('Trend search failed:', error);
       setResults([{
         platform: 'ERROR',
-        username: 'SYSTEM',
-        text: 'Connection failed. Agent offline.',
+        username: '@SYSTEM',
+        text: 'Connection failed. Check your network and try again.',
         views: 0,
         engagement: 0,
         trending: false
@@ -8842,6 +8926,19 @@ const TrendHunter = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Auto-fetch top hashtags on mount
+  useEffect(() => {
+    if (activeTab === 'top100' && topHashtags.length === 0) {
+      fetchTop100('hiphop');
+    }
+  }, [activeTab]);
+
+  const formatNumber = (num) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num?.toString() || '0';
   };
 
   return (
