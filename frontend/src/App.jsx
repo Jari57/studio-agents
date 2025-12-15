@@ -2637,6 +2637,7 @@ const MusicPlayer = () => {
   const activeAlbum = albums.find(a => a.id === selectedAlbumId) || albums[0];
 
   const handleTrackClick = (track) => {
+    console.log('🎯 Track clicked:', track.title);
     if (currentTrack?.id === track.id) {
       setIsPlaying(!isPlaying);
     } else {
