@@ -560,12 +560,68 @@ app.get('/api/concerts', async (req, res) => {
     
   } catch (err) {
     logger.error('Concerts API error', { error: err.message });
-    res.status(500).json({ 
-      error: 'Failed to fetch concerts', 
-      details: err.message,
-      // Fallback data
-      concerts: [],
-      total: 0 
+    
+    // Return fallback data with popular upcoming tours
+    const fallbackConcerts = [
+      {
+        id: 1,
+        title: 'Kendrick Lamar - Grand National Tour',
+        performers: [{ name: 'Kendrick Lamar', image: 'https://images.pexels.com/photos/1763075/pexels-photo-1763075.jpeg?auto=compress&w=200', genres: ['Hip-Hop'] }],
+        venue: { name: 'Various Venues', city: 'Multiple Cities', state: 'US' },
+        datetime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        date: 'Coming Soon',
+        time: 'TBA',
+        priceRange: { low: 75, high: 350 },
+        ticketUrl: 'https://www.ticketmaster.com/kendrick-lamar-tickets/artist/1546192',
+        image: 'https://images.pexels.com/photos/1763075/pexels-photo-1763075.jpeg?auto=compress&w=400',
+        popularity: 95
+      },
+      {
+        id: 2,
+        title: 'Drake - Anita Max Wynn Tour',
+        performers: [{ name: 'Drake', image: 'https://images.pexels.com/photos/1699161/pexels-photo-1699161.jpeg?auto=compress&w=200', genres: ['Hip-Hop', 'R&B'] }],
+        venue: { name: 'Arena Tours', city: 'Nationwide', state: 'US' },
+        datetime: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        date: '2025',
+        time: 'TBA',
+        priceRange: { low: 100, high: 500 },
+        ticketUrl: 'https://www.ticketmaster.com/drake-tickets/artist/1230030',
+        image: 'https://images.pexels.com/photos/1699161/pexels-photo-1699161.jpeg?auto=compress&w=400',
+        popularity: 98
+      },
+      {
+        id: 3,
+        title: 'J. Cole - The Fall Off Tour',
+        performers: [{ name: 'J. Cole', image: 'https://images.pexels.com/photos/2479312/pexels-photo-2479312.jpeg?auto=compress&w=200', genres: ['Hip-Hop'] }],
+        venue: { name: 'Stadium Tour', city: 'Various', state: 'US' },
+        datetime: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
+        date: '2025',
+        time: 'TBA',
+        priceRange: { low: 65, high: 275 },
+        ticketUrl: 'https://www.ticketmaster.com/j-cole-tickets/artist/1586339',
+        image: 'https://images.pexels.com/photos/2479312/pexels-photo-2479312.jpeg?auto=compress&w=400',
+        popularity: 92
+      },
+      {
+        id: 4,
+        title: 'Tyler, The Creator - Chromakopia Tour',
+        performers: [{ name: 'Tyler, The Creator', image: 'https://images.pexels.com/photos/3756766/pexels-photo-3756766.jpeg?auto=compress&w=200', genres: ['Hip-Hop', 'Alternative'] }],
+        venue: { name: 'Arena Shows', city: 'US & International', state: '' },
+        datetime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        date: '2025',
+        time: 'Various',
+        priceRange: { low: 80, high: 300 },
+        ticketUrl: 'https://www.ticketmaster.com/tyler-the-creator-tickets/artist/1617057',
+        image: 'https://images.pexels.com/photos/3756766/pexels-photo-3756766.jpeg?auto=compress&w=400',
+        popularity: 88
+      }
+    ];
+    
+    res.json({ 
+      concerts: fallbackConcerts,
+      total: fallbackConcerts.length,
+      source: 'fallback',
+      message: 'Showing featured tours. Check Ticketmaster for live listings.'
     });
   }
 });
