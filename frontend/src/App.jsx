@@ -904,36 +904,59 @@ const useSwipeNavigation = (sections, activeSection, navigateTo) => {
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
   const touchEndX = useRef(null);
+  const touchEndY = useRef(null);
+  const isSwiping = useRef(false);
   
-  const minSwipeDistance = 50; // Minimum distance for a swipe
-  const maxVerticalDistance = 100; // Max vertical movement allowed (to distinguish from scroll)
+  const minSwipeDistance = 80; // Minimum horizontal distance for a swipe
+  const swipeThreshold = 0.6; // Horizontal must be 60% more than vertical
 
   const onTouchStart = useCallback((e) => {
     touchStartX.current = e.targetTouches[0].clientX;
     touchStartY.current = e.targetTouches[0].clientY;
     touchEndX.current = null;
+    touchEndY.current = null;
+    isSwiping.current = false;
   }, []);
 
   const onTouchMove = useCallback((e) => {
     touchEndX.current = e.targetTouches[0].clientX;
+    touchEndY.current = e.targetTouches[0].clientY;
+    
+    // Detect if this is primarily a horizontal swipe early
+    if (touchStartX.current && touchStartY.current) {
+      const distX = Math.abs(touchEndX.current - touchStartX.current);
+      const distY = Math.abs(touchEndY.current - touchStartY.current);
+      
+      // If horizontal movement is significantly more than vertical, it's a swipe
+      if (distX > 30 && distX > distY * 1.5) {
+        isSwiping.current = true;
+      }
+    }
   }, []);
 
   const onTouchEnd = useCallback(() => {
     if (!touchStartX.current || !touchEndX.current) return;
     
     const distanceX = touchStartX.current - touchEndX.current;
-    const distanceY = Math.abs((touchStartY.current || 0) - (touchEndX.current || 0));
-    const isHorizontalSwipe = Math.abs(distanceX) > minSwipeDistance && distanceY < maxVerticalDistance;
+    const distanceY = Math.abs((touchStartY.current || 0) - (touchEndY.current || 0));
+    const absDistanceX = Math.abs(distanceX);
     
-    if (isHorizontalSwipe) {
+    // Check if it's a valid horizontal swipe
+    const isHorizontalSwipe = absDistanceX > minSwipeDistance && 
+                               absDistanceX > distanceY * swipeThreshold;
+    
+    if (isHorizontalSwipe || isSwiping.current) {
       const currentIndex = sections.indexOf(activeSection);
       
-      if (distanceX > 0) {
+      if (currentIndex === -1) {
+        // Section not in navigation array, go to home
+        navigateTo('home');
+      } else if (distanceX > minSwipeDistance) {
         // Swipe left -> go to next section
         if (currentIndex < sections.length - 1) {
           navigateTo(sections[currentIndex + 1]);
         }
-      } else {
+      } else if (distanceX < -minSwipeDistance) {
         // Swipe right -> go to previous section
         if (currentIndex > 0) {
           navigateTo(sections[currentIndex - 1]);
@@ -945,6 +968,8 @@ const useSwipeNavigation = (sections, activeSection, navigateTo) => {
     touchStartX.current = null;
     touchStartY.current = null;
     touchEndX.current = null;
+    touchEndY.current = null;
+    isSwiping.current = false;
   }, [sections, activeSection, navigateTo]);
 
   return { onTouchStart, onTouchMove, onTouchEnd };
