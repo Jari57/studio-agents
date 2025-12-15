@@ -11117,8 +11117,8 @@ export default function App() {
       {appState === 'booting' && <BootSequence onComplete={() => setAppState('ready')} />}
       {appState === 'ready' && <OSInterface reboot={() => { setInitialSection('home'); setAppState('landing'); }} initialSection={initialSection} />}
       
-      {/* Ambient Music Player - Available on all screens */}
-      {appState === 'ready' && <AmbientMusicPlayer />}
+      {/* Ambient Music Player - Temporarily disabled for testing */}
+      {/* {appState === 'ready' && <AmbientMusicPlayer />} */}
       
       {/* Cookie Consent Banner - GDPR/CCPA Compliant */}
       <CookieConsentBanner />
