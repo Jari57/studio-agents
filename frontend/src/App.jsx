@@ -2781,7 +2781,7 @@ const MusicPlayer = () => {
   };
 
   return (
-    <div className="h-full flex flex-col relative bg-black overflow-y-auto" style={{WebkitOverflowScrolling: 'touch'}}>
+    <div className="h-full flex flex-col relative bg-black overflow-hidden">
       
       {/* Onboarding Modal */}
       {showOnboarding && (
@@ -2910,7 +2910,7 @@ const MusicPlayer = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative min-h-0">
         {/* Video Modal */}
         {showVideoModal && (
           <div 
@@ -3032,7 +3032,7 @@ const MusicPlayer = () => {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col bg-black overflow-hidden">
+        <div className="flex-1 flex flex-col bg-black overflow-hidden min-h-0">
           {/* Album Header */}
           <div className="p-4 md:p-6 border-b border-white/5 bg-[#050505]">
             <h2 className={`text-2xl md:text-4xl font-thin tracking-tight mb-2 ${activeAlbum.color}`} style={{textShadow: `0 0 30px ${activeAlbum.color.includes('red') ? 'rgba(239,68,68,0.3)' : activeAlbum.color.includes('cyan') ? 'rgba(34,211,238,0.3)' : 'rgba(0,255,65,0.3)'}`}}>
@@ -3042,7 +3042,7 @@ const MusicPlayer = () => {
           </div>
           
           {/* Track List */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto min-h-0" style={{WebkitOverflowScrolling: 'touch'}}>
             {activeAlbum.tracks.map((track, i) => (
               <div
                 key={track.id}
@@ -3088,7 +3088,7 @@ const MusicPlayer = () => {
         </div>
 
         {/* Player Sidebar */}
-        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-white/5 bg-[#050505] flex flex-col">
+        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-white/5 bg-[#050505] flex flex-col min-h-0 lg:max-h-full overflow-hidden">
           {/* Now Playing Display */}
           <div className="p-5 bg-black border-b border-white/5">
             <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-4 relative overflow-hidden" style={{boxShadow: '0 0 30px rgba(0,0,0,0.5)'}}>
@@ -3230,7 +3230,7 @@ const MusicPlayer = () => {
           </div>
 
           {/* Voice Commands Quick Reference */}
-          <div className="flex-1 p-4 bg-black/50 overflow-y-auto">
+          <div className="flex-1 p-4 bg-black/50 overflow-y-auto min-h-0" style={{WebkitOverflowScrolling: 'touch'}}>
             <h3 className="text-xs font-medium text-gray-400 mb-3 flex items-center gap-2">
               <Mic size={12} /> Voice Commands
             </h3>
