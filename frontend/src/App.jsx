@@ -8611,23 +8611,64 @@ const ViralVideoAgent = ({ user, onAuthRequest }) => {
 
       setLoading(true);
       setConcepts([]);
+      lastRequestTime.current = now;
       
       const platformContext = platform === 'all' 
         ? 'optimized for TikTok, Instagram Reels, and YouTube Shorts' 
         : `specifically optimized for ${platforms.find(p => p.id === platform)?.name}`;
       
-      const systemPrompt = `You are a viral video director specializing in short-form content ${platformContext}. Create 3 music video concepts with platform-specific trends and formats. JSON format: [{ concept: string, visual: string, trend: string, shots: string[], platform: string, duration: string, hook: string }]. No markdown.`;
-      const responseText = await callGemini(trackIdea, systemPrompt);
-      
+      const systemPrompt = `You are a viral video director for December 2025 specializing in short-form content ${platformContext}. Create 3 music video concepts with platform-specific trends.
+
+Return ONLY a valid JSON array with exactly this format (no markdown, no explanation):
+[
+  {
+    "concept": "Bold concept title",
+    "visual": "Visual description of the video aesthetic",
+    "trend": "Current trend name",
+    "shots": ["Shot 1", "Shot 2", "Shot 3"],
+    "platform": "TIKTOK",
+    "duration": "15-30s",
+    "hook": "Opening hook to grab attention in first 3 seconds"
+  }
+]`;
+
       try {
-        const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-        setConcepts(JSON.parse(cleanText));
+        const responseText = await callGemini(`Create 3 viral video concepts for: ${trackIdea}`, systemPrompt, true);
+        
+        if (!responseText || responseText.includes('ERROR:') || responseText.includes('BACKEND')) {
+          throw new Error('Backend connection failed');
+        }
+        
+        // Clean response - remove markdown code blocks and any extra text
+        let cleanText = responseText
+          .replace(/```json\s*/gi, '')
+          .replace(/```\s*/g, '')
+          .trim();
+        
+        // Find JSON array in response
+        const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          cleanText = jsonMatch[0];
+        }
+        
+        const parsed = JSON.parse(cleanText);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setConcepts(parsed);
+        } else {
+          throw new Error('Invalid response format');
+        }
       } catch (e) { 
-        console.error("Parse error", e);
-        setConcepts([{ concept: 'PARSE ERROR', visual: 'Could not parse response', trend: 'N/A', shots: [] }]);
+        console.error("Video concept generation error:", e);
+        setConcepts([{ 
+          concept: 'GENERATION FAILED', 
+          visual: `Error: ${e.message}. Try again with a different description.`, 
+          trend: 'N/A', 
+          shots: [],
+          platform: 'ERROR'
+        }]);
+      } finally {
+        setLoading(false);
       }
-      lastRequestTime.current = Date.now();
-      setLoading(false);
     };
 
     return (
