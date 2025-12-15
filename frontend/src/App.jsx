@@ -2825,7 +2825,7 @@ const MusicPlayer = () => {
               
               <button 
                 onClick={() => setShowOnboarding(false)}
-                className="w-full bg-[#00ff41]/10 border border-[#00ff41]/30 text-[#00ff41] py-3 text-sm font-medium rounded hover:bg-[#00ff41]/20 hover:border-[#00ff41]/50 transition-all flex items-center justify-center gap-2"
+                className="w-full bg-[#00ff41]/10 border border-[#00ff41]/30 text-[#00ff41] py-3 text-sm font-medium rounded hover:bg-[#00ff41]/20 hover:border-[#00ff41]/50 transition-all flex items-center justify-center gap-2 touch-manipulation active:scale-[0.98]"
               >
                 <Headphones size={16} /> Enter the Archive
               </button>
@@ -2977,10 +2977,10 @@ const MusicPlayer = () => {
           </div>
           <div className="overflow-y-auto flex-1 p-2 space-y-1">
             {albums.map(album => (
-              <div 
+              <button 
                 key={album.id}
                 onClick={() => setSelectedAlbumId(album.id)}
-                className={`p-4 cursor-pointer rounded-lg transition-all group ${
+                className={`w-full text-left p-4 cursor-pointer rounded-lg transition-all group touch-manipulation ${
                   selectedAlbumId === album.id 
                     ? 'bg-[#0a0a0a] border border-white/10' 
                     : 'border border-transparent hover:bg-[#0a0a0a] hover:border-white/5'
@@ -2991,7 +2991,7 @@ const MusicPlayer = () => {
                   {album.title}
                 </div>
                 <div className="text-[10px] text-gray-600">{album.date} • {album.tracks.length} tracks</div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -3022,10 +3022,10 @@ const MusicPlayer = () => {
           {/* Track List */}
           <div className="flex-1 overflow-y-auto min-h-0" style={{WebkitOverflowScrolling: 'touch'}}>
             {activeAlbum.tracks.map((track, i) => (
-              <div
+              <button
                 key={track.id}
                 onClick={() => handleTrackClick(track)}
-                className={`px-4 md:px-6 py-4 border-b border-white/5 cursor-pointer transition-all group ${
+                className={`w-full text-left px-4 md:px-6 py-4 border-b border-white/5 cursor-pointer transition-all group touch-manipulation ${
                   currentTrack?.id === track.id 
                     ? 'bg-orange-500/5 border-l-2 border-l-orange-500' 
                     : 'hover:bg-white/[0.02] border-l-2 border-l-transparent'
@@ -3060,7 +3060,7 @@ const MusicPlayer = () => {
                     )}
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
