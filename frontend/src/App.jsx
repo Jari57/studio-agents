@@ -10541,6 +10541,8 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
         return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} />;
       case 'ghostwriter':
         return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="ghostwriter" />;
+      case 'songwriter':
+        return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="songwriter" />;
       case 'chat':
         return <StudioHub setSection={navigateTo} user={user} onAuthRequest={() => setShowAuthModal(true)} initialAgent="chat" />;
       case 'battle':
