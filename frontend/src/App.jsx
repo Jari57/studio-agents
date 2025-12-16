@@ -604,6 +604,116 @@ const validateEmail = (email) => {
   return regex.test(email);
 };
 
+// ==================== LIMITED TIME DEAL BANNER ====================
+const LTDBanner = ({ onUpgrade, onDismiss }) => {
+  const [isVisible, setIsVisible] = useState(true);
+  const [timeLeft, setTimeLeft] = useState({ hours: 23, minutes: 59, seconds: 59 });
+  
+  // Countdown timer
+  useEffect(() => {
+    const savedEnd = localStorage.getItem('ltdEndTime');
+    let endTime;
+    if (savedEnd) {
+      endTime = parseInt(savedEnd);
+    } else {
+      endTime = Date.now() + 24 * 60 * 60 * 1000; // 24 hours from now
+      localStorage.setItem('ltdEndTime', endTime.toString());
+    }
+    
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const diff = endTime - now;
+      
+      if (diff <= 0) {
+        clearInterval(timer);
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft({ hours, minutes, seconds });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, []);
+  
+  // Check if user dismissed
+  useEffect(() => {
+    const dismissed = localStorage.getItem('ltdDismissed');
+    if (dismissed === 'true') setIsVisible(false);
+  }, []);
+  
+  const handleDismiss = () => {
+    setIsVisible(false);
+    localStorage.setItem('ltdDismissed', 'true');
+    if (onDismiss) onDismiss();
+  };
+  
+  if (!isVisible) return null;
+  
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-[90] bg-gradient-to-r from-purple-900 via-pink-900 to-orange-900 border-t-2 border-pink-500 shadow-[0_-4px_30px_rgba(236,72,153,0.3)]">
+      <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+        {/* Left: Deal Info */}
+        <div className="flex items-center gap-3 text-center md:text-left">
+          <div className="hidden md:flex w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full items-center justify-center text-2xl animate-pulse">
+            🔥
+          </div>
+          <div>
+            <p className="text-white font-bold text-sm md:text-base">
+              <span className="text-yellow-400">LAUNCH SPECIAL:</span> 50% OFF First 3 Months!
+            </p>
+            <p className="text-white/70 text-xs">
+              Creator Plan: <span className="line-through">$4.99</span> → <span className="text-green-400 font-bold">$2.49/mo</span> • 
+              Studio Pro: <span className="line-through">$14.99</span> → <span className="text-green-400 font-bold">$7.49/mo</span>
+            </p>
+          </div>
+        </div>
+        
+        {/* Center: Countdown */}
+        <div className="flex items-center gap-2 text-white">
+          <span className="text-xs text-white/60 uppercase">Ends in:</span>
+          <div className="flex gap-1">
+            <div className="bg-black/50 px-2 py-1 rounded text-center min-w-[40px]">
+              <span className="text-lg font-bold text-yellow-400">{String(timeLeft.hours).padStart(2, '0')}</span>
+              <span className="text-[8px] block text-white/50">HRS</span>
+            </div>
+            <span className="text-yellow-400 text-lg">:</span>
+            <div className="bg-black/50 px-2 py-1 rounded text-center min-w-[40px]">
+              <span className="text-lg font-bold text-yellow-400">{String(timeLeft.minutes).padStart(2, '0')}</span>
+              <span className="text-[8px] block text-white/50">MIN</span>
+            </div>
+            <span className="text-yellow-400 text-lg">:</span>
+            <div className="bg-black/50 px-2 py-1 rounded text-center min-w-[40px]">
+              <span className="text-lg font-bold text-yellow-400">{String(timeLeft.seconds).padStart(2, '0')}</span>
+              <span className="text-[8px] block text-white/50">SEC</span>
+            </div>
+          </div>
+        </div>
+        
+        {/* Right: CTA */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onUpgrade}
+            className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black font-bold px-4 md:px-6 py-2 text-sm uppercase tracking-wider hover:from-yellow-300 hover:to-orange-400 transition-all shadow-lg hover:shadow-yellow-500/30 touch-manipulation active:scale-95"
+          >
+            Claim Deal
+          </button>
+          <button
+            onClick={handleDismiss}
+            className="text-white/50 hover:text-white p-2 transition-colors touch-manipulation"
+            aria-label="Dismiss"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Paywall Modal Component
 const PaywallModal = ({ onClose, onUpgrade, user }) => {
   const { PRICING_TIERS, tier: currentTier } = useSubscription();
@@ -2888,13 +2998,34 @@ const MusicPlayer = () => {
                 </div>
               </div>
               
-              <button 
-                onClick={() => setShowOnboarding(false)}
-                onTouchEnd={(e) => { e.preventDefault(); setShowOnboarding(false); }}
-                className="w-full bg-[#00ff41]/10 border border-[#00ff41]/30 text-[#00ff41] py-3 text-sm font-medium rounded hover:bg-[#00ff41]/20 hover:border-[#00ff41]/50 transition-all flex items-center justify-center gap-2 touch-manipulation active:scale-[0.98]"
-              >
-                <Headphones size={16} /> Enter the Archive
-              </button>
+              {/* Limited Time Deal Card */}
+              <div className="bg-gradient-to-r from-purple-900/50 via-pink-900/50 to-orange-900/50 border border-pink-500/50 rounded-lg p-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-yellow-500 text-black text-[10px] font-bold px-2 py-0.5 uppercase">Launch Deal</div>
+                <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
+                  <div className="flex-1">
+                    <p className="text-white font-bold text-sm mb-1">🔥 50% OFF First 3 Months</p>
+                    <p className="text-white/70 text-xs">
+                      <span className="text-green-400 font-bold">FREE:</span> 3 AI uses per agent • 
+                      <span className="text-cyan-400 font-bold">CREATOR $2.49/mo</span> • 
+                      <span className="text-purple-400 font-bold">STUDIO $7.49/mo</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button 
+                  onClick={() => setShowOnboarding(false)}
+                  onTouchEnd={(e) => { e.preventDefault(); setShowOnboarding(false); }}
+                  className="flex-1 bg-[#00ff41]/10 border border-[#00ff41]/30 text-[#00ff41] py-3 text-sm font-medium rounded hover:bg-[#00ff41]/20 hover:border-[#00ff41]/50 transition-all flex items-center justify-center gap-2 touch-manipulation active:scale-[0.98]"
+                >
+                  <Headphones size={16} /> Start Free
+                </button>
+              </div>
+              
+              <p className="text-center text-gray-600 text-[10px]">
+                Free trial: 3 uses per AI agent • No credit card required
+              </p>
             </div>
           </div>
         </div>
@@ -11208,6 +11339,12 @@ const OSInterface = ({ reboot, initialSection = 'home' }) => {
       <div className="h-5 md:h-6 bg-[#00ff41] text-black text-[10px] md:text-xs font-mono flex items-center overflow-hidden border-t border-[#00ff41]">
          <div className="animate-marquee whitespace-nowrap uppercase font-bold">*** BREAKING: UNRELEASED TRACKS FOUND IN RED HOOK BASEMENT *** TOUR DATES LEAKED FROM 2004 *** WHIP MONTEZ SIGHTING CONFIRMED AT BODEGA *** SYSTEM RESTORATION AT 99% ***</div>
       </div>
+      
+      {/* Limited Time Deal Banner - Sticky Bottom */}
+      <LTDBanner 
+        onUpgrade={() => setShowPaywall(true)}
+        onDismiss={() => console.log('LTD banner dismissed')}
+      />
     </div>
   );
 };
