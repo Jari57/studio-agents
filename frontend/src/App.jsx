@@ -8058,6 +8058,16 @@ Make each article feel substantial and newsworthy. No markdown.`;
     setLoading(false);
   };
 
+  // Refresh live news
+  const fetchLiveNews = async () => {
+    setLoading(true);
+    const liveNews = await fetchLiveNewsFromAPI();
+    if (liveNews && liveNews.length > 0) {
+      setNewsItems(liveNews);
+    }
+    setLoading(false);
+  };
+
   const fetchNews = async (selectedMode) => {
     setMode(selectedMode);
     
@@ -8069,12 +8079,7 @@ Make each article feel substantial and newsworthy. No markdown.`;
       }
     } else {
       // Fetch fresh live news
-      setLoading(true);
-      const liveNews = await fetchLiveNewsFromAPI();
-      if (liveNews && liveNews.length > 0) {
-        setNewsItems(liveNews);
-      }
-      setLoading(false);
+      await fetchLiveNews();
     }
   };
 
