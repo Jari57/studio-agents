@@ -213,8 +213,8 @@ const allowedOrigins = isDevelopment
       process.env.FRONTEND_URL,
       'https://whipmontez.com',
       'https://www.whipmontez.com',
-      'https://studioagents.com',
-      'https://www.studioagents.com',
+      'https://studioagentsai.com',
+      'https://www.studioagentsai.com',
       'https://studio-agents.vercel.app'
     ].filter(Boolean);
 
