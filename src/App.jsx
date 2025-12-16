@@ -1,15 +1,7 @@
 /**
  * Studio Agents - Mobile-First AI Music Studio
- * Enterprise Security-First Architecture
- * 
- * Security Patterns Implemented:
- * - Input sanitization and validation
- * - Rate limiting (client + server)
- * - CSRF-ready API layer
- * - No secrets in frontend (all via env vars)
- * - XSS prevention via React's default escaping
- * - Content Security Policy compatible
- * - Firebase Authentication
+ * A High Fidelity Agency Production
+ * Sister App to Whip Montez ARG
  */
 
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react';
@@ -33,9 +25,10 @@ import {
 } from 'firebase/firestore';
 import {
   Sparkles, Feather, Flame, Briefcase, Disc, Image as ImageIcon, Video, Hash,
-  Mic, Play, Pause, Loader2, X, ChevronRight, ChevronLeft, Menu, Home,
-  TrendingUp, Newspaper, Settings, User, Volume2, VolumeX, Copy, Check,
-  RefreshCw, AlertCircle, Shield, Zap, Music, MessageSquare, Send, LogOut, Crown, Mail
+  Mic, Play, Pause, Loader2, X, ChevronRight, ChevronLeft, ChevronDown,
+  TrendingUp, Newspaper, User, Crown, Mail, LogOut, Zap, Music, Send,
+  Star, Check, ExternalLink, ArrowRight, Rocket, Target, DollarSign,
+  Users, Award, Radio, Clock, AlertCircle, RefreshCw, Copy, Volume2
 } from 'lucide-react';
 
 // =============================================================================
@@ -52,62 +45,35 @@ const firebaseConfig = {
   measurementId: "G-37J2MVHXS7"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
 // =============================================================================
-// CONFIGURATION & CONSTANTS
+// CONFIG
 // =============================================================================
 
 const CONFIG = Object.freeze({
   APP_NAME: 'Studio Agents',
-  VERSION: '1.0.0',
-  
-  // API Configuration - No secrets, uses environment variables
+  TAGLINE: 'AI-Powered Music Studio',
+  SISTER_APP: {
+    name: 'Whip Montez ARG',
+    url: 'https://whipmontez.com',
+    tagline: 'The Immersive Hip-Hop Experience'
+  },
   API: {
     BASE_URL: import.meta.env.VITE_BACKEND_URL || 
-      (window.location.hostname === 'localhost' ? 'http://localhost:3001' : ''),
+      (window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://restored-os-whip-montez-production.up.railway.app'),
     TIMEOUT: 30000,
-    MAX_RETRIES: 3,
   },
-  
-  // Rate Limiting
-  RATE_LIMIT: {
-    REQUESTS_PER_MINUTE: 20,
-    COOLDOWN_MS: 3000,
-  },
-  
-  // Input Validation
-  VALIDATION: {
-    MAX_PROMPT_LENGTH: 5000,
-    MAX_SYSTEM_INSTRUCTION_LENGTH: 1000,
-  },
-  
-  // Free tier limits per agent
   FREE_LIMITS: {
-    ghostwriter: 5,
-    songwriter: 5,
-    battle: 3,
-    crates: 5,
-    ar_suite: 3,
-    album_art: 3,
-    viral_video: 3,
-    trend_hunter: 5,
+    ghostwriter: 5, songwriter: 5, battle: 3, crates: 5,
+    ar_suite: 3, album_art: 3, viral_video: 3, trend_hunter: 5,
   },
-  
-  // Premium tier limits (authenticated users)
   PREMIUM_LIMITS: {
-    ghostwriter: 50,
-    songwriter: 50,
-    battle: 25,
-    crates: 50,
-    ar_suite: 25,
-    album_art: 25,
-    viral_video: 25,
-    trend_hunter: 50,
+    ghostwriter: 100, songwriter: 100, battle: 50, crates: 100,
+    ar_suite: 50, album_art: 50, viral_video: 50, trend_hunter: 100,
   },
 });
 
@@ -115,335 +81,84 @@ const CONFIG = Object.freeze({
 // SECURITY UTILITIES
 // =============================================================================
 
-/**
- * Sanitizes user input to prevent injection attacks
- * @param {string} input - Raw user input
- * @param {number} maxLength - Maximum allowed length
- * @returns {string} Sanitized input
- */
-const sanitizeInput = (input, maxLength = CONFIG.VALIDATION.MAX_PROMPT_LENGTH) => {
+const sanitizeInput = (input, maxLength = 5000) => {
   if (typeof input !== 'string') return '';
-  
-  return input
-    .trim()
-    .slice(0, maxLength)
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
-    .replace(/[\r\n]{3,}/g, '\n\n'); // Normalize excessive line breaks
+  return input.trim().slice(0, maxLength)
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    .replace(/[\r\n]{3,}/g, '\n\n');
 };
 
-/**
- * Validates and sanitizes prompt input with injection detection
- * @param {string} prompt - User prompt
- * @returns {{ isValid: boolean, sanitized: string, error?: string }}
- */
 const validatePrompt = (prompt) => {
   if (!prompt || typeof prompt !== 'string') {
-    return { isValid: false, sanitized: '', error: 'Invalid input' };
+    return { isValid: false, sanitized: '', error: 'Enter a prompt' };
   }
-  
   const sanitized = sanitizeInput(prompt);
-  
-  // Detect common prompt injection patterns
   const injectionPatterns = [
     /ignore\s+(all\s+)?previous\s+instructions?/i,
     /forget\s+(everything|all)/i,
-    /disregard\s+(all\s+)?previous/i,
-    /new\s+instructions?:/i,
     /you\s+are\s+now/i,
     /system\s+prompt|secret\s+instructions?/i,
   ];
-  
   for (const pattern of injectionPatterns) {
     if (pattern.test(sanitized)) {
-      console.warn('[Security] Blocked potential injection:', pattern.source);
-      return { isValid: false, sanitized: '', error: 'Invalid input detected' };
+      return { isValid: false, sanitized: '', error: 'Invalid input' };
     }
   }
-  
   return { isValid: true, sanitized };
 };
 
-/**
- * Rate limiter using token bucket algorithm
- */
-class RateLimiter {
-  constructor(maxRequests = CONFIG.RATE_LIMIT.REQUESTS_PER_MINUTE, windowMs = 60000) {
-    this.maxRequests = maxRequests;
-    this.windowMs = windowMs;
-    this.requests = [];
-  }
-  
-  canMakeRequest() {
-    const now = Date.now();
-    this.requests = this.requests.filter(time => now - time < this.windowMs);
-    return this.requests.length < this.maxRequests;
-  }
-  
-  recordRequest() {
-    this.requests.push(Date.now());
-  }
-  
-  getTimeUntilNext() {
-    if (this.canMakeRequest()) return 0;
-    const oldest = Math.min(...this.requests);
-    return Math.max(0, this.windowMs - (Date.now() - oldest));
-  }
-}
-
-const globalRateLimiter = new RateLimiter();
-
 // =============================================================================
-// API SERVICE LAYER
+// API SERVICE
 // =============================================================================
 
-/**
- * Gets the current user's Firebase ID token for authenticated requests
- */
 const getAuthToken = async () => {
   const currentUser = auth.currentUser;
   if (!currentUser) return null;
-  try {
-    return await currentUser.getIdToken();
-  } catch (error) {
-    console.error('[Auth] Failed to get token:', error);
-    return null;
-  }
+  try { return await currentUser.getIdToken(); } 
+  catch { return null; }
 };
 
-/**
- * Secure API service with retry logic and error handling
- */
 const ApiService = {
-  /**
-   * Makes a secure API call to the backend
-   * @param {string} endpoint - API endpoint
-   * @param {object} body - Request body
-   * @param {boolean} withAuth - Include auth token
-   * @returns {Promise<object>} API response
-   */
-  async call(endpoint, body, withAuth = true) {
-    // Rate limit check
-    if (!globalRateLimiter.canMakeRequest()) {
-      const waitTime = globalRateLimiter.getTimeUntilNext();
-      throw new Error(`Rate limited. Please wait ${Math.ceil(waitTime / 1000)} seconds.`);
-    }
+  async generate(prompt, systemInstruction = '') {
+    const validation = validatePrompt(prompt);
+    if (!validation.isValid) throw new Error(validation.error);
+    
+    const headers = { 'Content-Type': 'application/json' };
+    const token = await getAuthToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), CONFIG.API.TIMEOUT);
     
-    // Build headers with optional auth
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    
-    if (withAuth) {
-      const token = await getAuthToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-    }
-    
     try {
-      const response = await fetch(`${CONFIG.API.BASE_URL}${endpoint}`, {
+      const response = await fetch(`${CONFIG.API.BASE_URL}/api/generate`, {
         method: 'POST',
         headers,
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          prompt: validation.sanitized,
+          systemInstruction: sanitizeInput(systemInstruction, 1000),
+        }),
         signal: controller.signal,
       });
-      
       clearTimeout(timeoutId);
-      globalRateLimiter.recordRequest();
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
-      
-      return await response.json();
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      return data.output || data.message || '';
     } catch (error) {
       clearTimeout(timeoutId);
-      
-      if (error.name === 'AbortError') {
-        throw new Error('Request timeout. Please try again.');
-      }
+      if (error.name === 'AbortError') throw new Error('Request timeout');
       throw error;
     }
   },
   
-  /**
-   * Calls the AI generation endpoint
-   * @param {string} prompt - User prompt
-   * @param {string} systemInstruction - System instruction
-   * @returns {Promise<string>} Generated text
-   */
-  async generate(prompt, systemInstruction = '') {
-    const validation = validatePrompt(prompt);
-    if (!validation.isValid) {
-      throw new Error(validation.error);
-    }
-    
-    const data = await this.call('/api/generate', {
-      prompt: validation.sanitized,
-      systemInstruction: sanitizeInput(systemInstruction, CONFIG.VALIDATION.MAX_SYSTEM_INSTRUCTION_LENGTH),
-    });
-    
-    return data.output || data.message || JSON.stringify(data);
-  },
-  
-  /**
-   * Fetches news from the backend
-   * @returns {Promise<array>} News articles
-   */
   async getNews() {
     try {
       const response = await fetch(`${CONFIG.API.BASE_URL}/api/news`);
-      if (!response.ok) throw new Error('Failed to fetch news');
+      if (!response.ok) throw new Error('Failed to fetch');
       const data = await response.json();
       return data.articles || [];
-    } catch (error) {
-      console.error('[API] News fetch failed:', error);
-      return [];
-    }
+    } catch { return []; }
   },
-};
-
-// =============================================================================
-// HOOKS
-// =============================================================================
-
-/**
- * Hook for managing usage limits with localStorage (free) or Firestore (premium)
- */
-const useUsageLimit = (agentId) => {
-  const storageKey = `studio_usage_${agentId}`;
-  
-  // Try to get auth context (may not exist outside AuthProvider)
-  let authContext = null;
-  try {
-    authContext = useContext(AuthContext);
-  } catch {
-    authContext = null;
-  }
-  
-  const isPremium = authContext?.isPremium || false;
-  const limit = isPremium 
-    ? (CONFIG.PREMIUM_LIMITS[agentId] || 50) 
-    : (CONFIG.FREE_LIMITS[agentId] || 5);
-  
-  // For premium users, get usage from Firestore
-  const firestoreUsage = authContext?.getUsage?.(agentId) || 0;
-  
-  const [used, setUsed] = useState(() => {
-    if (isPremium) {
-      return firestoreUsage;
-    }
-    try {
-      return parseInt(localStorage.getItem(storageKey) || '0', 10);
-    } catch {
-      return 0;
-    }
-  });
-  
-  // Sync with Firestore when auth state changes
-  useEffect(() => {
-    if (isPremium) {
-      setUsed(firestoreUsage);
-    }
-  }, [isPremium, firestoreUsage]);
-  
-  const canUse = used < limit;
-  const remaining = Math.max(0, limit - used);
-  
-  const consume = useCallback(() => {
-    if (canUse) {
-      const newUsed = used + 1;
-      setUsed(newUsed);
-      
-      if (isPremium && authContext?.updateUsage) {
-        // Update Firestore for premium users
-        authContext.updateUsage(agentId, newUsed);
-      } else {
-        // Update localStorage for free users
-        try {
-          localStorage.setItem(storageKey, newUsed.toString());
-        } catch (e) {
-          console.warn('[Storage] Failed to persist usage:', e);
-        }
-      }
-    }
-  }, [used, canUse, storageKey, isPremium, authContext, agentId]);
-  
-  return { canUse, remaining, limit, consume, isPremium };
-};
-
-/**
- * Hook for cooldown between requests
- */
-const useCooldown = (cooldownMs = CONFIG.RATE_LIMIT.COOLDOWN_MS) => {
-  const lastRequest = useRef(0);
-  
-  const canRequest = useCallback(() => {
-    return Date.now() - lastRequest.current >= cooldownMs;
-  }, [cooldownMs]);
-  
-  const recordRequest = useCallback(() => {
-    lastRequest.current = Date.now();
-  }, []);
-  
-  const getWaitTime = useCallback(() => {
-    const elapsed = Date.now() - lastRequest.current;
-    return Math.max(0, cooldownMs - elapsed);
-  }, [cooldownMs]);
-  
-  return { canRequest, recordRequest, getWaitTime };
-};
-
-/**
- * Hook for voice input with Web Speech API
- */
-const useVoiceInput = (onTranscript) => {
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef(null);
-  
-  const isSupported = typeof window !== 'undefined' && 
-    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
-  
-  const startListening = useCallback(() => {
-    if (!isSupported) return;
-    
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionRef.current = new SpeechRecognition();
-    recognitionRef.current.continuous = false;
-    recognitionRef.current.interimResults = false;
-    
-    recognitionRef.current.onstart = () => setIsListening(true);
-    recognitionRef.current.onend = () => setIsListening(false);
-    recognitionRef.current.onerror = () => setIsListening(false);
-    recognitionRef.current.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      onTranscript(transcript);
-    };
-    
-    recognitionRef.current.start();
-  }, [isSupported, onTranscript]);
-  
-  const stopListening = useCallback(() => {
-    recognitionRef.current?.stop();
-  }, []);
-  
-  return { isListening, isSupported, startListening, stopListening };
-};
-
-// =============================================================================
-// CONTEXT
-// =============================================================================
-
-const AppContext = createContext(null);
-
-const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used within AppProvider');
-  return context;
 };
 
 // =============================================================================
@@ -451,12 +166,7 @@ const useApp = () => {
 // =============================================================================
 
 const AuthContext = createContext(null);
-
-const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
-};
+const useAuth = () => useContext(AuthContext);
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -467,87 +177,194 @@ const AuthProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        // Fetch or create user profile in Firestore
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           const userDoc = await getDoc(userDocRef);
-          
           if (userDoc.exists()) {
             setUserProfile(userDoc.data());
           } else {
-            // Create new user profile
             const newProfile = {
               email: firebaseUser.email,
               displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-              tier: 'premium', // Authenticated users get premium
+              tier: 'premium',
               createdAt: serverTimestamp(),
               usage: {},
             };
             await setDoc(userDocRef, newProfile);
             setUserProfile(newProfile);
           }
-        } catch (error) {
-          console.error('[Auth] Failed to fetch user profile:', error);
-        }
+        } catch (e) { console.error('[Auth]', e); }
       } else {
         setUser(null);
         setUserProfile(null);
       }
       setLoading(false);
     });
-    
     return () => unsubscribe();
   }, []);
   
-  const signInWithEmail = async (email, password) => {
-    return signInWithEmailAndPassword(auth, email, password);
-  };
-  
-  const signUpWithEmail = async (email, password) => {
-    return createUserWithEmailAndPassword(auth, email, password);
-  };
-  
-  const signInWithGoogle = async () => {
-    return signInWithPopup(auth, googleProvider);
-  };
-  
-  const logout = async () => {
-    return signOut(auth);
-  };
-  
+  const signInWithEmail = (email, password) => signInWithEmailAndPassword(auth, email, password);
+  const signUpWithEmail = (email, password) => createUserWithEmailAndPassword(auth, email, password);
+  const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
+  const logout = () => signOut(auth);
   const isPremium = !!user;
   
   const updateUsage = async (agentId, newCount) => {
     if (!user) return;
     try {
-      const userDocRef = doc(db, 'users', user.uid);
-      await updateDoc(userDocRef, {
-        [`usage.${agentId}`]: newCount,
-      });
-    } catch (error) {
-      console.error('[Auth] Failed to update usage:', error);
-    }
+      await updateDoc(doc(db, 'users', user.uid), { [`usage.${agentId}`]: newCount });
+    } catch {}
   };
   
-  const getUsage = (agentId) => {
-    return userProfile?.usage?.[agentId] || 0;
-  };
+  const getUsage = (agentId) => userProfile?.usage?.[agentId] || 0;
   
   return (
-    <AuthContext.Provider value={{
-      user,
-      userProfile,
-      loading,
-      isPremium,
-      signInWithEmail,
-      signUpWithEmail,
-      signInWithGoogle,
-      logout,
-      updateUsage,
-      getUsage,
-    }}>
+    <AuthContext.Provider value={{ user, userProfile, loading, isPremium, signInWithEmail, signUpWithEmail, signInWithGoogle, logout, updateUsage, getUsage }}>
       {children}
     </AuthContext.Provider>
+  );
+};
+
+// =============================================================================
+// HOOKS
+// =============================================================================
+
+const useUsageLimit = (agentId) => {
+  const auth = useAuth();
+  const isPremium = auth?.isPremium || false;
+  const limit = isPremium ? (CONFIG.PREMIUM_LIMITS[agentId] || 100) : (CONFIG.FREE_LIMITS[agentId] || 5);
+  const firestoreUsage = auth?.getUsage?.(agentId) || 0;
+  
+  const [used, setUsed] = useState(() => {
+    if (isPremium) return firestoreUsage;
+    try { return parseInt(localStorage.getItem(`studio_${agentId}`) || '0', 10); } 
+    catch { return 0; }
+  });
+  
+  useEffect(() => { if (isPremium) setUsed(firestoreUsage); }, [isPremium, firestoreUsage]);
+  
+  const canUse = used < limit;
+  const remaining = Math.max(0, limit - used);
+  
+  const consume = useCallback(() => {
+    if (!canUse) return;
+    const newUsed = used + 1;
+    setUsed(newUsed);
+    if (isPremium && auth?.updateUsage) {
+      auth.updateUsage(agentId, newUsed);
+    } else {
+      try { localStorage.setItem(`studio_${agentId}`, newUsed.toString()); } catch {}
+    }
+  }, [used, canUse, isPremium, auth, agentId]);
+  
+  return { canUse, remaining, limit, consume, isPremium };
+};
+
+// =============================================================================
+// ONBOARDING
+// =============================================================================
+
+const OnboardingScreen = ({ onComplete }) => {
+  const [step, setStep] = useState(0);
+  
+  const slides = [
+    {
+      icon: Sparkles,
+      gradient: 'from-violet-600 to-indigo-600',
+      title: 'Your AI Creative Partner',
+      subtitle: 'Studio Agents gives independent artists access to the same AI tools major labels use.',
+      highlight: 'Write better hooks. Find rare samples. Dominate battles.',
+    },
+    {
+      icon: Mic,
+      gradient: 'from-amber-500 to-orange-600',
+      title: '8 Specialized Agents',
+      subtitle: 'Each agent is trained for a specific part of your creative process.',
+      features: ['Ghostwriter • Lyric Engine', 'Battle AI • Sharpen Your Skills', 'Crate Digger • Sample Discovery', 'A&R Office • Industry Feedback'],
+    },
+    {
+      icon: Rocket,
+      gradient: 'from-emerald-500 to-teal-600',
+      title: 'Level Up Your Career',
+      subtitle: "The Come Up is your playbook for building a sustainable music career.",
+      highlight: 'Master your craft. Own your business. Build your network.',
+    },
+    {
+      icon: Crown,
+      gradient: 'from-pink-500 to-rose-600',
+      title: 'Free to Start',
+      subtitle: '5 generations per agent. Sign in for 100 per agent + cloud sync.',
+      cta: true,
+    },
+  ];
+  
+  const current = slides[step];
+  const isLast = step === slides.length - 1;
+  
+  return (
+    <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      {/* Background glow */}
+      <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-gradient-to-r ${current.gradient} opacity-20 blur-3xl`} />
+      
+      {/* Skip */}
+      <div className="relative z-10 flex justify-end p-6 safe-top">
+        <button onClick={onComplete} className="text-white/50 text-sm font-mono">Skip</button>
+      </div>
+      
+      {/* Content */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 text-center">
+        <div className={`w-24 h-24 rounded-3xl bg-gradient-to-br ${current.gradient} flex items-center justify-center mb-8 shadow-2xl`}>
+          <current.icon size={48} className="text-white" />
+        </div>
+        
+        <h1 className="text-3xl font-bold text-white mb-4 font-mono tracking-tight">{current.title}</h1>
+        <p className="text-white/60 text-lg mb-6 max-w-sm">{current.subtitle}</p>
+        
+        {current.highlight && (
+          <p className="text-white/80 font-medium font-mono">{current.highlight}</p>
+        )}
+        
+        {current.features && (
+          <div className="space-y-2 mt-4">
+            {current.features.map((f, i) => (
+              <div key={i} className="text-white/70 text-sm font-mono">{f}</div>
+            ))}
+          </div>
+        )}
+        
+        {current.cta && (
+          <div className="mt-8 space-y-4 w-full max-w-xs">
+            <button
+              onClick={onComplete}
+              className={`w-full py-4 rounded-2xl bg-gradient-to-r ${current.gradient} text-white font-bold text-lg shadow-xl font-mono tracking-wide`}
+            >
+              Get Started Free
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {/* Dots & Next */}
+      <div className="relative z-10 p-8 pb-12 safe-bottom">
+        {!isLast && (
+          <button
+            onClick={() => setStep(step + 1)}
+            className={`w-full py-4 rounded-2xl bg-gradient-to-r ${current.gradient} text-white font-bold text-lg mb-6 font-mono tracking-wide`}
+          >
+            Next
+          </button>
+        )}
+        
+        <div className="flex justify-center gap-2">
+          {slides.map((_, i) => (
+            <div
+              key={i}
+              className={`w-2 h-2 rounded-full transition-all ${i === step ? 'w-8 bg-white' : 'bg-white/30'}`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -556,7 +373,7 @@ const AuthProvider = ({ children }) => {
 // =============================================================================
 
 const AuthModal = ({ isOpen, onClose }) => {
-  const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
+  const [mode, setMode] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -569,13 +386,9 @@ const AuthModal = ({ isOpen, onClose }) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
     try {
-      if (mode === 'signin') {
-        await signInWithEmail(email, password);
-      } else {
-        await signUpWithEmail(email, password);
-      }
+      if (mode === 'signin') await signInWithEmail(email, password);
+      else await signUpWithEmail(email, password);
       onClose();
     } catch (err) {
       setError(err.message.replace('Firebase: ', '').replace(/\(auth\/.*\)/, ''));
@@ -584,66 +397,42 @@ const AuthModal = ({ isOpen, onClose }) => {
     }
   };
   
-  const handleGoogleSignIn = async () => {
+  const handleGoogle = async () => {
     setError('');
     setLoading(true);
-    try {
-      await signInWithGoogle();
-      onClose();
-    } catch (err) {
-      setError(err.message.replace('Firebase: ', '').replace(/\(auth\/.*\)/, ''));
-    } finally {
-      setLoading(false);
-    }
+    try { await signInWithGoogle(); onClose(); }
+    catch (err) { setError(err.message.replace('Firebase: ', '')); }
+    finally { setLoading(false); }
   };
   
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-[#1a1a1d] rounded-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-md bg-[#0c0c0e] rounded-t-3xl sm:rounded-3xl border border-white/10" onClick={e => e.stopPropagation()}>
+        {/* Handle */}
+        <div className="flex justify-center pt-3 sm:hidden">
+          <div className="w-12 h-1 rounded-full bg-white/20" />
+        </div>
+        
         {/* Header */}
-        <div className="p-6 bg-gradient-to-r from-indigo-600 to-violet-600">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">
-                {mode === 'signin' ? 'Welcome Back' : 'Create Account'}
-              </h2>
-              <p className="text-white/70 text-sm mt-1">
-                {mode === 'signin' ? 'Sign in for premium access' : 'Join for 10x more generations'}
-              </p>
-            </div>
-            <button onClick={onClose} className="text-white/70 hover:text-white">
-              <X size={24} />
-            </button>
+        <div className="p-6 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
+            <Crown size={32} className="text-white" />
           </div>
+          <h2 className="text-2xl font-bold text-white font-mono tracking-tight">
+            {mode === 'signin' ? 'Welcome Back' : 'Create Account'}
+          </h2>
+          <p className="text-white/50 mt-2 font-mono text-sm">Get 100 generations per agent</p>
         </div>
         
-        {/* Premium benefits */}
-        <div className="px-6 py-4 bg-gradient-to-r from-amber-600/10 to-orange-600/10 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <Crown className="text-amber-400" size={20} />
-            <div className="text-sm">
-              <span className="text-amber-400 font-medium">Premium Benefits:</span>
-              <span className="text-white/70 ml-2">50 generations per agent, synced across devices</span>
-            </div>
-          </div>
-        </div>
-        
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 pb-8 space-y-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center gap-2">
-              <AlertCircle size={16} />
-              {error}
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2 font-mono">
+              <AlertCircle size={16} /> {error}
             </div>
           )}
           
-          {/* Google Sign In */}
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="w-full p-3 bg-white text-gray-800 font-medium rounded-xl flex items-center justify-center gap-3 hover:bg-gray-100 transition-colors disabled:opacity-50"
-          >
+          <button type="button" onClick={handleGoogle} disabled={loading}
+            className="w-full p-4 bg-white text-gray-900 font-semibold rounded-2xl flex items-center justify-center gap-3 hover:bg-gray-100 disabled:opacity-50 font-mono">
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -655,54 +444,25 @@ const AuthModal = ({ isOpen, onClose }) => {
           
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-white/10" />
-            <span className="text-white/40 text-sm">or</span>
+            <span className="text-white/30 text-sm font-mono">or</span>
             <div className="flex-1 h-px bg-white/10" />
           </div>
           
-          <div>
-            <label className="block text-white/60 text-sm mb-2">Email</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={18} />
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@email.com"
-                required
-                className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-              />
-            </div>
-          </div>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required
+            className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none font-mono" />
           
-          <div>
-            <label className="block text-white/60 text-sm mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              minLength={6}
-              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-            />
-          </div>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required minLength={6}
+            className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none font-mono" />
           
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-          >
+          <button type="submit" disabled={loading}
+            className="w-full py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50 font-mono tracking-wide">
             {loading && <Loader2 size={18} className="animate-spin" />}
             {mode === 'signin' ? 'Sign In' : 'Create Account'}
           </button>
           
-          <p className="text-center text-white/50 text-sm">
+          <p className="text-center text-white/40 text-sm font-mono">
             {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
-            <button
-              type="button"
-              onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
-              className="text-indigo-400 hover:text-indigo-300"
-            >
+            <button type="button" onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')} className="text-violet-400">
               {mode === 'signin' ? 'Sign up' : 'Sign in'}
             </button>
           </p>
@@ -713,471 +473,216 @@ const AuthModal = ({ isOpen, onClose }) => {
 };
 
 // =============================================================================
-// USER MENU
+// HEADER
 // =============================================================================
 
-const UserMenu = () => {
+const Header = ({ title, subtitle, showAuth = true }) => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const { user, userProfile, logout, isPremium } = useAuth();
-  
-  if (!user) {
-    return (
-      <>
-        <button
-          onClick={() => setShowAuthModal(true)}
-          className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-full hover:bg-indigo-500 transition-colors"
-        >
-          <User size={16} />
-          Sign In
-        </button>
-        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-      </>
-    );
-  }
+  const auth = useAuth();
   
   return (
-    <div className="relative">
-      <button
-        onClick={() => setShowMenu(!showMenu)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-amber-600/20 to-orange-600/20 border border-amber-500/30 text-amber-400 text-sm font-medium rounded-full hover:border-amber-500/50 transition-colors"
-      >
-        <Crown size={16} />
-        <span className="max-w-[100px] truncate">{userProfile?.displayName || user.email?.split('@')[0]}</span>
-      </button>
+    <>
+      <header className="px-5 pt-6 pb-4 safe-top">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white font-mono tracking-tight">{title}</h1>
+            {subtitle && <p className="text-white/40 text-sm mt-0.5 font-mono">{subtitle}</p>}
+          </div>
+          
+          {showAuth && (
+            auth?.user ? (
+              <div className="relative">
+                <button onClick={() => setShowMenu(!showMenu)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30">
+                  <Crown size={16} className="text-amber-400" />
+                  <span className="text-amber-400 text-sm font-medium max-w-[80px] truncate font-mono">
+                    {auth.userProfile?.displayName || 'Pro'}
+                  </span>
+                </button>
+                {showMenu && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-[#1a1a1d] border border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden">
+                      <div className="p-4 border-b border-white/5">
+                        <p className="text-white font-medium truncate font-mono">{auth.user.email}</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Crown size={12} className="text-amber-400" />
+                          <span className="text-amber-400 text-xs font-mono">Premium • 100 gens/agent</span>
+                        </div>
+                      </div>
+                      <button onClick={() => { auth.logout(); setShowMenu(false); }}
+                        className="w-full p-4 flex items-center gap-3 text-white/60 hover:bg-white/5 hover:text-white font-mono">
+                        <LogOut size={18} /> Sign Out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <button onClick={() => setShowAuthModal(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-semibold font-mono">
+                <User size={16} /> Sign In
+              </button>
+            )
+          )}
+        </div>
+      </header>
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+    </>
+  );
+};
+
+// =============================================================================
+// AGENT COMPONENTS
+// =============================================================================
+
+const AgentCard = ({ agent, onClick }) => (
+  <button onClick={onClick}
+    className={`${agent.gradient} p-5 rounded-3xl text-left transition-all active:scale-[0.97] shadow-lg relative overflow-hidden group`}>
+    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+    <div className="relative z-10">
+      <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mb-4">
+        <agent.icon size={24} className="text-white" />
+      </div>
+      <h3 className="text-white font-bold text-lg font-mono">{agent.title}</h3>
+      <p className="text-white/70 text-sm font-mono">{agent.subtitle}</p>
+    </div>
+    <ChevronRight size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 group-hover:translate-x-1 transition-transform" />
+  </button>
+);
+
+const AgentView = ({ agent, onBack }) => {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+  const { canUse, remaining, consume, isPremium } = useUsageLimit(agent.id);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+  
+  const handleSubmit = async () => {
+    if (!input.trim() || loading) return;
+    if (!canUse) {
+      if (!isPremium) setShowAuthModal(true);
+      return;
+    }
+    
+    const userMessage = { text: input, isUser: true };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+    
+    try {
+      consume();
+      const response = await ApiService.generate(input, agent.systemPrompt);
+      setMessages(prev => [...prev, { text: response, isUser: false }]);
+    } catch (error) {
+      setMessages(prev => [...prev, { text: `Error: ${error.message}`, isUser: false, error: true }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+  };
+  
+  return (
+    <div className="h-full flex flex-col bg-black">
+      {/* Header */}
+      <div className={`${agent.gradient} px-5 pt-6 pb-5 safe-top`}>
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center">
+            <ChevronLeft size={24} className="text-white" />
+          </button>
+          <div className="flex-1">
+            <h1 className="text-xl font-bold text-white font-mono">{agent.title}</h1>
+            <p className="text-white/70 text-sm font-mono">{agent.subtitle}</p>
+          </div>
+          <div className="px-3 py-1.5 rounded-full bg-black/20 text-white/80 text-xs font-medium font-mono">
+            {remaining} left
+          </div>
+        </div>
+      </div>
       
-      {showMenu && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-          <div className="absolute right-0 top-full mt-2 w-56 bg-[#1a1a1d] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden">
-            <div className="p-3 border-b border-white/5">
-              <p className="text-white font-medium truncate">{user.email}</p>
-              <div className="flex items-center gap-1 mt-1">
-                <Crown size={12} className="text-amber-400" />
-                <span className="text-amber-400 text-xs font-medium">Premium Member</span>
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        {messages.length === 0 && (
+          <div className="text-center py-16">
+            <div className={`w-20 h-20 mx-auto mb-6 rounded-3xl ${agent.gradient} flex items-center justify-center opacity-30`}>
+              <agent.icon size={40} className="text-white" />
+            </div>
+            <p className="text-white/40 text-lg font-medium mb-2 font-mono">{agent.placeholder}</p>
+            <p className="text-white/20 text-sm font-mono">{remaining} free generations remaining</p>
+          </div>
+        )}
+        
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[85%] px-5 py-4 rounded-3xl ${
+              msg.isUser 
+                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-br-lg' 
+                : msg.error 
+                  ? 'bg-red-500/10 border border-red-500/20 text-red-400 rounded-bl-lg'
+                  : 'bg-white/5 text-white/90 rounded-bl-lg border border-white/5'
+            }`}>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed font-mono">{msg.text}</p>
+              {!msg.isUser && !msg.error && (
+                <button 
+                  onClick={() => copyToClipboard(msg.text)}
+                  className="mt-3 flex items-center gap-1.5 text-white/40 hover:text-white/60 text-xs font-mono"
+                >
+                  <Copy size={12} /> Copy
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        
+        {loading && (
+          <div className="flex justify-start">
+            <div className="px-5 py-4 rounded-3xl rounded-bl-lg bg-white/5 border border-white/5">
+              <div className="flex items-center gap-2">
+                <Loader2 size={16} className="animate-spin text-violet-400" />
+                <span className="text-white/40 text-sm font-mono">Thinking...</span>
               </div>
             </div>
-            <button
-              onClick={() => { logout(); setShowMenu(false); }}
-              className="w-full p-3 flex items-center gap-3 text-white/70 hover:bg-white/5 hover:text-white transition-colors"
-            >
-              <LogOut size={18} />
-              Sign Out
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+      
+      {/* Input */}
+      <div className="p-5 safe-bottom border-t border-white/5">
+        {!canUse && !isPremium ? (
+          <button onClick={() => setShowAuthModal(true)}
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold flex items-center justify-center gap-2 font-mono">
+            <Crown size={18} /> Sign In for 100 More
+          </button>
+        ) : (
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
+              placeholder={agent.inputPlaceholder || "Type your message..."}
+              className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-violet-500 outline-none font-mono"
+            />
+            <button onClick={handleSubmit} disabled={loading || !input.trim()}
+              className="w-14 h-14 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 flex items-center justify-center disabled:opacity-30">
+              <Send size={20} className="text-white" />
             </button>
           </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-// =============================================================================
-// COMPONENTS - UI Primitives
-// =============================================================================
-
-const Button = ({ children, variant = 'primary', size = 'md', disabled, loading, className = '', ...props }) => {
-  const baseStyles = 'font-semibold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2';
-  
-  const variants = {
-    primary: 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/25',
-    secondary: 'bg-white/10 text-white hover:bg-white/20 border border-white/10',
-    danger: 'bg-red-600 text-white hover:bg-red-500',
-    ghost: 'text-white/70 hover:text-white hover:bg-white/10',
-  };
-  
-  const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2.5 text-sm',
-    lg: 'px-6 py-3 text-base',
-  };
-  
-  return (
-    <button 
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
-      disabled={disabled || loading}
-      {...props}
-    >
-      {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-      {children}
-    </button>
-  );
-};
-
-const Input = ({ className = '', ...props }) => (
-  <input
-    className={`w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all ${className}`}
-    {...props}
-  />
-);
-
-const Card = ({ children, className = '', gradient, ...props }) => (
-  <div 
-    className={`bg-[#141416] border border-white/5 rounded-2xl overflow-hidden ${gradient || ''} ${className}`}
-    {...props}
-  >
-    {children}
-  </div>
-);
-
-// =============================================================================
-// COMPONENTS - Chat Interface
-// =============================================================================
-
-const ChatMessage = ({ message, isUser, onSpeak }) => (
-  <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-    <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-      isUser 
-        ? 'bg-indigo-600 text-white' 
-        : 'bg-white/5 text-white border border-white/5'
-    }`}>
-      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-      {message.error && (
-        <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
-          <AlertCircle size={12} /> {message.error}
-        </p>
-      )}
-    </div>
-  </div>
-);
-
-const ChatInput = ({ value, onChange, onSubmit, loading, placeholder, voiceEnabled = true }) => {
-  const handleTranscript = useCallback((transcript) => {
-    onChange(prev => prev ? `${prev} ${transcript}` : transcript);
-  }, [onChange]);
-  
-  const { isListening, isSupported, startListening } = useVoiceInput(handleTranscript);
-  
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      onSubmit();
-    }
-  };
-  
-  return (
-    <div className="flex gap-2 p-4 border-t border-white/5 bg-[#0a0a0b]">
-      {voiceEnabled && isSupported && (
-        <button
-          onClick={startListening}
-          className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
-            isListening 
-              ? 'bg-indigo-600 text-white animate-pulse' 
-              : 'bg-white/5 text-white/60 hover:bg-white/10'
-          }`}
-        >
-          <Mic size={20} />
-        </button>
-      )}
-      <Input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        className="flex-1"
-      />
-      <Button onClick={onSubmit} loading={loading} disabled={!value.trim()}>
-        <Send size={18} />
-      </Button>
-    </div>
-  );
-};
-
-// =============================================================================
-// COMPONENTS - Agent Container
-// =============================================================================
-
-const AgentContainer = ({ title, icon: Icon, accentColor = 'indigo', children, onBack }) => {
-  const colorMap = {
-    indigo: 'from-indigo-600 to-indigo-500',
-    cyan: 'from-cyan-600 to-cyan-500',
-    red: 'from-red-600 to-red-500',
-    amber: 'from-amber-600 to-amber-500',
-    pink: 'from-pink-600 to-pink-500',
-    green: 'from-green-600 to-green-500',
-    violet: 'from-violet-600 to-violet-500',
-  };
-  
-  return (
-    <div className="h-full flex flex-col bg-[#0a0a0b]">
-      {/* Header */}
-      <div className={`bg-gradient-to-r ${colorMap[accentColor]} px-4 py-4 flex items-center gap-3 safe-top`}>
-        {onBack && (
-          <button onClick={onBack} className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center">
-            <ChevronLeft size={20} className="text-white" />
-          </button>
         )}
-        <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center">
-          <Icon size={20} className="text-white" />
-        </div>
-        <div>
-          <h1 className="text-white font-bold text-lg">{title}</h1>
-        </div>
       </div>
       
-      {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        {children}
-      </div>
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
-  );
-};
-
-// =============================================================================
-// AGENTS
-// =============================================================================
-
-const GhostwriterAgent = ({ onBack }) => {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
-  const { canUse, remaining, consume } = useUsageLimit('ghostwriter');
-  const { canRequest, recordRequest, getWaitTime } = useCooldown();
-  
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-  
-  const handleSubmit = async () => {
-    if (!input.trim() || loading) return;
-    
-    if (!canRequest()) {
-      const wait = Math.ceil(getWaitTime() / 1000);
-      setMessages(prev => [...prev, { 
-        text: `Please wait ${wait} seconds before the next request.`, 
-        isUser: false, 
-        error: 'Cooldown active' 
-      }]);
-      return;
-    }
-    
-    if (!canUse) {
-      setMessages(prev => [...prev, { 
-        text: 'Free limit reached. Upgrade to continue.', 
-        isUser: false, 
-        error: 'Limit reached' 
-      }]);
-      return;
-    }
-    
-    const userMessage = { text: input, isUser: true };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setLoading(true);
-    
-    try {
-      consume();
-      recordRequest();
-      
-      const systemPrompt = `You are a legendary hip-hop ghostwriter. Write creative, hard-hitting lyrics with clever wordplay, internal rhymes, and authentic street poetry. Keep responses focused on the bars - no explanations needed.`;
-      
-      const response = await ApiService.generate(input, systemPrompt);
-      setMessages(prev => [...prev, { text: response, isUser: false }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { 
-        text: 'Failed to generate. Please try again.', 
-        isUser: false, 
-        error: error.message 
-      }]);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  return (
-    <AgentContainer title="Ghostwriter" icon={Sparkles} accentColor="cyan" onBack={onBack}>
-      <div className="h-full flex flex-col">
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && (
-            <div className="text-center py-16">
-              <Sparkles size={48} className="mx-auto mb-4 text-cyan-500/30" />
-              <p className="text-white/60 text-sm">Enter a topic or concept</p>
-              <p className="text-white/40 text-xs mt-2">{remaining} free uses remaining</p>
-            </div>
-          )}
-          {messages.map((msg, i) => (
-            <ChatMessage key={i} message={msg} isUser={msg.isUser} />
-          ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-white/5 rounded-2xl px-4 py-3">
-                <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-        
-        {/* Input */}
-        <ChatInput
-          value={input}
-          onChange={setInput}
-          onSubmit={handleSubmit}
-          loading={loading}
-          placeholder="Write a hook about Brooklyn nights..."
-        />
-      </div>
-    </AgentContainer>
-  );
-};
-
-const BattleAgent = ({ onBack }) => {
-  const [messages, setMessages] = useState([
-    { text: "Yo, step up to the mic if you think you're raw / I'll chew you up and spit you out, that's the law.", isUser: false }
-  ]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
-  const { canUse, remaining, consume } = useUsageLimit('battle');
-  const { canRequest, recordRequest, getWaitTime } = useCooldown();
-  
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-  
-  const handleSubmit = async () => {
-    if (!input.trim() || loading) return;
-    
-    if (!canRequest()) {
-      return;
-    }
-    
-    if (!canUse) {
-      setMessages(prev => [...prev, { 
-        text: 'Free limit reached. Upgrade to continue.', 
-        isUser: false 
-      }]);
-      return;
-    }
-    
-    const userMessage = { text: input, isUser: true };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setLoading(true);
-    
-    try {
-      consume();
-      recordRequest();
-      
-      const systemPrompt = `You are a fierce battle rapper. Respond to the opponent's bar with a 2-4 line diss verse. Be aggressive, witty, and make it rhyme. Keep it under 200 characters.`;
-      
-      const response = await ApiService.generate(`Opponent says: "${input}". Respond with a diss.`, systemPrompt);
-      setMessages(prev => [...prev, { text: response, isUser: false }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { 
-        text: 'Failed to generate. Please try again.', 
-        isUser: false 
-      }]);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  return (
-    <AgentContainer title="Rap Battle" icon={Flame} accentColor="red" onBack={onBack}>
-      <div className="h-full flex flex-col">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                msg.isUser 
-                  ? 'bg-red-600/20 border border-red-500/30 text-white' 
-                  : 'bg-white/5 text-white border border-white/5'
-              }`}>
-                <div className="text-[10px] font-bold mb-1 text-white/50">
-                  {msg.isUser ? '► YOU' : '◄ RIVAL MC'}
-                </div>
-                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-white/5 rounded-2xl px-4 py-3 flex items-center gap-2">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-bounce" style={{animationDelay: '0ms'}} />
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-bounce" style={{animationDelay: '150ms'}} />
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-bounce" style={{animationDelay: '300ms'}} />
-                </div>
-                <span className="text-red-400 text-xs">RIVAL WRITING...</span>
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-        
-        <ChatInput
-          value={input}
-          onChange={setInput}
-          onSubmit={handleSubmit}
-          loading={loading}
-          placeholder="Spit your bars..."
-        />
-      </div>
-    </AgentContainer>
-  );
-};
-
-// Generic Chat Agent for other tools
-const GenericChatAgent = ({ agentId, title, icon, accentColor, systemPrompt, placeholder, onBack }) => {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef(null);
-  const { canUse, remaining, consume } = useUsageLimit(agentId);
-  const { canRequest, recordRequest } = useCooldown();
-  
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-  
-  const handleSubmit = async () => {
-    if (!input.trim() || loading || !canRequest() || !canUse) return;
-    
-    const userMessage = { text: input, isUser: true };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setLoading(true);
-    
-    try {
-      consume();
-      recordRequest();
-      const response = await ApiService.generate(input, systemPrompt);
-      setMessages(prev => [...prev, { text: response, isUser: false }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { text: 'Failed to generate.', isUser: false, error: error.message }]);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  return (
-    <AgentContainer title={title} icon={icon} accentColor={accentColor} onBack={onBack}>
-      <div className="h-full flex flex-col">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && (
-            <div className="text-center py-16">
-              {React.createElement(icon, { size: 48, className: `mx-auto mb-4 text-${accentColor}-500/30` })}
-              <p className="text-white/60 text-sm">{placeholder}</p>
-              <p className="text-white/40 text-xs mt-2">{remaining} free uses remaining</p>
-            </div>
-          )}
-          {messages.map((msg, i) => (
-            <ChatMessage key={i} message={msg} isUser={msg.isUser} />
-          ))}
-          {loading && (
-            <div className="flex justify-start">
-              <div className="bg-white/5 rounded-2xl px-4 py-3">
-                <Loader2 className="w-5 h-5 animate-spin" />
-              </div>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-        <ChatInput value={input} onChange={setInput} onSubmit={handleSubmit} loading={loading} placeholder={placeholder} />
-      </div>
-    </AgentContainer>
   );
 };
 
@@ -1185,43 +690,130 @@ const GenericChatAgent = ({ agentId, title, icon, accentColor, systemPrompt, pla
 // PAGES
 // =============================================================================
 
-const StudioPage = ({ onSelectAgent }) => {
-  const agents = [
-    { id: 'ghostwriter', title: 'Ghostwriter', subtitle: 'AI Lyric Engine', icon: Sparkles, gradient: 'agent-gradient-ghostwriter' },
-    { id: 'songwriter', title: 'Songwriter', subtitle: 'Studio Writer', icon: Feather, gradient: 'agent-gradient-promokit' },
-    { id: 'battle', title: 'Rap Battle', subtitle: 'Battle Simulator', icon: Flame, gradient: 'agent-gradient-viralvideo' },
-    { id: 'crates', title: 'Crate Digger', subtitle: 'Sample Discovery', icon: Disc, gradient: 'agent-gradient-beatlab' },
-    { id: 'ar_suite', title: 'A&R Office', subtitle: 'Artist Development', icon: Briefcase, gradient: 'agent-gradient-coverart' },
-    { id: 'viral_video', title: 'Viral Video', subtitle: 'Content Strategy', icon: Video, gradient: 'agent-gradient-viralvideo' },
-    { id: 'trend_hunter', title: 'Trend Hunter', subtitle: 'Real-Time Intel', icon: Hash, gradient: 'agent-gradient-trendhunter' },
-    { id: 'album_art', title: 'Album Art', subtitle: 'Visual Generator', icon: ImageIcon, gradient: 'agent-gradient-coverart' },
+const AGENTS = [
+  { id: 'ghostwriter', title: 'Ghostwriter', subtitle: 'AI Lyric Engine', icon: Sparkles, gradient: 'bg-gradient-to-br from-violet-600 to-indigo-600', systemPrompt: 'You are Ghostwriter, an elite hip-hop lyricist AI. Write creative, authentic lyrics with clever wordplay, metaphors, and punchlines. Match the requested style and mood. Be concise but impactful.', placeholder: 'What kind of lyrics do you need?', inputPlaceholder: 'Describe your song concept...' },
+  { id: 'songwriter', title: 'Songwriter', subtitle: 'Full Song Writer', icon: Feather, gradient: 'bg-gradient-to-br from-emerald-500 to-teal-600', systemPrompt: 'You are a professional songwriter. Help create complete songs with hooks, verses, bridges, and choruses. Focus on structure, melody suggestions, and emotional impact.', placeholder: 'Need a full song structure?', inputPlaceholder: 'What\'s your song about?' },
+  { id: 'battle', title: 'Battle AI', subtitle: 'Sharpen Your Skills', icon: Flame, gradient: 'bg-gradient-to-br from-red-500 to-orange-600', systemPrompt: 'You are a battle rap AI. When the user spits bars, respond with a devastating freestyle diss. Be clever, use wordplay, and go hard. This is practice for real battles.', placeholder: 'Spit your bars and I\'ll respond', inputPlaceholder: 'Drop your verse...' },
+  { id: 'crates', title: 'Crate Digger', subtitle: 'Sample Discovery', icon: Disc, gradient: 'bg-gradient-to-br from-amber-500 to-yellow-600', systemPrompt: 'You are Crate Digger, a sample discovery AI with encyclopedic knowledge of obscure records. Suggest samples based on mood, era, or reference tracks. Include artist, song, year, and why it would work.', placeholder: 'What kind of samples you looking for?', inputPlaceholder: 'Describe the vibe...' },
+  { id: 'ar_suite', title: 'A&R Office', subtitle: 'Industry Feedback', icon: Briefcase, gradient: 'bg-gradient-to-br from-purple-600 to-pink-600', systemPrompt: 'You are an A&R executive AI. Provide honest, constructive feedback on music concepts. Evaluate commercial viability, artist development potential, and give actionable advice.', placeholder: 'Get industry-level feedback', inputPlaceholder: 'Describe your project...' },
+  { id: 'viral_video', title: 'Viral Video', subtitle: 'Content Strategy', icon: Video, gradient: 'bg-gradient-to-br from-rose-500 to-red-600', systemPrompt: 'You are a viral content strategist AI. Create concepts for TikTok, Reels, and Shorts that will maximize engagement. Include hooks, visual concepts, and trend alignment.', placeholder: 'Need a viral video concept?', inputPlaceholder: 'What\'s the song or vibe?' },
+  { id: 'trend_hunter', title: 'Trend Hunter', subtitle: 'Real-Time Intel', icon: Hash, gradient: 'bg-gradient-to-br from-cyan-500 to-blue-600', systemPrompt: 'You are Trend Hunter, a social media trend analyst AI. Identify what\'s trending in music, culture, and social media. Help artists capitalize on emerging trends.', placeholder: 'What trends interest you?', inputPlaceholder: 'Ask about trends...' },
+  { id: 'album_art', title: 'Album Art', subtitle: 'Visual Concepts', icon: ImageIcon, gradient: 'bg-gradient-to-br from-pink-500 to-violet-600', systemPrompt: 'You are an album art conceptualist AI. Create detailed visual concepts for album covers, singles, and promotional art based on the music\'s mood, themes, and artist brand.', placeholder: 'Describe your project for art concepts', inputPlaceholder: 'Describe your music...' },
+];
+
+const StudioPage = ({ onSelectAgent }) => (
+  <div className="h-full overflow-y-auto bg-black">
+    <Header title="Studio" subtitle="AI-powered creative tools" />
+    
+    {/* Sister App Banner */}
+    <a href={CONFIG.SISTER_APP.url} target="_blank" rel="noopener noreferrer"
+      className="mx-5 mb-5 p-4 rounded-2xl bg-gradient-to-r from-violet-600/20 to-indigo-600/20 border border-violet-500/30 flex items-center gap-4 group hover:border-violet-500/50 transition-colors">
+      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
+        <Radio size={24} className="text-white" />
+      </div>
+      <div className="flex-1">
+        <p className="text-white font-semibold font-mono">{CONFIG.SISTER_APP.name}</p>
+        <p className="text-white/50 text-sm font-mono">{CONFIG.SISTER_APP.tagline}</p>
+      </div>
+      <ExternalLink size={18} className="text-violet-400 group-hover:translate-x-0.5 transition-transform" />
+    </a>
+    
+    {/* Agents Grid */}
+    <div className="px-5 pb-32 grid grid-cols-1 gap-4">
+      {AGENTS.map(agent => (
+        <AgentCard key={agent.id} agent={agent} onClick={() => onSelectAgent(agent)} />
+      ))}
+    </div>
+  </div>
+);
+
+const ComeUpPage = () => {
+  const pillars = [
+    { 
+      id: 'craft', 
+      icon: Music, 
+      color: 'from-cyan-500 to-blue-600', 
+      title: 'Master Your Craft', 
+      subtitle: 'The 10,000 hour truth', 
+      description: 'Write every day. Study the greats. Practice your delivery until it\'s second nature. There are no shortcuts to greatness.',
+      tips: ['Write 16 bars daily', 'Study song structures', 'Record yourself constantly', 'Get honest feedback']
+    },
+    { 
+      id: 'business', 
+      icon: DollarSign, 
+      color: 'from-amber-500 to-orange-600', 
+      title: 'Own Your Business', 
+      subtitle: 'Money, masters & publishing', 
+      description: 'Understand your publishing. Keep your masters. Build multiple revenue streams. Music is a business first.',
+      tips: ['Keep your masters', 'Learn publishing splits', 'Diversify income', 'Read every contract']
+    },
+    { 
+      id: 'network', 
+      icon: Users, 
+      color: 'from-emerald-500 to-teal-600', 
+      title: 'Build Your Network', 
+      subtitle: 'Relationships over clout', 
+      description: 'Connect with other artists. Find mentors. Build genuine relationships. Your network is your net worth.',
+      tips: ['Collaborate often', 'Support other artists', 'Find mentors', 'Show up consistently']
+    },
+    { 
+      id: 'brand', 
+      icon: Star, 
+      color: 'from-pink-500 to-rose-600', 
+      title: 'Define Your Brand', 
+      subtitle: 'Stand out from the noise', 
+      description: 'Know who you are as an artist. Build a visual identity. Be consistent. Be authentic. Be memorable.',
+      tips: ['Find your niche', 'Visual consistency', 'Authentic storytelling', 'Content strategy']
+    },
   ];
   
+  const [expanded, setExpanded] = useState(null);
+  
   return (
-    <div className="h-full overflow-y-auto bg-[#0a0a0b]">
-      <div className="px-4 pt-6 pb-4 safe-top">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Studio</h1>
-            <p className="text-white/50 text-sm mt-1">AI-powered creative tools</p>
-          </div>
-          <UserMenu />
+    <div className="h-full overflow-y-auto bg-black">
+      <Header title="The Come Up" subtitle="Your blueprint to success" />
+      
+      {/* Intro */}
+      <div className="px-5 mb-6">
+        <div className="p-5 rounded-3xl bg-gradient-to-br from-white/5 to-white/0 border border-white/10">
+          <p className="text-white/70 leading-relaxed font-mono text-sm">
+            The music industry is built to keep you dependent. <span className="text-white font-semibold">The Come Up</span> is your playbook for building a sustainable career on your own terms.
+          </p>
         </div>
       </div>
       
-      <div className="px-4 pb-24 grid grid-cols-2 gap-3">
-        {agents.map((agent) => (
-          <button
-            key={agent.id}
-            onClick={() => onSelectAgent(agent.id)}
-            className={`${agent.gradient} p-4 rounded-2xl text-left transition-all active:scale-[0.98]`}
-          >
-            <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center mb-3">
-              <agent.icon size={20} className="text-white" />
-            </div>
-            <h3 className="text-white font-semibold text-sm">{agent.title}</h3>
-            <p className="text-white/70 text-xs mt-0.5">{agent.subtitle}</p>
-          </button>
+      {/* Pillars */}
+      <div className="px-5 pb-32 space-y-4">
+        {pillars.map(pillar => (
+          <div key={pillar.id} className="rounded-3xl overflow-hidden border border-white/10">
+            <button
+              onClick={() => setExpanded(expanded === pillar.id ? null : pillar.id)}
+              className={`w-full p-5 bg-gradient-to-r ${pillar.color} text-left flex items-center gap-4`}
+            >
+              <div className="w-14 h-14 rounded-2xl bg-black/20 flex items-center justify-center">
+                <pillar.icon size={28} className="text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-white font-bold text-lg font-mono">{pillar.title}</h3>
+                <p className="text-white/70 font-mono text-sm">{pillar.subtitle}</p>
+              </div>
+              <ChevronDown size={24} className={`text-white/50 transition-transform ${expanded === pillar.id ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {expanded === pillar.id && (
+              <div className="p-5 bg-white/5">
+                <p className="text-white/70 leading-relaxed font-mono text-sm">{pillar.description}</p>
+                <div className="mt-4 space-y-2">
+                  {pillar.tips.map((tip, i) => (
+                    <div key={i} className="flex items-center gap-3 text-white/60 font-mono text-sm">
+                      <Check size={14} className="text-emerald-400" />
+                      {tip}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         ))}
       </div>
     </div>
@@ -1242,87 +834,37 @@ const NewsPage = () => {
     fetchNews();
   }, []);
   
-  return (
-    <div className="h-full overflow-y-auto bg-[#0a0a0b]">
-      <div className="px-4 pt-6 pb-4 safe-top flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">News</h1>
-          <p className="text-white/50 text-sm mt-1">Hip-hop industry updates</p>
-        </div>
-        <button 
-          onClick={() => window.location.reload()} 
-          className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center"
-        >
-          <RefreshCw size={18} className="text-white/60" />
-        </button>
-      </div>
-      
-      <div className="px-4 pb-24 space-y-3">
-        {loading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="shimmer h-24 rounded-2xl" />
-          ))
-        ) : articles.length > 0 ? (
-          articles.map((article, i) => (
-            <Card key={i} className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600/20 flex items-center justify-center shrink-0">
-                  <Newspaper size={18} className="text-indigo-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-medium text-sm line-clamp-2">{article.title}</h3>
-                  <p className="text-white/50 text-xs mt-1 line-clamp-2">{article.content}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-white/40 text-[10px]">{article.source}</span>
-                    <span className="text-white/20">•</span>
-                    <span className="text-white/40 text-[10px]">{article.time || article.date}</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ))
-        ) : (
-          <div className="text-center py-12">
-            <Newspaper size={48} className="mx-auto mb-4 text-white/20" />
-            <p className="text-white/50 text-sm">No news available</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-const ComeUpPage = () => {
-  const pillars = [
-    { id: 'craft', title: 'Master Your Craft', subtitle: 'The 10,000 Hour Truth', icon: Music, color: 'from-cyan-500 to-blue-600' },
-    { id: 'business', title: 'Own Your Business', subtitle: 'Money & Masters', icon: Briefcase, color: 'from-amber-500 to-orange-600' },
-    { id: 'network', title: 'Build Your Network', subtitle: 'Relationships Matter', icon: User, color: 'from-green-500 to-emerald-600' },
-    { id: 'brand', title: 'Define Your Brand', subtitle: 'Stand Out', icon: Zap, color: 'from-pink-500 to-rose-600' },
+  // Fallback articles if API returns nothing
+  const fallbackArticles = [
+    { title: 'AI in Music Production: The Future is Now', source: 'Music Tech Weekly', content: 'How independent artists are using AI to compete with major labels.', date: 'Today' },
+    { title: 'Building Your Brand in the Streaming Era', source: 'Artist Development', content: 'Strategies for standing out when everyone has access to the same tools.', date: 'Yesterday' },
+    { title: 'The Rise of Independent Distribution', source: 'Industry Insider', content: 'Why more artists are choosing to stay independent.', date: '2 days ago' },
   ];
   
+  const displayArticles = articles.length > 0 ? articles : fallbackArticles;
+  
   return (
-    <div className="h-full overflow-y-auto bg-[#0a0a0b]">
-      <div className="px-4 pt-6 pb-4 safe-top">
-        <h1 className="text-2xl font-bold text-white">The Come Up</h1>
-        <p className="text-white/50 text-sm mt-1">Your path to success</p>
-      </div>
+    <div className="h-full overflow-y-auto bg-black">
+      <Header title="News" subtitle="Industry updates" />
       
-      <div className="px-4 pb-24 space-y-3">
-        {pillars.map((pillar) => (
-          <button 
-            key={pillar.id}
-            className={`w-full bg-gradient-to-r ${pillar.color} p-5 rounded-2xl text-left flex items-center gap-4 transition-all active:scale-[0.98]`}
-          >
-            <div className="w-12 h-12 rounded-xl bg-black/20 flex items-center justify-center">
-              <pillar.icon size={24} className="text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-white font-semibold">{pillar.title}</h3>
-              <p className="text-white/70 text-sm">{pillar.subtitle}</p>
-            </div>
-            <ChevronRight size={20} className="text-white/50" />
-          </button>
-        ))}
+      <div className="px-5 pb-32 space-y-4">
+        {loading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-28 rounded-3xl bg-white/5 animate-pulse" />
+          ))
+        ) : (
+          displayArticles.map((article, i) => (
+            <a key={i} href={article.link || '#'} target="_blank" rel="noopener noreferrer"
+              className="block p-5 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+              <h3 className="text-white font-semibold line-clamp-2 font-mono">{article.title}</h3>
+              {article.content && <p className="text-white/50 text-sm mt-2 line-clamp-2 font-mono">{article.content}</p>}
+              <div className="flex items-center gap-3 mt-3">
+                <span className="text-violet-400 text-xs font-medium font-mono">{article.source}</span>
+                {article.date && <span className="text-white/30 text-xs font-mono">{article.date}</span>}
+              </div>
+            </a>
+          ))
+        )}
       </div>
     </div>
   );
@@ -1335,55 +877,22 @@ const ComeUpPage = () => {
 const App = () => {
   const [activeTab, setActiveTab] = useState('studio');
   const [selectedAgent, setSelectedAgent] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('studio_onboarded');
+  });
   
-  const handleSelectAgent = (agentId) => {
-    setSelectedAgent(agentId);
+  const completeOnboarding = () => {
+    localStorage.setItem('studio_onboarded', 'true');
+    setShowOnboarding(false);
   };
   
-  const handleBackFromAgent = () => {
-    setSelectedAgent(null);
-  };
-  
-  // Render agent if selected
-  if (selectedAgent) {
-    const agentProps = { onBack: handleBackFromAgent };
-    
-    switch (selectedAgent) {
-      case 'ghostwriter':
-        return <GhostwriterAgent {...agentProps} />;
-      case 'battle':
-        return <BattleAgent {...agentProps} />;
-      case 'songwriter':
-        return <GenericChatAgent agentId="songwriter" title="Songwriter" icon={Feather} accentColor="green" systemPrompt="You are a professional songwriter. Help create hooks, verses, bridges, and full songs." placeholder="Describe your song concept..." {...agentProps} />;
-      case 'crates':
-        return <GenericChatAgent agentId="crates" title="Crate Digger" icon={Disc} accentColor="amber" systemPrompt="You are an expert sample finder. Suggest obscure records, breaks, and samples based on the vibe requested." placeholder="What kind of sound are you looking for?" {...agentProps} />;
-      case 'ar_suite':
-        return <GenericChatAgent agentId="ar_suite" title="A&R Office" icon={Briefcase} accentColor="violet" systemPrompt="You are an A&R executive. Provide honest feedback on music concepts, commercial viability, and artist development advice." placeholder="Describe your track or concept..." {...agentProps} />;
-      case 'viral_video':
-        return <GenericChatAgent agentId="viral_video" title="Viral Video" icon={Video} accentColor="red" systemPrompt="You are a viral content strategist. Create concepts for TikTok, Reels, and Shorts optimized for engagement." placeholder="Describe your song or vibe..." {...agentProps} />;
-      case 'trend_hunter':
-        return <GenericChatAgent agentId="trend_hunter" title="Trend Hunter" icon={Hash} accentColor="cyan" systemPrompt="You are a social media trend analyst. Identify what's trending in music and culture right now." placeholder="What trends are you curious about?" {...agentProps} />;
-      case 'album_art':
-        return <GenericChatAgent agentId="album_art" title="Album Art" icon={ImageIcon} accentColor="pink" systemPrompt="You are an album art conceptualist. Describe visual concepts for album covers based on the music's mood and themes." placeholder="Describe your project's vibe..." {...agentProps} />;
-      default:
-        setSelectedAgent(null);
-        return null;
-    }
+  if (showOnboarding) {
+    return <OnboardingScreen onComplete={completeOnboarding} />;
   }
   
-  // Render main tabs
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'studio':
-        return <StudioPage onSelectAgent={handleSelectAgent} />;
-      case 'comeup':
-        return <ComeUpPage />;
-      case 'news':
-        return <NewsPage />;
-      default:
-        return <StudioPage onSelectAgent={handleSelectAgent} />;
-    }
-  };
+  if (selectedAgent) {
+    return <AgentView agent={selectedAgent} onBack={() => setSelectedAgent(null)} />;
+  }
   
   const tabs = [
     { id: 'studio', label: 'Studio', icon: Zap },
@@ -1392,27 +901,23 @@ const App = () => {
   ];
   
   return (
-    <div className="h-screen flex flex-col bg-[#0a0a0b] overflow-hidden">
-      {/* Main Content */}
+    <div className="h-screen flex flex-col bg-black overflow-hidden">
       <div className="flex-1 overflow-hidden">
-        {renderContent()}
+        {activeTab === 'studio' && <StudioPage onSelectAgent={setSelectedAgent} />}
+        {activeTab === 'comeup' && <ComeUpPage />}
+        {activeTab === 'news' && <NewsPage />}
       </div>
       
-      {/* Bottom Navigation */}
-      <nav className="bg-[#141416] border-t border-white/5 safe-bottom">
+      {/* Bottom Nav */}
+      <nav className="bg-[#0c0c0e] border-t border-white/5 safe-bottom">
         <div className="flex justify-around py-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-col items-center py-2 px-6 rounded-xl transition-all ${
-                activeTab === tab.id 
-                  ? 'text-indigo-400' 
-                  : 'text-white/40 hover:text-white/60'
-              }`}
-            >
-              <tab.icon size={22} />
-              <span className="text-[10px] mt-1 font-medium">{tab.label}</span>
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`flex flex-col items-center py-3 px-6 rounded-2xl transition-all ${
+                activeTab === tab.id ? 'text-white' : 'text-white/40'
+              }`}>
+              <tab.icon size={24} className={activeTab === tab.id ? 'text-violet-400' : ''} />
+              <span className="text-xs mt-1 font-medium font-mono">{tab.label}</span>
             </button>
           ))}
         </div>
@@ -1421,7 +926,7 @@ const App = () => {
   );
 };
 
-// Wrap App with AuthProvider
+// Wrap with AuthProvider
 const AppWithAuth = () => (
   <AuthProvider>
     <App />
