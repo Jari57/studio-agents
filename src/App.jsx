@@ -308,7 +308,7 @@ const OnboardingScreen = ({ onComplete }) => {
       
       {/* Skip */}
       <div className="relative z-10 flex justify-end p-6 safe-top">
-        <button onClick={onComplete} className="text-white/50 text-sm font-mono">Skip</button>
+        <button onClick={onComplete} className="text-white/50 text-sm">Skip</button>
       </div>
       
       {/* Content */}
@@ -317,17 +317,17 @@ const OnboardingScreen = ({ onComplete }) => {
           <current.icon size={48} className="text-white" />
         </div>
         
-        <h1 className="text-3xl font-bold text-white mb-4 font-mono tracking-tight">{current.title}</h1>
+        <h1 className="text-3xl font-bold text-white mb-4 tracking-tight">{current.title}</h1>
         <p className="text-white/60 text-lg mb-6 max-w-sm">{current.subtitle}</p>
         
         {current.highlight && (
-          <p className="text-white/80 font-medium font-mono">{current.highlight}</p>
+          <p className="text-white/80 font-medium">{current.highlight}</p>
         )}
         
         {current.features && (
           <div className="space-y-2 mt-4">
             {current.features.map((f, i) => (
-              <div key={i} className="text-white/70 text-sm font-mono">{f}</div>
+              <div key={i} className="text-white/70 text-sm">{f}</div>
             ))}
           </div>
         )}
@@ -336,7 +336,7 @@ const OnboardingScreen = ({ onComplete }) => {
           <div className="mt-8 space-y-4 w-full max-w-xs">
             <button
               onClick={onComplete}
-              className={`w-full py-4 rounded-2xl bg-gradient-to-r ${current.gradient} text-white font-bold text-lg shadow-xl font-mono tracking-wide`}
+              className={`w-full py-4 rounded-2xl bg-gradient-to-r ${current.gradient} text-white font-bold text-lg shadow-xl tracking-wide`}
             >
               Get Started Free
             </button>
@@ -349,7 +349,7 @@ const OnboardingScreen = ({ onComplete }) => {
         {!isLast && (
           <button
             onClick={() => setStep(step + 1)}
-            className={`w-full py-4 rounded-2xl bg-gradient-to-r ${current.gradient} text-white font-bold text-lg mb-6 font-mono tracking-wide`}
+            className={`w-full py-4 rounded-2xl bg-gradient-to-r ${current.gradient} text-white font-bold text-lg mb-6 tracking-wide`}
           >
             Next
           </button>
@@ -418,21 +418,21 @@ const AuthModal = ({ isOpen, onClose }) => {
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
             <Crown size={32} className="text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-white font-mono tracking-tight">
+          <h2 className="text-2xl font-bold text-white tracking-tight">
             {mode === 'signin' ? 'Welcome Back' : 'Create Account'}
           </h2>
-          <p className="text-white/50 mt-2 font-mono text-sm">Get 100 generations per agent</p>
+          <p className="text-white/50 mt-2 text-sm">Get 100 generations per agent</p>
         </div>
         
         <form onSubmit={handleSubmit} className="px-6 pb-8 space-y-4">
           {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2 font-mono">
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2">
               <AlertCircle size={16} /> {error}
             </div>
           )}
           
           <button type="button" onClick={handleGoogle} disabled={loading}
-            className="w-full p-4 bg-white text-gray-900 font-semibold rounded-2xl flex items-center justify-center gap-3 hover:bg-gray-100 disabled:opacity-50 font-mono">
+            className="w-full p-4 bg-white text-gray-900 font-semibold rounded-2xl flex items-center justify-center gap-3 hover:bg-gray-100 disabled:opacity-50">
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -444,23 +444,23 @@ const AuthModal = ({ isOpen, onClose }) => {
           
           <div className="flex items-center gap-3">
             <div className="flex-1 h-px bg-white/10" />
-            <span className="text-white/30 text-sm font-mono">or</span>
+            <span className="text-white/30 text-sm">or</span>
             <div className="flex-1 h-px bg-white/10" />
           </div>
           
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required
-            className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none font-mono" />
+            className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none" />
           
           <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required minLength={6}
-            className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none font-mono" />
+            className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none" />
           
           <button type="submit" disabled={loading}
-            className="w-full py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50 font-mono tracking-wide">
+            className="w-full py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50 tracking-wide">
             {loading && <Loader2 size={18} className="animate-spin" />}
             {mode === 'signin' ? 'Sign In' : 'Create Account'}
           </button>
           
-          <p className="text-center text-white/40 text-sm font-mono">
+          <p className="text-center text-white/40 text-sm">
             {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
             <button type="button" onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')} className="text-violet-400">
               {mode === 'signin' ? 'Sign up' : 'Sign in'}
@@ -486,8 +486,8 @@ const Header = ({ title, subtitle, showAuth = true }) => {
       <header className="px-5 pt-6 pb-4 safe-top">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white font-mono tracking-tight">{title}</h1>
-            {subtitle && <p className="text-white/40 text-sm mt-0.5 font-mono">{subtitle}</p>}
+            <h1 className="text-2xl font-bold text-white tracking-tight">{title}</h1>
+            {subtitle && <p className="text-white/40 text-sm mt-0.5">{subtitle}</p>}
           </div>
           
           {showAuth && (
@@ -496,7 +496,7 @@ const Header = ({ title, subtitle, showAuth = true }) => {
                 <button onClick={() => setShowMenu(!showMenu)}
                   className="flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30">
                   <Crown size={16} className="text-amber-400" />
-                  <span className="text-amber-400 text-sm font-medium max-w-[80px] truncate font-mono">
+                  <span className="text-amber-400 text-sm font-medium max-w-[80px] truncate">
                     {auth.userProfile?.displayName || 'Pro'}
                   </span>
                 </button>
@@ -505,14 +505,14 @@ const Header = ({ title, subtitle, showAuth = true }) => {
                     <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
                     <div className="absolute right-0 top-full mt-2 w-56 bg-[#1a1a1d] border border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden">
                       <div className="p-4 border-b border-white/5">
-                        <p className="text-white font-medium truncate font-mono">{auth.user.email}</p>
+                        <p className="text-white font-medium truncate">{auth.user.email}</p>
                         <div className="flex items-center gap-1.5 mt-1">
                           <Crown size={12} className="text-amber-400" />
-                          <span className="text-amber-400 text-xs font-mono">Premium • 100 gens/agent</span>
+                          <span className="text-amber-400 text-xs">Premium • 100 gens/agent</span>
                         </div>
                       </div>
                       <button onClick={() => { auth.logout(); setShowMenu(false); }}
-                        className="w-full p-4 flex items-center gap-3 text-white/60 hover:bg-white/5 hover:text-white font-mono">
+                        className="w-full p-4 flex items-center gap-3 text-white/60 hover:bg-white/5 hover:text-white">
                         <LogOut size={18} /> Sign Out
                       </button>
                     </div>
@@ -521,7 +521,7 @@ const Header = ({ title, subtitle, showAuth = true }) => {
               </div>
             ) : (
               <button onClick={() => setShowAuthModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-semibold font-mono">
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-semibold">
                 <User size={16} /> Sign In
               </button>
             )
@@ -545,8 +545,8 @@ const AgentCard = ({ agent, onClick }) => (
       <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mb-4">
         <agent.icon size={24} className="text-white" />
       </div>
-      <h3 className="text-white font-bold text-lg font-mono">{agent.title}</h3>
-      <p className="text-white/70 text-sm font-mono">{agent.subtitle}</p>
+      <h3 className="text-white font-bold text-lg">{agent.title}</h3>
+      <p className="text-white/70 text-sm">{agent.subtitle}</p>
     </div>
     <ChevronRight size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 group-hover:translate-x-1 transition-transform" />
   </button>
@@ -600,10 +600,10 @@ const AgentView = ({ agent, onBack }) => {
             <ChevronLeft size={24} className="text-white" />
           </button>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-white font-mono">{agent.title}</h1>
-            <p className="text-white/70 text-sm font-mono">{agent.subtitle}</p>
+            <h1 className="text-xl font-bold text-white">{agent.title}</h1>
+            <p className="text-white/70 text-sm">{agent.subtitle}</p>
           </div>
-          <div className="px-3 py-1.5 rounded-full bg-black/20 text-white/80 text-xs font-medium font-mono">
+          <div className="px-3 py-1.5 rounded-full bg-black/20 text-white/80 text-xs font-medium">
             {remaining} left
           </div>
         </div>
@@ -616,8 +616,8 @@ const AgentView = ({ agent, onBack }) => {
             <div className={`w-20 h-20 mx-auto mb-6 rounded-3xl ${agent.gradient} flex items-center justify-center opacity-30`}>
               <agent.icon size={40} className="text-white" />
             </div>
-            <p className="text-white/40 text-lg font-medium mb-2 font-mono">{agent.placeholder}</p>
-            <p className="text-white/20 text-sm font-mono">{remaining} free generations remaining</p>
+            <p className="text-white/40 text-lg font-medium mb-2">{agent.placeholder}</p>
+            <p className="text-white/20 text-sm">{remaining} free generations remaining</p>
           </div>
         )}
         
@@ -630,11 +630,11 @@ const AgentView = ({ agent, onBack }) => {
                   ? 'bg-red-500/10 border border-red-500/20 text-red-400 rounded-bl-lg'
                   : 'bg-white/5 text-white/90 rounded-bl-lg border border-white/5'
             }`}>
-              <p className="whitespace-pre-wrap text-sm leading-relaxed font-mono">{msg.text}</p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.text}</p>
               {!msg.isUser && !msg.error && (
                 <button 
                   onClick={() => copyToClipboard(msg.text)}
-                  className="mt-3 flex items-center gap-1.5 text-white/40 hover:text-white/60 text-xs font-mono"
+                  className="mt-3 flex items-center gap-1.5 text-white/40 hover:text-white/60 text-xs"
                 >
                   <Copy size={12} /> Copy
                 </button>
@@ -648,7 +648,7 @@ const AgentView = ({ agent, onBack }) => {
             <div className="px-5 py-4 rounded-3xl rounded-bl-lg bg-white/5 border border-white/5">
               <div className="flex items-center gap-2">
                 <Loader2 size={16} className="animate-spin text-violet-400" />
-                <span className="text-white/40 text-sm font-mono">Thinking...</span>
+                <span className="text-white/40 text-sm">Thinking...</span>
               </div>
             </div>
           </div>
@@ -660,7 +660,7 @@ const AgentView = ({ agent, onBack }) => {
       <div className="p-5 safe-bottom border-t border-white/5">
         {!canUse && !isPremium ? (
           <button onClick={() => setShowAuthModal(true)}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold flex items-center justify-center gap-2 font-mono">
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold flex items-center justify-center gap-2">
             <Crown size={18} /> Sign In for 100 More
           </button>
         ) : (
@@ -671,7 +671,7 @@ const AgentView = ({ agent, onBack }) => {
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
               placeholder={agent.inputPlaceholder || "Type your message..."}
-              className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-violet-500 outline-none font-mono"
+              className="flex-1 px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:border-violet-500 outline-none"
             />
             <button onClick={handleSubmit} disabled={loading || !input.trim()}
               className="w-14 h-14 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 flex items-center justify-center disabled:opacity-30">
@@ -712,8 +712,8 @@ const StudioPage = ({ onSelectAgent }) => (
         <Radio size={24} className="text-white" />
       </div>
       <div className="flex-1">
-        <p className="text-white font-semibold font-mono">{CONFIG.SISTER_APP.name}</p>
-        <p className="text-white/50 text-sm font-mono">{CONFIG.SISTER_APP.tagline}</p>
+        <p className="text-white font-semibold">{CONFIG.SISTER_APP.name}</p>
+        <p className="text-white/50 text-sm">{CONFIG.SISTER_APP.tagline}</p>
       </div>
       <ExternalLink size={18} className="text-violet-400 group-hover:translate-x-0.5 transition-transform" />
     </a>
@@ -776,7 +776,7 @@ const ComeUpPage = () => {
       {/* Intro */}
       <div className="px-5 mb-6">
         <div className="p-5 rounded-3xl bg-gradient-to-br from-white/5 to-white/0 border border-white/10">
-          <p className="text-white/70 leading-relaxed font-mono text-sm">
+          <p className="text-white/70 leading-relaxed text-sm">
             The music industry is built to keep you dependent. <span className="text-white font-semibold">The Come Up</span> is your playbook for building a sustainable career on your own terms.
           </p>
         </div>
@@ -794,18 +794,18 @@ const ComeUpPage = () => {
                 <pillar.icon size={28} className="text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="text-white font-bold text-lg font-mono">{pillar.title}</h3>
-                <p className="text-white/70 font-mono text-sm">{pillar.subtitle}</p>
+                <h3 className="text-white font-bold text-lg">{pillar.title}</h3>
+                <p className="text-white/70 text-sm">{pillar.subtitle}</p>
               </div>
               <ChevronDown size={24} className={`text-white/50 transition-transform ${expanded === pillar.id ? 'rotate-180' : ''}`} />
             </button>
             
             {expanded === pillar.id && (
               <div className="p-5 bg-white/5">
-                <p className="text-white/70 leading-relaxed font-mono text-sm">{pillar.description}</p>
+                <p className="text-white/70 leading-relaxed text-sm">{pillar.description}</p>
                 <div className="mt-4 space-y-2">
                   {pillar.tips.map((tip, i) => (
-                    <div key={i} className="flex items-center gap-3 text-white/60 font-mono text-sm">
+                    <div key={i} className="flex items-center gap-3 text-white/60 text-sm">
                       <Check size={14} className="text-emerald-400" />
                       {tip}
                     </div>
@@ -856,11 +856,11 @@ const NewsPage = () => {
           displayArticles.map((article, i) => (
             <a key={i} href={article.link || '#'} target="_blank" rel="noopener noreferrer"
               className="block p-5 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-              <h3 className="text-white font-semibold line-clamp-2 font-mono">{article.title}</h3>
-              {article.content && <p className="text-white/50 text-sm mt-2 line-clamp-2 font-mono">{article.content}</p>}
+              <h3 className="text-white font-semibold line-clamp-2">{article.title}</h3>
+              {article.content && <p className="text-white/50 text-sm mt-2 line-clamp-2">{article.content}</p>}
               <div className="flex items-center gap-3 mt-3">
-                <span className="text-violet-400 text-xs font-medium font-mono">{article.source}</span>
-                {article.date && <span className="text-white/30 text-xs font-mono">{article.date}</span>}
+                <span className="text-violet-400 text-xs font-medium">{article.source}</span>
+                {article.date && <span className="text-white/30 text-xs">{article.date}</span>}
               </div>
             </a>
           ))
@@ -917,7 +917,7 @@ const App = () => {
                 activeTab === tab.id ? 'text-white' : 'text-white/40'
               }`}>
               <tab.icon size={24} className={activeTab === tab.id ? 'text-violet-400' : ''} />
-              <span className="text-xs mt-1 font-medium font-mono">{tab.label}</span>
+              <span className="text-xs mt-1 font-medium">{tab.label}</span>
             </button>
           ))}
         </div>
