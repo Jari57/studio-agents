@@ -196,6 +196,20 @@ const globalRateLimiter = new RateLimiter();
 // =============================================================================
 
 /**
+ * Gets the current user's Firebase ID token for authenticated requests
+ */
+const getAuthToken = async () => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) return null;
+  try {
+    return await currentUser.getIdToken();
+  } catch (error) {
+    console.error('[Auth] Failed to get token:', error);
+    return null;
+  }
+};
+
+/**
  * Secure API service with retry logic and error handling
  */
 const ApiService = {
@@ -203,9 +217,10 @@ const ApiService = {
    * Makes a secure API call to the backend
    * @param {string} endpoint - API endpoint
    * @param {object} body - Request body
+   * @param {boolean} withAuth - Include auth token
    * @returns {Promise<object>} API response
    */
-  async call(endpoint, body) {
+  async call(endpoint, body, withAuth = true) {
     // Rate limit check
     if (!globalRateLimiter.canMakeRequest()) {
       const waitTime = globalRateLimiter.getTimeUntilNext();
@@ -215,13 +230,22 @@ const ApiService = {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), CONFIG.API.TIMEOUT);
     
+    // Build headers with optional auth
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (withAuth) {
+      const token = await getAuthToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+    
     try {
       const response = await fetch(`${CONFIG.API.BASE_URL}${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // CSRF token would go here in production
-        },
+        headers,
         body: JSON.stringify(body),
         signal: controller.signal,
       });
