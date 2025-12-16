@@ -138,7 +138,10 @@ const allowedOrigins = isDevelopment
   : [
       process.env.FRONTEND_URL,
       'https://whipmontez.com',
-      'https://www.whipmontez.com'
+      'https://www.whipmontez.com',
+      'https://studioagents.com',
+      'https://www.studioagents.com',
+      'https://studio-agents.vercel.app'
     ].filter(Boolean);
 
 app.use(cors({
