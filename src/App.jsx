@@ -43,12 +43,13 @@ import {
 // =============================================================================
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDR81xS1y9rT23IYVuD2PTVG0G2fNmQG2o",
+  apiKey: "AIzaSyAKWKmHVfwKHuH_Huf4C2XcMAxk3pkkuz8",
   authDomain: "studioagents-app.firebaseapp.com",
   projectId: "studioagents-app",
   storageBucket: "studioagents-app.firebasestorage.app",
-  messagingSenderId: "981234567890",
-  appId: "1:981234567890:web:abc123def456ghi789"
+  messagingSenderId: "460525904786",
+  appId: "1:460525904786:web:6c59dbc6837ead2ed9d74b",
+  measurementId: "G-37J2MVHXS7"
 };
 
 // Initialize Firebase
