@@ -261,7 +261,7 @@ const useUsageLimit = (agentId) => {
 };
 
 // =============================================================================
-// ONBOARDING
+// ONBOARDING - PROFESSIONAL & COMPREHENSIVE
 // =============================================================================
 
 const OnboardingScreen = ({ onComplete }) => {
@@ -270,99 +270,161 @@ const OnboardingScreen = ({ onComplete }) => {
   const slides = [
     {
       icon: Sparkles,
-      gradient: 'from-violet-600 to-indigo-600',
-      title: 'Your AI Creative Partner',
-      subtitle: 'Studio Agents gives independent artists access to the same AI tools major labels use.',
-      highlight: 'Write better hooks. Find rare samples. Dominate battles.',
+      title: 'Studio Agents',
+      subtitle: 'AI-Powered Production Tools for Independent Artists',
+      description: 'Professional tools designed specifically for hip-hop producers, songwriters, and artists. Get the same capabilities major labels have—without the label.',
     },
     {
       icon: Mic,
-      gradient: 'from-amber-500 to-orange-600',
-      title: '8 Specialized Agents',
-      subtitle: 'Each agent is trained for a specific part of your creative process.',
-      features: ['Ghostwriter • Lyric Engine', 'Battle AI • Sharpen Your Skills', 'Crate Digger • Sample Discovery', 'A&R Office • Industry Feedback'],
+      title: 'How It Works',
+      subtitle: '8 Specialized AI Agents',
+      list: [
+        { title: 'Ghostwriter', desc: 'AI-powered lyric writing with professional wordplay' },
+        { title: 'Songwriter', desc: 'Full song structure composition' },
+        { title: 'Battle AI', desc: 'Practice freestyle battles in real-time' },
+        { title: 'Crate Digger', desc: 'Discover rare samples by mood & era' },
+        { title: 'A&R Office', desc: 'Get industry-level feedback' },
+        { title: 'Viral Video', desc: 'TikTok/Reels content strategy' },
+        { title: 'Trend Hunter', desc: 'Real-time cultural trends' },
+        { title: 'Album Art', desc: 'Visual concepts for your work' },
+      ]
     },
     {
-      icon: Rocket,
-      gradient: 'from-emerald-500 to-teal-600',
-      title: 'Level Up Your Career',
-      subtitle: "The Come Up is your playbook for building a sustainable music career.",
-      highlight: 'Master your craft. Own your business. Build your network.',
+      icon: Target,
+      title: 'Getting Started',
+      subtitle: 'Your First Session',
+      steps: [
+        '1. Select an agent from the Studio tab',
+        '2. Describe what you need (e.g., "write a hook about money")',
+        '3. Get professional AI responses instantly',
+        '5 free generations per agent to start',
+        'Sign in for 100 per agent + cloud sync',
+      ]
+    },
+    {
+      icon: Award,
+      title: 'Examples',
+      subtitle: 'What You Can Create',
+      examples: [
+        'Ghostwriter: "Write a 8-bar hook about overcoming obstacles" → Get pro-level lyrics',
+        'Crate Digger: "Lofi soul sample, early 2000s vibe" → Discover rare tracks',
+        'A&R Office: "My song is a conscious rapper track" → Get commercial feedback',
+        'Battle AI: Spit your bars → Get creative diss responses to practice',
+      ]
+    },
+    {
+      icon: TrendingUp,
+      title: 'The Come Up',
+      subtitle: 'Your Music Career Blueprint',
+      description: 'Master Your Craft • Own Your Business • Build Your Network • Define Your Brand\n\nEach section has actionable steps to build a sustainable music career on your terms.',
     },
     {
       icon: Crown,
-      gradient: 'from-pink-500 to-rose-600',
-      title: 'Free to Start',
-      subtitle: '5 generations per agent. Sign in for 100 per agent + cloud sync.',
+      title: 'Ready to Create?',
+      subtitle: 'Sign in to unlock 100 generations per agent',
+      description: 'Free tier: 5 generations per agent\nPremium: 100 per agent + cloud sync + priority access',
       cta: true,
     },
   ];
   
   const current = slides[step];
-  const isLast = step === slides.length - 1;
+  const totalSlides = slides.length;
+  const isLast = step === totalSlides - 1;
   
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      {/* Background glow */}
-      <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-gradient-to-r ${current.gradient} opacity-20 blur-3xl`} />
-      
-      {/* Skip */}
-      <div className="relative z-10 flex justify-end p-6 safe-top">
-        <button onClick={onComplete} className="text-white/50 text-sm">Skip</button>
+    <div className="fixed inset-0 z-50 bg-black flex flex-col overflow-hidden safe-top">
+      {/* Header */}
+      <div className="flex justify-between items-center px-5 py-4 border-b border-white/8">
+        <h2 className="text-lg font-semibold text-white">Welcome</h2>
+        <button onClick={onComplete} className="text-xs text-white/40 font-medium px-3 py-1 hover:text-white/60">Skip</button>
       </div>
       
       {/* Content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-8 text-center">
-        <div className={`w-24 h-24 rounded-3xl bg-gradient-to-br ${current.gradient} flex items-center justify-center mb-8 shadow-2xl`}>
-          <current.icon size={48} className="text-white" />
+      <div className="flex-1 overflow-y-auto px-5 py-8">
+        <div className="max-w-2xl mx-auto">
+          {/* Icon */}
+          <div className="w-16 h-16 flex-center mb-6 bg-white/10 rounded-lg">
+            <current.icon size={32} className="text-white" />
+          </div>
+          
+          {/* Title & Subtitle */}
+          <h1 className="text-2xl font-bold text-white mb-2">{current.title}</h1>
+          <p className="text-sm text-white/50 mb-6">{current.subtitle}</p>
+          
+          {/* Description */}
+          {current.description && (
+            <p className="text-sm text-white/70 leading-relaxed mb-6 whitespace-pre-wrap">{current.description}</p>
+          )}
+          
+          {/* List */}
+          {current.list && (
+            <div className="space-y-3 mb-6">
+              {current.list.map((item, i) => (
+                <div key={i} className="p-3 rounded-lg bg-white/5 border border-white/8">
+                  <h3 className="text-sm font-semibold text-white">{item.title}</h3>
+                  <p className="text-xs text-white/50 mt-1">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Steps */}
+          {current.steps && (
+            <div className="space-y-2 mb-6">
+              {current.steps.map((step, i) => (
+                <div key={i} className="text-sm text-white/70 flex items-start gap-3">
+                  <span className="text-white/30 font-mono flex-shrink-0">{typeof step === 'string' && step.charAt(0)}</span>
+                  <span>{typeof step === 'string' ? step.slice(1) : step}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Examples */}
+          {current.examples && (
+            <div className="space-y-3 mb-6">
+              {current.examples.map((example, i) => (
+                <div key={i} className="p-3 rounded-lg bg-white/5 border border-white/8">
+                  <p className="text-xs text-white/70 font-mono leading-relaxed">{example}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        
-        <h1 className="text-3xl font-bold text-white mb-4 tracking-tight">{current.title}</h1>
-        <p className="text-white/60 text-lg mb-6 max-w-sm">{current.subtitle}</p>
-        
-        {current.highlight && (
-          <p className="text-white/80 font-medium">{current.highlight}</p>
-        )}
-        
-        {current.features && (
-          <div className="space-y-2 mt-4">
-            {current.features.map((f, i) => (
-              <div key={i} className="text-white/70 text-sm">{f}</div>
-            ))}
-          </div>
-        )}
-        
-        {current.cta && (
-          <div className="mt-8 space-y-4 w-full max-w-xs">
-            <button
-              onClick={onComplete}
-              className={`w-full py-4 rounded-2xl bg-gradient-to-r ${current.gradient} text-white font-bold text-lg shadow-xl tracking-wide`}
-            >
-              Get Started Free
-            </button>
-          </div>
-        )}
       </div>
       
-      {/* Dots & Next */}
-      <div className="relative z-10 p-8 pb-12 safe-bottom">
-        {!isLast && (
+      {/* Footer */}
+      <div className="px-5 py-6 border-t border-white/8 space-y-3 safe-bottom">
+        {current.cta ? (
           <button
-            onClick={() => setStep(step + 1)}
-            className={`w-full py-4 rounded-2xl bg-gradient-to-r ${current.gradient} text-white font-bold text-lg mb-6 tracking-wide`}
+            onClick={onComplete}
+            className="w-full py-3 bg-white text-black font-semibold rounded-lg hover:bg-white/90 transition-all"
           >
-            Next
+            Get Started
+          </button>
+        ) : (
+          <button
+            onClick={() => setStep(Math.min(step + 1, totalSlides - 1))}
+            className="w-full py-3 bg-white text-black font-semibold rounded-lg hover:bg-white/90 transition-all"
+          >
+            {isLast ? 'Finish' : 'Next'}
           </button>
         )}
         
-        <div className="flex justify-center gap-2">
+        <div className="flex justify-center gap-1.5">
           {slides.map((_, i) => (
             <div
               key={i}
-              className={`w-2 h-2 rounded-full transition-all ${i === step ? 'w-8 bg-white' : 'bg-white/30'}`}
+              className={`h-1 rounded-full transition-all ${
+                i === step ? 'w-6 bg-white' : i < step ? 'w-1 bg-white/60' : 'w-1 bg-white/20'
+              }`}
             />
           ))}
         </div>
+        
+        <p className="text-xs text-white/30 text-center">
+          Step {step + 1} of {totalSlides}
+        </p>
       </div>
     </div>
   );
@@ -407,62 +469,59 @@ const AuthModal = ({ isOpen, onClose }) => {
   
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md bg-[#0c0c0e] rounded-t-3xl sm:rounded-3xl border border-white/10" onClick={e => e.stopPropagation()}>
+      <div className="w-full max-w-md bg-black-3 rounded-t-lg sm:rounded-lg border border-white/10" onClick={e => e.stopPropagation()}>
         {/* Handle */}
         <div className="flex justify-center pt-3 sm:hidden">
-          <div className="w-12 h-1 rounded-full bg-white/20" />
+          <div className="w-12 h-0.5 rounded-full bg-white/20" />
         </div>
         
         {/* Header */}
-        <div className="p-6 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
-            <Crown size={32} className="text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">
-            {mode === 'signin' ? 'Welcome Back' : 'Create Account'}
+        <div className="p-6 text-center border-b border-white/8">
+          <h2 className="text-xl font-bold text-white">
+            {mode === 'signin' ? 'Sign In' : 'Create Account'}
           </h2>
-          <p className="text-white/50 mt-2 text-sm">Get 100 generations per agent</p>
+          <p className="text-white/50 mt-2 text-xs">100 generations per agent</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="px-6 pb-8 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-6 space-y-4">
           {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2">
-              <AlertCircle size={16} /> {error}
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+              <AlertCircle size={14} /> {error}
             </div>
           )}
           
           <button type="button" onClick={handleGoogle} disabled={loading}
-            className="w-full p-4 bg-white text-gray-900 font-semibold rounded-2xl flex items-center justify-center gap-3 hover:bg-gray-100 disabled:opacity-50">
-            <svg className="w-5 h-5" viewBox="0 0 24 24">
+            className="w-full p-3 bg-white text-black font-semibold rounded-lg flex items-center justify-center gap-2 hover:bg-white/90 disabled:opacity-50 text-sm">
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            Continue with Google
+            Google
           </button>
           
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-white/30 text-sm">or</span>
-            <div className="flex-1 h-px bg-white/10" />
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px bg-white/8" />
+            <span className="text-white/30 text-xs">or</span>
+            <div className="flex-1 h-px bg-white/8" />
           </div>
           
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" required
-            className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none" />
+            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:border-white/30 outline-none text-sm" />
           
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" required minLength={6}
-            className="w-full p-4 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 focus:border-violet-500 focus:ring-1 focus:ring-violet-500 outline-none" />
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password (6+ chars)" required minLength={6}
+            className="w-full p-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/30 focus:border-white/30 outline-none text-sm" />
           
           <button type="submit" disabled={loading}
-            className="w-full py-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 disabled:opacity-50 tracking-wide">
-            {loading && <Loader2 size={18} className="animate-spin" />}
+            className="w-full py-3 bg-white text-black font-semibold rounded-lg flex items-center justify-center gap-2 disabled:opacity-50 text-sm hover:bg-white/90">
+            {loading && <Loader2 size={14} className="animate-spin" />}
             {mode === 'signin' ? 'Sign In' : 'Create Account'}
           </button>
           
-          <p className="text-center text-white/40 text-sm">
-            {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
-            <button type="button" onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')} className="text-violet-400">
+          <p className="text-center text-white/50 text-xs">
+            {mode === 'signin' ? "Don't have one? " : 'Already have one? '}
+            <button type="button" onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); }} className="text-white hover:underline">
               {mode === 'signin' ? 'Sign up' : 'Sign in'}
             </button>
           </p>
@@ -483,37 +542,37 @@ const Header = ({ title, subtitle, showAuth = true }) => {
   
   return (
     <>
-      <header className="px-5 pt-6 pb-4 safe-top">
+      <header className="px-5 pt-6 pb-4 border-b border-white/8 safe-top">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">{title}</h1>
-            {subtitle && <p className="text-white/40 text-sm mt-0.5">{subtitle}</p>}
+            <h1 className="text-2xl font-bold text-white">{title}</h1>
+            {subtitle && <p className="text-white/50 text-sm mt-0.5">{subtitle}</p>}
           </div>
           
           {showAuth && (
             auth?.user ? (
               <div className="relative">
                 <button onClick={() => setShowMenu(!showMenu)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30">
-                  <Crown size={16} className="text-amber-400" />
-                  <span className="text-amber-400 text-sm font-medium max-w-[80px] truncate">
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15">
+                  <Crown size={14} className="text-white" />
+                  <span className="text-white text-xs font-medium max-w-[80px] truncate">
                     {auth.userProfile?.displayName || 'Pro'}
                   </span>
                 </button>
                 {showMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-                    <div className="absolute right-0 top-full mt-2 w-56 bg-[#1a1a1d] border border-white/10 rounded-2xl shadow-xl z-50 overflow-hidden">
-                      <div className="p-4 border-b border-white/5">
-                        <p className="text-white font-medium truncate">{auth.user.email}</p>
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-black-3 border border-white/10 rounded-lg shadow-lg z-50 overflow-hidden">
+                      <div className="p-3 border-b border-white/5">
+                        <p className="text-white font-medium text-sm truncate">{auth.user.email}</p>
                         <div className="flex items-center gap-1.5 mt-1">
-                          <Crown size={12} className="text-amber-400" />
-                          <span className="text-amber-400 text-xs">Premium • 100 gens/agent</span>
+                          <Crown size={11} className="text-white/50" />
+                          <span className="text-white/50 text-xs">Premium • 100 gens/agent</span>
                         </div>
                       </div>
                       <button onClick={() => { auth.logout(); setShowMenu(false); }}
-                        className="w-full p-4 flex items-center gap-3 text-white/60 hover:bg-white/5 hover:text-white">
-                        <LogOut size={18} /> Sign Out
+                        className="w-full p-3 flex items-center gap-3 text-white/60 hover:bg-white/5 hover:text-white text-sm">
+                        <LogOut size={16} /> Sign Out
                       </button>
                     </div>
                   </>
@@ -521,8 +580,8 @@ const Header = ({ title, subtitle, showAuth = true }) => {
               </div>
             ) : (
               <button onClick={() => setShowAuthModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-semibold">
-                <User size={16} /> Sign In
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-black text-xs font-semibold hover:bg-white/90">
+                <User size={14} /> Sign In
               </button>
             )
           )}
@@ -539,16 +598,15 @@ const Header = ({ title, subtitle, showAuth = true }) => {
 
 const AgentCard = ({ agent, onClick }) => (
   <button onClick={onClick}
-    className={`${agent.gradient} p-5 rounded-3xl text-left transition-all active:scale-[0.97] shadow-lg relative overflow-hidden group`}>
-    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-    <div className="relative z-10">
-      <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mb-4">
-        <agent.icon size={24} className="text-white" />
-      </div>
-      <h3 className="text-white font-bold text-lg">{agent.title}</h3>
-      <p className="text-white/70 text-sm">{agent.subtitle}</p>
+    className="card p-4 rounded-lg text-left transition-all active:scale-95 group flex items-start gap-4">
+    <div className="w-12 h-12 rounded-md bg-white/10 flex items-center justify-center flex-shrink-0">
+      <agent.icon size={24} className="text-white" />
     </div>
-    <ChevronRight size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/50 group-hover:translate-x-1 transition-transform" />
+    <div className="flex-1 min-w-0">
+      <h3 className="text-white font-semibold">{agent.title}</h3>
+      <p className="text-white/50 text-sm mt-0.5">{agent.subtitle}</p>
+    </div>
+    <ChevronRight size={18} className="text-white/30 flex-shrink-0 group-hover:translate-x-1 transition-transform mt-1" />
   </button>
 );
 
@@ -701,31 +759,176 @@ const AGENTS = [
   { id: 'album_art', title: 'Album Art', subtitle: 'Visual Concepts', icon: ImageIcon, gradient: 'bg-gradient-to-br from-pink-500 to-violet-600', systemPrompt: 'You are an album art conceptualist AI. Create detailed visual concepts for album covers, singles, and promotional art based on the music\'s mood, themes, and artist brand.', placeholder: 'Describe your project for art concepts', inputPlaceholder: 'Describe your music...' },
 ];
 
-const StudioPage = ({ onSelectAgent }) => (
-  <div className="h-full overflow-y-auto bg-black">
-    <Header title="Studio" subtitle="AI-powered creative tools" />
-    
-    {/* Sister App Banner */}
-    <a href={CONFIG.SISTER_APP.url} target="_blank" rel="noopener noreferrer"
-      className="mx-5 mb-5 p-4 rounded-2xl bg-gradient-to-r from-violet-600/20 to-indigo-600/20 border border-violet-500/30 flex items-center gap-4 group hover:border-violet-500/50 transition-colors">
-      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
-        <Radio size={24} className="text-white" />
+const HelpPage = () => {
+  const [expanded, setExpanded] = useState(null);
+  
+  const agentHelp = [
+    {
+      id: 'ghostwriter',
+      name: 'Ghostwriter',
+      desc: 'AI Lyric Engine',
+      tips: [
+        'Be specific: "Write a 16-bar verse about losing everything" works better than "write bars"',
+        'Reference artists: "In the style of J. Cole with double entendres"',
+        'Specify mood: aggressive, melodic, introspective, braggadocio, conscious',
+        'Ask for specific techniques: "Use internal rhymes and metaphors"'
+      ]
+    },
+    {
+      id: 'songwriter',
+      name: 'Songwriter',
+      desc: 'Full Song Writer',
+      tips: [
+        'Describe your song concept clearly',
+        'Specify genre and tempo if relevant',
+        'Give examples of similar songs you like',
+        'You\'ll get verse/chorus/bridge structure in one response'
+      ]
+    },
+    {
+      id: 'battle',
+      name: 'Battle AI',
+      desc: 'Sharpen Your Skills',
+      tips: [
+        'Drop your best bars and Battle AI will fire back',
+        'Use it to practice wordplay and punchlines',
+        'Perfect for warming up before real battles',
+        'The AI looks for your style and matches the energy'
+      ]
+    },
+    {
+      id: 'crates',
+      name: 'Crate Digger',
+      desc: 'Sample Discovery',
+      tips: [
+        'Be specific about mood: "lofi soul," "70s funk," "jazzy"',
+        'Describe the vibe: "uplifting," "dark," "groovy"',
+        'Reference era: "1970-1980," "early 2000s"',
+        'You\'ll get artist, song title, year, and why it works'
+      ]
+    },
+    {
+      id: 'ar_suite',
+      name: 'A&R Office',
+      desc: 'Industry Feedback',
+      tips: [
+        'Describe your project: genre, artist name, target audience',
+        'Be honest about what stage you\'re at',
+        'You\'ll get brutally honest feedback on commercial viability',
+        'Ask about artist development opportunities'
+      ]
+    },
+    {
+      id: 'viral_video',
+      name: 'Viral Video',
+      desc: 'Content Strategy',
+      tips: [
+        'Describe your track or concept',
+        'Mention platform: TikTok, Instagram Reels, YouTube Shorts',
+        'You\'ll get hooks, visual concepts, trend alignment',
+        'Perfect for planning your rollout strategy'
+      ]
+    },
+    {
+      id: 'trend_hunter',
+      name: 'Trend Hunter',
+      desc: 'Real-Time Intel',
+      tips: [
+        'Ask "What\'s trending in hip-hop right now?"',
+        'Ask about specific subgenres or sounds',
+        'Get intel on what\'s about to blow up',
+        'Learn how to position your music in current landscape'
+      ]
+    },
+    {
+      id: 'album_art',
+      name: 'Album Art',
+      desc: 'Visual Concepts',
+      tips: [
+        'Describe your music and message',
+        'Share your artistic vision or aesthetic',
+        'Specify mood: minimalist, bold, conceptual, etc.',
+        'You\'ll get detailed visual direction for designers'
+      ]
+    }
+  ];
+  
+  return (
+    <div className="h-full overflow-y-auto bg-black">
+      <Header title="Help" subtitle="How to use each agent" showAuth={false} />
+      
+      <div className="px-5 pb-32 space-y-3">
+        {agentHelp.map(agent => (
+          <div key={agent.id} className="card rounded-lg">
+            <button
+              onClick={() => setExpanded(expanded === agent.id ? null : agent.id)}
+              className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors rounded-lg"
+            >
+              <div className="text-left">
+                <h3 className="font-semibold text-white">{agent.name}</h3>
+                <p className="text-xs text-white/50 mt-1">{agent.desc}</p>
+              </div>
+              <ChevronDown size={18} className={`text-white/40 transition-transform ${expanded === agent.id ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {expanded === agent.id && (
+              <div className="px-4 pb-4 space-y-2 border-t border-white/5">
+                {agent.tips.map((tip, i) => (
+                  <div key={i} className="text-xs text-white/60 pt-2 flex items-start gap-2">
+                    <span className="text-accent-brand mt-1 flex-shrink-0">•</span>
+                    <span>{tip}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
-      <div className="flex-1">
-        <p className="text-white font-semibold">{CONFIG.SISTER_APP.name}</p>
-        <p className="text-white/50 text-sm">{CONFIG.SISTER_APP.tagline}</p>
-      </div>
-      <ExternalLink size={18} className="text-violet-400 group-hover:translate-x-0.5 transition-transform" />
-    </a>
-    
-    {/* Agents Grid */}
-    <div className="px-5 pb-32 grid grid-cols-1 gap-4">
-      {AGENTS.map(agent => (
-        <AgentCard key={agent.id} agent={agent} onClick={() => onSelectAgent(agent)} />
-      ))}
     </div>
-  </div>
-);
+  );
+};
+
+const StudioPage = ({ onSelectAgent }) => {
+  const [showHelp, setShowHelp] = useState(false);
+  
+  if (showHelp) {
+    return <HelpPage />;
+  }
+  
+  return (
+    <div className="h-full overflow-y-auto bg-black">
+      <div className="flex items-center justify-between px-5 pt-6 pb-4 safe-top">
+        <div>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Studio</h1>
+          <p className="text-white/40 text-sm mt-0.5">AI-powered creative tools</p>
+        </div>
+        <button onClick={() => setShowHelp(true)} className="text-xs px-3 py-1.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20">
+          Help
+        </button>
+      </div>
+      
+      {/* Sister App Banner */}
+      <a href={CONFIG.SISTER_APP.url} target="_blank" rel="noopener noreferrer"
+        className="mx-5 mb-5 p-4 rounded-lg bg-white/5 border border-white/10 flex items-center gap-4 group hover:bg-white/8 transition-colors">
+        <div className="w-10 h-10 rounded-md bg-white/10 flex items-center justify-center flex-shrink-0">
+          <Radio size={20} className="text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-medium text-sm">{CONFIG.SISTER_APP.name}</p>
+          <p className="text-white/50 text-xs mt-0.5">{CONFIG.SISTER_APP.tagline}</p>
+        </div>
+        <ExternalLink size={16} className="text-white/40 flex-shrink-0" />
+      </a>
+      
+      {/* Agents Grid */}
+      <div className="px-5 pb-32 space-y-3">
+        {AGENTS.map(agent => (
+          <AgentCard key={agent.id} agent={agent} onClick={() => onSelectAgent(agent)} />
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const ComeUpPage = () => {
   const pillars = [
