@@ -9,6 +9,7 @@ const winston = require('winston');
 const fs = require('fs');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
+const admin = require('firebase-admin');
 
 // Environment detection
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -77,6 +78,79 @@ try {
 } catch (e) {
   logger.warn('Could not load .env file - using platform environment variables', { error: e.message });
 }
+
+// =============================================================================
+// FIREBASE ADMIN INITIALIZATION
+// =============================================================================
+
+let firebaseInitialized = false;
+
+try {
+  // Check for service account credentials (JSON string or file path)
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  
+  if (serviceAccountJson) {
+    // Parse JSON from environment variable (Railway/production)
+    const serviceAccount = JSON.parse(serviceAccountJson);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    firebaseInitialized = true;
+    logger.info('🔥 Firebase Admin initialized from environment variable');
+  } else if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
+    // Load from file path (local development)
+    const serviceAccount = require(serviceAccountPath);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    firebaseInitialized = true;
+    logger.info('🔥 Firebase Admin initialized from file');
+  } else {
+    logger.warn('⚠️ Firebase Admin not configured - auth features disabled');
+    logger.warn('   Set FIREBASE_SERVICE_ACCOUNT (JSON) or FIREBASE_SERVICE_ACCOUNT_PATH');
+  }
+} catch (error) {
+  logger.error('❌ Firebase Admin initialization failed:', error.message);
+}
+
+// Firebase Auth Middleware - Verifies JWT tokens
+const verifyFirebaseToken = async (req, res, next) => {
+  if (!firebaseInitialized) {
+    // Firebase not configured - allow request but mark as unauthenticated
+    req.user = null;
+    return next();
+  }
+  
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    req.user = null;
+    return next();
+  }
+  
+  const token = authHeader.split('Bearer ')[1];
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(token);
+    req.user = {
+      uid: decodedToken.uid,
+      email: decodedToken.email,
+      isPremium: true, // All authenticated users are premium
+    };
+    logger.debug('🔐 Authenticated user:', { uid: decodedToken.uid });
+  } catch (error) {
+    logger.warn('🔐 Invalid token:', error.message);
+    req.user = null;
+  }
+  next();
+};
+
+// Require auth middleware - blocks unauthenticated requests
+const requireAuth = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  next();
+};
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -327,10 +401,15 @@ app.get('/api/models', async (req, res) => {
   }
 });
 
-// GENERATION ROUTE
-app.post('/api/generate', generationLimiter, async (req, res) => {
+// GENERATION ROUTE (with optional Firebase auth)
+app.post('/api/generate', verifyFirebaseToken, generationLimiter, async (req, res) => {
   try {
     let { prompt, systemInstruction, model: requestedModel } = req.body;
+    
+    // Log auth status
+    if (req.user) {
+      logger.info('🔐 Authenticated generation request', { uid: req.user.uid });
+    }
     
     // 🛡️ INPUT VALIDATION & SANITIZATION
     if (!prompt || typeof prompt !== 'string') {
