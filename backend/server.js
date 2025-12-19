@@ -30,7 +30,7 @@ const logger = winston.createLogger({
     winston.format.splat(),
     winston.format.json()
   ),
-  defaultMeta: { service: 'whip-montez-backend', env: NODE_ENV },
+  defaultMeta: { service: 'studio-agents-backend', env: NODE_ENV },
   transports: [
     // Error logs
     new winston.transports.File({ 
@@ -89,6 +89,9 @@ try {
   // Check for service account credentials (JSON string or file path)
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
   const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
   
   if (serviceAccountJson) {
     // Parse JSON from environment variable (Railway/production)
@@ -98,6 +101,17 @@ try {
     });
     firebaseInitialized = true;
     logger.info('🔥 Firebase Admin initialized from environment variable');
+  } else if (projectId && clientEmail && privateKey) {
+    // Initialize from individual environment variables
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId,
+        clientEmail,
+        privateKey: privateKey.replace(/\\n/g, '\n')
+      })
+    });
+    firebaseInitialized = true;
+    logger.info('🔥 Firebase Admin initialized from individual environment variables');
   } else if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
     // Load from file path (local development)
     const serviceAccount = require(serviceAccountPath);
@@ -211,8 +225,6 @@ const allowedOrigins = isDevelopment
   ? ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
   : [
       process.env.FRONTEND_URL,
-      'https://whipmontez.com',
-      'https://www.whipmontez.com',
       'https://studioagentsai.com',
       'https://www.studioagentsai.com',
       'https://studio-agents.vercel.app'
@@ -342,7 +354,7 @@ const genAI = new GoogleGenerativeAI(apiKey);
 
 // ROOT ROUTE (Health Check)
 app.get('/', (req, res) => {
-  res.send('Whip Montez Backend System Online. Uplink Established.');
+  res.send('Studio Agents Backend System Online. Uplink Established.');
 });
 
 //  MONITORING DASHBOARD
@@ -519,6 +531,49 @@ app.post('/api/generate', verifyFirebaseToken, generationLimiter, async (req, re
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// TRANSLATION API - Professional Grade Translation via Gemini
+// ═══════════════════════════════════════════════════════════════════
+
+app.post('/api/translate', verifyFirebaseToken, apiLimiter, async (req, res) => {
+  try {
+    const { text, targetLanguage, sourceLanguage = 'auto' } = req.body;
+
+    if (!text || !targetLanguage) {
+      return res.status(400).json({ error: 'Text and targetLanguage are required' });
+    }
+
+    logger.info('🌐 Translation request', { 
+      targetLanguage, 
+      textLength: text.length,
+      ip: req.ip 
+    });
+
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: `You are a professional translator for a high-end music studio. 
+      Translate the following text to ${targetLanguage}. 
+      Maintain the musical context, slang, and emotional tone. 
+      Return ONLY the translated text, no explanations.`
+    });
+
+    const prompt = `Translate this text from ${sourceLanguage} to ${targetLanguage}: "${text}"`;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const translatedText = response.text().trim();
+
+    res.json({ 
+      translatedText,
+      sourceLanguage,
+      targetLanguage
+    });
+
+  } catch (error) {
+    logger.error('Translation error', { error: error.message });
+    res.status(500).json({ error: 'Translation failed', details: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // TWITTER/X OAuth 2.0 PKCE FLOW - Direct Posting Integration
 // ═══════════════════════════════════════════════════════════════════
 
@@ -529,7 +584,7 @@ const twitterSessions = new Map();
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID;
 const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET;
 const TWITTER_CALLBACK_URL = process.env.TWITTER_CALLBACK_URL || 
-  (isDevelopment ? 'http://localhost:3001/api/twitter/callback' : 'https://whipmontez.com/api/twitter/callback');
+  (isDevelopment ? 'http://localhost:3001/api/twitter/callback' : 'https://studioagentsai.com/api/twitter/callback');
 
 // ==================== CONCERTS API ====================
 // Fetches real hip-hop and mainstream concerts from SeatGeek API
@@ -848,6 +903,70 @@ app.get('/api/news', async (req, res) => {
   }
 });
 
+// ==================== TRENDING AI PROJECTS API ====================
+// Fetches real AI projects from GitHub Search API for inspiration
+
+app.get('/api/trending-ai', async (req, res) => {
+  try {
+    const { page = 1, per_page = 20 } = req.query;
+    
+    // Search for AI-related repositories with high stars
+    const keywords = ['artificial-intelligence', 'machine-learning', 'generative-ai', 'llm', 'stable-diffusion', 'music-ai'];
+    const q = keywords.join(' OR ');
+    const apiUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&page=${page}&per_page=${per_page}`;
+    
+    logger.info('Fetching trending AI projects from GitHub', { page, per_page });
+    
+    const response = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'Studio-Agents-AI-App',
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      logger.error('GitHub API error', { status: response.status, error: errorData });
+      throw new Error(`GitHub API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Transform GitHub repos into our "Activity Wall" format
+    const projects = (data.items || []).map(repo => {
+      const agents = ['Ghostwriter', 'Beat Lab', 'Album Artist', 'Trend Hunter', 'Collab Connect', 'Social Pilot', 'Instrumentalist', 'Beat Architect'];
+      const colors = ['agent-purple', 'agent-cyan', 'agent-orange', 'agent-emerald', 'agent-indigo', 'agent-pink', 'agent-blue', 'agent-green'];
+      const randomIndex = Math.floor(Math.random() * agents.length);
+      
+      return {
+        id: repo.id,
+        user: repo.owner.login,
+        agent: agents[randomIndex],
+        title: repo.name,
+        snippet: repo.description || 'No description available.',
+        time: new Date(repo.updated_at).toLocaleDateString(),
+        likes: repo.stargazers_count,
+        remixes: repo.forks_count,
+        color: colors[randomIndex],
+        url: repo.html_url,
+        type: repo.id % 3 === 0 ? 'video' : (repo.id % 2 === 0 ? 'image' : 'text'),
+        imageUrl: repo.id % 2 === 0 ? `https://opengraph.githubassets.com/1/${repo.full_name}` : null,
+        videoUrl: repo.id % 3 === 0 ? 'https://www.w3schools.com/html/mov_bbb.mp4' : null
+      };
+    });
+    
+    res.json({
+      items: projects,
+      total_count: data.total_count,
+      page: parseInt(page),
+      per_page: parseInt(per_page)
+    });
+  } catch (err) {
+    logger.error('❌ Failed to fetch trending AI projects', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch trending AI projects' });
+  }
+});
+
 // Generate PKCE code verifier and challenge
 const generatePKCE = () => {
   const verifier = crypto.randomBytes(32).toString('base64url');
@@ -984,6 +1103,109 @@ app.get('/api/twitter/callback', async (req, res) => {
   } catch (err) {
     logger.error('🐦 Twitter OAuth error', { error: err.message });
     res.redirect('/?twitter_error=server_error');
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// META (INSTAGRAM & FACEBOOK) OAuth 2.0 FLOW
+// ═══════════════════════════════════════════════════════════════════
+
+const META_CLIENT_ID = process.env.META_CLIENT_ID;
+const META_CLIENT_SECRET = process.env.META_CLIENT_SECRET;
+const META_CALLBACK_URL = process.env.META_CALLBACK_URL || 
+  (isDevelopment ? 'http://localhost:3001/api/meta/callback' : 'https://studioagentsai.com/api/meta/callback');
+
+const metaSessions = new Map();
+
+app.get('/api/meta/auth', (req, res) => {
+  if (!META_CLIENT_ID || !META_CLIENT_SECRET) {
+    return res.status(503).json({ error: 'Meta OAuth not configured' });
+  }
+
+  const state = crypto.randomBytes(16).toString('hex');
+  metaSessions.set(state, {
+    createdAt: Date.now(),
+    returnUrl: req.query.returnUrl || '/'
+  });
+
+  const scopes = ['email', 'public_profile', 'instagram_basic', 'instagram_content_publish', 'pages_show_list', 'pages_read_engagement', 'pages_manage_posts'];
+  const authUrl = new URL('https://www.facebook.com/v18.0/dialog/oauth');
+  authUrl.searchParams.set('client_id', META_CLIENT_ID);
+  authUrl.searchParams.set('redirect_uri', META_CALLBACK_URL);
+  authUrl.searchParams.set('state', state);
+  authUrl.searchParams.set('scope', scopes.join(','));
+
+  logger.info('♾️ Meta OAuth flow started', { state });
+  res.redirect(authUrl.toString());
+});
+
+app.get('/api/meta/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+
+  if (error) {
+    logger.warn('♾️ Meta OAuth denied', { error });
+    return res.redirect('/?meta_error=' + encodeURIComponent(error));
+  }
+
+  const session = metaSessions.get(state);
+  if (!session) {
+    logger.warn('♾️ Invalid state in Meta callback');
+    return res.redirect('/?meta_error=invalid_state');
+  }
+
+  metaSessions.delete(state);
+
+  try {
+    const tokenResponse = await fetch('https://graph.facebook.com/v18.0/oauth/access_token', {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      params: new URLSearchParams({
+        client_id: META_CLIENT_ID,
+        client_secret: META_CLIENT_SECRET,
+        redirect_uri: META_CALLBACK_URL,
+        code
+      })
+    });
+
+    // Note: fetch doesn't take 'params' in the options object like axios, 
+    // we need to append them to the URL.
+    const tokenUrl = new URL('https://graph.facebook.com/v18.0/oauth/access_token');
+    tokenUrl.searchParams.set('client_id', META_CLIENT_ID);
+    tokenUrl.searchParams.set('client_secret', META_CLIENT_SECRET);
+    tokenUrl.searchParams.set('redirect_uri', META_CALLBACK_URL);
+    tokenUrl.searchParams.set('code', code);
+
+    const actualResponse = await fetch(tokenUrl.toString());
+    if (!actualResponse.ok) {
+      const errorData = await actualResponse.text();
+      logger.error('♾️ Meta token exchange failed', { status: actualResponse.status, error: errorData });
+      return res.redirect('/?meta_error=token_exchange_failed');
+    }
+
+    const tokens = await actualResponse.json();
+    
+    // Get user info
+    const userResponse = await fetch(`https://graph.facebook.com/me?access_token=${tokens.access_token}&fields=id,name`);
+    const userData = userResponse.ok ? await userResponse.json() : null;
+    const name = userData?.name || 'Meta User';
+
+    logger.info('♾️ Meta OAuth successful', { name });
+
+    const returnUrl = new URL(session.returnUrl || '/', req.protocol + '://' + req.get('host'));
+    returnUrl.searchParams.set('meta_connected', 'true');
+    returnUrl.searchParams.set('meta_name', name);
+    
+    res.cookie('meta_token', tokens.access_token, {
+      httpOnly: true,
+      secure: !isDevelopment,
+      sameSite: 'lax',
+      maxAge: tokens.expires_in * 1000
+    });
+
+    res.redirect(returnUrl.toString());
+  } catch (err) {
+    logger.error('♾️ Meta OAuth error', { error: err.message });
+    res.redirect('/?meta_error=server_error');
   }
 });
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the security measures implemented in the Whip Montez platform and best practices for maintaining a secure deployment.
+This document outlines the security measures implemented in the Studio Agents platform and best practices for maintaining a secure deployment.
 
 ## Implemented Security Measures
 

@@ -1,5 +1,5 @@
 /* ============================================
-   WHIP MONTEZ - HIGH FIDELITY DESIGN SYSTEM
+   STUDIO AGENTS - HIGH FIDELITY DESIGN SYSTEM
    Modern • Glossy • Premium
    ============================================ */
 
@@ -57,8 +57,8 @@
 
 html {
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
+  overflow-x: hidden;
   margin: 0;
   padding: 0;
 }
@@ -67,9 +67,9 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
   min-width: 320px;
-  overflow: hidden;
+  overflow-x: hidden;
   background: var(--color-bg-primary);
 }
 
