@@ -821,6 +821,24 @@ function StudioView({ onBack }) {
     }
   };
 
+  const handleProviderClick = (provider) => {
+    const confirm = window.confirm(`Connect your ${provider} account?`);
+    if (confirm) {
+      handleTextToVoice(`Connecting to ${provider}...`);
+      setTimeout(() => {
+        handleTextToVoice(`Successfully connected ${provider}.`);
+        const newPM = {
+            id: `pm_${Date.now()}`,
+            type: provider,
+            last4: 'Linked',
+            expiry: 'N/A',
+            isDefault: false
+        };
+        setPaymentMethods(prev => [...prev, newPM]);
+      }, 1500);
+    }
+  };
+
   const handleTranslatePrompt = async () => {
     const textarea = document.querySelector('.studio-textarea');
     if (!textarea || !textarea.value || voiceSettings.language === 'English') return;
@@ -1757,10 +1775,10 @@ function StudioView({ onBack }) {
                   <div className="external-payments-grid">
                     <p className="small-label">Supported Providers</p>
                     <div className="provider-icons">
-                      <div className="provider-chip stripe">Stripe</div>
-                      <div className="provider-chip venmo">Venmo</div>
-                      <div className="provider-chip affirm">Affirm</div>
-                      <div className="provider-chip shoppay">Shop Pay</div>
+                      <div className="provider-chip stripe" onClick={() => handleProviderClick('Stripe')}>Stripe</div>
+                      <div className="provider-chip venmo" onClick={() => handleProviderClick('Venmo')}>Venmo</div>
+                      <div className="provider-chip affirm" onClick={() => handleProviderClick('Affirm')}>Affirm</div>
+                      <div className="provider-chip shoppay" onClick={() => handleProviderClick('Shop Pay')}>Shop Pay</div>
                     </div>
                   </div>
                 </div>

@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://restored-os-whip-montez-production.up.railway.app/api/:path*"
+      "destination": "https://studio-agents-backend-production.up.railway.app/api/:path*"
     }
   ]
 }

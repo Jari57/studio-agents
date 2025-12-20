@@ -2587,6 +2587,13 @@
   font-weight: 800;
   color: white;
   text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.2s, opacity 0.2s;
+}
+
+.provider-chip:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
 }
 
 .provider-chip.stripe { background: #635bff; }
