@@ -1395,9 +1395,6 @@
   transform: translateX(-10px);
   transition: all 0.3s ease;
 }
-  transform: translateX(-10px);
-  transition: all 0.3s ease;
-}
 
 .agent-explore-link.visible {
   opacity: 1;
@@ -3141,8 +3138,6 @@
   background: var(--color-purple);
   color: white;
   border: none;
-}
-  transition: all 0.2s;
 }
 
 .action-button.primary {
