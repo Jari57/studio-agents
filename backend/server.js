@@ -915,7 +915,8 @@ app.get('/api/news', async (req, res) => {
           
           const title = getTag('title');
           const link = getTag('link');
-          const description = getTag('description') || getTag('content:encoded');
+          // Prefer content:encoded for longer text, fallback to description
+          const description = getTag('content:encoded') || getTag('description');
           const pubDate = getTag('pubDate');
           const creator = getTag('dc:creator') || getTag('creator') || 'Staff';
           const category = getTag('category');
@@ -949,7 +950,7 @@ app.get('/api/news', async (req, res) => {
             color: source.color,
             author: creator,
             title: title?.replace(/&#8217;/g, "'").replace(/&#038;/g, "&").slice(0, 150) || 'UNTITLED',
-            content: description?.replace(/<[^>]*>/g, '').slice(0, 200) + '...' || '',
+            content: description?.replace(/<[^>]*>/g, '').slice(0, 400) + '...' || '',
             url: link,
             imageUrl: imageUrl,
             tags: category ? [category.toUpperCase()] : ['MUSIC']

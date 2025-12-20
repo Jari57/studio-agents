@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Target, Rocket, Menu, X, LayoutGrid, Globe, Bell, ChevronRight, ChevronDown, ChevronUp, Shield, TrendingUp, Folder, Search, Filter, Download, Share2, HelpCircle, Book, MessageSquare, PlayCircle, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Cloud, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2 } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Target, Rocket, Menu, X, LayoutGrid, Globe, Bell, ChevronRight, ChevronDown, ChevronUp, Shield, TrendingUp, Folder, Search, Filter, Download, Share2, HelpCircle, Book, MessageSquare, PlayCircle, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Cloud, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark } from 'lucide-react';
 import './App.css';
 
 // Backend URL configuration
@@ -17,63 +17,90 @@ const AGENTS = [
     description: 'AI lyricist creating bars on demand',
     category: 'Writing',
     icon: Sparkles,
-    colorClass: 'agent-purple'
+    colorClass: 'agent-purple',
+    howTo: 'Enter a topic, mood, and style. The AI will generate lyrics.',
+    example: 'Topic: "Summer Love", Mood: "Upbeat"',
+    getStarted: 'Write Lyrics'
   },
   {
     name: 'Beat Lab',
     description: 'Generate production ideas instantly',
     category: 'Production',
     icon: Zap,
-    colorClass: 'agent-cyan'
+    colorClass: 'agent-cyan',
+    howTo: 'Describe the beat you want. The AI will suggest instruments and patterns.',
+    example: 'Genre: "Trap", BPM: 140',
+    getStarted: 'Make a Beat'
   },
   {
     name: 'Album Artist',
     description: 'Create stunning album artwork with AI',
     category: 'Visual',
     icon: Music,
-    colorClass: 'agent-orange'
+    colorClass: 'agent-orange',
+    howTo: 'Describe your album concept. The AI will generate cover art.',
+    example: 'Concept: "Neon City", Style: "Cyberpunk"',
+    getStarted: 'Design Cover'
   },
   {
     name: 'Video Creator',
     description: 'Generate cinematic videos with Veo 3',
     category: 'Video',
     icon: PlayCircle,
-    colorClass: 'agent-red'
+    colorClass: 'agent-red',
+    howTo: 'Describe a scene or upload audio. The AI will generate a video.',
+    example: 'Scene: "Car chase in 80s style"',
+    getStarted: 'Create Video'
   },
   {
     name: 'Trend Hunter',
     description: 'Discover what\'s hot right now',
     category: 'Research',
     icon: Target,
-    colorClass: 'agent-emerald'
+    colorClass: 'agent-emerald',
+    howTo: 'Select a genre or platform. The AI will analyze current trends.',
+    example: 'Platform: "TikTok", Genre: "Pop"',
+    getStarted: 'Find Trends'
   },
   {
     name: 'Collab Connect',
     description: 'Find the perfect collaborators',
     category: 'Networking',
     icon: Users,
-    colorClass: 'agent-indigo'
+    colorClass: 'agent-indigo',
+    howTo: 'Describe your project. The AI will find suitable collaborators.',
+    example: 'Looking for: "Female Vocalist", Genre: "R&B"',
+    getStarted: 'Find Collabs'
   },
   {
     name: 'Release Manager',
     description: 'Strategic release planning AI',
     category: 'Strategy',
     icon: Rocket,
-    colorClass: 'agent-pink'
+    colorClass: 'agent-pink',
+    howTo: 'Enter your release date. The AI will create a marketing plan.',
+    example: 'Release Date: "Next Friday"',
+    getStarted: 'Plan Release'
   },
   {
     name: 'Mastering Lab',
     description: 'Professional AI audio engineering',
     category: 'Engineering',
     icon: Shield,
-    colorClass: 'agent-purple'
+    colorClass: 'agent-purple',
+    howTo: 'Upload your track. The AI will master it for streaming.',
+    example: 'Target: "Spotify Loudness"',
+    getStarted: 'Master Track'
   },
   {
     name: 'Social Pilot',
     description: 'Automated social media growth',
     category: 'Marketing',
     icon: Globe,
-    colorClass: 'agent-cyan'
+    colorClass: 'agent-cyan',
+    howTo: 'Connect your accounts. The AI will schedule and post content.',
+    example: 'Goal: "Grow Instagram Followers"',
+    getStarted: 'Grow Socials'
   },
   {
     name: 'Instrumentalist',
@@ -81,7 +108,10 @@ const AGENTS = [
     category: 'Performance',
     icon: Music,
     colorClass: 'agent-indigo',
-    isPro: true
+    isPro: true,
+    howTo: 'Select an instrument and style. The AI will generate a solo.',
+    example: 'Instrument: "Saxophone", Style: "Jazz"',
+    getStarted: 'Hire Player'
   },
   {
     name: 'Beat Architect',
@@ -89,7 +119,10 @@ const AGENTS = [
     category: 'Production',
     icon: Zap,
     colorClass: 'agent-pink',
-    isPro: true
+    isPro: true,
+    howTo: 'Choose a kit and pattern. The AI will generate a drum loop.',
+    example: 'Kit: "808", Pattern: "Complex"',
+    getStarted: 'Build Drums'
   },
   {
     name: 'Sample Master',
@@ -97,7 +130,10 @@ const AGENTS = [
     category: 'Sampling',
     icon: Folder,
     colorClass: 'agent-orange',
-    isPro: true
+    isPro: true,
+    howTo: 'Upload a sample. The AI will chop and rearrange it.',
+    example: 'Mode: "Chop", Style: "Boom Bap"',
+    getStarted: 'Flip Sample'
   },
   {
     name: 'Drop Zone',
@@ -105,7 +141,10 @@ const AGENTS = [
     category: 'Production',
     icon: Rocket,
     colorClass: 'agent-red',
-    isPro: true
+    isPro: true,
+    howTo: 'Select a genre and build-up length. The AI will generate a drop.',
+    example: 'Genre: "Dubstep", Build: "8 bars"',
+    getStarted: 'Create Drop'
   },
   {
     name: 'Score Editor',
@@ -113,7 +152,10 @@ const AGENTS = [
     category: 'Scoring',
     icon: Book,
     colorClass: 'agent-emerald',
-    isPro: true
+    isPro: true,
+    howTo: 'Upload a video. The AI will generate a synchronized score.',
+    example: 'Mood: "Suspense", Tempo: "Slow"',
+    getStarted: 'Score Video'
   },
   {
     name: 'Video Scorer',
@@ -121,7 +163,10 @@ const AGENTS = [
     category: 'Video',
     icon: PlayCircle,
     colorClass: 'agent-cyan',
-    isPro: true
+    isPro: true,
+    howTo: 'Upload a video clip. The AI will generate background music.',
+    example: 'Style: "Lo-Fi", Length: "30s"',
+    getStarted: 'Score Clip'
   },
   {
     name: 'Vocal Architect',
@@ -129,7 +174,10 @@ const AGENTS = [
     category: 'Vocals',
     icon: Users,
     colorClass: 'agent-purple',
-    isPro: true
+    isPro: true,
+    howTo: 'Enter lyrics and melody. The AI will generate vocals.',
+    example: 'Voice: "Female Pop", Harmony: "3-part"',
+    getStarted: 'Generate Vocals'
   },
   {
     name: 'Sound Designer',
@@ -137,12 +185,15 @@ const AGENTS = [
     category: 'Engineering',
     icon: Shield,
     colorClass: 'agent-blue',
-    isPro: true
+    isPro: true,
+    howTo: 'Describe a sound. The AI will generate a synth patch.',
+    example: 'Sound: "Retro Sci-Fi Pad"',
+    getStarted: 'Design Sound'
   }
 ];
 
 // Landing Page Component
-function LandingPage({ onEnter }) {
+function LandingPage({ onEnter, onSubscribe }) {
   const [hoveredAgent, setHoveredAgent] = useState(null);
   const [scrolled, setScrolled] = useState(false);
 
@@ -349,7 +400,7 @@ function LandingPage({ onEnter }) {
                   <div className="agent-card-glow"></div>
 
                   {/* Content */}
-                  <div className="agent-card-content">
+                  <div className={`agent-card-content ${isHovered ? 'blurred' : ''}`}>
                     {/* Icon */}
                     <div className="agent-icon-box">
                       <Icon size={24} className="text-white" />
@@ -376,6 +427,24 @@ function LandingPage({ onEnter }) {
                         <ArrowRight size={14} />
                       </div>
                     </div>
+                  </div>
+
+                  {/* Hover Overlay */}
+                  <div className={`agent-card-overlay ${isHovered ? 'visible' : ''}`}>
+                     <div className="overlay-scroll">
+                        <div className="overlay-section">
+                            <h4><Zap size={12} /> How to Use</h4>
+                            <p>{agent.howTo || "Select this agent to start."}</p>
+                        </div>
+                        <div className="overlay-section">
+                            <h4><Sparkles size={12} /> Example</h4>
+                            <p className="example-text">"{agent.example || "Generate something amazing."}"</p>
+                        </div>
+                        <div className="overlay-section">
+                            <h4><Play size={12} /> Get Started</h4>
+                            <p>{agent.getStarted || "Click to open."}</p>
+                        </div>
+                     </div>
                   </div>
                 </div>
               );
@@ -490,6 +559,7 @@ function LandingPage({ onEnter }) {
 
               <button
                 className={`plan-button-native ${plan.popular ? 'primary' : 'secondary'}`}
+                onClick={() => onSubscribe && onSubscribe(plan)}
               >
                 {plan.ltd ? 'Get Lifetime Access' : 'Start Free Trial'}
               </button>
@@ -561,6 +631,44 @@ function StudioView({ onBack }) {
     language: 'English'
   });
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
+
+  // Dashboard State
+  const [dashboardTab, setDashboardTab] = useState('overview');
+  const [managedAgents, setManagedAgents] = useState(() => {
+    const saved = localStorage.getItem('studio_managed_agents');
+    // Ensure AGENTS is defined or imported. Assuming AGENTS is available in scope.
+    // If AGENTS is not available, we might need to use STUDIO_AGENTS or similar.
+    // Based on previous reads, AGENTS is defined at the top level.
+    return saved ? JSON.parse(saved) : (typeof AGENTS !== 'undefined' ? AGENTS.map(a => ({ ...a, visible: true })) : []);
+  });
+  const [appSettings, setAppSettings] = useState(() => {
+    const saved = localStorage.getItem('studio_app_settings');
+    return saved ? JSON.parse(saved) : {
+      showNews: true,
+      publicActivity: true,
+      autoSave: true,
+      highQualityPreviews: false
+    };
+  });
+
+  // Persist Dashboard State
+  useEffect(() => {
+    localStorage.setItem('studio_managed_agents', JSON.stringify(managedAgents));
+  }, [managedAgents]);
+
+  useEffect(() => {
+    localStorage.setItem('studio_app_settings', JSON.stringify(appSettings));
+  }, [appSettings]);
+
+  const toggleAgentVisibility = (agentName) => {
+    setManagedAgents(prev => prev.map(a => 
+      a.name === agentName ? { ...a, visible: !a.visible } : a
+    ));
+  };
+
+  const toggleAppSetting = (key) => {
+    setAppSettings(prev => ({ ...prev, [key]: !prev[key] }));
+  };
   
   // Activity Wall Pagination State
   const [activityPage, setActivityPage] = useState(1);
@@ -595,17 +703,47 @@ function StudioView({ onBack }) {
     };
   });
 
-  const [paymentMethods, setPaymentMethods] = useState([
-    { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
-    { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
-  ]);
+  const [paymentMethods, setPaymentMethods] = useState(() => {
+    const saved = localStorage.getItem('studio_agents_payments');
+    return saved ? JSON.parse(saved) : [
+      { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
+      { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
+    ];
+  });
 
-  const [bankAccounts, setBankAccounts] = useState([
-    { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
-  ]);
+  const [bankAccounts, setBankAccounts] = useState(() => {
+    const saved = localStorage.getItem('studio_agents_banks');
+    return saved ? JSON.parse(saved) : [
+      { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
+    ];
+  });
 
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(null); // { item, type }
   const [paymentType, setPaymentType] = useState('card'); // 'card' or 'bank'
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: 'Welcome to Studio Agents', message: 'Start creating your first track!', time: 'Just now', read: false },
+    { id: 2, title: 'Pro Tip', message: 'Try the Ghostwriter agent for lyrics.', time: '2m ago', read: false }
+  ]);
+
+  const addNotification = (title, message) => {
+    const newNotif = {
+      id: Date.now(),
+      title,
+      message,
+      time: 'Just now',
+      read: false
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+    // Also show toast/alert if needed, or just rely on the badge
+  };
+
+  // Persist payment state
+  useEffect(() => {
+    localStorage.setItem('studio_agents_payments', JSON.stringify(paymentMethods));
+    localStorage.setItem('studio_agents_banks', JSON.stringify(bankAccounts));
+  }, [paymentMethods, bankAccounts]);
 
   // Persist social state
   useEffect(() => {
@@ -641,6 +779,11 @@ function StudioView({ onBack }) {
       alert(`Successfully connected to Meta (Instagram & Facebook) as ${name}!`);
     }
   }, []);
+
+  const handleSubscribe = (plan) => {
+    setSelectedPlan(plan);
+    setShowLoginModal(true);
+  };
 
   // --- PROFESSIONAL VOICE & TRANSLATION LOGIC ---
   
@@ -819,6 +962,76 @@ function StudioView({ onBack }) {
         window.speechSynthesis.onvoiceschanged = null;
       };
     }
+  };
+
+  const handleDeletePayment = (id, type) => {
+    if (window.confirm('Are you sure you want to remove this payment method?')) {
+      if (type === 'card') {
+        setPaymentMethods(prev => prev.filter(pm => pm.id !== id));
+      } else {
+        setBankAccounts(prev => prev.filter(ba => ba.id !== id));
+      }
+      handleTextToVoice('Payment method removed.');
+    }
+  };
+
+  const handleEditPayment = (item, type) => {
+    setEditingPayment({ item, type });
+    setPaymentType(type);
+    setShowAddPaymentModal(true);
+  };
+
+  const handleSavePayment = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    if (paymentType === 'card') {
+      const cardNumber = formData.get('cardNumber');
+      const expiry = formData.get('expiry');
+      
+      // Basic validation
+      if (cardNumber.length < 12) {
+        alert('Please enter a valid card number');
+        return;
+      }
+
+      const newPM = {
+        id: editingPayment ? editingPayment.item.id : `pm_${Date.now()}`,
+        type: 'Visa', // In a real app, detect type from number
+        last4: cardNumber.slice(-4),
+        expiry: expiry,
+        isDefault: editingPayment ? editingPayment.item.isDefault : false
+      };
+
+      if (editingPayment) {
+        setPaymentMethods(prev => prev.map(pm => pm.id === newPM.id ? newPM : pm));
+        handleTextToVoice('Card updated successfully.');
+      } else {
+        setPaymentMethods(prev => [...prev, newPM]);
+        handleTextToVoice(`Successfully added your card ending in ${newPM.last4}.`);
+      }
+    } else {
+      const bankName = formData.get('bankName');
+      const accountNumber = formData.get('accountNumber');
+
+      const newBA = {
+        id: editingPayment ? editingPayment.item.id : `ba_${Date.now()}`,
+        bankName: bankName,
+        last4: accountNumber.slice(-4),
+        type: 'Checking'
+      };
+
+      if (editingPayment) {
+        setBankAccounts(prev => prev.map(ba => ba.id === newBA.id ? newBA : ba));
+        handleTextToVoice('Bank account updated successfully.');
+      } else {
+        setBankAccounts(prev => [...prev, newBA]);
+        handleTextToVoice(`Successfully linked your ${newBA.bankName} account.`);
+      }
+    }
+    
+    setShowAddPaymentModal(false);
+    setEditingPayment(null);
   };
 
   const handleProviderClick = (provider) => {
@@ -1524,266 +1737,318 @@ function StudioView({ onBack }) {
     if (activeTab === 'mystudio') {
       return (
         <div className="studio-dashboard animate-fadeInUp">
-          <div className="dashboard-welcome-banner">
-            <div className="banner-content">
-              <div className="banner-text">
-                <h1>Welcome back, {isLoggedIn ? 'Pro Creator' : 'Artist'}</h1>
-                <p>Your AI studio is synchronized and ready for your next hit.</p>
+          <div className="dashboard-sidebar-layout">
+            {/* Dashboard Sidebar */}
+            <div className="dashboard-sidebar">
+              <div className="sidebar-header">
+                <h2>Workspace</h2>
+                <span className="pro-badge">PRO</span>
               </div>
-              <div className="banner-actions">
+              <nav className="sidebar-nav">
                 <button 
-                  className={`voice-command-btn haptic-press ${isListening ? 'active' : ''}`}
-                  onClick={handleVoiceToText}
+                  className={`sidebar-link ${dashboardTab === 'overview' ? 'active' : ''}`}
+                  onClick={() => setDashboardTab('overview')}
                 >
-                  <Mic size={20} />
-                  <span>{isListening ? 'Listening...' : 'Voice Command'}</span>
+                  <LayoutGrid size={18} /> Overview
                 </button>
                 <button 
-                  className="btn-refresh-glow haptic-press"
-                  onClick={() => {
-                    handleTextToVoice("Synchronizing your AI ecosystem...");
-                    alert("Ecosystem synchronized successfully!");
-                  }}
+                  className={`sidebar-link ${dashboardTab === 'agents' ? 'active' : ''}`}
+                  onClick={() => setDashboardTab('agents')}
                 >
-                  <RefreshCw size={18} /> 
-                  <span>Sync Ecosystem</span>
+                  <Users size={18} /> Manage Agents
                 </button>
-              </div>
+                <button 
+                  className={`sidebar-link ${dashboardTab === 'billing' ? 'active' : ''}`}
+                  onClick={() => setDashboardTab('billing')}
+                >
+                  <CreditCard size={18} /> Billing & Wallet
+                </button>
+                <button 
+                  className={`sidebar-link ${dashboardTab === 'settings' ? 'active' : ''}`}
+                  onClick={() => setDashboardTab('settings')}
+                >
+                  <Settings size={18} /> App Settings
+                </button>
+              </nav>
             </div>
-            <div className="banner-stats-mini">
-              <div className="mini-stat">
-                <Zap size={14} className="text-cyan" />
-                <span>8.4k Credits</span>
-              </div>
-              <div className="mini-stat">
-                <Shield size={14} className="text-purple" />
-                <span>Pro Verified</span>
-              </div>
-            </div>
-          </div>
 
-          <div className="dashboard-grid">
-            {/* Stats Section */}
-            <section className="dashboard-card stats-card">
-              <div className="card-header">
-                <h3><BarChart3 size={18} /> Performance Overview</h3>
-                <PieChart size={18} className="text-muted" />
-              </div>
-              <div className="stats-grid">
-                <div className="stat-item">
-                  <span className="stat-value">16</span>
-                  <span className="stat-label">Active Agents</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-value">124</span>
-                  <span className="stat-label">Creations</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-value">42</span>
-                  <span className="stat-label">Social Posts</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-value">8.2k</span>
-                  <span className="stat-label">Total Reach</span>
-                </div>
-              </div>
-            </section>
-
-            {/* Social Connections */}
-            <section className="dashboard-card">
-              <div className="card-header">
-                <h3><Share2 size={18} /> Social Ecosystem</h3>
-                <span className="status-badge online">Live</span>
-              </div>
-              <div className="connection-list">
-                <div className="connection-item">
-                  <div className="connection-info">
-                    <div className="icon-box twitter-bg">
-                      <Twitter size={20} />
-                    </div>
-                    <div>
-                      <p className="connection-name">X (Twitter)</p>
-                      <p className="connection-status">{socialConnections.twitter ? `@${twitterUsername || 'Connected'}` : 'Not Connected'}</p>
-                    </div>
-                  </div>
-                  <button 
-                    className={`btn-connect ${socialConnections.twitter ? 'connected' : ''}`}
-                    onClick={() => handleConnectSocial('twitter')}
-                  >
-                    {socialConnections.twitter ? 'Manage' : 'Connect'}
-                  </button>
-                </div>
-                <div className="connection-item">
-                  <div className="connection-info">
-                    <div className="icon-box instagram-bg">
-                      <Instagram size={20} />
-                    </div>
-                    <div>
-                      <p className="connection-name">Instagram</p>
-                      <p className="connection-status">{socialConnections.instagram ? (metaName || 'Connected') : 'Not Connected'}</p>
-                    </div>
-                  </div>
-                  <button 
-                    className={`btn-connect ${socialConnections.instagram ? 'connected' : ''}`}
-                    onClick={() => handleConnectSocial('instagram')}
-                  >
-                    {socialConnections.instagram ? 'Manage' : 'Connect'}
-                  </button>
-                </div>
-                <div className="connection-item">
-                  <div className="connection-info">
-                    <div className="icon-box facebook-bg">
-                      <Facebook size={20} />
-                    </div>
-                    <div>
-                      <p className="connection-name">Facebook</p>
-                      <p className="connection-status">{socialConnections.facebook ? (metaName || 'Connected') : 'Not Connected'}</p>
-                    </div>
-                  </div>
-                  <button 
-                    className={`btn-connect ${socialConnections.facebook ? 'connected' : ''}`}
-                    onClick={() => handleConnectSocial('facebook')}
-                  >
-                    {socialConnections.facebook ? 'Manage' : 'Connect'}
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            {/* Storage Connections */}
-            <section className="dashboard-card">
-              <div className="card-header">
-                <h3><Database size={18} /> Cloud Storage</h3>
-                <span className="storage-usage">72% Full</span>
-              </div>
-              <div className="connection-list">
-                <div className="connection-item">
-                  <div className="connection-info">
-                    <div className="icon-box storage-bg">
-                      <HardDrive size={20} />
-                    </div>
-                    <div>
-                      <p className="connection-name">Google Drive</p>
-                      <p className="connection-status">{storageConnections.googleDrive ? 'Connected' : 'Disconnected'}</p>
-                    </div>
-                  </div>
-                  <button 
-                    className={`btn-connect ${storageConnections.googleDrive ? 'connected' : ''}`}
-                    onClick={() => setStorageConnections(prev => ({ ...prev, googleDrive: !prev.googleDrive }))}
-                  >
-                    {storageConnections.googleDrive ? 'Disconnect' : 'Connect'}
-                  </button>
-                </div>
-                <div className="connection-item">
-                  <div className="connection-info">
-                    <div className="icon-box storage-bg">
-                      <HardDrive size={20} />
-                    </div>
-                    <div>
-                      <p className="connection-name">Dropbox</p>
-                      <p className="connection-status">{storageConnections.dropbox ? 'Connected' : 'Disconnected'}</p>
-                    </div>
-                  </div>
-                  <button 
-                    className={`btn-connect ${storageConnections.dropbox ? 'connected' : ''}`}
-                    onClick={() => setStorageConnections(prev => ({ ...prev, dropbox: !prev.dropbox }))}
-                  >
-                    {storageConnections.dropbox ? 'Disconnect' : 'Connect'}
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            {/* Agents Widget */}
-            <section className="dashboard-card agents-widget">
-              <div className="card-header">
-                <h3><LayoutGrid size={18} /> Quick Launch Agents</h3>
-                <button className="text-link" onClick={() => setActiveTab('agents')}>View All</button>
-              </div>
-              <div className="agents-mini-list">
-                {STUDIO_AGENTS.slice(0, 3).map(agent => {
-                  const Icon = agent.icon;
-                  return (
-                    <div key={agent.id} className="agent-mini-item" onClick={() => setSelectedAgent(agent)}>
-                      <div className={`agent-mini-icon ${agent.colorClass}`}>
-                        <Icon size={18} />
+            {/* Dashboard Content Area */}
+            <div className="dashboard-main-content">
+              {dashboardTab === 'overview' && (
+                <div className="dashboard-view-overview animate-fadeIn">
+                  <div className="dashboard-welcome-banner">
+                    <div className="banner-content">
+                      <div className="banner-text">
+                        <h1>Welcome back, {isLoggedIn ? 'Pro Creator' : 'Artist'}</h1>
+                        <p>Your AI studio is synchronized and ready for your next hit.</p>
                       </div>
-                      <div className="agent-mini-info">
-                        <p className="agent-mini-name">{agent.name}</p>
-                        <p className="agent-mini-cat">{agent.category}</p>
+                      <div className="banner-actions">
+                        <button 
+                          className={`voice-command-btn haptic-press ${isListening ? 'active' : ''}`}
+                          onClick={handleVoiceToText}
+                        >
+                          <Mic size={20} />
+                          <span>{isListening ? 'Listening...' : 'Voice Command'}</span>
+                        </button>
+                        <button 
+                          className="btn-refresh-glow haptic-press"
+                          onClick={() => {
+                            handleTextToVoice("Synchronizing your AI ecosystem...");
+                            alert("Ecosystem synchronized successfully!");
+                          }}
+                        >
+                          <RefreshCw size={18} /> 
+                          <span>Sync Ecosystem</span>
+                        </button>
                       </div>
-                      <ArrowRight size={14} className="mini-arrow" />
                     </div>
-                  );
-                })}
-              </div>
-            </section>
+                  </div>
 
-            {/* Billing & Payments Section */}
-            <section className="dashboard-card billing-card full-width-card">
-              <div className="card-header">
-                <h3><CreditCard size={18} /> Billing & Payments</h3>
-                <div className="plan-badge">PRO PLAN</div>
-              </div>
-              
-              <div className="billing-dashboard-layout">
-                <div className="billing-main-info">
-                  <div className="billing-row">
-                    <span>Next billing date</span>
-                    <strong>Oct 24, 2024</strong>
-                  </div>
-                  <div className="billing-row">
-                    <span>Monthly Amount</span>
-                    <strong>$49.00</strong>
-                  </div>
-                  <div className="billing-actions">
-                    <button className="btn-primary-glow">Manage Subscription</button>
-                    <button className="btn-outline">View Invoices</button>
-                  </div>
-                </div>
-
-                <div className="payment-methods-section">
-                  <h4>Saved Payment Methods</h4>
-                  <div className="payment-methods-list">
-                    {paymentMethods.map(pm => (
-                      <div key={pm.id} className="payment-method-item">
-                        <div className="pm-info">
-                          <CreditCard size={16} />
-                          <span>{pm.type} ending in {pm.last4}</span>
-                          {pm.isDefault && <span className="default-badge">Default</span>}
+                  <div className="dashboard-grid">
+                    {/* Stats Section */}
+                    <section className="dashboard-card stats-card">
+                      <div className="card-header">
+                        <h3><BarChart3 size={18} /> Performance Overview</h3>
+                        <PieChart size={18} className="text-muted" />
+                      </div>
+                      <div className="stats-grid">
+                        <div className="stat-item">
+                          <span className="stat-value">{managedAgents.filter(a => a.visible).length}</span>
+                          <span className="stat-label">Active Agents</span>
                         </div>
-                        <button className="btn-text-sm">Edit</button>
+                        <div className="stat-item">
+                          <span className="stat-value">{projects.length}</span>
+                          <span className="stat-label">Creations</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-value">42</span>
+                          <span className="stat-label">Social Posts</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-value">8.2k</span>
+                          <span className="stat-label">Total Reach</span>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Social Connections */}
+                    <section className="dashboard-card">
+                      <div className="card-header">
+                        <h3><Share2 size={18} /> Social Ecosystem</h3>
+                        <span className="status-badge online">Live</span>
+                      </div>
+                      <div className="connection-list">
+                        <div className="connection-item">
+                          <div className="connection-info">
+                            <div className="icon-box twitter-bg">
+                              <Twitter size={20} />
+                            </div>
+                            <div>
+                              <p className="connection-name">X (Twitter)</p>
+                              <p className="connection-status">{socialConnections.twitter ? `@${twitterUsername || 'Connected'}` : 'Not Connected'}</p>
+                            </div>
+                          </div>
+                          <button 
+                            className={`btn-connect ${socialConnections.twitter ? 'connected' : ''}`}
+                            onClick={() => handleConnectSocial('twitter')}
+                          >
+                            {socialConnections.twitter ? 'Manage' : 'Connect'}
+                          </button>
+                        </div>
+                        <div className="connection-item">
+                          <div className="connection-info">
+                            <div className="icon-box instagram-bg">
+                              <Instagram size={20} />
+                            </div>
+                            <div>
+                              <p className="connection-name">Instagram</p>
+                              <p className="connection-status">{socialConnections.instagram ? (metaName || 'Connected') : 'Not Connected'}</p>
+                            </div>
+                          </div>
+                          <button 
+                            className={`btn-connect ${socialConnections.instagram ? 'connected' : ''}`}
+                            onClick={() => handleConnectSocial('instagram')}
+                          >
+                            {socialConnections.instagram ? 'Manage' : 'Connect'}
+                          </button>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Storage Connections */}
+                    <section className="dashboard-card">
+                      <div className="card-header">
+                        <h3><Database size={18} /> Cloud Storage</h3>
+                        <span className="storage-usage">72% Full</span>
+                      </div>
+                      <div className="connection-list">
+                        <div className="connection-item">
+                          <div className="connection-info">
+                            <div className="icon-box storage-bg">
+                              <HardDrive size={20} />
+                            </div>
+                            <div>
+                              <p className="connection-name">Google Drive</p>
+                              <p className="connection-status">{storageConnections.googleDrive ? 'Connected' : 'Disconnected'}</p>
+                            </div>
+                          </div>
+                          <button 
+                            className={`btn-connect ${storageConnections.googleDrive ? 'connected' : ''}`}
+                            onClick={() => setStorageConnections(prev => ({ ...prev, googleDrive: !prev.googleDrive }))}
+                          >
+                            {storageConnections.googleDrive ? 'Disconnect' : 'Connect'}
+                          </button>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+              )}
+
+              {dashboardTab === 'agents' && (
+                <div className="dashboard-view-agents animate-fadeIn">
+                  <div className="section-header-simple">
+                    <h2>Agent Management</h2>
+                    <p>Show or hide agents from your main grid. Hidden agents are still accessible via search.</p>
+                  </div>
+                  <div className="agent-management-list">
+                    {managedAgents.map((agent, idx) => (
+                      <div key={idx} className={`agent-manage-row ${!agent.visible ? 'hidden-agent' : ''}`}>
+                        <div className="agent-manage-info">
+                          <div className={`agent-mini-icon ${agent.colorClass}`}>
+                            <agent.icon size={18} />
+                          </div>
+                          <span>{agent.name}</span>
+                        </div>
+                        <div className="agent-manage-actions">
+                          <button 
+                            className={`toggle-btn ${agent.visible ? 'active' : ''}`}
+                            onClick={() => toggleAgentVisibility(agent.name)}
+                          >
+                            {agent.visible ? <Eye size={16} /> : <EyeOff size={16} />}
+                            {agent.visible ? 'Visible' : 'Hidden'}
+                          </button>
+                        </div>
                       </div>
                     ))}
-                    {bankAccounts.map(ba => (
-                      <div key={ba.id} className="payment-method-item">
-                        <div className="pm-info">
-                          <Database size={16} />
-                          <span>{ba.bankName} (****{ba.last4})</span>
-                        </div>
-                        <button className="btn-text-sm">Edit</button>
-                      </div>
-                    ))}
+                  </div>
+                </div>
+              )}
+
+              {dashboardTab === 'billing' && (
+                <div className="dashboard-view-billing animate-fadeIn">
+                  <div className="section-header-simple">
+                    <h2>Billing & Wallet</h2>
+                    <p>Manage your payment methods and subscription plan.</p>
                   </div>
                   
-                  <div className="add-payment-options">
-                    <button className="btn-add-pm" onClick={() => setShowAddPaymentModal(true)}>
-                      <Zap size={14} /> Add Card / Bank
-                    </button>
+                  <div className="payment-methods-container">
+                    <div className="payment-header">
+                      <h3>Saved Payment Methods</h3>
+                      <button className="add-payment-btn" onClick={() => setShowAddPaymentModal(true)}>
+                        <Plus size={16} /> Add New
+                      </button>
+                    </div>
+                    
+                    {paymentMethods.length === 0 && bankAccounts.length === 0 ? (
+                      <div className="empty-payments">
+                        <CreditCard size={32} />
+                        <p>No payment methods saved yet.</p>
+                      </div>
+                    ) : (
+                      <div className="payment-list">
+                        {paymentMethods.map(method => (
+                          <div key={method.id} className="payment-method-card">
+                            <div className="pm-icon">
+                              <CreditCard size={20} />
+                            </div>
+                            <div className="pm-details">
+                              <p className="pm-name">{method.type} ending in {method.last4}</p>
+                              <p className="pm-sub">Expires {method.expiry}</p>
+                            </div>
+                            <div className="pm-actions">
+                              <button onClick={() => { setEditingPayment(method); setPaymentType('card'); setShowAddPaymentModal(true); }}>Edit</button>
+                              <button className="delete" onClick={() => handleDeletePayment(method.id, 'card')}>Remove</button>
+                            </div>
+                          </div>
+                        ))}
+                        {bankAccounts.map(bank => (
+                          <div key={bank.id} className="payment-method-card">
+                            <div className="pm-icon">
+                              <Landmark size={20} />
+                            </div>
+                            <div className="pm-details">
+                              <p className="pm-name">{bank.bankName}</p>
+                              <p className="pm-sub">****{bank.last4}</p>
+                            </div>
+                            <div className="pm-actions">
+                              <button onClick={() => { setEditingPayment(bank); setPaymentType('bank'); setShowAddPaymentModal(true); }}>Edit</button>
+                              <button className="delete" onClick={() => handleDeletePayment(bank.id, 'bank')}>Remove</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
+                </div>
+              )}
 
-                  <div className="external-payments-grid">
-                    <p className="small-label">Supported Providers</p>
-                    <div className="provider-icons">
-                      <div className="provider-chip stripe" onClick={() => handleProviderClick('Stripe')}>Stripe</div>
-                      <div className="provider-chip venmo" onClick={() => handleProviderClick('Venmo')}>Venmo</div>
-                      <div className="provider-chip affirm" onClick={() => handleProviderClick('Affirm')}>Affirm</div>
-                      <div className="provider-chip shoppay" onClick={() => handleProviderClick('Shop Pay')}>Shop Pay</div>
+              {dashboardTab === 'settings' && (
+                <div className="dashboard-view-settings animate-fadeIn">
+                  <div className="section-header-simple">
+                    <h2>Application Settings</h2>
+                    <p>Customize your Studio Agents experience.</p>
+                  </div>
+                  
+                  <div className="settings-list">
+                    <div className="setting-row">
+                      <div className="setting-info">
+                        <h4>Show News Feed</h4>
+                        <p>Display the latest music industry news in your dashboard.</p>
+                      </div>
+                      <label className="switch">
+                        <input 
+                          type="checkbox" 
+                          checked={appSettings.showNews} 
+                          onChange={() => toggleAppSetting('showNews')} 
+                        />
+                        <span className="slider round"></span>
+                      </label>
+                    </div>
+
+                    <div className="setting-row">
+                      <div className="setting-info">
+                        <h4>Public Activity Wall</h4>
+                        <p>Allow your shared creations to be seen by the community.</p>
+                      </div>
+                      <label className="switch">
+                        <input 
+                          type="checkbox" 
+                          checked={appSettings.publicActivity} 
+                          onChange={() => toggleAppSetting('publicActivity')} 
+                        />
+                        <span className="slider round"></span>
+                      </label>
+                    </div>
+
+                    <div className="setting-row">
+                      <div className="setting-info">
+                        <h4>Auto-Save Projects</h4>
+                        <p>Automatically save your work to local storage every 5 minutes.</p>
+                      </div>
+                      <label className="switch">
+                        <input 
+                          type="checkbox" 
+                          checked={appSettings.autoSave} 
+                          onChange={() => toggleAppSetting('autoSave')} 
+                        />
+                        <span className="slider round"></span>
+                      </label>
                     </div>
                   </div>
                 </div>
-              </div>
-            </section>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -1795,7 +2060,7 @@ function StudioView({ onBack }) {
         <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative' }}>
           {/* Onboarding Nudge */}
           {showNudge && selectedAgent.onboarding && (
-            <div className="agent-nudge-overlay animate-fadeInRight">
+            <div className="agent-nudge-overlay animate-fadeInDown">
               <div className="nudge-header">
                 <h4><Sparkles size={16} /> Quick Start Guide</h4>
                 <button className="nudge-close" onClick={() => setShowNudge(false)}>
@@ -2034,6 +2299,7 @@ function StudioView({ onBack }) {
                       title="Save to Cloud Storage"
                     >
                       <Cloud size={18} />
+                      <span>Save to Cloud</span>
                     </button>
                   </div>
                   
@@ -2369,6 +2635,57 @@ function StudioView({ onBack }) {
           </div>
         );
       case 'comeup':
+        const TRENDING_VIDEOS = [
+          {
+            id: 'v1',
+            title: 'Mastering AI Vocals in 2025',
+            channel: 'Future Music',
+            views: '1.2M',
+            thumbnail: 'https://images.unsplash.com/photo-1516280440614-6697288d5d38?auto=format&fit=crop&w=400&q=80',
+            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+          },
+          {
+            id: 'v2',
+            title: 'The "Bedroom Producer" Revolution',
+            channel: 'Indie Guide',
+            views: '850K',
+            thumbnail: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?auto=format&fit=crop&w=400&q=80',
+            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+          },
+          {
+            id: 'v3',
+            title: 'Mixing Secrets: Analog vs Digital',
+            channel: 'Mix Master',
+            views: '2.1M',
+            thumbnail: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=400&q=80',
+            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+          }
+        ];
+
+        const LEGENDARY_STORIES = [
+          {
+            artist: 'Prince',
+            genre: 'Funk / Pop',
+            story: 'Known for playing every instrument on his debut album, Prince was the ultimate one-man studio.',
+            toolUsage: 'Prince would have used <strong>Beat Lab</strong> to sketch drum patterns and <strong>Vocal Architect</strong> to layer harmonies without a choir.',
+            image: 'https://images.unsplash.com/photo-1525296416926-b537848e3e69?auto=format&fit=crop&w=200&q=80'
+          },
+          {
+            artist: 'J Dilla',
+            genre: 'Hip Hop',
+            story: 'Dilla humanized the MPC, turning quantization off to create a "drunk" swing that changed rhythm forever.',
+            toolUsage: 'He would leverage <strong>Trend Hunter</strong> to find obscure samples, but he\'d likely turn the "Humanize" knob on <strong>Beat Lab</strong> to 100%.',
+            image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=200&q=80'
+          },
+          {
+            artist: 'David Bowie',
+            genre: 'Rock / Exp',
+            story: 'The chameleon of rock, Bowie used the "cut-up technique" to rearrange words and find new meanings.',
+            toolUsage: 'Bowie is the spiritual ancestor of <strong>Ghostwriter</strong>. He would use it to generate chaotic text streams and curate the most surreal phrases.',
+            image: 'https://images.unsplash.com/photo-1535581652167-3d6b98c36cd0?auto=format&fit=crop&w=200&q=80'
+          }
+        ];
+
         return (
           <div className="comeup-view animate-fadeInUp">
             <div className="comeup-hero">
@@ -2425,6 +2742,85 @@ function StudioView({ onBack }) {
                       </p>
                     </div>
                   </div>
+                </section>
+
+                <section className="comeup-section">
+                  <div className="section-header">
+                    <PlayCircle size={20} />
+                    <h2>Trending in Music Tech</h2>
+                  </div>
+                  <div className="video-scroll-container">
+                    {TRENDING_VIDEOS.map((video) => (
+                      <div 
+                        key={video.id} 
+                        className="video-card" 
+                        onClick={() => setPlayingItem({
+                          ...video,
+                          type: 'video',
+                          agent: 'YouTube',
+                          videoUrl: video.url
+                        })}
+                      >
+                        <div className="video-thumbnail">
+                          <img src={video.thumbnail} alt={video.title} />
+                          <div className="play-overlay"><Play size={24} /></div>
+                        </div>
+                        <div className="video-info">
+                          <h4>{video.title}</h4>
+                          <p>{video.channel} • {video.views} views</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="comeup-section">
+                  <div className="section-header">
+                    <Crown size={20} />
+                    <h2>Legends & The Future</h2>
+                  </div>
+                  <div className="legends-grid">
+                    {LEGENDARY_STORIES.map((legend, i) => (
+                      <div key={i} className="legend-card">
+                        <div className="legend-header">
+                          <div className="legend-avatar" style={{ backgroundImage: `url(${legend.image})` }}></div>
+                          <div>
+                            <h3>{legend.artist}</h3>
+                            <span className="legend-genre">{legend.genre}</span>
+                          </div>
+                        </div>
+                        <p className="legend-story">"{legend.story}"</p>
+                        <div className="legend-ai-take">
+                          <strong><Sparkles size={12} /> AI Workflow:</strong>
+                          <p dangerouslySetInnerHTML={{ __html: legend.toolUsage }}></p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+                
+                <section className="comeup-section">
+                   <div className="section-header">
+                     <Share2 size={20} />
+                     <h2>Connect & Amplify</h2>
+                   </div>
+                   <div className="social-connect-banner">
+                      <div className="social-text">
+                        <h3>Sync Your Socials</h3>
+                        <p>Connect your accounts to auto-post your creations and track engagement analytics directly from the Studio.</p>
+                      </div>
+                      <div className="social-buttons-row">
+                        <button className="social-btn-large twitter" onClick={() => handleConnectSocial('twitter')}>
+                          <Twitter size={18} /> Connect X
+                        </button>
+                        <button className="social-btn-large instagram" onClick={() => handleConnectSocial('instagram')}>
+                          <Instagram size={18} /> Connect IG
+                        </button>
+                        <button className="social-btn-large youtube" onClick={() => handleConnectSocial('youtube')}>
+                          <Play size={18} /> Connect YT
+                        </button>
+                      </div>
+                   </div>
                 </section>
 
                 <section className="comeup-section">
@@ -2913,10 +3309,57 @@ function StudioView({ onBack }) {
         ];
 
         const suggestions = helpSearch.length > 2 
-          ? TROUBLESHOOTING_GUIDE.filter(guide => 
-              guide.keywords.some(k => helpSearch.toLowerCase().includes(k)) ||
-              guide.issue.toLowerCase().includes(helpSearch.toLowerCase())
-            )
+          ? [
+              // Troubleshooting Matches
+              ...TROUBLESHOOTING_GUIDE.filter(guide => 
+                guide.keywords.some(k => helpSearch.toLowerCase().includes(k)) ||
+                guide.issue.toLowerCase().includes(helpSearch.toLowerCase())
+              ).map(item => ({ 
+                type: 'Troubleshooting',
+                title: item.issue,
+                description: item.solution,
+                icon: Shield
+              })),
+
+              // Guide Matches
+              ...HELP_ITEMS.filter(item => 
+                item.title.toLowerCase().includes(helpSearch.toLowerCase()) ||
+                item.desc.toLowerCase().includes(helpSearch.toLowerCase()) ||
+                item.details.toLowerCase().includes(helpSearch.toLowerCase())
+              ).map(item => ({ 
+                type: 'Guide',
+                title: item.title,
+                description: item.desc,
+                icon: Book
+              })),
+
+              // Agent Matches
+              ...AGENTS.filter(agent => 
+                agent.name.toLowerCase().includes(helpSearch.toLowerCase()) ||
+                agent.description.toLowerCase().includes(helpSearch.toLowerCase())
+              ).map(item => ({ 
+                type: 'Agent',
+                title: item.name,
+                description: item.description,
+                icon: Zap,
+                action: () => { setActiveTab('agents'); setSelectedAgent(item); }
+              })),
+
+              // FAQ Matches
+              ...[
+                  { q: 'How do I export my creations?', a: 'You can export any creation from the Project Hub using the download icon.' },
+                  { q: 'Can I use the lyrics commercially?', a: 'Yes, all content generated by Studio Agents is royalty-free for Pro users.' },
+                  { q: 'How do I change the agent\'s genre?', a: 'Use the Genre dropdown in the agent\'s detail view to shift styles.' }
+                ].filter(faq => 
+                  faq.q.toLowerCase().includes(helpSearch.toLowerCase()) ||
+                  faq.a.toLowerCase().includes(helpSearch.toLowerCase())
+                ).map(item => ({ 
+                  type: 'FAQ',
+                  title: item.q,
+                  description: item.a,
+                  icon: HelpCircle
+                }))
+            ]
           : [];
 
         return (
@@ -2927,7 +3370,7 @@ function StudioView({ onBack }) {
                 <Search size={20} />
                 <input 
                   type="text" 
-                  placeholder="Describe your issue (e.g., 'cannot download' or 'no sound')..." 
+                  placeholder="Search for agents, guides, or troubleshooting..." 
                   value={helpSearch}
                   onChange={(e) => setHelpSearch(e.target.value)}
                 />
@@ -2938,13 +3381,22 @@ function StudioView({ onBack }) {
               <div className="smart-suggestions animate-fadeIn">
                 <div className="suggestions-header">
                   <Sparkles size={18} className="text-purple" />
-                  <h3>Smart Suggestions</h3>
+                  <h3>Search Results</h3>
                 </div>
                 <div className="suggestions-list">
                   {suggestions.map((s, i) => (
-                    <div key={i} className="suggestion-item">
-                      <h4>{s.issue}</h4>
-                      <p>{s.solution}</p>
+                    <div 
+                      key={i} 
+                      className="suggestion-item"
+                      onClick={s.action ? s.action : undefined}
+                      style={s.action ? { cursor: 'pointer' } : {}}
+                    >
+                      <div className="suggestion-meta">
+                        <span className="suggestion-type">{s.type}</span>
+                        {s.action && <ArrowRight size={14} className="suggestion-arrow" />}
+                      </div>
+                      <h4>{s.title}</h4>
+                      <p>{s.description}</p>
                     </div>
                   ))}
                 </div>
@@ -3123,9 +3575,80 @@ function StudioView({ onBack }) {
             >
               <HelpCircle size={18} />
             </button>
-            <button className="action-button secondary haptic-press">
+            <button 
+              className="action-button secondary haptic-press" 
+              onClick={() => setShowNotifications(!showNotifications)}
+              style={{ position: 'relative' }}
+            >
               <Bell size={18} />
+              {notifications.some(n => !n.read) && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-2px',
+                  right: '-2px',
+                  width: '8px',
+                  height: '8px',
+                  background: 'var(--color-red)',
+                  borderRadius: '50%',
+                  border: '1px solid var(--card-bg)'
+                }}></span>
+              )}
             </button>
+            
+            {/* Notification Dropdown */}
+            {showNotifications && (
+              <div className="notification-dropdown animate-fadeInUp" style={{
+                position: 'absolute',
+                top: '60px',
+                right: '80px',
+                width: '320px',
+                background: 'var(--card-bg)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+                zIndex: 1000,
+                overflow: 'hidden'
+              }}>
+                <div className="notif-header" style={{
+                  padding: '16px',
+                  borderBottom: '1px solid var(--border-color)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <h3 style={{ fontSize: '0.9rem', fontWeight: '700' }}>Notifications</h3>
+                  <button 
+                    onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+                    style={{ fontSize: '0.75rem', color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    Mark all read
+                  </button>
+                </div>
+                <div className="notif-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      No new notifications
+                    </div>
+                  ) : (
+                    notifications.map(n => (
+                      <div key={n.id} style={{
+                        padding: '12px 16px',
+                        borderBottom: '1px solid var(--border-color)',
+                        background: n.read ? 'transparent' : 'rgba(255,255,255,0.03)',
+                        cursor: 'pointer'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: n.read ? '400' : '700' }}>{n.title}</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{n.time}</span>
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>{n.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
             {isLoggedIn ? (
               <div className="user-projects-dropdown">
                 <button 
@@ -3176,7 +3699,19 @@ function StudioView({ onBack }) {
                 </div>
 
                 <div className="player-visualizer">
-                  {playingItem.videoUrl ? (
+                  {playingItem.videoUrl && (playingItem.videoUrl.includes('youtube.com') || playingItem.videoUrl.includes('youtu.be')) ? (
+                    <iframe 
+                      width="100%" 
+                      height="100%" 
+                      src={playingItem.videoUrl.replace('watch?v=', 'embed/')} 
+                      title={playingItem.title}
+                      frameBorder="0" 
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                      allowFullScreen
+                      className="player-video"
+                      style={{ border: 'none' }}
+                    ></iframe>
+                  ) : playingItem.videoUrl ? (
                     <video 
                       src={playingItem.videoUrl} 
                       controls 
@@ -3273,13 +3808,17 @@ function StudioView({ onBack }) {
         {showLoginModal && (
           <div className="modal-overlay">
             <div className="modal-content animate-fadeInUp">
-              <button className="modal-close" onClick={() => setShowLoginModal(false)}><X size={20} /></button>
+              <button className="modal-close" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); }}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
                   <Sparkles size={24} color="white" />
                 </div>
-                <h2>Join Studio Agents</h2>
-                <p>Sign in to save your projects and access all 8 AI agents.</p>
+                <h2>{selectedPlan ? 'Complete Your Subscription' : 'Join Studio Agents'}</h2>
+                <p>
+                  {selectedPlan 
+                    ? `Sign in to activate your ${selectedPlan.name} (${selectedPlan.price}${selectedPlan.period ? selectedPlan.period : ''}).` 
+                    : 'Sign in to save your projects and access all 8 AI agents.'}
+                </p>
               </div>
               <div className="modal-body">
                 <button 
@@ -3293,9 +3832,15 @@ function StudioView({ onBack }) {
                       uid = 'user_' + Math.random().toString(36).substr(2, 9);
                       localStorage.setItem('studio_user_id', uid);
                     }
+                    if (selectedPlan) {
+                      handleTextToVoice(`Welcome to the ${selectedPlan.name}. Your subscription is active.`);
+                      alert(`Subscription Confirmed: ${selectedPlan.name}\nPrice: ${selectedPlan.price}\n\nWelcome to the Pro Team!`);
+                      setSelectedPlan(null);
+                      handleNavigate('studio');
+                    }
                   }}
                 >
-                  Sign In with Google
+                  {selectedPlan ? 'Sign In & Subscribe with Google' : 'Sign In with Google'}
                 </button>
                 <button 
                   className="cta-button-secondary" 
@@ -3308,9 +3853,15 @@ function StudioView({ onBack }) {
                       uid = 'user_' + Math.random().toString(36).substr(2, 9);
                       localStorage.setItem('studio_user_id', uid);
                     }
+                    if (selectedPlan) {
+                      handleTextToVoice(`Welcome to the ${selectedPlan.name}. Your subscription is active.`);
+                      alert(`Subscription Confirmed: ${selectedPlan.name}\nPrice: ${selectedPlan.price}\n\nWelcome to the Pro Team!`);
+                      setSelectedPlan(null);
+                      handleNavigate('studio');
+                    }
                   }}
                 >
-                  Continue with Email
+                  {selectedPlan ? 'Sign In & Subscribe with Email' : 'Continue with Email'}
                 </button>
               </div>
               <div className="modal-footer">
@@ -3320,29 +3871,31 @@ function StudioView({ onBack }) {
           </div>
         )}
 
-        {/* Add Payment Method Modal */}
+        {/* Add/Edit Payment Method Modal */}
         {showAddPaymentModal && (
-          <div className="modal-overlay" onClick={() => setShowAddPaymentModal(false)}>
+          <div className="modal-overlay" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}>
             <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => setShowAddPaymentModal(false)}><X size={20} /></button>
+              <button className="modal-close" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
                   <CreditCard size={24} color="white" />
                 </div>
-                <h2>Add Payment Method</h2>
-                <p>Securely add a new card or bank account to your studio.</p>
+                <h2>{editingPayment ? 'Edit Payment Method' : 'Add Payment Method'}</h2>
+                <p>Securely {editingPayment ? 'update' : 'add'} a card or bank account.</p>
               </div>
               
               <div className="modal-tabs">
                 <button 
                   className={`modal-tab ${paymentType === 'card' ? 'active' : ''}`}
                   onClick={() => setPaymentType('card')}
+                  disabled={!!editingPayment}
                 >
                   Credit/Debit Card
                 </button>
                 <button 
                   className={`modal-tab ${paymentType === 'bank' ? 'active' : ''}`}
                   onClick={() => setPaymentType('bank')}
+                  disabled={!!editingPayment}
                 >
                   Bank Account
                 </button>
@@ -3350,28 +3903,27 @@ function StudioView({ onBack }) {
 
               <div className="modal-body">
                 {paymentType === 'card' ? (
-                  <form className="payment-form" onSubmit={(e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.target);
-                    const newPM = {
-                      id: `pm_${Date.now()}`,
-                      type: 'Visa',
-                      last4: formData.get('cardNumber').slice(-4),
-                      expiry: formData.get('expiry'),
-                      isDefault: false
-                    };
-                    setPaymentMethods([...paymentMethods, newPM]);
-                    setShowAddPaymentModal(false);
-                    handleTextToVoice(`Successfully added your card ending in ${newPM.last4}.`);
-                  }}>
+                  <form className="payment-form" onSubmit={handleSavePayment}>
                     <div className="form-group">
                       <label>Card Number</label>
-                      <input type="text" name="cardNumber" placeholder="0000 0000 0000 0000" required />
+                      <input 
+                        type="text" 
+                        name="cardNumber" 
+                        placeholder="0000 0000 0000 0000" 
+                        defaultValue={editingPayment ? `**** **** **** ${editingPayment.item.last4}` : ''}
+                        required 
+                      />
                     </div>
                     <div className="form-row">
                       <div className="form-group">
                         <label>Expiry Date</label>
-                        <input type="text" name="expiry" placeholder="MM/YY" required />
+                        <input 
+                          type="text" 
+                          name="expiry" 
+                          placeholder="MM/YY" 
+                          defaultValue={editingPayment ? editingPayment.item.expiry : ''}
+                          required 
+                        />
                       </div>
                       <div className="form-group">
                         <label>CVC</label>
@@ -3379,26 +3931,20 @@ function StudioView({ onBack }) {
                       </div>
                     </div>
                     <button type="submit" className="cta-button-premium" style={{ width: '100%', marginTop: '1rem' }}>
-                      Save Card
+                      {editingPayment ? 'Update Card' : 'Save Card'}
                     </button>
                   </form>
                 ) : (
-                  <form className="payment-form" onSubmit={(e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.target);
-                    const newBA = {
-                      id: `ba_${Date.now()}`,
-                      bankName: formData.get('bankName'),
-                      last4: formData.get('accountNumber').slice(-4),
-                      type: 'Checking'
-                    };
-                    setBankAccounts([...bankAccounts, newBA]);
-                    setShowAddPaymentModal(false);
-                    handleTextToVoice(`Successfully linked your ${newBA.bankName} account.`);
-                  }}>
+                  <form className="payment-form" onSubmit={handleSavePayment}>
                     <div className="form-group">
                       <label>Bank Name</label>
-                      <input type="text" name="bankName" placeholder="e.g. Chase, Wells Fargo" required />
+                      <input 
+                        type="text" 
+                        name="bankName" 
+                        placeholder="e.g. Chase, Wells Fargo" 
+                        defaultValue={editingPayment ? editingPayment.item.bankName : ''}
+                        required 
+                      />
                     </div>
                     <div className="form-group">
                       <label>Routing Number</label>
@@ -3406,10 +3952,16 @@ function StudioView({ onBack }) {
                     </div>
                     <div className="form-group">
                       <label>Account Number</label>
-                      <input type="text" name="accountNumber" placeholder="Account Number" required />
+                      <input 
+                        type="text" 
+                        name="accountNumber" 
+                        placeholder="Account Number" 
+                        defaultValue={editingPayment ? `****${editingPayment.item.last4}` : ''}
+                        required 
+                      />
                     </div>
                     <button type="submit" className="cta-button-premium" style={{ width: '100%', marginTop: '1rem' }}>
-                      Link Bank Account
+                      {editingPayment ? 'Update Bank Account' : 'Link Bank Account'}
                     </button>
                   </form>
                 )}
@@ -3469,7 +4021,10 @@ export default function App() {
   return (
     <div className={`app-viewport ${isTransitioning ? 'transitioning' : ''}`}>
       {currentView === 'landing' ? (
-        <LandingPage onEnter={() => handleNavigate('studio')} />
+        <LandingPage 
+          onEnter={() => handleNavigate('studio')} 
+          onSubscribe={handleSubscribe}
+        />
       ) : (
         <StudioView onBack={() => handleNavigate('landing')} />
       )}
