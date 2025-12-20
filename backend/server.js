@@ -235,12 +235,25 @@ const allowedOrigins = isDevelopment
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      logger.warn('🚫 CORS blocked', { origin, allowedOrigins });
-      callback(new Error('Not allowed by CORS'));
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in the explicit whitelist
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
     }
+
+    // Allow all Vercel and Railway deployments (dynamic previews)
+    if (origin.endsWith('.vercel.app') || origin.endsWith('.railway.app')) {
+      return callback(null, true);
+    }
+
+    // Allow localhost in development
+    if (isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+      return callback(null, true);
+    }
+
+    logger.warn('🚫 CORS blocked', { origin, allowedOrigins });
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true
 }));
