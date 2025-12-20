@@ -1,7 +1,7 @@
 {
-  "name": "whip-montez-app",
-  "version": "1.0.0",
-  "description": "Whip Montez full-stack app",
+  "name": "studio-agents-ai",
+  "version": "2.0.0",
+  "description": "Studio Agents - AI Music Studio Platform",
   "private": true,
   "engines": {
     "node": ">=20.19.0"
