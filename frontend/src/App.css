@@ -5448,12 +5448,11 @@
   background: transparent;
   backdrop-filter: blur(0px);
   transition: all 0.3s ease;
-  display: none;
 }
 
 @media (max-width: 768px) {
   .native-header {
-    display: block;
+    /* display: block; */
   }
 }
 
