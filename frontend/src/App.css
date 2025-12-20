@@ -2054,7 +2054,7 @@
 .studio-container {
   display: flex;
   height: 100vh;
-  background: radial-gradient(circle at top right, #1a1a24 0%, #0a0a0c 100%);
+  background-color: var(--color-bg-primary);
   color: var(--text-primary);
   overflow: hidden;
   transition: background 0.3s ease, color 0.3s ease;
@@ -2153,7 +2153,6 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: transparent; /* Allow gradient to show through */
 }
 
 .studio-header {
@@ -3098,7 +3097,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(10, 10, 12, 0.8);
+  background: var(--color-bg-primary);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border-color);
   z-index: 10;
