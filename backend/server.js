@@ -627,7 +627,7 @@ app.post('/api/translate', verifyFirebaseToken, apiLimiter, async (req, res) => 
     const modelName = process.env.GENERATIVE_MODEL || "gemini-2.0-flash";
     const model = genAI.getGenerativeModel({ 
       model: modelName,
-      Return ONLY the translated text, no explanations.`
+      systemInstruction: `Return ONLY the translated text, no explanations.`
     });
 
     const prompt = `Translate this text from ${sourceLanguage} to ${targetLanguage}: "${text}"`;
