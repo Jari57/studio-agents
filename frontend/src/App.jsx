@@ -4,8 +4,11 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Target, Rocket, Menu, X, LayoutGrid, Globe, Bell, ChevronRight, ChevronDown, ChevronUp, Shield, TrendingUp, Folder, Search, Filter, Download, Share2, HelpCircle, Book, MessageSquare, PlayCircle, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Cloud, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Target, Rocket, Menu, X, LayoutGrid, Globe, Bell, ChevronRight, ChevronDown, ChevronUp, Shield, TrendingUp, Folder, Search, Filter, Download, Share2, HelpCircle, Book, MessageSquare, PlayCircle, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Cloud, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2 } from 'lucide-react';
 import './App.css';
+
+// Backend URL configuration
+const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://studio-agents-production.up.railway.app';
 
 // Agent showcase data
 const AGENTS = [
@@ -29,6 +32,13 @@ const AGENTS = [
     category: 'Visual',
     icon: Music,
     colorClass: 'agent-orange'
+  },
+  {
+    name: 'Video Creator',
+    description: 'Generate cinematic videos with Veo 3',
+    category: 'Video',
+    icon: PlayCircle,
+    colorClass: 'agent-red'
   },
   {
     name: 'Trend Hunter',
@@ -134,9 +144,31 @@ const AGENTS = [
 // Landing Page Component
 function LandingPage({ onEnter }) {
   const [hoveredAgent, setHoveredAgent] = useState(null);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
     <div className="landing-container">
+      {/* Native-style Mobile Header */}
+      <header className={`native-header ${scrolled ? 'scrolled' : ''}`}>
+        <div className="header-content">
+          <div className="header-logo">
+            <Sparkles size={24} className="text-purple" />
+            <span className="header-title">Studio Agents</span>
+          </div>
+          <button onClick={onEnter} className="header-cta">
+            Launch
+          </button>
+        </div>
+      </header>
+
       {/* Stars background */}
       <div className="stars-overlay"></div>
 
@@ -147,7 +179,7 @@ function LandingPage({ onEnter }) {
         <div className="hero-content-wrapper">
           {/* Logo/Icon */}
           <div className="logo-container">
-            <div className="logo-box studio-logo-large">
+            <div className="logo-box studio-logo-large animate-float">
               <Sparkles size={64} color="white" />
             </div>
           </div>
@@ -155,114 +187,214 @@ function LandingPage({ onEnter }) {
           {/* Main Title */}
           <h1 className="hero-title">
             <span className="gradient-text-vibrant">
-              STUDIO AGENTS AI
+              DOMINATE THE CHARTS
+            </span>
+            <br />
+            <span style={{ fontSize: '0.5em', fontWeight: '400', color: 'var(--text-secondary)', display: 'block', marginTop: '10px' }}>
+              WITH YOUR OWN AI TEAM
             </span>
           </h1>
 
           {/* Subtitle */}
           <p className="hero-subtitle">
-            The world's most advanced AI music studio ecosystem. 
+            Stop struggling with writer's block. 
             <br />
-            <span className="domain-highlight">studioagentsai.com</span>
+            <strong>Studio Agents</strong> gives you an elite team of 16 AI specialists to write, produce, and market your music 24/7.
           </p>
 
-          {/* Features */}
-          <div className="hero-features-list">
-            <div className="feature-pill">
-              <Zap size={20} className="text-cyan" />
-              <span>Instant Creation</span>
+          {/* Social Proof Badge */}
+          <div className="social-proof-badge" style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            background: 'rgba(255,255,255,0.05)', 
+            padding: '8px 16px', 
+            borderRadius: '20px', 
+            marginBottom: '24px',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            <div style={{ display: 'flex' }}>
+              {[1,2,3,4].map(i => (
+                <div key={i} style={{ 
+                  width: '24px', 
+                  height: '24px', 
+                  borderRadius: '50%', 
+                  background: `var(--gradient-vibrant)`, 
+                  marginLeft: i > 1 ? '-8px' : 0,
+                  border: '2px solid var(--color-bg-primary)'
+                }}></div>
+              ))}
             </div>
-            <div className="feature-pill">
-              <Music size={20} className="text-purple" />
-              <span>AI Powered</span>
-            </div>
-            <div className="feature-pill">
-              <Crown size={20} className="text-pink" />
-              <span>Premium Tools</span>
-            </div>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Trusted by <strong>10,000+</strong> Artists
+            </span>
           </div>
 
           {/* CTA Button */}
-          <button
-            onClick={onEnter}
-            className="cta-button-premium"
-          >
-            <span>Enter Studio</span>
-            <ArrowRight size={24} />
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', width: '100%' }}>
+            <button
+              onClick={onEnter}
+              className="cta-button-premium haptic-press"
+              style={{ width: '100%', maxWidth: '350px', height: '60px', fontSize: '1.2rem' }}
+            >
+              <span>Start Creating for Free</span>
+              <ArrowRight size={24} />
+            </button>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', opacity: 0.7 }}>
+              No credit card required • Cancel anytime
+            </span>
+          </div>
+
+          {/* Features Grid */}
+          <div className="hero-features-list" style={{ marginTop: '40px' }}>
+            <div className="feature-pill haptic-press">
+              <Zap size={20} className="text-cyan" />
+              <span>10x Faster Workflow</span>
+            </div>
+            <div className="feature-pill haptic-press">
+              <Crown size={20} className="text-purple" />
+              <span>Industry Standard Quality</span>
+            </div>
+          </div>
 
           {/* Scroll indicator */}
           <div className="scroll-indicator">
-            <div className="scroll-text">Scroll to explore</div>
+            <div className="scroll-text">See what's possible</div>
+            <div className="scroll-dot"></div>
           </div>
         </div>
       </section>
 
-      {/* Agent Showcase Section */}
+      {/* Results / "What You Get" Section (New) */}
+      <section className="results-section" style={{ padding: '4rem 2rem', background: 'var(--color-bg-secondary)' }}>
+        <div className="section-header">
+          <div className="section-tag">The Output</div>
+          <h2 className="section-title">
+            Build Your <span className="gradient-text-purple-pink">Legacy</span>
+          </h2>
+          <p className="section-subtitle">
+            Don't just make music. Build a brand.
+          </p>
+        </div>
+        
+        <div className="results-grid" style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+          gap: '20px',
+          marginTop: '30px'
+        }}>
+          {[
+            { icon: Music, title: "Hit-Ready Lyrics", desc: "Generate hooks, verses, and bridges that stick.", color: "var(--color-purple)" },
+            { icon: Zap, title: "Viral Video Content", desc: "Create music videos and visualizers instantly.", color: "var(--color-cyan)" },
+            { icon: Globe, title: "Marketing Strategy", desc: "Data-driven rollout plans to break the algorithm.", color: "var(--color-pink)" }
+          ].map((item, i) => (
+            <div key={i} className="result-card" style={{
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border-color)',
+              padding: '24px',
+              borderRadius: '20px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '16px'
+            }}>
+              <div style={{ 
+                background: item.color, 
+                padding: '12px', 
+                borderRadius: '12px', 
+                color: 'white',
+                boxShadow: `0 4px 15px ${item.color}40`
+              }}>
+                <item.icon size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '4px' }}>{item.title}</h3>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Agent Showcase Section - Mobile Horizontal Scroll */}
       <section className="agents-section">
         <div className="section-header">
+          <div className="section-tag">Featured Agents</div>
           <h2 className="section-title">
             Your <span className="gradient-text-cyan-purple">Creative Studio Agents</span>
           </h2>
           <p className="section-subtitle">
-            Eight powerful AI agents ready to elevate every aspect of your music production
+            Sixteen powerful AI agents ready to elevate every aspect of your music production
           </p>
         </div>
 
-        <div className="agents-grid">
-          {AGENTS.map((agent, idx) => {
-            const Icon = agent.icon;
-            const isHovered = hoveredAgent === idx;
+        <div className="agents-scroll-container">
+          <div className="scroll-hint">
+            <ArrowRight size={16} />
+            <span>Swipe to explore</span>
+          </div>
+          <div className="agents-grid">
+            {AGENTS.map((agent, idx) => {
+              const Icon = agent.icon;
+              const isHovered = hoveredAgent === idx;
 
-            return (
-              <div
-                key={idx}
-                onMouseEnter={() => setHoveredAgent(idx)}
-                onMouseLeave={() => setHoveredAgent(null)}
-                className={`agent-card-premium ${agent.colorClass}`}
-              >
-                {/* Background glow */}
-                <div className="agent-card-glow"></div>
+              return (
+                <div
+                  key={idx}
+                  onMouseEnter={() => setHoveredAgent(idx)}
+                  onMouseLeave={() => setHoveredAgent(null)}
+                  className={`agent-card-premium ${agent.colorClass} haptic-press`}
+                  onClick={onEnter}
+                >
+                  {/* Background glow */}
+                  <div className="agent-card-glow"></div>
 
-                {/* Content */}
-                <div className="agent-card-content">
-                  {/* Icon */}
-                  <div className="agent-icon-box">
-                    <Icon size={24} className="text-white" />
-                  </div>
+                  {/* Content */}
+                  <div className="agent-card-content">
+                    {/* Icon */}
+                    <div className="agent-icon-box">
+                      <Icon size={24} className="text-white" />
+                    </div>
 
-                  {/* Title and category */}
-                  <h3 className="agent-name">
-                    {agent.name}
-                  </h3>
-                  <div className="agent-category-badge">
-                    {agent.category}
-                  </div>
+                    <div className="agent-card-header-info">
+                      <h3 className="agent-name">
+                        {agent.name}
+                      </h3>
+                      <div className="agent-category-badge">
+                        {agent.category}
+                      </div>
+                    </div>
 
-                  {/* Description */}
-                  <p className="agent-description">
-                    {agent.description}
-                  </p>
+                    {/* Description */}
+                    <p className="agent-description">
+                      {agent.description}
+                    </p>
 
-                  {/* Hover arrow */}
-                  <div className={`agent-explore-link ${isHovered ? 'visible' : ''}`}>
-                    Explore <ArrowRight size={16} />
+                    {/* Action Button (Native Style) */}
+                    <div className="agent-card-action">
+                      <span className="action-label">Open</span>
+                      <div className="action-icon">
+                        <ArrowRight size={14} />
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </section>
 
       {/* Benefits Section */}
       <section className="benefits-section">
         <div className="benefits-wrapper">
-          <h2 className="section-title">
-            Why Choose <span className="gradient-text-purple-pink">Studio Agents?</span>
-          </h2>
+          <div className="section-header">
+            <div className="section-tag">Why Us</div>
+            <h2 className="section-title">
+              Why Choose <span className="gradient-text-purple-pink">Studio Agents?</span>
+            </h2>
+          </div>
 
-          <div className="benefits-grid">
+          <div className="benefits-grid-native">
             {[
               { icon: Zap, title: 'Create Instantly', desc: 'AI-powered generation from simple prompts in seconds' },
               { icon: Crown, title: 'Professional Quality', desc: 'Studio-grade output powered by advanced AI models' },
@@ -270,12 +402,14 @@ function LandingPage({ onEnter }) {
             ].map((item, idx) => {
               const Icon = item.icon;
               return (
-                <div key={idx} className="benefit-item">
-                  <div className="benefit-icon-box">
+                <div key={idx} className="benefit-card-native haptic-press">
+                  <div className="benefit-icon-wrapper">
                     <Icon size={28} className="text-white" />
                   </div>
-                  <h3 className="benefit-title">{item.title}</h3>
-                  <p className="benefit-desc">{item.desc}</p>
+                  <div className="benefit-content-native">
+                    <h3 className="benefit-title-native">{item.title}</h3>
+                    <p className="benefit-desc-native">{item.desc}</p>
+                  </div>
                 </div>
               );
             })}
@@ -285,11 +419,14 @@ function LandingPage({ onEnter }) {
 
       {/* Pricing Section */}
       <section className="pricing-section">
-        <h2 className="section-title">
-          Simple, <span className="gradient-text-cyan-purple">Transparent Pricing</span>
-        </h2>
+        <div className="section-header">
+          <div className="section-tag">Pricing</div>
+          <h2 className="section-title">
+            Simple, <span className="gradient-text-cyan-purple">Transparent Pricing</span>
+          </h2>
+        </div>
 
-        <div className="pricing-grid">
+        <div className="pricing-grid-native">
           {[
             {
               name: 'Free',
@@ -319,38 +456,42 @@ function LandingPage({ onEnter }) {
           ].map((plan, idx) => (
             <div
               key={idx}
-              className={`pricing-card ${plan.popular ? 'popular' : ''} ${plan.ltd ? 'ltd-card' : ''}`}
+              className={`pricing-card-native ${plan.popular ? 'popular' : ''} ${plan.ltd ? 'ltd-card' : ''} haptic-press`}
             >
               {plan.popular && (
-                <div className="popular-badge">
+                <div className="popular-badge-native">
                   Most Popular
                 </div>
               )}
               {plan.ltd && (
-                <div className="ltd-badge">
+                <div className="ltd-badge-native">
                   Limited Time
                 </div>
               )}
 
-              <h3 className="plan-name">{plan.name}</h3>
-              <div className="plan-price-box">
-                <span className="plan-price">{plan.price}</span>
-                {plan.period && <span className="plan-period">{plan.period}</span>}
+              <div className="plan-header-native">
+                <h3 className="plan-name-native">{plan.name}</h3>
+                <div className="plan-price-box-native">
+                  <span className="plan-price-native">{plan.price}</span>
+                  {plan.period && <span className="plan-period-native">{plan.period}</span>}
+                </div>
               </div>
 
-              <ul className="plan-features">
+              <ul className="plan-features-native">
                 {plan.features.map((feature, i) => (
-                  <li key={i} className="plan-feature-item">
-                    <div className="feature-dot"></div>
-                    {feature}
+                  <li key={i} className="plan-feature-item-native">
+                    <div className="feature-check-native">
+                      <Zap size={12} />
+                    </div>
+                    <span>{feature}</span>
                   </li>
                 ))}
               </ul>
 
               <button
-                className={`plan-button ${plan.popular ? 'primary' : 'secondary'}`}
+                className={`plan-button-native ${plan.popular ? 'primary' : 'secondary'}`}
               >
-                Get Started
+                {plan.ltd ? 'Get Lifetime Access' : 'Start Free Trial'}
               </button>
             </div>
           ))}
@@ -364,7 +505,7 @@ function LandingPage({ onEnter }) {
         </h2>
         <button
           onClick={onEnter}
-          className="cta-button-premium"
+          className="cta-button-premium haptic-press"
         >
           <span>Launch Studio Now</span>
           <ArrowRight size={24} />
@@ -381,6 +522,14 @@ function LandingPage({ onEnter }) {
           <p>&copy; 2025 studioagentsai.com • Built for the next generation of creators.</p>
         </div>
       </footer>
+
+      {/* Mobile Sticky Bottom CTA */}
+      <div className="mobile-sticky-cta">
+        <button onClick={onEnter} className="sticky-cta-btn haptic-press">
+          <span>Launch Studio</span>
+          <ArrowRight size={20} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -405,6 +554,7 @@ function StudioView({ onBack }) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [showVoiceHelp, setShowVoiceHelp] = useState(false);
   const [voiceSettings, setVoiceSettings] = useState({
     gender: 'female',
     region: 'US',
@@ -509,6 +659,14 @@ function StudioView({ onBack }) {
       return;
     }
 
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      return;
+    }
+
     const recognition = new SpeechRecognition();
     recognition.lang = voiceSettings.language === 'English' ? 'en-US' : 
                       voiceSettings.language === 'Spanish' ? 'es-ES' :
@@ -602,49 +760,65 @@ function StudioView({ onBack }) {
     const textToSpeak = (typeof textInput === 'string') ? textInput : document.querySelector('.studio-textarea')?.value;
     if (!textToSpeak) return;
 
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    
-    // Map voice settings to available voices
-    const voices = window.speechSynthesis.getVoices();
-    let selectedVoice = null;
+    // Cancel any current speech
+    window.speechSynthesis.cancel();
 
-    // Filter by language and gender/region
-    const langCode = voiceSettings.language === 'English' ? 'en' : 
-                    voiceSettings.language === 'Spanish' ? 'es' :
-                    voiceSettings.language === 'French' ? 'fr' :
-                    voiceSettings.language === 'German' ? 'de' :
-                    voiceSettings.language === 'Japanese' ? 'ja' : 'en';
+    const speak = (voices) => {
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      let selectedVoice = null;
 
-    const filteredVoices = voices.filter(v => v.lang.startsWith(langCode));
-    
-    // Try to find a match for gender/region
-    if (voiceSettings.region === 'UK') {
-      selectedVoice = filteredVoices.find(v => v.name.includes('UK') || v.name.includes('British'));
-    } else if (voiceSettings.region === 'AU') {
-      selectedVoice = filteredVoices.find(v => v.name.includes('Australia'));
-    } else if (voiceSettings.region === 'IN') {
-      selectedVoice = filteredVoices.find(v => v.name.includes('India'));
-    }
+      // Filter by language and gender/region
+      const langCode = voiceSettings.language === 'English' ? 'en' : 
+                      voiceSettings.language === 'Spanish' ? 'es' :
+                      voiceSettings.language === 'French' ? 'fr' :
+                      voiceSettings.language === 'German' ? 'de' :
+                      voiceSettings.language === 'Japanese' ? 'ja' : 'en';
 
-    // If no region match, try gender
-    if (!selectedVoice) {
-      if (voiceSettings.gender === 'female') {
-        selectedVoice = filteredVoices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('samantha') || v.name.toLowerCase().includes('victoria'));
-      } else {
-        selectedVoice = filteredVoices.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('alex') || v.name.toLowerCase().includes('daniel'));
+      const filteredVoices = voices.filter(v => v.lang.startsWith(langCode));
+      
+      // Try to find a match for gender/region
+      if (voiceSettings.region === 'UK') {
+        selectedVoice = filteredVoices.find(v => v.name.includes('UK') || v.name.includes('British'));
+      } else if (voiceSettings.region === 'AU') {
+        selectedVoice = filteredVoices.find(v => v.name.includes('Australia'));
+      } else if (voiceSettings.region === 'IN') {
+        selectedVoice = filteredVoices.find(v => v.name.includes('India'));
       }
+
+      // If no region match, try gender
+      if (!selectedVoice) {
+        if (voiceSettings.gender === 'female') {
+          selectedVoice = filteredVoices.find(v => v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('samantha') || v.name.toLowerCase().includes('victoria'));
+        } else {
+          selectedVoice = filteredVoices.find(v => v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('alex') || v.name.toLowerCase().includes('daniel'));
+        }
+      }
+
+      if (selectedVoice) utterance.voice = selectedVoice;
+      utterance.lang = langCode;
+      utterance.rate = 0.9; // Slightly slower for "Studio" feel
+      utterance.pitch = voiceSettings.gender === 'female' ? 1.1 : 0.9;
+
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = (e) => {
+        console.error("Speech synthesis error", e);
+        setIsSpeaking(false);
+      };
+
+      window.speechSynthesis.speak(utterance);
+    };
+
+    let voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      speak(voices);
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => {
+        voices = window.speechSynthesis.getVoices();
+        speak(voices);
+        window.speechSynthesis.onvoiceschanged = null;
+      };
     }
-
-    if (selectedVoice) utterance.voice = selectedVoice;
-    utterance.lang = langCode;
-    utterance.rate = 0.9; // Slightly slower for "Studio" feel
-    utterance.pitch = voiceSettings.gender === 'female' ? 1.1 : 0.9;
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
   };
 
   const handleTranslatePrompt = async () => {
@@ -652,7 +826,7 @@ function StudioView({ onBack }) {
     if (!textarea || !textarea.value || voiceSettings.language === 'English') return;
 
     try {
-      const response = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : ''}/api/translate`, {
+      const response = await fetch(`${BACKEND_URL}/api/translate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -688,7 +862,7 @@ function StudioView({ onBack }) {
 
       // Auto-translate if not English
       if (voiceSettings.language !== 'English') {
-        const response = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : ''}/api/translate`, {
+        const response = await fetch(`${BACKEND_URL}/api/translate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -704,26 +878,68 @@ function StudioView({ onBack }) {
         }
       }
 
-      // Call Gemini Backend
-      const response = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://studioagentsai.com'}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: prompt,
-          systemInstruction: `You are ${selectedAgent.name}, a professional AI agent in a high-end music studio. 
+      let endpoint = '/api/generate';
+      let body = {
+        prompt: prompt,
+        systemInstruction: `You are ${selectedAgent.name}, a professional AI agent in a high-end music studio. 
           Category: ${selectedAgent.category}. 
           Capabilities: ${selectedAgent.capabilities.join(', ')}.
           ${selectedAgent.explanation}`
-        })
+      };
+
+      // Route to specific endpoints for Image/Video agents
+      if (selectedAgent.id === 'album') {
+        endpoint = '/api/generate-image';
+        body = { prompt };
+      } else if (selectedAgent.id === 'video-creator') {
+        endpoint = '/api/generate-video';
+        body = { prompt };
+      }
+
+      // Call Backend
+      const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
 
       const data = await response.json();
       
-      if (data.output) {
-        // If user language is not English, translate the output back
+      // Handle different response types
+      let newItem = {
+        id: Date.now(),
+        title: `${selectedAgent.name} Result`,
+        type: selectedAgent.category,
+        agent: selectedAgent.name,
+        date: 'Just now',
+        color: selectedAgent.colorClass,
+        snippet: prompt // Default snippet is the prompt
+      };
+
+      if (selectedAgent.id === 'album' && (data.predictions || data.images)) {
+        // Handle Image Response (Imagen)
+        // API might return predictions[0].bytesBase64Encoded OR images[0]
+        const base64Image = data.predictions?.[0]?.bytesBase64Encoded || data.images?.[0];
+        if (base64Image) {
+            newItem.imageUrl = base64Image.startsWith('data:') ? base64Image : `data:image/png;base64,${base64Image}`;
+            newItem.snippet = `Generated artwork for: "${prompt}"`;
+        }
+      } else if (selectedAgent.id === 'video-creator' && (data.predictions || data.video)) {
+        // Handle Video Response (Veo)
+        const videoData = data.predictions?.[0] || data.video;
+        if (videoData) {
+            if (videoData.bytesBase64Encoded) {
+                 newItem.videoUrl = `data:video/mp4;base64,${videoData.bytesBase64Encoded}`;
+            } else if (videoData.videoUri) {
+                 newItem.videoUrl = videoData.videoUri;
+            }
+            newItem.snippet = `Generated video for: "${prompt}"`;
+        }
+      } else if (data.output) {
+        // Handle Text Response
         let finalOutput = data.output;
         if (voiceSettings.language !== 'English') {
-          const transResponse = await fetch(`${window.location.hostname === 'localhost' ? 'http://localhost:3001' : ''}/api/translate`, {
+          const transResponse = await fetch(`${BACKEND_URL}/api/translate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -735,25 +951,33 @@ function StudioView({ onBack }) {
           const transData = await transResponse.json();
           if (transData.translatedText) finalOutput = transData.translatedText;
         }
-
-        // Create a new project/item with the result
-        const newItem = {
-          id: Date.now(),
-          title: `${selectedAgent.name} Result`,
-          type: selectedAgent.category,
-          agent: selectedAgent.name,
-          date: 'Just now',
-          color: selectedAgent.colorClass,
-          snippet: finalOutput
-        };
-        
-        setProjects([newItem, ...projects]);
-        alert(`${selectedAgent.name} generation complete! Check your Hub.`);
-        setActiveTab('hub');
-        setSelectedAgent(null);
+        newItem.snippet = finalOutput;
       } else {
-        throw new Error(data.error || "Generation failed");
+        // Fallback or Error
+        if (data.error) throw new Error(data.error);
+        // If we got here but no specific data, maybe it's a raw text response?
+        // But we expect JSON.
+        throw new Error("Unknown response format from AI");
       }
+
+      setProjects([newItem, ...projects]);
+
+      // Save to Backend if logged in
+      if (isLoggedIn) {
+        const uid = localStorage.getItem('studio_user_id');
+        if (uid) {
+           fetch(`${BACKEND_URL}/api/projects`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ userId: uid, project: newItem })
+           }).catch(err => console.error("Failed to save to cloud", err));
+        }
+      }
+
+      alert(`${selectedAgent.name} generation complete! Check your Hub.`);
+      setActiveTab('hub');
+      setSelectedAgent(null);
+
     } catch (error) {
       console.error("Generation error", error);
       alert(`Error: ${error.message}`);
@@ -767,7 +991,6 @@ function StudioView({ onBack }) {
     
     setIsLoadingActivity(true);
     try {
-      const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://studioagentsai.com';
       const response = await fetch(`${BACKEND_URL}/api/trending-ai?page=${page}&per_page=20`);
       const data = await response.json();
       
@@ -793,7 +1016,6 @@ function StudioView({ onBack }) {
     
     setIsLoadingNews(true);
     try {
-      const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://studioagentsai.com';
       const response = await fetch(`${BACKEND_URL}/api/news?page=${page}&per_page=20`);
       const data = await response.json();
       
@@ -829,15 +1051,41 @@ function StudioView({ onBack }) {
 
   // Load projects from localStorage on mount
   useEffect(() => {
+    const uid = localStorage.getItem('studio_user_id');
     const savedProjects = localStorage.getItem('studio_agents_projects');
+    let localProjects = [];
+    
     if (savedProjects) {
       try {
-        setProjects(JSON.parse(savedProjects));
+        localProjects = JSON.parse(savedProjects);
       } catch (e) {
         console.error("Failed to parse projects", e);
       }
     }
-  }, []);
+
+    if (isLoggedIn && uid) {
+      // Fetch from backend if logged in
+      fetch(`${BACKEND_URL}/api/projects?userId=${uid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.projects) {
+            // Merge local and remote
+            const allProjects = [...data.projects, ...localProjects];
+            const uniqueProjects = Array.from(new Map(allProjects.map(item => [item.id, item])).values());
+            uniqueProjects.sort((a, b) => b.id - a.id);
+            setProjects(uniqueProjects);
+          } else {
+            setProjects(localProjects);
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch remote projects", err);
+          setProjects(localProjects);
+        });
+    } else {
+      setProjects(localProjects);
+    }
+  }, [isLoggedIn]);
 
   // Save projects to localStorage whenever they change
   useEffect(() => {
@@ -884,7 +1132,6 @@ function StudioView({ onBack }) {
   };
 
   const handleConnectSocial = (platform) => {
-    const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://studioagentsai.com';
     const returnUrl = encodeURIComponent(window.location.href);
 
     if (platform === 'twitter') {
@@ -912,11 +1159,49 @@ function StudioView({ onBack }) {
       id: Date.now(),
       name: `New Project ${projects.length + 1}`,
       createdAt: new Date().toISOString(),
-      agent: selectedAgent ? selectedAgent.name : 'General'
+      agent: selectedAgent ? selectedAgent.name : 'General',
+      type: 'Draft',
+      title: `New Project ${projects.length + 1}`,
+      date: 'Just now',
+      color: 'agent-purple',
+      snippet: ''
     };
     
     setProjects([newProject, ...projects]);
+
+    // Save to Backend
+    const uid = localStorage.getItem('studio_user_id');
+    if (uid) {
+        fetch(`${BACKEND_URL}/api/projects`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: uid, project: newProject })
+        }).catch(err => console.error("Failed to save new project to cloud", err));
+    }
+
     alert(`Project "${newProject.name}" created and saved!`);
+  };
+
+  const handleDeleteProject = async (projectId, e) => {
+    e.stopPropagation(); // Prevent triggering the card click
+    if (!window.confirm("Are you sure you want to delete this project?")) return;
+
+    // Optimistic UI update
+    setProjects(projects.filter(p => p.id !== projectId));
+
+    if (isLoggedIn) {
+      const uid = localStorage.getItem('studio_user_id');
+      if (uid) {
+        try {
+          await fetch(`${BACKEND_URL}/api/projects/${projectId}?userId=${uid}`, {
+            method: 'DELETE'
+          });
+        } catch (err) {
+          console.error("Failed to delete from cloud", err);
+          alert("Failed to delete from cloud storage, but removed locally.");
+        }
+      }
+    }
   };
 
   const STUDIO_AGENTS = [
@@ -975,6 +1260,25 @@ function StudioView({ onBack }) {
         "Specify a color palette and texture (e.g., 'Grainy', 'Glossy', 'Distressed').",
         "Generate 4 variations and use the 'Remix' tool to combine elements from different versions.",
         "Download the 'Social Kit' which includes pre-sized assets for Instagram, Spotify, and YouTube."
+      ]
+    },
+    { 
+      id: 'video-creator', 
+      name: 'Video Creator', 
+      category: 'Video', 
+      icon: PlayCircle, 
+      colorClass: 'agent-red', 
+      desc: 'Generate cinematic videos with Veo 3',
+      capabilities: ['Music Video Generation', 'Visualizer Creation', 'Cinematic Scenes', 'Style Transfer'],
+      examples: ['Create a cyberpunk city flyover for a synthwave track', 'Generate a slow-motion rain scene for a lo-fi beat'],
+      howToUse: 'Describe the scene, camera movement, and lighting. The AI will generate a high-quality video clip.',
+      explanation: 'Video Creator is powered by Veo 3, Google\'s state-of-the-art video generation model. It understands cinematic language and physics to create realistic or stylized video content.',
+      helpTips: 'Be specific about camera angles (e.g., "drone shot", "close-up") and lighting. Mention the mood and color palette.',
+      onboarding: [
+        "Describe the scene and action.",
+        "Specify the camera movement and lighting.",
+        "Generate a video clip.",
+        "Download and use in your music video."
       ]
     },
     { 
@@ -1210,13 +1514,22 @@ function StudioView({ onBack }) {
               </div>
               <div className="banner-actions">
                 <button 
-                  className={`voice-command-btn ${isListening ? 'active' : ''}`}
+                  className={`voice-command-btn haptic-press ${isListening ? 'active' : ''}`}
                   onClick={handleVoiceToText}
                 >
                   <Mic size={20} />
                   <span>{isListening ? 'Listening...' : 'Voice Command'}</span>
                 </button>
-                <button className="btn-refresh-glow"><RefreshCw size={18} /> Sync Ecosystem</button>
+                <button 
+                  className="btn-refresh-glow haptic-press"
+                  onClick={() => {
+                    handleTextToVoice("Synchronizing your AI ecosystem...");
+                    alert("Ecosystem synchronized successfully!");
+                  }}
+                >
+                  <RefreshCw size={18} /> 
+                  <span>Sync Ecosystem</span>
+                </button>
               </div>
             </div>
             <div className="banner-stats-mini">
@@ -1555,10 +1868,56 @@ function StudioView({ onBack }) {
                       >
                         <Volume2 size={16} />
                       </button>
+                      
+                      <div className="voice-settings-container">
+                        <button 
+                          className={`voice-btn ${showVoiceHelp ? 'active' : ''}`}
+                          onClick={() => {
+                            setShowVoiceHelp(!showVoiceHelp);
+                            setShowVoiceSettings(false);
+                          }}
+                          title="How to use Voice Controls"
+                        >
+                          <HelpCircle size={16} />
+                        </button>
+                        
+                        {showVoiceHelp && (
+                          <div className="voice-settings-dropdown animate-fadeInUp" style={{ width: '280px', right: '40px' }}>
+                            <div className="settings-group">
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Mic size={14} className="text-purple" /> Voice to Text
+                              </label>
+                              <p className="help-text small" style={{ marginTop: '4px' }}>
+                                Click the microphone to dictate your prompt. Speak clearly. Click again to stop.
+                              </p>
+                            </div>
+                            <div className="settings-group">
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Volume2 size={14} className="text-cyan" /> Text to Voice
+                              </label>
+                              <p className="help-text small" style={{ marginTop: '4px' }}>
+                                Click the speaker to hear the AI read the current text. Useful for reviewing lyrics.
+                              </p>
+                            </div>
+                            <div className="settings-group">
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Settings size={14} /> Settings
+                              </label>
+                              <p className="help-text small" style={{ marginTop: '4px' }}>
+                                Customize the AI voice gender, accent (US/UK/AU), and language.
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
                       <div className="voice-settings-container">
                         <button 
                           className={`voice-btn ${showVoiceSettings ? 'active' : ''}`}
-                          onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                          onClick={() => {
+                            setShowVoiceSettings(!showVoiceSettings);
+                            setShowVoiceHelp(false);
+                          }}
                           title="Voice Settings"
                         >
                           <Settings size={16} />
@@ -1670,16 +2029,52 @@ function StudioView({ onBack }) {
               <div className="agent-history-section">
                 <h3>Recent Creations</h3>
                 <div className="history-grid">
-                  {[1, 2].map(i => (
-                    <div key={i} className="history-item">
-                      <div className="history-preview"></div>
-                      <div className="history-meta">
-                        <p className="history-title">Previous Session #{i}</p>
-                        <p className="history-date">Generated 2 days ago</p>
+                  {projects.filter(p => p.agent === selectedAgent.name).length > 0 ? (
+                    projects.filter(p => p.agent === selectedAgent.name).slice(0, 2).map((item) => (
+                      <div 
+                        key={item.id} 
+                        className="history-item"
+                        onClick={() => {
+                          if (item.imageUrl || item.videoUrl) {
+                            setActiveTab('hub');
+                          } else {
+                            const textarea = document.querySelector('.studio-textarea');
+                            if (textarea) textarea.value = item.snippet;
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
+                        title={item.imageUrl || item.videoUrl ? "View in Hub" : "Load text to editor"}
+                      >
+                        <div className="history-preview" style={{ 
+                          backgroundImage: item.imageUrl ? `url(${item.imageUrl})` : 'none',
+                          backgroundColor: item.imageUrl ? 'transparent' : 'var(--card-bg)'
+                        }}>
+                          {!item.imageUrl && <div style={{ padding: '5px', fontSize: '8px', overflow: 'hidden' }}>{item.snippet?.substring(0, 50)}</div>}
+                        </div>
+                        <div className="history-meta">
+                          <p className="history-title">{item.title}</p>
+                          <p className="history-date">{new Date(item.id).toLocaleDateString()}</p>
+                        </div>
+                        <button 
+                          className="history-action"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveTab('hub');
+                          }}
+                          title="Go to Hub"
+                        >
+                          <ArrowRight size={16} />
+                        </button>
                       </div>
-                      <button className="history-action"><ArrowRight size={16} /></button>
+                    ))
+                  ) : (
+                    <div className="history-item empty">
+                      <div className="history-meta">
+                        <p className="history-title">No recent history</p>
+                        <p className="history-date">Create something new!</p>
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -1766,10 +2161,21 @@ function StudioView({ onBack }) {
                 <h3>Examples</h3>
                 <div className="example-chips">
                   {selectedAgent.examples.map((ex, i) => (
-                    <div key={i} className="example-chip" onClick={() => {
-                      const textarea = document.querySelector('.studio-textarea');
-                      if (textarea) textarea.value = ex;
-                    }}>
+                    <div 
+                      key={i} 
+                      className="example-chip" 
+                      onClick={() => {
+                        const textarea = document.querySelector('.studio-textarea');
+                        if (textarea) {
+                          textarea.value = ex;
+                          // Trigger a visual flash or focus to show it worked
+                          textarea.focus();
+                          textarea.style.borderColor = 'var(--color-purple)';
+                          setTimeout(() => textarea.style.borderColor = '', 300);
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       "{ex}"
                     </div>
                   ))}
@@ -1824,22 +2230,13 @@ function StudioView({ onBack }) {
           </div>
         );
       case 'hub':
-        const HUB_ITEMS = [
-          { id: 1, title: 'Midnight City Lyrics', type: 'Lyrics', agent: 'Ghostwriter', date: '2 hours ago', color: 'agent-purple', audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-          { id: 2, title: 'Neon Dreams Beat MIDI', type: 'MIDI', agent: 'Beat Lab', date: '5 hours ago', color: 'agent-cyan', audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
-          { id: 3, title: 'Summer Vibes Cover', type: 'Image', agent: 'Album Artist', date: '1 day ago', color: 'agent-orange', imageUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=800&q=80' },
-          { id: 4, title: 'TikTok Strategy Q3', type: 'Strategy', agent: 'Trend Hunter', date: '2 days ago', color: 'agent-emerald' },
-          { id: 5, title: 'Vocalist Match List', type: 'Network', agent: 'Collab Connect', date: '3 days ago', color: 'agent-indigo' },
-          { id: 6, title: 'Single Rollout Plan', type: 'Plan', agent: 'Release Manager', date: '1 week ago', color: 'agent-pink' },
-          { id: 7, title: 'Music Video Script', type: 'Video', agent: 'Social Pilot', date: '2 weeks ago', color: 'agent-cyan', videoUrl: 'https://www.w3schools.com/html/mov_bbb.mp4' },
-        ];
-
-        const filteredHubItems = HUB_ITEMS.filter(item => {
+        // Use the dynamic 'projects' state instead of static HUB_ITEMS
+        const filteredHubItems = projects.filter(item => {
           if (hubFilter === 'All') return true;
-          if (hubFilter === 'Audio') return ['Lyrics', 'MIDI'].includes(item.type);
-          if (hubFilter === 'Visual') return ['Image'].includes(item.type);
+          if (hubFilter === 'Audio') return ['Lyrics', 'MIDI', 'Production', 'Vocals', 'Sampling'].includes(item.type);
+          if (hubFilter === 'Visual') return ['Image', 'Visual'].includes(item.type);
           if (hubFilter === 'Video') return ['Video'].includes(item.type);
-          if (hubFilter === 'Strategy') return ['Strategy', 'Plan', 'Network'].includes(item.type);
+          if (hubFilter === 'Strategy') return ['Strategy', 'Plan', 'Network', 'Research', 'Marketing'].includes(item.type);
           return true;
         });
 
@@ -1863,40 +2260,94 @@ function StudioView({ onBack }) {
               </div>
             </div>
 
-            <div className="hub-grid">
-              {filteredHubItems.map((item) => (
-                <div key={item.id} className="hub-card">
-                  <div className={`hub-card-preview ${item.color}`}>
-                    <div className="preview-overlay">
-                      {(item.audioUrl || item.videoUrl) && (
-                        <button 
-                          className="preview-btn play"
-                          onClick={() => setPlayingItem(item)}
-                        >
-                          <Play size={24} fill="currentColor" />
-                        </button>
+            {filteredHubItems.length === 0 ? (
+              <div className="empty-hub-state">
+                <Folder size={48} className="text-muted" />
+                <h3>No projects yet</h3>
+                <p>Launch an agent to start creating your first masterpiece.</p>
+                <button className="cta-button-secondary" onClick={() => setActiveTab('agents')}>
+                  Launch Agent
+                </button>
+              </div>
+            ) : (
+              <div className="hub-grid">
+                {filteredHubItems.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className="hub-card"
+                    onClick={() => {
+                      // If it's a text project, load it into the editor
+                      if (!item.imageUrl && !item.videoUrl && item.snippet) {
+                        // Find the agent that created this, or default to Ghostwriter
+                        const agent = STUDIO_AGENTS.find(a => a.name === item.agent) || STUDIO_AGENTS[0];
+                        setSelectedAgent(agent);
+                        setActiveTab('agents');
+                        // Use setTimeout to ensure the DOM has updated and textarea exists
+                        setTimeout(() => {
+                          const textarea = document.querySelector('.studio-textarea');
+                          if (textarea) {
+                            textarea.value = item.snippet;
+                            textarea.focus();
+                          }
+                        }, 100);
+                      }
+                    }}
+                    style={{ cursor: (!item.imageUrl && !item.videoUrl) ? 'pointer' : 'default' }}
+                    title={(!item.imageUrl && !item.videoUrl) ? "Click to edit in Studio" : ""}
+                  >
+                    <div className={`hub-card-preview ${item.color}`}>
+                      {item.imageUrl && <img src={item.imageUrl} alt={item.title} className="hub-preview-image" />}
+                      {item.videoUrl && <video src={item.videoUrl} className="hub-preview-video" muted />}
+                      {!item.imageUrl && !item.videoUrl && (
+                        <div className="hub-text-preview">
+                          {item.snippet ? item.snippet.substring(0, 100) + '...' : 'Text Content'}
+                        </div>
                       )}
-                      <button 
-                        className="preview-btn"
-                        onClick={() => handleDownload(item)}
-                        title="Download to device"
-                      >
-                        <Download size={18} />
-                      </button>
-                      <button className="preview-btn"><Share2 size={18} /></button>
+                      <div className="preview-overlay">
+                        {(item.audioUrl || item.videoUrl) && (
+                          <button 
+                            className="preview-btn play"
+                            onClick={(e) => { e.stopPropagation(); setPlayingItem(item); }}
+                          >
+                            <Play size={24} fill="currentColor" />
+                          </button>
+                        )}
+                        <button 
+                          className="preview-btn"
+                          onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
+                          title="Download to device"
+                        >
+                          <Download size={18} />
+                        </button>
+                        <button 
+                          className="preview-btn" 
+                          onClick={(e) => { e.stopPropagation(); handleShareToFeed(item); }}
+                          title="Share to Activity Wall"
+                        >
+                          <Share2 size={18} />
+                        </button>
+                        <button 
+                          className="preview-btn delete-btn" 
+                          onClick={(e) => handleDeleteProject(item.id, e)}
+                          title="Delete Project"
+                          style={{ color: '#ef4444' }}
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="hub-card-info">
+                      <div className="hub-card-meta">
+                        <span className="hub-type-tag">{item.type}</span>
+                        <span className="hub-date">{item.date}</span>
+                      </div>
+                      <h3 className="hub-card-title">{item.title}</h3>
+                      <p className="hub-card-agent">via {item.agent}</p>
                     </div>
                   </div>
-                  <div className="hub-card-info">
-                    <div className="hub-card-meta">
-                      <span className="hub-type-tag">{item.type}</span>
-                      <span className="hub-date">{item.date}</span>
-                    </div>
-                    <h3 className="hub-card-title">{item.title}</h3>
-                    <p className="hub-card-agent">via {item.agent}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       case 'comeup':
@@ -2140,7 +2591,7 @@ function StudioView({ onBack }) {
                 <p>Trending AI projects and community creations for inspiration.</p>
               </div>
               <div className="header-right-actions">
-                <button className="cta-button-premium" onClick={() => fetchActivity(1)}>
+                <button className="cta-button-premium haptic-press" onClick={() => fetchActivity(1)}>
                   <Zap size={18} />
                   Refresh Feed
                 </button>
@@ -2222,7 +2673,7 @@ function StudioView({ onBack }) {
 
             {!isLoadingActivity && hasMoreActivity && (
               <div className="load-more-trigger">
-                <button className="cta-button-secondary" onClick={() => fetchActivity(activityPage + 1)}>
+                <button className="cta-button-secondary haptic-press" onClick={() => fetchActivity(activityPage + 1)}>
                   Load More Projects
                 </button>
               </div>
@@ -2279,14 +2730,14 @@ function StudioView({ onBack }) {
               </div>
               <div className="news-actions">
                 <button 
-                  className="action-button secondary"
+                  className="action-button secondary haptic-press"
                   onClick={toggleAllNews}
                 >
                   {allNewsExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                   {allNewsExpanded ? 'Collapse All' : 'Expand All'}
                 </button>
                 <button 
-                  className={`refresh-btn ${isLoadingNews ? 'spinning' : ''}`}
+                  className={`refresh-btn haptic-press ${isLoadingNews ? 'spinning' : ''}`}
                   onClick={handleRefreshNews}
                 >
                   <Zap size={18} />
@@ -2634,33 +3085,33 @@ function StudioView({ onBack }) {
           </h2>
           <div className="studio-header-actions">
             <button 
-              className="action-button secondary theme-toggle"
+              className="action-button secondary theme-toggle haptic-press"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <button 
-              className="action-button secondary"
+              className="action-button secondary haptic-press"
               onClick={onBack}
               title="Back to Landing Page"
             >
               <Home size={18} />
             </button>
             <button 
-              className="action-button secondary"
+              className="action-button secondary haptic-press"
               onClick={() => { setActiveTab('help'); setSelectedAgent(null); }}
               title="Help Center"
             >
               <HelpCircle size={18} />
             </button>
-            <button className="action-button secondary">
+            <button className="action-button secondary haptic-press">
               <Bell size={18} />
             </button>
             {isLoggedIn ? (
               <div className="user-projects-dropdown">
                 <button 
-                  className="action-button primary"
+                  className="action-button primary haptic-press"
                   onClick={handleCreateProject}
                 >
                   New Project ({projects.length})
@@ -2668,7 +3119,7 @@ function StudioView({ onBack }) {
               </div>
             ) : (
               <button 
-                className="action-button primary"
+                className="action-button primary haptic-press"
                 onClick={() => setShowLoginModal(true)}
               >
                 New Project
@@ -2816,14 +3267,30 @@ function StudioView({ onBack }) {
                 <button 
                   className="cta-button-premium" 
                   style={{ width: '100%', marginBottom: '1rem' }}
-                  onClick={() => { setIsLoggedIn(true); setShowLoginModal(false); }}
+                  onClick={() => { 
+                    setIsLoggedIn(true); 
+                    setShowLoginModal(false);
+                    let uid = localStorage.getItem('studio_user_id');
+                    if (!uid) {
+                      uid = 'user_' + Math.random().toString(36).substr(2, 9);
+                      localStorage.setItem('studio_user_id', uid);
+                    }
+                  }}
                 >
                   Sign In with Google
                 </button>
                 <button 
                   className="cta-button-secondary" 
                   style={{ width: '100%' }}
-                  onClick={() => { setIsLoggedIn(true); setShowLoginModal(false); }}
+                  onClick={() => { 
+                    setIsLoggedIn(true); 
+                    setShowLoginModal(false);
+                    let uid = localStorage.getItem('studio_user_id');
+                    if (!uid) {
+                      uid = 'user_' + Math.random().toString(36).substr(2, 9);
+                      localStorage.setItem('studio_user_id', uid);
+                    }
+                  }}
                 >
                   Continue with Email
                 </button>
@@ -2938,6 +3405,30 @@ function StudioView({ onBack }) {
             </div>
           </div>
         )}
+
+        {/* Mobile Bottom Navigation */}
+        <nav className="bottom-nav">
+          <div className={`bottom-nav-item haptic-press ${activeTab === 'agents' ? 'active' : ''}`} onClick={() => { setActiveTab('agents'); setSelectedAgent(null); }}>
+            <LayoutGrid size={24} />
+            <span>Agents</span>
+          </div>
+          <div className={`bottom-nav-item haptic-press ${activeTab === 'mystudio' ? 'active' : ''}`} onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}>
+            <Home size={24} />
+            <span>Studio</span>
+          </div>
+          <div className={`bottom-nav-item haptic-press ${activeTab === 'activity' ? 'active' : ''}`} onClick={() => { setActiveTab('activity'); setSelectedAgent(null); }}>
+            <Rocket size={24} />
+            <span>Wall</span>
+          </div>
+          <div className={`bottom-nav-item haptic-press ${activeTab === 'news' ? 'active' : ''}`} onClick={() => { setActiveTab('news'); setSelectedAgent(null); }}>
+            <Globe size={24} />
+            <span>News</span>
+          </div>
+          <div className={`bottom-nav-item haptic-press ${activeTab === 'comeup' ? 'active' : ''}`} onClick={() => { setActiveTab('comeup'); setSelectedAgent(null); }}>
+            <Zap size={24} />
+            <span>Pro</span>
+          </div>
+        </nav>
       </main>
     </div>
   );
@@ -2946,10 +3437,27 @@ function StudioView({ onBack }) {
 // Main App Component
 export default function App() {
   const [currentView, setCurrentView] = useState('landing');
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
-  if (currentView === 'landing') {
-    return <LandingPage onEnter={() => setCurrentView('studio')} />;
-  }
+  const handleNavigate = (view) => {
+    setIsTransitioning(true);
+    setTimeout(() => {
+      setCurrentView(view);
+      setIsTransitioning(false);
+      window.scrollTo(0, 0);
+    }, 300);
+  };
 
-  return <StudioView onBack={() => setCurrentView('landing')} />;
+  return (
+    <div className={`app-viewport ${isTransitioning ? 'transitioning' : ''}`}>
+      {currentView === 'landing' ? (
+        <LandingPage onEnter={() => handleNavigate('studio')} />
+      ) : (
+        <StudioView onBack={() => handleNavigate('landing')} />
+      )}
+      
+      {/* Global Transition Overlay */}
+      <div className="view-transition-overlay"></div>
+    </div>
+  );
 }

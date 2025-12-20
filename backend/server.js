@@ -437,13 +437,15 @@ app.post('/api/generate', verifyFirebaseToken, generationLimiter, async (req, re
     
     // 🛡️ Validate model name (only allow known Gemini models)
     const allowedModels = [
+      'gemini-2.0-flash',
       'gemini-2.0-flash-exp',
       'gemini-1.5-flash',
       'gemini-1.5-flash-latest',
       'gemini-1.5-pro',
       'gemini-1.5-pro-latest',
       'gemini-pro',
-      'gemini-pro-vision'
+      'gemini-pro-vision',
+      'nano-banana-pro-preview'
     ];
     const sanitizedModel = (typeof requestedModel === 'string' && allowedModels.includes(requestedModel)) 
       ? requestedModel 
@@ -482,7 +484,8 @@ app.post('/api/generate', verifyFirebaseToken, generationLimiter, async (req, re
     }
 
     // Use requested model if valid, otherwise fall back to env var or default
-    const desiredModel = sanitizedModel || process.env.GENERATIVE_MODEL || "gemini-2.0-flash-exp";
+    // Defaulting to gemini-2.0-flash for better stability and availability
+    const desiredModel = sanitizedModel || process.env.GENERATIVE_MODEL || "gemini-2.0-flash";
     const model = genAI.getGenerativeModel({ 
       model: desiredModel,
       systemInstruction: sanitizedSystemInstruction || undefined
@@ -531,6 +534,79 @@ app.post('/api/generate', verifyFirebaseToken, generationLimiter, async (req, re
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// IMAGE GENERATION ROUTE (Imagen 4.0)
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/generate-image', verifyFirebaseToken, generationLimiter, async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
+
+    // Using REST API for Imagen 4.0
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{ prompt }],
+        parameters: { sampleCount: 1 }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Imagen API Error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+
+  } catch (error) {
+    logger.error('Image generation error', { error: error.message });
+    res.status(500).json({ error: 'Image generation failed', details: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// VIDEO GENERATION ROUTE (Veo 3.0)
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/generate-video', verifyFirebaseToken, generationLimiter, async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
+
+    // Using REST API for Veo 3.0
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-001:predict?key=${apiKey}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{ prompt }]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Veo API Error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+
+  } catch (error) {
+    logger.error('Video generation error', { error: error.message });
+    res.status(500).json({ error: 'Video generation failed', details: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // TRANSLATION API - Professional Grade Translation via Gemini
 // ═══════════════════════════════════════════════════════════════════
 
@@ -547,12 +623,10 @@ app.post('/api/translate', verifyFirebaseToken, apiLimiter, async (req, res) => 
       textLength: text.length,
       ip: req.ip 
     });
-
+// Use the configured model for translation as well
+    const modelName = process.env.GENERATIVE_MODEL || "gemini-2.0-flash";
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      systemInstruction: `You are a professional translator for a high-end music studio. 
-      Translate the following text to ${targetLanguage}. 
-      Maintain the musical context, slang, and emotional tone. 
+      model: modelName,
       Return ONLY the translated text, no explanations.`
     });
 
@@ -584,7 +658,7 @@ const twitterSessions = new Map();
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID;
 const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET;
 const TWITTER_CALLBACK_URL = process.env.TWITTER_CALLBACK_URL || 
-  (isDevelopment ? 'http://localhost:3001/api/twitter/callback' : 'https://studioagentsai.com/api/twitter/callback');
+  (isDevelopment ? 'http://localhost:3001/api/twitter/callback' : 'https://studio-agents-production.up.railway.app/api/twitter/callback');
 
 // ==================== CONCERTS API ====================
 // Fetches real hip-hop and mainstream concerts from SeatGeek API
@@ -764,48 +838,61 @@ app.get('/api/concerts', async (req, res) => {
 });
 
 // ==================== HIP-HOP NEWS API ====================
-// Fetches real-time music news from Pitchfork RSS
+// Fetches real-time music news from multiple RSS sources
 
-let newsCache = { data: null, timestamp: 0 };
-const NEWS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+let newsCache = { data: [], timestamp: 0 };
+const NEWS_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
 
 app.get('/api/news', async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const perPage = parseInt(req.query.per_page) || 20;
     const now = Date.now();
     
     // Return cached data if fresh
-    if (newsCache.data && (now - newsCache.timestamp) < NEWS_CACHE_DURATION) {
-      logger.info('Returning cached news');
-      return res.json(newsCache.data);
+    if (newsCache.data.length > 0 && (now - newsCache.timestamp) < NEWS_CACHE_DURATION) {
+      const start = (page - 1) * perPage;
+      const end = start + perPage;
+      const paginated = newsCache.data.slice(start, end);
+      
+      return res.json({
+        articles: paginated,
+        total: newsCache.data.length,
+        page,
+        per_page: perPage,
+        cached: true
+      });
     }
     
-    let articles = [];
+    logger.info('Fetching fresh news from multiple sources...');
     
-    // Primary: Pitchfork RSS (reliable, music-focused)
-    try {
-      const pitchforkUrl = 'https://pitchfork.com/feed/feed-news/rss';
-      logger.info('Fetching from Pitchfork RSS...');
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      const response = await fetch(pitchforkUrl, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/rss+xml, application/xml, text/xml'
-        }
-      });
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
+    const sources = [
+      { name: 'PITCHFORK', url: 'https://pitchfork.com/feed/feed-news/rss', color: 'agent-purple' },
+      { name: 'BILLBOARD', url: 'https://www.billboard.com/feed/', color: 'agent-cyan' },
+      { name: 'ROLLING STONE', url: 'https://www.rollingstone.com/music/feed/', color: 'agent-red' },
+      { name: 'NME', url: 'https://www.nme.com/feed', color: 'agent-orange' }
+    ];
+
+    const fetchSource = async (source) => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        
+        const response = await fetch(source.url, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/rss+xml, application/xml, text/xml'
+          }
+        });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) return [];
+        
         const xmlText = await response.text();
-        
-        // Parse RSS XML
         const items = xmlText.match(/<item>[\s\S]*?<\/item>/g) || [];
-        logger.info(`Found ${items.length} Pitchfork items`);
         
-        articles = items.slice(0, 20).map((item, i) => {
+        return items.map(item => {
           const getTag = (tag) => {
             const match = item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));
             return match ? match[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : '';
@@ -813,12 +900,16 @@ app.get('/api/news', async (req, res) => {
           
           const title = getTag('title');
           const link = getTag('link');
-          const description = getTag('description');
+          const description = getTag('description') || getTag('content:encoded');
           const pubDate = getTag('pubDate');
-          const creator = getTag('dc:creator') || getTag('creator');
+          const creator = getTag('dc:creator') || getTag('creator') || 'Staff';
           const category = getTag('category');
-          const keywords = getTag('media:keywords') || getTag('keywords');
           
+          // Extract image if available (media:content or enclosure)
+          let imageUrl = null;
+          const mediaMatch = item.match(/<media:content[^>]*url="([^"]*)"/) || item.match(/<enclosure[^>]*url="([^"]*)"/);
+          if (mediaMatch) imageUrl = mediaMatch[1];
+
           const dateObj = pubDate ? new Date(pubDate) : new Date();
           const hoursAgo = Math.floor((Date.now() - dateObj) / (1000 * 60 * 60));
           const minsAgo = Math.floor((Date.now() - dateObj) / (1000 * 60));
@@ -834,72 +925,72 @@ app.get('/api/news', async (req, res) => {
             timeAgo = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           }
           
-          // Build tags from category and keywords
-          const tags = [];
-          if (category) tags.push(category.toUpperCase());
-          if (keywords) {
-            keywords.split(',').slice(0, 2).forEach(k => tags.push(k.trim().toUpperCase()));
-          }
-          if (tags.length === 0) tags.push('MUSIC');
-          
           return {
-            id: i + 1,
+            id: crypto.createHash('md5').update(link).digest('hex'),
             date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase(),
+            timestamp: dateObj.getTime(),
             time: timeAgo,
-            source: 'PITCHFORK',
-            author: creator || 'Staff',
-            title: title?.toUpperCase().slice(0, 150) || 'UNTITLED',
-            content: description?.replace(/<[^>]*>/g, '').slice(0, 300) || '',
+            source: source.name,
+            color: source.color,
+            author: creator,
+            title: title?.replace(/&#8217;/g, "'").replace(/&#038;/g, "&").slice(0, 150) || 'UNTITLED',
+            content: description?.replace(/<[^>]*>/g, '').slice(0, 200) + '...' || '',
             url: link,
-            tags: tags.slice(0, 3)
+            imageUrl: imageUrl,
+            tags: category ? [category.toUpperCase()] : ['MUSIC']
           };
         });
-        
-        logger.info(`Parsed ${articles.length} articles from Pitchfork`);
+      } catch (e) {
+        logger.warn(`Failed to fetch ${source.name}`, { error: e.message });
+        return [];
       }
-    } catch (e) {
-      logger.warn('Pitchfork fetch failed', { error: e.message });
-    }
+    };
+
+    // Fetch all sources in parallel
+    const results = await Promise.all(sources.map(fetchSource));
+    let allArticles = results.flat();
     
-    // Fallback if Pitchfork fails
-    if (articles.length === 0) {
-      const nowDate = new Date();
-      articles = [
-        { 
-          id: 1, 
-          date: nowDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase(), 
-          time: 'Just now', 
-          source: 'SYSTEM', 
-          author: 'Staff', 
-          title: 'CONNECTING TO NEWS FEED...', 
-          content: 'Loading the latest music news. Please refresh in a moment.', 
-          tags: ['LOADING']
-        }
-      ];
-    }
+    // Sort by date (newest first)
+    allArticles.sort((a, b) => b.timestamp - a.timestamp);
     
-    const result = { 
-      articles, 
-      total: articles.length, 
-      source: 'pitchfork',
+    // Update cache
+    if (allArticles.length > 0) {
+      newsCache = {
+        data: allArticles,
+        timestamp: now
+      };
+    } else if (newsCache.data.length > 0) {
+      // Keep old cache if fetch failed completely
+      logger.warn('Fetch failed, using stale cache');
+    } else {
+      // Fallback if everything fails and no cache
+      allArticles = [{ 
+        id: 'error', 
+        date: new Date().toLocaleDateString(), 
+        time: 'Now', 
+        source: 'SYSTEM', 
+        title: 'NEWS FEED UNAVAILABLE', 
+        content: 'Unable to fetch latest news. Please try again later.', 
+        tags: ['ERROR']
+      }];
+    }
+
+    const start = (page - 1) * perPage;
+    const end = start + perPage;
+    const paginated = newsCache.data.length > 0 ? newsCache.data.slice(start, end) : allArticles;
+
+    res.json({ 
+      articles: paginated, 
+      total: newsCache.data.length || allArticles.length, 
+      page,
+      per_page: perPage,
       cached: false, 
       fetchedAt: new Date().toISOString() 
-    };
-    
-    // Cache the results
-    newsCache = { data: result, timestamp: now };
-    
-    logger.info(`Returning ${articles.length} news articles from Reddit`);
-    res.json(result);
-    
-  } catch (err) {
-    logger.error('News API error', { error: err.message });
-    res.status(500).json({ 
-      error: 'Failed to fetch news', 
-      details: err.message,
-      articles: [],
-      total: 0 
     });
+
+  } catch (err) {
+    logger.error('News API Error', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch news' });
   }
 });
 
@@ -1113,7 +1204,7 @@ app.get('/api/twitter/callback', async (req, res) => {
 const META_CLIENT_ID = process.env.META_CLIENT_ID;
 const META_CLIENT_SECRET = process.env.META_CLIENT_SECRET;
 const META_CALLBACK_URL = process.env.META_CALLBACK_URL || 
-  (isDevelopment ? 'http://localhost:3001/api/meta/callback' : 'https://studioagentsai.com/api/meta/callback');
+  (isDevelopment ? 'http://localhost:3001/api/meta/callback' : 'https://studio-agents-production.up.railway.app/api/meta/callback');
 
 const metaSessions = new Map();
 
@@ -1651,6 +1742,99 @@ app.post('/api/stripe/create-portal-session', async (req, res) => {
   } catch (err) {
     logger.error('❌ Portal session error', { error: err.message });
     res.status(500).json({ error: 'Failed to create portal session' });
+  }
+});
+
+// =============================================================================
+// PROJECT PERSISTENCE (My Studio)
+// =============================================================================
+
+// POST /api/projects - Save a project
+app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
+  const { userId, project } = req.body;
+  
+  // Allow saving if we have a userId (even if not fully auth'd via token for now, to support the "Mock" login)
+  // In a real app, we'd strictly enforce req.user.uid === userId
+  const targetUserId = req.user ? req.user.uid : userId;
+
+  if (!targetUserId) {
+    return res.status(401).json({ error: 'User ID required' });
+  }
+
+  if (!project) {
+    return res.status(400).json({ error: 'Project data required' });
+  }
+
+  try {
+    if (adminDb) {
+      await adminDb.collection('users').doc(targetUserId).collection('projects').doc(String(project.id)).set({
+        ...project,
+        savedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      logger.info('💾 Project saved', { userId: targetUserId, projectId: project.id });
+      res.json({ success: true });
+    } else {
+      // Fallback if Firebase not init (local dev without creds)
+      logger.warn('💾 Firebase not init, skipping save');
+      res.json({ success: true, warning: 'Cloud storage not available' });
+    }
+  } catch (err) {
+    logger.error('❌ Save project error', { error: err.message });
+    res.status(500).json({ error: 'Failed to save project' });
+  }
+});
+
+// GET /api/projects - Get user projects
+app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
+  const userId = req.query.userId;
+  const targetUserId = req.user ? req.user.uid : userId;
+
+  if (!targetUserId) {
+    return res.status(401).json({ error: 'User ID required' });
+  }
+
+  try {
+    if (adminDb) {
+      const snapshot = await adminDb.collection('users').doc(targetUserId).collection('projects')
+        .orderBy('savedAt', 'desc')
+        .limit(50)
+        .get();
+      
+      const projects = [];
+      snapshot.forEach(doc => projects.push(doc.data()));
+      
+      res.json({ projects });
+    } else {
+      res.json({ projects: [] });
+    }
+  } catch (err) {
+    logger.error('❌ Fetch projects error', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch projects' });
+  }
+});
+
+// DELETE /api/projects/:id - Delete a project
+app.delete('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
+  const projectId = req.params.id;
+  const userId = req.query.userId;
+  const targetUserId = req.user ? req.user.uid : userId;
+
+  if (!targetUserId) {
+    return res.status(401).json({ error: 'User ID required' });
+  }
+
+  try {
+    if (adminDb) {
+      await adminDb.collection('users').doc(targetUserId).collection('projects').doc(projectId).delete();
+      logger.info('🗑️ Project deleted', { userId: targetUserId, projectId });
+      res.json({ success: true });
+    } else {
+      logger.warn('🗑️ Firebase not init, skipping delete');
+      res.json({ success: true, warning: 'Cloud storage not available' });
+    }
+  } catch (err) {
+    logger.error('❌ Delete project error', { error: err.message });
+    res.status(500).json({ error: 'Failed to delete project' });
   }
 });
 

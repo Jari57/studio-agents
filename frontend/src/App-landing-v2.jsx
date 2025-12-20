@@ -86,16 +86,29 @@ function LandingPage({ onEnter }) {
           </div>
 
           {/* Main Title */}
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text text-transparent">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight animate-fade-in-up">
+            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text text-transparent drop-shadow-lg">
               Studio Agents
             </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-2xl mx-auto animate-fade-in-up delay-100">
             AI-powered music creation studio built for creative people who want to make magic happen instantly
           </p>
+
+          {/* CTA Button */}
+          <div className="animate-fade-in-up delay-200">
+            <button 
+              onClick={onEnter}
+              className="group relative px-8 py-4 bg-white text-black font-bold rounded-full text-lg hover:scale-105 transition-transform duration-300 shadow-[0_0_40px_-10px_rgba(255,255,255,0.5)]"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                Enter Studio <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+              </span>
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 opacity-0 group-hover:opacity-10 transition-opacity"></div>
+            </button>
+          </div>
 
           {/* Features */}
           <div className="flex flex-col sm:flex-row justify-center gap-6 mb-12 text-sm md:text-base">
