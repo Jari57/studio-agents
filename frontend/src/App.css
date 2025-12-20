@@ -2153,7 +2153,7 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  background: var(--color-bg-primary);
+  background: transparent; /* Allow gradient to show through */
 }
 
 .studio-header {
@@ -2161,7 +2161,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--color-bg-primary);
+  background: rgba(10, 10, 12, 0.8); /* Semi-transparent */
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
