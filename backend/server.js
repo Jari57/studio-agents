@@ -167,6 +167,8 @@ const requireAuth = (req, res, next) => {
 };
 
 const app = express();
+// Trust the first proxy (Railway load balancer)
+app.set('trust proxy', 1); 
 const PORT = process.env.PORT || 3001;
 
 //  SECURITY: Helmet.js - Set security headers
@@ -279,7 +281,7 @@ const createFingerprint = (req) => {
 // RATE LIMITING - Enhanced with fingerprinting
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each fingerprint to 100 requests per windowMs
+  max: 1000, // Limit each fingerprint to 1000 requests per windowMs
   keyGenerator: createFingerprint,
   handler: (req, res) => {
     logger.warn('⚠️ Rate limit exceeded', {
@@ -302,7 +304,7 @@ app.use('/api/', apiLimiter);
 // Stricter limit for AI generation (most expensive operation)
 const generationLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // Limit each fingerprint to 10 AI generations per minute
+  max: 60, // Limit each fingerprint to 60 AI generations per minute
   keyGenerator: createFingerprint,
   handler: (req, res) => {
     logger.warn('⚠️ AI generation rate limit exceeded', {
