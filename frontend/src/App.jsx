@@ -728,6 +728,7 @@ function StudioView({ onBack }) {
     language: 'English'
   });
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('gemini-1.5-flash');
 
   // Dashboard State
   const [dashboardTab, setDashboardTab] = useState('overview');
@@ -1209,6 +1210,7 @@ function StudioView({ onBack }) {
       let endpoint = '/api/generate';
       let body = {
         prompt: prompt,
+        model: selectedModel,
         systemInstruction: `You are ${selectedAgent.name}, a professional AI agent in a high-end music studio. 
           Category: ${selectedAgent.category}. 
           Capabilities: ${selectedAgent.capabilities.join(', ')}.
@@ -2180,14 +2182,33 @@ function StudioView({ onBack }) {
             </div>
           )}
 
-          <button 
-            className="back-to-grid" 
-            onClick={() => setSelectedAgent(null)}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', marginBottom: '2rem' }}
-          >
-            <ArrowLeft size={20} />
-            <span>Back to Agents</span>
-          </button>
+          <div className="agent-navigation-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <button 
+              className="back-to-grid" 
+              onClick={() => setSelectedAgent(null)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+            >
+              <ArrowLeft size={20} />
+              <span>Back to Agents</span>
+            </button>
+
+            <div className="agent-switcher" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Switch Agent:</span>
+              <select 
+                className="studio-select-sm" 
+                value={selectedAgent.name}
+                onChange={(e) => {
+                  const newAgent = managedAgents.find(a => a.name === e.target.value);
+                  if (newAgent) setSelectedAgent(newAgent);
+                }}
+                style={{ padding: '6px 12px', borderRadius: '8px', background: 'var(--color-bg-elevated)', border: '1px solid var(--border-color)', color: 'white', cursor: 'pointer' }}
+              >
+                {managedAgents.filter(a => a.visible).map(agent => (
+                  <option key={agent.name} value={agent.name}>{agent.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <div className="agent-detail-layout">
             <div className="agent-main-panel">
@@ -2204,6 +2225,18 @@ function StudioView({ onBack }) {
 
               <div className="agent-utility-box">
                 <div className="utility-controls">
+                  <div className="control-group">
+                    <label>AI Model</label>
+                    <select 
+                      className="studio-select"
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                    >
+                      <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast)</option>
+                      <option value="gemini-1.5-pro">Gemini 1.5 Pro (High Quality)</option>
+                      <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
+                    </select>
+                  </div>
                   <div className="control-group">
                     <label>Genre / Style</label>
                     <select className="studio-select">
