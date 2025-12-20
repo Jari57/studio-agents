@@ -196,14 +196,29 @@ const AGENTS = [
 function LandingPage({ onEnter, onSubscribe }) {
   const [hoveredAgent, setHoveredAgent] = useState(null);
   const [scrolled, setScrolled] = useState(false);
+  const [showCookieConsent, setShowCookieConsent] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll);
+    
+    // Check for cookie consent
+    const consent = localStorage.getItem('studio_cookie_consent');
+    if (!consent) {
+      setShowCookieConsent(true);
+    }
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const acceptCookies = () => {
+    localStorage.setItem('studio_cookie_consent', 'true');
+    setShowCookieConsent(false);
+  };
 
   return (
     <div className="landing-container">
@@ -589,6 +604,11 @@ function LandingPage({ onEnter, onSubscribe }) {
             <Sparkles size={24} color="var(--color-purple)" />
             <span>STUDIO AGENTS AI</span>
           </div>
+          <div className="footer-links">
+            <button className="footer-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
+            <span className="footer-divider">•</span>
+            <button className="footer-link" onClick={() => setShowTerms(true)}>Terms of Service</button>
+          </div>
           <p>&copy; 2025 studioagentsai.com • Built for the next generation of creators.</p>
         </div>
       </footer>
@@ -600,6 +620,81 @@ function LandingPage({ onEnter, onSubscribe }) {
           <ArrowRight size={20} />
         </button>
       </div>
+
+      {/* Cookie Consent Banner */}
+      {showCookieConsent && (
+        <div className="cookie-banner animate-fadeInUp">
+          <div className="cookie-content">
+            <p>We use cookies to enhance your creative experience and analyze site traffic.</p>
+            <div className="cookie-actions">
+              <button className="btn-text-sm" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
+              <button className="btn-primary-sm" onClick={acceptCookies}>Accept</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Privacy Modal */}
+      {showPrivacy && (
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
+          <div className="legal-modal animate-scaleIn">
+            <div className="modal-header">
+              <h2>Privacy Policy</h2>
+              <button className="modal-close" onClick={() => setShowPrivacy(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body legal-text">
+              <h3>1. Information We Collect</h3>
+              <p>We collect information you provide directly to us, such as when you create an account, subscribe to our newsletter, or request customer support. This may include your name, email address, and payment information.</p>
+              
+              <h3>2. How We Use Your Information</h3>
+              <p>We use the information we collect to provide, maintain, and improve our services, to develop new ones, and to protect our company and our users. We also use this information to offer you tailored content – like giving you more relevant search results and ads.</p>
+              
+              <h3>3. Cookies & Tracking</h3>
+              <p>We use cookies and similar technologies to collect information about your activity, browser, and device. This helps us remember your preferences and understand how you use our app.</p>
+              
+              <h3>4. Data Security</h3>
+              <p>We work hard to protect Studio Agents AI and our users from unauthorized access to or unauthorized alteration, disclosure or destruction of information we hold.</p>
+              
+              <h3>5. Contact Us</h3>
+              <p>If you have any questions about this Privacy Policy, please contact us at support@studioagentsai.com.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-primary" onClick={() => setShowPrivacy(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Terms Modal */}
+      {showTerms && (
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
+          <div className="legal-modal animate-scaleIn">
+            <div className="modal-header">
+              <h2>Terms of Service</h2>
+              <button className="modal-close" onClick={() => setShowTerms(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body legal-text">
+              <h3>1. Acceptance of Terms</h3>
+              <p>By accessing or using our services, you agree to be bound by these Terms. If you do not agree to these Terms, you may not access or use the services.</p>
+              
+              <h3>2. Use of Services</h3>
+              <p>You may use our services only as permitted by law, including applicable export and re-export control laws and regulations. We may suspend or stop providing our services to you if you do not comply with our terms or policies.</p>
+              
+              <h3>3. User Content</h3>
+              <p>Our services allow you to post, link, store, share and otherwise make available certain information, text, graphics, videos, or other material. You are responsible for the content that you post to the service, including its legality, reliability, and appropriateness.</p>
+              
+              <h3>4. AI Generated Content</h3>
+              <p>Content generated by our AI agents is provided "as is". You own the rights to the content you generate, subject to our fair use policy and the terms of the underlying AI models.</p>
+              
+              <h3>5. Termination</h3>
+              <p>We may terminate or suspend access to our service immediately, without prior notice or liability, for any reason whatsoever, including without limitation if you breach the Terms.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-primary" onClick={() => setShowTerms(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
