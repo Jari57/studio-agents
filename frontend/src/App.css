@@ -3098,7 +3098,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--color-bg-primary);
+  background: rgba(10, 10, 12, 0.8);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border-color);
   z-index: 10;
