@@ -227,7 +227,7 @@ function LandingPage({ onEnter, onSubscribe }) {
         <div className="header-content">
           <div className="header-logo">
             <Sparkles size={24} className="text-purple" />
-            <span className="header-title">Studio Agents</span>
+            <span className="header-title">Studio Agents AI</span>
           </div>
           <button onClick={onEnter} className="header-cta">
             Launch
@@ -253,19 +253,21 @@ function LandingPage({ onEnter, onSubscribe }) {
           {/* Main Title */}
           <h1 className="hero-title">
             <span className="gradient-text-vibrant">
+              NEW YEAR,
+              <br />
               DOMINATE THE CHARTS
             </span>
             <br />
-            <span style={{ fontSize: '0.5em', fontWeight: '400', color: 'var(--text-secondary)', display: 'block', marginTop: '10px' }}>
-              WITH YOUR OWN AI TEAM
+            <span style={{ fontSize: '0.4em', fontWeight: '500', color: 'var(--text-secondary)', display: 'block', marginTop: '16px', letterSpacing: '0.05em', fontFamily: 'Inter, sans-serif' }}>
+              YOUR VISION. MAX SPEED.
             </span>
           </h1>
 
           {/* Subtitle */}
           <p className="hero-subtitle">
-            Stop struggling with writer's block. 
+            Stop Guessing. Start Scaling.
             <br />
-            <strong>Studio Agents</strong> gives you an elite team of 16 AI specialists to write, produce, and market your music 24/7.
+            <strong>Studio Agents AI</strong> gives you an elite team of 16 AI specialists to write, produce, and market your music 24/7.
           </p>
 
           {/* Social Proof Badge */}
@@ -336,10 +338,10 @@ function LandingPage({ onEnter, onSubscribe }) {
         <div className="section-header">
           <div className="section-tag">The Output</div>
           <h2 className="section-title">
-            Build Your <span className="gradient-text-purple-pink">Legacy</span>
+            Build Your <span className="gradient-text-purple-pink">Empire</span>
           </h2>
           <p className="section-subtitle">
-            Don't just make music. Build a brand.
+            Don't just make music. Dominate the industry.
           </p>
         </div>
         
@@ -350,9 +352,9 @@ function LandingPage({ onEnter, onSubscribe }) {
           marginTop: '30px'
         }}>
           {[
-            { icon: Music, title: "Hit-Ready Lyrics", desc: "Generate hooks, verses, and bridges that stick.", color: "var(--color-purple)" },
-            { icon: Zap, title: "Viral Video Content", desc: "Create music videos and visualizers instantly.", color: "var(--color-cyan)" },
-            { icon: Globe, title: "Marketing Strategy", desc: "Data-driven rollout plans to break the algorithm.", color: "var(--color-pink)" }
+            { icon: Music, title: "Hit-Ready Lyrics", desc: "Hooks that stick. Verses that kill. Write your next platinum record in minutes.", color: "var(--color-purple)" },
+            { icon: Zap, title: "Viral Visuals", desc: "Cinematic music videos and visualizers that stop the scroll instantly.", color: "var(--color-cyan)" },
+            { icon: Globe, title: "Dominate the Algorithm", desc: "Data-driven rollout plans designed to break the internet.", color: "var(--color-pink)" }
           ].map((item, i) => (
             <div key={i} className="result-card" style={{
               background: 'var(--card-bg)',
@@ -480,9 +482,9 @@ function LandingPage({ onEnter, onSubscribe }) {
 
           <div className="benefits-grid-native">
             {[
-              { icon: Zap, title: 'Create Instantly', desc: 'AI-powered generation from simple prompts in seconds' },
-              { icon: Crown, title: 'Professional Quality', desc: 'Studio-grade output powered by advanced AI models' },
-              { icon: Users, title: 'Stay Creative', desc: 'Focus on your vision, let AI handle the work' }
+              { icon: Zap, title: 'Speed is Power', desc: 'Generate full tracks, lyrics, and visuals in seconds. Don\'t wait for inspiration—command it.' },
+              { icon: Crown, title: 'Chart-Topping Quality', desc: 'Engineered for radio-ready sound. Our models are trained on hits, not noise.' },
+              { icon: Users, title: 'Your Vision, Amplified', desc: 'You are the Director. We are the Production Team. Scale your output without burning out.' }
             ].map((item, idx) => {
               const Icon = item.icon;
               return (
@@ -586,13 +588,13 @@ function LandingPage({ onEnter, onSubscribe }) {
       {/* Footer CTA */}
       <section className="footer-cta">
         <h2 className="footer-cta-title">
-          Ready to create something <span className="gradient-text-purple-pink">amazing?</span>
+          Ready to <span className="gradient-text-purple-pink">Take Over?</span>
         </h2>
         <button
           onClick={onEnter}
           className="cta-button-premium haptic-press"
         >
-          <span>Launch Studio Now</span>
+          <span>Launch Your Empire</span>
           <ArrowRight size={24} />
         </button>
       </section>
