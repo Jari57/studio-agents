@@ -4,7 +4,7 @@
   "description": "Studio Agents - AI Music Studio Platform",
   "private": true,
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=18.0.0"
   },
   "scripts": {
     "dev": "echo Starting frontend... && cd frontend && npm run dev",

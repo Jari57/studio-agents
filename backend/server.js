@@ -499,27 +499,61 @@ app.post('/api/generate', verifyFirebaseToken, generationLimiter, async (req, re
     }
 
     // Use requested model if valid, otherwise fall back to env var or default
-    // Defaulting to gemini-2.0-flash for better stability and availability
-    const desiredModel = sanitizedModel || process.env.GENERATIVE_MODEL || "gemini-2.0-flash";
-    const model = genAI.getGenerativeModel({ 
-      model: desiredModel,
-      systemInstruction: sanitizedSystemInstruction || undefined
-    });
+    // Defaulting to gemini-1.5-flash for better stability and availability
+    const desiredModel = sanitizedModel || process.env.GENERATIVE_MODEL || "gemini-1.5-flash";
+    
+    let text;
+    let usedModel = desiredModel;
 
-    const startTime = Date.now();
-    const result = await model.generateContent(sanitizedPrompt);
-    const response = await result.response;
-    const text = response.text();
-    const duration = Date.now() - startTime;
+    try {
+      const model = genAI.getGenerativeModel({ 
+        model: desiredModel,
+        systemInstruction: sanitizedSystemInstruction || undefined
+      });
 
-    logger.info('Generation successful', { 
-      ip: req.ip,
-      duration: `${duration}ms`,
-      outputLength: text.length,
-      model: desiredModel,
-      requestedModel: requestedModel || 'default'
-    });
-    res.json({ output: text, model: desiredModel });
+      const startTime = Date.now();
+      const result = await model.generateContent(sanitizedPrompt);
+      const response = await result.response;
+      text = response.text();
+      const duration = Date.now() - startTime;
+
+      logger.info('Generation successful', { 
+        ip: req.ip,
+        duration: `${duration}ms`,
+        outputLength: text.length,
+        model: desiredModel,
+        requestedModel: requestedModel || 'default'
+      });
+    } catch (primaryError) {
+      // Fallback logic for 429 (Quota) or 404 (Model Not Found)
+      const isQuotaError = String(primaryError).includes('429');
+      const isNotFoundError = String(primaryError).includes('404') || String(primaryError).includes('not found');
+      
+      if ((isQuotaError || isNotFoundError) && desiredModel !== 'gemini-1.5-flash') {
+        logger.warn(`Primary model ${desiredModel} failed (${isQuotaError ? 'Quota' : 'Not Found'}). Falling back to gemini-1.5-flash.`);
+        
+        const fallbackModel = genAI.getGenerativeModel({ 
+          model: 'gemini-1.5-flash',
+          systemInstruction: sanitizedSystemInstruction || undefined
+        });
+
+        const startTime = Date.now();
+        const result = await fallbackModel.generateContent(sanitizedPrompt);
+        const response = await result.response;
+        text = response.text();
+        usedModel = 'gemini-1.5-flash';
+        
+        logger.info('Fallback generation successful', { 
+          ip: req.ip,
+          duration: `${Date.now() - startTime}ms`,
+          model: 'gemini-1.5-flash'
+        });
+      } else {
+        throw primaryError; // Re-throw if not recoverable or already using fallback
+      }
+    }
+
+    res.json({ output: text, model: usedModel });
 
   } catch (error) {
     const msg = error && error.message ? error.message : String(error);

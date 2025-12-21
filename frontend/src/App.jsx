@@ -297,16 +297,15 @@ function LandingPage({ onEnter, onSubscribe }) {
           </div>
 
           {/* CTA Button */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', width: '100%' }}>
+          <div className="hero-cta-container">
             <button
               onClick={onEnter}
-              className="cta-button-premium haptic-press"
-              style={{ width: '100%', maxWidth: '350px', height: '60px', fontSize: '1.2rem' }}
+              className="cta-button-premium haptic-press hero-cta-button"
             >
               <span>Start Creating for Free</span>
               <ArrowRight size={24} />
             </button>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', opacity: 0.7 }}>
+            <span className="hero-cta-subtext">
               No credit card required • Cancel anytime
             </span>
           </div>
