@@ -8,7 +8,9 @@ import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Target, Rocket, Menu, X
 import './App.css';
 
 // Backend URL configuration
-const BACKEND_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://web-production-b5922.up.railway.app';
+const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+  ? 'http://localhost:3001' 
+  : 'https://web-production-b5922.up.railway.app';
 
 // Agent showcase data
 const AGENTS = [
