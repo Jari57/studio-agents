@@ -6738,3 +6738,52 @@ input:checked + .slider:before {
   }
 }
 
+/* --- Fixes for Mobile Layout & Navigation --- */
+
+@media (max-width: 768px) {
+  /* Ensure footer links are visible above the sticky CTA */
+  .main-footer {
+    padding-bottom: 120px !important;
+  }
+
+  /* Ensure Hero Section is properly centered on mobile */
+  .hero-section {
+    min-height: 100dvh; /* Use dynamic viewport height to account for browser bars */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-top: 0 !important; /* Remove excessive top padding if centering is desired */
+  }
+
+  /* Adjust Hero Content Wrapper for better centering */
+  .hero-content-wrapper {
+    margin-top: -60px; /* Slight visual offset to account for sticky header/CTA balance */
+  }
+}
+
+/* Fix for Pro Page (Come Up) Layout Stability */
+.comeup-view {
+  width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Desktop Sidebar Sticky Behavior */
+@media (min-width: 1001px) {
+  .comeup-sidebar {
+    position: sticky;
+    top: 100px;
+    height: fit-content;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+  }
+}
+
+/* Ensure Studio Main container handles scrolling correctly */
+.studio-main {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
