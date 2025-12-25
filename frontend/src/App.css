@@ -6801,21 +6801,25 @@ html, body {
   .social-proof-badge,
   .hero-features-list,
   .scroll-indicator,
-  .benefits-section {
+  .benefits-section,
+  .results-section,
+  .pricing-section,
+  .footer-cta,
+  .mobile-sticky-cta {
     display: none !important;
   }
 
   /* 2. Reduce Typography Sizes */
   .hero-title {
-    font-size: 2rem !important;
+    font-size: 1.75rem !important;
     line-height: 1.1 !important;
-    margin-bottom: 1rem !important;
+    margin-bottom: 0.75rem !important;
   }
 
   .hero-subtitle {
-    font-size: 0.95rem !important;
-    margin-bottom: 1.5rem !important;
-    max-width: 90% !important;
+    font-size: 0.9rem !important;
+    margin-bottom: 1.25rem !important;
+    max-width: 95% !important;
     margin-left: auto !important;
     margin-right: auto !important;
   }
@@ -6823,56 +6827,58 @@ html, body {
   /* 3. Compact Hero Layout */
   .hero-section {
     padding: 1rem !important;
-    min-height: 85dvh !important; /* Slightly less than full height to show content peek */
-    justify-content: center !important;
+    min-height: auto !important;
+    height: auto !important;
+    padding-top: 5rem !important;
+    padding-bottom: 2rem !important;
+    justify-content: flex-start !important;
   }
 
   .logo-box.studio-logo-large {
-    width: 72px !important;
-    height: 72px !important;
-    margin-bottom: 1.5rem !important;
+    width: 60px !important;
+    height: 60px !important;
+    margin-bottom: 1rem !important;
   }
 
   .logo-box.studio-logo-large svg {
-    width: 32px !important;
-    height: 32px !important;
+    width: 28px !important;
+    height: 28px !important;
   }
 
-  /* 4. Streamline Results Section */
-  .results-section {
-    padding: 2rem 1rem !important;
+  /* 4. Compact Agent Cards */
+  .agents-section {
+    padding: 1.5rem 0 !important;
   }
-
+  
+  .section-header {
+      margin-bottom: 1rem !important;
+      padding: 0 1rem !important;
+  }
+  
   .section-title {
-    font-size: 1.75rem !important;
+      font-size: 1.5rem !important;
   }
 
-  .results-grid {
-    grid-template-columns: 1fr !important; /* Stack vertically */
-    gap: 1rem !important;
-  }
-
-  .result-card {
-    padding: 1.25rem !important;
-  }
-
-  /* 5. Compact Agent Cards */
   .agent-card-premium {
-    width: 240px !important; /* Smaller width for horizontal scroll */
-    padding: 1.25rem !important;
+    width: 220px !important;
+    padding: 1rem !important;
   }
 
   .agent-card-header-info h3 {
-    font-size: 1.1rem !important;
+    font-size: 1rem !important;
   }
 
   .agent-description {
-    font-size: 0.85rem !important;
-    line-height: 1.4 !important;
+    font-size: 0.8rem !important;
+    -webkit-line-clamp: 2 !important;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+  
+  /* 5. Ensure Footer is Clean */
+  .main-footer {
+      padding: 2rem 1rem !important;
   }
 }
 
