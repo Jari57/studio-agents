@@ -5,7 +5,75 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Target, Rocket, Menu, X, LayoutGrid, Globe, Bell, ChevronRight, ChevronDown, ChevronUp, Shield, TrendingUp, Folder, Search, Filter, Download, Share2, HelpCircle, Book, MessageSquare, PlayCircle, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Cloud, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 import './App.css';
+
+// --- FIREBASE SETUP ---
+let app = null;
+let auth = null;
+let db = null;
+
+try {
+  if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+    const firebaseConfig = JSON.parse(__firebase_config);
+    if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "demo") {
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+    }
+  }
+} catch (e) {
+  console.error("Firebase initialization failed:", e);
+}
+
+// Swipe Navigation Hook
+const useSwipeNavigation = (sections, activeSection, navigateTo) => {
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const touchEndX = useRef(null);
+  const touchEndY = useRef(null);
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchStartY.current = e.targetTouches[0].clientY;
+    touchEndX.current = null;
+    touchEndY.current = null;
+  };
+
+  const onTouchMove = (e) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+    touchEndY.current = e.targetTouches[0].clientY;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distanceX = touchStartX.current - touchEndX.current;
+    const distanceY = touchStartY.current - touchEndY.current;
+    const isHorizontalSwipe = Math.abs(distanceX) > Math.abs(distanceY);
+
+    if (isHorizontalSwipe && Math.abs(distanceX) > minSwipeDistance) {
+      const currentIndex = sections.indexOf(activeSection);
+      if (distanceX > 0) {
+        // Swipe Left -> Next Section
+        if (currentIndex < sections.length - 1) {
+          navigateTo(sections[currentIndex + 1]);
+        }
+      } else {
+        // Swipe Right -> Previous Section
+        if (currentIndex > 0) {
+          navigateTo(sections[currentIndex - 1]);
+        }
+      }
+    }
+  };
+
+  return { onTouchStart, onTouchMove, onTouchEnd };
+};
 
 // Backend URL configuration
 const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
@@ -703,6 +771,13 @@ function LandingPage({ onEnter, onSubscribe }) {
 // Studio View Component
 function StudioView({ onBack }) {
   const [activeTab, setActiveTab] = useState('mystudio');
+  
+  // Swipe Navigation Hook
+  const swipeHandlers = useSwipeNavigation(
+    ['agents', 'mystudio', 'activity', 'news', 'comeup'],
+    activeTab,
+    setActiveTab
+  );
   const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -727,24 +802,111 @@ function StudioView({ onBack }) {
     language: 'English'
   });
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [user, setUser] = useState(null);
+
+  // --- FIREBASE AUTH LISTENER ---
+  useEffect(() => {
+    if (auth) {
+      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        if (currentUser) {
+          setIsLoggedIn(true);
+          setUser(currentUser);
+          localStorage.setItem('studio_user_id', currentUser.uid);
+        } else {
+          setIsLoggedIn(false);
+          setUser(null);
+          localStorage.removeItem('studio_user_id');
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, []);
+
+  // --- LOGIN HANDLER ---
+  const handleLogin = async () => {
+    if (!auth) {
+      // Fallback for demo/dev mode without Firebase
+      setIsLoggedIn(true);
+      setShowLoginModal(false);
+      let uid = localStorage.getItem('studio_user_id');
+      if (!uid) {
+        uid = 'user_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('studio_user_id', uid);
+      }
+      if (selectedPlan) {
+        handleTextToVoice(`Welcome to the ${selectedPlan.name}. Your subscription is active.`);
+        alert(`Subscription Confirmed: ${selectedPlan.name}\nPrice: ${selectedPlan.price}\n\nWelcome to the Pro Team!`);
+        setSelectedPlan(null);
+        setActiveTab('mystudio');
+      }
+      return;
+    }
+
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      setShowLoginModal(false);
+      if (selectedPlan) {
+        handleTextToVoice(`Welcome to the ${selectedPlan.name}. Your subscription is active.`);
+        alert(`Subscription Confirmed: ${selectedPlan.name}\nPrice: ${selectedPlan.price}\n\nWelcome to the Pro Team!`);
+        setSelectedPlan(null);
+        setActiveTab('mystudio');
+      }
+    } catch (error) {
+      console.error("Login failed", error);
+      alert(`Login failed: ${error.message}`);
+    }
+  };
+
+  // --- LOGOUT HANDLER ---
+  const handleLogout = async () => {
+    if (auth) {
+      await signOut(auth);
+    }
+    setIsLoggedIn(false);
+    localStorage.removeItem('studio_user_id');
+    setActiveTab('landing'); 
+    onBack(); 
+  };
 
   // Dashboard State
   const [dashboardTab, setDashboardTab] = useState('overview');
   const [managedAgents, setManagedAgents] = useState(() => {
-    const saved = localStorage.getItem('studio_managed_agents');
-    // Ensure AGENTS is defined or imported. Assuming AGENTS is available in scope.
-    // If AGENTS is not available, we might need to use STUDIO_AGENTS or similar.
-    // Based on previous reads, AGENTS is defined at the top level.
-    return saved ? JSON.parse(saved) : (typeof AGENTS !== 'undefined' ? AGENTS.map(a => ({ ...a, visible: true })) : []);
+    try {
+      const saved = localStorage.getItem('studio_managed_agents');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Re-attach icons from AGENTS source of truth
+        return parsed.map(p => {
+          const original = AGENTS.find(a => a.name === p.name);
+          return { ...p, icon: original ? original.icon : Sparkles };
+        });
+      }
+      return (typeof AGENTS !== 'undefined' ? AGENTS.map(a => ({ ...a, visible: true })) : []);
+    } catch (e) {
+      console.error("Failed to parse managed agents", e);
+      return (typeof AGENTS !== 'undefined' ? AGENTS.map(a => ({ ...a, visible: true })) : []);
+    }
   });
   const [appSettings, setAppSettings] = useState(() => {
-    const saved = localStorage.getItem('studio_app_settings');
-    return saved ? JSON.parse(saved) : {
-      showNews: true,
-      publicActivity: true,
-      autoSave: true,
-      highQualityPreviews: false
-    };
+    try {
+      const saved = localStorage.getItem('studio_app_settings');
+      return saved ? JSON.parse(saved) : {
+        showNews: true,
+        publicActivity: true,
+        autoSave: true,
+        highQualityPreviews: false
+      };
+    } catch (e) {
+      console.error("Failed to parse app settings", e);
+      return {
+        showNews: true,
+        publicActivity: true,
+        autoSave: true,
+        highQualityPreviews: false
+      };
+    }
   });
 
   // Persist Dashboard State
@@ -779,39 +941,70 @@ function StudioView({ onBack }) {
   const [newsArticles, setNewsArticles] = useState([]);
 
   const [socialConnections, setSocialConnections] = useState(() => {
-    const saved = localStorage.getItem('studio_agents_socials');
-    return saved ? JSON.parse(saved) : {
-      instagram: false,
-      tiktok: false,
-      twitter: false,
-      spotify: false
-    };
+    try {
+      const saved = localStorage.getItem('studio_agents_socials');
+      return saved ? JSON.parse(saved) : {
+        instagram: false,
+        tiktok: false,
+        twitter: false,
+        spotify: false
+      };
+    } catch (e) {
+      return {
+        instagram: false,
+        tiktok: false,
+        twitter: false,
+        spotify: false
+      };
+    }
   });
   const [twitterUsername, setTwitterUsername] = useState(() => localStorage.getItem('studio_agents_twitter_user'));
   const [metaName, setMetaName] = useState(() => localStorage.getItem('studio_agents_meta_name'));
   const [storageConnections, setStorageConnections] = useState(() => {
-    const saved = localStorage.getItem('studio_agents_storage');
-    return saved ? JSON.parse(saved) : {
-      googleDrive: false,
-      dropbox: false,
-      oneDrive: false,
-      localDevice: true
-    };
+    try {
+      const saved = localStorage.getItem('studio_agents_storage');
+      return saved ? JSON.parse(saved) : {
+        googleDrive: false,
+        dropbox: false,
+        oneDrive: false,
+        localDevice: true
+      };
+    } catch (e) {
+      return {
+        googleDrive: false,
+        dropbox: false,
+        oneDrive: false,
+        localDevice: true
+      };
+    }
   });
 
   const [paymentMethods, setPaymentMethods] = useState(() => {
-    const saved = localStorage.getItem('studio_agents_payments');
-    return saved ? JSON.parse(saved) : [
-      { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
-      { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
-    ];
+    try {
+      const saved = localStorage.getItem('studio_agents_payments');
+      return saved ? JSON.parse(saved) : [
+        { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
+        { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
+      ];
+    } catch (e) {
+      return [
+        { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
+        { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
+      ];
+    }
   });
 
   const [bankAccounts, setBankAccounts] = useState(() => {
-    const saved = localStorage.getItem('studio_agents_banks');
-    return saved ? JSON.parse(saved) : [
-      { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
-    ];
+    try {
+      const saved = localStorage.getItem('studio_agents_banks');
+      return saved ? JSON.parse(saved) : [
+        { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
+      ];
+    } catch (e) {
+      return [
+        { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
+      ];
+    }
   });
 
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
@@ -1384,7 +1577,10 @@ function StudioView({ onBack }) {
     
     if (savedProjects) {
       try {
-        localProjects = JSON.parse(savedProjects);
+        const parsed = JSON.parse(savedProjects);
+        if (Array.isArray(parsed)) {
+          localProjects = parsed;
+        }
       } catch (e) {
         console.error("Failed to parse projects", e);
       }
@@ -1482,31 +1678,12 @@ function StudioView({ onBack }) {
       return;
     }
     
-    const newProject = {
-      id: Date.now(),
-      name: `New Project ${projects.length + 1}`,
-      createdAt: new Date().toISOString(),
-      agent: selectedAgent ? selectedAgent.name : 'General',
-      type: 'Draft',
-      title: `New Project ${projects.length + 1}`,
-      date: 'Just now',
-      color: 'agent-purple',
-      snippet: ''
-    };
+    // Navigate to Agents tab to start a new project
+    setActiveTab('agents');
+    setSelectedAgent(null);
     
-    setProjects([newProject, ...projects]);
-
-    // Save to Backend
-    const uid = localStorage.getItem('studio_user_id');
-    if (uid) {
-        fetch(`${BACKEND_URL}/api/projects`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: uid, project: newProject })
-        }).catch(err => console.error("Failed to save new project to cloud", err));
-    }
-
-    alert(`Project "${newProject.name}" created and saved!`);
+    // Provide feedback
+    handleTextToVoice("Select an agent to start your new project.");
   };
 
   const handleDeleteProject = async (projectId, e) => {
@@ -3635,10 +3812,29 @@ function StudioView({ onBack }) {
 
         <div className="studio-nav-footer">
           <div className="user-profile-mini">
-            <div className="user-avatar"></div>
+            <div className="user-avatar">
+              {user?.photoURL && <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%', borderRadius: '50%' }} />}
+            </div>
             <div className="user-info">
-              <p className="user-name">{isLoggedIn ? 'Pro Creator' : 'Guest Artist'}</p>
+              <p className="user-name">{isLoggedIn ? (user?.displayName || 'Pro Creator') : 'Guest Artist'}</p>
               <p className="user-status">{isLoggedIn ? 'Pro Plan' : 'Free Account'}</p>
+              {isLoggedIn ? (
+                <button 
+                  className="sign-out-link" 
+                  style={{ fontSize: '0.7rem', color: 'var(--color-red)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginTop: '4px', textAlign: 'left' }}
+                  onClick={() => auth && signOut(auth)}
+                >
+                  Sign Out
+                </button>
+              ) : (
+                <button 
+                  className="sign-in-link" 
+                  style={{ fontSize: '0.7rem', color: 'var(--color-purple)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginTop: '4px', textAlign: 'left' }}
+                  onClick={() => setShowLoginModal(true)}
+                >
+                  Sign In
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -3690,6 +3886,20 @@ function StudioView({ onBack }) {
                 }}></span>
               )}
             </button>
+
+            {!isLoggedIn ? (
+              <button 
+                className="cta-button-sm haptic-press"
+                onClick={() => setShowLoginModal(true)}
+                style={{ marginLeft: '0.5rem', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}
+              >
+                Sign In
+              </button>
+            ) : (
+              <div className="user-avatar-header" style={{ width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden', marginLeft: '0.5rem', border: '1px solid var(--border-color)' }}>
+                 {user?.photoURL ? <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
+              </div>
+            )}
             
             {/* Notification Dropdown */}
             {showNotifications && (
@@ -3774,12 +3984,14 @@ function StudioView({ onBack }) {
           <div 
             className="media-player-overlay animate-fadeIn"
             onClick={() => setPlayingItem(null)}
+            onTouchEnd={() => setPlayingItem(null)}
           >
             <div 
               className="media-player-container animate-fadeInUp"
               onClick={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
             >
-              <button className="player-close" onClick={() => setPlayingItem(null)}>
+              <button className="player-close" onClick={() => setPlayingItem(null)} onTouchEnd={(e) => { e.preventDefault(); setPlayingItem(null); }}>
                 <X size={24} />
               </button>
               
@@ -3863,9 +4075,9 @@ function StudioView({ onBack }) {
 
         {/* External Save Modal */}
         {showExternalSaveModal && (
-          <div className="modal-overlay" onClick={() => setShowExternalSaveModal(false)}>
-            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => setShowExternalSaveModal(false)}><X size={20} /></button>
+          <div className="modal-overlay" onClick={() => setShowExternalSaveModal(false)} onTouchEnd={() => setShowExternalSaveModal(false)}>
+            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+              <button className="modal-close" onClick={() => setShowExternalSaveModal(false)} onTouchEnd={(e) => { e.preventDefault(); setShowExternalSaveModal(false); }}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
                   <Cloud size={24} color="white" />
@@ -3902,9 +4114,9 @@ function StudioView({ onBack }) {
 
         {/* Login Modal */}
         {showLoginModal && (
-          <div className="modal-overlay">
-            <div className="modal-content animate-fadeInUp">
-              <button className="modal-close" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); }}><X size={20} /></button>
+          <div className="modal-overlay" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); }} onTouchEnd={() => { setShowLoginModal(false); setSelectedPlan(null); }}>
+            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+              <button className="modal-close" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); }} onTouchEnd={(e) => { e.preventDefault(); setShowLoginModal(false); setSelectedPlan(null); }}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
                   <Sparkles size={24} color="white" />
@@ -3920,42 +4132,14 @@ function StudioView({ onBack }) {
                 <button 
                   className="cta-button-premium" 
                   style={{ width: '100%', marginBottom: '1rem' }}
-                  onClick={() => { 
-                    setIsLoggedIn(true); 
-                    setShowLoginModal(false);
-                    let uid = localStorage.getItem('studio_user_id');
-                    if (!uid) {
-                      uid = 'user_' + Math.random().toString(36).substr(2, 9);
-                      localStorage.setItem('studio_user_id', uid);
-                    }
-                    if (selectedPlan) {
-                      handleTextToVoice(`Welcome to the ${selectedPlan.name}. Your subscription is active.`);
-                      alert(`Subscription Confirmed: ${selectedPlan.name}\nPrice: ${selectedPlan.price}\n\nWelcome to the Pro Team!`);
-                      setSelectedPlan(null);
-                      handleNavigate('studio');
-                    }
-                  }}
+                  onClick={handleLogin}
                 >
                   {selectedPlan ? 'Sign In & Subscribe with Google' : 'Sign In with Google'}
                 </button>
                 <button 
                   className="cta-button-secondary" 
                   style={{ width: '100%' }}
-                  onClick={() => { 
-                    setIsLoggedIn(true); 
-                    setShowLoginModal(false);
-                    let uid = localStorage.getItem('studio_user_id');
-                    if (!uid) {
-                      uid = 'user_' + Math.random().toString(36).substr(2, 9);
-                      localStorage.setItem('studio_user_id', uid);
-                    }
-                    if (selectedPlan) {
-                      handleTextToVoice(`Welcome to the ${selectedPlan.name}. Your subscription is active.`);
-                      alert(`Subscription Confirmed: ${selectedPlan.name}\nPrice: ${selectedPlan.price}\n\nWelcome to the Pro Team!`);
-                      setSelectedPlan(null);
-                      handleNavigate('studio');
-                    }
-                  }}
+                  onClick={handleLogin}
                 >
                   {selectedPlan ? 'Sign In & Subscribe with Email' : 'Continue with Email'}
                 </button>
@@ -3969,9 +4153,9 @@ function StudioView({ onBack }) {
 
         {/* Add/Edit Payment Method Modal */}
         {showAddPaymentModal && (
-          <div className="modal-overlay" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}>
-            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}><X size={20} /></button>
+          <div className="modal-overlay" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}>
+            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+              <button className="modal-close" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={(e) => { e.preventDefault(); setShowAddPaymentModal(false); setEditingPayment(null); }}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
                   <CreditCard size={24} color="white" />

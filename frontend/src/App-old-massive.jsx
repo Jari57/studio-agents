@@ -3377,12 +3377,30 @@ const MusicPlayer = () => {
             <div className="grid grid-cols-4 gap-2 mt-4">
               <button 
                 onClick={() => handlePrevious()}
+                onTouchEnd={(e) => { e.preventDefault(); handlePrevious(); }}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <Rewind size={18}/>
               </button>
               <button 
                 onClick={async () => {
+                  if (!currentTrack || audioLoading || !audioRef.current) return;
+                  const audio = audioRef.current;
+                  if (!isPlaying) {
+                    try {
+                      if (audio.src) await audio.play();
+                      setIsPlaying(true);
+                    } catch (e) {
+                      setIsPlaying(false);
+                      setAudioError(true);
+                    }
+                  } else {
+                    try { audio.pause(); } catch (e) {}
+                    setIsPlaying(false);
+                  }
+                }}
+                onTouchEnd={async (e) => {
+                  e.preventDefault();
                   if (!currentTrack || audioLoading || !audioRef.current) return;
                   const audio = audioRef.current;
                   if (!isPlaying) {
@@ -3407,12 +3425,14 @@ const MusicPlayer = () => {
               </button>
               <button 
                 onClick={() => handleStop()}
+                onTouchEnd={(e) => { e.preventDefault(); handleStop(); }}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <div className="w-4 h-4 bg-current rounded"></div>
               </button>
               <button 
                 onClick={() => handleNext()}
+                onTouchEnd={(e) => { e.preventDefault(); handleNext(); }}
                 className="bg-[#0a0a0a] border border-white/10 h-12 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:border-white/20 transition-all active:scale-95 touch-manipulation"
               >
                 <div className="flex"><Play size={12}/><Play size={12}/></div>
