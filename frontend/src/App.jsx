@@ -3775,7 +3775,7 @@ function StudioView({ onBack }) {
   };
 
   return (
-    <div className={`studio-container ${theme}-theme`}>
+    <div className={`studio-container ${theme}-theme`} {...swipeHandlers}>
       <aside className="studio-nav">
         <div className="studio-nav-logo" onClick={onBack}>
           <div className="logo-box studio-logo">
