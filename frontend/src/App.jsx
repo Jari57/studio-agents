@@ -9,21 +9,28 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 import './App.css';
+import './mobile-fixes.css';
 
-// --- FIREBASE SETUP ---
+/// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAKWKmHVfwKHuH_Huf4C2XcMAxk3pkkuz8",
+  authDomain: "studioagents-app.firebaseapp.com",
+  projectId: "studioagents-app",
+  storageBucket: "studioagents-app.firebasestorage.app",
+  messagingSenderId: "460525904786",
+  appId: "1:460525904786:web:6c59dbc6837ead2ed9d74b",
+  measurementId: "G-37J2MVHXS7"
+};
+
 let app = null;
 let auth = null;
 let db = null;
 
 try {
-  if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-    const firebaseConfig = JSON.parse(__firebase_config);
-    if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "demo") {
-      app = initializeApp(firebaseConfig);
-      auth = getAuth(app);
-      db = getFirestore(app);
-    }
-  }
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
 } catch (e) {
   console.error("Firebase initialization failed:", e);
 }
@@ -600,10 +607,10 @@ function LandingPage({ onEnter, onSubscribe }) {
               features: ['Unlimited uses', '60s audio output', 'All Creator features', 'API access', 'Team collab']
             },
             {
-              name: 'Lifetime Deal',
+              name: 'Lifetime Access',
               price: '$199',
               period: 'one-time',
-              features: ['Lifetime access', 'All future agents', 'Highest priority', 'White-label options', 'Dedicated support'],
+              features: ['Unlimited everything forever', 'Future updates included', 'Priority Support', 'Commercial License', 'Founder Badge'],
               ltd: true
             }
           ].map((plan, idx) => (
@@ -689,19 +696,6 @@ function LandingPage({ onEnter, onSubscribe }) {
           <ArrowRight size={20} />
         </button>
       </div>
-
-      {/* Cookie Consent Banner */}
-      {showCookieConsent && (
-        <div className="cookie-banner animate-fadeInUp">
-          <div className="cookie-content">
-            <p>We use cookies to enhance your creative experience and analyze site traffic.</p>
-            <div className="cookie-actions">
-              <button className="btn-text-sm" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
-              <button className="btn-primary-sm" onClick={acceptCookies}>Accept</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Privacy Modal */}
       {showPrivacy && (
@@ -1500,7 +1494,7 @@ function StudioView({ onBack }) {
 
     } catch (error) {
       console.error("Generation error", error);
-      alert(`Error: ${error.message}`);
+      alert(`Error: ${error.message}. Please check your connection or API key.`);
     } finally {
       setIsGenerating(false);
     }
@@ -1615,11 +1609,21 @@ function StudioView({ onBack }) {
     localStorage.setItem('studio_agents_projects', JSON.stringify(projects));
   }, [projects]);
 
+  const handleDeadLink = (e, featureName) => {
+    if (e) e.preventDefault();
+    alert(`${featureName} is coming soon! We are currently finalizing the integration.`);
+  };
+
   const handleDownload = (item) => {
     if (!item) return;
     
     // Determine the best URL to download
-    const downloadUrl = item.videoUrl || item.audioUrl || item.imageUrl || 'https://via.placeholder.com/1000';
+    const downloadUrl = item.videoUrl || item.audioUrl || item.imageUrl;
+    
+    if (!downloadUrl) {
+      handleDeadLink(null, "Download");
+      return;
+    }
     
     // Create a temporary link element
     const link = document.createElement('a');
@@ -1654,11 +1658,26 @@ function StudioView({ onBack }) {
     setPlayingItem(null);
   };
 
-  const handleConnectSocial = (platform) => {
+  const handleConnectSocial = async (platform) => {
     const returnUrl = encodeURIComponent(window.location.href);
 
     if (platform === 'twitter') {
-      window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
+      try {
+        // Check if backend is ready
+        const res = await fetch(`${BACKEND_URL}/api/twitter/status`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.configured) {
+            window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
+          } else {
+            alert("Twitter integration is not configured on the server. Please check backend .env settings.");
+          }
+        } else {
+           window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
+        }
+      } catch (e) {
+        alert("Could not connect to backend server. Please ensure it is running.");
+      }
       return;
     }
 
@@ -2543,7 +2562,18 @@ function StudioView({ onBack }) {
                   <div className="generation-actions">
                     <button 
                       className="cta-button-secondary"
-                      onClick={() => alert('Generating real-time preview...')}
+                      onClick={() => {
+                        // Simulate preview generation
+                        const textarea = document.querySelector('.studio-textarea');
+                        if (textarea && textarea.value) {
+                          // Just a visual feedback for now
+                          textarea.style.borderColor = 'var(--color-cyan)';
+                          setTimeout(() => textarea.style.borderColor = '', 500);
+                        } else {
+                          // Focus if empty
+                          if (textarea) textarea.focus();
+                        }
+                      }}
                     >
                       <Play size={16} />
                       Preview
@@ -3903,51 +3933,28 @@ function StudioView({ onBack }) {
             
             {/* Notification Dropdown */}
             {showNotifications && (
-              <div className="notification-dropdown animate-fadeInUp" style={{
-                position: 'absolute',
-                top: '60px',
-                right: '80px',
-                width: '320px',
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '12px',
-                boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
-                zIndex: 1000,
-                overflow: 'hidden'
-              }}>
-                <div className="notif-header" style={{
-                  padding: '16px',
-                  borderBottom: '1px solid var(--border-color)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <h3 style={{ fontSize: '0.9rem', fontWeight: '700' }}>Notifications</h3>
+              <div className="notification-dropdown animate-fadeInUp">
+                <div className="notif-header">
+                  <h3>Notifications</h3>
                   <button 
                     onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
-                    style={{ fontSize: '0.75rem', color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer' }}
                   >
                     Mark all read
                   </button>
                 </div>
-                <div className="notif-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                <div className="notif-list">
                   {notifications.length === 0 ? (
-                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    <div className="notif-empty">
                       No new notifications
                     </div>
                   ) : (
                     notifications.map(n => (
-                      <div key={n.id} style={{
-                        padding: '12px 16px',
-                        borderBottom: '1px solid var(--border-color)',
-                        background: n.read ? 'transparent' : 'rgba(255,255,255,0.03)',
-                        cursor: 'pointer'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: n.read ? '400' : '700' }}>{n.title}</span>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{n.time}</span>
+                      <div key={n.id} className={`notif-item ${n.read ? 'read' : 'unread'}`}>
+                        <div className="notif-item-header">
+                          <span className="notif-title">{n.title}</span>
+                          <span className="notif-time">{n.time}</span>
                         </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>{n.message}</p>
+                        <p className="notif-message">{n.message}</p>
                       </div>
                     ))
                   )}
@@ -4087,19 +4094,35 @@ function StudioView({ onBack }) {
               </div>
               <div className="modal-body">
                 <div className="external-storage-grid">
-                  <button className="storage-btn" onClick={() => { alert('Connecting to Google Drive...'); setShowExternalSaveModal(false); }}>
+                  <button className="storage-btn" onClick={() => { 
+                    // Simulate connection
+                    setStorageConnections(prev => ({ ...prev, googleDrive: true }));
+                    setShowExternalSaveModal(false); 
+                  }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Google Drive" width="24" />
                     <span>Google Drive</span>
                   </button>
-                  <button className="storage-btn" onClick={() => { alert('Connecting to OneDrive...'); setShowExternalSaveModal(false); }}>
+                  <button className="storage-btn" onClick={() => { 
+                    // Simulate connection
+                    alert('OneDrive integration coming soon!'); 
+                    setShowExternalSaveModal(false); 
+                  }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg" alt="OneDrive" width="24" />
                     <span>OneDrive</span>
                   </button>
-                  <button className="storage-btn" onClick={() => { alert('Connecting to Dropbox...'); setShowExternalSaveModal(false); }}>
+                  <button className="storage-btn" onClick={() => { 
+                    // Simulate connection
+                    alert('Dropbox integration coming soon!'); 
+                    setShowExternalSaveModal(false); 
+                  }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Dropbox_Icon.svg" alt="Dropbox" width="24" />
                     <span>Dropbox</span>
                   </button>
-                  <button className="storage-btn" onClick={() => { alert('Connecting to iCloud...'); setShowExternalSaveModal(false); }}>
+                  <button className="storage-btn" onClick={() => { 
+                    // Simulate connection
+                    alert('iCloud integration coming soon!'); 
+                    setShowExternalSaveModal(false); 
+                  }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/1/1c/ICloud_logo.svg" alt="iCloud" width="24" />
                     <span>iCloud</span>
                   </button>
@@ -4291,7 +4314,7 @@ export default function App() {
 
   const handleSubscribe = (plan) => {
     console.log('Subscribe to:', plan);
-    // Implement subscription logic here
+    alert(`The ${plan} plan is currently in early access. We will notify you when billing is enabled!`);
   };
 
   const handleNavigate = (view) => {
