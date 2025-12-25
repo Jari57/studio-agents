@@ -6804,9 +6804,15 @@ html, body {
   .benefits-section,
   .results-section,
   .pricing-section,
-  .footer-cta,
-  .mobile-sticky-cta {
+  .footer-cta {
     display: none !important;
+  }
+
+  /* Ensure Sticky CTA is visible and touchable */
+  .mobile-sticky-cta {
+    display: block !important;
+    bottom: 1.5rem !important;
+    z-index: 10000 !important;
   }
 
   /* 2. Reduce Typography Sizes */
@@ -6845,14 +6851,15 @@ html, body {
     height: 28px !important;
   }
 
-  /* 4. Compact Agent Cards */
+  /* 4. Compact Agent Cards - Fix Horizontal Scroll Alignment */
   .agents-section {
-    padding: 1.5rem 0 !important;
+    /* Restore horizontal padding to match negative margin of scroll container */
+    padding: 1.5rem 1.5rem !important; 
   }
   
   .section-header {
       margin-bottom: 1rem !important;
-      padding: 0 1rem !important;
+      padding: 0 !important; /* Remove extra padding since parent has it */
   }
   
   .section-title {
@@ -6860,8 +6867,8 @@ html, body {
   }
 
   .agent-card-premium {
-    width: 220px !important;
-    padding: 1rem !important;
+    width: 240px !important;
+    padding: 1.25rem !important;
   }
 
   .agent-card-header-info h3 {
@@ -6879,6 +6886,7 @@ html, body {
   /* 5. Ensure Footer is Clean */
   .main-footer {
       padding: 2rem 1rem !important;
+      padding-bottom: 6rem !important; /* Space for sticky CTA */
   }
 }
 
