@@ -6787,3 +6787,92 @@ input:checked + .slider:before {
   overflow-x: hidden;
 }
 
+/* --- Mobile De-cluttering & Optimization --- */
+
+/* Global Horizontal Overflow Fix */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  /* 1. Hide Non-Essential Elements to Reduce Clutter */
+  .social-proof-badge,
+  .hero-features-list,
+  .scroll-indicator,
+  .benefits-section {
+    display: none !important;
+  }
+
+  /* 2. Reduce Typography Sizes */
+  .hero-title {
+    font-size: 2rem !important;
+    line-height: 1.1 !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .hero-subtitle {
+    font-size: 0.95rem !important;
+    margin-bottom: 1.5rem !important;
+    max-width: 90% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  /* 3. Compact Hero Layout */
+  .hero-section {
+    padding: 1rem !important;
+    min-height: 85dvh !important; /* Slightly less than full height to show content peek */
+    justify-content: center !important;
+  }
+
+  .logo-box.studio-logo-large {
+    width: 72px !important;
+    height: 72px !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  .logo-box.studio-logo-large svg {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  /* 4. Streamline Results Section */
+  .results-section {
+    padding: 2rem 1rem !important;
+  }
+
+  .section-title {
+    font-size: 1.75rem !important;
+  }
+
+  .results-grid {
+    grid-template-columns: 1fr !important; /* Stack vertically */
+    gap: 1rem !important;
+  }
+
+  .result-card {
+    padding: 1.25rem !important;
+  }
+
+  /* 5. Compact Agent Cards */
+  .agent-card-premium {
+    width: 240px !important; /* Smaller width for horizontal scroll */
+    padding: 1.25rem !important;
+  }
+
+  .agent-card-header-info h3 {
+    font-size: 1.1rem !important;
+  }
+
+  .agent-description {
+    font-size: 0.85rem !important;
+    line-height: 1.4 !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
