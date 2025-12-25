@@ -6801,10 +6801,7 @@ html, body {
   .social-proof-badge,
   .hero-features-list,
   .scroll-indicator,
-  .benefits-section,
-  .results-section,
-  .pricing-section,
-  .footer-cta {
+  .benefits-section {
     display: none !important;
   }
 
@@ -6883,10 +6880,21 @@ html, body {
     overflow: hidden;
   }
   
-  /* 5. Ensure Footer is Clean */
+  /* 5. Ensure Footer is Clean and Privacy Button is Accessible */
   .main-footer {
       padding: 2rem 1rem !important;
-      padding-bottom: 6rem !important; /* Space for sticky CTA */
+      padding-bottom: 8rem !important; /* Extra space for sticky CTA */
+  }
+
+  .footer-links {
+      display: flex !important;
+      justify-content: center !important;
+      gap: 1rem !important;
+      flex-wrap: wrap !important;
+  }
+
+  .footer-link {
+      padding: 0.5rem !important; /* Larger touch target */
   }
 }
 
