@@ -24,9 +24,9 @@ function App() {
 
   const [startWizard, setStartWizard] = useState(false);
 
-  const handleEnterStudio = () => {
+  const handleEnterStudio = (shouldStartWizard = false) => {
     setCurrentView('studio');
-    setStartWizard(true);
+    setStartWizard(shouldStartWizard);
     localStorage.setItem('studio_last_view', 'studio');
   };
 
