@@ -6,7 +6,7 @@ import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import { auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
 
-function StudioView({ onBack }) {
+function StudioView({ onBack, startWizard }) {
   const [activeTab, setActiveTab] = useState('mystudio');
   
   // Swipe Navigation Hook
@@ -42,17 +42,18 @@ function StudioView({ onBack }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [user, setUser] = useState(null);
   const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
-  const [showWelcomeModal, setShowWelcomeModal] = useState(() => !localStorage.getItem('studio_welcome_seen'));
+  const [showWelcomeModal, setShowWelcomeModal] = useState(() => !startWizard && !localStorage.getItem('studio_welcome_seen'));
   const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
   const [autoStartVoice, setAutoStartVoice] = useState(false);
 
   // Project Wizard State
-  const [showProjectWizard, setShowProjectWizard] = useState(false);
+  const [showProjectWizard, setShowProjectWizard] = useState(startWizard || false);
   const [projectWizardStep, setProjectWizardStep] = useState(1);
   const [newProjectData, setNewProjectData] = useState({
     name: '',
     category: '',
-    description: ''
+    description: '',
+    selectedAgents: []
   });
 
   const PROJECT_CATEGORIES = [
@@ -73,6 +74,7 @@ function StudioView({ onBack }) {
       name: newProjectData.name,
       category: newProjectData.category,
       description: newProjectData.description,
+      agents: newProjectData.selectedAgents,
       date: new Date().toLocaleDateString(),
       status: 'Active',
       progress: 0
@@ -81,7 +83,7 @@ function StudioView({ onBack }) {
     setProjects(prev => [newProject, ...prev]);
     setShowProjectWizard(false);
     setProjectWizardStep(1);
-    setNewProjectData({ name: '', category: '', description: '' });
+    setNewProjectData({ name: '', category: '', description: '', selectedAgents: [] });
     
     // Optional: Switch to the relevant tab or show success
     handleTextToVoice(`Project ${newProject.name} created successfully.`);
@@ -3866,10 +3868,10 @@ function StudioView({ onBack }) {
                 ))}
               </div>
 
-              {/* Step 1: Details */}
+              {/* Step 1: Vision & Vibe */}
               {projectWizardStep === 1 && (
                 <div className="wizard-step animate-slideIn">
-                  <h3 style={{ marginBottom: '16px' }}>Name your masterpiece</h3>
+                  <h3 style={{ marginBottom: '16px' }}>Define Your Vision</h3>
                   <div className="form-group" style={{ marginBottom: '16px' }}>
                     <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Project Name</label>
                     <input 
@@ -3882,47 +3884,90 @@ function StudioView({ onBack }) {
                       style={{ width: '100%', padding: '12px', fontSize: '1rem' }}
                     />
                   </div>
-                  <div className="form-group">
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Description (Optional)</label>
-                    <textarea 
-                      className="search-input" 
-                      placeholder="What's the vision?"
-                      value={newProjectData.description}
-                      onChange={(e) => setNewProjectData({...newProjectData, description: e.target.value})}
-                      style={{ width: '100%', padding: '12px', minHeight: '100px', resize: 'vertical' }}
-                    />
+                  
+                  <div className="form-group" style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Project Category</label>
+                    <div className="category-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
+                      {PROJECT_CATEGORIES.map(cat => (
+                        <div 
+                          key={cat.id}
+                          className={`category-card haptic-press ${newProjectData.category === cat.id ? 'selected' : ''}`}
+                          onClick={() => setNewProjectData({...newProjectData, category: cat.id})}
+                          style={{
+                            padding: '12px',
+                            background: newProjectData.category === cat.id ? 'rgba(168, 85, 247, 0.1)' : 'var(--color-bg-tertiary)',
+                            border: newProjectData.category === cat.id ? '1px solid var(--color-purple)' : '1px solid transparent',
+                            borderRadius: '12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px'
+                          }}
+                        >
+                          <cat.icon size={20} style={{ color: cat.color }} />
+                          <div>
+                            <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{cat.label}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
 
-              {/* Step 2: Category */}
+              {/* Step 2: Assemble Team */}
               {projectWizardStep === 2 && (
                 <div className="wizard-step animate-slideIn">
-                  <h3 style={{ marginBottom: '16px' }}>Choose a Category</h3>
-                  <div className="category-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-                    {PROJECT_CATEGORIES.map(cat => (
-                      <div 
-                        key={cat.id}
-                        className={`category-card haptic-press ${newProjectData.category === cat.id ? 'selected' : ''}`}
-                        onClick={() => setNewProjectData({...newProjectData, category: cat.id})}
-                        style={{
-                          padding: '16px',
-                          background: newProjectData.category === cat.id ? 'rgba(168, 85, 247, 0.1)' : 'var(--color-bg-tertiary)',
-                          border: newProjectData.category === cat.id ? '1px solid var(--color-purple)' : '1px solid transparent',
-                          borderRadius: '12px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px'
-                        }}
-                      >
-                        <cat.icon size={24} style={{ color: cat.color }} />
-                        <div>
-                          <div style={{ fontWeight: '600' }}>{cat.label}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{cat.desc}</div>
+                  <h3 style={{ marginBottom: '16px' }}>Assemble Your Team</h3>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem' }}>
+                    Select the AI agents you want to collaborate with on this project.
+                  </p>
+                  <div className="agents-grid-selection" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {AGENTS.map(agent => {
+                      const isSelected = newProjectData.selectedAgents?.includes(agent.name);
+                      return (
+                        <div 
+                          key={agent.name}
+                          className={`agent-select-card haptic-press ${isSelected ? 'selected' : ''}`}
+                          onClick={() => {
+                            const current = newProjectData.selectedAgents || [];
+                            const updated = current.includes(agent.name)
+                              ? current.filter(n => n !== agent.name)
+                              : [...current, agent.name];
+                            setNewProjectData({...newProjectData, selectedAgents: updated});
+                          }}
+                          style={{
+                            padding: '12px',
+                            background: isSelected ? 'rgba(168, 85, 247, 0.15)' : 'var(--color-bg-tertiary)',
+                            border: isSelected ? '1px solid var(--color-purple)' : '1px solid transparent',
+                            borderRadius: '12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s ease',
+                            position: 'relative'
+                          }}
+                        >
+                          <div style={{ 
+                            width: '32px', 
+                            height: '32px', 
+                            borderRadius: '50%', 
+                            background: isSelected ? 'var(--color-purple)' : 'var(--color-bg-secondary)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: isSelected ? 'white' : 'var(--text-secondary)'
+                          }}>
+                            <agent.icon size={16} />
+                          </div>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>{agent.name}</span>
+                          {isSelected && <CheckCircle size={14} className="text-purple" style={{ position: 'absolute', top: '8px', right: '8px' }} />}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -3950,11 +3995,27 @@ function StudioView({ onBack }) {
                       <Rocket size={32} className="text-purple" />
                     </div>
                     <h2 style={{ marginBottom: '8px' }}>{newProjectData.name}</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
                       {PROJECT_CATEGORIES.find(c => c.id === newProjectData.category)?.label} • {new Date().toLocaleDateString()}
                     </p>
+                    
+                    <div className="selected-team-preview" style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
+                      {(newProjectData.selectedAgents || []).map(agentName => {
+                        const agent = AGENTS.find(a => a.name === agentName);
+                        return agent ? (
+                          <div key={agentName} title={agentName} style={{ 
+                            width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-bg-primary)', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--color-border)'
+                          }}>
+                            <agent.icon size={16} />
+                          </div>
+                        ) : null;
+                      })}
+                      {(newProjectData.selectedAgents || []).length === 0 && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No specific agents selected</span>}
+                    </div>
+
                     <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                      Your studio environment is being prepared. All agents will be notified of this new project.
+                      Your studio environment is being prepared.
                     </p>
                   </div>
                 </div>
@@ -3973,7 +4034,10 @@ function StudioView({ onBack }) {
               {projectWizardStep < 3 ? (
                 <button 
                   className="cta-button-primary" 
-                  disabled={projectWizardStep === 1 && !newProjectData.name || projectWizardStep === 2 && !newProjectData.category}
+                  disabled={
+                    (projectWizardStep === 1 && (!newProjectData.name || !newProjectData.category)) ||
+                    (projectWizardStep === 2 && (!newProjectData.selectedAgents || newProjectData.selectedAgents.length === 0))
+                  }
                   onClick={() => setProjectWizardStep(prev => prev + 1)}
                 >
                   Next Step

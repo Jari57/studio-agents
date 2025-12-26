@@ -22,13 +22,17 @@ function App() {
     */
   }, []);
 
+  const [startWizard, setStartWizard] = useState(false);
+
   const handleEnterStudio = () => {
     setCurrentView('studio');
+    setStartWizard(true);
     localStorage.setItem('studio_last_view', 'studio');
   };
 
   const handleBackToLanding = () => {
     setCurrentView('landing');
+    setStartWizard(false);
     localStorage.setItem('studio_last_view', 'landing');
   };
 
@@ -40,7 +44,7 @@ function App() {
           onSubscribe={() => console.log('Subscribe clicked')}
         />
       ) : (
-        <StudioView onBack={handleBackToLanding} />
+        <StudioView onBack={handleBackToLanding} startWizard={startWizard} />
       )}
     </div>
   );
