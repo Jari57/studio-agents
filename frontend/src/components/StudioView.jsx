@@ -21,7 +21,19 @@ function StudioView({ onBack, startWizard }) {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [newsSearch, setNewsSearch] = useState('');
   const [isRefreshingNews, setIsRefreshingNews] = useState(false);
-  const [projects, setProjects] = useState([]);
+  const [projects, setProjects] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_projects');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  // Persist projects
+  useEffect(() => {
+    localStorage.setItem('studio_projects', JSON.stringify(projects));
+  }, [projects]);
   const [expandedNews, setExpandedNews] = useState(new Set());
   const [allNewsExpanded, setAllNewsExpanded] = useState(false);
   const [expandedHelp, setExpandedHelp] = useState(null);
