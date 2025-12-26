@@ -2137,9 +2137,9 @@ function StudioView({ onBack }) {
               <div className="empty-hub-state">
                 <Folder size={48} className="text-muted" />
                 <h3>No projects yet</h3>
-                <p>Launch an agent to start creating your first masterpiece.</p>
-                <button className="cta-button-secondary" onClick={() => setActiveTab('agents')}>
-                  Launch Agent
+                <p>Launch the wizard to start creating your first masterpiece.</p>
+                <button className="cta-button-secondary" onClick={() => setShowProjectWizard(true)}>
+                  Create Project
                 </button>
               </div>
             ) : (
@@ -3763,7 +3763,8 @@ function StudioView({ onBack }) {
               onClick={() => {
                 localStorage.setItem('studio_welcome_seen', 'true');
                 setShowWelcomeModal(false);
-                handleTextToVoice("Welcome to the studio. Select an agent to begin.");
+                setShowProjectWizard(true);
+                handleTextToVoice("Welcome to the studio. Let's set up your first project.");
               }}
             >
               Get Started
@@ -3826,7 +3827,7 @@ function StudioView({ onBack }) {
             <div className="modal-footer">
               <button className="cta-button-primary" onClick={() => {
                 setShowCreditsModal(false);
-                setActiveTab('agents');
+                setShowProjectWizard(true);
               }}>
                 Start Creating
               </button>
