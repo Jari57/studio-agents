@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, HelpCircle, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp
 } from 'lucide-react';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import { auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase';
@@ -43,6 +43,8 @@ function StudioView({ onBack }) {
   const [user, setUser] = useState(null);
   const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => !localStorage.getItem('studio_welcome_seen'));
+  const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
+  const [autoStartVoice, setAutoStartVoice] = useState(false);
 
   // --- FIREBASE AUTH LISTENER ---
   useEffect(() => {
@@ -383,7 +385,7 @@ function StudioView({ onBack }) {
           handleTextToVoice("Checking the latest industry news.");
         }
         if (transcript.includes('help')) {
-          setActiveTab('help');
+          setActiveTab('support');
           handleTextToVoice("How can I help you today?");
         }
         if (transcript.includes('agents')) {
@@ -418,6 +420,18 @@ function StudioView({ onBack }) {
     recognitionRef.current = recognition;
     recognition.start();
   };
+
+  // Effect to handle auto-start of voice when opening agent from grid
+  useEffect(() => {
+    if (selectedAgent && autoStartVoice) {
+      // Wait for view transition
+      const timer = setTimeout(() => {
+        handleVoiceToText();
+        setAutoStartVoice(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedAgent, autoStartVoice]);
 
   const handleTextToVoice = (textInput) => {
     if (isSpeaking && (!textInput || typeof textInput !== 'string')) {
@@ -1229,32 +1243,107 @@ function StudioView({ onBack }) {
                     )}
                   </div>
 
-                  {/* LTD Plan Section */}
-                  <div className="ltd-plan-section" style={{ marginTop: '2rem' }}>
+                  {/* Subscription Plans Section */}
+                  <div className="plans-section" style={{ marginTop: '2rem' }}>
                     <div className="payment-header">
                       <h3>Available Plans</h3>
                     </div>
-                    <div className="pricing-card-native ltd-card haptic-press" style={{ maxWidth: '400px' }}>
-                      <div className="ltd-badge-native">Limited Time Offer</div>
-                      <div className="plan-header-native">
-                        <h3 className="plan-name-native">Lifetime Access</h3>
-                        <div className="plan-price-box-native">
-                          <span className="plan-price-native">$199</span>
-                          <span className="plan-period-native">one-time</span>
+                    
+                    <div className="plans-grid" style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
+                      gap: '1.5rem',
+                      marginTop: '1rem'
+                    }}>
+                      {/* Free Plan */}
+                      <div className="pricing-card-native">
+                        <div className="plan-header-native">
+                          <h3 className="plan-name-native">Free</h3>
+                          <div className="plan-price-box-native">
+                            <span className="plan-price-native">$0</span>
+                          </div>
                         </div>
+                        <ul className="plan-features-native">
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>3 uses per agent</span></li>
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>10s audio output</span></li>
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Basic features</span></li>
+                        </ul>
+                        <button 
+                          className="plan-button-native secondary"
+                          disabled={true}
+                          style={{ opacity: 0.5, cursor: 'default' }}
+                        >
+                          Current Plan
+                        </button>
                       </div>
-                      <ul className="plan-features-native">
-                        <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Unlimited AI Generations</span></li>
-                        <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Access to All 16 Agents</span></li>
-                        <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Commercial License</span></li>
-                        <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Future Updates Included</span></li>
-                      </ul>
-                      <button 
-                        className="plan-button-native primary"
-                        onClick={() => handleSubscribe({ name: 'Lifetime Access', price: '$199', period: 'one-time' })}
-                      >
-                        Get Lifetime Access
-                      </button>
+
+                      {/* Creator Plan */}
+                      <div className="pricing-card-native popular">
+                        <div className="popular-badge-native">Most Popular</div>
+                        <div className="plan-header-native">
+                          <h3 className="plan-name-native">Creator</h3>
+                          <div className="plan-price-box-native">
+                            <span className="plan-price-native">$4.99</span>
+                            <span className="plan-period-native">/mo</span>
+                          </div>
+                        </div>
+                        <ul className="plan-features-native">
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>100 uses/month</span></li>
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>30s audio output</span></li>
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Save creations</span></li>
+                        </ul>
+                        <button 
+                          className="plan-button-native primary"
+                          onClick={() => handleSubscribe({ name: 'Creator', price: '$4.99', period: '/month' })}
+                        >
+                          Subscribe
+                        </button>
+                      </div>
+
+                      {/* Studio Pro Plan */}
+                      <div className="pricing-card-native">
+                        <div className="plan-header-native">
+                          <h3 className="plan-name-native">Studio Pro</h3>
+                          <div className="plan-price-box-native">
+                            <span className="plan-price-native">$14.99</span>
+                            <span className="plan-period-native">/mo</span>
+                          </div>
+                        </div>
+                        <ul className="plan-features-native">
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Unlimited uses</span></li>
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>60s audio output</span></li>
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>API access</span></li>
+                        </ul>
+                        <button 
+                          className="plan-button-native primary"
+                          onClick={() => handleSubscribe({ name: 'Studio Pro', price: '$14.99', period: '/month' })}
+                        >
+                          Subscribe
+                        </button>
+                      </div>
+
+                      {/* LTD Plan */}
+                      <div className="pricing-card-native ltd-card">
+                        <div className="ltd-badge-native">Limited Time Offer</div>
+                        <div className="plan-header-native">
+                          <h3 className="plan-name-native">Lifetime</h3>
+                          <div className="plan-price-box-native">
+                            <span className="plan-price-native">$199</span>
+                            <span className="plan-period-native">one-time</span>
+                          </div>
+                        </div>
+                        <ul className="plan-features-native">
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>500 Credits / Month</span></li>
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>All 16 Agents</span></li>
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Commercial License</span></li>
+                        </ul>
+                        <button 
+                          className="plan-button-native primary"
+                          onClick={() => handleSubscribe({ name: 'Lifetime Access', price: '$199', period: 'one-time' })}
+                        >
+                          Get Lifetime
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1446,7 +1535,7 @@ function StudioView({ onBack }) {
                           }}
                           title="How to use Voice Controls"
                         >
-                          <HelpCircle size={16} />
+                          <CircleHelp size={16} />
                         </button>
                         
                         {showVoiceHelp && (
@@ -1722,7 +1811,7 @@ function StudioView({ onBack }) {
 
               <div className="side-info-card agent-intelligence-card">
                 <div className="card-header-with-icon">
-                  <HelpCircle size={18} className="text-purple" />
+                  <CircleHelp size={18} className="text-purple" />
                   <h3>Agent Intelligence</h3>
                 </div>
                 <div className="intelligence-content">
@@ -1785,6 +1874,22 @@ function StudioView({ onBack }) {
                       <span>PRO</span>
                     </div>
                   )}
+                  {agent.isBeta && (
+                    <div className="beta-badge-mini" style={{ 
+                      position: 'absolute', 
+                      top: '12px', 
+                      right: agent.isPro ? '60px' : '12px', 
+                      background: 'rgba(255, 165, 0, 0.2)', 
+                      color: 'orange', 
+                      padding: '2px 6px', 
+                      borderRadius: '4px', 
+                      fontSize: '10px', 
+                      fontWeight: 'bold',
+                      border: '1px solid rgba(255, 165, 0, 0.4)'
+                    }}>
+                      BETA
+                    </div>
+                  )}
                   <div className="agent-studio-icon">
                     <Icon size={24} />
                   </div>
@@ -1809,39 +1914,41 @@ function StudioView({ onBack }) {
                   <div className="agent-grid-quick-actions" style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'center' }}>
                     <button 
                       className="quick-action-icon-btn"
-                      data-tooltip="Voice Command: Click to open & speak prompt"
+                      title="Voice Command"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (agent.isPro && !isLoggedIn) {
                           setShowLoginModal(true);
                         } else {
                           setSelectedAgent(agent);
-                          // Optimized delay for faster response
-                          setTimeout(() => handleVoiceToText(), 200);
+                          setAutoStartVoice(true);
                         }
                       }}
                     >
                       <Mic size={14} />
+                      <span>Voice</span>
                     </button>
                     <button 
                       className="quick-action-icon-btn"
-                      data-tooltip="Audio Preview: Hear what this agent does"
+                      title="Audio Preview"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleTextToVoice(`This is ${agent.name}. ${agent.description}`);
                       }}
                     >
                       <Volume2 size={14} />
+                      <span>Preview</span>
                     </button>
                     <button 
                       className="quick-action-icon-btn"
-                      data-tooltip="Get Started: How to use & examples"
+                      title="Get Started Guide"
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowAgentHelpModal(agent);
                       }}
                     >
-                      <HelpCircle size={14} />
+                      <CircleHelp size={14} />
+                      <span>Guide</span>
                     </button>
                   </div>
                 </div>
@@ -1853,11 +1960,10 @@ function StudioView({ onBack }) {
         // Use the dynamic 'projects' state instead of static HUB_ITEMS
         const filteredHubItems = projects.filter(item => {
           if (hubFilter === 'All') return true;
-          if (hubFilter === 'Audio') return ['Lyrics', 'MIDI', 'Production', 'Vocals', 'Sampling'].includes(item.type);
-          if (hubFilter === 'Visual') return ['Image', 'Visual'].includes(item.type);
-          if (hubFilter === 'Video') return ['Video'].includes(item.type);
-          if (hubFilter === 'Strategy') return ['Strategy', 'Plan', 'Network', 'Research', 'Marketing'].includes(item.type);
-          return true;
+          if (hubFilter === 'Music Creation') return item.type === 'Music Creation' || ['Lyrics', 'MIDI', 'Production', 'Vocals', 'Sampling', 'Scoring'].includes(item.type);
+          if (hubFilter === 'Visual Identity') return item.type === 'Visual Identity' || ['Image', 'Visual', 'Video'].includes(item.type);
+          if (hubFilter === 'Career Growth') return item.type === 'Career Growth' || ['Strategy', 'Plan', 'Network', 'Research', 'Marketing', 'Mastering', 'Sound Design', 'Mixing'].includes(item.type);
+          return item.type === hubFilter;
         });
 
         return (
@@ -1868,7 +1974,7 @@ function StudioView({ onBack }) {
                 <input type="text" placeholder="Search your creations..." />
               </div>
               <div className="filter-group">
-                {['All', 'Audio', 'Visual', 'Video', 'Strategy'].map(filter => (
+                {['All', 'Music Creation', 'Visual Identity', 'Career Growth'].map(filter => (
                   <button 
                     key={filter}
                     className={`filter-btn ${hubFilter === filter ? 'active' : ''}`}
@@ -2568,7 +2674,7 @@ function StudioView({ onBack }) {
             )}
           </div>
         );
-      case 'help':
+      case 'support':
         const HELP_ITEMS = [
           { 
             icon: Book, 
@@ -2693,7 +2799,7 @@ function StudioView({ onBack }) {
                   type: 'FAQ',
                   title: item.q,
                   description: item.a,
-                  icon: HelpCircle
+                  icon: CircleHelp
                 }))
             ]
           : [];
@@ -2701,8 +2807,9 @@ function StudioView({ onBack }) {
         return (
           <div className="help-center-view animate-fadeInUp">
             <div className="help-hero">
-              <h1>How can we help you create?</h1>
-              <div className="search-box large">
+              <h1>Support Center</h1>
+              <p className="text-muted" style={{ marginTop: '8px' }}>Guides, troubleshooting, and expert assistance.</p>
+              <div className="search-box large" style={{ marginTop: '24px' }}>
                 <Search size={20} />
                 <input 
                   type="text" 
@@ -2780,6 +2887,30 @@ function StudioView({ onBack }) {
                     <p>{faq.a}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="contact-support-section" style={{ marginTop: '40px', padding: '32px', background: 'var(--card-bg)', borderRadius: '24px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+              <div className="icon-box" style={{ width: '64px', height: '64px', margin: '0 auto 16px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--color-purple)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <MessageSquare size={32} />
+              </div>
+              <h2>Still need help?</h2>
+              <p style={{ color: 'var(--text-secondary)', maxWidth: '500px', margin: '12px auto 24px' }}>
+                Our support team is available 24/7 to assist with technical issues, billing inquiries, or creative blocks.
+              </p>
+              <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button 
+                  className="cta-button-primary"
+                  onClick={() => window.open('mailto:support@studioagents.com?subject=Support Request', '_blank')}
+                >
+                  Email Support
+                </button>
+                <button 
+                  className="cta-button-secondary"
+                  onClick={() => window.open('https://discord.gg/studioagents', '_blank')}
+                >
+                  Join Discord Community
+                </button>
               </div>
             </div>
           </div>
@@ -2865,11 +2996,11 @@ function StudioView({ onBack }) {
             <span>News</span>
           </button>
           <button 
-            className={`nav-link ${activeTab === 'help' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('help'); setSelectedAgent(null); }}
+            className={`nav-link ${activeTab === 'support' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('support'); setSelectedAgent(null); }}
           >
-            <HelpCircle size={20} />
-            <span>Help Center</span>
+            <CircleHelp size={20} />
+            <span>Support</span>
           </button>
         </nav>
 
@@ -2909,12 +3040,34 @@ function StudioView({ onBack }) {
             {selectedAgent ? selectedAgent.name : (activeTab === 'mystudio' ? 'Dashboard' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1))}
           </h2>
           <div className="studio-header-actions">
+            <div className="credit-counter" style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px', 
+              background: 'rgba(255,255,255,0.1)', 
+              padding: '6px 12px', 
+              borderRadius: '20px', 
+              fontSize: '12px', 
+              fontWeight: '600',
+              marginRight: '8px',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}>
+              <Zap size={14} className="text-yellow-400" fill="currentColor" />
+              <span>500 Credits</span>
+            </div>
             <button 
               className="action-button secondary theme-toggle haptic-press"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <button 
+              className="action-button secondary haptic-press"
+              onClick={() => window.open('mailto:support@studioagents.com?subject=Issue Report', '_blank')}
+              title="Report Issue"
+            >
+              <MessageSquare size={18} />
             </button>
             <button 
               className="action-button secondary haptic-press"
@@ -2932,10 +3085,10 @@ function StudioView({ onBack }) {
             </button>
             <button 
               className="action-button secondary haptic-press"
-              onClick={() => { setActiveTab('help'); setSelectedAgent(null); }}
+              onClick={() => { setActiveTab('support'); setSelectedAgent(null); }}
               title="Help Center"
             >
-              <HelpCircle size={18} />
+              <CircleHelp size={18} />
             </button>
             <button 
               className="action-button secondary haptic-press" 
@@ -3357,35 +3510,77 @@ function StudioView({ onBack }) {
             </div>
 
             <div className="welcome-features">
-              <div className="welcome-feature-item">
-                <div className="feature-icon-box cyan">
-                  <Zap size={24} />
+              {[
+                {
+                  id: 'speed',
+                  icon: Zap,
+                  color: 'cyan',
+                  title: '10x Faster Workflow',
+                  shortDesc: 'Generate lyrics, beats, and visuals in seconds, not hours.',
+                  fullDesc: 'Stop wrestling with writer\'s block. Our AI agents handle the heavy lifting—generating chord progressions, drafting lyrics, and creating cover art instantly—so you can focus on the creative decisions that matter. It\'s like having a studio session that never ends.',
+                  stats: ['90% less time on admin', 'Instant inspiration', 'Zero setup time']
+                },
+                {
+                  id: 'quality',
+                  icon: Crown,
+                  color: 'purple',
+                  title: 'Industry Standard Quality',
+                  shortDesc: 'Tools tuned by professional producers and engineers.',
+                  fullDesc: 'We don\'t just use generic AI. Our models are fine-tuned on hit records and professional mixing standards. Whether it\'s a mastering chain or a marketing strategy, you get output that stands up to major label releases.',
+                  stats: ['Radio-ready audio', '4K visual assets', 'Pro-grade mixing']
+                },
+                {
+                  id: 'team',
+                  icon: Users,
+                  color: 'orange',
+                  title: 'Your Personal Team',
+                  shortDesc: '16 specialized agents working 24/7 for your career.',
+                  fullDesc: 'Imagine hiring a manager, a PR agent, a mixing engineer, and a session musician for the price of a lunch. Your Studio Agents team is always available, never tired, and constantly learning new tricks to help you win.',
+                  stats: ['16 Specialists', '24/7 Availability', 'Infinite Patience']
+                }
+              ].map((feature) => (
+                <div 
+                  key={feature.id} 
+                  className={`welcome-feature-item ${expandedWelcomeFeature === feature.id ? 'expanded' : ''}`}
+                  onClick={() => setExpandedWelcomeFeature(expandedWelcomeFeature === feature.id ? null : feature.id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="feature-header" style={{ display: 'flex', alignItems: 'center', gap: '16px', width: '100%' }}>
+                    <div className={`feature-icon-box ${feature.color}`}>
+                      <feature.icon size={24} />
+                    </div>
+                    <div className="feature-text" style={{ flex: 1 }}>
+                      <h3>{feature.title}</h3>
+                      <p>{feature.shortDesc}</p>
+                    </div>
+                    <div className="feature-expand-icon">
+                      <ChevronDown size={20} className={`transition-transform ${expandedWelcomeFeature === feature.id ? 'rotate-180' : ''}`} style={{ transition: 'transform 0.3s ease' }} />
+                    </div>
+                  </div>
+                  
+                  {expandedWelcomeFeature === feature.id && (
+                    <div className="feature-details animate-fadeIn" style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      <p className="feature-full-desc" style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-secondary)', marginBottom: '12px' }}>{feature.fullDesc}</p>
+                      <div className="feature-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {feature.stats.map((stat, i) => (
+                          <div key={i} className="feature-stat-pill" style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '6px', 
+                            fontSize: '0.8rem', 
+                            background: 'rgba(255,255,255,0.05)', 
+                            padding: '4px 10px', 
+                            borderRadius: '12px',
+                            color: 'var(--text-primary)'
+                          }}>
+                            <CheckCircle size={12} className={`text-${feature.color}`} /> {stat}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="feature-text">
-                  <h3>10x Faster Workflow</h3>
-                  <p>Generate lyrics, beats, and visuals in seconds, not hours.</p>
-                </div>
-              </div>
-
-              <div className="welcome-feature-item">
-                <div className="feature-icon-box purple">
-                  <Crown size={24} />
-                </div>
-                <div className="feature-text">
-                  <h3>Industry Standard Quality</h3>
-                  <p>Tools tuned by professional producers and engineers.</p>
-                </div>
-              </div>
-
-              <div className="welcome-feature-item">
-                <div className="feature-icon-box orange">
-                  <Users size={24} />
-                </div>
-                <div className="feature-text">
-                  <h3>Your Personal Team</h3>
-                  <p>16 specialized agents working 24/7 for your career.</p>
-                </div>
-              </div>
+              ))}
             </div>
 
             <button 

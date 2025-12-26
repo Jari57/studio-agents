@@ -9,6 +9,7 @@ export default function LandingPage({ onEnter, onSubscribe }) {
   const [showCookieConsent, setShowCookieConsent] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [showShowcase, setShowShowcase] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -448,6 +449,7 @@ export default function LandingPage({ onEnter, onSubscribe }) {
             <button className="footer-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
             <span className="footer-divider">•</span>
             <button className="footer-link" onClick={() => setShowTerms(true)}>Terms of Service</button>
+            <button className="footer-link" onClick={() => setShowShowcase(true)}>Restored OS Showcase</button>
           </div>
           <p>&copy; 2025 studioagentsai.com • Built for the next generation of creators.</p>
         </div>
@@ -530,6 +532,54 @@ export default function LandingPage({ onEnter, onSubscribe }) {
             </div>
             <div className="modal-footer">
               <button className="btn-primary" onClick={() => setShowTerms(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Showcase Modal */}
+      {showShowcase && (
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
+          <div className="legal-modal animate-scaleIn" style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h2>Restored OS: The Whip Montez Project</h2>
+              <button className="modal-close" onClick={() => setShowShowcase(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body legal-text">
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <div style={{ 
+                  width: '80px', 
+                  height: '80px', 
+                  background: '#00ff41', 
+                  borderRadius: '50%', 
+                  margin: '0 auto 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 20px rgba(0, 255, 65, 0.3)'
+                }}>
+                  <Sparkles size={40} color="black" />
+                </div>
+                <h3 style={{ color: '#00ff41' }}>An Alternative Reality Experience</h3>
+              </div>
+              
+              <p><strong>Studio Agents</strong> began as a digital preservation project known as "Restored OS."</p>
+              
+              <p>We reconstructed the lost digital archives of <strong>Whip Montez</strong>, a Brooklyn MC from the early 2000s whose career vanished before the digital age took over.</p>
+              
+              <p>This project served as the "Proof of Concept" for the AI tools you see today. By using AI to reconstruct her lyrics, beats, and visual identity, we proved that these agents could empower any artist to build a career from scratch.</p>
+              
+              <div style={{ background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px', marginTop: '20px' }}>
+                <h4 style={{ marginTop: 0 }}>Case Study Highlights:</h4>
+                <ul style={{ paddingLeft: '20px', margin: '10px 0 0' }}>
+                  <li>Reconstructed 3 "Lost Tapes" using <strong>Beat Lab</strong> & <strong>Ghostwriter</strong>.</li>
+                  <li>Generated Y2K-era visuals using <strong>Album Artist</strong>.</li>
+                  <li>Built a "what if" career trajectory using <strong>Release Manager</strong>.</li>
+                </ul>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-primary" onClick={() => setShowShowcase(false)}>Close Showcase</button>
             </div>
           </div>
         </div>

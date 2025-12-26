@@ -34,6 +34,50 @@
   --card-bg: rgba(255, 255, 255, 0.03);
 }
 
+/* --- Global Components --- */
+.btn-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.btn-pill.glass {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  backdrop-filter: blur(4px);
+}
+
+.btn-pill.glass:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn-pill.primary {
+  background: var(--color-purple);
+  color: white;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+}
+
+.btn-pill.primary:hover {
+  background: #9333ea;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(168, 85, 247, 0.4);
+}
+
 /* --- Mobile & Pop Enhancements --- */
 @media (max-width: 768px) {
   .studio-container {
@@ -364,6 +408,43 @@
 .light-theme .modal-content {
   background: #ffffff;
   color: #0f172a;
+}
+
+/* Fix for Welcome Modal in Light Mode */
+.light-theme .welcome-modal {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.light-theme .welcome-feature-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.light-theme .welcome-feature-item:hover {
+  background: #ffffff;
+  border-color: var(--color-purple);
+}
+
+/* Fix for Media Player in Light Mode */
+.light-theme .media-player-container {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+}
+
+.light-theme .player-info h2 {
+  color: #0f172a;
+}
+
+.light-theme .player-close {
+  background: rgba(0, 0, 0, 0.05);
+  color: #0f172a;
+}
+
+.light-theme .player-close:hover {
+  background: rgba(0, 0, 0, 0.1);
 }
 
 .light-theme .modal-header {
@@ -2078,7 +2159,8 @@
   flex-direction: column;
   padding: 2rem 1.5rem;
   transition: all 0.3s ease;
-  overflow-y: auto; /* Allow scrolling if content is too tall */
+  /* overflow-y: auto; REMOVED to allow dropdowns to overflow */
+  overflow: visible; 
   height: 100vh;
   position: sticky;
   top: 0;
@@ -3125,7 +3207,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.625rem 1.25rem;
-  border-radius: 10px;
+  border-radius: 9999px;
   font-weight: 700;
   font-size: 0.875rem;
   cursor: pointer;
@@ -3237,7 +3319,7 @@
 .agent-launch-btn {
   width: 100%;
   padding: 0.75rem;
-  border-radius: 10px;
+  border-radius: 9999px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
@@ -3245,6 +3327,9 @@
   cursor: pointer;
   transition: all 0.2s;
   backdrop-filter: blur(5px);
+  position: relative;
+  z-index: 30;
+  pointer-events: auto;
 }
 
 .agent-studio-card:hover .agent-launch-btn {
@@ -3879,6 +3964,8 @@
   top: 50%;
   transform: translateY(-50%);
   color: #6b7280;
+  pointer-events: none;
+  z-index: 10;
 }
 
 .search-box input {
@@ -3889,6 +3976,8 @@
   border-radius: 12px;
   color: white;
   font-family: inherit;
+  position: relative;
+  z-index: 1;
 }
 
 .filter-group {
@@ -4059,11 +4148,17 @@
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white !important; /* Force white text in hero section for contrast */
+}
+
+.search-box.large input::placeholder {
+  color: rgba(255, 255, 255, 0.7) !important;
 }
 
 .search-box.large svg {
   left: 1.5rem;
   color: white;
+  pointer-events: none; /* Ensure icon doesn't block input */
 }
 
 .help-grid-main {
@@ -4956,7 +5051,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  border-radius: 12px;
+  border-radius: 9999px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
@@ -7012,21 +7107,35 @@ html, body {
 }
 
 /* Quick Actions for Agent Grid */
+.agent-grid-quick-actions {
+  position: relative;
+  z-index: 30;
+}
+
 .quick-action-icon-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-secondary);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(4px);
   position: relative;
   overflow: hidden;
+  z-index: 30;
+  font-size: 0.75rem;
+  font-weight: 600;
+  pointer-events: auto;
+}
+
+.quick-action-icon-btn span {
+  display: inline-block;
 }
 
 .quick-action-icon-btn::after {
@@ -7069,6 +7178,45 @@ html, body {
   border-color: rgba(168, 85, 247, 0.5);
   color: #c084fc;
   box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+}
+
+/* Mobile Optimization for Agent Grid */
+@media (max-width: 768px) {
+  .agent-grid {
+    grid-template-columns: 1fr; /* Single column on mobile */
+    gap: 1.5rem;
+    padding: 0 1rem;
+  }
+
+  .agent-card-premium {
+    padding: 1.5rem;
+  }
+
+  .agent-grid-quick-actions {
+    justify-content: space-between; /* Spread buttons for easier tapping */
+    padding: 0 1rem;
+  }
+
+  .quick-action-icon-btn {
+    height: 40px; /* Larger touch target */
+    padding: 0 16px;
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* Light Theme Overrides for Quick Actions */
+.light-theme .quick-action-icon-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--text-secondary);
+}
+
+.light-theme .quick-action-icon-btn:hover {
+  background: white;
+  border-color: var(--color-purple);
+  color: var(--color-purple);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 /* Industry Standard Tooltips */
@@ -7459,5 +7607,289 @@ html, body {
   font-size: 0.85rem;
   color: var(--text-secondary);
   line-height: 1.4;
+}
+
+
+/* --- Updated Welcome Modal Styles (Overrides) --- */
+
+.welcome-features {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+
+.welcome-feature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.welcome-feature-item:hover {
+  transform: translateX(4px);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.welcome-feature-item.expanded {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(168, 85, 247, 0.3);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  transform: translateX(0) scale(1.02);
+}
+
+.feature-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.feature-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.text-cyan { color: var(--color-cyan); }
+.text-purple { color: var(--color-purple); }
+.text-orange { color: var(--color-orange); }
+
+/* --- Light Theme Fixes (Strict Separation) --- */
+.light-theme .news-source-badge {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .social-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #64748b;
+}
+
+.light-theme .social-btn:hover {
+  background: #0f172a;
+  color: white;
+}
+
+.light-theme .activity-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.light-theme .activity-card:hover {
+  background: #f8fafc;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .activity-card h3 {
+  color: #0f172a;
+}
+
+.light-theme .activity-snippet {
+  color: #64748b;
+}
+
+.light-theme .user-handle {
+  color: #0f172a;
+}
+
+.light-theme .activity-time {
+  color: #94a3b8;
+}
+
+.light-theme .activity-btn {
+  color: #64748b;
+}
+
+.light-theme .activity-btn:hover {
+  color: #0f172a;
+}
+
+.light-theme .remix-cta {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.light-theme .remix-cta:hover {
+  background: #0f172a;
+  color: white;
+}
+
+.light-theme .agent-nudge-overlay {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.light-theme .nudge-header h4 {
+  color: #0f172a;
+}
+
+.light-theme .nudge-step {
+  color: #475569;
+}
+
+.light-theme .nudge-cta {
+  background: #0f172a;
+  color: white;
+}
+
+.light-theme .quick-action-icon-btn {
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #64748b;
+}
+
+.light-theme .quick-action-icon-btn:hover {
+  background: white;
+  color: var(--color-purple);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Ensure dark mode stays dark */
+.studio-container:not(.light-theme) .news-source-badge {
+  color: white;
+}
+
+.studio-container:not(.light-theme) .social-btn:hover {
+  background: white;
+  color: black;
+}
+
+/* Notification Dropdown Styles */
+.notification-dropdown {
+  position: absolute;
+  bottom: 60px; /* Position above the bottom nav bar */
+  right: 20px;
+  width: 360px;
+  max-height: 500px;
+  background: var(--color-bg-secondary); /* Solid background */
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 1000; /* High z-index to sit on top */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(10px); /* Optional glass effect if background has some transparency, but solid is safer for bleed-through */
+}
+
+/* Ensure solid background in light mode too */
+.light-theme .notification-dropdown {
+  background: #ffffff;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  border-color: var(--border-color);
+}
+
+.notif-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.notif-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notif-header button {
+  background: none;
+  border: none;
+  color: var(--color-purple);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.notif-header button:hover {
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.notif-list {
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.notif-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.notif-item {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.notif-item:last-child {
+  border-bottom: none;
+}
+
+.notif-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.notif-item.unread {
+  background: rgba(168, 85, 247, 0.05);
+  border-left: 3px solid var(--color-purple);
+}
+
+.notif-item-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.notif-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.notif-time {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.notif-message {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Light Theme Overrides for Notifications */
+.light-theme .notif-header {
+  background: #f8fafc;
+}
+
+.light-theme .notif-item:hover {
+  background: #f1f5f9;
+}
+
+.light-theme .notif-item.unread {
+  background: rgba(168, 85, 247, 0.05);
 }
 

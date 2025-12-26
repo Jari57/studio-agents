@@ -1,4 +1,4 @@
-import { Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, HelpCircle, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark } from 'lucide-react';
+import { Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark } from 'lucide-react';
 
 export const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
   ? 'http://localhost:3001' 
@@ -8,7 +8,7 @@ export const AGENTS = [
     { 
       id: 'ghost', 
       name: 'Ghostwriter', 
-      category: 'Writing', 
+      category: 'Music Creation', 
       icon: Sparkles, 
       colorClass: 'agent-purple', 
       description: 'AI lyricist creating bars on demand',
@@ -30,7 +30,7 @@ export const AGENTS = [
     { 
       id: 'beat', 
       name: 'Beat Lab', 
-      category: 'Production', 
+      category: 'Music Creation', 
       icon: Zap, 
       colorClass: 'agent-cyan', 
       description: 'Generate production ideas instantly',
@@ -52,7 +52,7 @@ export const AGENTS = [
     { 
       id: 'album', 
       name: 'Album Artist', 
-      category: 'Visual', 
+      category: 'Visual Identity', 
       icon: Music, 
       colorClass: 'agent-orange', 
       description: 'Create stunning album artwork with AI',
@@ -74,9 +74,10 @@ export const AGENTS = [
     { 
       id: 'video-creator', 
       name: 'Video Creator', 
-      category: 'Video', 
+      category: 'Visual Identity', 
       icon: PlayCircle, 
       colorClass: 'agent-red', 
+      isBeta: true,
       description: 'Generate cinematic videos with Veo 3',
       capabilities: ['Music Video Generation', 'Visualizer Creation', 'Cinematic Scenes', 'Style Transfer'],
       examples: ['Create a cyberpunk city flyover for a synthwave track', 'Generate a slow-motion rain scene for a lo-fi beat'],
@@ -96,7 +97,7 @@ export const AGENTS = [
     { 
       id: 'trend', 
       name: 'Trend Hunter', 
-      category: 'Research', 
+      category: 'Career Growth', 
       icon: Target, 
       colorClass: 'agent-emerald', 
       hasSocials: true,
@@ -119,7 +120,7 @@ export const AGENTS = [
     { 
       id: 'collab', 
       name: 'Collab Connect', 
-      category: 'Networking', 
+      category: 'Career Growth', 
       icon: Users, 
       colorClass: 'agent-indigo', 
       hasSocials: true,
@@ -142,7 +143,7 @@ export const AGENTS = [
     { 
       id: 'release', 
       name: 'Release Manager', 
-      category: 'Strategy', 
+      category: 'Career Growth', 
       icon: Rocket, 
       colorClass: 'agent-pink', 
       hasSocials: true,
@@ -165,7 +166,7 @@ export const AGENTS = [
     { 
       id: 'master', 
       name: 'Mastering Lab', 
-      category: 'Engineering', 
+      category: 'Career Growth', 
       icon: Shield, 
       colorClass: 'agent-purple', 
       description: 'Professional AI audio engineering',
@@ -187,7 +188,7 @@ export const AGENTS = [
     { 
       id: 'social', 
       name: 'Social Pilot', 
-      category: 'Marketing', 
+      category: 'Career Growth', 
       icon: Globe, 
       colorClass: 'agent-cyan', 
       hasSocials: true,
@@ -210,10 +211,11 @@ export const AGENTS = [
     { 
       id: 'instrument', 
       name: 'Instrumentalist', 
-      category: 'Performance', 
+      category: 'Music Creation', 
       icon: Music, 
       colorClass: 'agent-indigo', 
       isPro: true,
+      isBeta: true,
       description: 'AI-driven virtual session players',
       capabilities: ['Solo Generation', 'Rhythm Section AI', 'Style Mimicry', 'Multi-instrumental'],
       examples: ['Generate a bluesy guitar solo over an A minor backing track', 'Create a funky bassline for a disco beat'],
@@ -228,9 +230,10 @@ export const AGENTS = [
     { 
       id: 'beat-arch', 
       name: 'Beat Architect', 
-      category: 'Production', 
+      category: 'Music Creation', 
       icon: Zap, 
       colorClass: 'agent-pink', 
+      isBeta: true,
       isPro: true,
       description: 'Advanced drum machine and rhythm generator',
       capabilities: ['Custom Kit Design', 'Polyrhythmic Patterns', 'Velocity Humanization', 'Stem Export'],
@@ -246,7 +249,7 @@ export const AGENTS = [
     { 
       id: 'sample-master', 
       name: 'Sample Master', 
-      category: 'Sampling', 
+      category: 'Music Creation', 
       icon: Folder, 
       colorClass: 'agent-orange', 
       isPro: true,
@@ -264,9 +267,10 @@ export const AGENTS = [
     { 
       id: 'drop-zone', 
       name: 'Drop Zone', 
-      category: 'Production', 
+      category: 'Music Creation', 
       icon: Rocket, 
       colorClass: 'agent-red', 
+      isBeta: true,
       isPro: true,
       description: 'High-energy EDM and Trap drop generator',
       capabilities: ['Build-up Logic', 'Drop Synthesis', 'FX Layering', 'Energy Mapping'],
@@ -282,7 +286,7 @@ export const AGENTS = [
     { 
       id: 'score-edit', 
       name: 'Score Editor', 
-      category: 'Scoring', 
+      category: 'Music Creation', 
       icon: Book, 
       colorClass: 'agent-emerald', 
       isPro: true,
@@ -300,8 +304,9 @@ export const AGENTS = [
     { 
       id: 'video-scorer', 
       name: 'Video Scorer', 
-      category: 'Video', 
+      category: 'Visual Identity', 
       icon: PlayCircle, 
+      isBeta: true,
       colorClass: 'agent-cyan', 
       isPro: true,
       description: 'Upload video and AI generates the soundtrack',
@@ -318,8 +323,9 @@ export const AGENTS = [
     { 
       id: 'vocal-arch', 
       name: 'Vocal Architect', 
-      category: 'Vocals', 
+      category: 'Music Creation', 
       icon: Users, 
+      isBeta: true,
       colorClass: 'agent-purple', 
       isPro: true,
       description: 'AI vocal synthesis and harmony generation',
@@ -336,7 +342,7 @@ export const AGENTS = [
     { 
       id: 'sound-design', 
       name: 'Sound Designer', 
-      category: 'Engineering', 
+      category: 'Career Growth', 
       icon: Shield, 
       colorClass: 'agent-blue', 
       isPro: true,

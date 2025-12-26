@@ -166,6 +166,62 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
+// Credit Check Middleware
+const checkCredits = async (req, res, next) => {
+  if (!firebaseInitialized) {
+    logger.warn('⚠️ Firebase not initialized - skipping credit check');
+    return next();
+  }
+  
+  if (!req.user) {
+    return next(); 
+  }
+
+  const db = admin.firestore();
+  const userRef = db.collection('users').doc(req.user.uid);
+
+  try {
+    await db.runTransaction(async (t) => {
+      const doc = await t.get(userRef);
+      
+      if (!doc.exists) {
+        // Initialize new user with 3 trial credits, deduct 1 immediately -> 2
+        t.set(userRef, { 
+          email: req.user.email,
+          credits: 2, 
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          tier: 'free'
+        });
+        logger.info(`✨ New user initialized with trial credits: ${req.user.uid}`);
+        return;
+      }
+
+      const userData = doc.data();
+      const credits = userData.credits !== undefined ? userData.credits : 0;
+
+      if (credits <= 0) {
+        throw new Error('INSUFFICIENT_CREDITS');
+      }
+
+      t.update(userRef, { credits: credits - 1 });
+    });
+
+    logger.info(`💰 Credit deducted for user ${req.user.uid}`);
+    next();
+  } catch (error) {
+    if (error.message === 'INSUFFICIENT_CREDITS') {
+      logger.warn(`🚫 Insufficient credits for user ${req.user.uid}`);
+      return res.status(403).json({ 
+        error: 'Insufficient Credits', 
+        details: 'You have run out of generation credits. Please upgrade your plan.' 
+      });
+    }
+    
+    logger.error('🔥 Credit check transaction failed:', error);
+    return res.status(500).json({ error: 'Transaction Failed', details: 'Could not verify credit balance.' });
+  }
+};
+
 const app = express();
 // Trust the first proxy (Railway load balancer)
 app.set('trust proxy', 1); 
@@ -263,11 +319,36 @@ app.use(cookieParser()); // Parse cookies for Twitter OAuth
 
 // Serve static frontend build copied into backend/public (Railway release)
 const staticDir = path.join(__dirname, 'public');
+const dashboardPath = path.join(__dirname, 'dashboard.html');
+
+logger.info(`Static directory: ${staticDir}`);
+logger.info(`Dashboard path: ${dashboardPath}`);
+logger.info(`isDevelopment: ${isDevelopment}`);
+
+// In development, serve the backend dashboard at root to distinguish from frontend dev server
+if (isDevelopment && fs.existsSync(dashboardPath)) {
+  logger.info('🔌 Development mode: Serving backend dashboard at /');
+  app.get('/', (req, res) => {
+    res.sendFile(dashboardPath);
+  });
+}
+
+// Always serve dashboard at /dashboard
+if (fs.existsSync(dashboardPath)) {
+  app.get('/dashboard', (req, res) => {
+    res.sendFile(dashboardPath);
+  });
+}
+
 if (fs.existsSync(staticDir)) {
   app.use(express.static(staticDir));
-  app.get('/', (req, res) => {
-    res.sendFile(path.join(staticDir, 'index.html'));
-  });
+  
+  // In production, serve index.html at root (if not handled above)
+  if (!isDevelopment) {
+    app.get('/', (req, res) => {
+      res.sendFile(path.join(staticDir, 'index.html'));
+    });
+  }
 }
 //  REQUEST LOGGING
 if (isDevelopment) {
@@ -429,7 +510,7 @@ app.get('/api/models', async (req, res) => {
 });
 
 // GENERATION ROUTE (with optional Firebase auth)
-app.post('/api/generate', verifyFirebaseToken, generationLimiter, async (req, res) => {
+app.post('/api/generate', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
     let { prompt, systemInstruction, model: requestedModel } = req.body;
     
@@ -585,7 +666,7 @@ app.post('/api/generate', verifyFirebaseToken, generationLimiter, async (req, re
 // ═══════════════════════════════════════════════════════════════════
 // IMAGE GENERATION ROUTE (Imagen 4.0)
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/generate-image', verifyFirebaseToken, generationLimiter, async (req, res) => {
+app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
