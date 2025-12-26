@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp
 } from 'lucide-react';
@@ -983,6 +983,38 @@ function StudioView({ onBack }) {
         }
       }
     }
+  };
+
+  const filteredNews = useMemo(() => {
+    if (activeTab !== 'news') return [];
+    return newsArticles.filter(item => 
+      item.title.toLowerCase().includes(newsSearch.toLowerCase()) ||
+      item.source.toLowerCase().includes(newsSearch.toLowerCase()) ||
+      item.content.toLowerCase().includes(newsSearch.toLowerCase())
+    );
+  }, [activeTab, newsArticles, newsSearch]);
+
+  const handleRefreshNews = () => {
+    fetchNews(1);
+  };
+
+  const toggleNewsExpansion = (id) => {
+    const newExpanded = new Set(expandedNews);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedNews(newExpanded);
+  };
+
+  const toggleAllNews = () => {
+    if (allNewsExpanded) {
+      setExpandedNews(new Set());
+    } else {
+      setExpandedNews(new Set(filteredNews.map(n => n.id)));
+    }
+    setAllNewsExpanded(!allNewsExpanded);
   };
 
   const renderContent = () => {
@@ -2543,35 +2575,6 @@ function StudioView({ onBack }) {
           </div>
         );
       case 'news':
-        const filteredNews = newsArticles.filter(item => 
-          item.title.toLowerCase().includes(newsSearch.toLowerCase()) ||
-          item.source.toLowerCase().includes(newsSearch.toLowerCase()) ||
-          item.content.toLowerCase().includes(newsSearch.toLowerCase())
-        );
-
-        const handleRefreshNews = () => {
-          fetchNews(1);
-        };
-
-        const toggleNewsExpansion = (id) => {
-          const newExpanded = new Set(expandedNews);
-          if (newExpanded.has(id)) {
-            newExpanded.delete(id);
-          } else {
-            newExpanded.add(id);
-          }
-          setExpandedNews(newExpanded);
-        };
-
-        const toggleAllNews = () => {
-          if (allNewsExpanded) {
-            setExpandedNews(new Set());
-          } else {
-            setExpandedNews(new Set(filteredNews.map(n => n.id)));
-          }
-          setAllNewsExpanded(!allNewsExpanded);
-        };
-
         return (
           <div className="news-view animate-fadeInUp">
             <div className="news-header-controls">
@@ -2647,8 +2650,15 @@ function StudioView({ onBack }) {
                         </button>
                         {isExpanded && (
                           <div className="news-social-actions">
-                            <button className="social-btn" onClick={() => window.open(item.url, '_blank')}><Share2 size={14} /></button>
-                            <button className="social-btn"><Download size={14} /></button>
+                            <button 
+                              className="social-btn" 
+                              onClick={() => window.open(item.url, '_blank')}
+                              title="Open Article"
+                              style={{ width: 'auto', padding: '0 12px', gap: '6px' }}
+                            >
+                              <Share2 size={14} />
+                              <span>Open</span>
+                            </button>
                           </div>
                         )}
                       </div>
@@ -2750,8 +2760,30 @@ function StudioView({ onBack }) {
           }
         ];
 
-        const suggestions = helpSearch.length > 2 
+        const NAVIGATION_ITEMS = [
+          { keywords: ['billing', 'payment', 'card', 'subscription', 'plan', 'wallet', 'money', 'cost', 'price'], label: 'Billing & Wallet', action: () => { setActiveTab('mystudio'); setDashboardTab('billing'); } },
+          { keywords: ['settings', 'config', 'preferences', 'dark mode', 'theme', 'language', 'voice'], label: 'App Settings', action: () => { setActiveTab('mystudio'); setDashboardTab('settings'); } },
+          { keywords: ['profile', 'account', 'user', 'avatar', 'login', 'logout', 'email'], label: 'User Profile', action: () => { setActiveTab('mystudio'); setDashboardTab('overview'); } },
+          { keywords: ['news', 'feed', 'updates', 'industry', 'trends'], label: 'Industry News', action: () => setActiveTab('news') },
+          { keywords: ['hub', 'projects', 'files', 'saved', 'library', 'creations'], label: 'Project Hub', action: () => setActiveTab('hub') },
+          { keywords: ['activity', 'wall', 'community', 'social', 'share', 'feed'], label: 'Activity Wall', action: () => setActiveTab('activity') },
+          { keywords: ['agents', 'tools', 'create', 'make', 'generate'], label: 'Agent Studio', action: () => setActiveTab('agents') }
+        ];
+
+        const suggestions = helpSearch.length > 1 
           ? [
+              // Navigation Matches
+              ...NAVIGATION_ITEMS.filter(nav => 
+                nav.keywords.some(k => k.includes(helpSearch.toLowerCase())) || 
+                nav.label.toLowerCase().includes(helpSearch.toLowerCase())
+              ).map(item => ({
+                type: 'Action',
+                title: `Go to ${item.label}`,
+                description: 'Navigate to this section',
+                icon: ArrowRight,
+                action: item.action
+              })),
+
               // Troubleshooting Matches
               ...TROUBLESHOOTING_GUIDE.filter(guide => 
                 guide.keywords.some(k => helpSearch.toLowerCase().includes(k)) ||
@@ -2778,7 +2810,8 @@ function StudioView({ onBack }) {
               // Agent Matches
               ...AGENTS.filter(agent => 
                 agent.name.toLowerCase().includes(helpSearch.toLowerCase()) ||
-                agent.description.toLowerCase().includes(helpSearch.toLowerCase())
+                agent.description.toLowerCase().includes(helpSearch.toLowerCase()) ||
+                agent.category.toLowerCase().includes(helpSearch.toLowerCase())
               ).map(item => ({ 
                 type: 'Agent',
                 title: item.name,
@@ -2820,31 +2853,43 @@ function StudioView({ onBack }) {
               </div>
             </div>
 
-            {suggestions.length > 0 && (
+            {suggestions.length > 0 ? (
               <div className="smart-suggestions animate-fadeIn">
                 <div className="suggestions-header">
                   <Sparkles size={18} className="text-purple" />
                   <h3>Search Results</h3>
                 </div>
                 <div className="suggestions-list">
-                  {suggestions.map((s, i) => (
-                    <div 
-                      key={i} 
-                      className="suggestion-item"
-                      onClick={s.action ? s.action : undefined}
-                      style={s.action ? { cursor: 'pointer' } : {}}
-                    >
-                      <div className="suggestion-meta">
-                        <span className="suggestion-type">{s.type}</span>
-                        {s.action && <ArrowRight size={14} className="suggestion-arrow" />}
+                  {suggestions.map((item, i) => {
+                    const Icon = item.icon;
+                    return (
+                      <div 
+                        key={i} 
+                        className="suggestion-item"
+                        onClick={item.action ? item.action : undefined}
+                        style={{ cursor: item.action ? 'pointer' : 'default' }}
+                      >
+                        <div className="suggestion-icon">
+                          <Icon size={20} />
+                        </div>
+                        <div className="suggestion-content">
+                          <div className="suggestion-type">{item.type}</div>
+                          <h4>{item.title}</h4>
+                          <p>{item.description}</p>
+                        </div>
+                        {item.action && <ArrowRight size={16} className="suggestion-arrow" />}
                       </div>
-                      <h4>{s.title}</h4>
-                      <p>{s.description}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
-            )}
+            ) : helpSearch.length > 1 ? (
+              <div className="empty-search-state animate-fadeIn" style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text-secondary)' }}>
+                <Search size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
+                <h3>No results found</h3>
+                <p>Try searching for "Billing", "Ghostwriter", or "Export".</p>
+              </div>
+            ) : null}
 
             <div className="help-grid-main">
               {HELP_ITEMS.map((item, i) => {
@@ -3061,13 +3106,6 @@ function StudioView({ onBack }) {
               title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            <button 
-              className="action-button secondary haptic-press"
-              onClick={() => window.open('mailto:support@studioagents.com?subject=Issue Report', '_blank')}
-              title="Report Issue"
-            >
-              <MessageSquare size={18} />
             </button>
             <button 
               className="action-button secondary haptic-press"
@@ -3501,6 +3539,12 @@ function StudioView({ onBack }) {
       {showWelcomeModal && (
         <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000 }}>
           <div className="modal-content welcome-modal">
+            <button 
+              className="modal-close"
+              onClick={() => setShowWelcomeModal(false)}
+            >
+              <X size={24} />
+            </button>
             <div className="welcome-header">
               <div className="welcome-icon-glow">
                 <Sparkles size={48} className="text-purple" />
@@ -3537,6 +3581,15 @@ function StudioView({ onBack }) {
                   shortDesc: '16 specialized agents working 24/7 for your career.',
                   fullDesc: 'Imagine hiring a manager, a PR agent, a mixing engineer, and a session musician for the price of a lunch. Your Studio Agents team is always available, never tired, and constantly learning new tricks to help you win.',
                   stats: ['16 Specialists', '24/7 Availability', 'Infinite Patience']
+                },
+                {
+                  id: 'credits',
+                  icon: CreditCard,
+                  color: 'emerald',
+                  title: 'Smart Credit System',
+                  shortDesc: 'Pay as you go. Clear pricing for every action.',
+                  fullDesc: 'Every agent action uses credits. You start with 500 FREE credits. Complex tasks cost more than simple ones. Always know exactly what you\'re spending before you click generate.',
+                  stats: ['Lyrics: 5 Credits', 'Beat Gen: 25 Credits', 'Mastering: 50 Credits']
                 }
               ].map((feature) => (
                 <div 

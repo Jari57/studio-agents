@@ -2585,10 +2585,17 @@
   border: 1px solid var(--border-color);
   background: transparent;
   color: var(--text-primary);
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .btn-connect:hover {
-  background: var(--card-bg);
+  background: white;
+  color: black;
+  border-color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
 }
 
 .btn-connect.connected {
@@ -3200,6 +3207,7 @@
 .studio-header-actions {
   display: flex;
   gap: 1rem;
+  position: relative;
 }
 
 .action-button {
@@ -4899,22 +4907,28 @@
 }
 
 .news-read-btn {
-  background: none;
-  border: none;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 8px;
+  padding: 8px 16px;
   color: var(--color-purple);
   font-size: 0.875rem;
   font-weight: 700;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   cursor: pointer;
-  padding: 0;
   margin-top: auto;
-  transition: color 0.2s;
+  transition: all 0.2s;
+  width: fit-content;
 }
 
 .news-read-btn:hover {
+  background: var(--color-purple);
   color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
 }
 
 /* Agent Intelligence Card */
@@ -6364,6 +6378,9 @@
   cursor: pointer;
   transition: transform 0.2s;
   color: white;
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
 }
 
 .social-btn-large:hover {
@@ -7772,19 +7789,20 @@ html, body {
 /* Notification Dropdown Styles */
 .notification-dropdown {
   position: absolute;
-  bottom: 60px; /* Position above the bottom nav bar */
-  right: 20px;
+  top: 100%; /* Position below the header actions */
+  right: 0;
+  margin-top: 12px;
   width: 360px;
   max-height: 500px;
-  background: var(--color-bg-secondary); /* Solid background */
+  background: #1a1a1a; /* Explicit solid background */
   border: 1px solid var(--border-color);
   border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
   z-index: 1000; /* High z-index to sit on top */
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  backdrop-filter: blur(10px); /* Optional glass effect if background has some transparency, but solid is safer for bleed-through */
+  /* backdrop-filter: blur(10px); Removed to ensure opacity */
 }
 
 /* Ensure solid background in light mode too */
