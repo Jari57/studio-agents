@@ -175,16 +175,16 @@ export default function LandingPage({ onEnter, onSubscribe }) {
           {[
             { 
               step: 1, 
-              title: "Assemble Your Team", 
-              desc: "Choose from 16 specialized AI agents. Need lyrics? Call Ghostwriter. Need a beat? Call The Producer.", 
-              icon: Users, 
+              title: "Define Your Vision", 
+              desc: "Use the Project Wizard to name your masterpiece and select your studio vibe (Pro, Vybing, Video, etc).", 
+              icon: Sparkles, 
               color: "var(--color-cyan)" 
             },
             { 
               step: 2, 
-              title: "Create & Collaborate", 
-              desc: "Chat with your agents to generate studio-quality assets. Iterate instantly until it's perfect.", 
-              icon: Sparkles, 
+              title: "Assemble Your Team", 
+              desc: "Choose from 16 specialized AI agents. Need lyrics? Call Ghostwriter. Need a beat? Call The Producer.", 
+              icon: Users, 
               color: "var(--color-purple)" 
             },
             { 

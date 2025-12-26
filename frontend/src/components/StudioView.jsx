@@ -1128,25 +1128,7 @@ function StudioView({ onBack }) {
                     </div>
                     <div className="checklist-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px' }}>
                       
-                      {/* Step 1: Meet the Team */}
-                      <div className={`checklist-item ${true ? 'completed' : ''}`} style={{ 
-                        padding: '16px', 
-                        background: 'rgba(255,255,255,0.03)', 
-                        borderRadius: '12px', 
-                        border: '1px solid rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>1. Meet the Team</span>
-                          <CheckCircle size={16} className="text-emerald" />
-                        </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Explore your 16 AI agents.</p>
-                        <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setActiveTab('agents')}>View Agents</button>
-                      </div>
-
-                      {/* Step 2: Create Project */}
+                      {/* Step 1: Create Project */}
                       <div className={`checklist-item ${projects.length > 0 ? 'completed' : ''}`} style={{ 
                         padding: '16px', 
                         background: projects.length > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
@@ -1157,11 +1139,29 @@ function StudioView({ onBack }) {
                         gap: '8px'
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600', color: projects.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>2. Create Project</span>
+                          <span style={{ fontWeight: '600', color: projects.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>1. Create Project</span>
                           {projects.length > 0 ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
                         </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Generate your first asset.</p>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Define your vision & style.</p>
                         {!projects.length && <button className="btn-pill primary" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setShowProjectWizard(true)}>Start Now</button>}
+                      </div>
+
+                      {/* Step 2: Meet the Team */}
+                      <div className={`checklist-item ${true ? 'completed' : ''}`} style={{ 
+                        padding: '16px', 
+                        background: 'rgba(255,255,255,0.03)', 
+                        borderRadius: '12px', 
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>2. Meet the Team</span>
+                          <CheckCircle size={16} className="text-emerald" />
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Explore your 16 AI agents.</p>
+                        <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setActiveTab('agents')}>View Agents</button>
                       </div>
 
                       {/* Step 3: Connect Socials */}
