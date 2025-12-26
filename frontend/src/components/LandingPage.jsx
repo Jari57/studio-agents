@@ -141,6 +141,111 @@ export default function LandingPage({ onEnter, onSubscribe }) {
         </div>
       </section>
 
+      {/* Workflow / Journey Section (New Linear Flow) */}
+      <section className="workflow-section" style={{ padding: '4rem 2rem', background: 'var(--color-bg-primary)' }}>
+        <div className="section-header">
+          <div className="section-tag">The Workflow</div>
+          <h2 className="section-title">
+            From <span className="gradient-text-cyan-purple">Idea</span> to <span className="gradient-text-purple-pink">Icon</span>
+          </h2>
+          <p className="section-subtitle">
+            Your path to stardom in 3 simple steps.
+          </p>
+        </div>
+
+        <div className="workflow-steps" style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '40px', 
+          maxWidth: '800px', 
+          margin: '40px auto 0',
+          position: 'relative'
+        }}>
+          {/* Connecting Line */}
+          <div className="workflow-line" style={{
+            position: 'absolute',
+            left: '24px',
+            top: '40px',
+            bottom: '40px',
+            width: '2px',
+            background: 'linear-gradient(to bottom, var(--color-cyan), var(--color-purple), var(--color-pink))',
+            zIndex: 0
+          }}></div>
+
+          {[
+            { 
+              step: 1, 
+              title: "Assemble Your Team", 
+              desc: "Choose from 16 specialized AI agents. Need lyrics? Call Ghostwriter. Need a beat? Call The Producer.", 
+              icon: Users, 
+              color: "var(--color-cyan)" 
+            },
+            { 
+              step: 2, 
+              title: "Create & Collaborate", 
+              desc: "Chat with your agents to generate studio-quality assets. Iterate instantly until it's perfect.", 
+              icon: Sparkles, 
+              color: "var(--color-purple)" 
+            },
+            { 
+              step: 3, 
+              title: "Launch & Amplify", 
+              desc: "Use the Marketing agents to build your rollout plan and sync your socials to go viral.", 
+              icon: Rocket, 
+              color: "var(--color-pink)" 
+            }
+          ].map((item, i) => (
+            <div key={i} className="workflow-step-card" style={{
+              display: 'flex',
+              gap: '24px',
+              position: 'relative',
+              zIndex: 1
+            }}>
+              <div className="step-number-box" style={{
+                width: '50px',
+                height: '50px',
+                borderRadius: '50%',
+                background: 'var(--color-bg-secondary)',
+                border: `2px solid ${item.color}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem',
+                fontWeight: 'bold',
+                color: item.color,
+                boxShadow: `0 0 20px ${item.color}40`,
+                flexShrink: 0
+              }}>
+                {item.step}
+              </div>
+              <div className="step-content" style={{
+                background: 'var(--card-bg)',
+                border: '1px solid var(--border-color)',
+                padding: '24px',
+                borderRadius: '20px',
+                flex: 1
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  <item.icon size={24} color={item.color} />
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0 }}>{item.title}</h3>
+                </div>
+                <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '40px' }}>
+          <button
+            onClick={onEnter}
+            className="cta-button-premium haptic-press"
+            style={{ minWidth: '200px' }}
+          >
+            Start Step 1 Now
+          </button>
+        </div>
+      </section>
+
       {/* Results / "What You Get" Section (New) */}
       <section className="results-section" style={{ padding: '4rem 2rem', background: 'var(--color-bg-secondary)' }}>
         <div className="section-header">

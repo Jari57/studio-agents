@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film
 } from 'lucide-react';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import { auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase';
@@ -45,6 +45,49 @@ function StudioView({ onBack }) {
   const [showWelcomeModal, setShowWelcomeModal] = useState(() => !localStorage.getItem('studio_welcome_seen'));
   const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
   const [autoStartVoice, setAutoStartVoice] = useState(false);
+
+  // Project Wizard State
+  const [showProjectWizard, setShowProjectWizard] = useState(false);
+  const [projectWizardStep, setProjectWizardStep] = useState(1);
+  const [newProjectData, setNewProjectData] = useState({
+    name: '',
+    category: '',
+    description: ''
+  });
+
+  const PROJECT_CATEGORIES = [
+    { id: 'pro', label: 'Pro Studio', icon: Crown, desc: 'Full production suite', color: 'var(--color-purple)' },
+    { id: 'vybing', label: 'Vybing', icon: Music, desc: 'Quick beat ideas', color: 'var(--color-cyan)' },
+    { id: 'mixtapes', label: 'Mixtapes', icon: Disc, desc: 'Curated playlists', color: 'var(--color-orange)' },
+    { id: 'video', label: 'Video', icon: Video, desc: 'Visual content', color: 'var(--color-pink)' },
+    { id: 'scores', label: 'Scores', icon: FileMusic, desc: 'Cinematic composition', color: 'var(--color-emerald)' },
+    { id: 'moves', label: 'Moves', icon: Activity, desc: 'Dance & Choreo', color: 'var(--color-yellow)' },
+    { id: 'music_videos', label: 'Music Videos', icon: Film, desc: 'Full production clips', color: 'var(--color-red)' }
+  ];
+
+  const handleCreateProject = () => {
+    if (!newProjectData.name || !newProjectData.category) return;
+    
+    const newProject = {
+      id: Date.now(),
+      name: newProjectData.name,
+      category: newProjectData.category,
+      description: newProjectData.description,
+      date: new Date().toLocaleDateString(),
+      status: 'Active',
+      progress: 0
+    };
+
+    setProjects(prev => [newProject, ...prev]);
+    setShowProjectWizard(false);
+    setProjectWizardStep(1);
+    setNewProjectData({ name: '', category: '', description: '' });
+    
+    // Optional: Switch to the relevant tab or show success
+    handleTextToVoice(`Project ${newProject.name} created successfully.`);
+    alert(`Project "${newProject.name}" created! Let's get to work.`);
+    setActiveTab('agents');
+  };
 
   // --- FIREBASE AUTH LISTENER ---
   useEffect(() => {
@@ -249,6 +292,7 @@ function StudioView({ onBack }) {
   });
 
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null); // { item, type }
   const [paymentType, setPaymentType] = useState('card'); // 'card' or 'bank'
   const [showNotifications, setShowNotifications] = useState(false);
@@ -949,20 +993,6 @@ function StudioView({ onBack }) {
     alert(`Successfully connected to ${platform.charAt(0).toUpperCase() + platform.slice(1)}!`);
   };
 
-  const handleCreateProject = () => {
-    if (!isLoggedIn) {
-      setShowLoginModal(true);
-      return;
-    }
-    
-    // Navigate to Agents tab to start a new project
-    setActiveTab('agents');
-    setSelectedAgent(null);
-    
-    // Provide feedback
-    handleTextToVoice("Select an agent to start your new project.");
-  };
-
   const handleDeleteProject = async (projectId, e) => {
     e.stopPropagation(); // Prevent triggering the card click
     if (!window.confirm("Are you sure you want to delete this project?")) return;
@@ -1085,6 +1115,91 @@ function StudioView({ onBack }) {
                           <span>Sync Ecosystem</span>
                         </button>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Onboarding Checklist */}
+                  <div className="dashboard-card onboarding-card" style={{ marginBottom: '24px', border: '1px solid rgba(168, 85, 247, 0.3)', background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.05) 0%, rgba(0,0,0,0) 100%)' }}>
+                    <div className="card-header">
+                      <h3><Rocket size={18} className="text-purple" /> Studio Setup Checklist</h3>
+                      <span className="status-badge" style={{ background: 'var(--color-purple)', color: 'white' }}>
+                        {[(projects.length > 0), (socialConnections.twitter || socialConnections.instagram), (paymentMethods.length > 0)].filter(Boolean).length + 1} / 4 Complete
+                      </span>
+                    </div>
+                    <div className="checklist-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px' }}>
+                      
+                      {/* Step 1: Meet the Team */}
+                      <div className={`checklist-item ${true ? 'completed' : ''}`} style={{ 
+                        padding: '16px', 
+                        background: 'rgba(255,255,255,0.03)', 
+                        borderRadius: '12px', 
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>1. Meet the Team</span>
+                          <CheckCircle size={16} className="text-emerald" />
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Explore your 16 AI agents.</p>
+                        <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setActiveTab('agents')}>View Agents</button>
+                      </div>
+
+                      {/* Step 2: Create Project */}
+                      <div className={`checklist-item ${projects.length > 0 ? 'completed' : ''}`} style={{ 
+                        padding: '16px', 
+                        background: projects.length > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
+                        borderRadius: '12px', 
+                        border: projects.length > 0 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '600', color: projects.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>2. Create Project</span>
+                          {projects.length > 0 ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Generate your first asset.</p>
+                        {!projects.length && <button className="btn-pill primary" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setShowProjectWizard(true)}>Start Now</button>}
+                      </div>
+
+                      {/* Step 3: Connect Socials */}
+                      <div className={`checklist-item ${(socialConnections.twitter || socialConnections.instagram) ? 'completed' : ''}`} style={{ 
+                        padding: '16px', 
+                        background: (socialConnections.twitter || socialConnections.instagram) ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
+                        borderRadius: '12px', 
+                        border: (socialConnections.twitter || socialConnections.instagram) ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '600', color: (socialConnections.twitter || socialConnections.instagram) ? 'var(--color-emerald)' : 'var(--text-primary)' }}>3. Sync Socials</span>
+                          {(socialConnections.twitter || socialConnections.instagram) ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Connect X or Instagram.</p>
+                        {!(socialConnections.twitter || socialConnections.instagram) && <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setActiveTab('comeup')}>Connect</button>}
+                      </div>
+
+                      {/* Step 4: Setup Wallet */}
+                      <div className={`checklist-item ${paymentMethods.length > 0 ? 'completed' : ''}`} style={{ 
+                        padding: '16px', 
+                        background: paymentMethods.length > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
+                        borderRadius: '12px', 
+                        border: paymentMethods.length > 0 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '600', color: paymentMethods.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>4. Setup Wallet</span>
+                          {paymentMethods.length > 0 ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Add payment method.</p>
+                        {!paymentMethods.length && <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setDashboardTab('billing')}>Add Card</button>}
+                      </div>
+
                     </div>
                   </div>
 
@@ -3085,21 +3200,27 @@ function StudioView({ onBack }) {
             {selectedAgent ? selectedAgent.name : (activeTab === 'mystudio' ? 'Dashboard' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1))}
           </h2>
           <div className="studio-header-actions">
-            <div className="credit-counter" style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px', 
-              background: 'rgba(255,255,255,0.1)', 
-              padding: '6px 12px', 
-              borderRadius: '20px', 
-              fontSize: '12px', 
-              fontWeight: '600',
-              marginRight: '8px',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}>
+            <button 
+              className="credit-counter haptic-press" 
+              onClick={() => setShowCreditsModal(true)}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                background: 'rgba(255,255,255,0.1)', 
+                padding: '6px 12px', 
+                borderRadius: '20px', 
+                fontSize: '12px', 
+                fontWeight: '600',
+                marginRight: '8px',
+                border: '1px solid rgba(255,255,255,0.1)',
+                cursor: 'pointer',
+                color: 'var(--text-primary)'
+              }}
+            >
               <Zap size={14} className="text-yellow-400" fill="currentColor" />
               <span>500 Credits</span>
-            </div>
+            </button>
             <button 
               className="action-button secondary theme-toggle haptic-press"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -3197,7 +3318,7 @@ function StudioView({ onBack }) {
               <div className="user-projects-dropdown">
                 <button 
                   className="action-button primary haptic-press"
-                  onClick={handleCreateProject}
+                  onClick={() => setShowProjectWizard(true)}
                 >
                   New Project ({projects.length})
                 </button>
@@ -3647,6 +3768,221 @@ function StudioView({ onBack }) {
             >
               Get Started
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Credits Info Modal */}
+      {showCreditsModal && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowCreditsModal(false)}>
+          <div className="modal-content credits-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <div className="modal-title-group">
+                <div className="agent-mini-icon" style={{ background: 'rgba(250, 204, 21, 0.1)', color: '#facc15' }}>
+                  <Zap size={20} fill="currentColor" />
+                </div>
+                <h2>Studio Credits</h2>
+              </div>
+              <button className="modal-close" onClick={() => setShowCreditsModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="modal-body help-modal-body">
+              <div className="help-section">
+                <h3><CreditCard size={16} className="text-cyan" /> What are Credits?</h3>
+                <p>Credits are the currency of Studio Agents. Every time you ask an agent to generate content—whether it's lyrics, a beat, or a marketing plan—it costs a specific amount of credits.</p>
+              </div>
+
+              <div className="help-section">
+                <h3><BarChart3 size={16} className="text-purple" /> Cost Breakdown</h3>
+                <div className="onboarding-steps-list">
+                  <div className="onboarding-step-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Text Generation (Lyrics, Ideas)</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--color-cyan)' }}>5 Credits</span>
+                  </div>
+                  <div className="onboarding-step-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Image Generation (Cover Art)</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--color-cyan)' }}>15 Credits</span>
+                  </div>
+                  <div className="onboarding-step-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Audio Processing (Beats, Mixing)</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--color-cyan)' }}>25 Credits</span>
+                  </div>
+                  <div className="onboarding-step-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Full Project Analysis</span>
+                    <span style={{ fontWeight: 'bold', color: 'var(--color-cyan)' }}>50 Credits</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="help-section pro-tip-box">
+                <h3><Rocket size={16} className="text-orange" /> Get Started</h3>
+                <p>You have <strong>500 FREE credits</strong> to start your journey. That's enough to write an entire album or generate 20+ high-res cover arts.</p>
+                <p style={{ marginTop: '8px' }}>Need more? You can top up anytime in the <strong>Billing</strong> tab.</p>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button className="cta-button-primary" onClick={() => {
+                setShowCreditsModal(false);
+                setActiveTab('agents');
+              }}>
+                Start Creating
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project Wizard Modal */}
+      {showProjectWizard && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectWizard(false)}>
+          <div className="modal-content project-wizard-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <div className="modal-title-group">
+                <div className="agent-mini-icon bg-purple">
+                  <Rocket size={20} />
+                </div>
+                <h2>Create New Project</h2>
+              </div>
+              <button className="modal-close" onClick={() => setShowProjectWizard(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '24px' }}>
+              {/* Progress Bar */}
+              <div className="wizard-progress" style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+                {[1, 2, 3].map(step => (
+                  <div key={step} style={{ 
+                    flex: 1, 
+                    height: '4px', 
+                    background: step <= projectWizardStep ? 'var(--color-purple)' : 'var(--color-bg-tertiary)',
+                    borderRadius: '2px',
+                    transition: 'all 0.3s ease'
+                  }}></div>
+                ))}
+              </div>
+
+              {/* Step 1: Details */}
+              {projectWizardStep === 1 && (
+                <div className="wizard-step animate-slideIn">
+                  <h3 style={{ marginBottom: '16px' }}>Name your masterpiece</h3>
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Project Name</label>
+                    <input 
+                      type="text" 
+                      className="search-input" 
+                      placeholder="e.g. Summer Vibes 2025"
+                      value={newProjectData.name}
+                      onChange={(e) => setNewProjectData({...newProjectData, name: e.target.value})}
+                      autoFocus
+                      style={{ width: '100%', padding: '12px', fontSize: '1rem' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Description (Optional)</label>
+                    <textarea 
+                      className="search-input" 
+                      placeholder="What's the vision?"
+                      value={newProjectData.description}
+                      onChange={(e) => setNewProjectData({...newProjectData, description: e.target.value})}
+                      style={{ width: '100%', padding: '12px', minHeight: '100px', resize: 'vertical' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Category */}
+              {projectWizardStep === 2 && (
+                <div className="wizard-step animate-slideIn">
+                  <h3 style={{ marginBottom: '16px' }}>Choose a Category</h3>
+                  <div className="category-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                    {PROJECT_CATEGORIES.map(cat => (
+                      <div 
+                        key={cat.id}
+                        className={`category-card haptic-press ${newProjectData.category === cat.id ? 'selected' : ''}`}
+                        onClick={() => setNewProjectData({...newProjectData, category: cat.id})}
+                        style={{
+                          padding: '16px',
+                          background: newProjectData.category === cat.id ? 'rgba(168, 85, 247, 0.1)' : 'var(--color-bg-tertiary)',
+                          border: newProjectData.category === cat.id ? '1px solid var(--color-purple)' : '1px solid transparent',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px'
+                        }}
+                      >
+                        <cat.icon size={24} style={{ color: cat.color }} />
+                        <div>
+                          <div style={{ fontWeight: '600' }}>{cat.label}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{cat.desc}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Review */}
+              {projectWizardStep === 3 && (
+                <div className="wizard-step animate-slideIn">
+                  <h3 style={{ marginBottom: '16px' }}>Ready to Launch?</h3>
+                  <div className="review-card" style={{ 
+                    padding: '24px', 
+                    background: 'var(--color-bg-tertiary)', 
+                    borderRadius: '16px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ 
+                      width: '64px', 
+                      height: '64px', 
+                      background: 'var(--color-bg-secondary)', 
+                      borderRadius: '50%', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      margin: '0 auto 16px'
+                    }}>
+                      <Rocket size={32} className="text-purple" />
+                    </div>
+                    <h2 style={{ marginBottom: '8px' }}>{newProjectData.name}</h2>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                      {PROJECT_CATEGORIES.find(c => c.id === newProjectData.category)?.label} • {new Date().toLocaleDateString()}
+                    </p>
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                      Your studio environment is being prepared. All agents will be notified of this new project.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
+              {projectWizardStep > 1 ? (
+                <button className="btn-ghost" onClick={() => setProjectWizardStep(prev => prev - 1)}>
+                  Back
+                </button>
+              ) : (
+                <div></div> 
+              )}
+              
+              {projectWizardStep < 3 ? (
+                <button 
+                  className="cta-button-primary" 
+                  disabled={projectWizardStep === 1 && !newProjectData.name || projectWizardStep === 2 && !newProjectData.category}
+                  onClick={() => setProjectWizardStep(prev => prev + 1)}
+                >
+                  Next Step
+                </button>
+              ) : (
+                <button className="cta-button-primary" onClick={handleCreateProject}>
+                  Create Project
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
