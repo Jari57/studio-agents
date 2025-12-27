@@ -103,10 +103,44 @@
   .agent-active-view {
     position: relative !important;
     height: auto !important;
-    min-height: 100vh;
-    padding-bottom: 100px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    padding: 16px !important;
+    padding-bottom: 100px !important;
+    overflow-x: hidden !important;
+  }
+
+  .agent-detail-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    width: 100% !important;
+  }
+
+  .agent-hero-card {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    padding: 20px !important;
+    gap: 16px !important;
+    width: 100% !important;
+  }
+
+  .agent-icon-large {
+    width: 60px !important;
+    height: 60px !important;
+  }
+
+  .agent-hero-info h2 {
+    font-size: 1.75rem !important;
+  }
+
+  .agent-utility-box {
+    padding: 16px !important;
+    width: 100% !important;
+  }
+
+  .utility-controls {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
   }
 
   .agent-nudge-overlay {
@@ -114,10 +148,12 @@
     bottom: 80px !important; /* Above bottom nav */
     left: 50% !important;
     transform: translateX(-50%) !important;
-    width: 90% !important;
+    width: 92% !important;
     top: auto !important;
     right: auto !important;
     z-index: 900 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
   }
 
   /* Fix Modal Floating */

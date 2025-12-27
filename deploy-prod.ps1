@@ -29,6 +29,15 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "   Frontend build successful" -ForegroundColor Green
 Set-Location ..
 
+# Copy to backend/public
+Write-Host "Copying build artifacts to backend/public..." -ForegroundColor Cyan
+if (!(Test-Path "backend\public")) {
+    New-Item -ItemType Directory -Force -Path "backend\public" | Out-Null
+}
+Copy-Item -Path "frontend\dist\*" -Destination "backend\public" -Recurse -Force
+Write-Host "   Artifacts copied" -ForegroundColor Green
+    
+
 # Step 3: Run tests (if any)
 Write-Host ""
 Write-Host "Running validation checks..." -ForegroundColor Cyan

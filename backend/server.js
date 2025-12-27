@@ -1171,9 +1171,9 @@ app.get('/api/trending-ai', async (req, res) => {
         remixes: repo.forks_count,
         color: colors[randomIndex],
         url: repo.html_url,
-        type: repo.id % 3 === 0 ? 'video' : (repo.id % 2 === 0 ? 'image' : 'text'),
+        type: repo.id % 2 === 0 ? 'image' : 'text',
         imageUrl: repo.id % 2 === 0 ? `https://opengraph.githubassets.com/1/${repo.full_name}` : null,
-        videoUrl: repo.id % 3 === 0 ? 'https://www.w3schools.com/html/mov_bbb.mp4' : null
+        videoUrl: null
       };
     });
     

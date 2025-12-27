@@ -1,10 +1,105 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info
 } from 'lucide-react';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import { auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
+
+// --- CONSTANTS FOR ONBOARDING & SUPPORT ---
+
+const onboardingSteps = [
+  {
+    id: 'welcome',
+    title: "Welcome to The Studio",
+    content: "This is your creative control room—eight AI agents built to give independent artists the tools that used to require a label deal.",
+    detail: "Every agent in The Studio was designed to solve a real problem artists face: finishing lyrics at 3 AM with no co-writer, understanding how A&Rs evaluate demos, finding samples no one else has heard. Take 2 minutes to learn how this works, and you'll get 10x more value out of every session."
+  },
+  {
+    id: 'philosophy',
+    title: "How This Works",
+    content: "These aren't magic buttons. They're creative partners.",
+    detail: "The best artists use AI as a starting point, not an ending point. Generate ideas, get unstuck, explore directions you wouldn't have considered—then make it yours. The goal isn't to create WITH the AI. It's to create FASTER and DEEPER because of it. Your voice stays your voice. The tools just remove the friction."
+  },
+  {
+    id: 'paths',
+    title: "What Brings You Here?",
+    content: "Choose your path to get personalized recommendations.",
+    detail: "Different goals require different tools. Tell us what you're trying to accomplish today, and we'll show you exactly where to start."
+  },
+  {
+    id: 'recommendation',
+    title: "Your Recommended Starting Point",
+    content: "Based on your goal, here's where to begin.",
+    detail: "This recommendation is based on how other artists with similar goals have found success. But remember—all eight agents are available to you. Explore freely."
+  },
+  {
+    id: 'tips',
+    title: "Pro Tips for Better Results",
+    content: "The more context you give, the better the output.",
+    detail: "Be specific about style, mood, and references. If you want something that sounds like early 2000s boom bap, say that. If you want a hook about resilience that doesn't sound cliché, say that. The AI responds to detail. Vague prompts get generic results."
+  }
+];
+
+const pathOptions = [
+  { id: 'write', label: "I need to write", icon: Feather, description: "Lyrics, hooks, verses, songs", recommended: ['ghost'] },
+  { id: 'produce', label: "I need production help", icon: Disc, description: "Beats, samples, sounds", recommended: ['beat'] },
+  { id: 'grow', label: "I need to grow my audience", icon: Hash, description: "Content, trends, virality", recommended: ['video-creator', 'trend', 'social'] },
+  { id: 'compete', label: "I need to sharpen my skills", icon: Flame, description: "Battle, freestyle, punchlines", recommended: ['ghost'] },
+  { id: 'brand', label: "I need visual identity", icon: ImageIcon, description: "Album art, aesthetics", recommended: ['album'] },
+  { id: 'explore', label: "I just want to explore", icon: Sparkles, description: "Show me everything", recommended: null }
+];
+
+const agentDetails = {
+  ghost: {
+    title: "GHOSTWRITER",
+    subtitle: "AI Lyric Engine",
+    tagline: "Finish what you started.",
+    description: "In the early 2000s, countless verses were lost to crashed hard drives, stolen notebooks, and fading memories. The Ghostwriter was built to resurrect that energy—to help artists who have melodies without words, hooks without verses, ideas without execution. Speak your concept, hum your flow, or type your fragments. The AI completes your thought while preserving your voice. This isn't about replacing creativity—it's about unlocking what's already inside you. Perfect for artists who know what they want to say but can't find the words, or those who need a writing partner at 3 AM when no one else is awake.",
+    whoFor: "Artists with unfinished ideas, vocalists who think in melodies, writers fighting creative blocks.",
+    howTo: "Speak or type your concept. The AI analyzes your style and generates completions that match your voice."
+  },
+  beat: {
+    title: "BEAT LAB",
+    subtitle: "Production Suite",
+    tagline: "Find the sounds they haven't found yet.",
+    description: "Every classic hip-hop beat started with a discovery—a forgotten soul record, an obscure jazz session, a B-side that became a foundation. Beat Lab brings that experience digital. Tell it what you're looking for—a mood, an era, a genre, a feeling—and it surfaces samples and patterns you've never heard. Get BPM, key information, and historical context. Understand the story behind the sound before you flip it. This tool doesn't replace the hunt; it expands your crates beyond what any physical collection could offer.",
+    whoFor: "Producers seeking sample inspiration, beatmakers exploring new genres, DJs building setlists.",
+    howTo: "Describe the vibe you're chasing. Receive curated sample suggestions and MIDI patterns."
+  },
+  release: {
+    title: "RELEASE STRATEGIST",
+    subtitle: "Artist Development",
+    tagline: "See your music through their eyes.",
+    description: "A&R executives decide careers. They listen to hundreds of songs daily, looking for that undefinable 'it factor' that separates a demo from a deal. The Release Strategist gives you access to that perspective before you submit. Upload your track and receive analysis on commercial viability, production quality, market positioning, and competitive landscape. Understand how your music stacks up against current releases. Identify your unique selling points and potential weaknesses. This isn't about changing your art to fit the market—it's about understanding the market so you can navigate it strategically.",
+    whoFor: "Artists preparing for label meetings, independent releases seeking market fit, managers evaluating talent.",
+    howTo: "Describe your track or upload details. Receive a comprehensive analysis with actionable insights."
+  },
+  album: {
+    title: "ALBUM ARTIST",
+    subtitle: "Visual Generator",
+    tagline: "See what your sound looks like.",
+    description: "The cover is the first impression. Before anyone presses play, they see your visual identity—and they make assumptions. Does the art match the music? Does it communicate who you are? In the era of thumbnail scrolling, your album art works overtime. The Album Artist generator transforms your concepts into visual directions. Describe your project's mood, themes, and aesthetic references. Receive AI-generated concepts that capture your vision. Use them as inspiration for final artwork, or as communication tools when briefing designers. Your music has a look—this tool helps you find it before you finalize it.",
+    whoFor: "Artists developing visual identity, designers seeking inspiration, anyone releasing music.",
+    howTo: "Describe your project's themes, mood, and visual references. Generate concepts to guide your final artwork."
+  },
+  'video-creator': {
+    title: "VIDEO CREATOR",
+    subtitle: "Content Generator",
+    tagline: "Motion for the feed.",
+    description: "Music lives on video platforms now. If you don't have visuals, you don't have a release. Video Creator is your instant content team. Generate visualizers, lyric videos, and promotional clips that match your track's energy. Describe the scene, the movement, the style. Create loops for Spotify Canvas, teasers for TikTok, or full visualizers for YouTube. You don't need a film crew or a budget to have professional visuals. You just need a vision.",
+    whoFor: "Artists needing social content, producers showcasing beats, anyone releasing music online.",
+    howTo: "Describe the scene and style. Generate video loops and clips to accompany your music."
+  },
+  trend: {
+    title: "TREND HUNTER",
+    subtitle: "Market Intelligence",
+    tagline: "Ride the wave before it breaks.",
+    description: "The music industry moves fast. Trends explode and vanish in days. Trend Hunter gives you the data to move with speed. Analyze what's working right now on TikTok, Spotify, and YouTube. Identify rising sub-genres, viral sounds, and content formats. This isn't about copying—it's about awareness. Know the conversation so you can add your voice to it. Spot the wave early enough to ride it, or understand it well enough to counter it.",
+    whoFor: "Artists planning releases, managers looking for opportunities, content creators seeking growth.",
+    howTo: "Ask about current trends in your genre. Get data-backed insights on what's working now."
+  }
+};
 
 function StudioView({ onBack, startWizard, startTour }) {
   // Helper to get tab from hash
@@ -40,7 +135,7 @@ function StudioView({ onBack, startWizard, startTour }) {
   
   // Swipe Navigation Hook
   const swipeHandlers = useSwipeNavigation(
-    ['agents', 'mystudio', 'activity', 'news', 'comeup'],
+    ['agents', 'mystudio', 'activity', 'news', 'resources'],
     activeTab,
     setActiveTab
   );
@@ -53,7 +148,40 @@ function StudioView({ onBack, startWizard, startTour }) {
   const [projects, setProjects] = useState(() => {
     try {
       const saved = localStorage.getItem('studio_projects');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) return JSON.parse(saved);
+      
+      // Default Demo Project for new users (Seamless Onboarding)
+      return [{
+        id: 'demo-1',
+        name: 'Neon Nights (Demo)',
+        category: 'Music Video',
+        description: 'A synthwave track with futuristic visuals. Use this project to test the Orchestration features.',
+        agents: ['beat', 'video-creator'],
+        status: 'Active',
+        date: new Date().toLocaleDateString(),
+        assets: [
+          {
+            id: 'demo-beat',
+            title: 'Synthwave Beat',
+            type: 'Audio',
+            agent: 'Beat Architect',
+            date: 'Just now',
+            color: 'agent-cyan',
+            audioUrl: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3',
+            snippet: '120 BPM, Key of Am'
+          },
+          {
+            id: 'demo-visual',
+            title: 'Neon City Loop',
+            type: 'Video',
+            agent: 'Veo Video',
+            date: 'Just now',
+            color: 'agent-pink',
+            videoUrl: 'https://cdn.pixabay.com/video/2023/10/26/186639-878455663_large.mp4',
+            snippet: 'Cyberpunk city flyover'
+          }
+        ]
+      }];
     } catch (e) {
       return [];
     }
@@ -63,6 +191,12 @@ function StudioView({ onBack, startWizard, startTour }) {
   useEffect(() => {
     localStorage.setItem('studio_projects', JSON.stringify(projects));
   }, [projects]);
+  
+  // Studio Session State (Global Mechanism)
+  const [showStudioSession, setShowStudioSession] = useState(false);
+  const [sessionTracks, setSessionTracks] = useState({ audio: null, vocal: null, visual: null });
+  const [sessionPlaying, setSessionPlaying] = useState(false);
+  
   const [expandedNews, setExpandedNews] = useState(new Set());
   const [allNewsExpanded, setAllNewsExpanded] = useState(false);
   const [expandedHelp, setExpandedHelp] = useState(null);
@@ -88,6 +222,45 @@ function StudioView({ onBack, startWizard, startTour }) {
   const [autoStartVoice, setAutoStartVoice] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
 
+  // Onboarding & Help State
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [selectedPath, setSelectedPath] = useState(null);
+  const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
+
+  // Get recommendation based on selected path
+  const getRecommendation = () => {
+    if (!selectedPath) return null;
+    const path = pathOptions.find(p => p.id === selectedPath);
+    if (!path || !path.recommended) return null;
+    return path.recommended[0]; // Primary recommendation
+  };
+
+  // Check for first visit
+  useEffect(() => {
+    const hasSeenOnboarding = localStorage.getItem('studio_onboarding_v2');
+    if (!hasSeenOnboarding && !startWizard) {
+      setShowOnboarding(true);
+    }
+  }, [startWizard]);
+
+  const completeOnboarding = () => {
+    localStorage.setItem('studio_onboarding_v2', 'true');
+    setShowOnboarding(false);
+    // If they selected a path, maybe guide them there?
+    if (selectedPath) {
+      const rec = getRecommendation();
+      if (rec) {
+        // Find the agent object
+        const agent = AGENTS.find(a => a.id === rec);
+        if (agent) {
+          setSelectedAgent(agent);
+        }
+      }
+    }
+  };
+
   // Project Wizard State
   const [showProjectWizard, setShowProjectWizard] = useState(startWizard || false);
   const [projectWizardStep, setProjectWizardStep] = useState(1);
@@ -95,7 +268,10 @@ function StudioView({ onBack, startWizard, startTour }) {
     name: '',
     category: '',
     description: '',
-    selectedAgents: []
+    selectedAgents: [],
+    socialHandle: '',
+    socialBio: '',
+    socialPlatform: 'instagram'
   });
 
   const PROJECT_CATEGORIES = [
@@ -105,7 +281,8 @@ function StudioView({ onBack, startWizard, startTour }) {
     { id: 'video', label: 'Video', icon: Video, desc: 'Visual content', color: 'var(--color-pink)' },
     { id: 'scores', label: 'Scores', icon: FileMusic, desc: 'Cinematic composition', color: 'var(--color-emerald)' },
     { id: 'moves', label: 'Moves', icon: Activity, desc: 'Dance & Choreo', color: 'var(--color-yellow)' },
-    { id: 'music_videos', label: 'Music Videos', icon: Film, desc: 'Full production clips', color: 'var(--color-red)' }
+    { id: 'music_videos', label: 'Music Videos', icon: Film, desc: 'Full production clips', color: 'var(--color-red)' },
+    { id: 'social', label: 'Social Brand', icon: Share2, desc: 'Grow your audience', color: 'var(--color-blue)' }
   ];
 
   const handleCreateProject = () => {
@@ -118,6 +295,9 @@ function StudioView({ onBack, startWizard, startTour }) {
       description: newProjectData.description,
       agents: newProjectData.selectedAgents,
       workflow: newProjectData.workflow || 'custom',
+      socialHandle: newProjectData.socialHandle,
+      socialBio: newProjectData.socialBio,
+      socialPlatform: newProjectData.socialPlatform,
       date: new Date().toLocaleDateString(),
       status: 'Active',
       progress: 0,
@@ -129,7 +309,16 @@ function StudioView({ onBack, startWizard, startTour }) {
     setSelectedProject(newProject); // Auto-select the new project
     setShowProjectWizard(false);
     setProjectWizardStep(1);
-    setNewProjectData({ name: '', category: '', description: '', selectedAgents: [], workflow: '' });
+    setNewProjectData({ 
+      name: '', 
+      category: '', 
+      description: '', 
+      selectedAgents: [], 
+      workflow: '',
+      socialHandle: '',
+      socialBio: '',
+      socialPlatform: 'instagram'
+    });
     
     // Switch to dashboard to show the new project checklist
     handleTextToVoice(`Project ${newProject.name} created. Loading your production checklist.`);
@@ -1172,6 +1361,43 @@ function StudioView({ onBack, startWizard, startTour }) {
                 )}
                 <button className="btn-dashed" style={{ width: '100%', padding: '12px', border: '1px dashed var(--text-secondary)', borderRadius: '12px', color: 'var(--text-secondary)', background: 'transparent', cursor: 'pointer' }}>+ Add Agent</button>
               </div>
+
+              {/* MAS Orchestration Section */}
+              <div className="orchestration-panel" style={{ marginTop: '24px', padding: '16px', background: 'rgba(168, 85, 247, 0.05)', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '1rem', color: 'var(--color-purple)' }}>
+                  <Zap size={16} /> Master & Release
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  Combine your assets into a final production.
+                </p>
+                
+                <button 
+                  className="btn-pill primary" 
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => {
+                    if (!selectedProject.assets || selectedProject.assets.length === 0) {
+                      alert("You need to generate some assets first!");
+                      return;
+                    }
+                    
+                    // Auto-select best assets for the session
+                    const audioAsset = selectedProject.assets.find(a => a.type === 'Audio' || a.type === 'Music Creation');
+                    const vocalAsset = selectedProject.assets.find(a => (a.type === 'Audio' || a.type === 'Lyrics') && a.id !== audioAsset?.id);
+                    const visualAsset = selectedProject.assets.find(a => a.type === 'Video' || a.type === 'Image' || a.type === 'Visual Identity');
+                    
+                    setSessionTracks({
+                      audio: audioAsset || null,
+                      vocal: vocalAsset || null,
+                      visual: visualAsset || null
+                    });
+                    
+                    setShowStudioSession(true);
+                    handleTextToVoice("Opening Studio Session. Orchestrate your agents.");
+                  }}
+                >
+                  Orchestrate Project
+                </button>
+              </div>
             </div>
 
             <div className="canvas-column">
@@ -1192,6 +1418,30 @@ function StudioView({ onBack, startWizard, startTour }) {
 
             <div className="canvas-column">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Share2 size={18} className="text-pink" /> Marketing</h3>
+              
+              {selectedProject.socialHandle && (
+                <div className="marketing-card" style={{ background: 'rgba(6, 182, 212, 0.1)', borderRadius: '12px', padding: '16px', marginBottom: '16px', border: '1px solid rgba(6, 182, 212, 0.2)' }}>
+                  <h4 style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>Active Campaign</span>
+                    <span style={{ fontSize: '0.7rem', background: 'var(--color-cyan)', color: 'black', padding: '2px 6px', borderRadius: '4px' }}>LIVE</span>
+                  </h4>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--color-bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--color-cyan)' }}>
+                      <Share2 size={20} className="text-cyan" />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: '600' }}>{selectedProject.socialHandle}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{selectedProject.socialPlatform} • {selectedProject.category}</div>
+                    </div>
+                  </div>
+                  {selectedProject.socialBio && (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontStyle: 'italic', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+                      "{selectedProject.socialBio}"
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="marketing-card" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
                 <h4 style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--text-secondary)' }}>Social Status</h4>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -1219,7 +1469,39 @@ function StudioView({ onBack, startWizard, startTour }) {
                       <div className="text-muted text-sm">No assets generated yet</div>
                     )}
                  </div>
-                 <button className="btn-text" style={{ marginTop: '12px', fontSize: '0.8rem', color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Generate Assets</button>
+                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                    <button className="btn-text" style={{ fontSize: '0.8rem', color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Generate Assets</button>
+                    <label className="btn-text" style={{ fontSize: '0.8rem', color: 'var(--color-cyan)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <input 
+                        type="file" 
+                        accept="audio/*,image/*,video/*" 
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const url = URL.createObjectURL(file);
+                            const type = file.type.startsWith('audio') ? 'Audio' : file.type.startsWith('video') ? 'Video' : 'Image';
+                            const newAsset = {
+                              id: Date.now(),
+                              title: file.name,
+                              type: type,
+                              agent: 'User Upload',
+                              date: 'Just now',
+                              color: 'agent-cyan',
+                              snippet: `Uploaded ${type} file`,
+                              audioUrl: file.type.startsWith('audio') ? url : null,
+                              videoUrl: file.type.startsWith('video') ? url : null,
+                              imageUrl: file.type.startsWith('image') ? url : null
+                            };
+                            const updated = { ...selectedProject, assets: [newAsset, ...(selectedProject.assets || [])] };
+                            setSelectedProject(updated);
+                            setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                          }
+                        }}
+                      />
+                      + Upload File
+                    </label>
+                 </div>
               </div>
             </div>
           </div>
@@ -2271,6 +2553,7 @@ function StudioView({ onBack, startWizard, startTour }) {
     }
 
     switch (activeTab) {
+
       case 'agents':
         return (
           <div className="agents-studio-grid">
@@ -2387,11 +2670,11 @@ function StudioView({ onBack, startWizard, startTour }) {
                 <Search size={18} />
                 <input type="text" placeholder="Search your creations..." />
               </div>
-              <div className="filter-group">
+              <div className="filter-group" style={{ display: 'flex', gap: '8px' }}>
                 {['All', 'Music Creation', 'Visual Identity', 'Career Growth'].map(filter => (
                   <button 
                     key={filter}
-                    className={`filter-btn ${hubFilter === filter ? 'active' : ''}`}
+                    className={`btn-pill ${hubFilter === filter ? 'primary' : 'glass'}`}
                     onClick={() => setHubFilter(filter)}
                   >
                     {filter}
@@ -2477,365 +2760,132 @@ function StudioView({ onBack, startWizard, startTour }) {
             )}
           </div>
         );
-      case 'comeup':
-        const TRENDING_VIDEOS = [
-          {
-            id: 'v1',
-            title: 'Mastering AI Vocals in 2025',
-            channel: 'Future Music',
-            views: '1.2M',
-            thumbnail: 'https://images.unsplash.com/photo-1516280440614-6697288d5d38?auto=format&fit=crop&w=400&q=80',
-            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-          },
-          {
-            id: 'v2',
-            title: 'The "Bedroom Producer" Revolution',
-            channel: 'Indie Guide',
-            views: '850K',
-            thumbnail: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?auto=format&fit=crop&w=400&q=80',
-            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-          },
-          {
-            id: 'v3',
-            title: 'Mixing Secrets: Analog vs Digital',
-            channel: 'Mix Master',
-            views: '2.1M',
-            thumbnail: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=400&q=80',
-            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-          }
+      case 'resources':
+        const LEGAL_RESOURCES = [
+          { title: 'Music Copyright 101', desc: 'Understanding your rights as a creator.', icon: Shield, type: 'Guide' },
+          { title: 'Split Sheet Template', desc: 'Standard agreement for co-writing sessions.', icon: FileText, type: 'Template' },
+          { title: 'Sync Licensing Guide', desc: 'How to get your music in TV & Film.', icon: Tv, type: 'Guide' },
+          { title: 'AI & IP Rights', desc: 'Navigating the legal landscape of AI music.', icon: Lock, type: 'Whitepaper' }
         ];
 
-        const LEGENDARY_STORIES = [
-          {
-            artist: 'Prince',
-            genre: 'Funk / Pop',
-            story: 'Known for playing every instrument on his debut album, Prince was the ultimate one-man studio.',
-            toolUsage: 'Prince would have used <strong>Beat Lab</strong> to sketch drum patterns and <strong>Vocal Architect</strong> to layer harmonies without a choir.',
-            image: 'https://images.unsplash.com/photo-1525296416926-b537848e3e69?auto=format&fit=crop&w=200&q=80'
-          },
-          {
-            artist: 'J Dilla',
-            genre: 'Hip Hop',
-            story: 'Dilla humanized the MPC, turning quantization off to create a "drunk" swing that changed rhythm forever.',
-            toolUsage: 'He would leverage <strong>Trend Hunter</strong> to find obscure samples, but he\'d likely turn the "Humanize" knob on <strong>Beat Lab</strong> to 100%.',
-            image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=200&q=80'
-          },
-          {
-            artist: 'David Bowie',
-            genre: 'Rock / Exp',
-            story: 'The chameleon of rock, Bowie used the "cut-up technique" to rearrange words and find new meanings.',
-            toolUsage: 'Bowie is the spiritual ancestor of <strong>Ghostwriter</strong>. He would use it to generate chaotic text streams and curate the most surreal phrases.',
-            image: 'https://images.unsplash.com/photo-1535581652167-3d6b98c36cd0?auto=format&fit=crop&w=200&q=80'
-          }
+        const AGENT_WHITEPAPERS = [
+          { title: 'Ghostwriter v2.4', desc: 'LLM Architecture & Lyric Generation', version: 'v2.4', icon: FileText },
+          { title: 'Beat Architect v3.1', desc: 'Rhythmic Pattern Analysis Engine', version: 'v3.1', icon: Zap },
+          { title: 'Imagen 3 Integration', desc: 'High-Fidelity Visual Synthesis', version: 'v3.0', icon: Image },
+          { title: 'Veo Video Model', desc: 'Cinematic Video Generation Specs', version: 'v1.0', icon: Video }
         ];
+
+        const PRODUCTION_TOOLS = [
+          { name: 'Canva', desc: 'Design', url: 'https://canva.com', icon: Layout },
+          { name: 'Figma', desc: 'Prototyping', url: 'https://figma.com', icon: PenTool },
+          { name: 'Splice', desc: 'Samples', url: 'https://splice.com', icon: Music },
+          { name: 'DistroKid', desc: 'Distribution', url: 'https://distrokid.com', icon: Globe }
+        ];
+
 
         return (
-          <div className="comeup-view animate-fadeInUp">
-            <div className="comeup-hero">
-              <div className="comeup-badge">Artist Growth Suite</div>
-              <h1>The Come Up</h1>
-              <p>Tracking your journey from local talent to global influence.</p>
+          <div className="resources-view animate-fadeInUp">
+            <div className="resources-header">
+              <h1>Creator Resources</h1>
+              <p>Essential tools, guides, and technical documentation for professional growth.</p>
             </div>
 
-            <div className="comeup-grid">
-              <div className="comeup-main">
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Users size={20} />
-                    <h2>Your Artist Profile</h2>
-                  </div>
-                  <div className="artist-profile-card">
-                    <div className="artist-image-stub"></div>
-                    <div className="artist-info">
-                      <h3>{isLoggedIn ? 'Pro Creator' : 'Guest Artist'}</h3>
-                      <p className="location">Global Artist • Studio Agents Pro</p>
-                      <p className="bio-text">
-                        You are currently on the path to breaking through. Use our AI agents to collaborate with virtual legends, 
-                        optimize your production, and reach audiences across all major streaming platforms.
-                      </p>
+            <div className="resources-grid">
+              <section className="resources-section">
+                <div className="section-header">
+                  <Shield size={20} className="text-purple" />
+                  <h2>Legal & Business</h2>
+                </div>
+                <div className="cards-grid">
+                  {LEGAL_RESOURCES.map((item, i) => (
+                    <div key={i} className="resource-card legal">
+                      <div className="card-icon"><item.icon size={24} /></div>
+                      <div className="card-content">
+                        <h3>{item.title}</h3>
+                        <p>{item.desc}</p>
+                        <span className="card-tag">{item.type}</span>
+                      </div>
+                      <button className="card-action" onClick={() => handleDeadLink(null, item.title)}>
+                        Read Guide
+                      </button>
                     </div>
-                  </div>
-                </section>
+                  ))}
+                </div>
+              </section>
 
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Book size={20} />
-                    <h2>The Roadmap</h2>
-                  </div>
-                  <div className="story-content">
-                    <div className="story-block">
-                      <h3>Phase 1: Foundation & Identity</h3>
-                      <p>
-                        Establish your core sonic signature using Ghostwriter and Beat Lab. This phase is about experimentation—finding the intersection between what you love and what resonates. Build a consistent visual identity 
-                        with Album Artist to ensure your brand is recognizable from day one. Your first 1,000 true fans are born here.
-                      </p>
+              <section className="resources-section">
+                <div className="section-header">
+                  <FileText size={20} className="text-cyan" />
+                  <h2>Agent Whitepapers</h2>
+                </div>
+                <div className="cards-grid">
+                  {AGENT_WHITEPAPERS.map((item, i) => (
+                    <div key={i} className="resource-card whitepaper">
+                      <div className="card-icon"><item.icon size={24} /></div>
+                      <div className="card-content">
+                        <div className="wp-header">
+                          <h3>{item.title}</h3>
+                          <span className="version-badge">{item.version}</span>
+                        </div>
+                        <p>{item.desc}</p>
+                      </div>
+                      <button className="card-action secondary" onClick={() => handleDeadLink(null, item.title)}>
+                        Technical Spec
+                      </button>
                     </div>
-                    <div className="story-block">
-                      <h3>Phase 2: Momentum & Market Fit</h3>
-                      <p>
-                        Leverage Trend Hunter and Social Pilot to grow your audience through data-informed storytelling. Use Collab Connect 
-                        to find the right partners to expand your reach into new territories. This is where you transition from a "creator" to an "artist" with a measurable market presence.
-                      </p>
-                    </div>
-                    <div className="story-block">
-                      <h3>Phase 3: Scaling & Legacy</h3>
-                      <p>
-                        Once you've achieved consistent growth, the focus shifts to infrastructure. Reinvest in your craft, build a specialized team (management, legal, PR), and diversify your revenue streams. Success is not a destination, 
-                        but a platform to scale your creative influence and build a lasting legacy in the industry.
-                      </p>
-                    </div>
-                  </div>
-                </section>
+                  ))}
+                </div>
+              </section>
 
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <PlayCircle size={20} />
-                    <h2>Trending in Music Tech</h2>
-                  </div>
-                  <div className="video-scroll-container">
-                    {TRENDING_VIDEOS.map((video) => (
-                      <div 
-                        key={video.id} 
-                        className="video-card" 
-                        onClick={() => setPlayingItem({
-                          ...video,
-                          type: 'video',
-                          agent: 'YouTube',
-                          videoUrl: video.url
-                        })}
-                      >
-                        <div className="video-thumbnail">
-                          <img src={video.thumbnail} alt={video.title} />
-                          <div className="play-overlay"><Play size={24} /></div>
-                        </div>
-                        <div className="video-info">
-                          <h4>{video.title}</h4>
-                          <p>{video.channel} • {video.views} views</p>
-                        </div>
+              <section className="resources-section">
+                <div className="section-header">
+                  <Tool size={20} className="text-orange" />
+                  <h2>Production Tools</h2>
+                </div>
+                <div className="tools-grid">
+                  {PRODUCTION_TOOLS.map((tool, i) => (
+                    <a key={i} href={tool.url} target="_blank" rel="noopener noreferrer" className="tool-card">
+                      <div className="tool-icon"><tool.icon size={24} /></div>
+                      <div className="tool-info">
+                        <h3>{tool.name}</h3>
+                        <span>{tool.desc}</span>
                       </div>
-                    ))}
-                  </div>
-                </section>
+                      <ExternalLink size={16} className="external-icon" />
+                    </a>
+                  ))}
+                </div>
+              </section>
 
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Crown size={20} />
-                    <h2>Legends & The Future</h2>
+              <section className="resources-section">
+                <div className="section-header">
+                  <Map size={20} className="text-emerald" />
+                  <h2>Studio Site Map</h2>
+                </div>
+                <div className="sitemap-container">
+                  <div className="sitemap-column">
+                    <h4>Studio</h4>
+                    <ul>
+                      <li onClick={() => setActiveTab('mystudio')}>Dashboard</li>
+                      <li onClick={() => setActiveTab('agents')}>Agent Studio</li>
+                      <li onClick={() => setActiveTab('hub')}>Project Hub</li>
+                    </ul>
                   </div>
-                  <div className="legends-grid">
-                    {LEGENDARY_STORIES.map((legend, i) => (
-                      <div key={i} className="legend-card">
-                        <div className="legend-header">
-                          <div className="legend-avatar" style={{ backgroundImage: `url(${legend.image})` }}></div>
-                          <div>
-                            <h3>{legend.artist}</h3>
-                            <span className="legend-genre">{legend.genre}</span>
-                          </div>
-                        </div>
-                        <p className="legend-story">"{legend.story}"</p>
-                        <div className="legend-ai-take">
-                          <strong><Sparkles size={12} /> AI Workflow:</strong>
-                          <p dangerouslySetInnerHTML={{ __html: legend.toolUsage }}></p>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="sitemap-column">
+                    <h4>Community</h4>
+                    <ul>
+                      <li onClick={() => setActiveTab('activity')}>Activity Wall</li>
+                      <li onClick={() => setActiveTab('news')}>News Feed</li>
+                    </ul>
                   </div>
-                </section>
-                
-                <section className="comeup-section">
-                   <div className="section-header">
-                     <Share2 size={20} />
-                     <h2>Connect & Amplify</h2>
-                   </div>
-                   <div className="social-connect-banner">
-                      <div className="social-text">
-                        <h3>Sync Your Socials</h3>
-                        <p>Connect your accounts to auto-post your creations and track engagement analytics directly from the Studio.</p>
-                      </div>
-                      <div className="social-buttons-row">
-                        <button className="social-btn-large twitter" onClick={() => handleConnectSocial('twitter')}>
-                          <Twitter size={18} /> Connect X
-                        </button>
-                        <button className="social-btn-large instagram" onClick={() => handleConnectSocial('instagram')}>
-                          <Instagram size={18} /> Connect IG
-                        </button>
-                        <button className="social-btn-large youtube" onClick={() => handleConnectSocial('youtube')}>
-                          <Play size={18} /> Connect YT
-                        </button>
-                      </div>
-                   </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Shield size={20} />
-                    <h2>Best Practices & Lessons</h2>
-                  </div>
-                  <div className="insights-grid">
-                    <div className="insight-card">
-                      <div className="insight-icon"><Zap size={18} /></div>
-                      <h4>Consistency over Intensity</h4>
-                      <p>The algorithm rewards steady output. It's better to release one quality track a month than five in one week and then go silent. Build a "content calendar" that you can actually sustain without burnout.</p>
-                    </div>
-                    <div className="insight-card">
-                      <div className="insight-icon"><Target size={18} /></div>
-                      <h4>Own Your Audience Data</h4>
-                      <p>Social media platforms are "rented land." Always prioritize building an email list or Discord community. If an algorithm changes tomorrow, you need a direct line to the people who support your art.</p>
-                    </div>
-                    <div className="insight-card warning">
-                      <div className="insight-icon"><Shield size={18} /></div>
-                      <h4>The Contract Trap</h4>
-                      <p>Lesson Learned: Never sign a "Standard" contract without independent legal review. The "360 Deal" can often limit your long-term freedom. Understand your "Recoupables" before you spend a dime of an advance.</p>
-                    </div>
-                    <div className="insight-card">
-                      <div className="insight-icon"><Users size={18} /></div>
-                      <h4>Networking vs. Connecting</h4>
-                      <p>Don't just "network" for favors. Build genuine relationships with peers at your level. The "class" you come up with will be your strongest support system as you all rise together.</p>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Globe size={20} />
-                    <h2>The Business of Music</h2>
-                  </div>
-                  <div className="business-insights">
-                    <div className="biz-block">
-                      <h3>Publishing vs. Masters</h3>
-                      <p>Understanding the difference is key to long-term wealth. Masters are the recording (the "audio file"); Publishing is the song itself (the "composition"). Both are vital revenue streams, but publishing often has a longer "tail" of value.</p>
-                    </div>
-                    <div className="biz-block">
-                      <h3>Sync Licensing: The Quiet Giant</h3>
-                      <p>Getting your music in TV, film, and games is one of the most effective ways to fund a career. It provides both a lump-sum "sync fee" and ongoing performance royalties. Optimize your metadata to be "sync-ready."</p>
-                    </div>
-                    <div className="biz-block">
-                      <h3>How Goals are Achieved</h3>
-                      <p>In the past, labels were the only gatekeepers. Today, goals are achieved through "Micro-Viral" moments, sustained community engagement, and strategic algorithmic triggers. You are the CEO of your own startup.</p>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <LayoutGrid size={20} />
-                    <h2>Pro Workflows: Multi-Agent Projects</h2>
-                  </div>
-                  <div className="workflow-content">
-                    <p className="workflow-intro">
-                      The true power of Studio Agents Pro lies in <strong>Multi-Agent Orchestration</strong>. Instead of using agents in isolation, Pro creators chain them together to build entire musical ecosystems.
-                    </p>
-                    <div className="workflow-steps-v2">
-                      <div className="workflow-step-v2">
-                        <div className="step-v2-icon"><Music size={20} /></div>
-                        <div className="step-v2-text">
-                          <h4>1. The Foundation (Beat Architect + Instrumentalist)</h4>
-                          <p>Start by generating a complex rhythmic skeleton with <strong>Beat Architect</strong>. Then, use <strong>Instrumentalist</strong> to layer a bassline or guitar riff that follows the same MIDI timing. This ensures your "pocket" is tight from the start.</p>
-                        </div>
-                      </div>
-                      <div className="workflow-step-v2">
-                        <div className="step-v2-icon"><Sparkles size={20} /></div>
-                        <div className="step-v2-text">
-                          <h4>2. The Soul (Ghostwriter + Vocal Architect)</h4>
-                          <p>Feed your track's mood into <strong>Ghostwriter</strong> to generate lyrics. Take those lyrics directly into <strong>Vocal Architect</strong> to synthesize lead vocals and 3-part harmonies. Pro Tip: Use the same "Intensity" setting for both to maintain emotional consistency.</p>
-                        </div>
-                      </div>
-                      <div className="workflow-step-v2">
-                        <div className="step-v2-icon"><Shield size={20} /></div>
-                        <div className="step-v2-text">
-                          <h4>3. The Polish (Mastering Lab + Album Artist)</h4>
-                          <p>Once your mix is balanced, run it through <strong>Mastering Lab</strong> for industry-standard loudness. Simultaneously, use <strong>Album Artist</strong> to generate a visual identity that matches the sonic frequency of your master.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Lock size={20} />
-                    <h2>AI Ethics & Privacy</h2>
-                  </div>
-                  <div className="ethics-content">
-                    <div className="ethics-grid">
-                      <div className="ethics-card">
-                        <Shield size={24} className="ethics-icon" />
-                        <h3>Data Privacy</h3>
-                        <p>Your prompts and creations are yours. We use industry-standard encryption to ensure your creative IP remains private. We do not train our base models on your personal studio sessions without explicit consent.</p>
-                      </div>
-                      <div className="ethics-card">
-                        <Lock size={24} className="ethics-icon" />
-                        <h3>Ownership & Rights</h3>
-                        <p>The "Truth" about AI: You own the output you generate here. However, copyright laws are evolving. We recommend using AI as a "Co-Pilot"—always add your unique human touch to ensure full legal protection of your works.</p>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Award size={20} />
-                    <h2>Professional Quality Mastery</h2>
-                  </div>
-                  <div className="mastery-content">
-                    <div className="mastery-grid">
-                      <div className="mastery-item">
-                        <div className="mastery-header">
-                          <CheckCircle size={18} className="do-icon" />
-                          <h3>The "Do's" of AI Production</h3>
-                        </div>
-                        <ul>
-                          <li><strong>Iterate:</strong> Use AI to generate 10 ideas, then pick the best 1 to refine manually.</li>
-                          <li><strong>Layering:</strong> Combine AI-generated stems with live-recorded instruments for "Organic Depth."</li>
-                          <li><strong>Reference Tracks:</strong> Always provide the AI with clear stylistic references to maintain professional consistency.</li>
-                        </ul>
-                      </div>
-                      <div className="mastery-item">
-                        <div className="mastery-header">
-                          <X size={18} className="dont-icon" />
-                          <h3>The "Don'ts" of AI Production</h3>
-                        </div>
-                        <ul>
-                          <li><strong>Don't Over-Rely:</strong> Avoid using "Raw" AI output without any human editing; it often lacks the emotional nuance listeners crave.</li>
-                          <li><strong>Don't Ignore Metadata:</strong> Professional quality includes proper tagging and credits. Always document your AI tools in your production logs.</li>
-                          <li><strong>Don't Chase Perfection:</strong> AI can generate "perfect" timing, but "human" swing is what makes people dance. Keep the soul in the music.</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              </div>
-
-              <div className="comeup-sidebar">
-                <div className="sidebar-card">
-                  <h3>Executive Insights</h3>
-                  <div className="testimonial-list">
-                    <div className="testimonial-item">
-                      <p>"We don't just sign songs anymore; we sign ecosystems. We look for artists who have already built a world around their music. If you have the community, we provide the fuel."</p>
-                      <span>— VP of A&R, Global Music Group</span>
-                    </div>
-                    <div className="testimonial-item">
-                      <p>"Data gets you in the room, but your unique 'Sonic Thumbprint' is what keeps you there. Don't chase trends; start them. The most successful artists are the ones who are 'un-copyable'."</p>
-                      <span>— Head of Digital, Indie Powerhouse</span>
-                    </div>
-                    <div className="testimonial-item">
-                      <p>"The best artists I work with understand their business as well as their craft. They know their splits, they know their rights, and they know their worth."</p>
-                      <span>— Senior Sync Agent, Hollywood Music House</span>
-                    </div>
+                  <div className="sitemap-column">
+                    <h4>Support</h4>
+                    <ul>
+                      <li onClick={() => setActiveTab('support')}>Help Center</li>
+                      <li onClick={() => setActiveTab('resources')}>Resources</li>
+                    </ul>
                   </div>
                 </div>
-                <div className="sidebar-card stats">
-                  <h3>Career Milestones</h3>
-                  <div className="stat-row">
-                    <span>Current Status</span>
-                    <strong>Rising Talent</strong>
-                  </div>
-                  <div className="stat-row">
-                    <span>Next Goal</span>
-                    <strong>100k Monthly Listeners</strong>
-                  </div>
-                </div>
-              </div>
+              </section>
             </div>
           </div>
         );
@@ -3434,11 +3484,11 @@ function StudioView({ onBack, startWizard, startTour }) {
             <span>Activity Wall</span>
           </button>
           <button 
-            className={`nav-link ${activeTab === 'comeup' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('comeup'); setSelectedAgent(null); }}
+            className={`nav-link ${activeTab === 'resources' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('resources'); setSelectedAgent(null); }}
           >
-            <TrendingUp size={20} />
-            <span>Come Up</span>
+            <Book size={20} />
+            <span>Resources</span>
           </button>
           <button 
             className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}
@@ -3657,7 +3707,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                   </div>
                 </div>
 
-                <div className="player-visualizer">
+                <div className="player-visualizer" style={{ position: 'relative' }}>
                   {playingItem.videoUrl && (playingItem.videoUrl.includes('youtube.com') || playingItem.videoUrl.includes('youtu.be')) ? (
                     <iframe 
                       width="100%" 
@@ -3670,34 +3720,47 @@ function StudioView({ onBack, startWizard, startTour }) {
                       className="player-video"
                       style={{ border: 'none' }}
                     ></iframe>
-                  ) : playingItem.videoUrl ? (
-                    <video 
-                      src={playingItem.videoUrl} 
-                      controls 
-                      autoPlay 
-                      className="player-video"
-                    />
-                  ) : playingItem.imageUrl ? (
-                    <img 
-                      src={playingItem.imageUrl} 
-                      alt={playingItem.title} 
-                      className="player-video" 
-                      style={{ objectFit: 'contain', background: '#000' }}
-                    />
                   ) : (
-                    <div className="audio-visualizer-placeholder">
-                      <div className="visualizer-bars">
-                        {[...Array(20)].map((_, i) => (
-                          <div key={i} className="v-bar" style={{ animationDelay: `${i * 0.1}s` }}></div>
-                        ))}
-                      </div>
-                      <audio 
-                        src={playingItem.audioUrl} 
-                        controls 
-                        autoPlay 
-                        className="player-audio"
-                      />
-                    </div>
+                    <>
+                      {/* Visual Layer */}
+                      {playingItem.videoUrl ? (
+                        <video 
+                          src={playingItem.videoUrl} 
+                          controls={!playingItem.audioUrl} 
+                          autoPlay 
+                          muted={!!playingItem.audioUrl} // Mute video if we have separate audio track (Mastering case)
+                          className="player-video"
+                        />
+                      ) : playingItem.imageUrl ? (
+                        <img 
+                          src={playingItem.imageUrl} 
+                          alt={playingItem.title} 
+                          className="player-video" 
+                          style={{ objectFit: 'contain', background: '#000' }}
+                        />
+                      ) : (
+                        <div className="audio-visualizer-placeholder">
+                          <div className="visualizer-bars">
+                            {[...Array(20)].map((_, i) => (
+                              <div key={i} className="v-bar" style={{ animationDelay: `${i * 0.1}s` }}></div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Audio Layer - Overlay if visual exists or just audio */}
+                      {playingItem.audioUrl && (
+                        <div style={{ position: 'absolute', bottom: '20px', left: '0', right: '0', padding: '0 20px', zIndex: 10 }}>
+                           <audio 
+                            src={playingItem.audioUrl} 
+                            controls 
+                            autoPlay 
+                            className="player-audio"
+                            style={{ width: '100%', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', borderRadius: '30px' }}
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -3720,6 +3783,228 @@ function StudioView({ onBack, startWizard, startTour }) {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Studio Session Overlay (Global Mechanism) */}
+        {showStudioSession && (
+          <div className="studio-session-overlay animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.95)', zIndex: 2000, display: 'flex', flexDirection: 'column' }}>
+            {/* Header */}
+            <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <LayoutGrid size={24} color="white" />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.2rem' }}>Studio Session</h2>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Multi-Agent Orchestration</p>
+                </div>
+                <button 
+                  onClick={() => alert("Studio Session Guide:\n1. Select a Beat (Track 1)\n2. Select Vocals (Track 2)\n3. Select a Visual\n4. Press Play to preview the mix\n5. Click 'Render Master' to save the combined asset.")}
+                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}
+                >
+                  <CircleHelp size={14} color="var(--text-secondary)" />
+                </button>
+              </div>
+              <button onClick={() => { setShowStudioSession(false); setSessionPlaying(false); }} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Main Stage */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', gap: '20px', overflowY: 'auto' }}>
+              
+              {/* Visual Preview */}
+              <div style={{ flex: 2, background: '#000', borderRadius: '16px', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+                {sessionTracks.visual ? (
+                  sessionTracks.visual.videoUrl ? (
+                    <video 
+                      src={sessionTracks.visual.videoUrl} 
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                      muted 
+                      loop 
+                      ref={el => {
+                        if (el) {
+                          if (sessionPlaying) el.play().catch(e => console.log(e));
+                          else el.pause();
+                        }
+                      }}
+                    />
+                  ) : (
+                    <img src={sessionTracks.visual.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  )
+                ) : (
+                  <div style={{ color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                    <Image size={48} />
+                    <span>No Visual Selected</span>
+                  </div>
+                )}
+                
+                {/* Audio Elements (Hidden) */}
+                {sessionTracks.audio && (
+                  <audio 
+                    src={sessionTracks.audio.audioUrl} 
+                    ref={el => {
+                      if (el) {
+                        el.volume = 0.8; // Default mix
+                        if (sessionPlaying) el.play().catch(e => console.log(e));
+                        else el.pause();
+                      }
+                    }}
+                    loop
+                  />
+                )}
+                {sessionTracks.vocal && (
+                  <audio 
+                    src={sessionTracks.vocal.audioUrl} 
+                    ref={el => {
+                      if (el) {
+                        el.volume = 1.0; // Vocals usually louder
+                        if (sessionPlaying) el.play().catch(e => console.log(e));
+                        else el.pause();
+                      }
+                    }}
+                    loop
+                  />
+                )}
+              </div>
+
+              {/* Mixer / Timeline */}
+              <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* Agent Insight / Tip */}
+                <div style={{ padding: '12px', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '8px', borderLeft: '4px solid var(--color-purple)', fontSize: '0.9rem', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                   <Sparkles size={18} className="text-purple" />
+                   <div>
+                     <strong>Agent Insight:</strong> 
+                     {sessionTracks.audio?.agent === 'Beat Architect' ? " This beat has a strong transient profile. Keep vocals dry to cut through." : 
+                      sessionTracks.vocal?.agent === 'Ghostwriter' ? " These lyrics are dense. Ensure the beat leaves room for the flow." :
+                      " Combine assets from different agents to create a unique sound."}
+                   </div>
+                </div>
+
+                {/* Track 1: Beat / Audio A */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Disc size={24} className="text-cyan" /></div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 1 (Audio)</label>
+                    <select 
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                      value={sessionTracks.audio?.id || ''}
+                      onChange={(e) => {
+                        const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
+                        setSessionTracks(prev => ({ ...prev, audio: asset || null }));
+                      }}
+                    >
+                      <option value="">Select Audio Asset...</option>
+                      {selectedProject?.assets.filter(a => a.audioUrl).map(a => (
+                        <option key={a.id} value={a.id}>{a.title} ({a.agent})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ width: '100px' }}>
+                     <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Volume</label>
+                     <input type="range" min="0" max="1" step="0.1" defaultValue="0.8" style={{ width: '100%' }} />
+                  </div>
+                </div>
+
+                {/* Track 2: Vocals / Audio B */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Mic size={24} className="text-purple" /></div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 2 (Audio)</label>
+                    <select 
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                      value={sessionTracks.vocal?.id || ''}
+                      onChange={(e) => {
+                        const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
+                        setSessionTracks(prev => ({ ...prev, vocal: asset || null }));
+                      }}
+                    >
+                      <option value="">Select Audio Asset...</option>
+                      {selectedProject?.assets.filter(a => a.audioUrl).map(a => (
+                        <option key={a.id} value={a.id}>{a.title} ({a.agent})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ width: '100px' }}>
+                     <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Volume</label>
+                     <input type="range" min="0" max="1" step="0.1" defaultValue="1.0" style={{ width: '100%' }} />
+                  </div>
+                </div>
+
+                {/* Track 3: Visual */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Video size={24} className="text-pink" /></div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Visual Layer</label>
+                    <select 
+                      style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                      value={sessionTracks.visual?.id || ''}
+                      onChange={(e) => {
+                        const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
+                        setSessionTracks(prev => ({ ...prev, visual: asset || null }));
+                      }}
+                    >
+                      <option value="">Select Visual...</option>
+                      {selectedProject?.assets.filter(a => a.imageUrl || a.videoUrl).map(a => (
+                        <option key={a.id} value={a.id}>{a.title} ({a.agent})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <button className="btn-dashed" style={{ width: '100%', padding: '8px', fontSize: '0.8rem' }}>+ Add Track</button>
+
+              </div>
+            </div>
+
+            {/* Footer Controls */}
+            <div style={{ padding: '20px', background: 'rgba(0,0,0,0.5)', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <div style={{ display: 'flex', gap: '16px' }}>
+                 <button 
+                   className="btn-circle" 
+                   style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--color-purple)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                   onClick={() => setSessionPlaying(!sessionPlaying)}
+                 >
+                   {sessionPlaying ? <Pause size={24} fill="white" /> : <Play size={24} fill="white" />}
+                 </button>
+               </div>
+               
+               <button 
+                 className="btn-pill primary"
+                 onClick={() => {
+                   // Render Logic
+                   if (!sessionTracks.audio && !sessionTracks.visual) {
+                     alert("Select at least one asset to render.");
+                     return;
+                   }
+                   
+                   const masterAsset = {
+                     id: Date.now(),
+                     title: "Studio Master - " + selectedProject.name,
+                     type: "Master",
+                     agent: "Studio Session",
+                     date: "Just now",
+                     color: "agent-purple",
+                     snippet: "Orchestrated Master Composition",
+                     audioUrl: sessionTracks.audio?.audioUrl, // Primary audio
+                     imageUrl: sessionTracks.visual?.imageUrl,
+                     videoUrl: sessionTracks.visual?.videoUrl
+                   };
+                   
+                   const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets] };
+                   setSelectedProject(updated);
+                   setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                   
+                   setShowStudioSession(false);
+                   setSessionPlaying(false);
+                   alert("Master rendered and saved to project!");
+                 }}
+               >
+                 <Zap size={18} /> Render Master
+               </button>
             </div>
           </div>
         )}
@@ -3971,9 +4256,9 @@ function StudioView({ onBack, startWizard, startTour }) {
             <Globe size={24} />
             <span>News</span>
           </div>
-          <div className={`bottom-nav-item haptic-press ${activeTab === 'comeup' ? 'active' : ''}`} onClick={() => { setActiveTab('comeup'); setSelectedAgent(null); }}>
-            <TrendingUp size={24} />
-            <span>Come Up</span>
+          <div className={`bottom-nav-item haptic-press ${activeTab === 'resources' ? 'active' : ''}`} onClick={() => { setActiveTab('resources'); setSelectedAgent(null); }}>
+            <Book size={24} />
+            <span>Resources</span>
           </div>
         </nav>
       </main>
@@ -4232,6 +4517,63 @@ function StudioView({ onBack, startWizard, startTour }) {
                       ))}
                     </div>
                   </div>
+
+                  {newProjectData.category === 'social' && (
+                    <div className="social-inputs animate-fadeIn" style={{ marginBottom: '24px', padding: '16px', background: 'rgba(6, 182, 212, 0.05)', borderRadius: '12px', border: '1px solid rgba(6, 182, 212, 0.2)' }}>
+                      <h4 style={{ marginBottom: '12px', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Share2 size={16} /> Social Profile Setup
+                      </h4>
+                      
+                      <div className="form-group" style={{ marginBottom: '12px' }}>
+                        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Platform Focus</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {['instagram', 'tiktok', 'youtube', 'twitter'].map(platform => (
+                            <button
+                              key={platform}
+                              className={`platform-btn ${newProjectData.socialPlatform === platform ? 'active' : ''}`}
+                              onClick={() => setNewProjectData({...newProjectData, socialPlatform: platform})}
+                              style={{
+                                flex: 1,
+                                padding: '8px',
+                                borderRadius: '8px',
+                                border: newProjectData.socialPlatform === platform ? '1px solid var(--color-cyan)' : '1px solid var(--border-color)',
+                                background: newProjectData.socialPlatform === platform ? 'rgba(6, 182, 212, 0.1)' : 'transparent',
+                                color: newProjectData.socialPlatform === platform ? 'var(--color-cyan)' : 'var(--text-secondary)',
+                                textTransform: 'capitalize',
+                                fontSize: '0.85rem',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {platform}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: '12px' }}>
+                        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Handle / Username</label>
+                        <input 
+                          type="text" 
+                          className="search-input" 
+                          placeholder="@yourname"
+                          value={newProjectData.socialHandle}
+                          onChange={(e) => setNewProjectData({...newProjectData, socialHandle: e.target.value})}
+                          style={{ width: '100%', padding: '10px', fontSize: '0.9rem' }}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Bio / Vibe</label>
+                        <textarea 
+                          className="search-input" 
+                          placeholder="Describe your brand voice..."
+                          value={newProjectData.socialBio}
+                          onChange={(e) => setNewProjectData({...newProjectData, socialBio: e.target.value})}
+                          style={{ width: '100%', padding: '10px', fontSize: '0.9rem', minHeight: '60px', resize: 'vertical' }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -4278,7 +4620,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                       onClick={() => setNewProjectData({
                         ...newProjectData, 
                         workflow: 'social_promo',
-                        selectedAgents: ['video-creator', 'trend', 'collab']
+                        selectedAgents: ['video-creator', 'trend', 'collab', 'social']
                       })}
                       style={{
                         padding: '16px',
@@ -4296,7 +4638,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: '600', marginBottom: '4px' }}>Social Promotion</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Video → Trends → Networking</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Video → Trends → Social Pilot</div>
                       </div>
                       {newProjectData.workflow === 'social_promo' && <CheckCircle size={20} className="text-cyan" />}
                     </div>
@@ -4458,6 +4800,198 @@ function StudioView({ onBack, startWizard, startTour }) {
                   Create Project
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000 }}>
+          <div className="modal-content onboarding-modal" style={{ maxWidth: '700px', padding: 0, overflow: 'hidden' }}>
+            {/* Progress Bar */}
+            <div style={{ height: '4px', background: 'var(--color-bg-tertiary)', width: '100%' }}>
+              <div style={{ 
+                height: '100%', 
+                background: 'var(--color-purple)', 
+                width: `${((onboardingStep + 1) / onboardingSteps.length) * 100}%`,
+                transition: 'width 0.3s ease'
+              }}></div>
+            </div>
+
+            <div style={{ padding: '32px', position: 'relative' }}>
+              <button 
+                className="modal-close" 
+                onClick={() => setShowOnboarding(false)}
+                style={{ top: '20px', right: '20px' }}
+              >
+                <X size={20} />
+              </button>
+
+              <div style={{ marginBottom: '24px' }}>
+                <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-purple)' }}>
+                  Step {onboardingStep + 1} of {onboardingSteps.length}
+                </span>
+                <h2 style={{ fontSize: '2rem', marginTop: '8px', marginBottom: '16px' }}>
+                  {onboardingSteps[onboardingStep].title}
+                </h2>
+                <p style={{ fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '16px', lineHeight: '1.6' }}>
+                  {onboardingSteps[onboardingStep].content}
+                </p>
+                <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                  {onboardingSteps[onboardingStep].detail}
+                </p>
+              </div>
+
+              {/* Step 2: Path Selection */}
+              {onboardingStep === 2 && (
+                <div className="path-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '24px' }}>
+                  {pathOptions.map(path => (
+                    <div 
+                      key={path.id}
+                      onClick={() => setSelectedPath(path.id)}
+                      className={`path-card ${selectedPath === path.id ? 'selected' : ''}`}
+                      style={{
+                        padding: '16px',
+                        background: selectedPath === path.id ? 'rgba(168, 85, 247, 0.15)' : 'var(--color-bg-tertiary)',
+                        border: selectedPath === path.id ? '1px solid var(--color-purple)' : '1px solid transparent',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <path.icon size={24} style={{ color: selectedPath === path.id ? 'var(--color-purple)' : 'var(--text-secondary)', marginBottom: '12px' }} />
+                      <h4 style={{ fontSize: '0.95rem', marginBottom: '4px' }}>{path.label}</h4>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{path.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Step 3: Recommendation */}
+              {onboardingStep === 3 && selectedPath && (
+                <div className="recommendation-box animate-fadeInUp" style={{ marginTop: '24px', padding: '20px', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                  {(() => {
+                    const recId = getRecommendation();
+                    if (!recId) return <p>Explore the studio freely!</p>;
+                    const agent = AGENTS.find(a => a.id === recId);
+                    const details = agentDetails[recId];
+                    return (
+                      <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                        <div style={{ background: 'var(--color-purple)', padding: '12px', borderRadius: '12px', color: 'white' }}>
+                          {agent ? <agent.icon size={24} /> : <Sparkles size={24} />}
+                        </div>
+                        <div>
+                          <h4 style={{ fontSize: '1.1rem', marginBottom: '4px' }}>Recommended: {details?.title || agent?.name}</h4>
+                          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>{details?.tagline}</p>
+                          <p style={{ fontSize: '0.9rem', lineHeight: '1.5' }}>{details?.description?.substring(0, 150)}...</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              <div className="modal-footer" style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button 
+                  className="btn-ghost" 
+                  onClick={() => setOnboardingStep(prev => Math.max(0, prev - 1))}
+                  disabled={onboardingStep === 0}
+                  style={{ opacity: onboardingStep === 0 ? 0 : 1 }}
+                >
+                  Back
+                </button>
+                
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {onboardingStep < onboardingSteps.length - 1 ? (
+                    <button 
+                      className="cta-button-premium"
+                      onClick={() => setOnboardingStep(prev => prev + 1)}
+                      disabled={onboardingStep === 2 && !selectedPath}
+                    >
+                      Next Step
+                    </button>
+                  ) : (
+                    <button 
+                      className="cta-button-premium"
+                      onClick={completeOnboarding}
+                    >
+                      Enter Studio
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Agent White Paper Modal */}
+      {showAgentWhitePaper && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowAgentWhitePaper(null)} style={{ zIndex: 2000 }}>
+          <div className="modal-content whitepaper-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ 
+                  width: '48px', height: '48px', borderRadius: '12px', 
+                  background: 'var(--color-bg-secondary)', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--text-primary)'
+                }}>
+                  <showAgentWhitePaper.icon size={24} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.5rem', margin: 0 }}>{showAgentWhitePaper.title}</h2>
+                  <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{showAgentWhitePaper.subtitle}</p>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setShowAgentWhitePaper(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '24px 0' }}>
+              <div className="whitepaper-section" style={{ marginBottom: '32px' }}>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--color-purple)' }}>The Vision</h3>
+                <p style={{ fontSize: '1.05rem', lineHeight: '1.7', color: 'var(--text-primary)' }}>
+                  {showAgentWhitePaper.description}
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
+                <div className="whitepaper-box" style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px' }}>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <Users size={18} className="text-cyan" /> Who It's For
+                  </h4>
+                  <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+                    {showAgentWhitePaper.whoFor}
+                  </p>
+                </div>
+                <div className="whitepaper-box" style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px' }}>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                    <Zap size={18} className="text-orange" /> How It Works
+                  </h4>
+                  <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+                    {showAgentWhitePaper.howTo}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                className="cta-button-premium"
+                onClick={() => {
+                  const agent = AGENTS.find(a => a.id === showAgentWhitePaper.key);
+                  if (agent) {
+                    setSelectedAgent(agent);
+                    setShowAgentWhitePaper(null);
+                    setActiveTab('agents'); // Or wherever the agent view is
+                  }
+                }}
+              >
+                Launch Agent
+              </button>
             </div>
           </div>
         </div>
