@@ -6,45 +6,62 @@ import './mobile-fixes.css';
 
 function App() {
   console.log("App.jsx: Rendering component...");
-  // Simple state-based routing
-  // 'landing' | 'studio'
-  const [currentView, setCurrentView] = useState('landing');
+  
+  // Hash-based routing state
+  const [currentHash, setCurrentHash] = useState(window.location.hash || '#/');
+  const [startWizard, setStartWizard] = useState(false);
+  const [startTour, setStartTour] = useState(false);
 
-  // Check for saved session or deep links
+  // Listen for hash changes (Browser Back/Forward)
   useEffect(() => {
-    // If user was previously in studio, maybe restore?
-    // For now, let's always start at landing unless we add auth persistence logic here
-    /*
-    const savedView = localStorage.getItem('studio_last_view');
-    if (savedView === 'studio') {
-      setCurrentView('studio');
+    const handleHashChange = () => {
+      setCurrentHash(window.location.hash || '#/');
+    };
+    
+    // Set initial hash if empty
+    if (!window.location.hash) {
+      window.history.replaceState(null, '', '#/');
     }
-    */
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const [startWizard, setStartWizard] = useState(false);
-
   const handleEnterStudio = (shouldStartWizard = false) => {
-    setCurrentView('studio');
     setStartWizard(shouldStartWizard);
-    localStorage.setItem('studio_last_view', 'studio');
+    setStartTour(false);
+    window.location.hash = '#/studio';
+  };
+
+  const handleStartTour = () => {
+    setStartWizard(false);
+    setStartTour(true);
+    window.location.hash = '#/studio';
   };
 
   const handleBackToLanding = () => {
-    setCurrentView('landing');
     setStartWizard(false);
-    localStorage.setItem('studio_last_view', 'landing');
+    setStartTour(false);
+    window.location.hash = '#/';
   };
+
+  // Determine view based on hash
+  const isStudio = currentHash.startsWith('#/studio');
 
   return (
     <div className="app-container">
-      {currentView === 'landing' ? (
+      {!isStudio ? (
         <LandingPage 
           onEnter={handleEnterStudio} 
+          onStartTour={handleStartTour}
           onSubscribe={() => console.log('Subscribe clicked')}
         />
       ) : (
-        <StudioView onBack={handleBackToLanding} startWizard={startWizard} />
+        <StudioView 
+          onBack={handleBackToLanding} 
+          startWizard={startWizard} 
+          startTour={startTour}
+        />
       )}
     </div>
   );

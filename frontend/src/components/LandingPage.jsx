@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid } from 'lucide-react';
 import { AGENTS } from '../constants';
 
-export default function LandingPage({ onEnter, onSubscribe }) {
+export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   console.log("LandingPage: Rendering...");
   const [hoveredAgent, setHoveredAgent] = useState(null);
   const [scrolled, setScrolled] = useState(false);
@@ -40,9 +40,6 @@ export default function LandingPage({ onEnter, onSubscribe }) {
             <Sparkles size={24} className="text-purple" />
             <span className="header-title">Studio Agents</span>
           </div>
-          <button onClick={onEnter} className="header-cta">
-            Launch
-          </button>
         </div>
       </header>
 
@@ -77,6 +74,10 @@ export default function LandingPage({ onEnter, onSubscribe }) {
             Stop struggling with writer's block. 
             <br />
             <strong>Studio Agents</strong> gives you an elite team of 16 AI specialists to write, produce, and market your music 24/7.
+            <br />
+            <span style={{ fontSize: '0.9em', color: 'var(--color-purple)', marginTop: '8px', display: 'block' }}>
+              Orchestrate complex workflows or just jam with a single agent.
+            </span>
           </p>
 
           {/* Social Proof Badge */}
@@ -110,22 +111,30 @@ export default function LandingPage({ onEnter, onSubscribe }) {
           {/* CTA Buttons Grid */}
           <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '400px' }}>
             
-            {/* 1. Create New Project (Primary) */}
+            {/* 1. Create New Project */}
             <button
               onClick={() => onEnter(true)}
-              className="cta-button-premium haptic-press hero-cta-button"
-              style={{ width: '100%', justifyContent: 'space-between', padding: '16px 24px' }}
+              className="glass-button haptic-press"
+              style={{ 
+                width: '100%', 
+                justifyContent: 'flex-start', 
+                padding: '16px 24px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '16px',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px'
+              }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '8px', borderRadius: '50%' }}>
-                  <Plus size={20} />
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <span style={{ display: 'block', fontWeight: '700', fontSize: '1.1rem' }}>Create New Project</span>
-                  <span style={{ display: 'block', fontSize: '0.8rem', opacity: 0.8, fontWeight: '400' }}>Launch the Wizard</span>
-                </div>
+              <div style={{ background: 'rgba(168, 85, 247, 0.2)', padding: '8px', borderRadius: '50%', color: 'var(--color-purple)' }}>
+                <Plus size={20} />
               </div>
-              <ArrowRight size={20} />
+              <div style={{ textAlign: 'left' }}>
+                <span style={{ display: 'block', fontWeight: '600', fontSize: '1rem' }}>Create New Project</span>
+                <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Launch the Wizard</span>
+              </div>
             </button>
 
             {/* 2. Open Existing Project */}
@@ -145,7 +154,7 @@ export default function LandingPage({ onEnter, onSubscribe }) {
                 gap: '16px'
               }}
             >
-              <div style={{ background: 'rgba(168, 85, 247, 0.2)', padding: '8px', borderRadius: '50%', color: 'var(--color-purple)' }}>
+              <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '8px', borderRadius: '50%', color: 'white' }}>
                 <Folder size={20} />
               </div>
               <div style={{ textAlign: 'left' }}>
@@ -182,8 +191,9 @@ export default function LandingPage({ onEnter, onSubscribe }) {
 
           </div>
 
+
           {/* Features Grid */}
-          <div className="hero-features-list" style={{ marginTop: '40px' }}>
+          <div className="hero-features-list" style={{ marginTop: '24px' }}>
             <div className="feature-pill haptic-press">
               <Zap size={20} className="text-cyan" />
               <span>10x Faster Workflow</span>
@@ -199,111 +209,6 @@ export default function LandingPage({ onEnter, onSubscribe }) {
             <div className="scroll-text">See what's possible</div>
             <div className="scroll-dot"></div>
           </div>
-        </div>
-      </section>
-
-      {/* Workflow / Journey Section (New Linear Flow) */}
-      <section className="workflow-section" style={{ padding: '4rem 2rem', background: 'var(--color-bg-primary)' }}>
-        <div className="section-header">
-          <div className="section-tag">The Workflow</div>
-          <h2 className="section-title">
-            From <span className="gradient-text-cyan-purple">Idea</span> to <span className="gradient-text-purple-pink">Icon</span>
-          </h2>
-          <p className="section-subtitle">
-            Your path to stardom in 3 simple steps.
-          </p>
-        </div>
-
-        <div className="workflow-steps" style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '40px', 
-          maxWidth: '800px', 
-          margin: '40px auto 0',
-          position: 'relative'
-        }}>
-          {/* Connecting Line */}
-          <div className="workflow-line" style={{
-            position: 'absolute',
-            left: '24px',
-            top: '40px',
-            bottom: '40px',
-            width: '2px',
-            background: 'linear-gradient(to bottom, var(--color-cyan), var(--color-purple), var(--color-pink))',
-            zIndex: 0
-          }}></div>
-
-          {[
-            { 
-              step: 1, 
-              title: "Define Your Vision", 
-              desc: "Use the Project Wizard to name your masterpiece and select your studio vibe (Pro, Vybing, Video, etc).", 
-              icon: Sparkles, 
-              color: "var(--color-cyan)" 
-            },
-            { 
-              step: 2, 
-              title: "Assemble Your Team", 
-              desc: "Choose from 16 specialized AI agents. Need lyrics? Call Ghostwriter. Need a beat? Call The Producer.", 
-              icon: Users, 
-              color: "var(--color-purple)" 
-            },
-            { 
-              step: 3, 
-              title: "Launch & Amplify", 
-              desc: "Use the Marketing agents to build your rollout plan and sync your socials to go viral.", 
-              icon: Rocket, 
-              color: "var(--color-pink)" 
-            }
-          ].map((item, i) => (
-            <div key={i} className="workflow-step-card" style={{
-              display: 'flex',
-              gap: '24px',
-              position: 'relative',
-              zIndex: 1
-            }}>
-              <div className="step-number-box" style={{
-                width: '50px',
-                height: '50px',
-                borderRadius: '50%',
-                background: 'var(--color-bg-secondary)',
-                border: `2px solid ${item.color}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.5rem',
-                fontWeight: 'bold',
-                color: item.color,
-                boxShadow: `0 0 20px ${item.color}40`,
-                flexShrink: 0
-              }}>
-                {item.step}
-              </div>
-              <div className="step-content" style={{
-                background: 'var(--card-bg)',
-                border: '1px solid var(--border-color)',
-                padding: '24px',
-                borderRadius: '20px',
-                flex: 1
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                  <item.icon size={24} color={item.color} />
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0 }}>{item.title}</h3>
-                </div>
-                <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>{item.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: '40px' }}>
-          <button
-            onClick={onEnter}
-            className="cta-button-premium haptic-press"
-            style={{ minWidth: '200px' }}
-          >
-            Start Step 1 Now
-          </button>
         </div>
       </section>
 
@@ -539,7 +444,7 @@ export default function LandingPage({ onEnter, onSubscribe }) {
             },
             {
               name: 'Lifetime Access',
-              price: '$199',
+              price: '$99',
               period: 'one-time',
               features: ['Unlimited everything forever', 'Future updates included', 'Priority Support', 'Commercial License', 'Founder Badge'],
               ltd: true

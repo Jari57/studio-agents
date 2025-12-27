@@ -6,8 +6,37 @@ import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import { auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
 
-function StudioView({ onBack, startWizard }) {
-  const [activeTab, setActiveTab] = useState('mystudio');
+function StudioView({ onBack, startWizard, startTour }) {
+  // Helper to get tab from hash
+  const getTabFromHash = () => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#/studio/')) {
+      return hash.split('/')[2];
+    }
+    return 'mystudio';
+  };
+
+  const [activeTab, _setActiveTab] = useState(getTabFromHash());
+
+  // Sync state with hash (Browser Back/Forward)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const newTab = getTabFromHash();
+      if (newTab !== activeTab) {
+        _setActiveTab(newTab);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeTab]);
+
+  // Custom setter that updates URL
+  const setActiveTab = (tab) => {
+    if (tab !== activeTab) {
+      _setActiveTab(tab);
+      window.location.hash = `#/studio/${tab}`;
+    }
+  };
   
   // Swipe Navigation Hook
   const swipeHandlers = useSwipeNavigation(
@@ -54,9 +83,10 @@ function StudioView({ onBack, startWizard }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [user, setUser] = useState(null);
   const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
-  const [showWelcomeModal, setShowWelcomeModal] = useState(() => !startWizard && !localStorage.getItem('studio_welcome_seen'));
+  const [showWelcomeModal, setShowWelcomeModal] = useState(() => startTour || (!startWizard && !localStorage.getItem('studio_welcome_seen')));
   const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
   const [autoStartVoice, setAutoStartVoice] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   // Project Wizard State
   const [showProjectWizard, setShowProjectWizard] = useState(startWizard || false);
@@ -87,15 +117,18 @@ function StudioView({ onBack, startWizard }) {
       category: newProjectData.category,
       description: newProjectData.description,
       agents: newProjectData.selectedAgents,
+      workflow: newProjectData.workflow || 'custom',
       date: new Date().toLocaleDateString(),
       status: 'Active',
-      progress: 0
+      progress: 0,
+      assets: [], // Store generated content here
+      context: {} // Shared context for MAS
     };
 
     setProjects(prev => [newProject, ...prev]);
     setShowProjectWizard(false);
     setProjectWizardStep(1);
-    setNewProjectData({ name: '', category: '', description: '', selectedAgents: [] });
+    setNewProjectData({ name: '', category: '', description: '', selectedAgents: [], workflow: '' });
     
     // Optional: Switch to the relevant tab or show success
     handleTextToVoice(`Project ${newProject.name} created successfully.`);
@@ -190,19 +223,22 @@ function StudioView({ onBack, startWizard }) {
   const [appSettings, setAppSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('studio_app_settings');
-      return saved ? JSON.parse(saved) : {
+      const defaults = {
         showNews: true,
         publicActivity: true,
         autoSave: true,
-        highQualityPreviews: false
+        highQualityPreviews: false,
+        streamerMode: false
       };
+      return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
     } catch (e) {
       console.error("Failed to parse app settings", e);
       return {
         showNews: true,
         publicActivity: true,
         autoSave: true,
-        highQualityPreviews: false
+        highQualityPreviews: false,
+        streamerMode: false
       };
     }
   });
@@ -792,6 +828,17 @@ function StudioView({ onBack, startWizard }) {
 
       setProjects([newItem, ...projects]);
 
+      // If we are working inside a project context, add this artifact to the project assets
+      if (selectedProject) {
+        const updatedProject = {
+          ...selectedProject,
+          assets: [newItem, ...(selectedProject.assets || [])]
+        };
+        setSelectedProject(updatedProject);
+        // Update the project in the global list as well
+        setProjects(prev => [newItem, ...prev.map(p => p.id === updatedProject.id ? updatedProject : p)]);
+      }
+
       // Save to Backend if logged in
       if (isLoggedIn) {
         const uid = localStorage.getItem('studio_user_id');
@@ -1062,6 +1109,124 @@ function StudioView({ onBack, startWizard }) {
   };
 
   const renderContent = () => {
+    if (activeTab === 'project_canvas' && !selectedAgent) {
+      if (!selectedProject) return <div className="p-8 text-center">No project selected</div>;
+      return (
+        <div className="project-canvas-view animate-fadeIn" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+          <div className="canvas-header" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
+            <button onClick={() => setActiveTab('hub')} className="btn-icon-circle" style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{selectedProject.name}</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <span className="badge" style={{ background: 'var(--color-purple)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>{selectedProject.category}</span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Created {selectedProject.date}</span>
+              </div>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px' }}>
+              <button className="btn-pill primary" onClick={() => setActiveTab('agents')}>
+                <Zap size={16} /> Open Studio
+              </button>
+            </div>
+          </div>
+
+          <div className="canvas-grid" style={{ display: 'grid', gridTemplateColumns: '300px 1fr 300px', gap: '24px' }}>
+            <div className="canvas-column">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Users size={18} className="text-purple" /> The Team</h3>
+              <div className="team-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {selectedProject.agents && selectedProject.agents.length > 0 ? (
+                  selectedProject.agents.map((agentId, idx) => {
+                    const agent = AGENTS.find(a => a.id === agentId) || AGENTS[0];
+                    return (
+                      <div 
+                        key={idx} 
+                        className="agent-card-mini haptic-press" 
+                        onClick={() => setSelectedAgent(agent)}
+                        style={{ 
+                          padding: '12px', 
+                          background: 'rgba(255,255,255,0.05)', 
+                          borderRadius: '12px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '12px',
+                          cursor: 'pointer',
+                          border: '1px solid transparent',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
+                        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                      >
+                        <div className="agent-avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', background: agent.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {agent.icon ? <agent.icon size={20} color="white" /> : <User size={20} color="white" />}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: '600' }}>{agent.name}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{agent.role}</div>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-muted text-sm">No agents selected</div>
+                )}
+                <button className="btn-dashed" style={{ width: '100%', padding: '12px', border: '1px dashed var(--text-secondary)', borderRadius: '12px', color: 'var(--text-secondary)', background: 'transparent', cursor: 'pointer' }}>+ Add Agent</button>
+              </div>
+            </div>
+
+            <div className="canvas-column">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Book size={18} className="text-cyan" /> Narrative & Vision</h3>
+              <div className="narrative-editor" style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '16px', padding: '20px', height: '100%', minHeight: '400px' }}>
+                <textarea 
+                  value={selectedProject.description}
+                  onChange={(e) => {
+                    const updated = { ...selectedProject, description: e.target.value };
+                    setSelectedProject(updated);
+                    setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                  }}
+                  style={{ width: '100%', height: '100%', background: 'transparent', border: 'none', color: 'var(--text-primary)', resize: 'none', fontSize: '1rem', lineHeight: '1.6', outline: 'none' }}
+                  placeholder="Describe your project vision here..."
+                />
+              </div>
+            </div>
+
+            <div className="canvas-column">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Share2 size={18} className="text-pink" /> Marketing</h3>
+              <div className="marketing-card" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+                <h4 style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--text-secondary)' }}>Social Status</h4>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <div className={`social-pill ${socialConnections.twitter ? 'active' : ''}`} style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', background: socialConnections.twitter ? 'rgba(29, 161, 242, 0.2)' : 'rgba(255,255,255,0.1)', color: socialConnections.twitter ? '#1DA1F2' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Twitter size={14} /> {socialConnections.twitter ? 'Connected' : 'Link X'}
+                  </div>
+                  <div className={`social-pill ${socialConnections.instagram ? 'active' : ''}`} style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', background: socialConnections.instagram ? 'rgba(225, 48, 108, 0.2)' : 'rgba(255,255,255,0.1)', color: socialConnections.instagram ? '#E1306C' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Instagram size={14} /> {socialConnections.instagram ? 'Connected' : 'Link IG'}
+                  </div>
+                </div>
+              </div>
+              <div className="marketing-card" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px' }}>
+                 <h4 style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--text-secondary)' }}>Campaign Assets</h4>
+                 <div className="asset-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {selectedProject.assets && selectedProject.assets.length > 0 ? (
+                      selectedProject.assets.map((asset, idx) => (
+                        <div key={idx} className="asset-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-purple)' }}></div>
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
+                            {asset.title || (asset.snippet ? asset.snippet.substring(0, 20) + '...' : 'New Asset')}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-muted text-sm">No assets generated yet</div>
+                    )}
+                 </div>
+                 <button className="btn-text" style={{ marginTop: '12px', fontSize: '0.8rem', color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Generate Assets</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     if (activeTab === 'mystudio') {
       return (
         <div className="studio-dashboard animate-fadeInUp">
@@ -1132,71 +1297,71 @@ function StudioView({ onBack, startWizard }) {
                     </div>
                   </div>
 
+                  {/* Workflow Onboarding Card */}
+                  <div className="dashboard-card workflow-card" style={{ marginBottom: '24px', background: 'var(--color-bg-secondary)', border: '1px solid var(--border-color)' }}>
+                    <div className="card-header">
+                      <h3><Sparkles size={18} className="text-cyan" /> Studio Workflow</h3>
+                    </div>
+                    <div className="workflow-steps-mini" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                      {[
+                        { 
+                          step: 1, 
+                          title: "Define Your Vision", 
+                          desc: "Use the Project Wizard to name your masterpiece and select your studio vibe.", 
+                          icon: Sparkles, 
+                          color: "var(--color-cyan)" 
+                        },
+                        { 
+                          step: 2, 
+                          title: "Assemble Your Team", 
+                          desc: "Choose from 16 specialized AI agents for lyrics, beats, and production.", 
+                          icon: Users, 
+                          color: "var(--color-purple)" 
+                        },
+                        { 
+                          step: 3, 
+                          title: "Launch & Amplify", 
+                          desc: "Use Marketing agents to build your rollout plan and sync socials.", 
+                          icon: Rocket, 
+                          color: "var(--color-pink)" 
+                        }
+                      ].map((item, i) => (
+                        <div key={i} className="workflow-step-item" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
+                          <div className="step-number" style={{ 
+                            minWidth: '24px', height: '24px', borderRadius: '50%', 
+                            background: item.color, color: 'black', fontWeight: 'bold', 
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' 
+                          }}>
+                            {item.step}
+                          </div>
+                          <div>
+                            <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>{item.title}</h4>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{item.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="workflow-actions" style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
+                      <button className="btn-pill primary" onClick={() => setShowProjectWizard(true)}>
+                        <Plus size={14} /> New Project
+                      </button>
+                      <button className="btn-pill glass" onClick={() => setActiveTab('hub')}>
+                        <Folder size={14} /> Open Existing
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Onboarding Checklist */}
                   <div className="dashboard-card onboarding-card" style={{ marginBottom: '24px', border: '1px solid rgba(168, 85, 247, 0.3)', background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.05) 0%, rgba(0,0,0,0) 100%)' }}>
                     <div className="card-header">
                       <h3><Rocket size={18} className="text-purple" /> Studio Setup Checklist</h3>
                       <span className="status-badge" style={{ background: 'var(--color-purple)', color: 'white' }}>
-                        {[(projects.length > 0), (socialConnections.twitter || socialConnections.instagram), (paymentMethods.length > 0)].filter(Boolean).length + 1} / 4 Complete
+                        {(paymentMethods.length > 0) ? 1 : 0} / 1 Complete
                       </span>
                     </div>
                     <div className="checklist-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px' }}>
                       
-                      {/* Step 1: Create Project */}
-                      <div className={`checklist-item ${projects.length > 0 ? 'completed' : ''}`} style={{ 
-                        padding: '16px', 
-                        background: projects.length > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
-                        borderRadius: '12px', 
-                        border: projects.length > 0 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600', color: projects.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>1. Create Project</span>
-                          {projects.length > 0 ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
-                        </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Define your vision & style.</p>
-                        {!projects.length && <button className="btn-pill primary" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setShowProjectWizard(true)}>Start Now</button>}
-                      </div>
-
-                      {/* Step 2: Meet the Team */}
-                      <div className={`checklist-item ${true ? 'completed' : ''}`} style={{ 
-                        padding: '16px', 
-                        background: 'rgba(255,255,255,0.03)', 
-                        borderRadius: '12px', 
-                        border: '1px solid rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>2. Meet the Team</span>
-                          <CheckCircle size={16} className="text-emerald" />
-                        </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Explore your 16 AI agents.</p>
-                        <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setActiveTab('agents')}>View Agents</button>
-                      </div>
-
-                      {/* Step 3: Connect Socials */}
-                      <div className={`checklist-item ${(socialConnections.twitter || socialConnections.instagram) ? 'completed' : ''}`} style={{ 
-                        padding: '16px', 
-                        background: (socialConnections.twitter || socialConnections.instagram) ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
-                        borderRadius: '12px', 
-                        border: (socialConnections.twitter || socialConnections.instagram) ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600', color: (socialConnections.twitter || socialConnections.instagram) ? 'var(--color-emerald)' : 'var(--text-primary)' }}>3. Sync Socials</span>
-                          {(socialConnections.twitter || socialConnections.instagram) ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
-                        </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Connect X or Instagram.</p>
-                        {!(socialConnections.twitter || socialConnections.instagram) && <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setActiveTab('comeup')}>Connect</button>}
-                      </div>
-
-                      {/* Step 4: Setup Wallet */}
+                      {/* Step: Setup Wallet */}
                       <div className={`checklist-item ${paymentMethods.length > 0 ? 'completed' : ''}`} style={{ 
                         padding: '16px', 
                         background: paymentMethods.length > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
@@ -1207,7 +1372,7 @@ function StudioView({ onBack, startWizard }) {
                         gap: '8px'
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600', color: paymentMethods.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>4. Setup Wallet</span>
+                          <span style={{ fontWeight: '600', color: paymentMethods.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>Setup Wallet</span>
                           {paymentMethods.length > 0 ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
                         </div>
                         <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Add payment method.</p>
@@ -1354,6 +1519,17 @@ function StudioView({ onBack, startWizard }) {
                     <h2>Billing & Wallet</h2>
                     <p>Manage your payment methods and subscription plan.</p>
                   </div>
+
+                  {/* Wallet Balance Card */}
+                  <div className="wallet-balance-card">
+                    <div className="balance-info">
+                      <div className="balance-label">Current Balance</div>
+                      <div className="balance-amount">500 <span className="currency">Credits</span></div>
+                    </div>
+                    <button className="btn-pill primary" onClick={() => setShowCreditsModal(true)}>
+                      <Plus size={16} /> Top Up Wallet
+                    </button>
+                  </div>
                   
                   <div className="payment-methods-container">
                     <div className="payment-header">
@@ -1412,8 +1588,8 @@ function StudioView({ onBack, startWizard }) {
                     
                     <div className="plans-grid" style={{ 
                       display: 'grid', 
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
-                      gap: '1.5rem',
+                      gridTemplateColumns: 'repeat(4, 1fr)', 
+                      gap: '1rem',
                       marginTop: '1rem'
                     }}>
                       {/* Free Plan */}
@@ -1489,7 +1665,7 @@ function StudioView({ onBack, startWizard }) {
                         <div className="plan-header-native">
                           <h3 className="plan-name-native">Lifetime</h3>
                           <div className="plan-price-box-native">
-                            <span className="plan-price-native">$199</span>
+                            <span className="plan-price-native">$99</span>
                             <span className="plan-period-native">one-time</span>
                           </div>
                         </div>
@@ -1500,7 +1676,7 @@ function StudioView({ onBack, startWizard }) {
                         </ul>
                         <button 
                           className="plan-button-native primary"
-                          onClick={() => handleSubscribe({ name: 'Lifetime Access', price: '$199', period: 'one-time' })}
+                          onClick={() => handleSubscribe({ name: 'Lifetime Access', price: '$99', period: 'one-time' })}
                         >
                           Get Lifetime
                         </button>
@@ -1558,6 +1734,36 @@ function StudioView({ onBack, startWizard }) {
                           type="checkbox" 
                           checked={appSettings.autoSave} 
                           onChange={() => toggleAppSetting('autoSave')} 
+                        />
+                        <span className="slider round"></span>
+                      </label>
+                    </div>
+
+                    <div className="setting-row">
+                      <div className="setting-info">
+                        <h4>High Quality Previews</h4>
+                        <p>Generate higher fidelity audio previews (may take longer).</p>
+                      </div>
+                      <label className="switch">
+                        <input 
+                          type="checkbox" 
+                          checked={appSettings.highQualityPreviews} 
+                          onChange={() => toggleAppSetting('highQualityPreviews')} 
+                        />
+                        <span className="slider round"></span>
+                      </label>
+                    </div>
+
+                    <div className="setting-row">
+                      <div className="setting-info">
+                        <h4>Streamer Mode</h4>
+                        <p>Hide sensitive personal information like email and billing details.</p>
+                      </div>
+                      <label className="switch">
+                        <input 
+                          type="checkbox" 
+                          checked={appSettings.streamerMode} 
+                          onChange={() => toggleAppSetting('streamerMode')} 
                         />
                         <span className="slider round"></span>
                       </label>
@@ -1624,7 +1830,7 @@ function StudioView({ onBack, startWizard }) {
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', marginBottom: '2rem' }}
           >
             <ArrowLeft size={20} />
-            <span>Back to Agents</span>
+            <span>{activeTab === 'project_canvas' ? 'Back to Project' : 'Back to Agents'}</span>
           </button>
 
           <div className="agent-detail-layout">
@@ -2163,24 +2369,11 @@ function StudioView({ onBack, startWizard }) {
                     key={item.id} 
                     className="hub-card"
                     onClick={() => {
-                      // If it's a text project, load it into the editor
-                      if (!item.imageUrl && !item.videoUrl && item.snippet) {
-                        // Find the agent that created this, or default to Ghostwriter
-                        const agent = AGENTS.find(a => a.name === item.agent) || AGENTS[0];
-                        setSelectedAgent(agent);
-                        setActiveTab('agents');
-                        // Use setTimeout to ensure the DOM has updated and textarea exists
-                        setTimeout(() => {
-                          const textarea = document.querySelector('.studio-textarea');
-                          if (textarea) {
-                            textarea.value = item.snippet;
-                            textarea.focus();
-                          }
-                        }, 100);
-                      }
+                      setSelectedProject(item);
+                      setActiveTab('project_canvas');
                     }}
-                    style={{ cursor: (!item.imageUrl && !item.videoUrl) ? 'pointer' : 'default' }}
-                    title={(!item.imageUrl && !item.videoUrl) ? "Click to edit in Studio" : ""}
+                    style={{ cursor: 'pointer' }}
+                    title="Open Project Canvas"
                   >
                     <div className={`hub-card-preview ${item.color}`}>
                       {item.imageUrl && <img src={item.imageUrl} alt={item.title} className="hub-preview-image" />}
@@ -3074,7 +3267,7 @@ function StudioView({ onBack, startWizard }) {
               </p>
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button 
-                  className="cta-button-primary"
+                  className="cta-button-premium"
                   onClick={() => window.open('mailto:support@studioagents.com?subject=Support Request', '_blank')}
                 >
                   Email Support
@@ -3574,18 +3767,30 @@ function StudioView({ onBack, startWizard }) {
                 {paymentType === 'card' ? (
                   <form className="payment-form" onSubmit={handleSavePayment}>
                     <div className="form-group">
-                      <label>Card Number</label>
+                      <label>Cardholder Name</label>
                       <input 
                         type="text" 
-                        name="cardNumber" 
-                        placeholder="0000 0000 0000 0000" 
-                        defaultValue={editingPayment ? `**** **** **** ${editingPayment.item.last4}` : ''}
+                        name="cardName" 
+                        placeholder="Name on card" 
                         required 
                       />
                     </div>
-                    <div className="form-row">
+                    <div className="form-group">
+                      <label>Card Number</label>
+                      <div className="input-with-icon">
+                        <CreditCard size={18} className="input-icon" />
+                        <input 
+                          type="text" 
+                          name="cardNumber" 
+                          placeholder="0000 0000 0000 0000" 
+                          defaultValue={editingPayment ? `**** **** **** ${editingPayment.item.last4}` : ''}
+                          required 
+                        />
+                      </div>
+                    </div>
+                    <div className="form-row three-col">
                       <div className="form-group">
-                        <label>Expiry Date</label>
+                        <label>Expiry</label>
                         <input 
                           type="text" 
                           name="expiry" 
@@ -3598,6 +3803,10 @@ function StudioView({ onBack, startWizard }) {
                         <label>CVC</label>
                         <input type="text" name="cvc" placeholder="123" required />
                       </div>
+                      <div className="form-group">
+                        <label>Zip Code</label>
+                        <input type="text" name="zip" placeholder="10001" required />
+                      </div>
                     </div>
                     <button type="submit" className="cta-button-premium" style={{ width: '100%', marginTop: '1rem' }}>
                       {editingPayment ? 'Update Card' : 'Save Card'}
@@ -3606,28 +3815,42 @@ function StudioView({ onBack, startWizard }) {
                 ) : (
                   <form className="payment-form" onSubmit={handleSavePayment}>
                     <div className="form-group">
+                      <label>Account Holder Name</label>
+                      <input 
+                        type="text" 
+                        name="accountName" 
+                        placeholder="Full Name" 
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
                       <label>Bank Name</label>
-                      <input 
-                        type="text" 
-                        name="bankName" 
-                        placeholder="e.g. Chase, Wells Fargo" 
-                        defaultValue={editingPayment ? editingPayment.item.bankName : ''}
-                        required 
-                      />
+                      <div className="input-with-icon">
+                        <Landmark size={18} className="input-icon" />
+                        <input 
+                          type="text" 
+                          name="bankName" 
+                          placeholder="e.g. Chase, Wells Fargo" 
+                          defaultValue={editingPayment ? editingPayment.item.bankName : ''}
+                          required 
+                        />
+                      </div>
                     </div>
-                    <div className="form-group">
-                      <label>Routing Number</label>
-                      <input type="text" name="routingNumber" placeholder="9 digits" required />
-                    </div>
-                    <div className="form-group">
-                      <label>Account Number</label>
-                      <input 
-                        type="text" 
-                        name="accountNumber" 
-                        placeholder="Account Number" 
-                        defaultValue={editingPayment ? `****${editingPayment.item.last4}` : ''}
-                        required 
-                      />
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Routing Number</label>
+                        <input type="text" name="routingNumber" placeholder="9 digits" required />
+                      </div>
+                      <div className="form-group">
+                        <label>Account Number</label>
+                        <input 
+                          type="text" 
+                          name="accountNumber" 
+                          placeholder="Account Number" 
+                          defaultValue={editingPayment ? `****${editingPayment.item.last4}` : ''}
+                          required 
+                        />
+                      </div>
                     </div>
                     <button type="submit" className="cta-button-premium" style={{ width: '100%', marginTop: '1rem' }}>
                       {editingPayment ? 'Update Bank Account' : 'Link Bank Account'}
@@ -3773,7 +3996,7 @@ function StudioView({ onBack, startWizard }) {
 
             <button 
               className="cta-button-premium haptic-press"
-              style={{ width: '100%', marginTop: '24px' }}
+              style={{ width: '100%', marginTop: '24px', display: 'none' }}
               onClick={() => {
                 localStorage.setItem('studio_welcome_seen', 'true');
                 setShowWelcomeModal(false);
@@ -3833,13 +4056,13 @@ function StudioView({ onBack, startWizard }) {
 
               <div className="help-section pro-tip-box">
                 <h3><Rocket size={16} className="text-orange" /> Get Started</h3>
-                <p>You have <strong>500 FREE credits</strong> to start your journey. That's enough to write an entire album or generate 20+ high-res cover arts.</p>
+                <p>You have <strong>100 FREE credits</strong> to start your journey. That's enough to write an entire album or generate 20+ high-res cover arts.</p>
                 <p style={{ marginTop: '8px' }}>Need more? You can top up anytime in the <strong>Billing</strong> tab.</p>
               </div>
             </div>
 
             <div className="modal-footer">
-              <button className="cta-button-primary" onClick={() => {
+              <button className="cta-button-premium" onClick={() => {
                 setShowCreditsModal(false);
                 setShowProjectWizard(true);
               }}>
@@ -3899,7 +4122,7 @@ function StudioView({ onBack, startWizard }) {
                   
                   <div className="form-group" style={{ marginBottom: '24px' }}>
                     <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Project Category</label>
-                    <div className="category-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
+                    <div className="category-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
                       {PROJECT_CATEGORIES.map(cat => (
                         <div 
                           key={cat.id}
@@ -3927,14 +4150,104 @@ function StudioView({ onBack, startWizard }) {
                 </div>
               )}
 
-              {/* Step 2: Assemble Team */}
+              {/* Step 2: Workflow & Team */}
               {projectWizardStep === 2 && (
                 <div className="wizard-step animate-slideIn">
-                  <h3 style={{ marginBottom: '16px' }}>Assemble Your Team</h3>
+                  <h3 style={{ marginBottom: '16px' }}>Choose Your Workflow</h3>
                   <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem' }}>
-                    Select the AI agents you want to collaborate with on this project.
+                    How do you want to work? Select a preset workflow or build your own team.
                   </p>
-                  <div className="agents-grid-selection" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px', maxHeight: '300px', overflowY: 'auto', paddingRight: '4px' }}>
+
+                  {/* Workflow Presets */}
+                  <div className="workflow-presets" style={{ display: 'grid', gap: '12px', marginBottom: '24px' }}>
+                    <div 
+                      className={`workflow-card haptic-press ${newProjectData.workflow === 'full_song' ? 'selected' : ''}`}
+                      onClick={() => setNewProjectData({
+                        ...newProjectData, 
+                        workflow: 'full_song',
+                        selectedAgents: ['Ghostwriter', 'Beat Lab', 'Album Artist']
+                      })}
+                      style={{
+                        padding: '16px',
+                        background: newProjectData.workflow === 'full_song' ? 'rgba(168, 85, 247, 0.15)' : 'var(--color-bg-tertiary)',
+                        border: newProjectData.workflow === 'full_song' ? '1px solid var(--color-purple)' : '1px solid transparent',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '16px'
+                      }}
+                    >
+                      <div style={{ background: 'var(--color-purple)', padding: '10px', borderRadius: '50%', color: 'white' }}>
+                        <Music size={20} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>Full Song Creation</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Lyrics → Beat → Cover Art</div>
+                      </div>
+                      {newProjectData.workflow === 'full_song' && <CheckCircle size={20} className="text-purple" />}
+                    </div>
+
+                    <div 
+                      className={`workflow-card haptic-press ${newProjectData.workflow === 'social_promo' ? 'selected' : ''}`}
+                      onClick={() => setNewProjectData({
+                        ...newProjectData, 
+                        workflow: 'social_promo',
+                        selectedAgents: ['Video Creator', 'Trend Hunter', 'Collab Connect']
+                      })}
+                      style={{
+                        padding: '16px',
+                        background: newProjectData.workflow === 'social_promo' ? 'rgba(6, 182, 212, 0.15)' : 'var(--color-bg-tertiary)',
+                        border: newProjectData.workflow === 'social_promo' ? '1px solid var(--color-cyan)' : '1px solid transparent',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '16px'
+                      }}
+                    >
+                      <div style={{ background: 'var(--color-cyan)', padding: '10px', borderRadius: '50%', color: 'white' }}>
+                        <Share2 size={20} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>Social Promotion</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Video → Trends → Networking</div>
+                      </div>
+                      {newProjectData.workflow === 'social_promo' && <CheckCircle size={20} className="text-cyan" />}
+                    </div>
+                    
+                    <div 
+                      className={`workflow-card haptic-press ${newProjectData.workflow === 'custom' ? 'selected' : ''}`}
+                      onClick={() => setNewProjectData({
+                        ...newProjectData, 
+                        workflow: 'custom',
+                        selectedAgents: []
+                      })}
+                      style={{
+                        padding: '16px',
+                        background: newProjectData.workflow === 'custom' ? 'rgba(255, 255, 255, 0.1)' : 'var(--color-bg-tertiary)',
+                        border: newProjectData.workflow === 'custom' ? '1px solid var(--text-secondary)' : '1px solid transparent',
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '16px'
+                      }}
+                    >
+                      <div style={{ background: 'var(--text-secondary)', padding: '10px', borderRadius: '50%', color: 'var(--color-bg-primary)' }}>
+                        <Settings size={20} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>Custom Team</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Manually select your agents</div>
+                      </div>
+                      {newProjectData.workflow === 'custom' && <CheckCircle size={20} className="text-white" />}
+                    </div>
+                  </div>
+
+                  {/* Custom Agent Selection (Only if Custom is selected) */}
+                  {newProjectData.workflow === 'custom' && (
+                    <div className="agents-grid-selection animate-fadeIn" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
                     {AGENTS.map(agent => {
                       const isSelected = newProjectData.selectedAgents?.includes(agent.name);
                       return (
@@ -3981,6 +4294,7 @@ function StudioView({ onBack, startWizard }) {
                       );
                     })}
                   </div>
+                  )}
                 </div>
               )}
 
@@ -4045,7 +4359,7 @@ function StudioView({ onBack, startWizard }) {
               
               {projectWizardStep < 3 ? (
                 <button 
-                  className="cta-button-primary" 
+                  className="cta-button-premium" 
                   disabled={
                     (projectWizardStep === 1 && (!newProjectData.name || !newProjectData.category)) ||
                     (projectWizardStep === 2 && (!newProjectData.selectedAgents || newProjectData.selectedAgents.length === 0))
@@ -4055,7 +4369,7 @@ function StudioView({ onBack, startWizard }) {
                   Next Step
                 </button>
               ) : (
-                <button className="cta-button-primary" onClick={handleCreateProject}>
+                <button className="cta-button-premium" onClick={handleCreateProject}>
                   Create Project
                 </button>
               )}
@@ -4127,7 +4441,7 @@ function StudioView({ onBack, startWizard }) {
             </div>
 
             <div className="modal-footer">
-              <button className="cta-button-primary" onClick={() => {
+              <button className="cta-button-premium" onClick={() => {
                 setSelectedAgent(showAgentHelpModal);
                 setShowAgentHelpModal(null);
               }}>
