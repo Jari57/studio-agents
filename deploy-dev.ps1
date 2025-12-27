@@ -1,7 +1,7 @@
-# 🚀 Whip Montez - Development Deployment Script
+# 🚀 Studio Agents - Development Deployment Script
 # Starts both backend and frontend in development mode
 
-Write-Host "Starting Whip Montez Development Environment" -ForegroundColor Green
+Write-Host "Starting Studio Agents Development Environment" -ForegroundColor Green
 Write-Host ("=" * 60) -ForegroundColor Gray
 Write-Host ""
 

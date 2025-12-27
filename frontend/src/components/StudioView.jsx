@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, Scale, FileText, Tv, Image, Layout, Briefcase, FileCode, Cpu, Wrench, Map, ExternalLink
 } from 'lucide-react';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import { auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase';
@@ -40,7 +40,7 @@ function StudioView({ onBack, startWizard, startTour }) {
   
   // Swipe Navigation Hook
   const swipeHandlers = useSwipeNavigation(
-    ['agents', 'mystudio', 'activity', 'news', 'comeup'],
+    ['agents', 'mystudio', 'activity', 'news', 'resources'],
     activeTab,
     setActiveTab
   );
@@ -65,8 +65,7 @@ function StudioView({ onBack, startWizard, startTour }) {
   }, [projects]);
   const [expandedNews, setExpandedNews] = useState(new Set());
   const [allNewsExpanded, setAllNewsExpanded] = useState(false);
-  const [expandedHelp, setExpandedHelp] = useState(null);
-  const [helpSearch, setHelpSearch] = useState('');
+  const [selectedHelpItem, setSelectedHelpItem] = useState(null);
   const [showNudge, setShowNudge] = useState(true);
   const [hubFilter, setHubFilter] = useState('All');
   const [playingItem, setPlayingItem] = useState(null);
@@ -79,6 +78,23 @@ function StudioView({ onBack, startWizard, startTour }) {
     region: 'US',
     language: 'English'
   });
+  
+  // New state for Manual Mode settings (Model, Language, etc.)
+  const [manualSettings, setManualSettings] = useState(() => {
+    const saved = localStorage.getItem('studio_manual_settings');
+    return saved ? JSON.parse(saved) : {
+      genre: 'Hip Hop / Rap',
+      model: 'gemini',
+      language: 'en',
+      intensity: 5
+    };
+  });
+
+  // Persist manual settings
+  useEffect(() => {
+    localStorage.setItem('studio_manual_settings', JSON.stringify(manualSettings));
+  }, [manualSettings]);
+
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [user, setUser] = useState(null);
@@ -98,6 +114,25 @@ function StudioView({ onBack, startWizard, startTour }) {
     selectedAgents: []
   });
 
+  // Profile & Stats State
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileTab, setProfileTab] = useState('details');
+  // artistProfile moved to later declaration with persistence
+  
+  // Mock Stats for Profile
+  const studioStats = {
+    credits: 85,
+    creations: 124,
+    inProgress: 3,
+    storage: { used: 4.2, total: 10, unit: 'GB' },
+    lastLogin: new Date().toLocaleString(),
+    mostUsedAgent: 'Beat Architect',
+    agentVersions: {
+      gemini: '1.5 Pro (Active)',
+      claude: '3.5 Sonnet (Available)'
+    }
+  };
+
   const PROJECT_CATEGORIES = [
     { id: 'pro', label: 'Pro Studio', icon: Crown, desc: 'Full production suite', color: 'var(--color-purple)' },
     { id: 'vybing', label: 'Vybing', icon: Music, desc: 'Quick beat ideas', color: 'var(--color-cyan)' },
@@ -105,7 +140,8 @@ function StudioView({ onBack, startWizard, startTour }) {
     { id: 'video', label: 'Video', icon: Video, desc: 'Visual content', color: 'var(--color-pink)' },
     { id: 'scores', label: 'Scores', icon: FileMusic, desc: 'Cinematic composition', color: 'var(--color-emerald)' },
     { id: 'moves', label: 'Moves', icon: Activity, desc: 'Dance & Choreo', color: 'var(--color-yellow)' },
-    { id: 'music_videos', label: 'Music Videos', icon: Film, desc: 'Full production clips', color: 'var(--color-red)' }
+    { id: 'music_videos', label: 'Music Videos', icon: Film, desc: 'Full production clips', color: 'var(--color-red)' },
+    { id: 'social', label: 'Social', icon: Share2, desc: 'Profile & Reach', color: 'var(--color-pink)' }
   ];
 
   const handleCreateProject = () => {
@@ -122,7 +158,8 @@ function StudioView({ onBack, startWizard, startTour }) {
       status: 'Active',
       progress: 0,
       assets: [], // Store generated content here
-      context: {} // Shared context for MAS
+      context: {}, // Shared context for MAS
+      socialProfile: newProjectData.socialProfile || null
     };
 
     setProjects(prev => [newProject, ...prev]);
@@ -1219,6 +1256,17 @@ function StudioView({ onBack, startWizard, startTour }) {
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Share2 size={18} className="text-pink" /> Marketing</h3>
               <div className="marketing-card" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
                 <h4 style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--text-secondary)' }}>Social Status</h4>
+                
+                {selectedProject.socialProfile && (
+                  <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 'bold', color: 'white' }}>{selectedProject.socialProfile.handle}</span>
+                      <span className="badge" style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)' }}>{selectedProject.socialProfile.platform}</span>
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>{selectedProject.socialProfile.bio}</p>
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <div className={`social-pill ${socialConnections.twitter ? 'active' : ''}`} style={{ padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', background: socialConnections.twitter ? 'rgba(29, 161, 242, 0.2)' : 'rgba(255,255,255,0.1)', color: socialConnections.twitter ? '#1DA1F2' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Twitter size={14} /> {socialConnections.twitter ? 'Connected' : 'Link X'}
@@ -1306,21 +1354,12 @@ function StudioView({ onBack, startWizard, startTour }) {
                       </div>
                       <div className="banner-actions">
                         <button 
-                          className={`voice-command-btn haptic-press ${isListening ? 'active' : ''}`}
-                          onClick={handleVoiceToText}
+                          className="cta-button-premium haptic-press"
+                          onClick={() => setShowProfileModal(true)}
+                          style={{ minWidth: '220px', display: 'flex', alignItems: 'center', gap: '10px' }}
                         >
-                          <Mic size={20} />
-                          <span>{isListening ? 'Listening...' : 'Voice Command'}</span>
-                        </button>
-                        <button 
-                          className="btn-refresh-glow haptic-press"
-                          onClick={() => {
-                            handleTextToVoice("Synchronizing your AI ecosystem...");
-                            alert("Ecosystem synchronized successfully!");
-                          }}
-                        >
-                          <RefreshCw size={18} /> 
-                          <span>Sync Ecosystem</span>
+                          <User size={20} />
+                          <span>Artist Profile & Stats</span>
                         </button>
                       </div>
                     </div>
@@ -1763,7 +1802,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                           </div>
                         </div>
                         <ul className="plan-features-native">
-                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>500 Credits / Month</span></li>
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>100 Credits / Month</span></li>
                           <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>All 16 Agents</span></li>
                           <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Commercial License</span></li>
                         </ul>
@@ -1990,10 +2029,14 @@ function StudioView({ onBack, startWizard, startTour }) {
               </div>
 
               <div className="agent-utility-box">
-                <div className="utility-controls">
+                <div className="utility-controls" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem' }}>
                   <div className="control-group">
                     <label>Genre / Style</label>
-                    <select className="studio-select">
+                    <select 
+                      className="studio-select"
+                      value={manualSettings.genre}
+                      onChange={(e) => setManualSettings({...manualSettings, genre: e.target.value})}
+                    >
                       <option>Hip Hop / Rap</option>
                       <option>Pop / Modern</option>
                       <option>R&B / Soul</option>
@@ -2003,8 +2046,62 @@ function StudioView({ onBack, startWizard, startTour }) {
                     </select>
                   </div>
                   <div className="control-group">
+                    <label>AI Model</label>
+                    <select 
+                      className="studio-select"
+                      value={manualSettings.model}
+                      onChange={(e) => setManualSettings({...manualSettings, model: e.target.value})}
+                    >
+                      <option value="gemini">Gemini 1.5 Pro</option>
+                      <option value="claude">Claude 3.5 Sonnet</option>
+                      <option value="stable">Stable Audio 2.0</option>
+                    </select>
+                  </div>
+                  <div className="control-group">
+                    <label>Language</label>
+                    <select 
+                      className="studio-select"
+                      value={manualSettings.language}
+                      onChange={(e) => setManualSettings({...manualSettings, language: e.target.value})}
+                    >
+                      <option value="en">English</option>
+                      <option value="es">Spanish</option>
+                      <option value="fr">French</option>
+                      <option value="de">German</option>
+                      <option value="it">Italian</option>
+                      <option value="pt">Portuguese</option>
+                      <option value="ja">Japanese</option>
+                      <option value="zh">Chinese (Mandarin)</option>
+                      <option value="ko">Korean</option>
+                      <option value="ru">Russian</option>
+                      <option value="ar">Arabic</option>
+                      <option value="hi">Hindi</option>
+                      <option value="bn">Bengali</option>
+                      <option value="pa">Punjabi</option>
+                      <option value="jv">Javanese</option>
+                      <option value="tr">Turkish</option>
+                      <option value="vi">Vietnamese</option>
+                      <option value="th">Thai</option>
+                      <option value="nl">Dutch</option>
+                      <option value="pl">Polish</option>
+                      <option value="sv">Swedish</option>
+                      <option value="da">Danish</option>
+                      <option value="fi">Finnish</option>
+                      <option value="no">Norwegian</option>
+                      <option value="el">Greek</option>
+                    </select>
+                  </div>
+                  <div className="control-group">
                     <label>Intensity / Mood</label>
-                    <input type="range" className="studio-slider" min="1" max="10" defaultValue="5" />
+                    <input 
+                      type="range" 
+                      className="studio-slider" 
+                      min="1" 
+                      max="10" 
+                      value={manualSettings.intensity}
+                      onChange={(e) => setManualSettings({...manualSettings, intensity: parseInt(e.target.value)})}
+                      style={{ marginTop: '12px' }} 
+                    />
                   </div>
                 </div>
 
@@ -2573,365 +2670,320 @@ function StudioView({ onBack, startWizard, startTour }) {
             )}
           </div>
         );
-      case 'comeup':
-        const TRENDING_VIDEOS = [
+      case 'resources':
+        const LEGAL_RESOURCES = [
           {
-            id: 'v1',
-            title: 'Mastering AI Vocals in 2025',
-            channel: 'Future Music',
-            views: '1.2M',
-            thumbnail: 'https://images.unsplash.com/photo-1516280440614-6697288d5d38?auto=format&fit=crop&w=400&q=80',
-            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+            title: 'Music Copyright 101',
+            desc: 'Understanding the difference between Composition and Master Recording rights.',
+            icon: Scale,
+            type: 'Guide',
+            details: 'There are two copyrights in every song: 1. The Composition (lyrics & melody), usually owned by songwriters/publishers. 2. The Master Recording (the audio file), usually owned by the label or performing artist. To get paid fully, you must register both. Use a PRO (Performance Rights Organization) like ASCAP or BMI for composition, and SoundExchange for digital performance royalties.'
           },
           {
-            id: 'v2',
-            title: 'The "Bedroom Producer" Revolution',
-            channel: 'Indie Guide',
-            views: '850K',
-            thumbnail: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?auto=format&fit=crop&w=400&q=80',
-            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+            title: 'Split Sheet Template',
+            desc: 'Standard agreement for documenting ownership percentages with collaborators.',
+            icon: FileText,
+            type: 'Template',
+            details: 'A split sheet is a simple document that lists every person who contributed to a song and what percentage of the publishing they own. NEVER leave the studio without signing one. If you don\'t have a written agreement, copyright law often assumes equal ownership by default, which can lead to disputes later. Key fields: Song Title, Date, Writer Names, Publisher Names, PRO Affiliation, and Ownership %.'
           },
           {
-            id: 'v3',
-            title: 'Mixing Secrets: Analog vs Digital',
-            channel: 'Mix Master',
-            views: '2.1M',
-            thumbnail: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=400&q=80',
-            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+            title: 'Sync Licensing Basics',
+            desc: 'How to get your music placed in TV, Film, and Video Games.',
+            icon: Tv,
+            type: 'Guide',
+            details: 'Sync (Synchronization) licensing is when your music is used in visual media. It requires approval from both the Master owner and the Composition owner. "One-stop" tracks (where you own both) are preferred by music supervisors for quick clearance. To pitch for sync: 1. Have instrumental versions ready. 2. Ensure metadata is clean. 3. Avoid uncleared samples. 4. Register with a sync agency or library.'
+          },
+          {
+            title: 'AI & IP Rights',
+            desc: 'Current legal landscape regarding AI-generated content and ownership.',
+            icon: Shield,
+            type: 'Whitepaper',
+            details: 'As of 2025, the US Copyright Office has stated that purely AI-generated works without "sufficient human authorship" are not copyrightable. However, works that use AI as a tool but have significant human creative input (lyrics, arrangement, post-production) CAN be protected. We recommend documenting your human contribution to every track to ensure your IP is defensible.'
           }
         ];
 
-        const LEGENDARY_STORIES = [
+        const AGENT_WHITEPAPERS = [
           {
-            artist: 'Prince',
-            genre: 'Funk / Pop',
-            story: 'Known for playing every instrument on his debut album, Prince was the ultimate one-man studio.',
-            toolUsage: 'Prince would have used <strong>Beat Lab</strong> to sketch drum patterns and <strong>Vocal Architect</strong> to layer harmonies without a choir.',
-            image: 'https://images.unsplash.com/photo-1525296416926-b537848e3e69?auto=format&fit=crop&w=200&q=80'
+            agent: 'Ghostwriter',
+            model: 'Gemini 1.5 Pro',
+            focus: 'Lyrical structure, rhyme schemes, and thematic consistency.',
+            version: 'v2.4',
+            icon: FileCode,
+            title: 'Ghostwriter Technical Spec',
+            desc: 'Architecture and fine-tuning details for the lyric generation engine.',
+            details: 'Ghostwriter utilizes a fine-tuned version of Gemini 1.5 Pro, optimized on a dataset of 50,000+ hit songs across 12 genres. Key architectural features include: 1. Rhyme Density Analysis: Ensures complex multi-syllabic rhyme schemes. 2. Sentiment Mapping: Aligns lyrical tone with the user\'s specified mood. 3. Structure Enforcement: Strictly adheres to Verse-Chorus-Bridge formats unless instructed otherwise. Latency: <1.2s per stanza.'
           },
           {
-            artist: 'J Dilla',
-            genre: 'Hip Hop',
-            story: 'Dilla humanized the MPC, turning quantization off to create a "drunk" swing that changed rhythm forever.',
-            toolUsage: 'He would leverage <strong>Trend Hunter</strong> to find obscure samples, but he\'d likely turn the "Humanize" knob on <strong>Beat Lab</strong> to 100%.',
-            image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=200&q=80'
+            agent: 'Beat Architect',
+            model: 'AudioLDM-2 / MusicGen',
+            focus: 'Rhythmic patterns, drum synthesis, and genre-specific grooves.',
+            version: 'v3.1',
+            icon: Music,
+            title: 'Beat Architect Technical Spec',
+            desc: 'Deep learning model for drum synthesis and rhythmic pattern generation.',
+            details: 'Beat Architect combines AudioLDM-2 for high-fidelity texture generation with a custom MusicGen transformer for rhythmic precision. It features a "Groove Quantization" layer that can inject "human" swing (0-100%) into generated MIDI patterns. The model is trained on individual drum hits (kicks, snares, hats) to allow for stem separation and individual kit piece replacement.'
           },
           {
-            artist: 'David Bowie',
-            genre: 'Rock / Exp',
-            story: 'The chameleon of rock, Bowie used the "cut-up technique" to rearrange words and find new meanings.',
-            toolUsage: 'Bowie is the spiritual ancestor of <strong>Ghostwriter</strong>. He would use it to generate chaotic text streams and curate the most surreal phrases.',
-            image: 'https://images.unsplash.com/photo-1535581652167-3d6b98c36cd0?auto=format&fit=crop&w=200&q=80'
+            agent: 'Vocal Architect',
+            model: 'Diff-SVC',
+            focus: 'Vocal synthesis, harmony layering, and timbre transfer.',
+            version: 'v1.8',
+            icon: Mic,
+            title: 'Vocal Architect Technical Spec',
+            desc: 'Voice conversion and synthesis pipeline for realistic vocal performances.',
+            details: 'Vocal Architect uses a Diffusion-based Singing Voice Conversion (Diff-SVC) model. It takes a reference audio input (or MIDI melody) and a target voice profile (e.g., "Soulful Female") to generate realistic vocals. The pipeline includes a "Breath Insertion" module to add natural breathing sounds between phrases, significantly reducing the "robotic" artifacting common in older TTS models.'
+          },
+          {
+            agent: 'Mastering Lab',
+            model: 'Ozone AI Core',
+            focus: 'Dynamic range compression, EQ balancing, and loudness normalization.',
+            version: 'v4.0',
+            icon: Zap,
+            title: 'Mastering Lab Technical Spec',
+            desc: 'Automated mastering chain using predictive audio analysis.',
+            details: 'Mastering Lab is not a generative model but an analytical one. It uses a spectral analysis engine to compare the user\'s mix against a database of 10,000 commercial releases. It then dynamically adjusts a chain of DSP plugins (EQ, Multiband Compressor, Limiter, Saturation) to match the target genre\'s frequency balance and integrated LUFS (Loudness Units Full Scale) standards.'
+          }
+        ];
+
+        const PRODUCTION_TOOLS = [
+          {
+            name: 'Canva',
+            desc: 'Design album art and social assets.',
+            url: 'https://www.canva.com',
+            icon: Image
+          },
+          {
+            name: 'Figma',
+            desc: 'Prototyping and layout for visual projects.',
+            url: 'https://www.figma.com',
+            icon: Layout
+          },
+          {
+            name: 'Splice',
+            desc: 'Royalty-free samples and loops.',
+            url: 'https://splice.com',
+            icon: Music
+          },
+          {
+            name: 'DistroKid',
+            desc: 'Music distribution to Spotify & Apple Music.',
+            url: 'https://distrokid.com',
+            icon: Globe
+          }
+        ];
+
+        const SITE_MAP = [
+          { section: 'Studio', items: ['Create Project', 'My Projects', 'Agent Grid'] },
+          { section: 'Agents', items: ['Ghostwriter', 'Beat Architect', 'Vocal Architect', 'Social Pilot'] },
+          { section: 'Hub', items: ['Project Dashboard', 'Marketing Plan', 'Distribution'] },
+          { section: 'Wall', items: ['Community Feed', 'Trending', 'Collaboration'] }
+        ];
+
+        const HELP_ITEMS = [
+          { 
+            icon: Book, 
+            title: 'Getting Started', 
+            desc: 'Learn the basics of the Studio Agents workflow.',
+            details: 'To get started, select an agent from the "Agents" tab. Each agent specializes in a different part of the music creation process. For example, Ghostwriter can help you write lyrics, while Beat Lab can generate drum patterns. Once you\'ve selected an agent, enter a prompt describing what you want to create. You can then save your creation as a new project, which will appear in your Project Hub for later recall.'
+          },
+          { 
+            icon: Zap, 
+            title: 'Agent Mastery', 
+            desc: 'Deep dives into each agent\'s unique capabilities.',
+            details: 'Mastering our agents requires understanding their specific strengths. Ghostwriter responds best to emotional cues and genre-specific keywords. Album Artist can interpret complex visual metaphors. Trend Hunter scans real-time social data to give you a competitive edge. Experiment with different "Intensity" settings to see how the AI\'s creativity shifts from subtle to experimental.'
+          },
+          { 
+            icon: PlayCircle, 
+            title: 'Video Tutorials', 
+            desc: 'Watch step-by-step guides on making hits.',
+            details: 'Our video library includes tutorials on: "Writing Your First Hit with Ghostwriter", "Advanced Beat Making with Beat Lab", and "Strategic Rollouts with Release Manager". Each video is under 5 minutes and designed to get you creating immediately. Pro members get access to exclusive masterclasses from industry-leading producers who use Studio Agents in their daily workflow.'
+          },
+          { 
+            icon: MessageSquare, 
+            title: 'Community Tips', 
+            desc: 'See how other artists are using the studio.',
+            details: 'Join our Discord community and check out the "Activity Wall" to share prompts, collaborate with other artists, and get feedback on your AI-assisted tracks. Many users have found success by combining outputs from multiple agents—for example, using Ghostwriter for lyrics and then feeding those lyrics into a vocal synth. The possibilities are endless when you collaborate with the community.'
+          }
+        ];
+
+        const TROUBLESHOOTING_GUIDE = [
+          {
+            keywords: ['download', 'save', 'export', 'phone', 'photos'],
+            issue: 'Cannot download or save to device',
+            solution: 'Ensure you have granted storage permissions to your browser. On mobile, long-press the image or use the "Save to Files" option in the share menu. If using cloud storage, verify your Google Drive or OneDrive connection is active.'
+          },
+          {
+            keywords: ['audio', 'sound', 'hear', 'play', 'silent'],
+            issue: 'No sound during playback',
+            solution: 'Check if your device is on silent mode. Ensure the volume slider in the Media Player is turned up. Some browsers block auto-play audio; try clicking the play button manually.'
+          },
+          {
+            keywords: ['slow', 'stuck', 'loading', 'generate', 'wait'],
+            issue: 'Generation is taking too long',
+            solution: 'High-quality models like Imagen 3 and Veo can take up to 30 seconds. Check your internet connection. If the progress bar is stuck, try refreshing the page; your project will be saved in the Project Hub.'
+          },
+          {
+            keywords: ['login', 'account', 'pro', 'subscription', 'access'],
+            issue: 'Cannot access Pro agents',
+            solution: 'Pro agents require an active Studio Pro subscription. Ensure you are logged in with the correct account. If you just subscribed, try logging out and back in to refresh your status.'
+          },
+          {
+            keywords: ['voice', 'mic', 'microphone', 'speak', 'listen', 'gender', 'male', 'female', 'accent', 'translate', 'language'],
+            issue: 'Voice controls and translation settings',
+            solution: 'Use the Mic icon for Voice-to-Text and the Speaker icon for Text-to-Voice. Click the Settings (gear) icon to change voice gender (Male/Female), region (US/UK/AU/IN), or to enable automatic translation to your preferred language.'
+          },
+          {
+            keywords: ['privacy', 'data', 'security', 'safe', 'private'],
+            issue: 'Is my data and music private?',
+            solution: 'Yes. We use end-to-end encryption for your prompts and creations. We do not share your personal studio data with third parties or use it to train public models without your permission.'
           }
         ];
 
         return (
-          <div className="comeup-view animate-fadeInUp">
-            <div className="comeup-hero">
-              <div className="comeup-badge">Artist Growth Suite</div>
-              <h1>The Come Up</h1>
-              <p>Tracking your journey from local talent to global influence.</p>
+          <div className="resources-view animate-fadeInUp">
+            <div className="resources-hero">
+              <div className="resources-badge">Professional Suite</div>
+              <h1>Creator Resources</h1>
+              <p>Legal frameworks, technical whitepapers, and industry tools for the modern studio.</p>
             </div>
 
-            <div className="comeup-grid">
-              <div className="comeup-main">
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Users size={20} />
-                    <h2>Your Artist Profile</h2>
-                  </div>
-                  <div className="artist-profile-card">
-                    <div className="artist-image-stub"></div>
-                    <div className="artist-info">
-                      <h3>{isLoggedIn ? 'Pro Creator' : 'Guest Artist'}</h3>
-                      <p className="location">Global Artist • Studio Agents Pro</p>
-                      <p className="bio-text">
-                        You are currently on the path to breaking through. Use our AI agents to collaborate with virtual legends, 
-                        optimize your production, and reach audiences across all major streaming platforms.
-                      </p>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Book size={20} />
-                    <h2>The Roadmap</h2>
-                  </div>
-                  <div className="story-content">
-                    <div className="story-block">
-                      <h3>Phase 1: Foundation & Identity</h3>
-                      <p>
-                        Establish your core sonic signature using Ghostwriter and Beat Lab. This phase is about experimentation—finding the intersection between what you love and what resonates. Build a consistent visual identity 
-                        with Album Artist to ensure your brand is recognizable from day one. Your first 1,000 true fans are born here.
-                      </p>
-                    </div>
-                    <div className="story-block">
-                      <h3>Phase 2: Momentum & Market Fit</h3>
-                      <p>
-                        Leverage Trend Hunter and Social Pilot to grow your audience through data-informed storytelling. Use Collab Connect 
-                        to find the right partners to expand your reach into new territories. This is where you transition from a "creator" to an "artist" with a measurable market presence.
-                      </p>
-                    </div>
-                    <div className="story-block">
-                      <h3>Phase 3: Scaling & Legacy</h3>
-                      <p>
-                        Once you've achieved consistent growth, the focus shifts to infrastructure. Reinvest in your craft, build a specialized team (management, legal, PR), and diversify your revenue streams. Success is not a destination, 
-                        but a platform to scale your creative influence and build a lasting legacy in the industry.
-                      </p>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <PlayCircle size={20} />
-                    <h2>Trending in Music Tech</h2>
-                  </div>
-                  <div className="video-scroll-container">
-                    {TRENDING_VIDEOS.map((video) => (
-                      <div 
-                        key={video.id} 
-                        className="video-card" 
-                        onClick={() => setPlayingItem({
-                          ...video,
-                          type: 'video',
-                          agent: 'YouTube',
-                          videoUrl: video.url
-                        })}
-                      >
-                        <div className="video-thumbnail">
-                          <img src={video.thumbnail} alt={video.title} />
-                          <div className="play-overlay"><Play size={24} /></div>
-                        </div>
-                        <div className="video-info">
-                          <h4>{video.title}</h4>
-                          <p>{video.channel} • {video.views} views</p>
-                        </div>
+            <div className="resources-grid">
+              {/* Legal & Business Section */}
+              <section className="resource-section full-width">
+                <div className="section-header">
+                  <Briefcase size={24} className="text-gold" />
+                  <h2>Legal & Business</h2>
+                </div>
+                <div className="resource-cards-grid">
+                  {LEGAL_RESOURCES.map((item, i) => (
+                    <div 
+                      key={i} 
+                      className="resource-card haptic-press"
+                      onClick={() => setSelectedHelpItem(item)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="resource-icon-wrapper">
+                        <item.icon size={24} />
                       </div>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Crown size={20} />
-                    <h2>Legends & The Future</h2>
-                  </div>
-                  <div className="legends-grid">
-                    {LEGENDARY_STORIES.map((legend, i) => (
-                      <div key={i} className="legend-card">
-                        <div className="legend-header">
-                          <div className="legend-avatar" style={{ backgroundImage: `url(${legend.image})` }}></div>
-                          <div>
-                            <h3>{legend.artist}</h3>
-                            <span className="legend-genre">{legend.genre}</span>
-                          </div>
-                        </div>
-                        <p className="legend-story">"{legend.story}"</p>
-                        <div className="legend-ai-take">
-                          <strong><Sparkles size={12} /> AI Workflow:</strong>
-                          <p dangerouslySetInnerHTML={{ __html: legend.toolUsage }}></p>
-                        </div>
+                      <div className="resource-info">
+                        <span className="resource-type">{item.type}</span>
+                        <h3>{item.title}</h3>
+                        <p>{item.desc}</p>
+                        <button className="resource-action">
+                          Read Guide <ChevronRight size={16} />
+                        </button>
                       </div>
-                    ))}
-                  </div>
-                </section>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* Agent Whitepapers */}
+              <section className="resource-section">
+                <div className="section-header">
+                  <FileCode size={24} className="text-cyan" />
+                  <h2>Agent Whitepapers</h2>
+                </div>
+                <div className="whitepaper-list">
+                  {AGENT_WHITEPAPERS.map((paper, i) => (
+                    <div 
+                      key={i} 
+                      className="whitepaper-item haptic-press"
+                      onClick={() => setSelectedHelpItem(paper)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="whitepaper-header">
+                        <h3>{paper.agent}</h3>
+                        <span className="version-badge">{paper.version}</span>
+                      </div>
+                      <div className="whitepaper-details">
+                        <div className="detail-row">
+                          <Cpu size={14} />
+                          <span>Model: {paper.model}</span>
+                        </div>
+                        <p>{paper.focus}</p>
+                      </div>
+                      <button className="download-btn">
+                        <Download size={14} /> Technical Spec
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* External Tools */}
+              <section className="resource-section">
+                <div className="section-header">
+                  <Wrench size={24} className="text-purple" />
+                  <h2>Production Tools</h2>
+                </div>
+                <div className="tools-list">
+                  {PRODUCTION_TOOLS.map((tool, i) => (
+                    <a key={i} href={tool.url} target="_blank" rel="noopener noreferrer" className="tool-item">
+                      <div className="tool-icon">
+                        <tool.icon size={20} />
+                      </div>
+                      <div className="tool-info">
+                        <h4>{tool.name}</h4>
+                        <p>{tool.desc}</p>
+                      </div>
+                      <ExternalLink size={16} className="external-icon" />
+                    </a>
+                  ))}
+                </div>
+              </section>
+
+              {/* Help & Support */}
+              <section className="resource-section full-width">
+                <div className="section-header">
+                  <CircleHelp size={24} className="text-pink" />
+                  <h2>Help & Support</h2>
+                </div>
+                <div className="help-grid">
+                  {HELP_ITEMS.map((item, i) => (
+                    <div key={i} className="help-card" onClick={() => setSelectedHelpItem(item)}>
+                      <div className="help-icon-wrapper">
+                        <item.icon size={24} />
+                      </div>
+                      <h3>{item.title}</h3>
+                      <p>{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
                 
-                <section className="comeup-section">
-                   <div className="section-header">
-                     <Share2 size={20} />
-                     <h2>Connect & Amplify</h2>
-                   </div>
-                   <div className="social-connect-banner">
-                      <div className="social-text">
-                        <h3>Sync Your Socials</h3>
-                        <p>Connect your accounts to auto-post your creations and track engagement analytics directly from the Studio.</p>
+                <div className="troubleshooting-accordion">
+                  <h3>Common Issues</h3>
+                  {TROUBLESHOOTING_GUIDE.slice(0, 4).map((guide, i) => (
+                    <div key={i} className="troubleshoot-item">
+                      <div className="troubleshoot-header">
+                        <span className="troubleshoot-question">{guide.issue}</span>
+                        <ChevronDown size={16} />
                       </div>
-                      <div className="social-buttons-row">
-                        <button className="social-btn-large twitter" onClick={() => handleConnectSocial('twitter')}>
-                          <Twitter size={18} /> Connect X
-                        </button>
-                        <button className="social-btn-large instagram" onClick={() => handleConnectSocial('instagram')}>
-                          <Instagram size={18} /> Connect IG
-                        </button>
-                        <button className="social-btn-large youtube" onClick={() => handleConnectSocial('youtube')}>
-                          <Play size={18} /> Connect YT
-                        </button>
-                      </div>
-                   </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Shield size={20} />
-                    <h2>Best Practices & Lessons</h2>
-                  </div>
-                  <div className="insights-grid">
-                    <div className="insight-card">
-                      <div className="insight-icon"><Zap size={18} /></div>
-                      <h4>Consistency over Intensity</h4>
-                      <p>The algorithm rewards steady output. It's better to release one quality track a month than five in one week and then go silent. Build a "content calendar" that you can actually sustain without burnout.</p>
+                      <p className="troubleshoot-answer">{guide.solution}</p>
                     </div>
-                    <div className="insight-card">
-                      <div className="insight-icon"><Target size={18} /></div>
-                      <h4>Own Your Audience Data</h4>
-                      <p>Social media platforms are "rented land." Always prioritize building an email list or Discord community. If an algorithm changes tomorrow, you need a direct line to the people who support your art.</p>
-                    </div>
-                    <div className="insight-card warning">
-                      <div className="insight-icon"><Shield size={18} /></div>
-                      <h4>The Contract Trap</h4>
-                      <p>Lesson Learned: Never sign a "Standard" contract without independent legal review. The "360 Deal" can often limit your long-term freedom. Understand your "Recoupables" before you spend a dime of an advance.</p>
-                    </div>
-                    <div className="insight-card">
-                      <div className="insight-icon"><Users size={18} /></div>
-                      <h4>Networking vs. Connecting</h4>
-                      <p>Don't just "network" for favors. Build genuine relationships with peers at your level. The "class" you come up with will be your strongest support system as you all rise together.</p>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Globe size={20} />
-                    <h2>The Business of Music</h2>
-                  </div>
-                  <div className="business-insights">
-                    <div className="biz-block">
-                      <h3>Publishing vs. Masters</h3>
-                      <p>Understanding the difference is key to long-term wealth. Masters are the recording (the "audio file"); Publishing is the song itself (the "composition"). Both are vital revenue streams, but publishing often has a longer "tail" of value.</p>
-                    </div>
-                    <div className="biz-block">
-                      <h3>Sync Licensing: The Quiet Giant</h3>
-                      <p>Getting your music in TV, film, and games is one of the most effective ways to fund a career. It provides both a lump-sum "sync fee" and ongoing performance royalties. Optimize your metadata to be "sync-ready."</p>
-                    </div>
-                    <div className="biz-block">
-                      <h3>How Goals are Achieved</h3>
-                      <p>In the past, labels were the only gatekeepers. Today, goals are achieved through "Micro-Viral" moments, sustained community engagement, and strategic algorithmic triggers. You are the CEO of your own startup.</p>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <LayoutGrid size={20} />
-                    <h2>Pro Workflows: Multi-Agent Projects</h2>
-                  </div>
-                  <div className="workflow-content">
-                    <p className="workflow-intro">
-                      The true power of Studio Agents Pro lies in <strong>Multi-Agent Orchestration</strong>. Instead of using agents in isolation, Pro creators chain them together to build entire musical ecosystems.
-                    </p>
-                    <div className="workflow-steps-v2">
-                      <div className="workflow-step-v2">
-                        <div className="step-v2-icon"><Music size={20} /></div>
-                        <div className="step-v2-text">
-                          <h4>1. The Foundation (Beat Architect + Instrumentalist)</h4>
-                          <p>Start by generating a complex rhythmic skeleton with <strong>Beat Architect</strong>. Then, use <strong>Instrumentalist</strong> to layer a bassline or guitar riff that follows the same MIDI timing. This ensures your "pocket" is tight from the start.</p>
-                        </div>
-                      </div>
-                      <div className="workflow-step-v2">
-                        <div className="step-v2-icon"><Sparkles size={20} /></div>
-                        <div className="step-v2-text">
-                          <h4>2. The Soul (Ghostwriter + Vocal Architect)</h4>
-                          <p>Feed your track's mood into <strong>Ghostwriter</strong> to generate lyrics. Take those lyrics directly into <strong>Vocal Architect</strong> to synthesize lead vocals and 3-part harmonies. Pro Tip: Use the same "Intensity" setting for both to maintain emotional consistency.</p>
-                        </div>
-                      </div>
-                      <div className="workflow-step-v2">
-                        <div className="step-v2-icon"><Shield size={20} /></div>
-                        <div className="step-v2-text">
-                          <h4>3. The Polish (Mastering Lab + Album Artist)</h4>
-                          <p>Once your mix is balanced, run it through <strong>Mastering Lab</strong> for industry-standard loudness. Simultaneously, use <strong>Album Artist</strong> to generate a visual identity that matches the sonic frequency of your master.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Lock size={20} />
-                    <h2>AI Ethics & Privacy</h2>
-                  </div>
-                  <div className="ethics-content">
-                    <div className="ethics-grid">
-                      <div className="ethics-card">
-                        <Shield size={24} className="ethics-icon" />
-                        <h3>Data Privacy</h3>
-                        <p>Your prompts and creations are yours. We use industry-standard encryption to ensure your creative IP remains private. We do not train our base models on your personal studio sessions without explicit consent.</p>
-                      </div>
-                      <div className="ethics-card">
-                        <Lock size={24} className="ethics-icon" />
-                        <h3>Ownership & Rights</h3>
-                        <p>The "Truth" about AI: You own the output you generate here. However, copyright laws are evolving. We recommend using AI as a "Co-Pilot"—always add your unique human touch to ensure full legal protection of your works.</p>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="comeup-section">
-                  <div className="section-header">
-                    <Award size={20} />
-                    <h2>Professional Quality Mastery</h2>
-                  </div>
-                  <div className="mastery-content">
-                    <div className="mastery-grid">
-                      <div className="mastery-item">
-                        <div className="mastery-header">
-                          <CheckCircle size={18} className="do-icon" />
-                          <h3>The "Do's" of AI Production</h3>
-                        </div>
-                        <ul>
-                          <li><strong>Iterate:</strong> Use AI to generate 10 ideas, then pick the best 1 to refine manually.</li>
-                          <li><strong>Layering:</strong> Combine AI-generated stems with live-recorded instruments for "Organic Depth."</li>
-                          <li><strong>Reference Tracks:</strong> Always provide the AI with clear stylistic references to maintain professional consistency.</li>
-                        </ul>
-                      </div>
-                      <div className="mastery-item">
-                        <div className="mastery-header">
-                          <X size={18} className="dont-icon" />
-                          <h3>The "Don'ts" of AI Production</h3>
-                        </div>
-                        <ul>
-                          <li><strong>Don't Over-Rely:</strong> Avoid using "Raw" AI output without any human editing; it often lacks the emotional nuance listeners crave.</li>
-                          <li><strong>Don't Ignore Metadata:</strong> Professional quality includes proper tagging and credits. Always document your AI tools in your production logs.</li>
-                          <li><strong>Don't Chase Perfection:</strong> AI can generate "perfect" timing, but "human" swing is what makes people dance. Keep the soul in the music.</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              </div>
-
-              <div className="comeup-sidebar">
-                <div className="sidebar-card">
-                  <h3>Executive Insights</h3>
-                  <div className="testimonial-list">
-                    <div className="testimonial-item">
-                      <p>"We don't just sign songs anymore; we sign ecosystems. We look for artists who have already built a world around their music. If you have the community, we provide the fuel."</p>
-                      <span>— VP of A&R, Global Music Group</span>
-                    </div>
-                    <div className="testimonial-item">
-                      <p>"Data gets you in the room, but your unique 'Sonic Thumbprint' is what keeps you there. Don't chase trends; start them. The most successful artists are the ones who are 'un-copyable'."</p>
-                      <span>— Head of Digital, Indie Powerhouse</span>
-                    </div>
-                    <div className="testimonial-item">
-                      <p>"The best artists I work with understand their business as well as their craft. They know their splits, they know their rights, and they know their worth."</p>
-                      <span>— Senior Sync Agent, Hollywood Music House</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-                <div className="sidebar-card stats">
-                  <h3>Career Milestones</h3>
-                  <div className="stat-row">
-                    <span>Current Status</span>
-                    <strong>Rising Talent</strong>
-                  </div>
-                  <div className="stat-row">
-                    <span>Next Goal</span>
-                    <strong>100k Monthly Listeners</strong>
-                  </div>
+              </section>
+
+              {/* Site Map */}
+              <section className="resource-section full-width">
+                <div className="section-header">
+                  <Map size={24} className="text-green" />
+                  <h2>Application Site Map</h2>
                 </div>
-              </div>
+                <div className="sitemap-grid">
+                  {SITE_MAP.map((area, i) => (
+                    <div key={i} className="sitemap-column">
+                      <h3>{area.section}</h3>
+                      <ul>
+                        {area.items.map((link, j) => (
+                          <li key={j}>{link}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
           </div>
         );
@@ -3149,282 +3201,6 @@ function StudioView({ onBack, startWizard, startTour }) {
             )}
           </div>
         );
-      case 'support':
-        const HELP_ITEMS = [
-          { 
-            icon: Book, 
-            title: 'Getting Started', 
-            desc: 'Learn the basics of the Studio Agents workflow.',
-            details: 'To get started, select an agent from the "Agents" tab. Each agent specializes in a different part of the music creation process. For example, Ghostwriter can help you write lyrics, while Beat Lab can generate drum patterns. Once you\'ve selected an agent, enter a prompt describing what you want to create. You can then save your creation as a new project, which will appear in your Project Hub for later recall.'
-          },
-          { 
-            icon: Zap, 
-            title: 'Agent Mastery', 
-            desc: 'Deep dives into each agent\'s unique capabilities.',
-            details: 'Mastering our agents requires understanding their specific strengths. Ghostwriter responds best to emotional cues and genre-specific keywords. Album Artist can interpret complex visual metaphors. Trend Hunter scans real-time social data to give you a competitive edge. Experiment with different "Intensity" settings to see how the AI\'s creativity shifts from subtle to experimental.'
-          },
-          { 
-            icon: PlayCircle, 
-            title: 'Video Tutorials', 
-            desc: 'Watch step-by-step guides on making hits.',
-            details: 'Our video library includes tutorials on: "Writing Your First Hit with Ghostwriter", "Advanced Beat Making with Beat Lab", and "Strategic Rollouts with Release Manager". Each video is under 5 minutes and designed to get you creating immediately. Pro members get access to exclusive masterclasses from industry-leading producers who use Studio Agents in their daily workflow.'
-          },
-          { 
-            icon: MessageSquare, 
-            title: 'Community Tips', 
-            desc: 'See how other artists are using the studio.',
-            details: 'Join our Discord community and check out the "Activity Wall" to share prompts, collaborate with other artists, and get feedback on your AI-assisted tracks. Many users have found success by combining outputs from multiple agents—for example, using Ghostwriter for lyrics and then feeding those lyrics into a vocal synth. The possibilities are endless when you collaborate with the community.'
-          }
-        ];
-
-        const TROUBLESHOOTING_GUIDE = [
-          {
-            keywords: ['download', 'save', 'export', 'phone', 'photos'],
-            issue: 'Cannot download or save to device',
-            solution: 'Ensure you have granted storage permissions to your browser. On mobile, long-press the image or use the "Save to Files" option in the share menu. If using cloud storage, verify your Google Drive or OneDrive connection is active.'
-          },
-          {
-            keywords: ['audio', 'sound', 'hear', 'play', 'silent'],
-            issue: 'No sound during playback',
-            solution: 'Check if your device is on silent mode. Ensure the volume slider in the Media Player is turned up. Some browsers block auto-play audio; try clicking the play button manually.'
-          },
-          {
-            keywords: ['slow', 'stuck', 'loading', 'generate', 'wait'],
-            issue: 'Generation is taking too long',
-            solution: 'High-quality models like Imagen 3 and Veo can take up to 30 seconds. Check your internet connection. If the progress bar is stuck, try refreshing the page; your project will be saved in the Project Hub.'
-          },
-          {
-            keywords: ['login', 'account', 'pro', 'subscription', 'access'],
-            issue: 'Cannot access Pro agents',
-            solution: 'Pro agents require an active Studio Pro subscription. Ensure you are logged in with the correct account. If you just subscribed, try logging out and back in to refresh your status.'
-          },
-          {
-            keywords: ['voice', 'mic', 'microphone', 'speak', 'listen', 'gender', 'male', 'female', 'accent', 'translate', 'language'],
-            issue: 'Voice controls and translation settings',
-            solution: 'Use the Mic icon for Voice-to-Text and the Speaker icon for Text-to-Voice. Click the Settings (gear) icon to change voice gender (Male/Female), region (US/UK/AU/IN), or to enable automatic translation to your preferred language.'
-          },
-          {
-            keywords: ['privacy', 'data', 'security', 'safe', 'private'],
-            issue: 'Is my data and music private?',
-            solution: 'Yes. We use end-to-end encryption for your prompts and creations. We do not share your personal studio data with third parties or use it to train public models without your permission.'
-          },
-          {
-            keywords: ['copyright', 'rights', 'own', 'legal', 'truth'],
-            issue: 'Do I own the AI-generated music?',
-            solution: 'You own the rights to the output you generate. However, for full copyright protection, we recommend adding human elements (vocals, live instruments) to make the work uniquely yours.'
-          },
-          {
-            keywords: ['quality', 'professional', 'pro', 'industry', 'standard'],
-            issue: 'How to get professional quality results?',
-            solution: 'Use high-quality reference tracks, layer AI stems with live recordings, and always perform a final manual mix. Our Mastering Lab agent can help with the final industry-standard polish.'
-          },
-          {
-            keywords: ['multi', 'agent', 'chain', 'workflow', 'project', 'pro'],
-            issue: 'How to use multiple agents in one project?',
-            solution: 'Pro users can "chain" agents by taking the output of one (e.g., Ghostwriter lyrics) and feeding it into another (e.g., Vocal Architect). Check "The Come Up" section for detailed Multi-Agent Workflow guides.'
-          }
-        ];
-
-        const NAVIGATION_ITEMS = [
-          { keywords: ['billing', 'payment', 'card', 'subscription', 'plan', 'wallet', 'money', 'cost', 'price'], label: 'Billing & Wallet', action: () => { setActiveTab('mystudio'); setDashboardTab('billing'); } },
-          { keywords: ['settings', 'config', 'preferences', 'dark mode', 'theme', 'language', 'voice'], label: 'App Settings', action: () => { setActiveTab('mystudio'); setDashboardTab('settings'); } },
-          { keywords: ['profile', 'account', 'user', 'avatar', 'login', 'logout', 'email'], label: 'User Profile', action: () => { setActiveTab('mystudio'); setDashboardTab('overview'); } },
-          { keywords: ['news', 'feed', 'updates', 'industry', 'trends'], label: 'Industry News', action: () => setActiveTab('news') },
-          { keywords: ['hub', 'projects', 'files', 'saved', 'library', 'creations'], label: 'Project Hub', action: () => setActiveTab('hub') },
-          { keywords: ['activity', 'wall', 'community', 'social', 'share', 'feed'], label: 'Activity Wall', action: () => setActiveTab('activity') },
-          { keywords: ['agents', 'tools', 'create', 'make', 'generate'], label: 'Agent Studio', action: () => setActiveTab('agents') }
-        ];
-
-        const suggestions = helpSearch.length > 1 
-          ? [
-              // Navigation Matches
-              ...NAVIGATION_ITEMS.filter(nav => 
-                nav.keywords.some(k => k.includes(helpSearch.toLowerCase())) || 
-                nav.label.toLowerCase().includes(helpSearch.toLowerCase())
-              ).map(item => ({
-                type: 'Action',
-                title: `Go to ${item.label}`,
-                description: 'Navigate to this section',
-                icon: ArrowRight,
-                action: item.action
-              })),
-
-              // Troubleshooting Matches
-              ...TROUBLESHOOTING_GUIDE.filter(guide => 
-                guide.keywords.some(k => helpSearch.toLowerCase().includes(k)) ||
-                guide.issue.toLowerCase().includes(helpSearch.toLowerCase())
-              ).map(item => ({ 
-                type: 'Troubleshooting',
-                title: item.issue,
-                description: item.solution,
-                icon: Shield
-              })),
-
-              // Guide Matches
-              ...HELP_ITEMS.filter(item => 
-                item.title.toLowerCase().includes(helpSearch.toLowerCase()) ||
-                item.desc.toLowerCase().includes(helpSearch.toLowerCase()) ||
-                item.details.toLowerCase().includes(helpSearch.toLowerCase())
-              ).map(item => ({ 
-                type: 'Guide',
-                title: item.title,
-                description: item.desc,
-                icon: Book
-              })),
-
-              // Agent Matches
-              ...AGENTS.filter(agent => 
-                agent.name.toLowerCase().includes(helpSearch.toLowerCase()) ||
-                agent.description.toLowerCase().includes(helpSearch.toLowerCase()) ||
-                agent.category.toLowerCase().includes(helpSearch.toLowerCase())
-              ).map(item => ({ 
-                type: 'Agent',
-                title: item.name,
-                description: item.description,
-                icon: Zap,
-                action: () => { setActiveTab('agents'); setSelectedAgent(item); }
-              })),
-
-              // FAQ Matches
-              ...[
-                  { q: 'How do I export my creations?', a: 'You can export any creation from the Project Hub using the download icon.' },
-                  { q: 'Can I use the lyrics commercially?', a: 'Yes, all content generated by Studio Agents is royalty-free for Pro users.' },
-                  { q: 'How do I change the agent\'s genre?', a: 'Use the Genre dropdown in the agent\'s detail view to shift styles.' }
-                ].filter(faq => 
-                  faq.q.toLowerCase().includes(helpSearch.toLowerCase()) ||
-                  faq.a.toLowerCase().includes(helpSearch.toLowerCase())
-                ).map(item => ({ 
-                  type: 'FAQ',
-                  title: item.q,
-                  description: item.a,
-                  icon: CircleHelp
-                }))
-            ]
-          : [];
-
-        return (
-          <div className="help-center-view animate-fadeInUp">
-            <div className="help-hero">
-              <h1>Support Center</h1>
-              <p className="text-muted" style={{ marginTop: '8px' }}>Guides, troubleshooting, and expert assistance.</p>
-              <div className="search-box large" style={{ marginTop: '24px' }}>
-                <Search size={20} />
-                <input 
-                  type="text" 
-                  placeholder="Search for agents, guides, or troubleshooting..." 
-                  value={helpSearch}
-                  onChange={(e) => setHelpSearch(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {suggestions.length > 0 ? (
-              <div className="smart-suggestions animate-fadeIn">
-                <div className="suggestions-header">
-                  <Sparkles size={18} className="text-purple" />
-                  <h3>Search Results</h3>
-                </div>
-                <div className="suggestions-list">
-                  {suggestions.map((item, i) => {
-                    const Icon = item.icon;
-                    return (
-                      <div 
-                        key={i} 
-                        className="suggestion-item"
-                        onClick={item.action ? item.action : undefined}
-                        style={{ cursor: item.action ? 'pointer' : 'default' }}
-                      >
-                        <div className="suggestion-icon">
-                          <Icon size={20} />
-                        </div>
-                        <div className="suggestion-content">
-                          <div className="suggestion-type">{item.type}</div>
-                          <h4>{item.title}</h4>
-                          <p>{item.description}</p>
-                        </div>
-                        {item.action && <ArrowRight size={16} className="suggestion-arrow" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : helpSearch.length > 1 ? (
-              <div className="empty-search-state animate-fadeIn" style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text-secondary)' }}>
-                <Search size={48} style={{ opacity: 0.2, marginBottom: '1rem' }} />
-                <h3>No results found</h3>
-                <p>Try searching for "Billing", "Ghostwriter", or "Export".</p>
-              </div>
-            ) : null}
-
-            <div className="help-grid-main">
-              {HELP_ITEMS.map((item, i) => {
-                const Icon = item.icon;
-                const isExpanded = expandedHelp === i;
-                return (
-                  <div key={i} className={`help-card-item ${isExpanded ? 'expanded' : ''}`}>
-                    <div className="help-card-icon">
-                      <Icon size={24} />
-                    </div>
-                    <h3>{item.title}</h3>
-                    <p>{item.desc}</p>
-                    {isExpanded && (
-                      <div className="help-card-details animate-fadeIn">
-                        <p>{item.details}</p>
-                      </div>
-                    )}
-                    <button 
-                      className="help-card-link"
-                      onClick={() => setExpandedHelp(isExpanded ? null : i)}
-                    >
-                      {isExpanded ? 'Show Less' : 'Read More'} 
-                      {isExpanded ? <ChevronUp size={16} /> : <ArrowRight size={16} />}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="faq-section">
-              <h2>Frequently Asked Questions</h2>
-              <div className="faq-list">
-                {[
-                  { q: 'How do I export my creations?', a: 'You can export any creation from the Project Hub using the download icon.' },
-                  { q: 'Can I use the lyrics commercially?', a: 'Yes, all content generated by Studio Agents is royalty-free for Pro users.' },
-                  { q: 'How do I change the agent\'s genre?', a: 'Use the Genre dropdown in the agent\'s detail view to shift styles.' }
-                ].map((faq, i) => (
-                  <div key={i} className="faq-item">
-                    <h4>{faq.q}</h4>
-                    <p>{faq.a}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="contact-support-section" style={{ marginTop: '40px', padding: '32px', background: 'var(--card-bg)', borderRadius: '24px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-              <div className="icon-box" style={{ width: '64px', height: '64px', margin: '0 auto 16px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--color-purple)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <MessageSquare size={32} />
-              </div>
-              <h2>Still need help?</h2>
-              <p style={{ color: 'var(--text-secondary)', maxWidth: '500px', margin: '12px auto 24px' }}>
-                Our support team is available 24/7 to assist with technical issues, billing inquiries, or creative blocks.
-              </p>
-              <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button 
-                  className="cta-button-premium"
-                  onClick={() => window.open('mailto:support@studioagents.com?subject=Support Request', '_blank')}
-                >
-                  Email Support
-                </button>
-                <button 
-                  className="cta-button-secondary"
-                  onClick={() => window.open('https://discord.gg/studioagents', '_blank')}
-                >
-                  Join Discord Community
-                </button>
-              </div>
-            </div>
-          </div>
-        );
       default:
         return null;
     }
@@ -3530,11 +3306,11 @@ function StudioView({ onBack, startWizard, startTour }) {
             <span>Activity Wall</span>
           </button>
           <button 
-            className={`nav-link ${activeTab === 'comeup' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('comeup'); setSelectedAgent(null); }}
+            className={`nav-link ${activeTab === 'resources' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('resources'); setSelectedAgent(null); }}
           >
-            <TrendingUp size={20} />
-            <span>Come Up</span>
+            <Book size={20} />
+            <span>Resources</span>
           </button>
           <button 
             className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}
@@ -3542,13 +3318,6 @@ function StudioView({ onBack, startWizard, startTour }) {
           >
             <Globe size={20} />
             <span>News</span>
-          </button>
-          <button 
-            className={`nav-link ${activeTab === 'support' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('support'); setSelectedAgent(null); }}
-          >
-            <CircleHelp size={20} />
-            <span>Support</span>
           </button>
         </nav>
 
@@ -3607,7 +3376,7 @@ function StudioView({ onBack, startWizard, startTour }) {
               }}
             >
               <Zap size={14} className="text-yellow-400" fill="currentColor" />
-              <span>500 Credits</span>
+              <span>100 Credits</span>
             </button>
             <button 
               className="action-button secondary theme-toggle haptic-press"
@@ -3632,7 +3401,7 @@ function StudioView({ onBack, startWizard, startTour }) {
             </button>
             <button 
               className="action-button secondary haptic-press"
-              onClick={() => { setActiveTab('support'); setSelectedAgent(null); }}
+              onClick={() => { setActiveTab('resources'); setSelectedAgent(null); }}
               title="Help Center"
             >
               <CircleHelp size={18} />
@@ -3798,20 +3567,35 @@ function StudioView({ onBack, startWizard, startTour }) {
                 </div>
 
                 <div className="player-footer">
-                  <div className="player-actions">
+                  <div className="player-actions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                     <button 
                       className="player-btn primary"
                       onClick={() => handleDownload(playingItem)}
+                      title="Download"
                     >
                       <Download size={18} />
-                      <span>Download to Device</span>
+                      <span>Download</span>
                     </button>
                     <button 
                       className="player-btn secondary"
                       onClick={() => handleShareToFeed(playingItem)}
+                      title="Share"
                     >
                       <Share2 size={18} />
-                      <span>Share to Feed</span>
+                      <span>Share</span>
+                    </button>
+                    <button 
+                      className="player-btn secondary"
+                      onClick={() => {
+                        const container = document.querySelector('.media-player-container');
+                        if (container) {
+                          container.classList.toggle('large-view');
+                        }
+                      }}
+                      title="Toggle View Size"
+                    >
+                      <Maximize size={18} />
+                      <span>View Size</span>
                     </button>
                   </div>
                 </div>
@@ -4067,12 +3851,59 @@ function StudioView({ onBack, startWizard, startTour }) {
             <Globe size={24} />
             <span>News</span>
           </div>
-          <div className={`bottom-nav-item haptic-press ${activeTab === 'comeup' ? 'active' : ''}`} onClick={() => { setActiveTab('comeup'); setSelectedAgent(null); }}>
-            <TrendingUp size={24} />
-            <span>Come Up</span>
+          <div className={`bottom-nav-item haptic-press ${activeTab === 'resources' ? 'active' : ''}`} onClick={() => { setActiveTab('resources'); setSelectedAgent(null); }}>
+            <Book size={24} />
+            <span>Resources</span>
           </div>
         </nav>
       </main>
+
+      {/* Help Item Modal */}
+      {selectedHelpItem && (
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2100 }}>
+          <div className="modal-content help-modal" style={{ maxWidth: '600px' }}>
+            <button 
+              className="modal-close"
+              onClick={() => setSelectedHelpItem(null)}
+            >
+              <X size={24} />
+            </button>
+            <div className="help-modal-header" style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <div className="help-icon-large" style={{ 
+                width: '80px', height: '80px', 
+                background: 'rgba(168, 85, 247, 0.1)', 
+                color: 'var(--color-purple)', 
+                borderRadius: '50%', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 1.5rem'
+              }}>
+                <selectedHelpItem.icon size={40} />
+              </div>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: '800', marginBottom: '0.5rem' }}>{selectedHelpItem.title}</h2>
+              <p style={{ color: 'var(--text-secondary)' }}>{selectedHelpItem.desc}</p>
+            </div>
+            
+            <div className="help-modal-body" style={{ 
+              background: 'rgba(255,255,255,0.03)', 
+              padding: '2rem', 
+              borderRadius: '16px',
+              lineHeight: '1.7',
+              color: '#d1d5db'
+            }}>
+              {selectedHelpItem.details}
+            </div>
+
+            <div className="help-modal-footer" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}>
+              <button 
+                className="cta-button-primary"
+                onClick={() => setSelectedHelpItem(null)}
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Welcome / Onboarding Modal */}
       {showWelcomeModal && (
@@ -4122,12 +3953,21 @@ function StudioView({ onBack, startWizard, startTour }) {
                   stats: ['16 Specialists', '24/7 Availability', 'Infinite Patience']
                 },
                 {
+                  id: 'system',
+                  icon: Database,
+                  color: 'pink',
+                  title: 'Powered by Elite Models',
+                  shortDesc: 'Access the world\'s most advanced AI engines.',
+                  fullDesc: 'Your studio is built on a multi-model architecture. We route your requests to the best-in-class engine for the job—whether it\'s Google Gemini 1.5 Pro for creative reasoning or Anthropic Claude 3.5 Sonnet for complex analysis. You always get the smartest response.',
+                  stats: ['Gemini 1.5 Pro', 'Claude 3.5 Sonnet', 'Stable Audio 2.0']
+                },
+                {
                   id: 'credits',
                   icon: CreditCard,
                   color: 'emerald',
                   title: 'Smart Credit System',
                   shortDesc: 'Pay as you go. Clear pricing for every action.',
-                  fullDesc: 'Every agent action uses credits. You start with 500 FREE credits. Complex tasks cost more than simple ones. Always know exactly what you\'re spending before you click generate.',
+                  fullDesc: 'Every agent action uses credits. You start with 100 FREE credits. Complex tasks cost more than simple ones. Always know exactly what you\'re spending before you click generate.',
                   stats: ['Lyrics: 5 Credits', 'Beat Gen: 25 Credits', 'Mastering: 50 Credits']
                 }
               ].map((feature) => (
@@ -4194,7 +4034,7 @@ function StudioView({ onBack, startWizard, startTour }) {
       {/* Credits Info Modal */}
       {showCreditsModal && (
         <div className="modal-overlay animate-fadeIn" onClick={() => setShowCreditsModal(false)}>
-          <div className="modal-content credits-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+          <div className="modal-content credits-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '90%', margin: '0 auto' }}>
             <div className="modal-header">
               <div className="modal-title-group">
                 <div className="agent-mini-icon" style={{ background: 'rgba(250, 204, 21, 0.1)', color: '#facc15' }}>
@@ -4328,6 +4168,112 @@ function StudioView({ onBack, startWizard, startTour }) {
                       ))}
                     </div>
                   </div>
+
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Primary Language</label>
+                    <select 
+                      className="studio-select" 
+                      style={{ width: '100%' }}
+                      value={newProjectData.language || 'en'}
+                      onChange={(e) => setNewProjectData({...newProjectData, language: e.target.value})}
+                    >
+                      <option value="en">English</option>
+                      <option value="es">Spanish</option>
+                      <option value="fr">French</option>
+                      <option value="de">German</option>
+                      <option value="it">Italian</option>
+                      <option value="pt">Portuguese</option>
+                      <option value="ja">Japanese</option>
+                      <option value="zh">Chinese (Mandarin)</option>
+                      <option value="ko">Korean</option>
+                      <option value="ru">Russian</option>
+                      <option value="ar">Arabic</option>
+                      <option value="hi">Hindi</option>
+                      <option value="bn">Bengali</option>
+                      <option value="pa">Punjabi</option>
+                      <option value="jv">Javanese</option>
+                      <option value="tr">Turkish</option>
+                      <option value="vi">Vietnamese</option>
+                      <option value="th">Thai</option>
+                      <option value="nl">Dutch</option>
+                      <option value="pl">Polish</option>
+                      <option value="sv">Swedish</option>
+                      <option value="da">Danish</option>
+                      <option value="fi">Finnish</option>
+                      <option value="no">Norwegian</option>
+                      <option value="el">Greek</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Preferred AI Model</label>
+                    <select 
+                      className="studio-select" 
+                      style={{ width: '100%' }}
+                      value={newProjectData.model || 'gemini'}
+                      onChange={(e) => setNewProjectData({...newProjectData, model: e.target.value})}
+                    >
+                      <option value="gemini">Gemini 1.5 Pro (Creative)</option>
+                      <option value="claude">Claude 3.5 Sonnet (Analytical)</option>
+                      <option value="stable">Stable Audio 2.0 (Sound)</option>
+                    </select>
+                  </div>
+
+                  {newProjectData.category === 'social' && (
+                    <div className="form-group animate-fadeIn" style={{ marginBottom: '16px', padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px' }}>
+                      <label style={{ display: 'block', marginBottom: '12px', color: 'var(--color-pink)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Share2 size={16} /> Social Profile Setup
+                      </label>
+                      
+                      <div style={{ display: 'grid', gap: '12px' }}>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Handle / Username</label>
+                          <input 
+                            type="text" 
+                            className="studio-input" 
+                            placeholder="@username"
+                            value={newProjectData.socialProfile?.handle || ''}
+                            onChange={(e) => setNewProjectData({
+                              ...newProjectData, 
+                              socialProfile: { ...newProjectData.socialProfile, handle: e.target.value }
+                            })}
+                            style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Bio / Description</label>
+                          <textarea 
+                            className="studio-input" 
+                            placeholder="Short bio for your profile..."
+                            value={newProjectData.socialProfile?.bio || ''}
+                            onChange={(e) => setNewProjectData({
+                              ...newProjectData, 
+                              socialProfile: { ...newProjectData.socialProfile, bio: e.target.value }
+                            })}
+                            style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white', minHeight: '60px', resize: 'vertical' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Platform Focus</label>
+                          <select 
+                            className="studio-select"
+                            value={newProjectData.socialProfile?.platform || 'instagram'}
+                            onChange={(e) => setNewProjectData({
+                              ...newProjectData, 
+                              socialProfile: { ...newProjectData.socialProfile, platform: e.target.value }
+                            })}
+                            style={{ width: '100%', padding: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: 'white' }}
+                          >
+                            <option value="instagram">Instagram</option>
+                            <option value="tiktok">TikTok</option>
+                            <option value="twitter">X (Twitter)</option>
+                            <option value="youtube">YouTube</option>
+                            <option value="linkedin">LinkedIn</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -4628,6 +4574,247 @@ function StudioView({ onBack, startWizard, startTour }) {
               }}>
                 Launch {showAgentHelpModal.name}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Artist Profile & Stats Modal */}
+      {showProfileModal && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProfileModal(false)}>
+          <div className="modal-content large" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px' }}>
+            <div className="modal-header">
+              <div className="header-title">
+                <User size={24} className="text-purple" />
+                <h2>Artist Profile & Studio Stats</h2>
+              </div>
+              <button className="modal-close" onClick={() => setShowProfileModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="modal-tabs">
+              <button 
+                className={`tab-btn ${profileTab === 'details' ? 'active' : ''}`}
+                onClick={() => setProfileTab('details')}
+              >
+                Profile Details
+              </button>
+              <button 
+                className={`tab-btn ${profileTab === 'stats' ? 'active' : ''}`}
+                onClick={() => setProfileTab('stats')}
+              >
+                Studio Statistics
+              </button>
+              <button 
+                className={`tab-btn ${profileTab === 'system' ? 'active' : ''}`}
+                onClick={() => setProfileTab('system')}
+              >
+                System & Agents
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '24px' }}>
+              {profileTab === 'details' && (
+                <div className="profile-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div className="form-group">
+                    <label>Full Name</label>
+                    <input 
+                      type="text" 
+                      className="studio-input" 
+                      value={artistProfile.name}
+                      onChange={(e) => setArtistProfile({...artistProfile, name: e.target.value})}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Artist Name</label>
+                    <input 
+                      type="text" 
+                      className="studio-input" 
+                      value={artistProfile.artistName}
+                      onChange={(e) => setArtistProfile({...artistProfile, artistName: e.target.value})}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Genre</label>
+                    <input 
+                      type="text" 
+                      className="studio-input" 
+                      value={artistProfile.genre}
+                      onChange={(e) => setArtistProfile({...artistProfile, genre: e.target.value})}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Specialty</label>
+                    <input 
+                      type="text" 
+                      className="studio-input" 
+                      value={artistProfile.specialty}
+                      onChange={(e) => setArtistProfile({...artistProfile, specialty: e.target.value})}
+                    />
+                  </div>
+                  <div className="form-group full-width" style={{ gridColumn: 'span 2' }}>
+                    <label>Creative Preferences</label>
+                    <textarea 
+                      className="studio-input" 
+                      rows="3"
+                      value={artistProfile.preferences}
+                      onChange={(e) => setArtistProfile({...artistProfile, preferences: e.target.value})}
+                    />
+                  </div>
+                  
+                  <div className="form-section-title full-width" style={{ gridColumn: 'span 2', marginTop: '10px', marginBottom: '10px' }}>
+                    <h4>Social Integrations</h4>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label><Twitter size={14} style={{ display: 'inline', marginRight: '5px' }}/> Twitter / X</label>
+                    <input 
+                      type="text" 
+                      className="studio-input" 
+                      value={artistProfile.socials.twitter}
+                      onChange={(e) => setArtistProfile({...artistProfile, socials: {...artistProfile.socials, twitter: e.target.value}})}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label><Instagram size={14} style={{ display: 'inline', marginRight: '5px' }}/> Instagram</label>
+                    <input 
+                      type="text" 
+                      className="studio-input" 
+                      value={artistProfile.socials.instagram}
+                      onChange={(e) => setArtistProfile({...artistProfile, socials: {...artistProfile.socials, instagram: e.target.value}})}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {profileTab === 'stats' && (
+                <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+                  <div className="stat-card-v2" style={{ background: 'var(--color-bg-secondary)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                    <div className="stat-icon" style={{ color: 'var(--color-purple)', marginBottom: '10px' }}><CreditCard size={24} /></div>
+                    <h3>Credits</h3>
+                    <div className="progress-bar-container" style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', margin: '10px 0' }}>
+                      <div className="progress-fill" style={{ width: `${studioStats.credits}%`, background: 'var(--color-purple)', height: '100%', borderRadius: '4px' }}></div>
+                    </div>
+                    <p>{studioStats.credits} / 100 Available</p>
+                  </div>
+
+                  <div className="stat-card-v2" style={{ background: 'var(--color-bg-secondary)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                    <div className="stat-icon" style={{ color: 'var(--color-cyan)', marginBottom: '10px' }}><HardDrive size={24} /></div>
+                    <h3>Storage</h3>
+                    <div className="progress-bar-container" style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', margin: '10px 0' }}>
+                      <div className="progress-fill" style={{ width: `${(studioStats.storage.used / studioStats.storage.total) * 100}%`, background: 'var(--color-cyan)', height: '100%', borderRadius: '4px' }}></div>
+                    </div>
+                    <p>{studioStats.storage.used}GB / {studioStats.storage.total}GB Used</p>
+                  </div>
+
+                  <div className="stat-card-v2" style={{ background: 'var(--color-bg-secondary)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                    <div className="stat-icon" style={{ color: 'var(--color-pink)', marginBottom: '10px' }}><Music size={24} /></div>
+                    <h3>Creations</h3>
+                    <h2 style={{ fontSize: '2rem', margin: '10px 0' }}>{studioStats.creations}</h2>
+                    <p>Total Projects</p>
+                  </div>
+
+                  <div className="stat-card-v2" style={{ background: 'var(--color-bg-secondary)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+                    <div className="stat-icon" style={{ color: 'var(--color-orange)', marginBottom: '10px' }}><Activity size={24} /></div>
+                    <h3>In Progress</h3>
+                    <h2 style={{ fontSize: '2rem', margin: '10px 0' }}>{studioStats.inProgress}</h2>
+                    <p>Active Sessions</p>
+                  </div>
+
+                  <div className="stat-card-full" style={{ gridColumn: '1 / -1', background: 'var(--color-bg-secondary)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ color: 'var(--text-secondary)' }}>Most Used Agent</h4>
+                      <h3 style={{ color: 'var(--color-purple)' }}>{studioStats.mostUsedAgent}</h3>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <h4 style={{ color: 'var(--text-secondary)' }}>Last Login</h4>
+                      <p>{studioStats.lastLogin}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {profileTab === 'system' && (
+                <div className="system-info-view">
+                  <div className="info-banner" style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid var(--color-purple)', padding: '16px', borderRadius: '12px', marginBottom: '24px' }}>
+                    <h3 style={{ color: 'var(--color-purple)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <Zap size={20} /> High-Performance Models Active
+                    </h3>
+                    <p style={{ marginTop: '8px', opacity: 0.9 }}>
+                      Your studio is powered by the latest LLM technology to ensure top-tier creative output.
+                    </p>
+                  </div>
+
+                  <div className="models-list" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="model-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: 'var(--color-bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                      <div className="model-info" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div className="model-icon" style={{ width: '40px', height: '40px', background: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <img src="https://upload.wikimedia.org/wikipedia/commons/8/8a/Google_Gemini_logo.svg" alt="Gemini" style={{ width: '24px' }} />
+                        </div>
+                        <div>
+                          <h4>Google Gemini</h4>
+                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Primary Creative Engine</p>
+                        </div>
+                      </div>
+                      <div className="model-status">
+                        <span className="status-badge active" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '4px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '600' }}>
+                          {studioStats.agentVersions.gemini}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="model-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: 'var(--color-bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                      <div className="model-info" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div className="model-icon" style={{ width: '40px', height: '40px', background: '#f0f0f0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: '20px' }}>🤖</span>
+                        </div>
+                        <div>
+                          <h4>Anthropic Claude</h4>
+                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Analytical & Coding Engine</p>
+                        </div>
+                      </div>
+                      <div className="model-status">
+                        <span className="status-badge available" style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', padding: '4px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '600' }}>
+                          {studioStats.agentVersions.claude}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="model-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: 'var(--color-bg-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                      <div className="model-info" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div className="model-icon" style={{ width: '40px', height: '40px', background: '#111', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span style={{ fontSize: '20px' }}>🎵</span>
+                        </div>
+                        <div>
+                          <h4>Stable Audio</h4>
+                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>High-Fidelity Sound Generation</p>
+                        </div>
+                      </div>
+                      <div className="model-status">
+                        <span className="status-badge available" style={{ background: 'rgba(168, 85, 247, 0.2)', color: '#a855f7', padding: '4px 12px', borderRadius: '100px', fontSize: '0.8rem', fontWeight: '600' }}>
+                          2.0 (Available)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button className="cta-button-secondary" onClick={() => setShowProfileModal(false)}>
+                Close
+              </button>
+              {profileTab === 'details' && (
+                <button className="cta-button-premium" onClick={() => {
+                  // Save logic would go here
+                  setShowProfileModal(false);
+                  alert("Profile updated successfully!");
+                }}>
+                  Save Profile
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -1,11 +1,11 @@
-# 🚀 Whip Montez - Production Deployment Script
+# 🚀 Studio Agents - Production Deployment Script
 # Builds frontend and deploys to Railway via Git
 
 param(
     [string]$message = "deploy: production update"
 )
 
-Write-Host "Whip Montez - Production Deployment" -ForegroundColor Green
+Write-Host "Studio Agents - Production Deployment" -ForegroundColor Green
 Write-Host ("=" * 60) -ForegroundColor Gray
 Write-Host ""
 
