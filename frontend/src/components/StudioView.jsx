@@ -243,6 +243,31 @@ function StudioView({ onBack, startWizard, startTour }) {
     }
   });
 
+  const [artistProfile, setArtistProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_artist_profile');
+      return saved ? JSON.parse(saved) : {
+        name: 'Pro Creator',
+        bio: 'Building the future of sound.',
+        genre: 'Multi-Genre',
+        location: 'Global',
+        avatar: null
+      };
+    } catch (e) {
+      return {
+        name: 'Pro Creator',
+        bio: 'Building the future of sound.',
+        genre: 'Multi-Genre',
+        location: 'Global',
+        avatar: null
+      };
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('studio_artist_profile', JSON.stringify(artistProfile));
+  }, [artistProfile]);
+
   // Persist Dashboard State
   useEffect(() => {
     localStorage.setItem('studio_managed_agents', JSON.stringify(managedAgents));
@@ -1429,76 +1454,97 @@ function StudioView({ onBack, startWizard, startTour }) {
                     </div>
                   </div>
 
-                  <div className="dashboard-grid">
-                    {/* Stats Section */}
-                    <section className="dashboard-card stats-card">
-                      <div className="card-header">
-                        <h3><BarChart3 size={18} /> Performance Overview</h3>
-                        <PieChart size={18} className="text-muted" />
-                      </div>
-                      <div className="stats-grid">
-                        <div className="stat-item">
-                          <span className="stat-value">{managedAgents.filter(a => a.visible).length}</span>
-                          <span className="stat-label">Active Agents</span>
-                        </div>
-                        <div className="stat-item">
-                          <span className="stat-value">{projects.length}</span>
-                          <span className="stat-label">Creations</span>
-                        </div>
-                        <div className="stat-item">
-                          <span className="stat-value">42</span>
-                          <span className="stat-label">Social Posts</span>
-                        </div>
-                        <div className="stat-item">
-                          <span className="stat-value">8.2k</span>
-                          <span className="stat-label">Total Reach</span>
-                        </div>
-                      </div>
-                    </section>
+                  {/* Artist Banner */}
+                  <div className="artist-banner-section animate-fadeInUp" style={{ marginBottom: '2rem' }}>
+                    <div className="artist-banner-card" style={{
+                      background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(6, 182, 212, 0.1))',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '24px',
+                      padding: '2rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '1.5rem',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      {/* Background Glow */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '-50%',
+                        right: '-10%',
+                        width: '300px',
+                        height: '300px',
+                        background: 'radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, transparent 70%)',
+                        pointerEvents: 'none'
+                      }}></div>
 
-                    {/* Social Connections */}
-                    <section className="dashboard-card">
-                      <div className="card-header">
-                        <h3><Share2 size={18} /> Social Ecosystem</h3>
-                        <span className="status-badge online">Live</span>
-                      </div>
-                      <div className="connection-list">
-                        <div className="connection-item">
-                          <div className="connection-info">
-                            <div className="icon-box twitter-bg">
-                              <Twitter size={20} />
-                            </div>
-                            <div>
-                              <p className="connection-name">X (Twitter)</p>
-                              <p className="connection-status">{socialConnections.twitter ? `@${twitterUsername || 'Connected'}` : 'Not Connected'}</p>
+                      <div className="artist-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                        <div className="artist-identity" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                          <div className="artist-avatar-large" style={{
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '20px',
+                            background: 'var(--gradient-vibrant)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '2rem',
+                            fontWeight: '800',
+                            color: 'white',
+                            boxShadow: '0 10px 20px rgba(0,0,0,0.2)'
+                          }}>
+                            {artistProfile.avatar ? <img src={artistProfile.avatar} alt="Profile" style={{ width: '100%', height: '100%', borderRadius: '20px', objectFit: 'cover' }} /> : artistProfile.name.charAt(0)}
+                          </div>
+                          <div>
+                            <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: 0, background: 'var(--gradient-vibrant)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                              {artistProfile.name}
+                            </h2>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '0.25rem' }}>{artistProfile.bio}</p>
+                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem' }}>
+                              <span className="section-tag" style={{ fontSize: '0.7rem' }}>{artistProfile.genre}</span>
+                              <span className="section-tag" style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>{artistProfile.location}</span>
                             </div>
                           </div>
-                          <button 
-                            className={`btn-connect ${socialConnections.twitter ? 'connected' : ''}`}
-                            onClick={() => handleConnectSocial('twitter')}
-                          >
-                            {socialConnections.twitter ? 'Manage' : 'Connect'}
-                          </button>
                         </div>
-                        <div className="connection-item">
-                          <div className="connection-info">
-                            <div className="icon-box instagram-bg">
-                              <Instagram size={20} />
-                            </div>
-                            <div>
-                              <p className="connection-name">Instagram</p>
-                              <p className="connection-status">{socialConnections.instagram ? (metaName || 'Connected') : 'Not Connected'}</p>
-                            </div>
-                          </div>
-                          <button 
-                            className={`btn-connect ${socialConnections.instagram ? 'connected' : ''}`}
-                            onClick={() => handleConnectSocial('instagram')}
-                          >
-                            {socialConnections.instagram ? 'Manage' : 'Connect'}
-                          </button>
+                        
+                        <button 
+                          className="btn-pill glass" 
+                          onClick={() => setDashboardTab('settings')}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        >
+                          <Settings size={16} /> Edit Profile
+                        </button>
+                      </div>
+
+                      <div className="artist-stats-row" style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
+                        gap: '1rem',
+                        marginTop: '1rem',
+                        paddingTop: '1.5rem',
+                        borderTop: '1px solid rgba(255,255,255,0.05)'
+                      }}>
+                        <div className="stat-box">
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700' }}>Active Agents</span>
+                          <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'white' }}>{managedAgents.filter(a => a.visible).length}</div>
+                        </div>
+                        <div className="stat-box">
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700' }}>Projects</span>
+                          <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'white' }}>{projects.length}</div>
+                        </div>
+                        <div className="stat-box">
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700' }}>Ecosystem</span>
+                          <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#10b981' }}>Live</div>
+                        </div>
+                        <div className="stat-box">
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '700' }}>Plan</span>
+                          <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--color-purple)' }}>Pro</div>
                         </div>
                       </div>
-                    </section>
+                    </div>
+                  </div>
+
+                  <div className="dashboard-grid">
 
                     {/* Storage Connections */}
                     <section className="dashboard-card">
@@ -1735,6 +1781,56 @@ function StudioView({ onBack, startWizard, startTour }) {
 
               {dashboardTab === 'settings' && (
                 <div className="dashboard-view-settings animate-fadeIn">
+                  <div className="section-header-simple" style={{ marginBottom: '2rem' }}>
+                    <h2>Profile Settings</h2>
+                    <p>Manage your artist identity.</p>
+                  </div>
+
+                  <div className="settings-list" style={{ marginBottom: '3rem' }}>
+                    <div className="setting-row" style={{ display: 'block' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Artist Name</label>
+                      <input 
+                        type="text" 
+                        className="studio-input" 
+                        value={artistProfile.name}
+                        onChange={(e) => setArtistProfile({...artistProfile, name: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '12px', color: 'white' }}
+                      />
+                    </div>
+                    <div className="setting-row" style={{ display: 'block' }}>
+                      <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Bio / Tagline</label>
+                      <input 
+                        type="text" 
+                        className="studio-input" 
+                        value={artistProfile.bio}
+                        onChange={(e) => setArtistProfile({...artistProfile, bio: e.target.value})}
+                        style={{ width: '100%', padding: '0.75rem', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '12px', color: 'white' }}
+                      />
+                    </div>
+                    <div className="setting-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', border: 'none', padding: 0 }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Genre</label>
+                        <input 
+                          type="text" 
+                          className="studio-input" 
+                          value={artistProfile.genre}
+                          onChange={(e) => setArtistProfile({...artistProfile, genre: e.target.value})}
+                          style={{ width: '100%', padding: '0.75rem', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '12px', color: 'white' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Location</label>
+                        <input 
+                          type="text" 
+                          className="studio-input" 
+                          value={artistProfile.location}
+                          onChange={(e) => setArtistProfile({...artistProfile, location: e.target.value})}
+                          style={{ width: '100%', padding: '0.75rem', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '12px', color: 'white' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="section-header-simple">
                     <h2>Application Settings</h2>
                     <p>Customize your Studio Agents experience.</p>
