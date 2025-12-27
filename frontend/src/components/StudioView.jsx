@@ -4250,7 +4250,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                       onClick={() => setNewProjectData({
                         ...newProjectData, 
                         workflow: 'full_song',
-                        selectedAgents: ['Ghostwriter', 'Beat Lab', 'Album Artist']
+                        selectedAgents: ['ghost', 'beat', 'album']
                       })}
                       style={{
                         padding: '16px',
@@ -4278,7 +4278,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                       onClick={() => setNewProjectData({
                         ...newProjectData, 
                         workflow: 'social_promo',
-                        selectedAgents: ['Video Creator', 'Trend Hunter', 'Collab Connect']
+                        selectedAgents: ['video-creator', 'trend', 'collab']
                       })}
                       style={{
                         padding: '16px',

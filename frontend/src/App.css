@@ -6883,14 +6883,15 @@ input:checked + .slider:before {
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
-    padding: 1rem;
-    gap: 1rem;
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
     background: rgba(10, 10, 12, 0.95); /* Ensure background is opaque */
     position: sticky;
     top: 0;
     z-index: 90; /* Keep it above content */
+    overflow: hidden; /* Prevent outer scroll */
   }
 
   .sidebar-header {
@@ -6898,16 +6899,17 @@ input:checked + .slider:before {
   }
   
   .sidebar-nav {
+    display: flex;
     flex-direction: row;
     overflow-x: auto;
     flex: 1;
-    min-width: 0;
-    /* scrollbar-width: none;  <-- Removed to allow visible scrollbar */
-    /* -ms-overflow-style: none; <-- Removed */
+    width: 100%;
     -webkit-overflow-scrolling: touch;
-    gap: 0.8rem;
-    padding-right: 1rem; /* Padding for last item */
-    padding-bottom: 4px; /* Space for scrollbar */
+    gap: 0.75rem;
+    padding-right: 2rem; /* Extra padding for last item visibility */
+    padding-bottom: 0;
+    align-items: center;
+    scrollbar-width: none; /* Hide scrollbar for cleaner look */
   }
   
   .sidebar-nav::-webkit-scrollbar {
@@ -6918,10 +6920,14 @@ input:checked + .slider:before {
     white-space: nowrap;
     padding: 0.6rem 1.2rem;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 100px; /* Pill shape */
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    height: 36px;
   }
 
   .sidebar-link.active {
