@@ -4341,6 +4341,16 @@
   gap: 2rem;
 }
 
+@media (max-width: 1024px) {
+  .comeup-grid {
+    grid-template-columns: 1fr;
+  }
+  /* Stack sidebar below main content */
+  .comeup-sidebar {
+    width: 100%;
+  }
+}
+
 .comeup-main {
   display: flex;
   flex-direction: column;
@@ -6892,11 +6902,12 @@ input:checked + .slider:before {
     overflow-x: auto;
     flex: 1;
     min-width: 0;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    /* scrollbar-width: none;  <-- Removed to allow visible scrollbar */
+    /* -ms-overflow-style: none; <-- Removed */
     -webkit-overflow-scrolling: touch;
     gap: 0.8rem;
     padding-right: 1rem; /* Padding for last item */
+    padding-bottom: 4px; /* Space for scrollbar */
   }
   
   .sidebar-nav::-webkit-scrollbar {
