@@ -126,14 +126,14 @@ function StudioView({ onBack, startWizard, startTour }) {
     };
 
     setProjects(prev => [newProject, ...prev]);
+    setSelectedProject(newProject); // Auto-select the new project
     setShowProjectWizard(false);
     setProjectWizardStep(1);
     setNewProjectData({ name: '', category: '', description: '', selectedAgents: [], workflow: '' });
     
-    // Optional: Switch to the relevant tab or show success
-    handleTextToVoice(`Project ${newProject.name} created successfully.`);
-    alert(`Project "${newProject.name}" created! Let's get to work.`);
-    setActiveTab('agents');
+    // Switch to dashboard to show the new project checklist
+    handleTextToVoice(`Project ${newProject.name} created. Loading your production checklist.`);
+    setActiveTab('mystudio');
   };
 
   // --- FIREBASE AUTH LISTENER ---
@@ -1273,7 +1273,11 @@ function StudioView({ onBack, startWizard, startTour }) {
                     <div className="banner-content">
                       <div className="banner-text">
                         <h1>Welcome back, {isLoggedIn ? 'Pro Creator' : 'Artist'}</h1>
-                        <p>Your AI studio is synchronized and ready for your next hit.</p>
+                        <p>
+                          {selectedProject 
+                            ? <span>Working on: <strong style={{color: 'var(--color-purple)'}}>{selectedProject.name}</strong></span> 
+                            : 'Your AI studio is synchronized and ready for your next hit.'}
+                        </p>
                       </div>
                       <div className="banner-actions">
                         <button 
@@ -1351,33 +1355,76 @@ function StudioView({ onBack, startWizard, startTour }) {
                     </div>
                   </div>
 
-                  {/* Onboarding Checklist */}
+                  {/* Dynamic Project Checklist */}
                   <div className="dashboard-card onboarding-card" style={{ marginBottom: '24px', border: '1px solid rgba(168, 85, 247, 0.3)', background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.05) 0%, rgba(0,0,0,0) 100%)' }}>
                     <div className="card-header">
-                      <h3><Rocket size={18} className="text-purple" /> Studio Setup Checklist</h3>
+                      <h3>
+                        <Rocket size={18} className="text-purple" /> 
+                        {selectedProject ? `Project Roadmap: ${selectedProject.name}` : 'Studio Setup Checklist'}
+                      </h3>
                       <span className="status-badge" style={{ background: 'var(--color-purple)', color: 'white' }}>
-                        {(paymentMethods.length > 0) ? 1 : 0} / 1 Complete
+                        {selectedProject ? 'In Progress' : `${(paymentMethods.length > 0) ? 1 : 0} / 1 Complete`}
                       </span>
                     </div>
+                    
                     <div className="checklist-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px' }}>
                       
-                      {/* Step: Setup Wallet */}
-                      <div className={`checklist-item ${paymentMethods.length > 0 ? 'completed' : ''}`} style={{ 
-                        padding: '16px', 
-                        background: paymentMethods.length > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
-                        borderRadius: '12px', 
-                        border: paymentMethods.length > 0 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: '600', color: paymentMethods.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>Setup Wallet</span>
-                          {paymentMethods.length > 0 ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
+                      {selectedProject && activeProjectSteps ? (
+                        activeProjectSteps.map((step, i) => (
+                          <div key={i} className="checklist-item" style={{ 
+                            padding: '16px', 
+                            background: 'rgba(255,255,255,0.03)', 
+                            borderRadius: '12px', 
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s'
+                          }}
+                          onClick={() => {
+                            const agent = AGENTS.find(a => a.id === step.agentId);
+                            if (agent) {
+                                if (agent.isPro && !isLoggedIn) {
+                                    setShowLoginModal(true);
+                                    handleTextToVoice(`Unlock ${agent.name} with a Pro account.`);
+                                } else {
+                                    setSelectedAgent(agent);
+                                    setActiveTab('agents');
+                                    handleTextToVoice(`Opening ${agent.name} for project ${selectedProject.name}.`);
+                                }
+                            }
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
+                          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{i+1}. {step.label}</span>
+                              <step.icon size={16} className="text-purple" />
+                            </div>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{step.desc}</p>
+                            <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }}>Launch</button>
+                          </div>
+                        ))
+                      ) : (
+                        /* Default Wallet Setup Step */
+                        <div className={`checklist-item ${paymentMethods.length > 0 ? 'completed' : ''}`} style={{ 
+                          padding: '16px', 
+                          background: paymentMethods.length > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
+                          borderRadius: '12px', 
+                          border: paymentMethods.length > 0 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.05)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: '600', color: paymentMethods.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>Setup Wallet</span>
+                            {paymentMethods.length > 0 ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
+                          </div>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Add payment method.</p>
+                          {!paymentMethods.length && <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setDashboardTab('billing')}>Add Card</button>}
                         </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Add payment method.</p>
-                        {!paymentMethods.length && <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setDashboardTab('billing')}>Add Card</button>}
-                      </div>
+                      )}
 
                     </div>
                   </div>
@@ -3304,6 +3351,44 @@ function StudioView({ onBack, startWizard, startTour }) {
       }
     }
   };
+
+  // --- DYNAMIC CHECKLIST LOGIC ---
+  const getProjectSteps = () => {
+    if (!selectedProject) return null;
+    
+    // If project has specific agents selected, use them as steps
+    if (selectedProject.agents && selectedProject.agents.length > 0) {
+      return selectedProject.agents.map((agentId, index) => {
+        const agent = AGENTS.find(a => a.id === agentId);
+        return {
+          id: `step-${index}`,
+          label: agent ? `Consult ${agent.name}` : 'Agent Task',
+          desc: agent ? agent.role : 'Execute task',
+          agentId: agentId,
+          icon: agent ? agent.icon : Zap,
+          completed: false
+        };
+      });
+    }
+
+    // Fallback based on category
+    switch(selectedProject.category) {
+      case 'pro': return [
+        { id: 'lyrics', label: 'Draft Lyrics', agentId: 'ghostwriter', icon: Mic, desc: 'Generate verses & hooks' },
+        { id: 'beat', label: 'Compose Beat', agentId: 'beat_lab', icon: Music, desc: 'Create instrumental backing' },
+        { id: 'art', label: 'Cover Art', agentId: 'visualist', icon: Zap, desc: 'Design album artwork' }
+      ];
+      case 'vybing': return [
+        { id: 'beat', label: 'Generate Vibe', agentId: 'beat_lab', icon: Music, desc: 'Quick beat generation' },
+        { id: 'lyrics', label: 'Freestyle Lyrics', agentId: 'ghostwriter', icon: Mic, desc: 'Write over the beat' }
+      ];
+      default: return [
+        { id: 'plan', label: 'Create Plan', agentId: 'manager', icon: Target, desc: 'Outline your project goals' }
+      ];
+    }
+  };
+
+  const activeProjectSteps = getProjectSteps();
 
   return (
     <div className={`studio-container ${theme}-theme`} {...swipeHandlers}>
