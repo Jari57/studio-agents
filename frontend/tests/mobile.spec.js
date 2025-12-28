@@ -40,4 +40,16 @@ test.describe('Mobile Responsiveness', () => {
     // Ensure the main dashboard area is visible
     await expect(page.locator('.studio-dashboard')).toBeVisible();
   });
+
+  test('Profile button is visible in header on mobile', async ({ page }) => {
+    await page.goto('/');
+    await page.getByText('Create New Project').first().click();
+    
+    // Wait for studio to load
+    await expect(page.locator('.studio-header')).toBeVisible();
+    
+    // Check for profile button in header
+    const profileBtn = page.locator('.studio-header .action-button[title="User Profile"]');
+    await expect(profileBtn).toBeVisible();
+  });
 });

@@ -703,7 +703,7 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
 // ═══════════════════════════════════════════════════════════════════
 // VIDEO GENERATION ROUTE (Veo 3.0)
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/generate-video', verifyFirebaseToken, generationLimiter, async (req, res) => {
+app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
@@ -740,7 +740,7 @@ app.post('/api/generate-video', verifyFirebaseToken, generationLimiter, async (r
 // TRANSLATION API - Professional Grade Translation via Gemini
 // ═══════════════════════════════════════════════════════════════════
 
-app.post('/api/translate', verifyFirebaseToken, apiLimiter, async (req, res) => {
+app.post('/api/translate', verifyFirebaseToken, checkCredits, apiLimiter, async (req, res) => {
   try {
     const { text, targetLanguage, sourceLanguage = 'auto' } = req.body;
 

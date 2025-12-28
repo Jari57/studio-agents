@@ -34,10 +34,10 @@ const onboardingSteps = [
     detail: "This recommendation is based on how other artists with similar goals have found success. But remember—all eight agents are available to you. Explore freely."
   },
   {
-    id: 'tips',
-    title: "Pro Tips for Better Results",
-    content: "The more context you give, the better the output.",
-    detail: "Be specific about style, mood, and references. If you want something that sounds like early 2000s boom bap, say that. If you want a hook about resilience that doesn't sound cliché, say that. The AI responds to detail. Vague prompts get generic results."
+    id: 'action',
+    title: "Ready to Create?",
+    content: "Let's set up your first project.",
+    detail: "We'll configure your workspace with the right agents for your goal. You can always change this later."
   }
 ];
 
@@ -149,39 +149,7 @@ function StudioView({ onBack, startWizard, startTour }) {
     try {
       const saved = localStorage.getItem('studio_projects');
       if (saved) return JSON.parse(saved);
-      
-      // Default Demo Project for new users (Seamless Onboarding)
-      return [{
-        id: 'demo-1',
-        name: 'Neon Nights (Demo)',
-        category: 'Music Video',
-        description: 'A synthwave track with futuristic visuals. Use this project to test the Orchestration features.',
-        agents: ['beat', 'video-creator'],
-        status: 'Active',
-        date: new Date().toLocaleDateString(),
-        assets: [
-          {
-            id: 'demo-beat',
-            title: 'Synthwave Beat',
-            type: 'Audio',
-            agent: 'Beat Architect',
-            date: 'Just now',
-            color: 'agent-cyan',
-            audioUrl: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3',
-            snippet: '120 BPM, Key of Am'
-          },
-          {
-            id: 'demo-visual',
-            title: 'Neon City Loop',
-            type: 'Video',
-            agent: 'Veo Video',
-            date: 'Just now',
-            color: 'agent-pink',
-            videoUrl: 'https://cdn.pixabay.com/video/2023/10/26/186639-878455663_large.mp4',
-            snippet: 'Cyberpunk city flyover'
-          }
-        ]
-      }];
+      return [];
     } catch (e) {
       return [];
     }
@@ -194,7 +162,13 @@ function StudioView({ onBack, startWizard, startTour }) {
   
   // Studio Session State (Global Mechanism)
   const [showStudioSession, setShowStudioSession] = useState(false);
-  const [sessionTracks, setSessionTracks] = useState({ audio: null, vocal: null, visual: null });
+  const [sessionTracks, setSessionTracks] = useState({ 
+    audio: null, 
+    vocal: null, 
+    visual: null,
+    audioVolume: 0.8,
+    vocalVolume: 1.0
+  });
   const [sessionPlaying, setSessionPlaying] = useState(false);
   
   const [expandedNews, setExpandedNews] = useState(new Set());
@@ -217,7 +191,6 @@ function StudioView({ onBack, startWizard, startTour }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [user, setUser] = useState(null);
   const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
-  const [showWelcomeModal, setShowWelcomeModal] = useState(() => startTour || (!startWizard && !localStorage.getItem('studio_welcome_seen')));
   const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
   const [autoStartVoice, setAutoStartVoice] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -248,15 +221,20 @@ function StudioView({ onBack, startWizard, startTour }) {
   const completeOnboarding = () => {
     localStorage.setItem('studio_onboarding_v2', 'true');
     setShowOnboarding(false);
-    // If they selected a path, maybe guide them there?
+    
+    // Transition to Project Wizard
+    setShowProjectWizard(true);
+    
+    // Pre-select category based on path if possible
     if (selectedPath) {
-      const rec = getRecommendation();
-      if (rec) {
-        // Find the agent object
-        const agent = AGENTS.find(a => a.id === rec);
-        if (agent) {
-          setSelectedAgent(agent);
-        }
+      let category = '';
+      if (selectedPath === 'write' || selectedPath === 'compete') category = 'pro';
+      if (selectedPath === 'produce') category = 'vybing';
+      if (selectedPath === 'grow' || selectedPath === 'brand') category = 'social';
+      if (selectedPath === 'explore') category = 'mixtapes';
+      
+      if (category) {
+        setNewProjectData(prev => ({ ...prev, category }));
       }
     }
   };
@@ -264,6 +242,35 @@ function StudioView({ onBack, startWizard, startTour }) {
   // Project Wizard State
   const [showProjectWizard, setShowProjectWizard] = useState(startWizard || false);
   const [projectWizardStep, setProjectWizardStep] = useState(1);
+  const [systemStatus, setSystemStatus] = useState({ status: 'healthy', message: 'All Systems Operational' });
+  
+  // System Health Check
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/health`);
+        if (!res.ok) throw new Error('Backend unreachable');
+        const data = await res.json();
+        setSystemStatus({ 
+          status: 'healthy', 
+          message: 'All Systems Operational',
+          details: data 
+        });
+      } catch (err) {
+        console.error("Health check failed:", err);
+        setSystemStatus({ 
+          status: 'maintenance', 
+          message: 'System Under Maintenance',
+          details: err.message
+        });
+      }
+    };
+    
+    checkHealth();
+    const interval = setInterval(checkHealth, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
+
   const [newProjectData, setNewProjectData] = useState({
     name: '',
     category: '',
@@ -346,20 +353,7 @@ function StudioView({ onBack, startWizard, startTour }) {
   // --- LOGIN HANDLER ---
   const handleLogin = async () => {
     if (!auth) {
-      // Fallback for demo/dev mode without Firebase
-      setIsLoggedIn(true);
-      setShowLoginModal(false);
-      let uid = localStorage.getItem('studio_user_id');
-      if (!uid) {
-        uid = 'user_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('studio_user_id', uid);
-      }
-      if (selectedPlan) {
-        handleTextToVoice(`Welcome to the ${selectedPlan.name}. Your subscription is active.`);
-        alert(`Subscription Confirmed: ${selectedPlan.name}\nPrice: ${selectedPlan.price}\n\nWelcome to the Pro Team!`);
-        setSelectedPlan(null);
-        setActiveTab('mystudio');
-      }
+      alert("Authentication service is currently unavailable. Please check your connection or configuration.");
       return;
     }
 
@@ -462,6 +456,37 @@ function StudioView({ onBack, startWizard, startTour }) {
   const [isLoadingNews, setIsLoadingNews] = useState(false);
   const [hasMoreNews, setHasMoreNews] = useState(true);
   const [newsArticles, setNewsArticles] = useState([]);
+
+  const [userProfile, setUserProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_user_profile');
+      return saved ? JSON.parse(saved) : {
+        stageName: '',
+        genre: 'Hip Hop / Rap',
+        bio: '',
+        credits: 500,
+        memberSince: new Date().getFullYear(),
+        plan: 'Free',
+        location: 'Los Angeles, CA',
+        website: ''
+      };
+    } catch (e) {
+      return {
+        stageName: '',
+        genre: 'Hip Hop / Rap',
+        bio: '',
+        credits: 500,
+        memberSince: new Date().getFullYear(),
+        plan: 'Free',
+        location: 'Los Angeles, CA',
+        website: ''
+      };
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('studio_user_profile', JSON.stringify(userProfile));
+  }, [userProfile]);
 
   const [socialConnections, setSocialConnections] = useState(() => {
     try {
@@ -1238,9 +1263,8 @@ function StudioView({ onBack, startWizard, startTour }) {
       return;
     }
 
-    // Mock one-click connection for others
-    setSocialConnections(prev => ({ ...prev, [platform]: true }));
-    alert(`Successfully connected to ${platform.charAt(0).toUpperCase() + platform.slice(1)}!`);
+    // Placeholder for other platforms
+    alert(`${platform.charAt(0).toUpperCase() + platform.slice(1)} integration is coming soon!`);
   };
 
   const handleDeleteProject = async (projectId, e) => {
@@ -1388,7 +1412,9 @@ function StudioView({ onBack, startWizard, startTour }) {
                     setSessionTracks({
                       audio: audioAsset || null,
                       vocal: vocalAsset || null,
-                      visual: visualAsset || null
+                      visual: visualAsset || null,
+                      audioVolume: 0.8,
+                      vocalVolume: 1.0
                     });
                     
                     setShowStudioSession(true);
@@ -1516,8 +1542,23 @@ function StudioView({ onBack, startWizard, startTour }) {
             {/* Dashboard Sidebar */}
             <div className="dashboard-sidebar">
               <div className="sidebar-header">
-                <h2>Workspace</h2>
-                <span className="pro-badge">PRO</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h2>Workspace</h2>
+                    <span className="pro-badge">PRO</span>
+                  </div>
+                  <div 
+                    className="status-indicator" 
+                    title={systemStatus.message}
+                    style={{ 
+                      width: '8px', 
+                      height: '8px', 
+                      borderRadius: '50%', 
+                      backgroundColor: systemStatus.status === 'healthy' ? 'var(--color-emerald)' : 'var(--color-red)',
+                      boxShadow: systemStatus.status === 'healthy' ? '0 0 8px var(--color-emerald)' : '0 0 8px var(--color-red)'
+                    }}
+                  />
+                </div>
               </div>
               <nav className="sidebar-nav">
                 <button 
@@ -2100,14 +2141,15 @@ function StudioView({ onBack, startWizard, startTour }) {
 
                     <div className="setting-row">
                       <div className="setting-info">
-                        <h4>Reset Welcome Tour</h4>
-                        <p>View the "10x Faster Workflow" introduction again.</p>
+                        <h4>Reset Onboarding</h4>
+                        <p>View the "Welcome to The Studio" introduction again.</p>
                       </div>
                       <button 
                         className="secondary-button"
                         onClick={() => {
-                          localStorage.removeItem('studio_welcome_seen');
-                          setShowWelcomeModal(true);
+                          localStorage.removeItem('studio_onboarding_v2');
+                          setOnboardingStep(0);
+                          setShowOnboarding(true);
                         }}
                         style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                       >
@@ -2728,6 +2770,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                           title="Download to device"
                         >
                           <Download size={18} />
+                          <span className="btn-text">Download</span>
                         </button>
                         <button 
                           className="preview-btn" 
@@ -2735,6 +2778,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                           title="Share to Activity Wall"
                         >
                           <Share2 size={18} />
+                          <span className="btn-text">Share</span>
                         </button>
                         <button 
                           className="preview-btn delete-btn" 
@@ -2743,6 +2787,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                           style={{ color: '#ef4444' }}
                         >
                           <Trash2 size={18} />
+                          <span className="btn-text">Delete</span>
                         </button>
                       </div>
                     </div>
@@ -2961,6 +3006,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                       </button>
                       <button className="activity-btn" onClick={() => window.open(item.url, '_blank')}>
                         <Share2 size={16} />
+                        <span>Share</span>
                       </button>
                     </div>
                     <button className="remix-cta" onClick={() => window.open(item.url, '_blank')}>
@@ -3112,12 +3158,28 @@ function StudioView({ onBack, startWizard, startTour }) {
                 <button style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', fontSize: '0.7rem', padding: '4px', cursor: 'pointer' }}>Edit</button>
               </div>
               <div>
-                <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>{user?.displayName || 'Guest Artist'}</h1>
+                <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>{userProfile.stageName || user?.displayName || 'Guest Artist'}</h1>
                 <p style={{ color: 'var(--text-secondary)' }}>{user?.email || 'No email linked'}</p>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                  <span className="badge" style={{ background: 'var(--color-purple)', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>Pro Plan</span>
-                  <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>Member since 2024</span>
+                  <span className="badge" style={{ background: 'var(--color-purple)', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>{userProfile.plan} Plan</span>
+                  <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>Member since {userProfile.memberSince}</span>
+                  <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--color-cyan)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>{userProfile.credits} Credits</span>
                 </div>
+              </div>
+            </div>
+
+            <div className="profile-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+              <div className="stat-card" style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-purple)', marginBottom: '4px' }}>{projects.length}</h4>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Projects</span>
+              </div>
+              <div className="stat-card" style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-cyan)', marginBottom: '4px' }}>{new Set(projects.map(p => p.agent)).size}</h4>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Agents Used</span>
+              </div>
+              <div className="stat-card" style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-orange)', marginBottom: '4px' }}>{userProfile.credits}</h4>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Credits Left</span>
               </div>
             </div>
 
@@ -3126,21 +3188,59 @@ function StudioView({ onBack, startWizard, startTour }) {
               <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="form-group">
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Stage Name</label>
-                  <input type="text" defaultValue={user?.displayName} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} />
+                  <input 
+                    type="text" 
+                    value={userProfile.stageName} 
+                    onChange={(e) => setUserProfile({...userProfile, stageName: e.target.value})}
+                    placeholder={user?.displayName || "Enter stage name"}
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
+                  />
                 </div>
                 <div className="form-group">
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Primary Genre</label>
-                  <select style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }}>
+                  <select 
+                    value={userProfile.genre}
+                    onChange={(e) => setUserProfile({...userProfile, genre: e.target.value})}
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }}
+                  >
                     <option>Hip Hop / Rap</option>
                     <option>R&B</option>
                     <option>Pop</option>
                     <option>Electronic</option>
                     <option>Rock</option>
+                    <option>Afrobeats</option>
+                    <option>Latin</option>
                   </select>
                 </div>
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Artist Bio</label>
-                  <textarea rows="4" placeholder="Tell your story..." style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white', resize: 'vertical' }}></textarea>
+                  <textarea 
+                    rows="4" 
+                    value={userProfile.bio}
+                    onChange={(e) => setUserProfile({...userProfile, bio: e.target.value})}
+                    placeholder="Tell your story..." 
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white', resize: 'vertical' }}
+                  ></textarea>
+                </div>
+                 <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Location</label>
+                  <input 
+                    type="text" 
+                    value={userProfile.location} 
+                    onChange={(e) => setUserProfile({...userProfile, location: e.target.value})}
+                    placeholder="City, Country"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
+                  />
+                </div>
+                 <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Website</label>
+                  <input 
+                    type="text" 
+                    value={userProfile.website} 
+                    onChange={(e) => setUserProfile({...userProfile, website: e.target.value})}
+                    placeholder="https://"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
+                  />
                 </div>
               </div>
             </div>
@@ -3148,33 +3248,48 @@ function StudioView({ onBack, startWizard, startTour }) {
             <div className="profile-section" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid var(--border-color)' }}>
               <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><Share2 size={20} /> Social Connections</h3>
               <div className="social-connect-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Instagram size={20} color="#E1306C" />
-                    <span>Instagram</span>
+                {[
+                  { id: 'instagram', label: 'Instagram', icon: Instagram, color: '#E1306C' },
+                  { id: 'twitter', label: 'X / Twitter', icon: Twitter, color: '#1DA1F2' },
+                  { id: 'spotify', label: 'Spotify for Artists', icon: Music, color: '#1DB954' },
+                  { id: 'tiktok', label: 'TikTok', icon: Video, color: '#00f2ea' }
+                ].map(social => (
+                  <div key={social.id} className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <social.icon size={20} color={social.color} />
+                      <span>{social.label}</span>
+                    </div>
+                    <button 
+                      className="btn-sm" 
+                      onClick={() => setSocialConnections(prev => {
+                        const newState = { ...prev, [social.id]: !prev[social.id] };
+                        localStorage.setItem('studio_agents_socials', JSON.stringify(newState));
+                        return newState;
+                      })}
+                      style={{ 
+                        background: socialConnections[social.id] ? 'rgba(16, 185, 129, 0.2)' : 'transparent', 
+                        border: `1px solid ${socialConnections[social.id] ? '#10b981' : 'var(--border-color)'}`, 
+                        color: socialConnections[social.id] ? '#10b981' : 'white', 
+                        padding: '6px 12px', 
+                        borderRadius: '6px', 
+                        cursor: 'pointer',
+                        minWidth: '100px'
+                      }}
+                    >
+                      {socialConnections[social.id] ? 'Connected' : 'Connect'}
+                    </button>
                   </div>
-                  <button className="btn-sm" style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Connect</button>
-                </div>
-                <div className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Twitter size={20} color="#1DA1F2" />
-                    <span>X / Twitter</span>
-                  </div>
-                  <button className="btn-sm" style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Connect</button>
-                </div>
-                <div className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Music size={20} color="#1DB954" />
-                    <span>Spotify for Artists</span>
-                  </div>
-                  <button className="btn-sm" style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Connect</button>
-                </div>
+                ))}
               </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button className="cta-button-secondary" onClick={() => setActiveTab('mystudio')}>Cancel</button>
-              <button className="cta-button-premium" onClick={() => { alert('Profile saved!'); setActiveTab('mystudio'); }}>Save Changes</button>
+              <button className="cta-button-premium" onClick={() => { 
+                localStorage.setItem('studio_user_profile', JSON.stringify(userProfile));
+                alert('Profile saved successfully!'); 
+                setActiveTab('mystudio'); 
+              }}>Save Changes</button>
             </div>
           </div>
         );
@@ -3641,7 +3756,7 @@ function StudioView({ onBack, startWizard, startTour }) {
               }}
             >
               <Zap size={14} className="text-yellow-400" fill="currentColor" />
-              <span>500 Credits</span>
+              <span>{userProfile.credits} Credits</span>
             </button>
             <button 
               className="action-button secondary theme-toggle haptic-press"
@@ -3659,10 +3774,19 @@ function StudioView({ onBack, startWizard, startTour }) {
             </button>
             <button 
               className="action-button secondary haptic-press"
-              onClick={() => setShowWelcomeModal(true)}
+              onClick={() => setActiveTab('profile')}
+              title="User Profile"
+            >
+              <User size={18} />
+              <span className="desktop-only">Profile</span>
+            </button>
+            <button 
+              className="action-button secondary haptic-press"
+              onClick={() => { setOnboardingStep(0); setShowOnboarding(true); }}
               title="Welcome Tour"
             >
               <Sparkles size={18} />
+              <span className="desktop-only">Tour</span>
             </button>
             <button 
               className="action-button secondary haptic-press"
@@ -3670,6 +3794,7 @@ function StudioView({ onBack, startWizard, startTour }) {
               title="Help Center"
             >
               <CircleHelp size={18} />
+              <span className="desktop-only">Help</span>
             </button>
             <button 
               className="action-button secondary haptic-press" 
@@ -3927,7 +4052,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                     src={sessionTracks.audio.audioUrl} 
                     ref={el => {
                       if (el) {
-                        el.volume = 0.8; // Default mix
+                        el.volume = sessionTracks.audioVolume || 0.8;
                         if (sessionPlaying) el.play().catch(e => console.log(e));
                         else el.pause();
                       }
@@ -3940,7 +4065,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                     src={sessionTracks.vocal.audioUrl} 
                     ref={el => {
                       if (el) {
-                        el.volume = 1.0; // Vocals usually louder
+                        el.volume = sessionTracks.vocalVolume || 1.0;
                         if (sessionPlaying) el.play().catch(e => console.log(e));
                         else el.pause();
                       }
@@ -3985,7 +4110,15 @@ function StudioView({ onBack, startWizard, startTour }) {
                   </div>
                   <div style={{ width: '100px' }}>
                      <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Volume</label>
-                     <input type="range" min="0" max="1" step="0.1" defaultValue="0.8" style={{ width: '100%' }} />
+                     <input 
+                       type="range" 
+                       min="0" 
+                       max="1" 
+                       step="0.1" 
+                       value={sessionTracks.audioVolume || 0.8}
+                       onChange={(e) => setSessionTracks(prev => ({ ...prev, audioVolume: parseFloat(e.target.value) }))}
+                       style={{ width: '100%' }} 
+                     />
                   </div>
                 </div>
 
@@ -4010,7 +4143,15 @@ function StudioView({ onBack, startWizard, startTour }) {
                   </div>
                   <div style={{ width: '100px' }}>
                      <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Volume</label>
-                     <input type="range" min="0" max="1" step="0.1" defaultValue="1.0" style={{ width: '100%' }} />
+                     <input 
+                       type="range" 
+                       min="0" 
+                       max="1" 
+                       step="0.1" 
+                       value={sessionTracks.vocalVolume || 1.0}
+                       onChange={(e) => setSessionTracks(prev => ({ ...prev, vocalVolume: parseFloat(e.target.value) }))}
+                       style={{ width: '100%' }} 
+                     />
                   </div>
                 </div>
 
@@ -4035,7 +4176,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                   </div>
                 </div>
 
-                <button className="btn-dashed" style={{ width: '100%', padding: '8px', fontSize: '0.8rem' }}>+ Add Track</button>
+                {/* <button className="btn-dashed" style={{ width: '100%', padding: '8px', fontSize: '0.8rem' }}>+ Add Track</button> */}
 
               </div>
             </div>
@@ -4045,6 +4186,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                <div style={{ display: 'flex', gap: '16px' }}>
                  <button 
                    className="btn-circle" 
+                   aria-label={sessionPlaying ? "Pause Session" : "Play Session"}
                    style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--color-purple)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                    onClick={() => setSessionPlaying(!sessionPlaying)}
                  >
@@ -4070,6 +4212,10 @@ function StudioView({ onBack, startWizard, startTour }) {
                      color: "agent-purple",
                      snippet: "Orchestrated Master Composition",
                      audioUrl: sessionTracks.audio?.audioUrl, // Primary audio
+                     stems: {
+                       audio: sessionTracks.audio?.audioUrl,
+                       vocal: sessionTracks.vocal?.audioUrl
+                     },
                      imageUrl: sessionTracks.visual?.imageUrl,
                      videoUrl: sessionTracks.visual?.videoUrl
                    };
@@ -4343,118 +4489,27 @@ function StudioView({ onBack, startWizard, startTour }) {
         </nav>
       </main>
 
-      {/* Welcome / Onboarding Modal */}
-      {showWelcomeModal && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000 }}>
-          <div className="modal-content welcome-modal">
-            <button 
-              className="modal-close"
-              onClick={() => setShowWelcomeModal(false)}
-            >
-              <X size={24} />
-            </button>
-            <div className="welcome-header">
-              <div className="welcome-icon-glow">
-                <Sparkles size={48} className="text-purple" />
-              </div>
-              <h2>Welcome to Studio Agents</h2>
-              <p>Your elite team of AI specialists is ready.</p>
+      {/* Maintenance Mode Overlay */}
+      {systemStatus.status === 'maintenance' && (
+        <div className="modal-overlay" style={{ zIndex: 9999, backdropFilter: 'blur(10px)', background: 'rgba(0,0,0,0.85)' }}>
+          <div className="modal-content animate-fadeInUp" style={{ textAlign: 'center', border: '1px solid var(--color-red)' }}>
+            <div className="logo-box" style={{ width: '64px', height: '64px', margin: '0 auto 1.5rem', background: 'rgba(239, 68, 68, 0.1)' }}>
+              <Activity size={32} color="var(--color-red)" />
             </div>
-
-            <div className="welcome-features">
-              {[
-                {
-                  id: 'speed',
-                  icon: Zap,
-                  color: 'cyan',
-                  title: '10x Faster Workflow',
-                  shortDesc: 'Generate lyrics, beats, and visuals in seconds, not hours.',
-                  fullDesc: 'Stop wrestling with writer\'s block. Our AI agents handle the heavy lifting—generating chord progressions, drafting lyrics, and creating cover art instantly—so you can focus on the creative decisions that matter. It\'s like having a studio session that never ends.',
-                  stats: ['90% less time on admin', 'Instant inspiration', 'Zero setup time']
-                },
-                {
-                  id: 'quality',
-                  icon: Crown,
-                  color: 'purple',
-                  title: 'Industry Standard Quality',
-                  shortDesc: 'Tools tuned by professional producers and engineers.',
-                  fullDesc: 'We don\'t just use generic AI. Our models are fine-tuned on hit records and professional mixing standards. Whether it\'s a mastering chain or a marketing strategy, you get output that stands up to major label releases.',
-                  stats: ['Radio-ready audio', '4K visual assets', 'Pro-grade mixing']
-                },
-                {
-                  id: 'team',
-                  icon: Users,
-                  color: 'orange',
-                  title: 'Your Personal Team',
-                  shortDesc: '16 specialized agents working 24/7 for your career.',
-                  fullDesc: 'Imagine hiring a manager, a PR agent, a mixing engineer, and a session musician for the price of a lunch. Your Studio Agents team is always available, never tired, and constantly learning new tricks to help you win.',
-                  stats: ['16 Specialists', '24/7 Availability', 'Infinite Patience']
-                },
-                {
-                  id: 'credits',
-                  icon: CreditCard,
-                  color: 'emerald',
-                  title: 'Smart Credit System',
-                  shortDesc: 'Pay as you go. Clear pricing for every action.',
-                  fullDesc: 'Every agent action uses credits. You start with 500 FREE credits. Complex tasks cost more than simple ones. Always know exactly what you\'re spending before you click generate.',
-                  stats: ['Lyrics: 5 Credits', 'Beat Gen: 25 Credits', 'Mastering: 50 Credits']
-                }
-              ].map((feature) => (
-                <div 
-                  key={feature.id} 
-                  className={`welcome-feature-item ${expandedWelcomeFeature === feature.id ? 'expanded' : ''}`}
-                  onClick={() => setExpandedWelcomeFeature(expandedWelcomeFeature === feature.id ? null : feature.id)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="feature-header" style={{ display: 'flex', alignItems: 'center', gap: '16px', width: '100%' }}>
-                    <div className={`feature-icon-box ${feature.color}`}>
-                      <feature.icon size={24} />
-                    </div>
-                    <div className="feature-text" style={{ flex: 1 }}>
-                      <h3>{feature.title}</h3>
-                      <p>{feature.shortDesc}</p>
-                    </div>
-                    <div className="feature-expand-icon">
-                      <ChevronDown size={20} className={`transition-transform ${expandedWelcomeFeature === feature.id ? 'rotate-180' : ''}`} style={{ transition: 'transform 0.3s ease' }} />
-                    </div>
-                  </div>
-                  
-                  {expandedWelcomeFeature === feature.id && (
-                    <div className="feature-details animate-fadeIn" style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                      <p className="feature-full-desc" style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-secondary)', marginBottom: '12px' }}>{feature.fullDesc}</p>
-                      <div className="feature-stats" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {feature.stats.map((stat, i) => (
-                          <div key={i} className="feature-stat-pill" style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '6px', 
-                            fontSize: '0.8rem', 
-                            background: 'rgba(255,255,255,0.05)', 
-                            padding: '4px 10px', 
-                            borderRadius: '12px',
-                            color: 'var(--text-primary)'
-                          }}>
-                            <CheckCircle size={12} className={`text-${feature.color}`} /> {stat}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+            <h2 style={{ color: 'var(--color-red)', marginBottom: '1rem' }}>System Maintenance</h2>
+            <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>
+              The Studio is currently undergoing critical updates or experiencing connectivity issues. 
+              <br/>Please check back in a few minutes.
+            </p>
+            <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', fontSize: '0.85rem', fontFamily: 'monospace' }}>
+              Status: {systemStatus.details || 'Backend Unreachable'}
             </div>
-
             <button 
-              className="cta-button-premium haptic-press"
-              style={{ width: '100%', marginTop: '24px', display: 'none' }}
-              onClick={() => {
-                localStorage.setItem('studio_welcome_seen', 'true');
-                setShowWelcomeModal(false);
-                setShowProjectWizard(true);
-                handleTextToVoice("Welcome to the studio. Let's set up your first project.");
-              }}
+              className="cta-button-secondary" 
+              style={{ marginTop: '2rem', width: '100%' }}
+              onClick={() => window.location.reload()}
             >
-              Get Started
+              <RefreshCw size={16} style={{ marginRight: '8px' }} /> Retry Connection
             </button>
           </div>
         </div>
@@ -4888,7 +4943,7 @@ function StudioView({ onBack, startWizard, startTour }) {
       {/* Onboarding Modal */}
       {showOnboarding && (
         <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000 }}>
-          <div className="modal-content onboarding-modal" style={{ maxWidth: '700px', padding: 0, overflow: 'hidden' }}>
+          <div className="modal-content onboarding-modal" style={{ maxWidth: '700px', padding: 0, maxHeight: '90vh', overflowY: 'auto' }}>
             {/* Progress Bar */}
             <div style={{ height: '4px', background: 'var(--color-bg-tertiary)', width: '100%' }}>
               <div style={{ 
