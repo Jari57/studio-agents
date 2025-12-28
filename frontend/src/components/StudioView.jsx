@@ -370,7 +370,13 @@ function StudioView({ onBack, startWizard, startTour }) {
       }
     } catch (error) {
       console.error("Login failed", error);
-      alert(`Login failed: ${error.message}`);
+      let errorMsg = error.message;
+      if (error.code === 'auth/unauthorized-domain') {
+        errorMsg = "This domain is not authorized for Google Sign-In. Please add it in Firebase Console.";
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        errorMsg = "Sign-in cancelled.";
+      }
+      alert(`Login failed: ${errorMsg}`);
     }
   };
 
