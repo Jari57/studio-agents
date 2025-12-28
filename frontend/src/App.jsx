@@ -11,6 +11,7 @@ function App() {
   const [currentHash, setCurrentHash] = useState(window.location.hash || '#/');
   const [startWizard, setStartWizard] = useState(false);
   const [startTour, setStartTour] = useState(false);
+  const [initialPlan, setInitialPlan] = useState(null);
 
   // Listen for hash changes (Browser Back/Forward)
   useEffect(() => {
@@ -30,18 +31,28 @@ function App() {
   const handleEnterStudio = (shouldStartWizard = false) => {
     setStartWizard(shouldStartWizard);
     setStartTour(false);
+    setInitialPlan(null);
     window.location.hash = '#/studio';
   };
 
   const handleStartTour = () => {
     setStartWizard(false);
     setStartTour(true);
+    setInitialPlan(null);
+    window.location.hash = '#/studio';
+  };
+
+  const handleSubscribe = (plan) => {
+    setInitialPlan(plan);
+    setStartWizard(false);
+    setStartTour(false);
     window.location.hash = '#/studio';
   };
 
   const handleBackToLanding = () => {
     setStartWizard(false);
     setStartTour(false);
+    setInitialPlan(null);
     window.location.hash = '#/';
   };
 
@@ -54,13 +65,14 @@ function App() {
         <LandingPage 
           onEnter={handleEnterStudio} 
           onStartTour={handleStartTour}
-          onSubscribe={() => console.log('Subscribe clicked')}
+          onSubscribe={handleSubscribe}
         />
       ) : (
         <StudioView 
           onBack={handleBackToLanding} 
           startWizard={startWizard} 
           startTour={startTour}
+          initialPlan={initialPlan}
         />
       )}
     </div>

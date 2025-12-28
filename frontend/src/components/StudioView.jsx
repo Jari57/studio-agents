@@ -102,7 +102,7 @@ const agentDetails = {
   }
 };
 
-function StudioView({ onBack, startWizard, startTour }) {
+function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   // Helper to get tab from hash
   const getTabFromHash = () => {
     const hash = window.location.hash;
@@ -271,6 +271,13 @@ function StudioView({ onBack, startWizard, startTour }) {
     const interval = setInterval(checkHealth, 60000); // Check every minute
     return () => clearInterval(interval);
   }, []);
+
+  // Handle initial plan from landing page
+  useEffect(() => {
+    if (initialPlan) {
+      handleSubscribe(initialPlan);
+    }
+  }, [initialPlan]);
 
   const [newProjectData, setNewProjectData] = useState({
     name: '',
