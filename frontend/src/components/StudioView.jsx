@@ -2840,7 +2840,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     style={{ cursor: 'pointer' }}
                     title="Open Project Canvas"
                   >
-                    <div className={`hub-card-preview ${item.color}`}>
+                    <div 
+                      className={`hub-card-preview ${item.color}`}
+                      onDoubleClick={(e) => { e.stopPropagation(); setPlayingItem(item); }}
+                    >
                       {item.imageUrl && <img src={item.imageUrl} alt={item.title} className="hub-preview-image" />}
                       {item.videoUrl && <video src={item.videoUrl} className="hub-preview-video" muted />}
                       {!item.imageUrl && !item.videoUrl && (
@@ -2849,6 +2852,15 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         </div>
                       )}
                       <div className="preview-overlay">
+                        <button 
+                          className="preview-btn maximize-btn"
+                          onClick={(e) => { e.stopPropagation(); setPlayingItem(item); }}
+                          title="Maximize View"
+                          style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '4px', padding: '4px', color: 'white', cursor: 'pointer' }}
+                        >
+                          <Maximize size={16} />
+                        </button>
+
                         {(item.audioUrl || item.videoUrl) && (
                           <button 
                             className="preview-btn play"
