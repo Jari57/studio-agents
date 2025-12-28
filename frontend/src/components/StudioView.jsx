@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info
 } from 'lucide-react';
+import VideoPitchDemo from './VideoPitchDemo';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import { auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
@@ -482,6 +483,14 @@ function StudioView({ onBack, startWizard, startTour }) {
         website: ''
       };
     }
+  });
+
+  // Simulated Performance Data (for Board Demo)
+  const [performanceStats] = useState({
+    listeners: 12450,
+    streams: 45200,
+    followers: 890,
+    growth: '+12%'
   });
 
   useEffect(() => {
@@ -1643,7 +1652,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Projects</div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-cyan)' }}>100</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-cyan)' }}>{userProfile.credits}</div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Credits</div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
@@ -1651,6 +1660,48 @@ function StudioView({ onBack, startWizard, startTour }) {
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Agents</div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Audience Overview (Simulated) */}
+                  <div className="audience-overview" style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(4, 1fr)', 
+                    gap: '16px', 
+                    marginBottom: '24px' 
+                  }}>
+                    {[
+                      { label: 'Monthly Listeners', value: performanceStats.listeners.toLocaleString(), icon: Users, color: 'var(--color-blue)' },
+                      { label: 'Total Streams', value: performanceStats.streams.toLocaleString(), icon: PlayCircle, color: 'var(--color-emerald)' },
+                      { label: 'Followers', value: performanceStats.followers.toLocaleString(), icon: Crown, color: 'var(--color-purple)' },
+                      { label: 'Growth', value: performanceStats.growth, icon: TrendingUp, color: 'var(--color-cyan)' }
+                    ].map((stat, i) => (
+                      <div key={i} style={{ 
+                        background: 'var(--color-bg-secondary)', 
+                        padding: '16px', 
+                        borderRadius: '12px', 
+                        border: '1px solid var(--border-color)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '16px'
+                      }}>
+                        <div style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '8px', 
+                          background: `${stat.color}20`, 
+                          color: stat.color,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <stat.icon size={20} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{stat.value}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{stat.label}</div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
 
                   {/* Workflow Onboarding Card */}
@@ -2862,6 +2913,18 @@ function StudioView({ onBack, startWizard, startTour }) {
             <div className="resources-header">
               <h1>Creator Resources</h1>
               <p>Essential tools, guides, and technical documentation for professional growth.</p>
+            </div>
+
+            {/* New Demo Tool */}
+            <div className="resources-demo-section" style={{ marginBottom: '40px', padding: '20px', background: 'var(--color-bg-secondary)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                  <Video size={24} className="text-cyan" /> 
+                  New: Viral Pitch Generator
+                </h2>
+                <p style={{ color: 'var(--text-secondary)' }}>Create a 7-second video hook for your next release instantly.</p>
+              </div>
+              <VideoPitchDemo initialTopic="My new single" />
             </div>
 
             <div className="resources-grid">

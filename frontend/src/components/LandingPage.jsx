@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid } from 'lucide-react';
 import { AGENTS } from '../constants';
+import VideoPitchDemo from './VideoPitchDemo';
 
 export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   console.log("LandingPage: Rendering...");
@@ -493,6 +494,15 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* Live Demo Section */}
+      <section className="demo-section" style={{ padding: '80px 20px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+        <div className="section-header" style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <h2 className="section-title">See It In <span className="gradient-text-cyan">Action</span></h2>
+          <p className="section-subtitle">Generate a viral video pitch in seconds. Try it now.</p>
+        </div>
+        <VideoPitchDemo />
       </section>
 
       {/* Footer CTA */}
