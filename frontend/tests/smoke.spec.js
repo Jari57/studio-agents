@@ -8,11 +8,16 @@ test.describe('Studio Agents UI Regression', () => {
     await expect(page.locator('.hero-section')).toBeVisible();
   });
 
-  test('Navigation to Dashboard works', async ({ page }) => {
+  test('Navigation to Dashboard works', async ({ page, isMobile }) => {
     await page.goto('/');
     await page.getByText('Create New Project').click();
     await expect(page.locator('.studio-container')).toBeVisible();
-    await expect(page.locator('.studio-nav')).toBeVisible();
+    
+    // Sidebar is hidden on mobile
+    if (!isMobile) {
+      await expect(page.locator('.studio-nav')).toBeVisible();
+    }
+    
     await expect(page.locator('.studio-header')).toBeVisible();
   });
 

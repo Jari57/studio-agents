@@ -3103,6 +3103,82 @@ function StudioView({ onBack, startWizard, startTour }) {
             )}
           </div>
         );
+      case 'profile':
+        return (
+          <div className="studio-profile-view animate-fadeInUp" style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
+            <div className="profile-header" style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '32px' }}>
+              <div className="profile-avatar-large" style={{ width: '100px', height: '100px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--color-purple)', position: 'relative' }}>
+                {user?.photoURL ? <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
+                <button style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', fontSize: '0.7rem', padding: '4px', cursor: 'pointer' }}>Edit</button>
+              </div>
+              <div>
+                <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>{user?.displayName || 'Guest Artist'}</h1>
+                <p style={{ color: 'var(--text-secondary)' }}>{user?.email || 'No email linked'}</p>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                  <span className="badge" style={{ background: 'var(--color-purple)', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>Pro Plan</span>
+                  <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>Member since 2024</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="profile-section" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid var(--border-color)' }}>
+              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><User size={20} /> Artist Profile</h3>
+              <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Stage Name</label>
+                  <input type="text" defaultValue={user?.displayName} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} />
+                </div>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Primary Genre</label>
+                  <select style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }}>
+                    <option>Hip Hop / Rap</option>
+                    <option>R&B</option>
+                    <option>Pop</option>
+                    <option>Electronic</option>
+                    <option>Rock</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Artist Bio</label>
+                  <textarea rows="4" placeholder="Tell your story..." style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white', resize: 'vertical' }}></textarea>
+                </div>
+              </div>
+            </div>
+
+            <div className="profile-section" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid var(--border-color)' }}>
+              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><Share2 size={20} /> Social Connections</h3>
+              <div className="social-connect-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Instagram size={20} color="#E1306C" />
+                    <span>Instagram</span>
+                  </div>
+                  <button className="btn-sm" style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Connect</button>
+                </div>
+                <div className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Twitter size={20} color="#1DA1F2" />
+                    <span>X / Twitter</span>
+                  </div>
+                  <button className="btn-sm" style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Connect</button>
+                </div>
+                <div className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Music size={20} color="#1DB954" />
+                    <span>Spotify for Artists</span>
+                  </div>
+                  <button className="btn-sm" style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' }}>Connect</button>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button className="cta-button-secondary" onClick={() => setActiveTab('mystudio')}>Cancel</button>
+              <button className="cta-button-premium" onClick={() => { alert('Profile saved!'); setActiveTab('mystudio'); }}>Save Changes</button>
+            </div>
+          </div>
+        );
+
       case 'support':
         const HELP_ITEMS = [
           { 
@@ -3507,9 +3583,13 @@ function StudioView({ onBack, startWizard, startTour }) {
         </nav>
 
         <div className="studio-nav-footer">
-          <div className="user-profile-mini">
+          <div 
+            className="user-profile-mini haptic-press" 
+            onClick={() => { setActiveTab('profile'); setSelectedAgent(null); }}
+            style={{ cursor: 'pointer' }}
+          >
             <div className="user-avatar">
-              {user?.photoURL && <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%', borderRadius: '50%' }} />}
+              {user?.photoURL ? <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%', borderRadius: '50%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
             </div>
             <div className="user-info">
               <p className="user-name">{isLoggedIn ? (user?.displayName || 'Pro Creator') : 'Guest Artist'}</p>
@@ -3518,7 +3598,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                 <button 
                   className="sign-out-link" 
                   style={{ fontSize: '0.7rem', color: 'var(--color-red)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginTop: '4px', textAlign: 'left' }}
-                  onClick={() => auth && signOut(auth)}
+                  onClick={(e) => { e.stopPropagation(); auth && signOut(auth); }}
                 >
                   Sign Out
                 </button>
@@ -3526,7 +3606,7 @@ function StudioView({ onBack, startWizard, startTour }) {
                 <button 
                   className="sign-in-link" 
                   style={{ fontSize: '0.7rem', color: 'var(--color-purple)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginTop: '4px', textAlign: 'left' }}
-                  onClick={() => setShowLoginModal(true)}
+                  onClick={(e) => { e.stopPropagation(); setShowLoginModal(true); }}
                 >
                   Sign In
                 </button>

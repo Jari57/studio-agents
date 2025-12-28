@@ -41,8 +41,20 @@ Write-Host "   Artifacts copied" -ForegroundColor Green
 # Step 3: Run tests (if any)
 Write-Host ""
 Write-Host "Running validation checks..." -ForegroundColor Cyan
-# Add test commands here if needed
-Write-Host "   Validation passed" -ForegroundColor Green
+
+Set-Location frontend
+# Run all tests (Desktop + Mobile)
+# We use 'cmd /c' to ensure npx works correctly in PowerShell context if needed, 
+# but direct execution usually works. We'll use npx directly.
+Write-Host "   Running Playwright tests (Desktop & Mobile)..." -ForegroundColor Gray
+npx playwright test
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "   TESTS FAILED! Deployment cancelled." -ForegroundColor Red
+    Set-Location ..
+    exit 1
+}
+Write-Host "   All tests passed" -ForegroundColor Green
+Set-Location ..
 
 # Step 4: Stage all changes
 Write-Host ""
