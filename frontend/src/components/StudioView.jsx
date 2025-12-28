@@ -1592,34 +1592,63 @@ function StudioView({ onBack, startWizard, startTour }) {
             <div className="dashboard-main-content">
               {dashboardTab === 'overview' && (
                 <div className="dashboard-view-overview animate-fadeIn">
-                  <div className="dashboard-welcome-banner">
-                    <div className="banner-content">
-                      <div className="banner-text">
-                        <h1>Welcome back, {isLoggedIn ? 'Pro Creator' : 'Artist'}</h1>
-                        <p>
-                          {selectedProject 
-                            ? <span>Working on: <strong style={{color: 'var(--color-purple)'}}>{selectedProject.name}</strong></span> 
-                            : 'Your AI studio is synchronized and ready for your next hit.'}
-                        </p>
+                  {/* Artist Profile Header */}
+                  <div className="artist-profile-header" style={{ 
+                    background: 'linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%)',
+                    borderRadius: '16px',
+                    padding: '24px',
+                    marginBottom: '24px',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '20px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                      <div className="profile-avatar" style={{ 
+                        width: '80px', 
+                        height: '80px', 
+                        borderRadius: '50%', 
+                        background: 'var(--color-purple)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '2rem',
+                        color: 'white',
+                        boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)'
+                      }}>
+                        {user?.photoURL ? <img src={user.photoURL} alt="Profile" style={{width: '100%', height: '100%', borderRadius: '50%'}} /> : <User size={40} />}
                       </div>
-                      <div className="banner-actions">
-                        <button 
-                          className={`voice-command-btn haptic-press ${isListening ? 'active' : ''}`}
-                          onClick={handleVoiceToText}
-                        >
-                          <Mic size={20} />
-                          <span>{isListening ? 'Listening...' : 'Voice Command'}</span>
-                        </button>
-                        <button 
-                          className="btn-refresh-glow haptic-press"
-                          onClick={() => {
-                            handleTextToVoice("Synchronizing your AI ecosystem...");
-                            alert("Ecosystem synchronized successfully!");
-                          }}
-                        >
-                          <RefreshCw size={18} /> 
-                          <span>Sync Ecosystem</span>
-                        </button>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                          <h1 style={{ fontSize: '1.8rem', margin: 0, fontWeight: '700' }}>{user?.displayName || 'Guest Artist'}</h1>
+                          {isLoggedIn && <span className="pro-badge">PRO</span>}
+                        </div>
+                        <p style={{ color: 'var(--text-secondary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {user?.email || 'Sign in to save your work'}
+                        </p>
+                        {selectedProject && (
+                          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: 'var(--color-cyan)' }}>
+                            <Disc size={14} />
+                            <span>Current Session: <strong>{selectedProject.name}</strong></span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="profile-stats" style={{ display: 'flex', gap: '24px' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-primary)' }}>{projects.length}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Projects</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-cyan)' }}>100</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Credits</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-purple)' }}>{managedAgents.filter(a => a.visible).length}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Agents</div>
                       </div>
                     </div>
                   </div>
