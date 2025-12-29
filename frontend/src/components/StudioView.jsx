@@ -610,6 +610,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       return saved ? JSON.parse(saved) : {
         stageName: '',
         genre: 'Hip Hop / Rap',
+        targetDemographic: 'Gen Z',
+        language: 'English',
         bio: '',
         credits: 500,
         memberSince: new Date().getFullYear(),
@@ -5633,40 +5635,6 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 </p>
               </div>
 
-              {/* Step 1: Profile Creation */}
-              {onboardingStep === 1 && (
-                <div className="profile-setup-form animate-fadeInUp" style={{ marginTop: '24px' }}>
-                  <div className="form-group" style={{ marginBottom: '16px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Stage Name</label>
-                    <input 
-                      type="text" 
-                      className="studio-input"
-                      placeholder="e.g. Lil Gemini"
-                      value={userProfile.stageName}
-                      onChange={(e) => setUserProfile({...userProfile, stageName: e.target.value})}
-                      style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)', color: 'white' }}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Primary Genre</label>
-                    <select 
-                      className="studio-select"
-                      value={userProfile.genre}
-                      onChange={(e) => setUserProfile({...userProfile, genre: e.target.value})}
-                      style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)', color: 'white' }}
-                    >
-                      <option>Hip Hop / Rap</option>
-                      <option>R&B</option>
-                      <option>Pop</option>
-                      <option>Electronic</option>
-                      <option>Rock</option>
-                      <option>Afrobeats</option>
-                      <option>Latin</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-
               {/* Step 1: Profile Setup */}
               {onboardingStep === 1 && (
                 <div className="profile-setup-step animate-fadeInUp" style={{ marginTop: '24px' }}>
@@ -5683,7 +5651,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
                     <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Primary Genre</label>
                     <div className="genre-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                       {['Hip Hop', 'R&B', 'Pop', 'Electronic', 'Rock', 'Afrobeats'].map(genre => (
@@ -5703,6 +5671,42 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           {genre}
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div className="form-group">
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Target Demographic</label>
+                      <select 
+                        className="studio-select"
+                        value={userProfile.targetDemographic || 'Gen Z'}
+                        onChange={(e) => setUserProfile({...userProfile, targetDemographic: e.target.value})}
+                        style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'white' }}
+                      >
+                        <option>Gen Z</option>
+                        <option>Millennials</option>
+                        <option>Gen X</option>
+                        <option>Global</option>
+                        <option>Niche / Underground</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Language</label>
+                      <select 
+                        className="studio-select"
+                        value={userProfile.language || 'English'}
+                        onChange={(e) => setUserProfile({...userProfile, language: e.target.value})}
+                        style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'white' }}
+                      >
+                        <option>English</option>
+                        <option>Spanish</option>
+                        <option>French</option>
+                        <option>German</option>
+                        <option>Portuguese</option>
+                        <option>Japanese</option>
+                        <option>Korean</option>
+                        <option>Mandarin</option>
+                      </select>
                     </div>
                   </div>
                 </div>
