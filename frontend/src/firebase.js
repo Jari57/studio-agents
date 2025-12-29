@@ -1,6 +1,15 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged, 
+  signOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail
+} from 'firebase/auth';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCbRHu9a4N_i2WEFC8nVvR9GFFAxtB4EMk",
@@ -24,4 +33,20 @@ try {
   console.error("Firebase initialization failed:", e);
 }
 
-export { app, auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged };
+export { 
+  app, 
+  auth, 
+  db, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  increment
+};

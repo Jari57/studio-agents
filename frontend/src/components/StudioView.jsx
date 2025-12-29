@@ -1,10 +1,26 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail
 } from 'lucide-react';
 import VideoPitchDemo from './VideoPitchDemo';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
-import { auth, db, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase';
+import toast, { Toaster } from 'react-hot-toast';
+import { 
+  auth, 
+  db, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  increment
+} from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
 
 // --- CONSTANTS FOR ONBOARDING & SUPPORT ---
@@ -454,7 +470,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (userPlan === 'Studio Pro' || userPlan === 'Lifetime Access') limit = 16;
 
     if (currentAgents.length >= limit) {
-      alert(`You have reached the limit of ${limit} agents for the ${userPlan} plan. Please upgrade to add more.`);
+      toast.error(`Agent limit reached for ${userPlan} plan. Please upgrade.`);
       return;
     }
 
@@ -482,14 +498,29 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   // --- FIREBASE AUTH LISTENER ---
   useEffect(() => {
     if (auth) {
-      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         if (currentUser) {
           setIsLoggedIn(true);
           setUser(currentUser);
           localStorage.setItem('studio_user_id', currentUser.uid);
+          // Fetch credits from Firestore
+          if (db) {
+            try {
+              const userRef = doc(db, 'users', currentUser.uid);
+              const userDoc = await getDoc(userRef);
+              if (userDoc.exists()) {
+                const credits = userDoc.data().credits || 0;
+                setUserCredits(credits);
+                setUserProfile(prev => ({ ...prev, credits }));
+              }
+            } catch (err) {
+              console.error('Failed to fetch user data:', err);
+            }
+          }
         } else {
           setIsLoggedIn(false);
           setUser(null);
+          setUserCredits(3); // Reset to trial
           localStorage.removeItem('studio_user_id');
         }
       });
@@ -497,35 +528,128 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
   }, []);
 
-  // --- LOGIN HANDLER ---
-  const handleLogin = async () => {
-    if (!auth) {
-      alert("Authentication service is currently unavailable. Please check your connection or configuration.");
-      return;
-    }
+  // --- AUTH STATE ---
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset'
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [userCredits, setUserCredits] = useState(3); // Default trial credits
 
+  // Fetch user credits from Firestore
+  const fetchUserCredits = async (uid) => {
+    if (!db) return;
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      setShowLoginModal(false);
-      if (selectedPlan) {
-        setUserPlan(selectedPlan.name);
-        handleTextToVoice(`Welcome to the ${selectedPlan.name}. Your subscription is active.`);
-        alert(`Subscription Confirmed: ${selectedPlan.name}\nPrice: ${selectedPlan.price}\n\nWelcome to the Pro Team!`);
-        setSelectedPlan(null);
-        setActiveTab('mystudio');
+      const userRef = doc(db, 'users', uid);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        setUserCredits(userDoc.data().credits || 0);
+        setUserProfile(prev => ({ ...prev, credits: userDoc.data().credits || 0 }));
+      } else {
+        // Initialize new user with 3 trial credits
+        await setDoc(userRef, { credits: 3, tier: 'free', createdAt: new Date() });
+        setUserCredits(3);
       }
-    } catch (error) {
-      console.error("Login failed", error);
-      let errorMsg = error.message;
-      if (error.code === 'auth/unauthorized-domain') {
-        errorMsg = `This domain (${window.location.hostname}) is not authorized for Google Sign-In. Please add it in the Firebase Console under Authentication > Settings > Authorized Domains.`;
-      } else if (error.code === 'auth/popup-closed-by-user') {
-        errorMsg = "Sign-in cancelled.";
-      }
-      alert(`Login failed: ${errorMsg}`);
+    } catch (err) {
+      console.error('Failed to fetch credits:', err);
     }
   };
+
+  // --- LOGIN HANDLER (Google) ---
+  const handleGoogleLogin = async () => {
+    if (!auth) {
+      toast.error('Authentication service unavailable');
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      await fetchUserCredits(result.user.uid);
+      setShowLoginModal(false);
+      toast.success('Welcome back!');
+      if (selectedPlan) {
+        handleCheckoutRedirect(selectedPlan);
+      }
+    } catch (error) {
+      console.error('Login failed', error);
+      if (error.code === 'auth/popup-closed-by-user') {
+        toast('Sign-in cancelled', { icon: '👋' });
+      } else if (error.code === 'auth/unauthorized-domain') {
+        toast.error(`Domain not authorized. Add ${window.location.hostname} in Firebase Console.`);
+      } else {
+        toast.error(error.message);
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // --- EMAIL/PASSWORD LOGIN ---
+  const handleEmailAuth = async (e) => {
+    e.preventDefault();
+    if (!auth) {
+      toast.error('Authentication service unavailable');
+      return;
+    }
+    if (!authEmail || !authPassword) {
+      toast.error('Please enter email and password');
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      let result;
+      if (authMode === 'signup') {
+        result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+        toast.success('Account created successfully!');
+      } else {
+        result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
+        toast.success('Welcome back!');
+      }
+      await fetchUserCredits(result.user.uid);
+      setShowLoginModal(false);
+      setAuthEmail('');
+      setAuthPassword('');
+      if (selectedPlan) {
+        handleCheckoutRedirect(selectedPlan);
+      }
+    } catch (error) {
+      console.error('Auth failed', error);
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error('Email already in use. Try logging in.');
+      } else if (error.code === 'auth/wrong-password') {
+        toast.error('Incorrect password');
+      } else if (error.code === 'auth/user-not-found') {
+        toast.error('No account found. Try signing up.');
+      } else if (error.code === 'auth/weak-password') {
+        toast.error('Password should be at least 6 characters');
+      } else {
+        toast.error(error.message);
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // --- PASSWORD RESET ---
+  const handlePasswordReset = async () => {
+    if (!authEmail) {
+      toast.error('Please enter your email first');
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, authEmail);
+      toast.success('Password reset email sent!');
+      setAuthMode('login');
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Legacy handler for compatibility
+  const handleLogin = handleGoogleLogin;
 
   // --- LOGOUT HANDLER ---
   const handleLogout = async () => {
@@ -766,7 +890,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       
       const newUrl = window.location.pathname + window.location.hash;
       window.history.replaceState({}, document.title, newUrl);
-      alert(`Successfully connected to X/Twitter as @${username}!`);
+      toast.success(`Connected to X/Twitter as @${username}!`);
     }
 
     // Meta Callback (Insta/FB)
@@ -777,13 +901,63 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       
       const newUrl = window.location.pathname + window.location.hash;
       window.history.replaceState({}, document.title, newUrl);
-      alert(`Successfully connected to Meta (Instagram & Facebook) as ${name}!`);
+      toast.success(`Connected to Meta as ${name}!`);
     }
   }, []);
 
+  // --- STRIPE CHECKOUT ---
+  const handleCheckoutRedirect = async (plan) => {
+    if (!isLoggedIn || !user) {
+      toast.error('Please log in first');
+      setShowLoginModal(true);
+      return;
+    }
+
+    const tierMap = {
+      'Creator': 'creator',
+      'Studio Pro': 'studio',
+      'Lifetime Access': 'lifetime'
+    };
+    const tier = tierMap[plan.name] || 'creator';
+
+    try {
+      toast.loading('Redirecting to checkout...');
+      const response = await fetch(`${BACKEND_URL}/api/stripe/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tier,
+          userId: user.uid,
+          userEmail: user.email,
+          successUrl: window.location.origin + '?payment=success',
+          cancelUrl: window.location.origin + '?payment=cancelled'
+        })
+      });
+
+      const data = await response.json();
+      toast.dismiss();
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else if (data.error) {
+        toast.error(data.error);
+      } else {
+        toast.error('Could not create checkout session');
+      }
+    } catch (err) {
+      toast.dismiss();
+      console.error('Checkout error:', err);
+      toast.error('Payment system unavailable. Please try again later.');
+    }
+  };
+
   const handleSubscribe = (plan) => {
     setSelectedPlan(plan);
-    setShowLoginModal(true);
+    if (isLoggedIn) {
+      handleCheckoutRedirect(plan);
+    } else {
+      setShowLoginModal(true);
+    }
   };
 
   // --- PROFESSIONAL VOICE & TRANSLATION LOGIC ---
@@ -800,7 +974,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in this browser. Please use Chrome or Safari.");
+      toast.error('Speech recognition not supported. Try Chrome or Safari.');
       return;
     }
 
@@ -1008,7 +1182,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       
       // Basic validation
       if (cardNumber.length < 12) {
-        alert('Please enter a valid card number');
+        toast.error('Please enter a valid card number');
         return;
       }
 
@@ -1087,7 +1261,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       const data = await response.json();
       if (data.translatedText) {
         textarea.value = data.translatedText;
-        alert(`Prompt translated to English for better AI results!`);
+        toast.success('Prompt translated to English!');
       }
     } catch (error) {
       console.error("Translation failed", error);
@@ -1099,11 +1273,20 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const handleGenerate = async () => {
     const textarea = textareaRef.current || document.querySelector('.studio-textarea');
     if (!textarea || !textarea.value) {
-      alert("Please enter a prompt first.");
+      toast.error("Please enter a prompt first.");
+      return;
+    }
+
+    // Check credits for logged-in users
+    if (isLoggedIn && userCredits <= 0) {
+      toast.error("Out of credits! Please upgrade your plan.");
+      setDashboardTab('subscription');
+      setActiveTab('mystudio');
       return;
     }
 
     setIsGenerating(true);
+    const toastId = toast.loading(`${selectedAgent.name} is working...`);
     
     try {
       let prompt = textarea.value;
@@ -1136,22 +1319,60 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       };
 
       // Route to specific endpoints for Image/Video agents
-      if (selectedAgent.id === 'album') {
+      const isImageAgent = selectedAgent.id === 'album';
+      const isVideoAgent = selectedAgent.id === 'video-creator';
+      
+      if (isImageAgent) {
         endpoint = '/api/generate-image';
         body = { prompt };
-      } else if (selectedAgent.id === 'video-creator') {
+      } else if (isVideoAgent) {
         endpoint = '/api/generate-video';
         body = { prompt };
       }
 
-      // Call Backend
+      // Build headers with auth token if logged in
+      const headers = { 'Content-Type': 'application/json' };
+      if (isLoggedIn && auth?.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          headers['Authorization'] = `Bearer ${token}`;
+        } catch (err) {
+          console.warn('Could not get auth token:', err);
+        }
+      }
+
+      // Call Backend with auth headers
       const response = await fetch(`${BACKEND_URL}${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(body)
       });
 
-      const data = await response.json();
+      let data = await response.json();
+      
+      // Handle Imagen/Veo API errors gracefully - fall back to text description
+      if ((isImageAgent || isVideoAgent) && (data.error || !response.ok)) {
+        console.warn(`${isImageAgent ? 'Image' : 'Video'} generation not available, falling back to text description`);
+        
+        // Call text API instead with a description prompt
+        const fallbackBody = {
+          prompt: isImageAgent 
+            ? `Describe in vivid detail what album artwork would look like for: "${prompt}". Include colors, imagery, composition, mood, and style.`
+            : `Describe in vivid detail what a music video would look like for: "${prompt}". Include scenes, camera movements, visual effects, and mood.`,
+          systemInstruction: `You are a creative director providing detailed visual descriptions for ${isImageAgent ? 'album artwork' : 'music videos'}.`
+        };
+        
+        const fallbackResponse = await fetch(`${BACKEND_URL}/api/generate`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(fallbackBody)
+        });
+        data = await fallbackResponse.json();
+        
+        // Mark this as a fallback text response
+        data._isFallback = true;
+        data._fallbackType = isImageAgent ? 'image' : 'video';
+      }
       
       // Handle different response types
       let newItem = {
@@ -1164,7 +1385,14 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         snippet: prompt // Default snippet is the prompt
       };
 
-      if (selectedAgent.id === 'album' && (data.predictions || data.images)) {
+      if (data._isFallback && data.output) {
+        // Fallback text description for image/video
+        newItem.snippet = data.output;
+        newItem.isFallback = true;
+        newItem.fallbackNote = data._fallbackType === 'image' 
+          ? '🎨 Visual concept (image generation coming soon)'
+          : '🎬 Video concept (video generation coming soon)';
+      } else if (selectedAgent.id === 'album' && (data.predictions || data.images)) {
         // Handle Image Response (Imagen)
         // API might return predictions[0].bytesBase64Encoded OR images[0]
         const base64Image = data.predictions?.[0]?.bytesBase64Encoded || data.images?.[0];
@@ -1231,15 +1459,17 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
              body: JSON.stringify({ userId: uid, project: newItem })
            }).catch(err => console.error("Failed to save to cloud", err));
         }
+        // Decrement local credits (backend already deducted)
+        setUserCredits(prev => Math.max(0, prev - 1));
       }
 
-      alert(`${selectedAgent.name} generation complete! Check your Hub.`);
+      toast.success(`${selectedAgent.name} generation complete!`, { id: toastId });
       setActiveTab('hub');
       setSelectedAgent(null);
 
     } catch (error) {
       console.error("Generation error", error);
-      alert(`Error: ${error.message}. Please check your connection or API key.`);
+      toast.error(error.message || 'Generation failed', { id: toastId });
     } finally {
       setIsGenerating(false);
     }
@@ -1356,7 +1586,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   const handleDeadLink = (e, featureName) => {
     if (e) e.preventDefault();
-    alert(`${featureName} is coming soon! We are currently finalizing the integration.`);
+    toast(`${featureName} coming soon!`, { icon: '🚧' });
   };
 
   const handleDownload = (item) => {
@@ -1398,9 +1628,30 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     };
     
     setActivityFeed([newActivity, ...activityFeed]);
-    alert('Shared to Activity Wall!');
+    toast.success('Shared to Activity Wall!');
     setActiveTab('activity');
     setPlayingItem(null);
+  };
+
+  // Share to Twitter/X
+  const handleShareToTwitter = (item) => {
+    if (!item) return;
+    
+    // Create tweet text with snippet preview
+    const snippet = item.snippet ? item.snippet.substring(0, 180) : '';
+    const agentName = item.agent || 'Studio Agents';
+    const hashtags = ['StudioAgents', 'AIMusic', 'MusicCreator'].join(',');
+    
+    // Build tweet content
+    let tweetText = `🎵 Just created with ${agentName}:\n\n"${snippet}"\n\n`;
+    tweetText += `Try it yourself at studioagentsai.com`;
+    
+    // Twitter Web Intent URL (works without OAuth)
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&hashtags=${hashtags}`;
+    
+    // Open in new window
+    window.open(twitterUrl, '_blank', 'width=550,height=420');
+    toast.success('Opening Twitter to share!');
   };
 
   const handleConnectSocial = async (platform) => {
@@ -1415,13 +1666,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           if (data.configured) {
             window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
           } else {
-            alert("Twitter integration is not configured on the server. Please check backend .env settings.");
+            toast.error('Twitter not configured on server');
           }
         } else {
            window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
         }
       } catch (e) {
-        alert("Could not connect to backend server. Please ensure it is running.");
+        toast.error('Could not connect to backend server');
       }
       return;
     }
@@ -1432,7 +1683,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
 
     // Placeholder for other platforms
-    alert(`${platform.charAt(0).toUpperCase() + platform.slice(1)} integration is coming soon!`);
+    toast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} coming soon!`, { icon: '🚧' });
   };
 
   const handleDeleteProject = async (projectId, e) => {
@@ -1451,7 +1702,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           });
         } catch (err) {
           console.error("Failed to delete from cloud", err);
-          alert("Failed to delete from cloud storage, but removed locally.");
+          toast.error('Cloud delete failed, removed locally');
         }
       }
     }
@@ -1574,7 +1825,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   style={{ width: '100%', justifyContent: 'center' }}
                   onClick={() => {
                     if (!selectedProject.assets || selectedProject.assets.length === 0) {
-                      alert("You need to generate some assets first!");
+                      toast.error('Generate some assets first!');
                       return;
                     }
                     
@@ -2989,118 +3240,328 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           return item.type === hubFilter;
         });
 
+        // Quick create agents for instant access
+        const quickAgents = [
+          { id: 'ghostwriter', name: 'Ghostwriter', icon: Feather, color: 'var(--color-purple)', desc: 'Write lyrics' },
+          { id: 'album-artist', name: 'Album Artist', icon: Image, color: 'var(--color-orange)', desc: 'Create visuals' },
+          { id: 'beat-architect', name: 'Beat Architect', icon: Zap, color: 'var(--color-cyan)', desc: 'Design beats' },
+          { id: 'social-pilot', name: 'Social Pilot', icon: Share2, color: 'var(--color-pink)', desc: 'Plan posts' },
+        ];
+
         return (
           <div className="studio-hub-view animate-fadeInUp">
-            <div className="hub-header-actions">
-              <div className="search-box">
-                <Search size={18} />
-                <input type="text" placeholder="Search your creations..." />
+            {/* Hero Quick Create Section */}
+            <div className="hub-quick-create" style={{
+              background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%)',
+              borderRadius: '20px',
+              padding: '28px',
+              marginBottom: '28px',
+              border: '1px solid rgba(139, 92, 246, 0.2)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', background: 'radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%)', pointerEvents: 'none' }} />
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
+                <div>
+                  <h2 style={{ margin: '0 0 8px 0', fontSize: '1.5rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Sparkles size={24} className="text-purple" />
+                    What do you want to create?
+                  </h2>
+                  <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                    Jump right in—pick an agent or start a full project
+                  </p>
+                </div>
+                
+                <button 
+                  className="cta-button-premium"
+                  onClick={() => setShowProjectChoiceModal(true)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px' }}
+                >
+                  <Plus size={18} />
+                  New Project
+                </button>
               </div>
-              <div className="filter-group" style={{ display: 'flex', gap: '8px' }}>
+
+              {/* Quick Agent Buttons */}
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: '12px',
+                marginTop: '24px'
+              }}>
+                {quickAgents.map(qa => {
+                  const matchingAgent = managedAgents.find(a => a.id === qa.id || a.name.toLowerCase().includes(qa.name.toLowerCase().split(' ')[0]));
+                  return (
+                    <button
+                      key={qa.id}
+                      onClick={() => {
+                        if (matchingAgent) {
+                          setSelectedAgent(matchingAgent);
+                          setActiveTab('agents');
+                        } else {
+                          setActiveTab('agents');
+                        }
+                      }}
+                      style={{
+                        background: 'var(--color-bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '12px',
+                        padding: '16px 12px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s ease',
+                        color: 'var(--text-primary)'
+                      }}
+                      className="hover-lift"
+                    >
+                      <div style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '12px',
+                        background: `${qa.color}20`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <qa.icon size={22} style={{ color: qa.color }} />
+                      </div>
+                      <span style={{ fontWeight: '600', fontSize: '0.85rem' }}>{qa.name}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{qa.desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Search & Filters Row */}
+            <div className="hub-header-actions" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '20px',
+              flexWrap: 'wrap'
+            }}>
+              <div className="search-box" style={{ flex: '1', minWidth: '200px' }}>
+                <Search size={18} />
+                <input type="text" placeholder="Search projects..." style={{ width: '100%' }} />
+              </div>
+              <div className="filter-group" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {['All', 'Music Creation', 'Visual Identity', 'Career Growth'].map(filter => (
                   <button 
                     key={filter}
                     className={`btn-pill ${hubFilter === filter ? 'primary' : 'glass'}`}
                     onClick={() => setHubFilter(filter)}
+                    style={{ fontSize: '0.8rem', padding: '6px 12px' }}
                   >
                     {filter}
                   </button>
                 ))}
               </div>
-              <button className="btn-pill primary" onClick={() => setShowProjectChoiceModal(true)}>
-                <Plus size={16} /> New Project
-              </button>
             </div>
 
+            {/* Projects Section */}
             {filteredHubItems.length === 0 ? (
-              <div className="empty-hub-state">
-                <Folder size={48} className="text-muted" />
-                <h3>No projects yet</h3>
-                <p>Launch the wizard to start creating your first masterpiece.</p>
-                <button className="cta-button-secondary" onClick={() => setShowProjectChoiceModal(true)}>
-                  Create Project
-                </button>
+              <div className="empty-hub-state" style={{
+                textAlign: 'center',
+                padding: '60px 20px',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: '20px',
+                border: '2px dashed var(--border-color)'
+              }}>
+                <div style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px'
+                }}>
+                  <Rocket size={36} color="white" />
+                </div>
+                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Your creative journey starts here</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', maxWidth: '400px', margin: '0 auto 24px' }}>
+                  Every hit starts with one idea. Use an agent above to create your first piece, or start a full project.
+                </p>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button 
+                    className="cta-button-secondary" 
+                    onClick={() => setActiveTab('agents')}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Users size={18} /> Browse Agents
+                  </button>
+                  <button 
+                    className="cta-button-premium" 
+                    onClick={() => setShowProjectChoiceModal(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Plus size={18} /> Create Project
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="hub-grid">
-                {filteredHubItems.map((item) => (
-                  <div 
-                    key={item.id} 
-                    className="hub-card"
-                    onClick={() => {
-                      setSelectedProject(item);
-                      setActiveTab('project_canvas');
-                    }}
-                    style={{ cursor: 'pointer' }}
-                    title="Open Project Canvas"
-                  >
-                    <div 
-                      className={`hub-card-preview ${item.color}`}
-                      onDoubleClick={(e) => { e.stopPropagation(); setPlayingItem(item); }}
-                    >
-                      {item.imageUrl && <img src={item.imageUrl} alt={item.title} className="hub-preview-image" />}
-                      {item.videoUrl && <video src={item.videoUrl} className="hub-preview-video" muted />}
-                      {!item.imageUrl && !item.videoUrl && (
-                        <div className="hub-text-preview">
-                          {item.snippet ? item.snippet.substring(0, 100) + '...' : 'Text Content'}
-                        </div>
-                      )}
-                      <div className="preview-overlay">
-                        <button 
-                          className="preview-btn maximize-btn"
-                          onClick={(e) => { e.stopPropagation(); setPlayingItem(item); }}
-                          title="Maximize View"
-                          style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '4px', padding: '4px', color: 'white', cursor: 'pointer' }}
-                        >
-                          <Maximize size={16} />
-                        </button>
-
-                        {(item.audioUrl || item.videoUrl) && (
-                          <button 
-                            className="preview-btn play"
-                            onClick={(e) => { e.stopPropagation(); setPlayingItem(item); }}
-                          >
-                            <Play size={24} fill="currentColor" />
-                          </button>
-                        )}
-                        <button 
-                          className="preview-btn"
-                          onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
-                          title="Download to device"
-                        >
-                          <Download size={18} />
-                          <span className="btn-text">Download</span>
-                        </button>
-                        <button 
-                          className="preview-btn" 
-                          onClick={(e) => { e.stopPropagation(); handleShareToFeed(item); }}
-                          title="Share to Activity Wall"
-                        >
-                          <Share2 size={18} />
-                          <span className="btn-text">Share</span>
-                        </button>
-                        <button 
-                          className="preview-btn delete-btn" 
-                          onClick={(e) => handleDeleteProject(item.id, e)}
-                          title="Delete Project"
-                          style={{ color: '#ef4444' }}
-                        >
-                          <Trash2 size={18} />
-                          <span className="btn-text">Delete</span>
-                        </button>
-                      </div>
-                    </div>
-                    <div className="hub-card-info">
-                      <div className="hub-card-meta">
-                        <span className="hub-type-tag">{item.type}</span>
-                        <span className="hub-date">{item.date}</span>
-                      </div>
-                      <h3 className="hub-card-title">{item.title}</h3>
-                      <p className="hub-card-agent">via {item.agent}</p>
-                    </div>
+              <>
+                {/* Projects Count Header */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  marginBottom: '16px',
+                  padding: '0 4px'
+                }}>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    {filteredHubItems.length} project{filteredHubItems.length !== 1 ? 's' : ''}
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-icon" title="Grid view" style={{ opacity: 1 }}>
+                      <LayoutGrid size={18} />
+                    </button>
                   </div>
-                ))}
-              </div>
+                </div>
+
+                {/* Project Cards Grid */}
+                <div className="hub-grid" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: '20px'
+                }}>
+                  {filteredHubItems.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className="hub-card hover-lift"
+                      onClick={() => {
+                        setSelectedProject(item);
+                        setActiveTab('project_canvas');
+                      }}
+                      style={{ 
+                        cursor: 'pointer',
+                        background: 'var(--color-bg-secondary)',
+                        borderRadius: '16px',
+                        overflow: 'hidden',
+                        border: '1px solid var(--border-color)',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      {/* Card Preview Area */}
+                      <div 
+                        className={`hub-card-preview ${item.color}`}
+                        style={{
+                          height: '160px',
+                          position: 'relative',
+                          background: item.imageUrl ? 'transparent' : `linear-gradient(135deg, ${item.color || 'var(--color-purple)'}20 0%, ${item.color || 'var(--color-cyan)'}10 100%)`
+                        }}
+                        onDoubleClick={(e) => { e.stopPropagation(); setPlayingItem(item); }}
+                      >
+                        {item.imageUrl && <img src={item.imageUrl} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                        {item.videoUrl && <video src={item.videoUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />}
+                        {!item.imageUrl && !item.videoUrl && (
+                          <div style={{
+                            padding: '16px',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                            color: 'var(--text-secondary)',
+                            fontSize: '0.85rem',
+                            lineHeight: '1.4',
+                            textAlign: 'center'
+                          }}>
+                            <p style={{ margin: 0 }}>"{item.snippet ? item.snippet.substring(0, 80) + '...' : 'Text Content'}"</p>
+                          </div>
+                        )}
+                        
+                        {/* Hover Actions Overlay */}
+                        <div className="preview-overlay" style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'rgba(0,0,0,0.7)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          opacity: 0,
+                          transition: 'opacity 0.2s ease'
+                        }}>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setPlayingItem(item); }}
+                            title="Preview"
+                            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '8px', padding: '10px', color: 'white', cursor: 'pointer' }}
+                          >
+                            <Eye size={18} />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
+                            title="Download"
+                            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '8px', padding: '10px', color: 'white', cursor: 'pointer' }}
+                          >
+                            <Download size={18} />
+                          </button>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleShareToTwitter(item); }}
+                            title="Share to X"
+                            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '8px', padding: '10px', color: '#1DA1F2', cursor: 'pointer' }}
+                          >
+                            <Twitter size={18} />
+                          </button>
+                          <button 
+                            onClick={(e) => handleDeleteProject(item.id, e)}
+                            title="Delete"
+                            style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '8px', padding: '10px', color: '#ef4444', cursor: 'pointer' }}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Card Info */}
+                      <div style={{ padding: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ 
+                            fontSize: '0.7rem', 
+                            fontWeight: '600', 
+                            textTransform: 'uppercase', 
+                            letterSpacing: '0.5px',
+                            color: item.color || 'var(--color-purple)',
+                            background: `${item.color || 'var(--color-purple)'}15`,
+                            padding: '4px 8px',
+                            borderRadius: '4px'
+                          }}>
+                            {item.type}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item.date}</span>
+                        </div>
+                        <h3 style={{ 
+                          margin: '0 0 6px 0', 
+                          fontSize: '1rem', 
+                          fontWeight: '600',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {item.title}
+                        </h3>
+                        <p style={{ 
+                          margin: 0, 
+                          fontSize: '0.8rem', 
+                          color: 'var(--text-secondary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <Sparkles size={12} /> via {item.agent}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         );
@@ -3810,7 +4271,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               <button className="cta-button-secondary" onClick={() => setActiveTab('mystudio')}>Cancel</button>
               <button className="cta-button-premium" onClick={() => { 
                 localStorage.setItem('studio_user_profile', JSON.stringify(userProfile));
-                alert('Profile saved successfully!'); 
+                toast.success('Profile saved!'); 
                 setActiveTab('mystudio'); 
               }}>Save Changes</button>
             </div>
@@ -4156,6 +4617,23 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   return (
     <div className={`studio-container ${theme}-theme`} {...swipeHandlers}>
+      <Toaster 
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#1a1a2e',
+            color: '#fff',
+            border: '1px solid rgba(139, 92, 246, 0.3)',
+          },
+          success: {
+            iconTheme: { primary: '#10b981', secondary: '#fff' },
+          },
+          error: {
+            iconTheme: { primary: '#ef4444', secondary: '#fff' },
+          },
+        }}
+      />
       <aside className="studio-nav">
         <div className="studio-nav-logo" onClick={onBack}>
           <div className="logo-box studio-logo">
@@ -4722,7 +5200,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                      setSelectedProject(updatedProject);
                      setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
                      handleTextToVoice("Project session saved.");
-                     alert("Project session saved successfully.");
+                     toast.success('Session saved!');
                    }}
                  >
                    <Save size={18} /> Save Project
@@ -4733,7 +5211,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                    onClick={() => {
                      // Render Logic
                      if (!sessionTracks.audio && !sessionTracks.visual) {
-                       alert("Select at least one asset to render.");
+                       toast.error('Select at least one asset to render');
                        return;
                      }
                      
@@ -4782,7 +5260,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         setShowStudioSession(false);
                         setSessionPlaying(false);
                         handleTextToVoice("Master render complete.");
-                        alert("Master rendered and saved to project!");
+                        toast.success('Master rendered and saved!');
                      }, 2000);
                    }}
                  >
@@ -4817,7 +5295,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   </button>
                   <button className="storage-btn" onClick={() => { 
                     // Simulate connection
-                    alert('OneDrive integration coming soon!'); 
+                    toast('OneDrive coming soon!', { icon: '🚧' }); 
                     setShowExternalSaveModal(false); 
                   }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg" alt="OneDrive" width="24" />
@@ -4825,7 +5303,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   </button>
                   <button className="storage-btn" onClick={() => { 
                     // Simulate connection
-                    alert('Dropbox integration coming soon!'); 
+                    toast('Dropbox coming soon!', { icon: '🚧' }); 
                     setShowExternalSaveModal(false); 
                   }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Dropbox_Icon.svg" alt="Dropbox" width="24" />
@@ -4833,7 +5311,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   </button>
                   <button className="storage-btn" onClick={() => { 
                     // Simulate connection
-                    alert('iCloud integration coming soon!'); 
+                    toast('iCloud coming soon!', { icon: '🚧' }); 
                     setShowExternalSaveModal(false); 
                   }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/1/1c/ICloud_logo.svg" alt="iCloud" width="24" />
@@ -4850,38 +5328,151 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
         {/* Login Modal */}
         {showLoginModal && (
-          <div className="modal-overlay" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); }} onTouchEnd={() => { setShowLoginModal(false); setSelectedPlan(null); }}>
-            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); }} onTouchEnd={(e) => { e.preventDefault(); setShowLoginModal(false); setSelectedPlan(null); }}><X size={20} /></button>
+          <div className="modal-overlay" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); setAuthMode('login'); setAuthEmail(''); setAuthPassword(''); }} onTouchEnd={() => { setShowLoginModal(false); setSelectedPlan(null); }}>
+            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+              <button className="modal-close" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); setAuthMode('login'); }} onTouchEnd={(e) => { e.preventDefault(); setShowLoginModal(false); setSelectedPlan(null); }}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
                   <Sparkles size={24} color="white" />
                 </div>
-                <h2>{selectedPlan ? 'Complete Your Subscription' : 'Join Studio Agents'}</h2>
-                <p>
-                  {selectedPlan 
-                    ? `Sign in to activate your ${selectedPlan.name} (${selectedPlan.price}${selectedPlan.period ? selectedPlan.period : ''}).` 
-                    : 'Sign in to save your projects and access all 8 AI agents.'}
+                <h2>{authMode === 'reset' ? 'Reset Password' : authMode === 'signup' ? 'Create Account' : selectedPlan ? 'Complete Your Subscription' : 'Welcome Back'}</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                  {authMode === 'reset' 
+                    ? 'Enter your email to receive a reset link.'
+                    : selectedPlan 
+                      ? `Sign in to activate ${selectedPlan.name} (${selectedPlan.price}${selectedPlan.period || ''}).` 
+                      : authMode === 'signup' ? 'Create an account to save your work.' : 'Sign in to access your studio.'}
                 </p>
               </div>
-              <div className="modal-body">
-                <button 
-                  className="cta-button-premium" 
-                  style={{ width: '100%', marginBottom: '1rem' }}
-                  onClick={handleLogin}
-                >
-                  {selectedPlan ? 'Sign In & Subscribe with Google' : 'Sign In with Google'}
-                </button>
-                <button 
-                  className="cta-button-secondary" 
-                  style={{ width: '100%' }}
-                  onClick={handleLogin}
-                >
-                  {selectedPlan ? 'Sign In & Subscribe with Email' : 'Continue with Email'}
-                </button>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {/* Google Sign In Button */}
+                {authMode !== 'reset' && (
+                  <button 
+                    className="cta-button-premium" 
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                    onClick={handleGoogleLogin}
+                    disabled={authLoading}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                    {authLoading ? 'Signing in...' : 'Continue with Google'}
+                  </button>
+                )}
+
+                {authMode !== 'reset' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '0.5rem 0' }}>
+                    <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>or</span>
+                    <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
+                  </div>
+                )}
+
+                {/* Email/Password Form */}
+                <form onSubmit={handleEmailAuth} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <input 
+                    type="email" 
+                    placeholder="Email address"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    style={{ 
+                      width: '100%', 
+                      padding: '0.75rem 1rem', 
+                      borderRadius: '8px', 
+                      border: '1px solid var(--border-color)', 
+                      background: 'var(--bg-card)', 
+                      color: 'var(--text-primary)',
+                      fontSize: '0.875rem'
+                    }}
+                    required
+                  />
+                  {authMode !== 'reset' && (
+                    <input 
+                      type="password" 
+                      placeholder="Password"
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      style={{ 
+                        width: '100%', 
+                        padding: '0.75rem 1rem', 
+                        borderRadius: '8px', 
+                        border: '1px solid var(--border-color)', 
+                        background: 'var(--bg-card)', 
+                        color: 'var(--text-primary)',
+                        fontSize: '0.875rem'
+                      }}
+                      required
+                      minLength={6}
+                    />
+                  )}
+                  
+                  {authMode === 'reset' ? (
+                    <button 
+                      type="button"
+                      className="cta-button-secondary" 
+                      style={{ width: '100%' }}
+                      onClick={handlePasswordReset}
+                      disabled={authLoading}
+                    >
+                      {authLoading ? 'Sending...' : 'Send Reset Link'}
+                    </button>
+                  ) : (
+                    <button 
+                      type="submit"
+                      className="cta-button-secondary" 
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                      disabled={authLoading}
+                    >
+                      <Mail size={16} />
+                      {authLoading ? 'Please wait...' : authMode === 'signup' ? 'Create Account' : 'Sign In with Email'}
+                    </button>
+                  )}
+                </form>
+
+                {/* Toggle between modes */}
+                <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
+                  {authMode === 'login' && (
+                    <>
+                      <button 
+                        onClick={() => setAuthMode('reset')} 
+                        style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', fontSize: '0.8rem' }}
+                      >
+                        Forgot password?
+                      </button>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                        Don't have an account?{' '}
+                        <button 
+                          onClick={() => setAuthMode('signup')} 
+                          style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', fontWeight: '600' }}
+                        >
+                          Sign up
+                        </button>
+                      </p>
+                    </>
+                  )}
+                  {authMode === 'signup' && (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                      Already have an account?{' '}
+                      <button 
+                        onClick={() => setAuthMode('login')} 
+                        style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', fontWeight: '600' }}
+                      >
+                        Sign in
+                      </button>
+                    </p>
+                  )}
+                  {authMode === 'reset' && (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                      <button 
+                        onClick={() => setAuthMode('login')} 
+                        style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', fontWeight: '600' }}
+                      >
+                        ← Back to sign in
+                      </button>
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="modal-footer">
-                <p>By continuing, you agree to our Terms of Service.</p>
+              <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>By continuing, you agree to our Terms of Service.</p>
               </div>
             </div>
           </div>
