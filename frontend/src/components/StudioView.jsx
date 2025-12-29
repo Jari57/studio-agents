@@ -5033,6 +5033,26 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             <LayoutGrid size={24} />
             <span>Agents</span>
           </div>
+          
+          {/* Global Create Button */}
+          <div className="bottom-nav-item haptic-press" onClick={() => setShowProjectChoiceModal(true)}>
+            <div style={{
+              background: 'var(--color-purple)',
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(124, 58, 237, 0.4)',
+              marginBottom: '24px',
+              border: '2px solid var(--color-bg-primary)'
+            }}>
+              <Plus size={28} color="white" />
+            </div>
+            <span style={{ position: 'absolute', bottom: '8px' }}>Create</span>
+          </div>
+
           <div className={`bottom-nav-item haptic-press ${activeTab === 'mystudio' ? 'active' : ''}`} onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}>
             <Home size={24} />
             <span>Studio</span>
@@ -5040,14 +5060,6 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           <div className={`bottom-nav-item haptic-press ${activeTab === 'activity' ? 'active' : ''}`} onClick={() => { setActiveTab('activity'); setSelectedAgent(null); }}>
             <Rocket size={24} />
             <span>Wall</span>
-          </div>
-          <div className={`bottom-nav-item haptic-press ${activeTab === 'news' ? 'active' : ''}`} onClick={() => { setActiveTab('news'); setSelectedAgent(null); }}>
-            <Globe size={24} />
-            <span>News</span>
-          </div>
-          <div className={`bottom-nav-item haptic-press ${activeTab === 'resources' ? 'active' : ''}`} onClick={() => { setActiveTab('resources'); setSelectedAgent(null); }}>
-            <Book size={24} />
-            <span>Resources</span>
           </div>
         </nav>
       </main>
