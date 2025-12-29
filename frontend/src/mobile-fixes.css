@@ -103,10 +103,19 @@
   .agent-active-view {
     position: relative !important;
     height: auto !important;
+    min-height: auto !important;
     width: 100% !important;
     padding: 16px !important;
-    padding-bottom: 100px !important;
+    padding-bottom: 140px !important;
     overflow-x: hidden !important;
+    overflow-y: visible !important;
+  }
+
+  /* Ensure studio-content scrolls properly */
+  .studio-content {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-bottom: 100px !important;
   }
 
   .agent-detail-layout {
@@ -114,6 +123,12 @@
     flex-direction: column !important;
     gap: 16px !important;
     width: 100% !important;
+    overflow: visible !important;
+  }
+
+  .agent-main-panel {
+    width: 100% !important;
+    overflow: visible !important;
   }
 
   .agent-hero-card {

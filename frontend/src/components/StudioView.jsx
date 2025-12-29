@@ -2441,7 +2441,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (selectedAgent) {
       const Icon = selectedAgent.icon;
       return (
-        <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative', minHeight: '100dvh', paddingBottom: '150px' }}>
+        <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative', paddingBottom: '150px' }}>
           {/* Onboarding Nudge */}
           {showNudge && selectedAgent.onboarding && (
             <div className="agent-nudge-overlay animate-fadeInDown">
