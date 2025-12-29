@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { X, Sparkles, Save, FolderPlus, ChevronRight, Mic, Copy, Check, Loader } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Sparkles, Save, FolderPlus, ChevronRight, Mic, Copy, Check, Loader, Volume2, VolumeX } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BACKEND_URL } from '../constants';
+import { useVoice } from '../hooks/useVoice';
 
 /**
  * QuickWorkflow - Streamlined agent interaction modal
@@ -25,7 +26,17 @@ function QuickWorkflow({
   const [showSaveOptions, setShowSaveOptions] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [copied, setCopied] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+
+  // Global voice hook for VTT and TTV
+  const { 
+    isListening, 
+    isSpeaking, 
+    toggleListening, 
+    speak, 
+    stopSpeaking,
+    isVoiceSupported,
+    isSpeechSupported 
+  } = useVoice({ language: 'en-US' });
 
   // Get auth token for API calls
   const getAuthToken = async () => {
@@ -67,6 +78,11 @@ function QuickWorkflow({
       if (data.output) {
         setOutput(data.output);
         toast.success('Generated!');
+        // Auto-speak the first 200 chars of output for accessibility
+        if (isSpeechSupported) {
+          const preview = data.output.substring(0, 200) + (data.output.length > 200 ? '...' : '');
+          speak(preview);
+        }
       } else if (data.error) {
         toast.error(data.error);
       }
@@ -124,31 +140,20 @@ function QuickWorkflow({
     toast.success(`Created project "${newProjectName}"`);
   };
 
+  // Voice input handler using the global hook
   const handleVoiceInput = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast.error('Voice input not supported in this browser');
-      return;
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => {
-      setIsListening(false);
-      toast.error('Voice input failed');
-    };
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
+    toggleListening((transcript) => {
       setPrompt(prev => prev + (prev ? ' ' : '') + transcript);
-    };
+    });
+  };
 
-    recognition.start();
+  // Speak the full output
+  const handleSpeakOutput = () => {
+    if (isSpeaking) {
+      stopSpeaking();
+    } else if (output) {
+      speak(output);
+    }
   };
 
   // Quick prompts for this agent
@@ -285,22 +290,47 @@ function QuickWorkflow({
                 marginBottom: '8px'
               }}>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Output</span>
-                <button
-                  onClick={handleCopy}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: copied ? 'var(--color-green)' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    fontSize: '0.8rem'
-                  }}
-                >
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                  {copied ? 'Copied!' : 'Copy'}
-                </button>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {/* Text-to-Voice button */}
+                  {isSpeechSupported && (
+                    <button
+                      onClick={handleSpeakOutput}
+                      style={{
+                        background: isSpeaking ? 'rgba(168, 85, 247, 0.2)' : 'none',
+                        border: 'none',
+                        color: isSpeaking ? 'var(--color-purple)' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.8rem',
+                        padding: '4px 8px',
+                        borderRadius: '6px'
+                      }}
+                      title={isSpeaking ? 'Stop speaking' : 'Read aloud'}
+                    >
+                      {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                      {isSpeaking ? 'Stop' : 'Listen'}
+                    </button>
+                  )}
+                  {/* Copy button */}
+                  <button
+                    onClick={handleCopy}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: copied ? 'var(--color-green)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
               </div>
               <div style={{
                 background: 'var(--color-bg-primary)',
