@@ -164,9 +164,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               </div>
             </button>
 
-            {/* 3. View My Hub */}
+            {/* 3. Quick Start (Skip Setup) */}
             <button
-              onClick={() => onEnter(false)}
+              onClick={() => {
+                localStorage.setItem('studio_onboarding_v2', 'true'); // Force skip onboarding
+                onEnter(false);
+              }}
               className="glass-button haptic-press"
               style={{ 
                 width: '100%', 
@@ -182,11 +185,11 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               }}
             >
               <div style={{ background: 'rgba(34, 211, 238, 0.2)', padding: '8px', borderRadius: '50%', color: 'var(--color-cyan)' }}>
-                <LayoutGrid size={20} />
+                <Zap size={20} />
               </div>
               <div style={{ textAlign: 'left' }}>
-                <span style={{ display: 'block', fontWeight: '600', fontSize: '1rem' }}>View My Hub</span>
-                <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Manage assets & teams</span>
+                <span style={{ display: 'block', fontWeight: '600', fontSize: '1rem' }}>Quick Start</span>
+                <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Skip setup & explore agents</span>
               </div>
             </button>
 

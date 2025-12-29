@@ -1513,8 +1513,9 @@ if (STRIPE_SECRET_KEY) {
 // Stripe Price IDs - You'll create these in the Stripe Dashboard
 // https://dashboard.stripe.com/products
 const STRIPE_PRICES = {
-  creator: process.env.STRIPE_PRICE_CREATOR || 'price_creator_monthly',  // $9.99/mo
-  studio: process.env.STRIPE_PRICE_STUDIO || 'price_studio_monthly'      // $24.99/mo
+  creator: process.env.STRIPE_PRICE_CREATOR || 'price_creator_monthly',  // $4.99/mo
+  studio: process.env.STRIPE_PRICE_STUDIO || 'price_studio_monthly',      // $14.99/mo
+  lifetime: process.env.STRIPE_PRICE_LIFETIME || 'price_lifetime_one_time' // $99 one-time
 };
 
 // Initialize Firebase Admin for server-side subscription management
@@ -1549,7 +1550,7 @@ app.post('/api/stripe/create-checkout-session', async (req, res) => {
 
   const { tier, userId, userEmail, successUrl, cancelUrl } = req.body;
 
-  if (!tier || !['creator', 'studio'].includes(tier)) {
+  if (!tier || !['creator', 'studio', 'lifetime'].includes(tier)) {
     return res.status(400).json({ error: 'Invalid subscription tier' });
   }
 
@@ -1572,7 +1573,7 @@ app.post('/api/stripe/create-checkout-session', async (req, res) => {
     const sessionParams = {
       payment_method_types: ['card'],
       line_items: [{ price: priceId, quantity: 1 }],
-      mode: 'subscription',
+      mode: tier === 'lifetime' ? 'payment' : 'subscription',
       success_url: successUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=cancelled`,
       client_reference_id: userId,

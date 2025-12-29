@@ -1931,13 +1931,7 @@
   background: none;
   border: none;
   color: #6b7280;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  transition: color 0.2s;
   font-size: 0.8rem;
-  font-weight: 600;
 }
 
 .activity-btn:hover {
@@ -2306,9 +2300,11 @@
 
 /* --- My Studio Dashboard --- */
 .studio-dashboard {
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  width: 100%;
+  min-height: 100vh;
+  padding: 0;
+  margin: 0;
+  max-width: none;
 }
 
 .dashboard-header {
@@ -2584,17 +2580,10 @@
 }
 
 .btn-connect {
-  padding: 0.5rem 1rem;
-  border-radius: 10px;
   font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
   border: 1px solid var(--border-color);
   background: transparent;
   color: var(--text-primary);
-  position: relative;
-  z-index: 10;
   pointer-events: auto;
 }
 
@@ -2743,18 +2732,9 @@
 
 .btn-add-pm {
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.875rem;
-  border-radius: 12px;
   background: rgba(168, 85, 247, 0.1);
   border: 1px dashed rgba(168, 85, 247, 0.3);
   color: var(--color-purple);
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
 .btn-add-pm:hover {
@@ -2844,15 +2824,10 @@
 
 .btn-primary-glow {
   flex: 1;
-  padding: 0.75rem;
-  border-radius: 12px;
   background: var(--color-purple);
   color: white;
   border: none;
-  font-weight: 700;
-  cursor: pointer;
   box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
-  transition: all 0.3s;
 }
 
 .btn-primary-glow:hover {
@@ -2862,13 +2837,9 @@
 
 .btn-outline {
   flex: 1;
-  padding: 0.75rem;
-  border-radius: 12px;
   background: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  font-weight: 600;
-  cursor: pointer;
 }
 
 .status-badge {
@@ -2900,17 +2871,9 @@
 }
 
 .btn-refresh {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  border-radius: 12px;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
 .btn-refresh:hover {
@@ -2966,17 +2929,9 @@
 }
 
 .voice-command-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  border-radius: 16px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .voice-command-btn:hover {
@@ -2998,15 +2953,9 @@
 }
 
 .btn-refresh-glow {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.5rem;
-  border-radius: 16px;
   background: white;
   color: black;
   border: none;
-  font-weight: 700;
   cursor: pointer;
   transition: all 0.3s;
 }
@@ -3334,14 +3283,9 @@
 
 .agent-launch-btn {
   width: 100%;
-  padding: 0.75rem;
-  border-radius: 9999px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
   backdrop-filter: blur(5px);
   position: relative;
   z-index: 30;
@@ -3585,7 +3529,7 @@
   }
 
   .studio-dashboard {
-    padding: 1rem;
+    padding: 0;
   }
 
   .agents-studio-grid {
@@ -4002,15 +3946,10 @@
 }
 
 .filter-btn {
-  padding: 0.5rem 1rem;
   background: var(--color-bg-secondary);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 100px;
   color: #9ca3af;
   font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
 .filter-btn.active, .filter-btn:hover {
@@ -4934,16 +4873,8 @@
 .news-read-btn {
   background: rgba(168, 85, 247, 0.1);
   border: 1px solid rgba(168, 85, 247, 0.2);
-  border-radius: 8px;
-  padding: 8px 16px;
   color: var(--color-purple);
   font-size: 0.875rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  cursor: pointer;
   margin-top: auto;
   transition: all 0.2s;
   width: fit-content;
@@ -5018,6 +4949,18 @@
   text-align: center;
   max-height: 90vh;
   overflow-y: auto;
+}
+
+@media (max-width: 640px) {
+  .modal-overlay {
+    padding: 1rem;
+  }
+
+  .modal-content {
+    padding: 1.5rem;
+    border-radius: 24px;
+    max-height: 85dvh;
+  }
 }
 
 .modal-close {
@@ -6658,17 +6601,15 @@
 
 /* --- Dashboard Sidebar Layout --- */
 .dashboard-sidebar-layout {
-  display: flex;
-  gap: 2rem;
-  min-height: 80vh;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+  background: var(--color-bg-primary);
 }
 
 .dashboard-sidebar {
-  width: 280px;
-  flex-shrink: 0;
   background: var(--card-bg);
   border-right: 1px solid var(--border-color);
-  border-radius: 24px;
   padding: 2rem;
   display: flex;
   flex-direction: column;
@@ -6731,7 +6672,7 @@
 }
 
 .dashboard-main-content {
-  flex: 1;
+  padding: 2rem;
   padding-bottom: 4rem;
 }
 
@@ -6886,7 +6827,8 @@ input:checked + .slider:before {
 /* Mobile Responsive for Dashboard */
 @media (max-width: 1024px) {
   .dashboard-sidebar-layout {
-    flex-direction: column;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
   }
   
   .dashboard-sidebar {
@@ -6899,10 +6841,9 @@ input:checked + .slider:before {
     border-right: none;
     border-bottom: 1px solid var(--border-color);
     background: rgba(10, 10, 12, 0.95); /* Ensure background is opaque */
-    position: sticky;
-    top: 0;
     z-index: 90; /* Keep it above content */
-    overflow: hidden; /* Prevent outer scroll */
+    overflow-x: auto; /* Allow horizontal scroll for nav */
+    overflow-y: hidden;
   }
 
   .sidebar-header {
@@ -7017,12 +6958,7 @@ input:checked + .slider:before {
   background: var(--color-purple);
   color: white;
   border: none;
-  padding: 0.5rem 1.2rem;
-  border-radius: 8px;
-  font-weight: 600;
   font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
 .btn-primary-sm:hover {
@@ -8455,5 +8391,113 @@ html, body {
     max-height: 85vh;
     overflow-y: auto;
   }
+}
+
+
+.text-gradient-purple {
+  background: var(--gradient-purple-pink);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+
+/* Global Button Standardization */
+button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-icon-circle):not(.btn-text):not(.btn-text-sm):not(.voice-btn):not(.social-connect-btn):not(.theme-toggle-btn):not(.social-btn), 
+.cta-button-primary, 
+.cta-button-secondary, 
+.cta-button-premium, 
+.action-button, 
+.card-action,
+.btn-pill,
+.play-preview-btn,
+.sticky-cta-btn,
+.plan-button-native,
+.add-payment-btn,
+.secondary-button,
+.social-btn-large,
+.btn-primary-glow,
+.btn-primary-sm,
+.btn-outline,
+.btn-connect,
+.btn-add-pm,
+.btn-refresh,
+.voice-command-btn,
+.btn-refresh-glow,
+.agent-launch-btn,
+.filter-btn,
+.news-read-btn,
+.help-action-btn,
+.activity-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px; /* Pill shape */
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
+}
+
+/* Primary Button Style (Purple) */
+.cta-button-primary, .plan-button-native.primary, .add-payment-btn {
+  background: var(--color-purple);
+  color: white;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+}
+
+/* Premium Button Style (Gradient) */
+.cta-button-premium, .sticky-cta-btn {
+  background: var(--gradient-vibrant);
+  background-size: 200% auto;
+  color: white;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+  animation: shimmer 3s linear infinite;
+}
+
+.cta-button-primary:hover, .plan-button-native.primary:hover, .add-payment-btn:hover {
+  background: #9333ea;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(168, 85, 247, 0.4);
+}
+
+.cta-button-premium:hover, .sticky-cta-btn:hover {
+  background-position: right center;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(168, 85, 247, 0.4);
+}
+
+/* Secondary/Glass Button Style */
+.cta-button-secondary, 
+.action-button.secondary, 
+.card-action.secondary, 
+.plan-button-native.secondary,
+.secondary-button,
+.play-preview-btn,
+.social-btn-large {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  backdrop-filter: blur(4px);
+}
+
+.cta-button-secondary:hover, 
+.action-button.secondary:hover, 
+.card-action.secondary:hover, 
+.plan-button-native.secondary:hover,
+.secondary-button:hover,
+.play-preview-btn:hover,
+.social-btn-large:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 

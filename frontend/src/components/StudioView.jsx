@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo
 } from 'lucide-react';
 import VideoPitchDemo from './VideoPitchDemo';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
@@ -13,14 +13,20 @@ const onboardingSteps = [
   {
     id: 'welcome',
     title: "Welcome to The Studio",
-    content: "This is your creative control room—eight AI agents built to give independent artists the tools that used to require a label deal.",
-    detail: "Every agent in The Studio was designed to solve a real problem artists face: finishing lyrics at 3 AM with no co-writer, understanding how A&Rs evaluate demos, finding samples no one else has heard. Take 2 minutes to learn how this works, and you'll get 10x more value out of every session."
+    content: "This is your creative control room—16 AI agents built to give independent creators the tools that used to require a label deal.",
+    detail: "Every agent in The Studio was designed to solve a real problem creators face: finishing lyrics at 3 AM with no co-writer, understanding how A&Rs evaluate demos, finding samples no one else has heard. Take 2 minutes to learn how this works, and you'll get 10x more value out of every session."
+  },
+  {
+    id: 'profile',
+    title: "Claim Your Creator Profile",
+    content: "Tell us who you are so we can tailor the studio to your sound.",
+    detail: "Your stage name and genre help our agents generate content that actually sounds like you. You can change this anytime."
   },
   {
     id: 'philosophy',
     title: "How This Works",
     content: "These aren't magic buttons. They're creative partners.",
-    detail: "The best artists use AI as a starting point, not an ending point. Generate ideas, get unstuck, explore directions you wouldn't have considered—then make it yours. The goal isn't to create WITH the AI. It's to create FASTER and DEEPER because of it. Your voice stays your voice. The tools just remove the friction."
+    detail: "The best creators use AI as a starting point, not an ending point. Generate ideas, get unstuck, explore directions you wouldn't have considered—then make it yours. The goal isn't to create WITH the AI. It's to create FASTER and DEEPER because of it. Your voice stays your voice. The tools just remove the friction."
   },
   {
     id: 'paths',
@@ -32,7 +38,7 @@ const onboardingSteps = [
     id: 'recommendation',
     title: "Your Recommended Starting Point",
     content: "Based on your goal, here's where to begin.",
-    detail: "This recommendation is based on how other artists with similar goals have found success. But remember—all eight agents are available to you. Explore freely."
+    detail: "This recommendation is based on how other creators with similar goals have found success. But remember—all 16 agents are available to you. Explore freely."
   },
   {
     id: 'action',
@@ -56,8 +62,8 @@ const agentDetails = {
     title: "GHOSTWRITER",
     subtitle: "AI Lyric Engine",
     tagline: "Finish what you started.",
-    description: "In the early 2000s, countless verses were lost to crashed hard drives, stolen notebooks, and fading memories. The Ghostwriter was built to resurrect that energy—to help artists who have melodies without words, hooks without verses, ideas without execution. Speak your concept, hum your flow, or type your fragments. The AI completes your thought while preserving your voice. This isn't about replacing creativity—it's about unlocking what's already inside you. Perfect for artists who know what they want to say but can't find the words, or those who need a writing partner at 3 AM when no one else is awake.",
-    whoFor: "Artists with unfinished ideas, vocalists who think in melodies, writers fighting creative blocks.",
+    description: "In the early 2000s, countless verses were lost to crashed hard drives, stolen notebooks, and fading memories. The Ghostwriter was built to resurrect that energy—to help creators who have melodies without words, hooks without verses, ideas without execution. Speak your concept, hum your flow, or type your fragments. The AI completes your thought while preserving your voice. This isn't about replacing creativity—it's about unlocking what's already inside you. Perfect for creators who know what they want to say but can't find the words, or those who need a writing partner at 3 AM when no one else is awake.",
+    whoFor: "Creators with unfinished ideas, vocalists who think in melodies, writers fighting creative blocks.",
     howTo: "Speak or type your concept. The AI analyzes your style and generates completions that match your voice."
   },
   beat: {
@@ -70,10 +76,10 @@ const agentDetails = {
   },
   release: {
     title: "RELEASE STRATEGIST",
-    subtitle: "Artist Development",
+    subtitle: "Creator Development",
     tagline: "See your music through their eyes.",
     description: "A&R executives decide careers. They listen to hundreds of songs daily, looking for that undefinable 'it factor' that separates a demo from a deal. The Release Strategist gives you access to that perspective before you submit. Upload your track and receive analysis on commercial viability, production quality, market positioning, and competitive landscape. Understand how your music stacks up against current releases. Identify your unique selling points and potential weaknesses. This isn't about changing your art to fit the market—it's about understanding the market so you can navigate it strategically.",
-    whoFor: "Artists preparing for label meetings, independent releases seeking market fit, managers evaluating talent.",
+    whoFor: "Creators preparing for label meetings, independent releases seeking market fit, managers evaluating talent.",
     howTo: "Describe your track or upload details. Receive a comprehensive analysis with actionable insights."
   },
   album: {
@@ -81,7 +87,7 @@ const agentDetails = {
     subtitle: "Visual Generator",
     tagline: "See what your sound looks like.",
     description: "The cover is the first impression. Before anyone presses play, they see your visual identity—and they make assumptions. Does the art match the music? Does it communicate who you are? In the era of thumbnail scrolling, your album art works overtime. The Album Artist generator transforms your concepts into visual directions. Describe your project's mood, themes, and aesthetic references. Receive AI-generated concepts that capture your vision. Use them as inspiration for final artwork, or as communication tools when briefing designers. Your music has a look—this tool helps you find it before you finalize it.",
-    whoFor: "Artists developing visual identity, designers seeking inspiration, anyone releasing music.",
+    whoFor: "Creators developing visual identity, designers seeking inspiration, anyone releasing music.",
     howTo: "Describe your project's themes, mood, and visual references. Generate concepts to guide your final artwork."
   },
   'video-creator': {
@@ -89,7 +95,7 @@ const agentDetails = {
     subtitle: "Content Generator",
     tagline: "Motion for the feed.",
     description: "Music lives on video platforms now. If you don't have visuals, you don't have a release. Video Creator is your instant content team. Generate visualizers, lyric videos, and promotional clips that match your track's energy. Describe the scene, the movement, the style. Create loops for Spotify Canvas, teasers for TikTok, or full visualizers for YouTube. You don't need a film crew or a budget to have professional visuals. You just need a vision.",
-    whoFor: "Artists needing social content, producers showcasing beats, anyone releasing music online.",
+    whoFor: "Creators needing social content, producers showcasing beats, anyone releasing music online.",
     howTo: "Describe the scene and style. Generate video loops and clips to accompany your music."
   },
   trend: {
@@ -97,7 +103,7 @@ const agentDetails = {
     subtitle: "Market Intelligence",
     tagline: "Ride the wave before it breaks.",
     description: "The music industry moves fast. Trends explode and vanish in days. Trend Hunter gives you the data to move with speed. Analyze what's working right now on TikTok, Spotify, and YouTube. Identify rising sub-genres, viral sounds, and content formats. This isn't about copying—it's about awareness. Know the conversation so you can add your voice to it. Spot the wave early enough to ride it, or understand it well enough to counter it.",
-    whoFor: "Artists planning releases, managers looking for opportunities, content creators seeking growth.",
+    whoFor: "Creators planning releases, managers looking for opportunities, content creators seeking growth.",
     howTo: "Ask about current trends in your genre. Get data-backed insights on what's working now."
   }
 };
@@ -136,7 +142,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   
   // Swipe Navigation Hook
   const swipeHandlers = useSwipeNavigation(
-    ['agents', 'mystudio', 'activity', 'news', 'resources'],
+    ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'],
     activeTab,
     setActiveTab
   );
@@ -170,7 +176,41 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     audioVolume: 0.8,
     vocalVolume: 1.0
   });
+  const [sessionHistory, setSessionHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
   const [sessionPlaying, setSessionPlaying] = useState(false);
+
+  // History Helpers
+  const updateSessionWithHistory = (newTracksOrUpdater) => {
+    let newTracks;
+    if (typeof newTracksOrUpdater === 'function') {
+      newTracks = newTracksOrUpdater(sessionTracks);
+    } else {
+      newTracks = newTracksOrUpdater;
+    }
+
+    const newHistory = sessionHistory.slice(0, historyIndex + 1);
+    newHistory.push(newTracks);
+    setSessionHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    setSessionTracks(newTracks);
+  };
+
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setSessionTracks(sessionHistory[newIndex]);
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < sessionHistory.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setSessionTracks(sessionHistory[newIndex]);
+    }
+  };
   
   const [expandedNews, setExpandedNews] = useState(new Set());
   const [allNewsExpanded, setAllNewsExpanded] = useState(false);
@@ -191,13 +231,20 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [user, setUser] = useState(null);
+  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('studio_user_plan') || 'Free');
+
+  useEffect(() => {
+    localStorage.setItem('studio_user_plan', userPlan);
+  }, [userPlan]);
   const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
+  const [showAddAgentModal, setShowAddAgentModal] = useState(false);
   const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
   const [autoStartVoice, setAutoStartVoice] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
 
   // Onboarding & Help State
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showProjectChoiceModal, setShowProjectChoiceModal] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [selectedPath, setSelectedPath] = useState(null);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
@@ -223,8 +270,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     localStorage.setItem('studio_onboarding_v2', 'true');
     setShowOnboarding(false);
     
+    // If user is not logged in, prompt for login/signup to save profile
+    if (!isLoggedIn) {
+      setShowLoginModal(true);
+    }
+    
     // Transition to Project Wizard
-    setShowProjectWizard(true);
+    setShowProjectChoiceModal(true);
     
     // Pre-select category based on path if possible
     if (selectedPath) {
@@ -238,6 +290,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         setNewProjectData(prev => ({ ...prev, category }));
       }
     }
+  };
+
+  const handleSkipOnboarding = () => {
+    localStorage.setItem('studio_onboarding_v2', 'true');
+    setShowOnboarding(false);
+    // Do not open project wizard, just let them explore
   };
 
   // Project Wizard State
@@ -324,6 +382,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     setSelectedProject(newProject); // Auto-select the new project
     setShowProjectWizard(false);
     setProjectWizardStep(1);
+    
+    // Trigger Welcome Tour after creation
+    setShowOnboarding(true);
+    setOnboardingStep(0);
+
     setNewProjectData({ 
       name: '', 
       category: '', 
@@ -338,6 +401,72 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     // Switch to dashboard to show the new project checklist
     handleTextToVoice(`Project ${newProject.name} created. Loading your production checklist.`);
     setActiveTab('mystudio');
+  };
+
+  const handleSkipWizard = () => {
+    const newProject = {
+      id: Date.now(),
+      name: `Untitled Project ${projects.length + 1}`,
+      category: "music",
+      description: "Quick start project",
+      agents: [],
+      workflow: "custom",
+      date: new Date().toLocaleDateString(),
+      status: 'Active',
+      progress: 0,
+      assets: [],
+      context: {}
+    };
+
+    setProjects(prev => [newProject, ...prev]);
+    setSelectedProject(newProject);
+    setShowProjectWizard(false);
+    setProjectWizardStep(1);
+    setActiveTab('mystudio');
+    
+    handleTextToVoice(`Quick project created.`);
+  };
+
+  const handleManualCreate = () => {
+    handleSkipWizard();
+    setShowOnboarding(true);
+    setOnboardingStep(0);
+  };
+
+  const handleAddAgent = (agent) => {
+    if (!selectedProject) return;
+    
+    const currentAgents = selectedProject.agents || [];
+
+    // Enforce Plan Limits
+    let limit = 3; // Free
+    if (userPlan === 'Creator') limit = 5;
+    if (userPlan === 'Studio Pro' || userPlan === 'Lifetime Access') limit = 16;
+
+    if (currentAgents.length >= limit) {
+      alert(`You have reached the limit of ${limit} agents for the ${userPlan} plan. Please upgrade to add more.`);
+      return;
+    }
+
+    // Check if agent already exists in project
+    if (currentAgents.some(a => a.id === agent.id)) {
+      handleTextToVoice(`${agent.name} is already in this project.`);
+      return;
+    }
+
+    const updatedProject = {
+      ...selectedProject,
+      agents: [...currentAgents, agent]
+    };
+
+    // Update local state
+    setSelectedProject(updatedProject);
+    
+    // Update projects list
+    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    
+    setShowAddAgentModal(false);
+    handleTextToVoice(`${agent.name} added to project.`);
   };
 
   // --- FIREBASE AUTH LISTENER ---
@@ -370,6 +499,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       await signInWithPopup(auth, provider);
       setShowLoginModal(false);
       if (selectedPlan) {
+        setUserPlan(selectedPlan.name);
         handleTextToVoice(`Welcome to the ${selectedPlan.name}. Your subscription is active.`);
         alert(`Subscription Confirmed: ${selectedPlan.name}\nPrice: ${selectedPlan.price}\n\nWelcome to the Pro Team!`);
         setSelectedPlan(null);
@@ -647,6 +777,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   // --- PROFESSIONAL VOICE & TRANSLATION LOGIC ---
   
   const recognitionRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const handleVoiceToText = () => {
     if (isListening) {
@@ -741,9 +872,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       }
 
       // Default: Append to textarea
-      const textarea = document.querySelector('.studio-textarea');
+      const textarea = textareaRef.current || document.querySelector('.studio-textarea');
       if (textarea) {
-        textarea.value = (textarea.value + ' ' + transcript).trim();
+        const newText = (textarea.value + ' ' + transcript).trim();
+        textarea.value = newText;
+        // Dispatch input event to ensure any listeners are notified
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
       }
     };
 
@@ -771,7 +905,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
 
     // If textInput is an event or not a string, use the textarea value
-    const textToSpeak = (typeof textInput === 'string') ? textInput : document.querySelector('.studio-textarea')?.value;
+    const textToSpeak = (typeof textInput === 'string') ? textInput : (textareaRef.current?.value || document.querySelector('.studio-textarea')?.value);
     if (!textToSpeak) return;
 
     // Cancel any current speech
@@ -924,7 +1058,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   };
 
   const handleTranslatePrompt = async () => {
-    const textarea = document.querySelector('.studio-textarea');
+    const textarea = textareaRef.current || document.querySelector('.studio-textarea');
     if (!textarea || !textarea.value || voiceSettings.language === 'English') return;
 
     try {
@@ -951,7 +1085,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async () => {
-    const textarea = document.querySelector('.studio-textarea');
+    const textarea = textareaRef.current || document.querySelector('.studio-textarea');
     if (!textarea || !textarea.value) {
       alert("Please enter a prompt first.");
       return;
@@ -1244,7 +1378,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     const newActivity = {
       ...item,
       id: Date.now(),
-      user: isLoggedIn ? 'Pro Creator' : 'Guest Artist',
+      user: isLoggedIn ? 'Pro Creator' : 'Guest Creator',
       time: 'Just now',
       likes: 0,
       remixes: 0,
@@ -1405,7 +1539,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 ) : (
                   <div className="text-muted text-sm">No agents selected</div>
                 )}
-                <button className="btn-dashed" style={{ width: '100%', padding: '12px', border: '1px dashed var(--text-secondary)', borderRadius: '12px', color: 'var(--text-secondary)', background: 'transparent', cursor: 'pointer' }}>+ Add Agent</button>
+                <button 
+                  className="btn-dashed" 
+                  style={{ width: '100%', padding: '12px', border: '1px dashed var(--text-secondary)', borderRadius: '12px', color: 'var(--text-secondary)', background: 'transparent', cursor: 'pointer' }}
+                  onClick={() => setShowAddAgentModal(true)}
+                >
+                  + Add Agent
+                </button>
               </div>
 
               {/* MAS Orchestration Section */}
@@ -1426,18 +1566,28 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       return;
                     }
                     
-                    // Auto-select best assets for the session
-                    const audioAsset = selectedProject.assets.find(a => a.type === 'Audio' || a.type === 'Music Creation');
-                    const vocalAsset = selectedProject.assets.find(a => (a.type === 'Audio' || a.type === 'Lyrics') && a.id !== audioAsset?.id);
-                    const visualAsset = selectedProject.assets.find(a => a.type === 'Video' || a.type === 'Image' || a.type === 'Visual Identity');
+                    let initialTracks;
+
+                    if (selectedProject.sessionState) {
+                      initialTracks = selectedProject.sessionState;
+                    } else {
+                      // Auto-select best assets for the session
+                      const audioAsset = selectedProject.assets.find(a => a.type === 'Audio' || a.type === 'Music Creation');
+                      const vocalAsset = selectedProject.assets.find(a => (a.type === 'Audio' || a.type === 'Lyrics') && a.id !== audioAsset?.id);
+                      const visualAsset = selectedProject.assets.find(a => a.type === 'Video' || a.type === 'Image' || a.type === 'Visual Identity');
+                      
+                      initialTracks = {
+                        audio: audioAsset || null,
+                        vocal: vocalAsset || null,
+                        visual: visualAsset || null,
+                        audioVolume: 0.8,
+                        vocalVolume: 1.0
+                      };
+                    }
                     
-                    setSessionTracks({
-                      audio: audioAsset || null,
-                      vocal: vocalAsset || null,
-                      visual: visualAsset || null,
-                      audioVolume: 0.8,
-                      vocalVolume: 1.0
-                    });
+                    setSessionTracks(initialTracks);
+                    setSessionHistory([initialTracks]);
+                    setHistoryIndex(0);
                     
                     setShowStudioSession(true);
                     handleTextToVoice("Opening Studio Session. Orchestrate your agents.");
@@ -1506,11 +1656,22 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                  <div className="asset-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {selectedProject.assets && selectedProject.assets.length > 0 ? (
                       selectedProject.assets.map((asset, idx) => (
-                        <div key={idx} className="asset-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
-                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-purple)' }}></div>
-                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>
-                            {asset.title || (asset.snippet ? asset.snippet.substring(0, 20) + '...' : 'New Asset')}
-                          </span>
+                        <div key={idx} className="asset-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: asset.type === 'Master' ? 'var(--color-cyan)' : 'var(--color-purple)' }}></div>
+                             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
+                               {asset.title || (asset.snippet ? asset.snippet.substring(0, 20) + '...' : 'New Asset')}
+                             </span>
+                          </div>
+                          {asset.type === 'Master' && (
+                             <button 
+                               onClick={(e) => { e.stopPropagation(); handleShareToFeed(asset); }}
+                               title="Share to Activity Wall"
+                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                             >
+                               <Share2 size={14} />
+                             </button>
+                          )}
                         </div>
                       ))
                     ) : (
@@ -1644,7 +1805,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       </div>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-                          <h1 style={{ fontSize: '1.8rem', margin: 0, fontWeight: '700' }}>{user?.displayName || 'Guest Artist'}</h1>
+                          <h1 style={{ fontSize: '1.8rem', margin: 0, fontWeight: '700' }}>{user?.displayName || 'Guest Creator'}</h1>
                           {isLoggedIn && <span className="pro-badge">PRO</span>}
                         </div>
                         <p style={{ color: 'var(--text-secondary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1674,6 +1835,38 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       </div>
                     </div>
                   </div>
+
+                  {/* Profile Completion Nudge */}
+                  {!userProfile.stageName && (
+                    <div className="profile-nudge-card animate-fadeInUp" style={{ 
+                      background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.2) 0%, rgba(168, 85, 247, 0.05) 100%)',
+                      border: '1px solid var(--color-purple)',
+                      borderRadius: '12px',
+                      padding: '16px 24px',
+                      marginBottom: '24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '16px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ background: 'var(--color-purple)', padding: '10px', borderRadius: '50%', color: 'white' }}>
+                          <User size={24} />
+                        </div>
+                        <div>
+                          <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem' }}>Complete Your Creator Profile</h3>
+                          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Set your stage name and genre to get personalized AI results.</p>
+                        </div>
+                      </div>
+                      <button 
+                        className="cta-button-premium"
+                        onClick={() => setActiveTab('profile')}
+                      >
+                        Setup Profile
+                      </button>
+                    </div>
+                  )}
 
                   {/* Audience Overview (Simulated) */}
                   <div className="audience-overview" style={{ 
@@ -1762,7 +1955,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       ))}
                     </div>
                     <div className="workflow-actions" style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
-                      <button className="btn-pill primary" onClick={() => setShowProjectWizard(true)}>
+                      <button className="btn-pill primary" onClick={() => setShowProjectChoiceModal(true)}>
                         <Plus size={14} /> New Project
                       </button>
                       <button className="btn-pill glass" onClick={() => setActiveTab('hub')}>
@@ -2064,9 +2257,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           </div>
                         </div>
                         <ul className="plan-features-native">
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Up to 3 agents</span></li>
                           <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>3 uses per agent</span></li>
                           <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>10s audio output</span></li>
-                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Basic features</span></li>
                         </ul>
                         <button 
                           className="plan-button-native secondary"
@@ -2088,9 +2281,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           </div>
                         </div>
                         <ul className="plan-features-native">
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Up to 5 agents</span></li>
                           <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>100 uses/month</span></li>
                           <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>30s audio output</span></li>
-                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Save creations</span></li>
                         </ul>
                         <button 
                           className="plan-button-native primary"
@@ -2110,9 +2303,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           </div>
                         </div>
                         <ul className="plan-features-native">
+                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>All 16 agents</span></li>
                           <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>Unlimited uses</span></li>
                           <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>60s audio output</span></li>
-                          <li className="plan-feature-item-native"><div className="feature-check-native"><Zap size={12} /></div><span>API access</span></li>
                         </ul>
                         <button 
                           className="plan-button-native primary"
@@ -2335,7 +2528,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     <div className="voice-controls">
                       {voiceSettings.language !== 'English' && (
                         <button 
-                          className="voice-btn translate-btn"
+                          className="btn-pill glass translate-btn"
                           onClick={handleTranslatePrompt}
                           title="Translate to English"
                         >
@@ -2343,14 +2536,14 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         </button>
                       )}
                       <button 
-                        className={`voice-btn ${isListening ? 'active' : ''}`} 
+                        className={`btn-pill ${isListening ? 'primary' : 'glass'}`} 
                         onClick={handleVoiceToText}
                         title="Voice to Text"
                       >
                         <Mic size={16} />
                       </button>
                       <button 
-                        className={`voice-btn ${isSpeaking ? 'active' : ''}`} 
+                        className={`btn-pill ${isSpeaking ? 'primary' : 'glass'}`} 
                         onClick={handleTextToVoice}
                         title="Text to Voice"
                       >
@@ -2359,7 +2552,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       
                       <div className="voice-settings-container">
                         <button 
-                          className={`voice-btn ${showVoiceHelp ? 'active' : ''}`}
+                          className={`btn-pill ${showVoiceHelp ? 'primary' : 'glass'}`}
                           onClick={() => {
                             setShowVoiceHelp(!showVoiceHelp);
                             setShowVoiceSettings(false);
@@ -2401,7 +2594,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
                       <div className="voice-settings-container">
                         <button 
-                          className={`voice-btn ${showVoiceSettings ? 'active' : ''}`}
+                          className={`btn-pill ${showVoiceSettings ? 'primary' : 'glass'}`}
                           onClick={() => {
                             setShowVoiceSettings(!showVoiceSettings);
                             setShowVoiceHelp(false);
@@ -2468,6 +2661,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     </div>
                   </div>
                   <textarea 
+                    ref={textareaRef}
                     placeholder={`Describe what you want ${selectedAgent.name} to create...`}
                     className="studio-textarea"
                   ></textarea>
@@ -2477,7 +2671,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       className="cta-button-secondary"
                       onClick={() => {
                         // Simulate preview generation
-                        const textarea = document.querySelector('.studio-textarea');
+                        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
                         if (textarea && textarea.value) {
                           // Just a visual feedback for now
                           textarea.style.borderColor = 'var(--color-cyan)';
@@ -2538,8 +2732,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           if (item.imageUrl || item.videoUrl) {
                             setActiveTab('hub');
                           } else {
-                            const textarea = document.querySelector('.studio-textarea');
-                            if (textarea) textarea.value = item.snippet;
+                            const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+                            if (textarea) {
+                              textarea.value = item.snippet;
+                              textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                            }
                           }
                         }}
                         style={{ cursor: 'pointer' }}
@@ -2665,9 +2862,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       key={i} 
                       className="example-chip" 
                       onClick={() => {
-                        const textarea = document.querySelector('.studio-textarea');
+                        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
                         if (textarea) {
                           textarea.value = ex;
+                          textarea.dispatchEvent(new Event('input', { bubbles: true }));
                           // Trigger a visual flash or focus to show it worked
                           textarea.focus();
                           textarea.style.borderColor = 'var(--color-purple)';
@@ -2823,7 +3021,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <Folder size={48} className="text-muted" />
                 <h3>No projects yet</h3>
                 <p>Launch the wizard to start creating your first masterpiece.</p>
-                <button className="cta-button-secondary" onClick={() => setShowProjectWizard(true)}>
+                <button className="cta-button-secondary" onClick={() => setShowProjectChoiceModal(true)}>
                   Create Project
                 </button>
               </div>
@@ -3051,6 +3249,184 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             </div>
           </div>
         );
+
+      case 'marketing':
+        return (
+          <div className="marketing-view animate-fadeInUp" style={{ paddingBottom: '80px' }}>
+            {/* Hero Section */}
+            <div className="marketing-hero" style={{ 
+              textAlign: 'center', 
+              padding: '60px 20px', 
+              background: 'linear-gradient(180deg, rgba(124, 58, 237, 0.1) 0%, rgba(0,0,0,0) 100%)',
+              marginBottom: '40px'
+            }}>
+              <div className="hero-badge" style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                padding: '6px 12px', 
+                background: 'rgba(124, 58, 237, 0.2)', 
+                borderRadius: '20px', 
+                color: '#a78bfa', 
+                fontSize: '0.85rem', 
+                marginBottom: '20px',
+                border: '1px solid rgba(124, 58, 237, 0.3)'
+              }}>
+                <Sparkles size={14} />
+                <span>The Future of Music Creation</span>
+              </div>
+              <h1 style={{ fontSize: '3rem', fontWeight: '800', marginBottom: '16px', lineHeight: '1.1' }}>
+                The Studio <span className="text-gradient-purple">Agents</span>
+              </h1>
+              <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
+                An AI-powered record label in your pocket. 16 specialized agents working 24/7 to build your career.
+              </p>
+            </div>
+
+            {/* The Story */}
+            <section className="marketing-section" style={{ padding: '0 20px 60px' }}>
+              <div className="section-header" style={{ marginBottom: '30px' }}>
+                <h2 style={{ fontSize: '2rem', marginBottom: '10px' }}>The Story</h2>
+                <div style={{ width: '60px', height: '4px', background: 'var(--color-purple)', borderRadius: '2px' }}></div>
+              </div>
+              <div className="story-card" style={{ 
+                background: 'var(--color-bg-secondary)', 
+                padding: '30px', 
+                borderRadius: '24px', 
+                border: '1px solid var(--border-color)',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <div style={{ position: 'relative', zIndex: 2 }}>
+                  <p style={{ fontSize: '1.1rem', lineHeight: '1.8', color: 'var(--text-primary)', marginBottom: '20px' }}>
+                    For decades, the music industry has been a walled garden. Only the top 1% of artists had access to world-class producers, marketing teams, and A&R strategy.
+                  </p>
+                  <p style={{ fontSize: '1.1rem', lineHeight: '1.8', color: 'var(--text-primary)' }}>
+                    <strong>The Studio changes that.</strong> We've distilled the expertise of industry veterans into 16 specialized AI agents. Whether you need a lyricist at 3 AM, a marketing strategy for your release, or a visual identity for your brand, The Studio is always open.
+                  </p>
+                </div>
+                <div style={{ 
+                  position: 'absolute', 
+                  top: '-50px', 
+                  right: '-50px', 
+                  width: '200px', 
+                  height: '200px', 
+                  background: 'radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, rgba(0,0,0,0) 70%)', 
+                  borderRadius: '50%' 
+                }}></div>
+              </div>
+            </section>
+
+            {/* The Vision */}
+            <section className="marketing-section" style={{ padding: '0 20px 60px' }}>
+              <div className="grid-2-col" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                <div className="vision-card" style={{ 
+                  background: 'linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%)', 
+                  padding: '30px', 
+                  borderRadius: '24px', 
+                  border: '1px solid var(--border-color)' 
+                }}>
+                  <div className="icon-box" style={{ 
+                    width: '50px', 
+                    height: '50px', 
+                    background: 'rgba(59, 130, 246, 0.2)', 
+                    borderRadius: '12px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    marginBottom: '20px' 
+                  }}>
+                    <Target size={24} className="text-cyan" />
+                  </div>
+                  <h3 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Our Vision</h3>
+                  <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                    To democratize the entire music supply chain. We believe every artist deserves a team that cares as much about their music as they do.
+                  </p>
+                </div>
+                <div className="vision-card" style={{ 
+                  background: 'linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%)', 
+                  padding: '30px', 
+                  borderRadius: '24px', 
+                  border: '1px solid var(--border-color)' 
+                }}>
+                  <div className="icon-box" style={{ 
+                    width: '50px', 
+                    height: '50px', 
+                    background: 'rgba(236, 72, 153, 0.2)', 
+                    borderRadius: '12px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    marginBottom: '20px' 
+                  }}>
+                    <Users size={24} className="text-pink" />
+                  </div>
+                  <h3 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>For Creators</h3>
+                  <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                    Built for the bedroom producers, the songwriters, and the independent artists who are ready to take their career to the next level.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            {/* Stats Grid */}
+            <section className="marketing-section" style={{ padding: '0 20px 60px' }}>
+              <div className="stats-grid" style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(2, 1fr)', 
+                gap: '15px' 
+              }}>
+                <div className="stat-card" style={{ 
+                  background: 'rgba(255,255,255,0.03)', 
+                  padding: '20px', 
+                  borderRadius: '16px', 
+                  textAlign: 'center' 
+                }}>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--color-purple)', marginBottom: '5px' }}>16</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Specialized Agents</div>
+                </div>
+                <div className="stat-card" style={{ 
+                  background: 'rgba(255,255,255,0.03)', 
+                  padding: '20px', 
+                  borderRadius: '16px', 
+                  textAlign: 'center' 
+                }}>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--color-cyan)', marginBottom: '5px' }}>24/7</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Availability</div>
+                </div>
+                <div className="stat-card" style={{ 
+                  background: 'rgba(255,255,255,0.03)', 
+                  padding: '20px', 
+                  borderRadius: '16px', 
+                  textAlign: 'center' 
+                }}>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--color-green)', marginBottom: '5px' }}>∞</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Creative Potential</div>
+                </div>
+                <div className="stat-card" style={{ 
+                  background: 'rgba(255,255,255,0.03)', 
+                  padding: '20px', 
+                  borderRadius: '16px', 
+                  textAlign: 'center' 
+                }}>
+                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--color-orange)', marginBottom: '5px' }}>100%</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Royalty Free</div>
+                </div>
+              </div>
+            </section>
+
+            {/* CTA */}
+            <div className="marketing-cta" style={{ padding: '0 20px 40px', textAlign: 'center' }}>
+              <button 
+                className="cta-button-primary haptic-press" 
+                style={{ width: '100%', padding: '16px', fontSize: '1.1rem' }}
+                onClick={() => setActiveTab('agents')}
+              >
+                Start Creating Now <ArrowRight size={20} style={{ marginLeft: '8px' }} />
+              </button>
+            </div>
+          </div>
+        );
       case 'activity':
         return (
           <div className="activity-wall-view animate-fadeInUp">
@@ -3275,7 +3651,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <button style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', fontSize: '0.7rem', padding: '4px', cursor: 'pointer' }}>Edit</button>
               </div>
               <div>
-                <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>{userProfile.stageName || user?.displayName || 'Guest Artist'}</h1>
+                <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>{userProfile.stageName || user?.displayName || 'Guest Creator'}</h1>
                 <p style={{ color: 'var(--text-secondary)' }}>{user?.email || 'No email linked'}</p>
                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
                   <span className="badge" style={{ background: 'var(--color-purple)', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>{userProfile.plan} Plan</span>
@@ -3301,7 +3677,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             </div>
 
             <div className="profile-section" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid var(--border-color)' }}>
-              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><User size={20} /> Artist Profile</h3>
+              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><User size={20} /> Creator Profile</h3>
               <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div className="form-group">
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Stage Name</label>
@@ -3330,7 +3706,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   </select>
                 </div>
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Artist Bio</label>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Creator Bio</label>
                   <textarea 
                     rows="4" 
                     value={userProfile.bio}
@@ -3434,8 +3810,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           { 
             icon: MessageSquare, 
             title: 'Community Tips', 
-            desc: 'See how other artists are using the studio.',
-            details: 'Join our Discord community and check out the "Activity Wall" to share prompts, collaborate with other artists, and get feedback on your AI-assisted tracks. Many users have found success by combining outputs from multiple agents—for example, using Ghostwriter for lyrics and then feeding those lyrics into a vocal synth. The possibilities are endless when you collaborate with the community.'
+            desc: 'See how other creators are using the studio.',
+            details: 'Join our Discord community and check out the "Activity Wall" to share prompts, collaborate with other creators, and get feedback on your AI-assisted tracks. Many users have found success by combining outputs from multiple agents—for example, using Ghostwriter for lyrics and then feeding those lyrics into a vocal synth. The possibilities are endless when you collaborate with the community.'
           }
         ];
 
@@ -3824,7 +4200,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               {user?.photoURL ? <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%', borderRadius: '50%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
             </div>
             <div className="user-info">
-              <p className="user-name">{isLoggedIn ? (user?.displayName || 'Pro Creator') : 'Guest Artist'}</p>
+              <p className="user-name">{isLoggedIn ? (user?.displayName || 'Pro Creator') : 'Guest Creator'}</p>
               <p className="user-status">{isLoggedIn ? 'Pro Plan' : 'Free Account'}</p>
               {isLoggedIn ? (
                 <button 
@@ -3982,7 +4358,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               <div className="user-projects-dropdown">
                 <button 
                   className="action-button primary haptic-press"
-                  onClick={() => setShowProjectWizard(true)}
+                  onClick={() => setShowProjectChoiceModal(true)}
                 >
                   New Project ({projects.length})
                 </button>
@@ -4216,7 +4592,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       value={sessionTracks.audio?.id || ''}
                       onChange={(e) => {
                         const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
-                        setSessionTracks(prev => ({ ...prev, audio: asset || null }));
+                        updateSessionWithHistory(prev => ({ ...prev, audio: asset || null }));
                       }}
                     >
                       <option value="">Select Audio Asset...</option>
@@ -4233,7 +4609,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                        max="1" 
                        step="0.1" 
                        value={sessionTracks.audioVolume || 0.8}
-                       onChange={(e) => setSessionTracks(prev => ({ ...prev, audioVolume: parseFloat(e.target.value) }))}
+                       onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, audioVolume: parseFloat(e.target.value) }))}
                        style={{ width: '100%' }} 
                      />
                   </div>
@@ -4249,7 +4625,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       value={sessionTracks.vocal?.id || ''}
                       onChange={(e) => {
                         const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
-                        setSessionTracks(prev => ({ ...prev, vocal: asset || null }));
+                        updateSessionWithHistory(prev => ({ ...prev, vocal: asset || null }));
                       }}
                     >
                       <option value="">Select Audio Asset...</option>
@@ -4266,7 +4642,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                        max="1" 
                        step="0.1" 
                        value={sessionTracks.vocalVolume || 1.0}
-                       onChange={(e) => setSessionTracks(prev => ({ ...prev, vocalVolume: parseFloat(e.target.value) }))}
+                       onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, vocalVolume: parseFloat(e.target.value) }))}
                        style={{ width: '100%' }} 
                      />
                   </div>
@@ -4282,7 +4658,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       value={sessionTracks.visual?.id || ''}
                       onChange={(e) => {
                         const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
-                        setSessionTracks(prev => ({ ...prev, visual: asset || null }));
+                        updateSessionWithHistory(prev => ({ ...prev, visual: asset || null }));
                       }}
                     >
                       <option value="">Select Visual...</option>
@@ -4300,7 +4676,27 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
             {/* Footer Controls */}
             <div style={{ padding: '20px', background: 'rgba(0,0,0,0.5)', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <div style={{ display: 'flex', gap: '16px' }}>
+               <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                 {/* Undo / Redo */}
+                 <div style={{ display: 'flex', gap: '8px', marginRight: '16px' }}>
+                    <button 
+                      onClick={handleUndo} 
+                      disabled={historyIndex <= 0}
+                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px', padding: '8px', cursor: historyIndex > 0 ? 'pointer' : 'not-allowed', opacity: historyIndex > 0 ? 1 : 0.3 }}
+                      title="Undo"
+                    >
+                      <Undo size={20} color="white" />
+                    </button>
+                    <button 
+                      onClick={handleRedo} 
+                      disabled={historyIndex >= sessionHistory.length - 1}
+                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px', padding: '8px', cursor: historyIndex < sessionHistory.length - 1 ? 'pointer' : 'not-allowed', opacity: historyIndex < sessionHistory.length - 1 ? 1 : 0.3 }}
+                      title="Redo"
+                    >
+                      <Redo size={20} color="white" />
+                    </button>
+                 </div>
+
                  <button 
                    className="btn-circle" 
                    aria-label={sessionPlaying ? "Pause Session" : "Play Session"}
@@ -4311,43 +4707,86 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                  </button>
                </div>
                
-               <button 
-                 className="btn-pill primary"
-                 onClick={() => {
-                   // Render Logic
-                   if (!sessionTracks.audio && !sessionTracks.visual) {
-                     alert("Select at least one asset to render.");
-                     return;
-                   }
-                   
-                   const masterAsset = {
-                     id: Date.now(),
-                     title: "Studio Master - " + selectedProject.name,
-                     type: "Master",
-                     agent: "Studio Session",
-                     date: "Just now",
-                     color: "agent-purple",
-                     snippet: "Orchestrated Master Composition",
-                     audioUrl: sessionTracks.audio?.audioUrl, // Primary audio
-                     stems: {
-                       audio: sessionTracks.audio?.audioUrl,
-                       vocal: sessionTracks.vocal?.audioUrl
-                     },
-                     imageUrl: sessionTracks.visual?.imageUrl,
-                     videoUrl: sessionTracks.visual?.videoUrl
-                   };
-                   
-                   const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets] };
-                   setSelectedProject(updated);
-                   setProjects(projects.map(p => p.id === updated.id ? updated : p));
-                   
-                   setShowStudioSession(false);
-                   setSessionPlaying(false);
-                   alert("Master rendered and saved to project!");
-                 }}
-               >
-                 <Zap size={18} /> Render Master
-               </button>
+               <div style={{ display: 'flex', gap: '12px' }}>
+                 <button 
+                   className="btn-pill secondary"
+                   onClick={() => {
+                     // Save Project Logic (Save Session State)
+                     const updatedProject = {
+                       ...selectedProject,
+                       sessionState: sessionTracks,
+                       lastModified: Date.now()
+                     };
+                     setSelectedProject(updatedProject);
+                     setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+                     handleTextToVoice("Project session saved.");
+                     alert("Project session saved successfully.");
+                   }}
+                 >
+                   <Save size={18} /> Save Project
+                 </button>
+
+                 <button 
+                   className="btn-pill primary"
+                   onClick={() => {
+                     // Render Logic
+                     if (!sessionTracks.audio && !sessionTracks.visual) {
+                       alert("Select at least one asset to render.");
+                       return;
+                     }
+                     
+                     handleTextToVoice("Rendering master file. This may take a moment.");
+                     
+                     // Simulate processing
+                     setTimeout(() => {
+                        const masterAsset = {
+                          id: Date.now(),
+                          title: "Studio Master - " + selectedProject.name,
+                          type: "Master",
+                          agent: "Studio Session",
+                          date: "Just now",
+                          color: "agent-purple",
+                          snippet: "Orchestrated Master Composition. Professional Quality Render.",
+                          audioUrl: sessionTracks.audio?.audioUrl, // Primary audio
+                          stems: {
+                            audio: sessionTracks.audio?.audioUrl,
+                            vocal: sessionTracks.vocal?.audioUrl
+                          },
+                          imageUrl: sessionTracks.visual?.imageUrl,
+                          videoUrl: sessionTracks.visual?.videoUrl,
+                          metadata: {
+                             audioVolume: sessionTracks.audioVolume,
+                             vocalVolume: sessionTracks.vocalVolume,
+                             renderedAt: new Date().toISOString()
+                          }
+                        };
+                        
+                        // Create a downloadable file for the master
+                        const masterData = JSON.stringify(masterAsset, null, 2);
+                        const blob = new Blob([masterData], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${masterAsset.title.replace(/\s+/g, '_')}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+
+                        const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets] };
+                        setSelectedProject(updated);
+                        setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                        
+                        setShowStudioSession(false);
+                        setSessionPlaying(false);
+                        handleTextToVoice("Master render complete.");
+                        alert("Master rendered and saved to project!");
+                     }, 2000);
+                   }}
+                 >
+                   <Zap size={18} /> Render Master
+                 </button>
+               </div>
             </div>
           </div>
         )}
@@ -4583,6 +5022,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
         {/* Mobile Bottom Navigation */}
         <nav className="bottom-nav">
+          <div className={`bottom-nav-item haptic-press ${activeTab === 'marketing' ? 'active' : ''}`} onClick={() => { setActiveTab('marketing'); setSelectedAgent(null); }}>
+            <TrendingUp size={24} />
+            <span>About</span>
+          </div>
           <div className={`bottom-nav-item haptic-press ${activeTab === 'agents' ? 'active' : ''}`} onClick={() => { setActiveTab('agents'); setSelectedAgent(null); }}>
             <LayoutGrid size={24} />
             <span>Agents</span>
@@ -4686,11 +5129,70 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             <div className="modal-footer">
               <button className="cta-button-premium" onClick={() => {
                 setShowCreditsModal(false);
-                setShowProjectWizard(true);
+                setShowProjectChoiceModal(true);
               }}>
                 Start Creating
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Project Choice Modal */}
+      {showProjectChoiceModal && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectChoiceModal(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', textAlign: 'center' }}>
+            <div className="modal-header" style={{ justifyContent: 'center', flexDirection: 'column', gap: '12px', borderBottom: 'none', paddingBottom: 0 }}>
+              <div className="agent-mini-icon bg-purple" style={{ width: '60px', height: '60px', margin: '0 auto' }}>
+                <Rocket size={32} />
+              </div>
+              <h2 style={{ fontSize: '1.8rem' }}>How would you like to start?</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>Choose the best way to launch your new project.</p>
+            </div>
+            
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '32px 0' }}>
+              <button 
+                className="cta-button-premium" 
+                style={{ width: '100%', justifyContent: 'center', padding: '20px', height: 'auto' }}
+                onClick={() => {
+                  setShowProjectChoiceModal(false);
+                  setShowProjectWizard(true);
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.2)', padding: '10px', borderRadius: '50%' }}>
+                    <Sparkles size={24} />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Use Wizard Guide</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: 'normal' }}>Step-by-step setup for best results</div>
+                  </div>
+                </div>
+              </button>
+
+              <button 
+                className="cta-button-secondary" 
+                style={{ width: '100%', justifyContent: 'center', padding: '20px', height: 'auto', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)' }}
+                onClick={() => {
+                  setShowProjectChoiceModal(false);
+                  handleManualCreate();
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '50%' }}>
+                    <PenTool size={24} />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Manually Create</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: 'normal' }}>Skip setup and go straight to studio</div>
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            <button className="modal-close" onClick={() => setShowProjectChoiceModal(false)} style={{ top: '20px', right: '20px' }}>
+              <X size={24} />
+            </button>
           </div>
         </div>
       )}
@@ -4706,9 +5208,25 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 </div>
                 <h2>Create New Project</h2>
               </div>
-              <button className="modal-close" onClick={() => setShowProjectWizard(false)}>
-                <X size={20} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <button 
+                  className="btn-text" 
+                  onClick={handleSkipWizard}
+                  style={{ 
+                    fontSize: '0.9rem', 
+                    color: 'var(--text-secondary)', 
+                    background: 'none', 
+                    border: 'none', 
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Skip Wizard
+                </button>
+                <button className="modal-close" onClick={() => setShowProjectWizard(false)}>
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
             <div className="modal-body" style={{ padding: '24px' }}>
@@ -5072,13 +5590,28 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             </div>
 
             <div style={{ padding: '32px', position: 'relative' }}>
-              <button 
-                className="modal-close" 
-                onClick={() => setShowOnboarding(false)}
-                style={{ top: '20px', right: '20px' }}
-              >
-                <X size={20} />
-              </button>
+              <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <button 
+                  onClick={handleSkipOnboarding}
+                  style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    color: 'var(--text-secondary)', 
+                    fontSize: '0.9rem', 
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Skip Setup
+                </button>
+                <button 
+                  className="modal-close" 
+                  onClick={() => setShowOnboarding(false)}
+                  style={{ position: 'static' }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
 
               <div style={{ marginBottom: '24px' }}>
                 <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-purple)' }}>
@@ -5095,8 +5628,83 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 </p>
               </div>
 
-              {/* Step 2: Path Selection */}
-              {onboardingStep === 2 && (
+              {/* Step 1: Profile Creation */}
+              {onboardingStep === 1 && (
+                <div className="profile-setup-form animate-fadeInUp" style={{ marginTop: '24px' }}>
+                  <div className="form-group" style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Stage Name</label>
+                    <input 
+                      type="text" 
+                      className="studio-input"
+                      placeholder="e.g. Lil Gemini"
+                      value={userProfile.stageName}
+                      onChange={(e) => setUserProfile({...userProfile, stageName: e.target.value})}
+                      style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)', color: 'white' }}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Primary Genre</label>
+                    <select 
+                      className="studio-select"
+                      value={userProfile.genre}
+                      onChange={(e) => setUserProfile({...userProfile, genre: e.target.value})}
+                      style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)', color: 'white' }}
+                    >
+                      <option>Hip Hop / Rap</option>
+                      <option>R&B</option>
+                      <option>Pop</option>
+                      <option>Electronic</option>
+                      <option>Rock</option>
+                      <option>Afrobeats</option>
+                      <option>Latin</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 1: Profile Setup */}
+              {onboardingStep === 1 && (
+                <div className="profile-setup-step animate-fadeInUp" style={{ marginTop: '24px' }}>
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Stage Name</label>
+                    <input 
+                      type="text" 
+                      className="search-input" 
+                      placeholder="e.g. The Weeknd, J. Cole"
+                      value={userProfile.stageName}
+                      onChange={(e) => setUserProfile({...userProfile, stageName: e.target.value})}
+                      autoFocus
+                      style={{ width: '100%', padding: '12px', fontSize: '1.1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'white' }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Primary Genre</label>
+                    <div className="genre-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      {['Hip Hop', 'R&B', 'Pop', 'Electronic', 'Rock', 'Afrobeats'].map(genre => (
+                        <button
+                          key={genre}
+                          onClick={() => setUserProfile({...userProfile, genre})}
+                          style={{
+                            padding: '10px',
+                            borderRadius: '8px',
+                            border: userProfile.genre === genre ? '1px solid var(--color-purple)' : '1px solid var(--border-color)',
+                            background: userProfile.genre === genre ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
+                            color: userProfile.genre === genre ? 'white' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          {genre}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 3: Path Selection */}
+              {onboardingStep === 3 && (
                 <div className="path-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '24px' }}>
                   {pathOptions.map(path => (
                     <div 
@@ -5120,8 +5728,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 </div>
               )}
 
-              {/* Step 3: Recommendation */}
-              {onboardingStep === 3 && selectedPath && (
+              {/* Step 4: Recommendation */}
+              {onboardingStep === 4 && selectedPath && (
                 <div className="recommendation-box animate-fadeInUp" style={{ marginTop: '24px', padding: '20px', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
                   {(() => {
                     const recId = getRecommendation();
@@ -5159,7 +5767,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     <button 
                       className="cta-button-premium"
                       onClick={() => setOnboardingStep(prev => prev + 1)}
-                      disabled={onboardingStep === 2 && !selectedPath}
+                      disabled={(onboardingStep === 3 && !selectedPath) || (onboardingStep === 1 && !userProfile.stageName)}
                     >
                       Next Step
                     </button>
@@ -5318,6 +5926,69 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               }}>
                 Launch {showAgentHelpModal.name}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Agent Modal */}
+      {showAddAgentModal && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowAddAgentModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Add Agent to Project</h2>
+              <button className="modal-close" onClick={() => setShowAddAgentModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="agent-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px' }}>
+                {AGENTS.map(agent => {
+                  const isSelected = selectedProject?.agents?.some(a => a.id === agent.id);
+                  return (
+                    <div 
+                      key={agent.id}
+                      className={`agent-card-mini ${isSelected ? 'selected' : ''}`}
+                      style={{ 
+                        padding: '16px', 
+                        borderRadius: '12px', 
+                        background: 'var(--color-bg-secondary)', 
+                        border: isSelected ? '1px solid var(--color-purple)' : '1px solid var(--border-color)',
+                        cursor: isSelected ? 'default' : 'pointer',
+                        opacity: isSelected ? 0.6 : 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        textAlign: 'center',
+                        gap: '12px'
+                      }}
+                      onClick={() => !isSelected && handleAddAgent(agent)}
+                    >
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        borderRadius: '12px', 
+                        background: `${agent.color}20`, 
+                        color: agent.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <agent.icon size={24} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{agent.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{agent.role}</div>
+                      </div>
+                      {isSelected && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-purple)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Check size={12} /> Added
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
