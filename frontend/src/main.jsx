@@ -4,6 +4,7 @@ import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary'
 import './index.css'
 import './App.css'
+import './design-system.css'
 
 console.log("Main.jsx: Starting execution...");
 

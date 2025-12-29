@@ -1,0 +1,697 @@
+/* ==========================================================================
+   STUDIO AGENTS - DESIGN SYSTEM v2.0
+   Professional UX/UI improvements for mobile-first responsive design
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. GLOBAL TOUCH & INTERACTION IMPROVEMENTS
+   -------------------------------------------------------------------------- */
+
+/* Improved tap targets - 44px minimum for accessibility */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Disable text selection on interactive elements */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Better touch feedback */
+.touch-feedback {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.touch-feedback:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+/* Prevent double-tap zoom on buttons */
+button, a, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* --------------------------------------------------------------------------
+   2. MOBILE-FIRST LAYOUT SYSTEM
+   -------------------------------------------------------------------------- */
+
+/* Safe area padding for notched devices */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Mobile container with proper edge padding */
+@media (max-width: 768px) {
+  .mobile-container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  
+  .mobile-full-width {
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. PROJECT HUB - ENHANCED MOBILE EXPERIENCE
+   -------------------------------------------------------------------------- */
+
+/* Project Hub container */
+.project-hub-container {
+  padding: 0;
+}
+
+@media (max-width: 768px) {
+  .project-hub-container {
+    padding: 0 8px;
+  }
+}
+
+/* Project cards - Mobile optimized */
+.project-card-v2 {
+  background: var(--card-bg, rgba(30, 30, 45, 0.9));
+  border-radius: 16px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.project-card-v2:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.project-card-v2:active {
+  transform: scale(0.98);
+}
+
+/* Card thumbnail area */
+.project-card-thumb {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: linear-gradient(135deg, var(--color-purple, #8b5cf6) 0%, var(--color-cyan, #06b6d4) 100%);
+  overflow: hidden;
+}
+
+.project-card-thumb img,
+.project-card-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Gradient overlay for text readability */
+.project-card-thumb::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+/* Card body */
+.project-card-body {
+  padding: 16px;
+}
+
+/* Project card actions - swipe-friendly on mobile */
+.project-card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--border-color);
+}
+
+.project-card-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary, #9ca3af);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.project-card-action-btn:hover,
+.project-card-action-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary, white);
+}
+
+.project-card-action-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* --------------------------------------------------------------------------
+   4. MOBILE PROJECT LIST VIEW (Alternative to grid)
+   -------------------------------------------------------------------------- */
+
+.project-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.15s ease;
+}
+
+.project-list-item:active {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.project-list-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.project-list-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.project-list-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.project-list-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-list-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.project-list-arrow {
+  color: var(--text-secondary);
+  opacity: 0.5;
+}
+
+/* --------------------------------------------------------------------------
+   5. FLOATING ACTION BUTTON (FAB)
+   -------------------------------------------------------------------------- */
+
+.fab {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-purple) 0%, var(--color-pink, #ec4899) 100%);
+  border: none;
+  box-shadow: 0 6px 24px rgba(139, 92, 246, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  z-index: 900;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.6);
+}
+
+.fab:active {
+  transform: scale(0.95);
+}
+
+@media (min-width: 769px) {
+  .fab {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   6. SWIPE ACTIONS (for project cards on mobile)
+   -------------------------------------------------------------------------- */
+
+.swipe-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.swipe-actions-left,
+.swipe-actions-right {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+}
+
+.swipe-actions-left {
+  left: 0;
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+.swipe-actions-right {
+  right: 0;
+  background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+}
+
+/* --------------------------------------------------------------------------
+   7. PULL-TO-REFRESH INDICATOR
+   -------------------------------------------------------------------------- */
+
+.pull-refresh-indicator {
+  position: absolute;
+  top: -50px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--card-bg);
+  border-radius: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: top 0.2s ease, opacity 0.2s ease;
+}
+
+.pull-refresh-indicator.visible {
+  top: 20px;
+  opacity: 1;
+}
+
+/* --------------------------------------------------------------------------
+   8. SKELETON LOADING STATES
+   -------------------------------------------------------------------------- */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-card {
+  height: 280px;
+  border-radius: 16px;
+}
+
+.skeleton-list-item {
+  height: 84px;
+  border-radius: 0;
+  margin-bottom: 1px;
+}
+
+.skeleton-text {
+  height: 16px;
+  width: 60%;
+  margin-bottom: 8px;
+}
+
+.skeleton-text.short {
+  width: 40%;
+}
+
+/* --------------------------------------------------------------------------
+   9. EMPTY STATE IMPROVEMENTS
+   -------------------------------------------------------------------------- */
+
+.empty-state-v2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  min-height: 300px;
+}
+
+.empty-state-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.empty-state-icon svg {
+  width: 36px;
+  height: 36px;
+  color: var(--color-purple);
+}
+
+.empty-state-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.empty-state-desc {
+  color: var(--text-secondary);
+  max-width: 300px;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.empty-state-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* --------------------------------------------------------------------------
+   10. FILTER CHIPS - HORIZONTAL SCROLLING
+   -------------------------------------------------------------------------- */
+
+.filter-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-chip {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  background: var(--color-bg-tertiary, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.filter-chip.active {
+  background: var(--color-purple);
+  border-color: var(--color-purple);
+  color: white;
+}
+
+/* --------------------------------------------------------------------------
+   11. SEARCH BAR - MOBILE OPTIMIZED
+   -------------------------------------------------------------------------- */
+
+.search-bar-v2 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.search-bar-v2:focus-within {
+  border-color: var(--color-purple);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.search-bar-v2 input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.search-bar-v2 input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   12. BOTTOM SHEET (Mobile modals)
+   -------------------------------------------------------------------------- */
+
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.bottom-sheet-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 90vh;
+  background: var(--color-bg-primary);
+  border-radius: 24px 24px 0 0;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 1501;
+  overflow: hidden;
+}
+
+.bottom-sheet-overlay.visible .bottom-sheet {
+  transform: translateY(0);
+}
+
+.bottom-sheet-handle {
+  width: 36px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  margin: 12px auto;
+}
+
+.bottom-sheet-header {
+  padding: 8px 20px 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bottom-sheet-content {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(90vh - 80px);
+}
+
+/* --------------------------------------------------------------------------
+   13. VIEW TOGGLE (Grid/List)
+   -------------------------------------------------------------------------- */
+
+.view-toggle {
+  display: flex;
+  background: var(--color-bg-tertiary);
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.view-toggle-btn {
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.view-toggle-btn.active {
+  background: var(--color-purple);
+  color: white;
+}
+
+/* --------------------------------------------------------------------------
+   14. PROGRESS INDICATORS
+   -------------------------------------------------------------------------- */
+
+.progress-bar-v2 {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-v2-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-purple) 0%, var(--color-cyan) 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* Circular progress */
+.progress-circle {
+  width: 48px;
+  height: 48px;
+  position: relative;
+}
+
+.progress-circle-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 4;
+}
+
+.progress-circle-fill {
+  fill: none;
+  stroke: var(--color-purple);
+  stroke-width: 4;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+/* --------------------------------------------------------------------------
+   15. TOAST NOTIFICATIONS - MOBILE
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+  .Toaster {
+    bottom: 100px !important; /* Above bottom nav */
+  }
+  
+  [data-sonner-toaster] {
+    bottom: 100px !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   16. ANIMATIONS
+   -------------------------------------------------------------------------- */
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeScale {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease forwards;
+}
+
+.animate-slideDown {
+  animation: slideDown 0.3s ease forwards;
+}
+
+.animate-fadeScale {
+  animation: fadeScale 0.2s ease forwards;
+}
+
+/* Staggered children animation */
+.stagger-children > * {
+  animation: slideUp 0.3s ease forwards;
+  opacity: 0;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
