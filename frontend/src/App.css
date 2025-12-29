@@ -6882,16 +6882,16 @@ input:checked + .slider:before {
   
   .sidebar-link {
     white-space: nowrap;
-    padding: 0.6rem 1.2rem;
+    padding: 0.4rem 0.8rem;
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 100px; /* Pill shape */
-    font-size: 0.85rem;
-    height: 36px;
+    font-size: 0.75rem;
+    height: 30px;
   }
 
   .sidebar-link.active {
@@ -8703,6 +8703,55 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   
   .studio-textarea {
     min-height: 100px; /* Slightly smaller min-height on mobile */
+  }
+}
+
+
+/* --- Dashboard Scroll Locking Fixes --- */
+/* Lock the main dashboard container to viewport */
+.studio-dashboard {
+  height: 100dvh; /* Use dynamic viewport height */
+  width: 100vw;
+  overflow: hidden; /* Prevent outer scroll */
+  position: fixed; /* Lock position */
+  top: 0;
+  left: 0;
+  overscroll-behavior: none; /* Prevent bounce */
+  touch-action: none; /* Disable default touch actions on container */
+}
+
+/* Ensure the layout grid fills the locked container */
+.dashboard-sidebar-layout {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+/* Allow scrolling ONLY in the main content area */
+.dashboard-main-content {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; /* Smooth scroll */
+  touch-action: pan-y; /* Allow vertical scroll only */
+  padding-bottom: 120px; /* Ensure bottom content is reachable */
+}
+
+/* Mobile specific adjustments */
+@media (max-width: 1024px) {
+  .studio-dashboard {
+    position: fixed; /* Reinforce fixed position on mobile */
+  }
+  
+  .dashboard-sidebar {
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
+    touch-action: pan-x; /* Allow horizontal scroll for nav items */
+  }
+  
+  /* Ensure content area handles scroll properly */
+  .dashboard-main-content {
+    padding: 1rem;
+    padding-bottom: 150px; /* Extra padding for mobile nav bars */
   }
 }
 
