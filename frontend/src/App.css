@@ -2145,11 +2145,16 @@
 /* --- Studio View Styles --- */
 .studio-container {
   display: flex;
-  height: 100vh;
+  height: 100dvh; /* Locked to dynamic viewport height */
+  width: 100vw;
+  position: fixed; /* Prevent floating/moving */
+  top: 0;
+  left: 0;
   background: radial-gradient(circle at top right, #1a1a24 0%, #0a0a0c 100%);
   color: var(--text-primary);
   overflow: hidden;
   transition: background 0.3s ease, color 0.3s ease;
+  overscroll-behavior: none; /* Prevent rubber-banding */
 }
 
 /* Sidebar Navigation */
@@ -2243,6 +2248,7 @@
   background: transparent;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  overscroll-behavior-y: contain; /* Prevent body scroll chaining */
 }
 
 .studio-header {
