@@ -2,9 +2,13 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary'
+import { initAnalytics } from './utils/analytics'
 import './index.css'
 import './App.css'
 import './design-system.css'
+
+// Initialize Google Analytics
+initAnalytics();
 
 console.log("Main.jsx: Starting execution...");
 

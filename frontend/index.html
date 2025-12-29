@@ -2,15 +2,76 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    
+    <!-- Primary Meta Tags -->
+    <title>Studio Agents AI - AI-Powered Creative Studio for Artists</title>
+    <meta name="title" content="Studio Agents AI - AI-Powered Creative Studio for Artists" />
+    <meta name="description" content="16 specialized AI agents for independent artists. Create lyrics, beats, visuals, and grow your career. Your AI-powered creative team." />
+    <meta name="keywords" content="AI music, songwriting AI, beat maker, music production, artist tools, creative AI, lyrics generator" />
+    <meta name="author" content="Studio Agents" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://studioagentsai.com/" />
+    <meta property="og:title" content="Studio Agents AI - AI-Powered Creative Studio" />
+    <meta property="og:description" content="16 specialized AI agents for independent artists. Create lyrics, beats, visuals, and grow your career." />
+    <meta property="og:image" content="https://studioagentsai.com/og-image.png" />
+    <meta property="og:site_name" content="Studio Agents AI" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://studioagentsai.com/" />
+    <meta property="twitter:title" content="Studio Agents AI - AI-Powered Creative Studio" />
+    <meta property="twitter:description" content="16 specialized AI agents for independent artists. Create lyrics, beats, visuals, and grow your career." />
+    <meta property="twitter:image" content="https://studioagentsai.com/og-image.png" />
+    <meta name="twitter:creator" content="@StudioAgentsAI" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#8b5cf6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Studio Agents" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Studio Agents AI" />
+    <meta name="msapplication-TileColor" content="#8b5cf6" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+    
+    <!-- Favicons -->
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Studio Agents AI</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <link rel="preconnect" href="https://web-production-b5922.up.railway.app" />
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://studioagentsai.com/" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Register Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('[SW] Registered:', reg.scope))
+            .catch(err => console.warn('[SW] Registration failed:', err));
+        });
+      }
+    </script>
   </body>
 </html>

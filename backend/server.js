@@ -496,6 +496,21 @@ app.get('/health', (req, res) => {
   res.json(healthStatus);
 });
 
+// API Health check (for monitoring services)
+app.get('/api/health', (req, res) => {
+  const isHealthy = apiKey && genAI;
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    version: '2.0.0',
+    services: {
+      api: 'up',
+      gemini: apiKey ? 'configured' : 'missing',
+      firebase: firebaseInitialized ? 'connected' : 'not configured'
+    }
+  });
+});
+
 // MODELS ROUTE - returns available models that support generateContent
 app.get('/api/models', async (req, res) => {
   try {
