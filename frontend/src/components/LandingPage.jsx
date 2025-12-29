@@ -109,6 +109,51 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             </span>
           </div>
 
+          {/* Results Grid moved to Hero */}
+          <div className="results-grid" style={{ 
+            display: 'grid', 
+            gridTemplateColumns: '1fr', 
+            gap: '12px',
+            marginBottom: '24px',
+            width: '100%',
+            maxWidth: '400px'
+          }}>
+            {[
+              { icon: Music, title: "Hit-Ready Lyrics", desc: "Generate hooks, verses, and bridges that stick.", color: "var(--color-purple)" },
+              { icon: Zap, title: "Viral Video Content", desc: "Create music videos and visualizers instantly.", color: "var(--color-cyan)" },
+              { icon: Globe, title: "Marketing Strategy", desc: "Data-driven rollout plans to break the algorithm.", color: "var(--color-pink)" }
+            ].map((item, i) => (
+              <div key={i} className="result-card" style={{
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                padding: '12px 16px',
+                borderRadius: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                textAlign: 'left'
+              }}>
+                <div style={{ 
+                  background: item.color, 
+                  padding: '8px', 
+                  borderRadius: '10px', 
+                  color: 'white',
+                  boxShadow: `0 4px 15px ${item.color}40`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '36px'
+                }}>
+                  <item.icon size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '2px', color: 'white' }}>{item.title}</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.3', margin: 0 }}>{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {/* CTA Buttons Grid */}
           <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '400px' }}>
             
@@ -216,55 +261,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         </div>
       </section>
 
-      {/* Results / "What You Get" Section (New) */}
-      <section className="results-section" style={{ padding: '4rem 2rem', background: 'var(--color-bg-secondary)' }}>
-        <div className="section-header">
-          <div className="section-tag">The Output</div>
-          <h2 className="section-title">
-            Build Your <span className="gradient-text-purple-pink">Legacy</span>
-          </h2>
-          <p className="section-subtitle">
-            Don't just make music. Build a brand.
-          </p>
-        </div>
-        
-        <div className="results-grid" style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-          gap: '20px',
-          marginTop: '30px'
-        }}>
-          {[
-            { icon: Music, title: "Hit-Ready Lyrics", desc: "Generate hooks, verses, and bridges that stick.", color: "var(--color-purple)" },
-            { icon: Zap, title: "Viral Video Content", desc: "Create music videos and visualizers instantly.", color: "var(--color-cyan)" },
-            { icon: Globe, title: "Marketing Strategy", desc: "Data-driven rollout plans to break the algorithm.", color: "var(--color-pink)" }
-          ].map((item, i) => (
-            <div key={i} className="result-card" style={{
-              background: 'var(--card-bg)',
-              border: '1px solid var(--border-color)',
-              padding: '24px',
-              borderRadius: '20px',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '16px'
-            }}>
-              <div style={{ 
-                background: item.color, 
-                padding: '12px', 
-                borderRadius: '12px', 
-                color: 'white',
-                boxShadow: `0 4px 15px ${item.color}40`
-              }}>
-                <item.icon size={24} />
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '4px' }}>{item.title}</h3>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{item.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+
 
       {/* Agent Showcase Section - Grouped by Category */}
       <section className="agents-section">

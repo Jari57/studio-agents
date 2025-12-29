@@ -1511,7 +1511,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               <div className="team-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {selectedProject.agents && selectedProject.agents.length > 0 ? (
                   selectedProject.agents.map((agentId, idx) => {
-                    const agent = AGENTS.find(a => a.id === agentId) || AGENTS[0];
+                    const agent = AGENTS.find(a => a.id === agentId || a.name === agentId) || AGENTS[0];
                     return (
                       <div 
                         key={idx} 
@@ -4131,16 +4131,16 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     // Fallback based on category
     switch(selectedProject.category) {
       case 'pro': return [
-        { id: 'lyrics', label: 'Draft Lyrics', agentId: 'ghostwriter', icon: Mic, desc: 'Generate verses & hooks' },
-        { id: 'beat', label: 'Compose Beat', agentId: 'beat_lab', icon: Music, desc: 'Create instrumental backing' },
-        { id: 'art', label: 'Cover Art', agentId: 'visualist', icon: Zap, desc: 'Design album artwork' }
+        { id: 'lyrics', label: 'Draft Lyrics', agentId: 'ghost', icon: Mic, desc: 'Generate verses & hooks' },
+        { id: 'beat', label: 'Compose Beat', agentId: 'beat', icon: Music, desc: 'Create instrumental backing' },
+        { id: 'art', label: 'Cover Art', agentId: 'album', icon: Zap, desc: 'Design album artwork' }
       ];
       case 'vybing': return [
-        { id: 'beat', label: 'Generate Vibe', agentId: 'beat_lab', icon: Music, desc: 'Quick beat generation' },
-        { id: 'lyrics', label: 'Freestyle Lyrics', agentId: 'ghostwriter', icon: Mic, desc: 'Write over the beat' }
+        { id: 'beat', label: 'Generate Vibe', agentId: 'beat', icon: Music, desc: 'Quick beat generation' },
+        { id: 'lyrics', label: 'Freestyle Lyrics', agentId: 'ghost', icon: Mic, desc: 'Write over the beat' }
       ];
       default: return [
-        { id: 'plan', label: 'Create Plan', agentId: 'manager', icon: Target, desc: 'Outline your project goals' }
+        { id: 'plan', label: 'Create Plan', agentId: 'release', icon: Target, desc: 'Outline your project goals' }
       ];
     }
   };
@@ -5453,16 +5453,16 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   {newProjectData.workflow === 'custom' && (
                     <div className="agents-grid-selection animate-fadeIn" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
                     {AGENTS.map(agent => {
-                      const isSelected = newProjectData.selectedAgents?.includes(agent.name);
+                      const isSelected = newProjectData.selectedAgents?.includes(agent.id);
                       return (
                         <div 
-                          key={agent.name}
+                          key={agent.id}
                           className={`agent-select-card haptic-press ${isSelected ? 'selected' : ''}`}
                           onClick={() => {
                             const current = newProjectData.selectedAgents || [];
-                            const updated = current.includes(agent.name)
-                              ? current.filter(n => n !== agent.name)
-                              : [...current, agent.name];
+                            const updated = current.includes(agent.id)
+                              ? current.filter(n => n !== agent.id)
+                              : [...current, agent.id];
                             setNewProjectData({...newProjectData, selectedAgents: updated});
                           }}
                           style={{
@@ -5530,10 +5530,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     </p>
                     
                     <div className="selected-team-preview" style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
-                      {(newProjectData.selectedAgents || []).map(agentName => {
-                        const agent = AGENTS.find(a => a.name === agentName);
+                      {(newProjectData.selectedAgents || []).map(agentIdOrName => {
+                        const agent = AGENTS.find(a => a.id === agentIdOrName || a.name === agentIdOrName);
                         return agent ? (
-                          <div key={agentName} title={agentName} style={{ 
+                          <div key={agentIdOrName} title={agent.name} style={{ 
                             width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-bg-primary)', 
                             display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--color-border)'
                           }}>

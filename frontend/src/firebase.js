@@ -3,13 +3,13 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signO
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAKWKmHVfwKHuH_Huf4C2XcMAxk3pkkuz8",
-  authDomain: "studioagents-app.firebaseapp.com",
-  projectId: "studioagents-app",
-  storageBucket: "studioagents-app.firebasestorage.app",
-  messagingSenderId: "460525904786",
-  appId: "1:460525904786:web:6c59dbc6837ead2ed9d74b",
-  measurementId: "G-37J2MVHXS7"
+  apiKey: "AIzaSyCbRHu9a4N_i2WEFC8nVvR9GFFAxtB4EMk",
+  authDomain: "restored-os-whip-montez.firebaseapp.com",
+  projectId: "restored-os-whip-montez",
+  storageBucket: "restored-os-whip-montez.firebasestorage.app",
+  messagingSenderId: "214496108632",
+  appId: "1:214496108632:web:1f85337eea3a73a4266a2d",
+  measurementId: "G-B7RW2FK096"
 };
 
 let app;
