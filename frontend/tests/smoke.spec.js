@@ -10,7 +10,9 @@ test.describe('Studio Agents UI Regression', () => {
 
   test('Navigation to Dashboard works', async ({ page, isMobile }) => {
     await page.goto('/');
-    await page.getByText('Create New Project').click();
+    // Click "New Project" or "Create New Project" button (text varies by view)
+    const projectBtn = page.getByRole('button', { name: /New Project/i }).first();
+    await projectBtn.click();
     await expect(page.locator('.studio-container')).toBeVisible();
     
     // Sidebar is hidden on mobile

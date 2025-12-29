@@ -1,0 +1,662 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e7]:
+        - img [ref=e8]
+        - generic [ref=e11]: Studio Agents
+    - generic [ref=e13]:
+      - img [ref=e16]
+      - heading "DOMINATE THE CHARTS WITH YOUR OWN AI TEAM" [level=1] [ref=e21]:
+        - text: DOMINATE THE CHARTS
+        - generic [ref=e22]: WITH YOUR OWN AI TEAM
+      - paragraph [ref=e23]:
+        - text: Stop struggling with writer's block.
+        - strong [ref=e24]: Studio Agents
+        - text: gives you an elite team of 16 AI specialists to write, produce, and market your music 24/7.
+        - generic [ref=e25]: Orchestrate complex workflows or just jam with a single agent.
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - img [ref=e29]
+          - generic [ref=e33]:
+            - heading "Hit-Ready Lyrics" [level=3] [ref=e34]
+            - paragraph [ref=e35]: Generate hooks, verses, and bridges that stick.
+        - generic [ref=e36]:
+          - img [ref=e38]
+          - generic [ref=e40]:
+            - heading "Viral Video Content" [level=3] [ref=e41]
+            - paragraph [ref=e42]: Create music videos and visualizers instantly.
+        - generic [ref=e43]:
+          - img [ref=e45]
+          - generic [ref=e48]:
+            - heading "Marketing Strategy" [level=3] [ref=e49]
+            - paragraph [ref=e50]: Data-driven rollout plans to break the algorithm.
+      - generic [ref=e51]:
+        - button "Start Creating" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - text: Start Creating
+          - img [ref=e56]
+        - button "Enter Studio" [ref=e58] [cursor=pointer]:
+          - img [ref=e59]
+          - generic [ref=e64]: Enter Studio
+    - generic [ref=e65]:
+      - generic [ref=e66]:
+        - generic [ref=e67]: Featured Agents
+        - heading "Your Creative Studio Agents" [level=2] [ref=e68]
+        - paragraph [ref=e69]: Sixteen powerful AI agents ready to elevate every aspect of your music production
+      - generic [ref=e70]:
+        - generic [ref=e71]:
+          - heading "Music Creation Agents 8" [level=3] [ref=e72]:
+            - text: Music Creation Agents
+            - generic [ref=e73]: "8"
+          - generic [ref=e74]:
+            - generic [ref=e75] [cursor=pointer]:
+              - generic [ref=e76]:
+                - img [ref=e78]
+                - generic [ref=e81]:
+                  - heading "Ghostwriter" [level=3] [ref=e82]
+                  - generic [ref=e83]: Music Creation
+                - paragraph [ref=e84]: AI lyricist creating bars on demand
+                - generic [ref=e85]:
+                  - generic [ref=e86]: Open
+                  - img [ref=e88]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Enter a topic, mood, and style. The AI will generate lyrics.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Topic: \"Summer Love\", Mood: \"Upbeat\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Write Lyrics
+            - generic [ref=e90] [cursor=pointer]:
+              - generic [ref=e91]:
+                - img [ref=e93]
+                - generic [ref=e95]:
+                  - heading "Beat Lab" [level=3] [ref=e96]
+                  - generic [ref=e97]: Music Creation
+                - paragraph [ref=e98]: Generate production ideas instantly
+                - generic [ref=e99]:
+                  - generic [ref=e100]: Open
+                  - img [ref=e102]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Describe the beat you want. The AI will suggest instruments and patterns.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Genre: \"Trap\", BPM: 140\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Make a Beat
+            - generic [ref=e104] [cursor=pointer]:
+              - generic [ref=e105]:
+                - img [ref=e107]
+                - generic [ref=e111]:
+                  - heading "Instrumentalist" [level=3] [ref=e112]
+                  - generic [ref=e113]: Music Creation
+                - paragraph [ref=e114]: AI-driven virtual session players
+                - generic [ref=e115]:
+                  - generic [ref=e116]: Open
+                  - img [ref=e118]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Select an instrument and style. The AI will generate a solo.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Instrument: \"Saxophone\", Style: \"Jazz\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Hire Player
+            - generic [ref=e120] [cursor=pointer]:
+              - generic [ref=e121]:
+                - img [ref=e123]
+                - generic [ref=e125]:
+                  - heading "Beat Architect" [level=3] [ref=e126]
+                  - generic [ref=e127]: Music Creation
+                - paragraph [ref=e128]: Advanced drum machine and rhythm generator
+                - generic [ref=e129]:
+                  - generic [ref=e130]: Open
+                  - img [ref=e132]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Choose a kit and pattern. The AI will generate a drum loop.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Kit: \"808\", Pattern: \"Complex\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Build Drums
+            - generic [ref=e134] [cursor=pointer]:
+              - generic [ref=e135]:
+                - img [ref=e137]
+                - generic [ref=e139]:
+                  - heading "Sample Master" [level=3] [ref=e140]
+                  - generic [ref=e141]: Music Creation
+                - paragraph [ref=e142]: Intelligent sampling and loop manipulation
+                - generic [ref=e143]:
+                  - generic [ref=e144]: Open
+                  - img [ref=e146]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Upload a sample. The AI will chop and rearrange it.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Mode: \"Chop\", Style: \"Boom Bap\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Flip Sample
+            - generic [ref=e148] [cursor=pointer]:
+              - generic [ref=e149]:
+                - img [ref=e151]
+                - generic [ref=e156]:
+                  - heading "Drop Zone" [level=3] [ref=e157]
+                  - generic [ref=e158]: Music Creation
+                - paragraph [ref=e159]: High-energy EDM and Trap drop generator
+                - generic [ref=e160]:
+                  - generic [ref=e161]: Open
+                  - img [ref=e163]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Select a genre and build-up length. The AI will generate a drop.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Genre: \"Dubstep\", Build: \"8 bars\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Create Drop
+            - generic [ref=e165] [cursor=pointer]:
+              - generic [ref=e166]:
+                - img [ref=e168]
+                - generic [ref=e170]:
+                  - heading "Score Editor" [level=3] [ref=e171]
+                  - generic [ref=e172]: Music Creation
+                - paragraph [ref=e173]: Precision scoring for film and media
+                - generic [ref=e174]:
+                  - generic [ref=e175]: Open
+                  - img [ref=e177]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Upload a video. The AI will generate a synchronized score.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Mood: \"Suspense\", Tempo: \"Slow\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Score Video
+            - generic [ref=e179] [cursor=pointer]:
+              - generic [ref=e180]:
+                - img [ref=e182]
+                - generic [ref=e187]:
+                  - heading "Vocal Architect" [level=3] [ref=e188]
+                  - generic [ref=e189]: Music Creation
+                - paragraph [ref=e190]: AI vocal synthesis and harmony generation
+                - generic [ref=e191]:
+                  - generic [ref=e192]: Open
+                  - img [ref=e194]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Enter lyrics and melody. The AI will generate vocals.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Voice: \"Female Pop\", Harmony: \"3-part\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Generate Vocals
+        - generic [ref=e196]:
+          - heading "Visual Identity Agents 3" [level=3] [ref=e197]:
+            - text: Visual Identity Agents
+            - generic [ref=e198]: "3"
+          - generic [ref=e199]:
+            - generic [ref=e200] [cursor=pointer]:
+              - generic [ref=e201]:
+                - img [ref=e203]
+                - generic [ref=e207]:
+                  - heading "Album Artist" [level=3] [ref=e208]
+                  - generic [ref=e209]: Visual Identity
+                - paragraph [ref=e210]: Create stunning album artwork with AI
+                - generic [ref=e211]:
+                  - generic [ref=e212]: Open
+                  - img [ref=e214]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Describe your album concept. The AI will generate cover art.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Concept: \"Neon City\", Style: \"Cyberpunk\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Design Cover
+            - generic [ref=e216] [cursor=pointer]:
+              - generic [ref=e217]:
+                - img [ref=e219]
+                - generic [ref=e222]:
+                  - heading "Video Creator" [level=3] [ref=e223]
+                  - generic [ref=e224]: Visual Identity
+                - paragraph [ref=e225]: Generate cinematic videos with Veo 3
+                - generic [ref=e226]:
+                  - generic [ref=e227]: Open
+                  - img [ref=e229]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Describe a scene or upload audio. The AI will generate a video.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Scene: \"Car chase in 80s style\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Create Video
+            - generic [ref=e231] [cursor=pointer]:
+              - generic [ref=e232]:
+                - img [ref=e234]
+                - generic [ref=e237]:
+                  - heading "Video Scorer" [level=3] [ref=e238]
+                  - generic [ref=e239]: Visual Identity
+                - paragraph [ref=e240]: Upload video and AI generates the soundtrack
+                - generic [ref=e241]:
+                  - generic [ref=e242]: Open
+                  - img [ref=e244]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Upload a video clip. The AI will generate background music.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Style: \"Lo-Fi\", Length: \"30s\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Score Clip
+        - generic [ref=e246]:
+          - heading "Career Growth Agents 6" [level=3] [ref=e247]:
+            - text: Career Growth Agents
+            - generic [ref=e248]: "6"
+          - generic [ref=e249]:
+            - generic [ref=e250] [cursor=pointer]:
+              - generic [ref=e251]:
+                - img [ref=e253]
+                - generic [ref=e257]:
+                  - heading "Trend Hunter" [level=3] [ref=e258]
+                  - generic [ref=e259]: Career Growth
+                - paragraph [ref=e260]: Discover what's hot right now
+                - generic [ref=e261]:
+                  - generic [ref=e262]: Open
+                  - img [ref=e264]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Select a genre or platform. The AI will analyze current trends.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Platform: \"TikTok\", Genre: \"Pop\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Find Trends
+            - generic [ref=e266] [cursor=pointer]:
+              - generic [ref=e267]:
+                - img [ref=e269]
+                - generic [ref=e274]:
+                  - heading "Collab Connect" [level=3] [ref=e275]
+                  - generic [ref=e276]: Career Growth
+                - paragraph [ref=e277]: Find the perfect collaborators
+                - generic [ref=e278]:
+                  - generic [ref=e279]: Open
+                  - img [ref=e281]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Describe your project. The AI will find suitable collaborators.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Looking for: \"Female Vocalist\", Genre: \"R&B\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Find Collabs
+            - generic [ref=e283] [cursor=pointer]:
+              - generic [ref=e284]:
+                - img [ref=e286]
+                - generic [ref=e291]:
+                  - heading "Release Manager" [level=3] [ref=e292]
+                  - generic [ref=e293]: Career Growth
+                - paragraph [ref=e294]: Strategic release planning AI
+                - generic [ref=e295]:
+                  - generic [ref=e296]: Open
+                  - img [ref=e298]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Enter your release date. The AI will create a marketing plan.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Release Date: \"Next Friday\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Plan Release
+            - generic [ref=e300] [cursor=pointer]:
+              - generic [ref=e301]:
+                - img [ref=e303]
+                - generic [ref=e305]:
+                  - heading "Mastering Lab" [level=3] [ref=e306]
+                  - generic [ref=e307]: Career Growth
+                - paragraph [ref=e308]: Professional AI audio engineering
+                - generic [ref=e309]:
+                  - generic [ref=e310]: Open
+                  - img [ref=e312]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Upload your track. The AI will master it for streaming.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Target: \"Spotify Loudness\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Master Track
+            - generic [ref=e314] [cursor=pointer]:
+              - generic [ref=e315]:
+                - img [ref=e317]
+                - generic [ref=e320]:
+                  - heading "Social Pilot" [level=3] [ref=e321]
+                  - generic [ref=e322]: Career Growth
+                - paragraph [ref=e323]: Automated social media growth
+                - generic [ref=e324]:
+                  - generic [ref=e325]: Open
+                  - img [ref=e327]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Connect your accounts. The AI will schedule and post content.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Goal: \"Grow Instagram Followers\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Grow Socials
+            - generic [ref=e329] [cursor=pointer]:
+              - generic [ref=e330]:
+                - img [ref=e332]
+                - generic [ref=e334]:
+                  - heading "Sound Designer" [level=3] [ref=e335]
+                  - generic [ref=e336]: Career Growth
+                - paragraph [ref=e337]: Custom synth patch and texture creation
+                - generic [ref=e338]:
+                  - generic [ref=e339]: Open
+                  - img [ref=e341]
+              - generic:
+                - generic:
+                  - generic:
+                    - heading "How to Use" [level=4]:
+                      - img
+                      - text: How to Use
+                    - paragraph: Describe a sound. The AI will generate a synth patch.
+                  - generic:
+                    - heading "Example" [level=4]:
+                      - img
+                      - text: Example
+                    - paragraph: "\"Sound: \"Retro Sci-Fi Pad\"\""
+                  - generic:
+                    - heading "Get Started" [level=4]:
+                      - img
+                      - text: Get Started
+                    - paragraph: Design Sound
+    - generic [ref=e343]:
+      - generic [ref=e344]:
+        - generic [ref=e345]: Pricing
+        - heading "Simple, Transparent Pricing" [level=2] [ref=e346]
+      - generic [ref=e347]:
+        - generic [ref=e348]:
+          - generic [ref=e349]:
+            - heading "Free" [level=3] [ref=e350]
+            - generic [ref=e352]: $0
+          - list [ref=e353]:
+            - listitem [ref=e354]:
+              - img [ref=e356]
+              - generic [ref=e358]: 3 uses per agent
+            - listitem [ref=e359]:
+              - img [ref=e361]
+              - generic [ref=e363]: 10s audio output
+            - listitem [ref=e364]:
+              - img [ref=e366]
+              - generic [ref=e368]: Basic features
+            - listitem [ref=e369]:
+              - img [ref=e371]
+              - generic [ref=e373]: Session access
+          - button "Start Free Trial" [ref=e374] [cursor=pointer]
+        - generic [ref=e375]:
+          - generic [ref=e376]: Most Popular
+          - generic [ref=e377]:
+            - heading "Creator" [level=3] [ref=e378]
+            - generic [ref=e379]:
+              - generic [ref=e380]: $4.99
+              - generic [ref=e381]: /month
+          - list [ref=e382]:
+            - listitem [ref=e383]:
+              - img [ref=e385]
+              - generic [ref=e387]: 100 uses/month
+            - listitem [ref=e388]:
+              - img [ref=e390]
+              - generic [ref=e392]: 30s audio output
+            - listitem [ref=e393]:
+              - img [ref=e395]
+              - generic [ref=e397]: Save creations
+            - listitem [ref=e398]:
+              - img [ref=e400]
+              - generic [ref=e402]: Priority processing
+          - button "Start Free Trial" [ref=e403] [cursor=pointer]
+        - generic [ref=e404]:
+          - generic [ref=e405]:
+            - heading "Studio Pro" [level=3] [ref=e406]
+            - generic [ref=e407]:
+              - generic [ref=e408]: $14.99
+              - generic [ref=e409]: /month
+          - list [ref=e410]:
+            - listitem [ref=e411]:
+              - img [ref=e413]
+              - generic [ref=e415]: Unlimited uses
+            - listitem [ref=e416]:
+              - img [ref=e418]
+              - generic [ref=e420]: 60s audio output
+            - listitem [ref=e421]:
+              - img [ref=e423]
+              - generic [ref=e425]: All Creator features
+            - listitem [ref=e426]:
+              - img [ref=e428]
+              - generic [ref=e430]: API access
+            - listitem [ref=e431]:
+              - img [ref=e433]
+              - generic [ref=e435]: Team collab
+          - button "Start Free Trial" [ref=e436] [cursor=pointer]
+        - generic [ref=e437]:
+          - generic [ref=e438]: Limited Time
+          - generic [ref=e439]:
+            - heading "Lifetime Access" [level=3] [ref=e440]
+            - generic [ref=e441]:
+              - generic [ref=e442]: $99
+              - generic [ref=e443]: one-time
+          - list [ref=e444]:
+            - listitem [ref=e445]:
+              - img [ref=e447]
+              - generic [ref=e449]: Unlimited everything forever
+            - listitem [ref=e450]:
+              - img [ref=e452]
+              - generic [ref=e454]: Future updates included
+            - listitem [ref=e455]:
+              - img [ref=e457]
+              - generic [ref=e459]: Priority Support
+            - listitem [ref=e460]:
+              - img [ref=e462]
+              - generic [ref=e464]: Commercial License
+            - listitem [ref=e465]:
+              - img [ref=e467]
+              - generic [ref=e469]: Founder Badge
+          - button "Get Lifetime Access" [ref=e470] [cursor=pointer]
+    - generic [ref=e471]:
+      - generic [ref=e472]:
+        - heading "See It In Action" [level=2] [ref=e473]
+        - paragraph [ref=e474]: Generate a viral video pitch in seconds. Try it now.
+      - generic [ref=e475]:
+        - generic [ref=e476]:
+          - heading "Instant Pitch Generator" [level=3] [ref=e477]:
+            - img [ref=e478]
+            - text: Instant Pitch Generator
+          - paragraph [ref=e481]: Create a 7-second viral hook in one click.
+        - generic [ref=e482]:
+          - generic [ref=e483]:
+            - img [ref=e485]
+            - generic [ref=e489]:
+              - img [ref=e490]
+              - paragraph [ref=e493]: Your viral video starts here
+          - generic [ref=e494]:
+            - img [ref=e496]
+            - img [ref=e503]
+        - generic [ref=e507]:
+          - textbox "Song topic (e.g. Heartbreak)" [ref=e508]: My new summer anthem
+          - button "Go" [ref=e509] [cursor=pointer]:
+            - img [ref=e510]
+            - text: Go
+    - generic [ref=e512]:
+      - heading "Ready to create something amazing?" [level=2] [ref=e513]
+      - button "Launch Studio Now" [ref=e514] [cursor=pointer]:
+        - generic [ref=e515]: Launch Studio Now
+        - img [ref=e516]
+    - contentinfo [ref=e518]:
+      - generic [ref=e519]:
+        - generic [ref=e520]:
+          - img [ref=e521]
+          - generic [ref=e524]: STUDIO AGENTS AI
+        - generic [ref=e525]:
+          - button "Privacy Policy" [ref=e526] [cursor=pointer]
+          - button "Terms of Service" [ref=e527] [cursor=pointer]
+          - button "Restored OS Showcase" [ref=e528] [cursor=pointer]
+        - paragraph [ref=e529]: © 2025 studioagentsai.com • Built for the next generation of creators.
+    - button "Launch Studio" [ref=e531] [cursor=pointer]:
+      - generic [ref=e532]: Launch Studio
+      - img [ref=e533]
+    - generic [ref=e536]:
+      - paragraph [ref=e537]: We use cookies to enhance your creative experience and analyze site traffic.
+      - button "Accept" [ref=e539] [cursor=pointer]
+  - iframe [ref=e540]:
+    
+```

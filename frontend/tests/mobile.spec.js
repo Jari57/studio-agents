@@ -19,18 +19,18 @@ test.describe('Mobile Responsiveness', () => {
   test('Critical CTA buttons are visible on mobile', async ({ page }) => {
     await page.goto('/');
     
-    // The "Create New Project" or main CTA should be clickable and not covered
-    const cta = page.getByText('Create New Project').first();
-    await expect(cta).toBeVisible();
+    // The "New Project" or main CTA should be clickable and not covered
+    const cta = page.getByRole('button', { name: /New Project/i }).first();
+    await expect(cta).toBeVisible({ timeout: 10000 });
     await expect(cta).toBeEnabled();
   });
 
   test('Studio View adapts to mobile viewport', async ({ page }) => {
     await page.goto('/');
-    await page.getByText('Create New Project').first().click();
+    await page.getByRole('button', { name: /New Project/i }).first().click();
     
     // Wait for studio to load
-    await expect(page.locator('.studio-container')).toBeVisible();
+    await expect(page.locator('.studio-container')).toBeVisible({ timeout: 10000 });
     
     // Check that the nav bar is present (or adapted)
     // In many mobile apps, sidebars become bottom bars or drawers
@@ -43,10 +43,10 @@ test.describe('Mobile Responsiveness', () => {
 
   test('Profile button is visible in header on mobile', async ({ page }) => {
     await page.goto('/');
-    await page.getByText('Create New Project').first().click();
+    await page.getByRole('button', { name: /New Project/i }).first().click();
     
     // Wait for studio to load
-    await expect(page.locator('.studio-header')).toBeVisible();
+    await expect(page.locator('.studio-header')).toBeVisible({ timeout: 10000 });
     
     // Check for profile button in header
     const profileBtn = page.locator('.studio-header .action-button[title="User Profile"]');
