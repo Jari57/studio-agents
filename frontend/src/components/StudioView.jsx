@@ -2020,28 +2020,28 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   </div>
 
                   <div className="dashboard-grid">
-                    {/* Stats Section */}
-                    <section className="dashboard-card stats-card">
+                    {/* Brand Strategy Section */}
+                    <section className="dashboard-card brand-strategy-card">
                       <div className="card-header">
-                        <h3><BarChart3 size={18} /> Performance Overview</h3>
-                        <PieChart size={18} className="text-muted" />
+                        <h3><Target size={18} /> Build Your Legacy</h3>
+                        <Zap size={18} className="text-yellow-400" />
                       </div>
-                      <div className="stats-grid">
-                        <div className="stat-item">
-                          <span className="stat-value">{managedAgents.filter(a => a.visible).length}</span>
-                          <span className="stat-label">Active Agents</span>
+                      <div className="strategy-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
+                          <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-purple)' }}>Output</h4>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Don't just make music, build a brand.</p>
                         </div>
-                        <div className="stat-item">
-                          <span className="stat-value">{projects.length}</span>
-                          <span className="stat-label">Creations</span>
+                        <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
+                          <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-cyan)' }}>Hit Ready</h4>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Production quality that stands out.</p>
                         </div>
-                        <div className="stat-item">
-                          <span className="stat-value">42</span>
-                          <span className="stat-label">Social Posts</span>
+                        <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
+                          <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-pink)' }}>Viral Videos</h4>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Visuals designed for social impact.</p>
                         </div>
-                        <div className="stat-item">
-                          <span className="stat-value">8.2k</span>
-                          <span className="stat-label">Total Reach</span>
+                        <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
+                          <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-orange)' }}>Marketing</h4>
+                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Content strategy that converts.</p>
                         </div>
                       </div>
                     </section>
