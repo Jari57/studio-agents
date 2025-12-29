@@ -1869,36 +1869,17 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   )}
 
                   {/* Audience Overview (Simulated) */}
-                  <div className="audience-overview" style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(4, 1fr)', 
-                    gap: '16px', 
-                    marginBottom: '24px' 
-                  }}>
+                  <div className="audience-overview">
                     {[
                       { label: 'Monthly Listeners', value: performanceStats.listeners.toLocaleString(), icon: Users, color: 'var(--color-blue)' },
                       { label: 'Total Streams', value: performanceStats.streams.toLocaleString(), icon: PlayCircle, color: 'var(--color-emerald)' },
                       { label: 'Followers', value: performanceStats.followers.toLocaleString(), icon: Crown, color: 'var(--color-purple)' },
                       { label: 'Growth', value: performanceStats.growth, icon: TrendingUp, color: 'var(--color-cyan)' }
                     ].map((stat, i) => (
-                      <div key={i} style={{ 
-                        background: 'var(--color-bg-secondary)', 
-                        padding: '16px', 
-                        borderRadius: '12px', 
-                        border: '1px solid var(--border-color)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '16px'
-                      }}>
-                        <div style={{ 
-                          width: '40px', 
-                          height: '40px', 
-                          borderRadius: '8px', 
+                      <div key={i} className="audience-stat-card">
+                        <div className="audience-stat-icon" style={{ 
                           background: `${stat.color}20`, 
-                          color: stat.color,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
+                          color: stat.color
                         }}>
                           <stat.icon size={20} />
                         </div>
@@ -3779,6 +3760,36 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               </div>
             </div>
 
+            <div className="profile-section" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid var(--border-color)' }}>
+              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={20} /> Preferences</h3>
+              <div className="preferences-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="preference-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {theme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
+                    <div>
+                      <div style={{ fontWeight: '600' }}>Appearance</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</div>
+                    </div>
+                  </div>
+                  <button 
+                    className="btn-sm" 
+                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    style={{ 
+                      background: 'transparent', 
+                      border: '1px solid var(--border-color)', 
+                      color: 'var(--text-primary)', 
+                      padding: '6px 12px', 
+                      borderRadius: '6px', 
+                      cursor: 'pointer',
+                      minWidth: '100px'
+                    }}
+                  >
+                    Switch to {theme === 'dark' ? 'Light' : 'Dark'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button className="cta-button-secondary" onClick={() => setActiveTab('mystudio')}>Cancel</button>
               <button className="cta-button-premium" onClick={() => { 
@@ -4253,13 +4264,6 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             >
               <Zap size={14} className="text-yellow-400" fill="currentColor" />
               <span>{userProfile.credits} Credits</span>
-            </button>
-            <button 
-              className="action-button secondary theme-toggle haptic-press"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-            >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             <button 
               className="action-button secondary haptic-press"

@@ -8755,3 +8755,49 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   }
 }
 
+
+/* --- Audience Overview Responsive Fixes --- */
+.audience-overview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.audience-stat-card {
+  background: var(--color-bg-secondary);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.audience-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1024px) {
+  .audience-overview {
+    grid-template-columns: repeat(2, 1fr); /* 2 columns on tablet/mobile */
+  }
+}
+
+@media (max-width: 480px) {
+  .audience-overview {
+    grid-template-columns: 1fr; /* Stack vertically on small phones */
+    gap: 12px;
+  }
+  
+  .audience-stat-card {
+    padding: 12px;
+  }
+}
+
