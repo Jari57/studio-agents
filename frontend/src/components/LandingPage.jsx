@@ -154,88 +154,52 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             ))}
           </div>
 
-          {/* CTA Buttons Grid */}
+          {/* CTA Buttons Grid - Simplified to 2 clear options */}
           <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '400px' }}>
             
-            {/* 1. Create New Project */}
+            {/* Primary CTA: Start Creating - Goes to project setup */}
             <button
               onClick={() => onEnter(true)}
-              className="glass-button haptic-press"
+              className="cta-button-primary haptic-press"
               style={{ 
                 width: '100%', 
-                justifyContent: 'flex-start', 
-                padding: '16px 24px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                justifyContent: 'center', 
+                padding: '18px 24px',
                 borderRadius: '16px',
-                color: 'white',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '16px'
+                gap: '12px',
+                fontSize: '1.1rem',
+                fontWeight: '700'
               }}
             >
-              <div style={{ background: 'rgba(168, 85, 247, 0.2)', padding: '8px', borderRadius: '50%', color: 'var(--color-purple)' }}>
-                <Plus size={20} />
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <span style={{ display: 'block', fontWeight: '600', fontSize: '1rem' }}>Create New Project</span>
-                <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Launch the Wizard</span>
-              </div>
+              <Sparkles size={22} />
+              Start Creating
+              <ArrowRight size={20} />
             </button>
 
-            {/* 2. Open Existing Project */}
-            <button
-              onClick={() => onEnter(false)}
-              className="glass-button haptic-press"
-              style={{ 
-                width: '100%', 
-                justifyContent: 'flex-start', 
-                padding: '16px 24px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '16px',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px'
-              }}
-            >
-              <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '8px', borderRadius: '50%', color: 'white' }}>
-                <Folder size={20} />
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <span style={{ display: 'block', fontWeight: '600', fontSize: '1rem' }}>Open Existing Project</span>
-                <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Continue where you left off</span>
-              </div>
-            </button>
-
-            {/* 3. Quick Start (Skip Setup) */}
+            {/* Secondary: Enter Studio - For returning users */}
             <button
               onClick={() => {
-                localStorage.setItem('studio_onboarding_v2', 'true'); // Force skip onboarding
+                localStorage.setItem('studio_onboarding_v2', 'true'); // Skip onboarding for returning users
                 onEnter(false);
               }}
               className="glass-button haptic-press"
               style={{ 
                 width: '100%', 
-                justifyContent: 'flex-start', 
+                justifyContent: 'center', 
                 padding: '16px 24px',
                 background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
                 borderRadius: '16px',
                 color: 'white',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '16px'
+                gap: '12px'
               }}
             >
-              <div style={{ background: 'rgba(34, 211, 238, 0.2)', padding: '8px', borderRadius: '50%', color: 'var(--color-cyan)' }}>
-                <Zap size={20} />
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <span style={{ display: 'block', fontWeight: '600', fontSize: '1rem' }}>Quick Start</span>
-                <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Skip setup & explore agents</span>
-              </div>
+              <LayoutGrid size={20} />
+              <span style={{ fontWeight: '600', fontSize: '1rem' }}>Enter Studio</span>
             </button>
 
           </div>

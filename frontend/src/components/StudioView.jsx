@@ -299,8 +299,17 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   };
 
   // Project Wizard State
-  const [showProjectWizard, setShowProjectWizard] = useState(startWizard || false);
+  // Note: If startWizard is true (from landing page), we show the choice modal instead
+  // so users always get the choice between wizard and manual creation
+  const [showProjectWizard, setShowProjectWizard] = useState(false);
   const [projectWizardStep, setProjectWizardStep] = useState(1);
+  
+  // If startWizard prop is true, open the project choice modal on mount
+  useEffect(() => {
+    if (startWizard) {
+      setShowProjectChoiceModal(true);
+    }
+  }, [startWizard]);
   const [systemStatus, setSystemStatus] = useState({ status: 'healthy', message: 'All Systems Operational' });
   
   // System Health Check
@@ -383,9 +392,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     setShowProjectWizard(false);
     setProjectWizardStep(1);
     
-    // Trigger Welcome Tour after creation
-    setShowOnboarding(true);
-    setOnboardingStep(0);
+    // Project created successfully - go straight to dashboard
+    // (User already completed onboarding before reaching wizard)
 
     setNewProjectData({ 
       name: '', 
@@ -432,8 +440,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   const handleManualCreate = () => {
     handleSkipWizard();
-    setShowOnboarding(true);
-    setOnboardingStep(0);
+    // Go straight to studio - user already saw onboarding if they were a new user
   };
 
   const handleAddAgent = (agent) => {
