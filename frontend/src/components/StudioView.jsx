@@ -3654,7 +3654,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-cyan)', marginBottom: '4px' }}>{new Set(projects.map(p => p.agent)).size}</h4>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Agents Used</span>
               </div>
-              <div className="stat-card" style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+              <div 
+                className="stat-card haptic-press" 
+                onClick={() => setShowCreditsModal(true)}
+                style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center', cursor: 'pointer' }}
+              >
                 <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-orange)', marginBottom: '4px' }}>{userProfile.credits}</h4>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Credits Left</span>
               </div>
@@ -4244,27 +4248,6 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             {selectedAgent ? selectedAgent.name : (activeTab === 'mystudio' ? 'Dashboard' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1))}
           </h2>
           <div className="studio-header-actions">
-            <button 
-              className="credit-counter haptic-press" 
-              onClick={() => setShowCreditsModal(true)}
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '6px', 
-                background: 'rgba(255,255,255,0.1)', 
-                padding: '6px 12px', 
-                borderRadius: '20px', 
-                fontSize: '12px', 
-                fontWeight: '600',
-                marginRight: '8px',
-                border: '1px solid rgba(255,255,255,0.1)',
-                cursor: 'pointer',
-                color: 'var(--text-primary)'
-              }}
-            >
-              <Zap size={14} className="text-yellow-400" fill="currentColor" />
-              <span>{userProfile.credits} Credits</span>
-            </button>
             <button 
               className="action-button secondary haptic-press"
               onClick={onBack}
