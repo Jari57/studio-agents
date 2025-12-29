@@ -403,7 +403,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     setActiveTab('mystudio');
   };
 
-  const handleSkipWizard = () => {
+  const handleSkipWizard = (targetTab) => {
     const newProject = {
       id: Date.now(),
       name: `Untitled Project ${projects.length + 1}`,
@@ -422,7 +422,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     setSelectedProject(newProject);
     setShowProjectWizard(false);
     setProjectWizardStep(1);
-    setActiveTab('mystudio');
+    
+    // Default to 'mystudio' if targetTab is not a string (e.g. event object)
+    const tabToSet = (typeof targetTab === 'string') ? targetTab : 'mystudio';
+    setActiveTab(tabToSet);
     
     handleTextToVoice(`Quick project created.`);
   };
@@ -5213,7 +5216,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                 <button 
                   className="btn-text" 
-                  onClick={handleSkipWizard}
+                  onClick={() => handleSkipWizard('agents')}
                   style={{ 
                     fontSize: '0.9rem', 
                     color: 'var(--text-secondary)', 
