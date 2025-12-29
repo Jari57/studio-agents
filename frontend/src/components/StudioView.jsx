@@ -1481,26 +1481,26 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (activeTab === 'project_canvas' && !selectedAgent) {
       if (!selectedProject) return <div className="p-8 text-center">No project selected</div>;
       return (
-        <div className="project-canvas-view animate-fadeIn" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-          <div className="canvas-header" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-            <button onClick={() => setActiveTab('hub')} className="btn-icon-circle" style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+        <div className="project-canvas-view animate-fadeIn">
+          <div className="canvas-header">
+            <button onClick={() => setActiveTab('hub')} className="btn-icon-circle back-btn">
               <ArrowLeft size={20} />
             </button>
             <div>
-              <h1 style={{ fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>{selectedProject.name}</h1>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                <span className="badge" style={{ background: 'var(--color-purple)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem' }}>{selectedProject.category}</span>
-                <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Created {selectedProject.date}</span>
+              <h1 className="project-title">{selectedProject.name}</h1>
+              <div className="project-meta">
+                <span className="badge">{selectedProject.category}</span>
+                <span className="date">Created {selectedProject.date}</span>
               </div>
             </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '12px' }}>
+            <div className="header-actions">
               <button className="btn-pill primary" onClick={() => setActiveTab('agents')}>
                 <Zap size={16} /> Open Studio
               </button>
             </div>
           </div>
 
-          <div className="canvas-grid" style={{ display: 'grid', gridTemplateColumns: '300px 1fr 300px', gap: '24px' }}>
+          <div className="canvas-grid">
             <div className="canvas-column">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Users size={18} className="text-purple" /> The Team</h3>
               <div className="team-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1600,7 +1600,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
             <div className="canvas-column">
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Book size={18} className="text-cyan" /> Narrative & Vision</h3>
-              <div className="narrative-editor" style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '16px', padding: '20px', height: '100%', minHeight: '400px' }}>
+              <div className="narrative-editor">
                 <textarea 
                   value={selectedProject.description}
                   onChange={(e) => {
@@ -1608,7 +1608,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     setSelectedProject(updated);
                     setProjects(projects.map(p => p.id === updated.id ? updated : p));
                   }}
-                  style={{ width: '100%', height: '100%', background: 'transparent', border: 'none', color: 'var(--text-primary)', resize: 'none', fontSize: '1rem', lineHeight: '1.6', outline: 'none' }}
+                  className="narrative-textarea"
                   placeholder="Describe your project vision here..."
                 />
               </div>
