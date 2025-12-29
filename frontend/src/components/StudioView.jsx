@@ -3014,6 +3014,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   </button>
                 ))}
               </div>
+              <button className="btn-pill primary" onClick={() => setShowProjectChoiceModal(true)}>
+                <Plus size={16} /> New Project
+              </button>
             </div>
 
             {filteredHubItems.length === 0 ? (
