@@ -6391,30 +6391,56 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   color: #9ca3af;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
   cursor: pointer;
   user-select: none;
-  position: relative; /* Ensure absolute children are positioned relative to item */
+  position: relative;
+  min-width: 56px;
+  min-height: 56px;
+  padding: 8px 4px;
+  border-radius: 12px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.bottom-nav-item:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .bottom-nav-item.active {
   color: var(--color-purple);
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.bottom-nav-item.create-btn {
+  background: transparent;
+  min-height: auto;
+}
+
+.bottom-nav-item.create-btn:active {
+  transform: scale(0.95);
+  background: transparent;
 }
 
 .bottom-nav-item svg {
-  transition: transform 0.2s;
+  transition: transform 0.15s ease;
 }
 
 .bottom-nav-item.active svg {
-  transform: translateY(-2px);
+  transform: scale(1.1);
 }
 
+/* Improved haptic feedback for all interactive elements */
 .haptic-press {
   transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .haptic-press:active {

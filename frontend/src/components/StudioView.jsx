@@ -3,6 +3,7 @@ import {
   Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail
 } from 'lucide-react';
 import VideoPitchDemo from './VideoPitchDemo';
+import QuickWorkflow from './QuickWorkflow';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
@@ -25,52 +26,40 @@ import { AGENTS, BACKEND_URL } from '../constants';
 
 // --- CONSTANTS FOR ONBOARDING & SUPPORT ---
 
+// Simplified 4-step onboarding flow
 const onboardingSteps = [
   {
     id: 'welcome',
     title: "Welcome to The Studio",
-    content: "This is your creative control room—16 AI agents built to give independent creators the tools that used to require a label deal.",
-    detail: "Every agent in The Studio was designed to solve a real problem creators face: finishing lyrics at 3 AM with no co-writer, understanding how A&Rs evaluate demos, finding samples no one else has heard. Take 2 minutes to learn how this works, and you'll get 10x more value out of every session."
+    content: "Your creative control room—16 AI agents that give independent creators the tools that used to require a label deal.",
+    detail: "Take 60 seconds to set up your workspace, and you'll get 10x more value out of every session."
   },
   {
-    id: 'profile',
-    title: "Claim Your Creator Profile",
-    content: "Tell us who you are so we can tailor the studio to your sound.",
-    detail: "Your stage name and genre help our agents generate content that actually sounds like you. You can change this anytime."
+    id: 'setup',
+    title: "Quick Setup",
+    content: "Tell us who you are and what you're working on.",
+    detail: "This helps us tailor the studio to your sound and pre-select the right agents for your goal."
   },
   {
-    id: 'philosophy',
-    title: "How This Works",
-    content: "These aren't magic buttons. They're creative partners.",
-    detail: "The best creators use AI as a starting point, not an ending point. Generate ideas, get unstuck, explore directions you wouldn't have considered—then make it yours. The goal isn't to create WITH the AI. It's to create FASTER and DEEPER because of it. Your voice stays your voice. The tools just remove the friction."
+    id: 'agents',
+    title: "Your AI Team",
+    content: "Based on your goal, we've selected these agents.",
+    detail: "You can always add or remove agents later. These are just your starting lineup."
   },
   {
-    id: 'paths',
-    title: "What Brings You Here?",
-    content: "Choose your path to get personalized recommendations.",
-    detail: "Different goals require different tools. Tell us what you're trying to accomplish today, and we'll show you exactly where to start."
-  },
-  {
-    id: 'recommendation',
-    title: "Your Recommended Starting Point",
-    content: "Based on your goal, here's where to begin.",
-    detail: "This recommendation is based on how other creators with similar goals have found success. But remember—all 16 agents are available to you. Explore freely."
-  },
-  {
-    id: 'action',
-    title: "Ready to Create?",
-    content: "Let's set up your first project.",
-    detail: "We'll configure your workspace with the right agents for your goal. You can always change this later."
+    id: 'ready',
+    title: "You're All Set!",
+    content: "Your studio is ready. Start creating.",
+    detail: "Explore the agents tab, or jump straight into your first project."
   }
 ];
 
-const pathOptions = [
-  { id: 'write', label: "I need to write", icon: Feather, description: "Lyrics, hooks, verses, songs", recommended: ['ghost'] },
-  { id: 'produce', label: "I need production help", icon: Disc, description: "Beats, samples, sounds", recommended: ['beat'] },
-  { id: 'grow', label: "I need to grow my audience", icon: Hash, description: "Content, trends, virality", recommended: ['video-creator', 'trend', 'social'] },
-  { id: 'compete', label: "I need to sharpen my skills", icon: Flame, description: "Battle, freestyle, punchlines", recommended: ['ghost'] },
-  { id: 'brand', label: "I need visual identity", icon: ImageIcon, description: "Album art, aesthetics", recommended: ['album'] },
-  { id: 'explore', label: "I just want to explore", icon: Sparkles, description: "Show me everything", recommended: null }
+const goalOptions = [
+  { id: 'write', label: "Write songs", icon: Feather, agents: ['ghost', 'beat'] },
+  { id: 'produce', label: "Make beats", icon: Disc, agents: ['beat', 'sample'] },
+  { id: 'grow', label: "Grow my audience", icon: Hash, agents: ['video-creator', 'trend', 'social'] },
+  { id: 'brand', label: "Build my brand", icon: ImageIcon, agents: ['album', 'video-creator'] },
+  { id: 'explore', label: "Just exploring", icon: Sparkles, agents: [] }
 ];
 
 const agentDetails = {
@@ -131,7 +120,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (hash.startsWith('#/studio/')) {
       return hash.split('/')[2];
     }
-    return 'mystudio';
+    return 'agents';
   };
 
   const [activeTab, _setActiveTab] = useState(getTabFromHash());
@@ -254,6 +243,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   }, [userPlan]);
   const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
   const [showAddAgentModal, setShowAddAgentModal] = useState(false);
+  const [quickWorkflowAgent, setQuickWorkflowAgent] = useState(null); // Streamlined agent workflow modal
   const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
   const [autoStartVoice, setAutoStartVoice] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -267,51 +257,66 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
 
   // Get recommendation based on selected path
-  const getRecommendation = () => {
-    if (!selectedPath) return null;
-    const path = pathOptions.find(p => p.id === selectedPath);
-    if (!path || !path.recommended) return null;
-    return path.recommended[0]; // Primary recommendation
+  const getRecommendedAgents = () => {
+    if (!selectedPath) return [];
+    const goal = goalOptions.find(g => g.id === selectedPath);
+    return goal?.agents || [];
   };
 
   // Check for first visit
   useEffect(() => {
-    const hasSeenOnboarding = localStorage.getItem('studio_onboarding_v2');
+    const hasSeenOnboarding = localStorage.getItem('studio_onboarding_v3');
     if (!hasSeenOnboarding && !startWizard) {
       setShowOnboarding(true);
     }
   }, [startWizard]);
 
-  const completeOnboarding = () => {
-    localStorage.setItem('studio_onboarding_v2', 'true');
+  const completeOnboarding = (launchRecommended = false) => {
+    localStorage.setItem('studio_onboarding_v3', 'true');
     setShowOnboarding(false);
     
-    // If user is not logged in, prompt for login/signup to save profile
+    // Create project directly from onboarding data
+    const recommendedAgents = getRecommendedAgents();
+    const agentObjects = recommendedAgents.map(id => AGENTS.find(a => a.id === id)).filter(Boolean);
+    
+    const newProject = {
+      id: Date.now(),
+      name: userProfile.stageName ? `${userProfile.stageName}'s Project` : `Project ${projects.length + 1}`,
+      category: selectedPath === 'write' ? 'pro' : selectedPath === 'produce' ? 'vybing' : selectedPath === 'grow' ? 'social' : 'mixtapes',
+      description: `Created from ${selectedPath || 'explore'} goal`,
+      agents: agentObjects,
+      workflow: 'custom',
+      date: new Date().toLocaleDateString(),
+      status: 'Active',
+      progress: 0,
+      assets: [],
+      context: {}
+    };
+
+    setProjects(prev => [newProject, ...prev]);
+    setSelectedProject(newProject);
+    
+    // Prompt login if not logged in
     if (!isLoggedIn) {
       setShowLoginModal(true);
     }
     
-    // Transition to Project Wizard
-    setShowProjectChoiceModal(true);
+    // Take user to agents tab (agent-first experience)
+    setActiveTab('agents');
     
-    // Pre-select category based on path if possible
-    if (selectedPath) {
-      let category = '';
-      if (selectedPath === 'write' || selectedPath === 'compete') category = 'pro';
-      if (selectedPath === 'produce') category = 'vybing';
-      if (selectedPath === 'grow' || selectedPath === 'brand') category = 'social';
-      if (selectedPath === 'explore') category = 'mixtapes';
-      
-      if (category) {
-        setNewProjectData(prev => ({ ...prev, category }));
-      }
+    // If launching recommended agent, open it directly
+    if (launchRecommended && agentObjects.length > 0) {
+      setSelectedAgent(agentObjects[0]);
+      handleTextToVoice(`Welcome! Launching ${agentObjects[0].name} to get you started.`);
+    } else {
+      handleTextToVoice('Welcome to your studio. Pick an agent to start creating.');
     }
   };
 
   const handleSkipOnboarding = () => {
-    localStorage.setItem('studio_onboarding_v2', 'true');
+    localStorage.setItem('studio_onboarding_v3', 'true');
     setShowOnboarding(false);
-    // Do not open project wizard, just let them explore
+    // Just let them explore
   };
 
   // Project Wizard State
@@ -457,6 +462,39 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const handleManualCreate = () => {
     handleSkipWizard();
     // Go straight to studio - user already saw onboarding if they were a new user
+  };
+
+  // QuickWorkflow handlers - centralized project save flow
+  const handleSaveAssetToProject = (projectId, asset) => {
+    setProjects(prev => prev.map(p => {
+      if (p.id === projectId) {
+        return {
+          ...p,
+          assets: [...(p.assets || []), asset],
+          progress: Math.min(100, (p.progress || 0) + 10)
+        };
+      }
+      return p;
+    }));
+  };
+
+  const handleCreateProjectWithAsset = (projectName, asset) => {
+    const newProject = {
+      id: Date.now(),
+      name: projectName,
+      category: 'pro',
+      description: `Created from ${asset.agentName}`,
+      agents: [AGENTS.find(a => a.id === asset.agent)].filter(Boolean),
+      workflow: 'custom',
+      date: new Date().toLocaleDateString(),
+      status: 'Active',
+      progress: 10,
+      assets: [asset],
+      context: {}
+    };
+    
+    setProjects(prev => [newProject, ...prev]);
+    setSelectedProject(newProject);
   };
 
   const handleAddAgent = (agent) => {
@@ -3188,19 +3226,18 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   <div className="agent-grid-quick-actions" style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'center' }}>
                     <button 
                       className="quick-action-icon-btn"
-                      title="Voice Command"
+                      title="Quick Generate"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (agent.isPro && !isLoggedIn) {
                           setShowLoginModal(true);
                         } else {
-                          setSelectedAgent(agent);
-                          setAutoStartVoice(true);
+                          setQuickWorkflowAgent(agent); // Quick workflow modal
                         }
                       }}
                     >
-                      <Mic size={14} />
-                      <span>Voice</span>
+                      <Zap size={14} />
+                      <span>Quick</span>
                     </button>
                     <button 
                       className="quick-action-icon-btn"
@@ -4554,6 +4591,186 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             </div>
           </div>
         );
+
+      case 'more':
+        // Mobile "More" menu with all navigation options
+        const moreMenuItems = [
+          { id: 'activity', icon: MessageSquare, label: 'Activity Wall', desc: 'Community feed & updates', color: 'var(--color-purple)' },
+          { id: 'news', icon: Globe, label: 'Industry News', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
+          { id: 'resources', icon: Book, label: 'Resources', desc: 'Guides & tutorials', color: 'var(--color-orange)' },
+          { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-pink)' },
+          { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-emerald)' },
+          { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-yellow)' },
+        ];
+
+        return (
+          <div className="more-menu-view animate-fadeInUp" style={{ padding: '20px' }}>
+            <h2 style={{ marginBottom: '24px', fontSize: '1.5rem' }}>More Options</h2>
+            
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(2, 1fr)', 
+              gap: '16px',
+              marginBottom: '32px'
+            }}>
+              {moreMenuItems.map(item => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    role="button"
+                    tabIndex={0}
+                    style={{
+                      background: 'var(--card-bg)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '16px',
+                      padding: '20px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && setActiveTab(item.id)}
+                  >
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '12px',
+                      background: `${item.color}20`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: item.color
+                    }}>
+                      <Icon size={24} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '1rem', marginBottom: '4px' }}>{item.label}</h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>{item.desc}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Quick Actions */}
+            <div style={{ 
+              background: 'var(--card-bg)', 
+              borderRadius: '16px', 
+              padding: '20px',
+              border: '1px solid var(--border-color)'
+            }}>
+              <h3 style={{ marginBottom: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Quick Actions</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <button
+                  onClick={() => setShowProjectChoiceModal(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 16px',
+                    background: 'rgba(168, 85, 247, 0.1)',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    borderRadius: '12px',
+                    color: 'var(--color-purple)',
+                    cursor: 'pointer',
+                    fontSize: '0.95rem',
+                    fontWeight: '500'
+                  }}
+                >
+                  <Plus size={20} />
+                  Create New Project
+                </button>
+                
+                {!isLoggedIn ? (
+                  <button
+                    onClick={() => setShowLoginModal(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '14px 16px',
+                      background: 'rgba(6, 182, 212, 0.1)',
+                      border: '1px solid rgba(6, 182, 212, 0.3)',
+                      borderRadius: '12px',
+                      color: 'var(--color-cyan)',
+                      cursor: 'pointer',
+                      fontSize: '0.95rem',
+                      fontWeight: '500'
+                    }}
+                  >
+                    <User size={20} />
+                    Sign In / Create Account
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { auth && signOut(auth); }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '14px 16px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: '12px',
+                      color: 'var(--color-red)',
+                      cursor: 'pointer',
+                      fontSize: '0.95rem',
+                      fontWeight: '500'
+                    }}
+                  >
+                    <LogOut size={20} />
+                    Sign Out
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Theme Toggle */}
+            <div style={{ 
+              marginTop: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              background: 'var(--card-bg)',
+              borderRadius: '12px',
+              border: '1px solid var(--border-color)'
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {theme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
+                <span>Dark Mode</span>
+              </span>
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                style={{
+                  width: '50px',
+                  height: '28px',
+                  borderRadius: '14px',
+                  background: theme === 'dark' ? 'var(--color-purple)' : 'var(--border-color)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'background 0.2s'
+                }}
+              >
+                <div style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '50%',
+                  background: 'white',
+                  position: 'absolute',
+                  top: '3px',
+                  left: theme === 'dark' ? '25px' : '3px',
+                  transition: 'left 0.2s'
+                }} />
+              </button>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -5615,41 +5832,67 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
         {/* Mobile Bottom Navigation */}
         <nav className="bottom-nav">
-          <div className={`bottom-nav-item haptic-press ${activeTab === 'marketing' ? 'active' : ''}`} onClick={() => { setActiveTab('marketing'); setSelectedAgent(null); }}>
-            <TrendingUp size={24} />
-            <span>About</span>
-          </div>
-          <div className={`bottom-nav-item haptic-press ${activeTab === 'agents' ? 'active' : ''}`} onClick={() => { setActiveTab('agents'); setSelectedAgent(null); }}>
-            <LayoutGrid size={24} />
+          <div 
+            className={`bottom-nav-item ${activeTab === 'agents' ? 'active' : ''}`} 
+            onClick={() => { setActiveTab('agents'); setSelectedAgent(null); }}
+            role="button"
+            tabIndex={0}
+          >
+            <LayoutGrid size={22} />
             <span>Agents</span>
           </div>
           
+          <div 
+            className={`bottom-nav-item ${activeTab === 'hub' ? 'active' : ''}`} 
+            onClick={() => { setActiveTab('hub'); setSelectedAgent(null); }}
+            role="button"
+            tabIndex={0}
+          >
+            <Folder size={22} />
+            <span>Projects</span>
+          </div>
+          
           {/* Global Create Button */}
-          <div className="bottom-nav-item haptic-press" onClick={() => setShowProjectChoiceModal(true)}>
+          <div 
+            className="bottom-nav-item create-btn" 
+            onClick={() => setShowProjectChoiceModal(true)}
+            role="button"
+            tabIndex={0}
+          >
             <div style={{
               background: 'var(--color-purple)',
-              width: '48px',
-              height: '48px',
+              width: '52px',
+              height: '52px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(124, 58, 237, 0.4)',
-              marginBottom: '24px',
-              border: '2px solid var(--color-bg-primary)'
+              boxShadow: '0 4px 16px rgba(124, 58, 237, 0.5)',
+              marginTop: '-20px',
+              border: '3px solid var(--color-bg-primary)'
             }}>
-              <Plus size={28} color="white" />
+              <Plus size={26} color="white" />
             </div>
-            <span style={{ position: 'absolute', bottom: '8px' }}>Create</span>
           </div>
 
-          <div className={`bottom-nav-item haptic-press ${activeTab === 'mystudio' ? 'active' : ''}`} onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}>
-            <Home size={24} />
+          <div 
+            className={`bottom-nav-item ${activeTab === 'mystudio' ? 'active' : ''}`} 
+            onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}
+            role="button"
+            tabIndex={0}
+          >
+            <Home size={22} />
             <span>Studio</span>
           </div>
-          <div className={`bottom-nav-item haptic-press ${activeTab === 'activity' ? 'active' : ''}`} onClick={() => { setActiveTab('activity'); setSelectedAgent(null); }}>
-            <Rocket size={24} />
-            <span>Wall</span>
+          
+          <div 
+            className={`bottom-nav-item ${activeTab === 'more' ? 'active' : ''}`} 
+            onClick={() => { setActiveTab('more'); setSelectedAgent(null); }}
+            role="button"
+            tabIndex={0}
+          >
+            <Menu size={22} />
+            <span>More</span>
           </div>
         </nav>
       </main>
@@ -6536,6 +6779,18 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Quick Workflow Modal - Streamlined agent interaction */}
+      {quickWorkflowAgent && (
+        <QuickWorkflow
+          agent={quickWorkflowAgent}
+          onClose={() => setQuickWorkflowAgent(null)}
+          projects={projects}
+          onSaveToProject={handleSaveAssetToProject}
+          onCreateProject={handleCreateProjectWithAsset}
+          user={user}
+        />
       )}
 
       {/* Add Agent Modal */}
