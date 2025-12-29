@@ -1945,106 +1945,106 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     </div>
                   </div>
 
-                  {/* Dynamic Project Checklist */}
-                  <div className="dashboard-card onboarding-card" style={{ marginBottom: '24px', border: '1px solid rgba(168, 85, 247, 0.3)', background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.05) 0%, rgba(0,0,0,0) 100%)' }}>
+                  {/* Brand Strategy Section */}
+                  <section className="dashboard-card brand-strategy-card" style={{ marginBottom: '24px' }}>
                     <div className="card-header">
-                      <h3>
-                        <Rocket size={18} className="text-purple" /> 
-                        {selectedProject ? `Project Roadmap: ${selectedProject.name}` : 'Studio Setup Checklist'}
-                      </h3>
-                      <span className="status-badge" style={{ background: 'var(--color-purple)', color: 'white' }}>
-                        {selectedProject ? 'In Progress' : `${(paymentMethods.length > 0) ? 1 : 0} / 1 Complete`}
-                      </span>
+                      <h3><Target size={18} /> Build Your Legacy</h3>
+                      <Zap size={18} className="text-yellow-400" />
                     </div>
-                    
-                    <div className="checklist-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px' }}>
-                      
-                      {selectedProject && activeProjectSteps ? (
-                        activeProjectSteps.map((step, i) => (
-                          <div key={i} className="checklist-item" style={{ 
-                            padding: '16px', 
-                            background: 'rgba(255,255,255,0.03)', 
-                            borderRadius: '12px', 
-                            border: '1px solid rgba(255,255,255,0.05)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '8px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s'
-                          }}
-                          onClick={() => {
-                            const agent = AGENTS.find(a => a.id === step.agentId);
-                            if (agent) {
-                                if (agent.isPro && !isLoggedIn) {
-                                    setShowLoginModal(true);
-                                    handleTextToVoice(`Unlock ${agent.name} with a Pro account.`);
-                                } else {
-                                    setSelectedAgent(agent);
-                                    setActiveTab('agents');
-                                    handleTextToVoice(`Opening ${agent.name} for project ${selectedProject.name}.`);
-                                }
-                            }
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
-                          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{i+1}. {step.label}</span>
-                              <step.icon size={16} className="text-purple" />
-                            </div>
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{step.desc}</p>
-                            <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }}>Launch</button>
-                          </div>
-                        ))
-                      ) : (
-                        /* Default Wallet Setup Step */
-                        <div className={`checklist-item ${paymentMethods.length > 0 ? 'completed' : ''}`} style={{ 
-                          padding: '16px', 
-                          background: paymentMethods.length > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
-                          borderRadius: '12px', 
-                          border: paymentMethods.length > 0 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.05)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px'
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: '600', color: paymentMethods.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>Setup Wallet</span>
-                            {paymentMethods.length > 0 ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
-                          </div>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Add payment method.</p>
-                          {!paymentMethods.length && <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setDashboardTab('billing')}>Add Card</button>}
-                        </div>
-                      )}
-
+                    <div className="strategy-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
+                      <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
+                        <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-purple)' }}>Output</h4>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Don't just make music, build a brand.</p>
+                      </div>
+                      <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
+                        <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-cyan)' }}>Hit Ready</h4>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Production quality that stands out.</p>
+                      </div>
+                      <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
+                        <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-pink)' }}>Viral Videos</h4>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Visuals designed for social impact.</p>
+                      </div>
+                      <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
+                        <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-orange)' }}>Marketing</h4>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Content strategy that converts.</p>
+                      </div>
                     </div>
-                  </div>
+                  </section>
 
                   <div className="dashboard-grid">
-                    {/* Brand Strategy Section */}
-                    <section className="dashboard-card brand-strategy-card">
+                    {/* Dynamic Project Checklist */}
+                    <div className="dashboard-card onboarding-card" style={{ border: '1px solid rgba(168, 85, 247, 0.3)', background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.05) 0%, rgba(0,0,0,0) 100%)' }}>
                       <div className="card-header">
-                        <h3><Target size={18} /> Build Your Legacy</h3>
-                        <Zap size={18} className="text-yellow-400" />
+                        <h3>
+                          <Rocket size={18} className="text-purple" /> 
+                          {selectedProject ? `Project Roadmap: ${selectedProject.name}` : 'Studio Setup Checklist'}
+                        </h3>
+                        <span className="status-badge" style={{ background: 'var(--color-purple)', color: 'white' }}>
+                          {selectedProject ? 'In Progress' : `${(paymentMethods.length > 0) ? 1 : 0} / 1 Complete`}
+                        </span>
                       </div>
-                      <div className="strategy-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                          <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-purple)' }}>Output</h4>
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Don't just make music, build a brand.</p>
-                        </div>
-                        <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                          <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-cyan)' }}>Hit Ready</h4>
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Production quality that stands out.</p>
-                        </div>
-                        <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                          <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-pink)' }}>Viral Videos</h4>
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Visuals designed for social impact.</p>
-                        </div>
-                        <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                          <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-orange)' }}>Marketing</h4>
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Content strategy that converts.</p>
-                        </div>
+                      
+                      <div className="checklist-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginTop: '16px' }}>
+                        
+                        {selectedProject && activeProjectSteps ? (
+                          activeProjectSteps.map((step, i) => (
+                            <div key={i} className="checklist-item" style={{ 
+                              padding: '16px', 
+                              background: 'rgba(255,255,255,0.03)', 
+                              borderRadius: '12px', 
+                              border: '1px solid rgba(255,255,255,0.05)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                            onClick={() => {
+                              const agent = AGENTS.find(a => a.id === step.agentId);
+                              if (agent) {
+                                  if (agent.isPro && !isLoggedIn) {
+                                      setShowLoginModal(true);
+                                      handleTextToVoice(`Unlock ${agent.name} with a Pro account.`);
+                                  } else {
+                                      setSelectedAgent(agent);
+                                      setActiveTab('agents');
+                                      handleTextToVoice(`Opening ${agent.name} for project ${selectedProject.name}.`);
+                                  }
+                              }
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
+                            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{i+1}. {step.label}</span>
+                                <step.icon size={16} className="text-purple" />
+                              </div>
+                              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{step.desc}</p>
+                              <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }}>Launch</button>
+                            </div>
+                          ))
+                        ) : (
+                          /* Default Wallet Setup Step */
+                          <div className={`checklist-item ${paymentMethods.length > 0 ? 'completed' : ''}`} style={{ 
+                            padding: '16px', 
+                            background: paymentMethods.length > 0 ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,255,255,0.03)', 
+                            borderRadius: '12px', 
+                            border: paymentMethods.length > 0 ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,255,255,0.05)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontWeight: '600', color: paymentMethods.length > 0 ? 'var(--color-emerald)' : 'var(--text-primary)' }}>Setup Wallet</span>
+                              {paymentMethods.length > 0 ? <CheckCircle size={16} className="text-emerald" /> : <div style={{ width: '16px', height: '16px', borderRadius: '50%', border: '2px solid var(--text-secondary)' }}></div>}
+                            </div>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Add payment method.</p>
+                            {!paymentMethods.length && <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }} onClick={() => setDashboardTab('billing')}>Add Card</button>}
+                          </div>
+                        )}
+
                       </div>
-                    </section>
+                    </div>
 
                     {/* Social Connections */}
                     <section className="dashboard-card">

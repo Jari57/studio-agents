@@ -3509,10 +3509,11 @@
   /* Studio View Mobile Fixes */
   .studio-container {
     flex-direction: column;
-    height: 100vh;
+    height: 100dvh; /* Use dynamic viewport height to account for mobile address bars */
     overflow: hidden;
     position: fixed;
     inset: 0;
+    overscroll-behavior: none; /* Prevent body rubber-banding */
   }
 
   .studio-nav {
@@ -3525,13 +3526,16 @@
 
   .studio-main {
     height: 100%;
-    padding-bottom: 80px; /* Space for bottom nav */
+    padding-bottom: 120px; /* Increased padding to ensure content clears bottom nav/UI */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain; /* Allow internal scroll but prevent chaining */
   }
 
   .studio-content {
     padding: 1rem;
+    /* Ensure content doesn't get cut off */
+    min-height: calc(100% - 80px); 
   }
 
   .studio-dashboard {
@@ -3541,6 +3545,7 @@
   .agents-studio-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
+    padding-bottom: 40px; /* Extra padding for the grid specifically */
   }
 
   .studio-header {
