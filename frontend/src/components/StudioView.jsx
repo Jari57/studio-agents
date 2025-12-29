@@ -1727,7 +1727,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               <div className="sidebar-header">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h2>Workspace</h2>
+                    <h2>Studio</h2>
                     <span className="pro-badge">PRO</span>
                   </div>
                   <div 
