@@ -509,7 +509,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       console.error("Login failed", error);
       let errorMsg = error.message;
       if (error.code === 'auth/unauthorized-domain') {
-        errorMsg = "This domain is not authorized for Google Sign-In. Please add it in Firebase Console.";
+        errorMsg = `This domain (${window.location.hostname}) is not authorized for Google Sign-In. Please add it in the Firebase Console under Authentication > Settings > Authorized Domains.`;
       } else if (error.code === 'auth/popup-closed-by-user') {
         errorMsg = "Sign-in cancelled.";
       }
@@ -3423,9 +3423,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               <button 
                 className="cta-button-primary haptic-press" 
                 style={{ width: '100%', padding: '16px', fontSize: '1.1rem' }}
-                onClick={() => setActiveTab('agents')}
+                onClick={() => setShowProjectChoiceModal(true)}
               >
-                Start Creating Now <ArrowRight size={20} style={{ marginLeft: '8px' }} />
+                Create New Project <ArrowRight size={20} style={{ marginLeft: '8px' }} />
               </button>
             </div>
           </div>
