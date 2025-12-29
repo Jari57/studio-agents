@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://restored-os-whip-montez-production.up.railway.app/api/:path*"
+      "destination": "https://web-production-b5922.up.railway.app/api/:path*"
     }
   ]
 }
