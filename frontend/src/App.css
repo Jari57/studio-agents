@@ -8673,3 +8673,36 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   }
 }
 
+
+/* --- Agent Active View Fixes (Mobile Cutoff) --- */
+.agent-active-view {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  min-height: 100vh;
+  padding-bottom: 120px; /* Ensure bottom content is accessible */
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .agent-active-view {
+    padding: 1rem;
+    padding-bottom: 150px; /* Extra padding for mobile browsers */
+  }
+
+  .agent-utility-box {
+    padding: 1.25rem;
+  }
+
+  .utility-controls {
+    grid-template-columns: 1fr; /* Stack controls vertically */
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .studio-textarea {
+    min-height: 100px; /* Slightly smaller min-height on mobile */
+  }
+}
+
