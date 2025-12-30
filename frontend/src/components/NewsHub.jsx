@@ -217,31 +217,51 @@ function NewsHub({
 
       {/* Search & Categories */}
       <div style={{ marginBottom: '24px' }}>
-        <div className="search-bar-v2" style={{ marginBottom: '16px' }}>
-          <Search size={18} style={{ color: 'var(--text-secondary)' }} />
-          <input 
-            type="text"
-            placeholder="Search news, artists, topics..."
-            value={newsSearch}
-            onChange={(e) => setNewsSearch(e.target.value)}
-          />
-          {newsSearch && (
-            <button 
-              onClick={() => setNewsSearch('')} 
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-            >
-              <X size={16} />
-            </button>
-          )}
+        <div className="search-bar-v2" style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '12px', padding: '0 14px' }}>
+            <Search size={18} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+            <input 
+              type="text"
+              placeholder="Search Drake, Beyoncé, hip-hop, Grammy..."
+              value={newsSearch}
+              onChange={(e) => setNewsSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && onRefresh && onRefresh()}
+              style={{ flex: 1, background: 'none', border: 'none', outline: 'none', padding: '12px 0', color: 'var(--text-primary)', fontSize: '0.95rem' }}
+            />
+            {newsSearch && (
+              <button 
+                onClick={() => setNewsSearch('')} 
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          <button 
+            onClick={onRefresh}
+            disabled={isLoadingNews}
+            className="cta-button-premium"
+            style={{ 
+              padding: '12px 20px', 
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Search size={16} />
+            Search
+          </button>
         </div>
 
-        <div className="filter-chips" style={{ display: 'flex', gap: '8px', overflowX: 'auto' }}>
+        <div className="filter-chips" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
           {categories.map(cat => (
             <button
               key={cat.id}
               className={`filter-chip ${activeCategory === cat.id ? 'active' : ''}`}
               onClick={() => setActiveCategory(cat.id)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
             >
               <cat.icon size={14} />
               {cat.label}
@@ -290,49 +310,82 @@ function NewsHub({
                 {/* Accent Bar */}
                 <div style={{
                   height: '4px',
-                  background: item.time === 'Just now' 
+                  background: item.time === 'Just now' || item.time?.includes('m ago')
                     ? 'linear-gradient(90deg, var(--color-pink) 0%, var(--color-purple) 100%)'
                     : 'var(--color-bg-tertiary)'
                 }} />
 
-                {/* Media Preview */}
-                {item.type === 'video' && item.videoUrl && (
-                  <div style={{
-                    position: 'relative',
-                    height: '160px',
-                    background: 'var(--color-bg-tertiary)'
-                  }}>
-                    <video 
-                      src={item.videoUrl} 
-                      muted 
-                      loop 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onMouseEnter={e => e.target.play()} 
-                      onMouseLeave={e => e.target.pause()} 
-                    />
+                {/* Media Preview - Video */}
+                {item.hasVideo && item.videoUrl && (
+                  <a 
+                    href={item.videoUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{
+                      position: 'relative',
+                      display: 'block',
+                      height: '180px',
+                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.2))'
+                    }}
+                  >
+                    {item.imageUrl ? (
+                      <img 
+                        src={item.imageUrl} 
+                        alt={item.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    ) : null}
                     <div style={{
                       position: 'absolute',
                       inset: 0,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: 'rgba(0,0,0,0.3)',
-                      pointerEvents: 'none'
+                      background: 'rgba(0,0,0,0.4)'
                     }}>
-                      <PlayCircle size={48} style={{ opacity: 0.8 }} />
+                      <div style={{
+                        width: '60px',
+                        height: '60px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.9)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <PlayCircle size={36} style={{ color: '#000' }} />
+                      </div>
                     </div>
-                  </div>
+                    <div style={{
+                      position: 'absolute',
+                      top: '12px',
+                      right: '12px',
+                      padding: '4px 10px',
+                      background: 'rgba(239, 68, 68, 0.9)',
+                      borderRadius: '6px',
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      color: 'white'
+                    }}>
+                      VIDEO
+                    </div>
+                  </a>
                 )}
 
-                {item.type === 'image' && item.imageUrl && (
+                {/* Media Preview - Image (only if no video) */}
+                {!item.hasVideo && item.hasImage && item.imageUrl && (
                   <div style={{
-                    height: '160px',
-                    background: 'var(--color-bg-tertiary)'
+                    height: '180px',
+                    background: 'var(--color-bg-tertiary)',
+                    overflow: 'hidden'
                   }}>
                     <img 
                       src={item.imageUrl} 
                       alt={item.title} 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
+                      onError={(e) => { e.target.parentElement.style.display = 'none'; }}
+                      onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
+                      onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
                     />
                   </div>
                 )}
@@ -347,7 +400,7 @@ function NewsHub({
                     marginBottom: '12px',
                     fontSize: '0.8rem'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -361,7 +414,7 @@ function NewsHub({
                         <SourceIcon size={12} />
                         {item.source}
                       </span>
-                      {item.time === 'Just now' && (
+                      {(item.time === 'Just now' || item.time?.includes('m ago')) && (
                         <span style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -374,7 +427,7 @@ function NewsHub({
                           fontSize: '0.7rem'
                         }}>
                           <span className="live-pulse-dot" />
-                          LIVE
+                          NEW
                         </span>
                       )}
                     </div>

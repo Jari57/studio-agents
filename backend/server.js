@@ -998,52 +998,82 @@ app.get('/api/concerts', async (req, res) => {
   }
 });
 
-// ==================== HIP-HOP NEWS API ====================
-// Fetches real-time music news from multiple RSS sources
+// ==================== ENTERTAINMENT NEWS API ====================
+// Fetches real-time entertainment news from multiple RSS/media sources
+// Supports keyword search across entertainment, music, and social media outlets
 
-let newsCache = { data: [], timestamp: 0 };
-const NEWS_CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+let newsCache = { data: [], timestamp: 0, query: '' };
+const NEWS_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
+// Entertainment news sources - comprehensive list
+const NEWS_SOURCES = [
+  // Music Industry
+  { name: 'PITCHFORK', url: 'https://pitchfork.com/feed/feed-news/rss', category: 'music', color: 'agent-purple' },
+  { name: 'BILLBOARD', url: 'https://www.billboard.com/feed/', category: 'music', color: 'agent-cyan' },
+  { name: 'ROLLING STONE', url: 'https://www.rollingstone.com/music/feed/', category: 'music', color: 'agent-red' },
+  { name: 'NME', url: 'https://www.nme.com/feed', category: 'music', color: 'agent-orange' },
+  { name: 'COMPLEX', url: 'https://www.complex.com/music/feed', category: 'music', color: 'agent-pink' },
+  { name: 'HYPEBEAST', url: 'https://hypebeast.com/feed', category: 'culture', color: 'agent-yellow' },
+  // Entertainment & Celebrity
+  { name: 'VARIETY', url: 'https://variety.com/feed/', category: 'entertainment', color: 'agent-blue' },
+  { name: 'TMZ', url: 'https://www.tmz.com/rss.xml', category: 'celebrity', color: 'agent-red' },
+  { name: 'E! NEWS', url: 'https://www.eonline.com/syndication/feeds/rssfeeds/topstories.xml', category: 'celebrity', color: 'agent-pink' },
+  { name: 'HOLLYWOOD REPORTER', url: 'https://www.hollywoodreporter.com/feed/', category: 'entertainment', color: 'agent-gold' },
+  // Tech & Culture
+  { name: 'THE VERGE', url: 'https://www.theverge.com/rss/index.xml', category: 'tech', color: 'agent-purple' },
+  { name: 'WIRED', url: 'https://www.wired.com/feed/rss', category: 'tech', color: 'agent-cyan' }
+];
 
 app.get('/api/news', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const perPage = parseInt(req.query.per_page) || 20;
+    const searchQuery = (req.query.q || req.query.search || '').toLowerCase().trim();
+    const categoryFilter = (req.query.category || '').toLowerCase();
     const now = Date.now();
     
-    // Return cached data if fresh
-    if (newsCache.data.length > 0 && (now - newsCache.timestamp) < NEWS_CACHE_DURATION) {
+    // Check cache - but invalidate if search query changed
+    const cacheValid = newsCache.data.length > 0 && 
+                       (now - newsCache.timestamp) < NEWS_CACHE_DURATION &&
+                       newsCache.query === searchQuery;
+    
+    if (cacheValid) {
+      let filtered = newsCache.data;
+      
+      // Apply category filter
+      if (categoryFilter && categoryFilter !== 'all') {
+        filtered = filtered.filter(a => 
+          a.category?.toLowerCase() === categoryFilter ||
+          a.tags?.some(t => t.toLowerCase().includes(categoryFilter))
+        );
+      }
+      
       const start = (page - 1) * perPage;
       const end = start + perPage;
-      const paginated = newsCache.data.slice(start, end);
+      const paginated = filtered.slice(start, end);
       
       return res.json({
         articles: paginated,
-        total: newsCache.data.length,
+        total: filtered.length,
         page,
         per_page: perPage,
-        cached: true
+        cached: true,
+        query: searchQuery
       });
     }
     
-    logger.info('Fetching fresh news from multiple sources...');
+    logger.info('Fetching fresh entertainment news...', { query: searchQuery });
     
-    const sources = [
-      { name: 'PITCHFORK', url: 'https://pitchfork.com/feed/feed-news/rss', color: 'agent-purple' },
-      { name: 'BILLBOARD', url: 'https://www.billboard.com/feed/', color: 'agent-cyan' },
-      { name: 'ROLLING STONE', url: 'https://www.rollingstone.com/music/feed/', color: 'agent-red' },
-      { name: 'NME', url: 'https://www.nme.com/feed', color: 'agent-orange' }
-    ];
-
     const fetchSource = async (source) => {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         
         const response = await fetch(source.url, {
           signal: controller.signal,
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Accept': 'application/rss+xml, application/xml, text/xml'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/rss+xml, application/xml, text/xml, application/atom+xml, */*'
           }
         });
         clearTimeout(timeoutId);
@@ -1051,7 +1081,10 @@ app.get('/api/news', async (req, res) => {
         if (!response.ok) return [];
         
         const xmlText = await response.text();
-        const items = xmlText.match(/<item>[\s\S]*?<\/item>/g) || [];
+        
+        // Handle both RSS and Atom feeds
+        const items = xmlText.match(/<item>[\s\S]*?<\/item>/g) || 
+                      xmlText.match(/<entry>[\s\S]*?<\/entry>/g) || [];
         
         return items.map(item => {
           const getTag = (tag) => {
@@ -1059,18 +1092,44 @@ app.get('/api/news', async (req, res) => {
             return match ? match[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim() : '';
           };
           
-          const title = getTag('title');
-          const link = getTag('link');
-          // Prefer content:encoded for longer text, fallback to description
-          const description = getTag('content:encoded') || getTag('description');
-          const pubDate = getTag('pubDate');
-          const creator = getTag('dc:creator') || getTag('creator') || 'Staff';
-          const category = getTag('category');
+          const getAttr = (tag, attr) => {
+            const match = item.match(new RegExp(`<${tag}[^>]*${attr}="([^"]*)"`));
+            return match ? match[1] : '';
+          };
           
-          // Extract image if available (media:content or enclosure)
+          const title = getTag('title');
+          const link = getTag('link') || getAttr('link', 'href');
+          const description = getTag('content:encoded') || getTag('content') || getTag('description') || getTag('summary');
+          const pubDate = getTag('pubDate') || getTag('published') || getTag('updated');
+          const creator = getTag('dc:creator') || getTag('author') || getTag('creator') || source.name;
+          const category = getTag('category') || source.category;
+          
+          // Extract images from multiple possible locations
           let imageUrl = null;
-          const mediaMatch = item.match(/<media:content[^>]*url="([^"]*)"/) || item.match(/<enclosure[^>]*url="([^"]*)"/);
+          const mediaMatch = item.match(/<media:content[^>]*url="([^"]*)"/) ||
+                            item.match(/<media:thumbnail[^>]*url="([^"]*)"/) ||
+                            item.match(/<enclosure[^>]*url="([^"]*)"[^>]*type="image/) ||
+                            item.match(/<img[^>]*src="([^"]*)"/);
           if (mediaMatch) imageUrl = mediaMatch[1];
+          
+          // Try to extract image from description/content if not found
+          if (!imageUrl) {
+            const imgInContent = description.match(/<img[^>]*src="([^"]*)"/);
+            if (imgInContent) imageUrl = imgInContent[1];
+          }
+          
+          // Extract video if available
+          let videoUrl = null;
+          const videoMatch = item.match(/<media:content[^>]*url="([^"]*)"[^>]*type="video/) ||
+                            item.match(/<enclosure[^>]*url="([^"]*)"[^>]*type="video/);
+          if (videoMatch) videoUrl = videoMatch[1];
+          
+          // Check for YouTube/Vimeo embeds in content
+          const youtubeMatch = description.match(/(?:youtube\.com\/(?:embed\/|watch\?v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+          if (youtubeMatch) {
+            videoUrl = `https://www.youtube.com/watch?v=${youtubeMatch[1]}`;
+            if (!imageUrl) imageUrl = `https://img.youtube.com/vi/${youtubeMatch[1]}/hqdefault.jpg`;
+          }
 
           const dateObj = pubDate ? new Date(pubDate) : new Date();
           const hoursAgo = Math.floor((Date.now() - dateObj) / (1000 * 60 * 60));
@@ -1087,21 +1146,42 @@ app.get('/api/news', async (req, res) => {
             timeAgo = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
           }
           
+          // Clean text content
+          const cleanContent = description
+            ?.replace(/<[^>]*>/g, '')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&#8217;/g, "'")
+            .replace(/&#8220;|&#8221;/g, '"')
+            .replace(/&#038;|&amp;/g, '&')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 400);
+          
+          const cleanTitle = title
+            ?.replace(/&#8217;/g, "'")
+            .replace(/&#8220;|&#8221;/g, '"')
+            .replace(/&#038;|&amp;/g, '&')
+            .slice(0, 150) || 'UNTITLED';
+          
           return {
-            id: crypto.createHash('md5').update(link).digest('hex'),
+            id: crypto.createHash('md5').update(link + title).digest('hex'),
             date: dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase(),
             timestamp: dateObj.getTime(),
             time: timeAgo,
             source: source.name,
+            category: source.category,
             color: source.color,
-            author: creator,
-            title: title?.replace(/&#8217;/g, "'").replace(/&#038;/g, "&").slice(0, 150) || 'UNTITLED',
-            content: description?.replace(/<[^>]*>/g, '').slice(0, 400) + '...' || '',
+            author: typeof creator === 'string' ? creator : source.name,
+            title: cleanTitle,
+            content: cleanContent ? cleanContent + '...' : '',
             url: link,
             imageUrl: imageUrl,
-            tags: category ? [category.toUpperCase()] : ['MUSIC']
+            videoUrl: videoUrl,
+            hasVideo: !!videoUrl,
+            hasImage: !!imageUrl,
+            tags: category ? [category.toUpperCase()] : [source.category.toUpperCase()]
           };
-        });
+        }).filter(item => item.title && item.url);
       } catch (e) {
         logger.warn(`Failed to fetch ${source.name}`, { error: e.message });
         return [];
@@ -1109,8 +1189,26 @@ app.get('/api/news', async (req, res) => {
     };
 
     // Fetch all sources in parallel
-    const results = await Promise.all(sources.map(fetchSource));
+    const results = await Promise.all(NEWS_SOURCES.map(fetchSource));
     let allArticles = results.flat();
+    
+    // Apply keyword search if provided
+    if (searchQuery) {
+      const keywords = searchQuery.split(/\s+/);
+      allArticles = allArticles.filter(article => {
+        const searchText = `${article.title} ${article.content} ${article.author} ${article.tags?.join(' ')}`.toLowerCase();
+        return keywords.some(kw => searchText.includes(kw));
+      });
+    }
+    
+    // Remove duplicates by title similarity
+    const seen = new Set();
+    allArticles = allArticles.filter(article => {
+      const key = article.title.toLowerCase().slice(0, 50);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
     
     // Sort by date (newest first)
     allArticles.sort((a, b) => b.timestamp - a.timestamp);
@@ -1119,13 +1217,12 @@ app.get('/api/news', async (req, res) => {
     if (allArticles.length > 0) {
       newsCache = {
         data: allArticles,
-        timestamp: now
+        timestamp: now,
+        query: searchQuery
       };
     } else if (newsCache.data.length > 0) {
-      // Keep old cache if fetch failed completely
       logger.warn('Fetch failed, using stale cache');
     } else {
-      // Fallback if everything fails and no cache
       allArticles = [{ 
         id: 'error', 
         date: new Date().toLocaleDateString(), 
@@ -1137,22 +1234,33 @@ app.get('/api/news', async (req, res) => {
       }];
     }
 
+    // Apply category filter
+    let filtered = newsCache.data.length > 0 ? newsCache.data : allArticles;
+    if (categoryFilter && categoryFilter !== 'all') {
+      filtered = filtered.filter(a => 
+        a.category?.toLowerCase() === categoryFilter ||
+        a.tags?.some(t => t.toLowerCase().includes(categoryFilter))
+      );
+    }
+
     const start = (page - 1) * perPage;
     const end = start + perPage;
-    const paginated = newsCache.data.length > 0 ? newsCache.data.slice(start, end) : allArticles;
+    const paginated = filtered.slice(start, end);
 
     res.json({ 
       articles: paginated, 
-      total: newsCache.data.length || allArticles.length, 
+      total: filtered.length, 
       page,
       per_page: perPage,
-      cached: false, 
+      cached: false,
+      query: searchQuery,
+      sources: NEWS_SOURCES.length,
       fetchedAt: new Date().toISOString() 
     });
 
   } catch (err) {
-    logger.error('News API Error', { error: err.message });
-    res.status(500).json({ error: 'Failed to fetch news' });
+    logger.error('News API Error', { error: err.message, stack: err.stack });
+    res.status(500).json({ error: 'Failed to fetch news', details: err.message });
   }
 });
 

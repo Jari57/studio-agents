@@ -404,8 +404,17 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     { id: 'social', label: 'Social Brand', icon: Share2, desc: 'Grow your audience', color: 'var(--color-blue)' }
   ];
 
+  const PROJECT_CREDIT_COST = 2;
+
   const handleCreateProject = () => {
     if (!newProjectData.name || !newProjectData.category) return;
+    
+    // Check if user has enough credits
+    if (credits < PROJECT_CREDIT_COST) {
+      toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
+      setShowCreditsModal(true);
+      return;
+    }
     
     const newProject = {
       id: Date.now(),
@@ -423,6 +432,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       assets: [], // Store generated content here
       context: {} // Shared context for MAS
     };
+
+    // Deduct credits
+    setCredits(prev => prev - PROJECT_CREDIT_COST);
+    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
     setProjects(prev => [newProject, ...prev]);
     setSelectedProject(newProject); // Auto-select the new project
@@ -449,6 +462,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   };
 
   const handleSkipWizard = (targetTab) => {
+    // Check if user has enough credits
+    if (credits < PROJECT_CREDIT_COST) {
+      toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
+      setShowCreditsModal(true);
+      return;
+    }
+
     const newProject = {
       id: Date.now(),
       name: `Untitled Project ${projects.length + 1}`,
@@ -462,6 +482,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       assets: [],
       context: {}
     };
+
+    // Deduct credits
+    setCredits(prev => prev - PROJECT_CREDIT_COST);
+    toast.success(`Quick project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
     setProjects(prev => [newProject, ...prev]);
     setSelectedProject(newProject);
@@ -495,6 +519,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   };
 
   const handleCreateProjectWithAsset = (projectName, asset) => {
+    // Check if user has enough credits
+    if (credits < PROJECT_CREDIT_COST) {
+      toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
+      setShowCreditsModal(true);
+      return;
+    }
+
     const newProject = {
       id: Date.now(),
       name: projectName,
@@ -509,6 +540,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       context: {}
     };
     
+    // Deduct credits
+    setCredits(prev => prev - PROJECT_CREDIT_COST);
+    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
+
     setProjects(prev => [newProject, ...prev]);
     setSelectedProject(newProject);
   };
@@ -1554,12 +1589,21 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
   };
 
-  const fetchNews = async (page = 1) => {
+  const fetchNews = async (page = 1, searchQuery = '') => {
     if (isLoadingNews || (!hasMoreNews && page !== 1)) return;
     
     setIsLoadingNews(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/news?page=${page}&per_page=20`);
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        per_page: '20'
+      });
+      
+      if (searchQuery) {
+        queryParams.set('q', searchQuery);
+      }
+      
+      const response = await fetch(`${BACKEND_URL}/api/news?${queryParams}`);
       const data = await response.json();
       
       if (data.articles && data.articles.length > 0) {
@@ -1567,8 +1611,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         setNewsPage(page);
         if (data.articles.length < 20) {
           setHasMoreNews(false);
+        } else {
+          setHasMoreNews(true);
         }
       } else {
+        if (page === 1) setNewsArticles([]);
         setHasMoreNews(false);
       }
     } catch (err) {
@@ -1577,6 +1624,26 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       setIsLoadingNews(false);
     }
   };
+
+  // Debounced news search
+  const [newsSearchDebounce, setNewsSearchDebounce] = useState(null);
+  
+  useEffect(() => {
+    if (newsSearchDebounce) clearTimeout(newsSearchDebounce);
+    
+    const timeout = setTimeout(() => {
+      if (activeTab === 'news' && newsSearch.trim()) {
+        setHasMoreNews(true);
+        fetchNews(1, newsSearch.trim());
+      } else if (activeTab === 'news' && !newsSearch.trim() && newsArticles.length === 0) {
+        fetchNews(1);
+      }
+    }, 500);
+    
+    setNewsSearchDebounce(timeout);
+    
+    return () => clearTimeout(timeout);
+  }, [newsSearch]);
 
   useEffect(() => {
     if (activeTab === 'activity' && activityFeed.length === 0) {
@@ -5617,132 +5684,356 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         {/* Add/Edit Payment Method Modal */}
         {showAddPaymentModal && (
           <div className="modal-overlay" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}>
-            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={(e) => { e.preventDefault(); setShowAddPaymentModal(false); setEditingPayment(null); }}><X size={20} /></button>
-              <div className="modal-header">
-                <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
-                  <CreditCard size={24} color="white" />
+            <div 
+              className="modal-content animate-fadeInUp" 
+              onClick={(e) => e.stopPropagation()} 
+              onTouchEnd={(e) => e.stopPropagation()}
+              style={{ 
+                maxWidth: '600px', 
+                width: '95%',
+                maxHeight: '90vh',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <div className="modal-header" style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '1rem', flexShrink: 0 }}>
+                <div className="modal-title-group">
+                  <div className="agent-mini-icon" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white' }}>
+                    <CreditCard size={20} />
+                  </div>
+                  <h2 style={{ margin: 0 }}>{editingPayment ? 'Edit Payment Method' : 'Payment Methods'}</h2>
                 </div>
-                <h2>{editingPayment ? 'Edit Payment Method' : 'Add Payment Method'}</h2>
-                <p>Securely {editingPayment ? 'update' : 'add'} a card or bank account.</p>
-              </div>
-              
-              <div className="modal-tabs">
-                <button 
-                  className={`modal-tab ${paymentType === 'card' ? 'active' : ''}`}
-                  onClick={() => setPaymentType('card')}
-                  disabled={!!editingPayment}
-                >
-                  Credit/Debit Card
-                </button>
-                <button 
-                  className={`modal-tab ${paymentType === 'bank' ? 'active' : ''}`}
-                  onClick={() => setPaymentType('bank')}
-                  disabled={!!editingPayment}
-                >
-                  Bank Account
-                </button>
+                <button className="modal-close" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={(e) => { e.preventDefault(); setShowAddPaymentModal(false); setEditingPayment(null); }}><X size={20} /></button>
               </div>
 
-              <div className="modal-body">
-                {paymentType === 'card' ? (
-                  <form className="payment-form" onSubmit={handleSavePayment}>
-                    <div className="form-group">
-                      <label>Cardholder Name</label>
-                      <input 
-                        type="text" 
-                        name="cardName" 
-                        placeholder="Name on card" 
-                        required 
-                      />
+              <div className="modal-body" style={{ padding: '1.5rem', overflow: 'auto', flex: 1 }}>
+                {/* Existing Cards Section */}
+                {!editingPayment && savedPaymentMethods.length > 0 && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Saved Cards</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {savedPaymentMethods.map((card, idx) => (
+                        <div 
+                          key={card.id || idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '1rem 1.25rem',
+                            background: 'var(--glass-bg)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '12px',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ 
+                              width: '48px', 
+                              height: '32px', 
+                              background: card.brand === 'visa' ? 'linear-gradient(135deg, #1a1f71, #00579f)' : 
+                                         card.brand === 'mastercard' ? 'linear-gradient(135deg, #eb001b, #f79e1b)' : 
+                                         'linear-gradient(135deg, #333, #555)',
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              fontSize: '0.6rem',
+                              fontWeight: 'bold',
+                              textTransform: 'uppercase'
+                            }}>
+                              {card.brand || 'Card'}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>•••• •••• •••• {card.last4}</div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Expires {card.expiry}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              onClick={() => { setEditingPayment({ item: card, type: 'card' }); setPaymentType('card'); }}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                background: 'transparent',
+                                border: '1px solid var(--glass-border)',
+                                borderRadius: '6px',
+                                color: 'var(--text-primary)',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Edit3 size={14} /> Edit
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setSavedPaymentMethods(prev => prev.filter(c => c.id !== card.id));
+                                toast.success('Card removed');
+                              }}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                background: 'transparent',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                borderRadius: '6px',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="form-group">
-                      <label>Card Number</label>
-                      <div className="input-with-icon">
-                        <CreditCard size={18} className="input-icon" />
-                        <input 
-                          type="text" 
-                          name="cardNumber" 
-                          placeholder="0000 0000 0000 0000" 
-                          defaultValue={editingPayment ? `**** **** **** ${editingPayment.item.last4}` : ''}
-                          required 
-                        />
-                      </div>
-                    </div>
-                    <div className="form-row three-col">
-                      <div className="form-group">
-                        <label>Expiry</label>
-                        <input 
-                          type="text" 
-                          name="expiry" 
-                          placeholder="MM/YY" 
-                          defaultValue={editingPayment ? editingPayment.item.expiry : ''}
-                          required 
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>CVC</label>
-                        <input type="text" name="cvc" placeholder="123" required />
-                      </div>
-                      <div className="form-group">
-                        <label>Zip Code</label>
-                        <input type="text" name="zip" placeholder="10001" required />
-                      </div>
-                    </div>
-                    <button type="submit" className="cta-button-premium" style={{ width: '100%', marginTop: '1rem' }}>
-                      {editingPayment ? 'Update Card' : 'Save Card'}
-                    </button>
-                  </form>
-                ) : (
-                  <form className="payment-form" onSubmit={handleSavePayment}>
-                    <div className="form-group">
-                      <label>Account Holder Name</label>
-                      <input 
-                        type="text" 
-                        name="accountName" 
-                        placeholder="Full Name" 
-                        required 
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Bank Name</label>
-                      <div className="input-with-icon">
-                        <Landmark size={18} className="input-icon" />
-                        <input 
-                          type="text" 
-                          name="bankName" 
-                          placeholder="e.g. Chase, Wells Fargo" 
-                          defaultValue={editingPayment ? editingPayment.item.bankName : ''}
-                          required 
-                        />
-                      </div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Routing Number</label>
-                        <input type="text" name="routingNumber" placeholder="9 digits" required />
-                      </div>
-                      <div className="form-group">
-                        <label>Account Number</label>
-                        <input 
-                          type="text" 
-                          name="accountNumber" 
-                          placeholder="Account Number" 
-                          defaultValue={editingPayment ? `****${editingPayment.item.last4}` : ''}
-                          required 
-                        />
-                      </div>
-                    </div>
-                    <button type="submit" className="cta-button-premium" style={{ width: '100%', marginTop: '1rem' }}>
-                      {editingPayment ? 'Update Bank Account' : 'Link Bank Account'}
-                    </button>
-                  </form>
+                  </div>
                 )}
+
+                {/* Existing Bank Accounts Section */}
+                {!editingPayment && savedBankAccounts.length > 0 && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bank Accounts</h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {savedBankAccounts.map((bank, idx) => (
+                        <div 
+                          key={bank.id || idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '1rem 1.25rem',
+                            background: 'var(--glass-bg)',
+                            border: '1px solid var(--glass-border)',
+                            borderRadius: '12px',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ 
+                              width: '48px', 
+                              height: '32px', 
+                              background: 'linear-gradient(135deg, #10b981, #059669)',
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white'
+                            }}>
+                              <Landmark size={16} />
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>{bank.bankName}</div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{bank.type} •••• {bank.last4}</div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              onClick={() => { setEditingPayment({ item: bank, type: 'bank' }); setPaymentType('bank'); }}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                background: 'transparent',
+                                border: '1px solid var(--glass-border)',
+                                borderRadius: '6px',
+                                color: 'var(--text-primary)',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Edit3 size={14} /> Edit
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setSavedBankAccounts(prev => prev.filter(b => b.id !== bank.id));
+                                toast.success('Bank account removed');
+                              }}
+                              style={{
+                                padding: '0.5rem 0.75rem',
+                                background: 'transparent',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                borderRadius: '6px',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add New / Edit Form */}
+                <div>
+                  {!editingPayment && (
+                    <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Add New Payment Method
+                    </h4>
+                  )}
+                  
+                  <div className="modal-tabs" style={{ marginBottom: '1rem' }}>
+                    <button 
+                      className={`modal-tab ${paymentType === 'card' ? 'active' : ''}`}
+                      onClick={() => setPaymentType('card')}
+                      disabled={!!editingPayment}
+                      style={{ flex: 1 }}
+                    >
+                      <CreditCard size={16} style={{ marginRight: '6px' }} /> Card
+                    </button>
+                    <button 
+                      className={`modal-tab ${paymentType === 'bank' ? 'active' : ''}`}
+                      onClick={() => setPaymentType('bank')}
+                      disabled={!!editingPayment}
+                      style={{ flex: 1 }}
+                    >
+                      <Landmark size={16} style={{ marginRight: '6px' }} /> Bank
+                    </button>
+                  </div>
+
+                  {paymentType === 'card' ? (
+                    <form className="payment-form" onSubmit={handleSavePayment} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>Cardholder Name</label>
+                        <input 
+                          type="text" 
+                          name="cardName" 
+                          placeholder="Name on card" 
+                          required 
+                          style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>Card Number</label>
+                        <div style={{ position: 'relative' }}>
+                          <CreditCard size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                          <input 
+                            type="text" 
+                            name="cardNumber" 
+                            placeholder="0000 0000 0000 0000" 
+                            defaultValue={editingPayment ? `**** **** **** ${editingPayment.item.last4}` : ''}
+                            required 
+                            style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>Expiry</label>
+                          <input 
+                            type="text" 
+                            name="expiry" 
+                            placeholder="MM/YY" 
+                            defaultValue={editingPayment ? editingPayment.item.expiry : ''}
+                            required 
+                            style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>CVC</label>
+                          <input type="text" name="cvc" placeholder="123" required style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }} />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>Zip</label>
+                          <input type="text" name="zip" placeholder="10001" required style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                        {editingPayment && (
+                          <button 
+                            type="button" 
+                            className="cta-button-secondary" 
+                            style={{ flex: 1 }}
+                            onClick={() => setEditingPayment(null)}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        <button type="submit" className="cta-button-premium" style={{ flex: 1 }}>
+                          {editingPayment ? 'Update Card' : 'Add Card'}
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <form className="payment-form" onSubmit={handleSavePayment} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>Account Holder Name</label>
+                        <input 
+                          type="text" 
+                          name="accountName" 
+                          placeholder="Full Name" 
+                          required 
+                          style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ marginBottom: 0 }}>
+                        <label style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>Bank Name</label>
+                        <div style={{ position: 'relative' }}>
+                          <Landmark size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                          <input 
+                            type="text" 
+                            name="bankName" 
+                            placeholder="e.g. Chase, Wells Fargo" 
+                            defaultValue={editingPayment ? editingPayment.item.bankName : ''}
+                            required 
+                            style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>Routing Number</label>
+                          <input type="text" name="routingNumber" placeholder="9 digits" required style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }} />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'block' }}>Account Number</label>
+                          <input 
+                            type="text" 
+                            name="accountNumber" 
+                            placeholder="Account Number" 
+                            defaultValue={editingPayment ? `****${editingPayment.item.last4}` : ''}
+                            required 
+                            style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid var(--glass-border)', background: 'var(--glass-bg)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                        {editingPayment && (
+                          <button 
+                            type="button" 
+                            className="cta-button-secondary" 
+                            style={{ flex: 1 }}
+                            onClick={() => setEditingPayment(null)}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        <button type="submit" className="cta-button-premium" style={{ flex: 1 }}>
+                          {editingPayment ? 'Update Account' : 'Link Account'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
               </div>
-              <div className="modal-footer">
-                <div className="secure-badge">
-                  <Lock size={12} />
-                  <span>Encrypted & Secure via Stripe</span>
+
+              <div className="modal-footer" style={{ borderTop: '1px solid var(--glass-border)', padding: '1rem 1.5rem', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                  <Lock size={14} />
+                  <span>256-bit encryption • Secured by Stripe</span>
                 </div>
               </div>
             </div>
@@ -5861,60 +6152,142 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       {/* Credits Info Modal */}
       {showCreditsModal && (
         <div className="modal-overlay animate-fadeIn" onClick={() => setShowCreditsModal(false)}>
-          <div className="modal-content credits-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div className="modal-header">
+          <div 
+            className="modal-content credits-modal" 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '480px', 
+              width: '95%',
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--glass-border)', paddingBottom: '1rem', flexShrink: 0 }}>
               <div className="modal-title-group">
-                <div className="agent-mini-icon" style={{ background: 'rgba(250, 204, 21, 0.1)', color: '#facc15' }}>
+                <div className="agent-mini-icon" style={{ background: 'linear-gradient(135deg, #facc15, #f59e0b)', color: '#000' }}>
                   <Zap size={20} fill="currentColor" />
                 </div>
-                <h2>Studio Credits</h2>
+                <div>
+                  <h2 style={{ margin: 0 }}>Studio Credits</h2>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Balance: <strong style={{ color: '#facc15' }}>{credits} credits</strong></p>
+                </div>
               </div>
               <button className="modal-close" onClick={() => setShowCreditsModal(false)}>
                 <X size={20} />
               </button>
             </div>
             
-            <div className="modal-body help-modal-body">
-              <div className="help-section">
-                <h3><CreditCard size={16} className="text-cyan" /> What are Credits?</h3>
-                <p>Credits are the currency of Studio Agents. Every time you ask an agent to generate content—whether it's lyrics, a beat, or a marketing plan—it costs a specific amount of credits.</p>
-              </div>
-
-              <div className="help-section">
-                <h3><BarChart3 size={16} className="text-purple" /> Cost Breakdown</h3>
-                <div className="onboarding-steps-list">
-                  <div className="onboarding-step-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Text Generation (Lyrics, Ideas)</span>
-                    <span style={{ fontWeight: 'bold', color: 'var(--color-cyan)' }}>5 Credits</span>
-                  </div>
-                  <div className="onboarding-step-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Image Generation (Cover Art)</span>
-                    <span style={{ fontWeight: 'bold', color: 'var(--color-cyan)' }}>15 Credits</span>
-                  </div>
-                  <div className="onboarding-step-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Audio Processing (Beats, Mixing)</span>
-                    <span style={{ fontWeight: 'bold', color: 'var(--color-cyan)' }}>25 Credits</span>
-                  </div>
-                  <div className="onboarding-step-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>Full Project Analysis</span>
-                    <span style={{ fontWeight: 'bold', color: 'var(--color-cyan)' }}>50 Credits</span>
-                  </div>
+            <div className="modal-body" style={{ padding: '1.25rem', flex: 1 }}>
+              {/* Quick Add Credits */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <h4 style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quick Add Credits</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+                  {[
+                    { amount: 5, price: '$0.99' },
+                    { amount: 25, price: '$3.99' },
+                    { amount: 50, price: '$6.99' },
+                    { amount: 100, price: '$9.99' }
+                  ].map(({ amount, price }) => (
+                    <button
+                      key={amount}
+                      onClick={() => {
+                        setCredits(prev => prev + amount);
+                        toast.success(`+${amount} credits added!`);
+                      }}
+                      style={{
+                        padding: '0.75rem 0.5rem',
+                        background: 'var(--glass-bg)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '2px',
+                        transition: 'all 0.2s ease',
+                        color: 'var(--text-primary)'
+                      }}
+                      onMouseOver={e => { e.currentTarget.style.borderColor = '#facc15'; e.currentTarget.style.background = 'rgba(250, 204, 21, 0.1)'; }}
+                      onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.background = 'var(--glass-bg)'; }}
+                    >
+                      <span style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#facc15' }}>+{amount}</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{price}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="help-section pro-tip-box">
-                <h3><Rocket size={16} className="text-orange" /> Get Started</h3>
-                <p>You have <strong>100 FREE credits</strong> to start your journey. That's enough to write an entire album or generate 20+ high-res cover arts.</p>
-                <p style={{ marginTop: '8px' }}>Need more? You can top up anytime in the <strong>Billing</strong> tab.</p>
+              {/* Credit Costs */}
+              <div style={{ marginBottom: '1rem' }}>
+                <h4 style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Credit Costs</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {[
+                    { action: 'Create Project', cost: 2, icon: Folder },
+                    { action: 'Text Generation', cost: 5, icon: FileText },
+                    { action: 'Image Generation', cost: 15, icon: Image },
+                    { action: 'Audio Processing', cost: 25, icon: Music }
+                  ].map(({ action, cost, icon: Icon }) => (
+                    <div 
+                      key={action}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.6rem 0.75rem',
+                        background: 'var(--glass-bg)',
+                        border: '1px solid var(--glass-border)',
+                        borderRadius: '8px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <Icon size={16} style={{ color: 'var(--text-secondary)' }} />
+                        <span style={{ fontSize: '0.9rem' }}>{action}</span>
+                      </div>
+                      <span style={{ fontWeight: '600', color: '#facc15', fontSize: '0.9rem' }}>{cost} credits</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pro Tip */}
+              <div style={{ 
+                padding: '0.75rem 1rem', 
+                background: 'rgba(250, 204, 21, 0.08)', 
+                border: '1px solid rgba(250, 204, 21, 0.2)', 
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem'
+              }}>
+                <Sparkles size={18} style={{ color: '#facc15', flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>Pro Tip:</strong> Credits are used when you create projects or generate content with any agent.
+                </div>
               </div>
             </div>
 
-            <div className="modal-footer">
-              <button className="cta-button-premium" onClick={() => {
-                setShowCreditsModal(false);
-                setShowProjectChoiceModal(true);
-              }}>
-                Start Creating
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--glass-border)', padding: '1rem 1.25rem', flexShrink: 0, display: 'flex', gap: '0.75rem' }}>
+              <button 
+                className="cta-button-secondary" 
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => {
+                  setShowCreditsModal(false);
+                  setActiveTab('settings');
+                }}
+              >
+                <Plus size={18} style={{ marginRight: '6px' }} /> Add Credits
+              </button>
+              <button 
+                className="cta-button-premium" 
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onClick={() => {
+                  setShowCreditsModal(false);
+                  setShowProjectChoiceModal(true);
+                }}
+              >
+                <Rocket size={18} style={{ marginRight: '6px' }} /> Create Project
               </button>
             </div>
           </div>
