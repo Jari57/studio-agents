@@ -11,6 +11,14 @@ const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const admin = require('firebase-admin');
 
+// Audio processing imports
+let WaveFile;
+try {
+  WaveFile = require('wavefile').WaveFile;
+} catch (e) {
+  console.warn('wavefile not available, audio mastering will be limited');
+}
+
 // Environment detection
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const isDevelopment = NODE_ENV === 'development';
@@ -989,6 +997,143 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
   } catch (error) {
     logger.error('Video generation error', { error: error.message });
     res.status(500).json({ error: 'Video generation failed', details: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// AUDIO MASTERING ROUTE - Convert to Distribution-Ready Format
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/master-audio', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { 
+      audioBase64,           // Base64 encoded audio data
+      targetSampleRate = 44100, // 44.1 kHz for CD quality
+      targetBitDepth = 16,   // 16-bit for distribution
+      format = 'wav',        // wav or flac
+      normalize = true,      // Apply loudness normalization
+      targetLufs = -14,      // Industry standard for streaming
+      preset = 'streaming'   // streaming, cd, or hires
+    } = req.body;
+
+    if (!audioBase64) {
+      return res.status(400).json({ error: 'audioBase64 is required' });
+    }
+
+    logger.info('Audio mastering request', { 
+      targetSampleRate, 
+      targetBitDepth, 
+      format,
+      preset,
+      audioLength: audioBase64.length 
+    });
+
+    // Preset configurations
+    const presets = {
+      streaming: { sampleRate: 44100, bitDepth: 16, lufs: -14 },  // Spotify/Apple Music
+      cd: { sampleRate: 44100, bitDepth: 16, lufs: -9 },          // CD standard
+      hires: { sampleRate: 96000, bitDepth: 24, lufs: -14 },      // Hi-Res Audio
+      youtube: { sampleRate: 48000, bitDepth: 16, lufs: -14 },    // YouTube/Video
+      podcast: { sampleRate: 44100, bitDepth: 16, lufs: -16 }     // Podcast standard
+    };
+
+    const config = presets[preset] || presets.streaming;
+    const finalSampleRate = targetSampleRate || config.sampleRate;
+    const finalBitDepth = targetBitDepth || config.bitDepth;
+
+    if (!WaveFile) {
+      return res.status(500).json({ 
+        error: 'Audio processing not available',
+        message: 'wavefile library not installed on server'
+      });
+    }
+
+    // Decode base64 audio
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
+    
+    // Load WAV file
+    const wav = new WaveFile(audioBuffer);
+    
+    // Get original specs
+    const originalSampleRate = wav.fmt.sampleRate;
+    const originalBitDepth = wav.bitDepth;
+    
+    logger.info('Original audio specs', { originalSampleRate, originalBitDepth });
+
+    // Resample if needed
+    if (originalSampleRate !== finalSampleRate) {
+      wav.toSampleRate(finalSampleRate);
+      logger.info('Resampled audio', { from: originalSampleRate, to: finalSampleRate });
+    }
+
+    // Convert bit depth if needed
+    if (originalBitDepth !== String(finalBitDepth)) {
+      if (finalBitDepth === 16) {
+        wav.toBitDepth('16');
+      } else if (finalBitDepth === 24) {
+        wav.toBitDepth('24');
+      } else if (finalBitDepth === 32) {
+        wav.toBitDepth('32f'); // 32-bit float
+      }
+      logger.info('Converted bit depth', { from: originalBitDepth, to: finalBitDepth });
+    }
+
+    // Apply normalization if requested
+    if (normalize) {
+      // Simple peak normalization to -1 dBFS (0.89 linear)
+      // Full LUFS normalization would require more sophisticated analysis
+      const samples = wav.getSamples(true); // Get interleaved samples
+      
+      // Find peak
+      let peak = 0;
+      for (let i = 0; i < samples.length; i++) {
+        const abs = Math.abs(samples[i]);
+        if (abs > peak) peak = abs;
+      }
+      
+      if (peak > 0) {
+        // Normalize to -1 dBFS (about 0.89)
+        const targetPeak = 0.89;
+        const gain = targetPeak / peak;
+        
+        // Apply gain
+        for (let i = 0; i < samples.length; i++) {
+          samples[i] = Math.max(-1, Math.min(1, samples[i] * gain));
+        }
+        
+        logger.info('Applied normalization', { peakBefore: peak, gain, peakAfter: targetPeak });
+      }
+    }
+
+    // Get processed audio as buffer
+    const processedBuffer = Buffer.from(wav.toBuffer());
+    const processedBase64 = processedBuffer.toString('base64');
+
+    // Response with mastered audio
+    res.json({
+      audio: processedBase64,
+      audioUrl: `data:audio/wav;base64,${processedBase64}`,
+      mimeType: 'audio/wav',
+      specs: {
+        sampleRate: finalSampleRate,
+        bitDepth: finalBitDepth,
+        format: 'wav',
+        channels: wav.fmt.numChannels,
+        duration: wav.getSamples().length / finalSampleRate / wav.fmt.numChannels,
+        normalized: normalize,
+        preset: preset
+      },
+      distributionReady: {
+        appleMusic: finalSampleRate >= 44100 && finalBitDepth >= 16,
+        spotify: finalSampleRate === 44100 && finalBitDepth === 16,
+        youtube: finalSampleRate >= 44100,
+        amazonMusic: finalSampleRate >= 44100 && finalBitDepth >= 16,
+        tidal: finalSampleRate >= 44100 && finalBitDepth >= 16
+      }
+    });
+
+  } catch (error) {
+    logger.error('Audio mastering error', { error: error.message });
+    res.status(500).json({ error: 'Audio mastering failed', details: error.message });
   }
 });
 

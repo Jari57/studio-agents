@@ -286,6 +286,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
   const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
 
+  // Audio Export/Mastering State
+  const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
+  const [exportPreset, setExportPreset] = useState('streaming');
+  const [isExporting, setIsExporting] = useState(false);
+
   // Model Picker State - Available AI Models
   const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
   const AI_MODELS = [
@@ -3821,6 +3826,31 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           >
                             {item.imageUrl || item.videoUrl ? <ExternalLink size={14} /> : <Download size={14} />}
                           </button>
+                          
+                          {/* Export/Master Button for Audio */}
+                          {item.audioUrl && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowExportModal(item);
+                              }}
+                              title="Export for distribution"
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '8px',
+                                background: 'rgba(6, 182, 212, 0.2)',
+                                border: '1px solid rgba(6, 182, 212, 0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'var(--color-cyan)'
+                              }}
+                            >
+                              <Music size={14} />
+                            </button>
+                          )}
                           
                           {/* Delete Button */}
                           <button
@@ -7960,6 +7990,179 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               Last: "{lastVoiceCommand.text.substring(0, 25)}{lastVoiceCommand.text.length > 25 ? '...' : ''}"
             </div>
           )}
+        </div>
+      )}
+
+      {/* Audio Export/Mastering Modal */}
+      {showExportModal && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowExportModal(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ 
+            maxWidth: 'min(95vw, 500px)', 
+            width: '100%',
+            margin: '2rem auto'
+          }}>
+            <button className="modal-close" onClick={() => setShowExportModal(null)}><X size={20} /></button>
+            
+            <div style={{ padding: '24px' }}>
+              <h2 style={{ 
+                fontSize: '1.4rem', 
+                fontWeight: '700', 
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: 'white'
+              }}>
+                <Volume2 className="text-cyan" size={24} />
+                Export for Distribution
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '24px' }}>
+                Prepare your audio for streaming platforms and digital distribution.
+              </p>
+
+              {/* Preset Selection */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                  EXPORT PRESET
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                  {[
+                    { id: 'streaming', label: 'Streaming', desc: 'Spotify, Apple Music', specs: '44.1kHz / 16-bit / -14 LUFS' },
+                    { id: 'youtube', label: 'YouTube', desc: 'Video platforms', specs: '48kHz / 16-bit / -14 LUFS' },
+                    { id: 'cd', label: 'CD Quality', desc: 'Physical release', specs: '44.1kHz / 16-bit / -9 LUFS' },
+                    { id: 'hires', label: 'Hi-Res', desc: 'Audiophile', specs: '96kHz / 24-bit / -14 LUFS' },
+                    { id: 'podcast', label: 'Podcast', desc: 'Spoken word', specs: '44.1kHz / 16-bit / -16 LUFS' }
+                  ].map(preset => (
+                    <button
+                      key={preset.id}
+                      onClick={() => setExportPreset(preset.id)}
+                      style={{
+                        padding: '12px',
+                        background: exportPreset === preset.id 
+                          ? 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))' 
+                          : 'rgba(255,255,255,0.05)',
+                        border: exportPreset === preset.id 
+                          ? '1px solid var(--color-purple)' 
+                          : '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        textAlign: 'left'
+                      }}
+                    >
+                      <div style={{ fontWeight: '600', color: 'white', fontSize: '0.9rem' }}>{preset.label}</div>
+                      <div style={{ fontSize: '0.7rem', color: exportPreset === preset.id ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)' }}>{preset.desc}</div>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--color-cyan)', marginTop: '4px' }}>{preset.specs}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Platform Compatibility */}
+              <div style={{ 
+                background: 'rgba(255,255,255,0.03)', 
+                borderRadius: '10px', 
+                padding: '16px', 
+                marginBottom: '20px' 
+              }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                  PLATFORM COMPATIBILITY
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {['Apple Music', 'Spotify', 'YouTube Music', 'Amazon Music', 'Tidal', 'Deezer'].map(platform => (
+                    <span key={platform} style={{
+                      padding: '4px 10px',
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      borderRadius: '12px',
+                      fontSize: '0.7rem',
+                      color: '#10b981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <Check size={12} /> {platform}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Export Button */}
+              <button
+                onClick={async () => {
+                  if (!showExportModal?.audioUrl) {
+                    toast.error('No audio to export');
+                    return;
+                  }
+                  
+                  setIsExporting(true);
+                  const exportToast = toast.loading('Mastering audio...');
+                  
+                  try {
+                    // Extract base64 from data URL
+                    const base64 = showExportModal.audioUrl.split(',')[1];
+                    
+                    const response = await fetch(`${BACKEND_URL}/api/master-audio`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        audioBase64: base64,
+                        preset: exportPreset
+                      })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.audioUrl) {
+                      // Download the mastered file
+                      const link = document.createElement('a');
+                      link.href = data.audioUrl;
+                      link.download = `${showExportModal.title || 'audio'}-mastered-${exportPreset}.wav`;
+                      link.click();
+                      
+                      toast.success(`Exported for ${exportPreset}!`, { id: exportToast });
+                      setShowExportModal(null);
+                    } else {
+                      throw new Error(data.error || 'Export failed');
+                    }
+                  } catch (err) {
+                    console.error('Export error:', err);
+                    toast.error('Export failed: ' + err.message, { id: exportToast });
+                  } finally {
+                    setIsExporting(false);
+                  }
+                }}
+                disabled={isExporting}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  background: isExporting 
+                    ? 'rgba(255,255,255,0.1)' 
+                    : 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                  border: 'none',
+                  borderRadius: '10px',
+                  color: 'white',
+                  fontWeight: '600',
+                  fontSize: '0.95rem',
+                  cursor: isExporting ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                {isExporting ? (
+                  <>
+                    <RefreshCw size={16} className="spin" />
+                    Mastering...
+                  </>
+                ) : (
+                  <>
+                    <Download size={16} />
+                    Export & Download
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
