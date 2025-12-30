@@ -115,6 +115,19 @@ const agentDetails = {
   }
 };
 
+// Helper: Get relative time since date
+const getTimeSince = (date) => {
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+  
+  if (seconds < 60) return 'Just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+  if (seconds < 2592000) return `${Math.floor(seconds / 604800)}w ago`;
+  return `${Math.floor(seconds / 2592000)}mo ago`;
+};
+
 function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   // Helper to get tab from hash
   const getTabFromHash = () => {
@@ -2248,6 +2261,214 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     </div>
                   </div>
 
+                  {/* Recent Projects Section */}
+                  <section className="dashboard-card recent-projects-card" style={{ marginBottom: '24px' }}>
+                    <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Folder size={18} className="text-cyan" /> Your Projects
+                      </h3>
+                      <button 
+                        className="btn-pill glass" 
+                        onClick={() => setActiveTab('hub')}
+                        style={{ fontSize: '0.75rem', padding: '6px 12px' }}
+                      >
+                        View All <ChevronRight size={14} />
+                      </button>
+                    </div>
+                    
+                    {projects.length === 0 ? (
+                      <div className="empty-projects-state" style={{ 
+                        textAlign: 'center', 
+                        padding: '40px 20px',
+                        background: 'rgba(255,255,255,0.02)',
+                        borderRadius: '12px',
+                        marginTop: '16px'
+                      }}>
+                        <Folder size={40} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
+                        <h4 style={{ margin: '0 0 8px 0', color: 'var(--text-primary)' }}>No Projects Yet</h4>
+                        <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                          Start your first project and track your creative journey.
+                        </p>
+                        <button className="btn-pill primary" onClick={() => setShowProjectChoiceModal(true)}>
+                          <Plus size={14} /> Create First Project
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="projects-list-view" style={{ marginTop: '16px' }}>
+                        {projects.slice(0, 5).map((project, idx) => {
+                          const createdDate = project.createdAt ? new Date(project.createdAt) : (project.date ? new Date(project.date) : new Date());
+                          const formattedDate = createdDate.toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: createdDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+                          });
+                          const timeSince = getTimeSince(createdDate);
+                          
+                          return (
+                            <div 
+                              key={project.id || idx}
+                              className="project-list-item touch-feedback"
+                              onClick={() => {
+                                setSelectedProject(project);
+                                setActiveTab('hub');
+                              }}
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '48px 1fr auto',
+                                gap: '16px',
+                                alignItems: 'center',
+                                padding: '16px',
+                                background: selectedProject?.id === project.id ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255,255,255,0.02)',
+                                borderRadius: '12px',
+                                marginBottom: '8px',
+                                border: selectedProject?.id === project.id ? '1px solid var(--color-purple)' : '1px solid rgba(255,255,255,0.05)',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
+                              onMouseLeave={(e) => { if (selectedProject?.id !== project.id) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'; }}
+                            >
+                              {/* Project Thumbnail/Icon */}
+                              <div style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '10px',
+                                background: project.category === 'music' ? 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-pink) 100%)' :
+                                            project.category === 'visual' ? 'linear-gradient(135deg, var(--color-cyan) 0%, var(--color-blue) 100%)' :
+                                            project.category === 'marketing' ? 'linear-gradient(135deg, var(--color-orange) 0%, var(--color-red) 100%)' :
+                                            'linear-gradient(135deg, var(--color-emerald) 0%, var(--color-cyan) 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontSize: '1.2rem',
+                                fontWeight: '700',
+                                flexShrink: 0
+                              }}>
+                                {project.category === 'music' ? <Disc size={22} /> :
+                                 project.category === 'visual' ? <Image size={22} /> :
+                                 project.category === 'marketing' ? <Share2 size={22} /> :
+                                 <Folder size={22} />}
+                              </div>
+                              
+                              {/* Project Details */}
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: '8px',
+                                  marginBottom: '4px'
+                                }}>
+                                  <h4 style={{ 
+                                    margin: 0, 
+                                    fontSize: '1rem', 
+                                    fontWeight: '600',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                  }}>
+                                    {project.name}
+                                  </h4>
+                                  <span style={{
+                                    padding: '2px 8px',
+                                    background: project.status === 'completed' ? 'rgba(16, 185, 129, 0.2)' :
+                                               project.status === 'archived' ? 'rgba(100, 116, 139, 0.2)' :
+                                               'rgba(168, 85, 247, 0.2)',
+                                    color: project.status === 'completed' ? 'var(--color-emerald)' :
+                                           project.status === 'archived' ? 'var(--text-secondary)' :
+                                           'var(--color-purple)',
+                                    borderRadius: '20px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: '600',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px',
+                                    flexShrink: 0
+                                  }}>
+                                    {project.status || 'Active'}
+                                  </span>
+                                </div>
+                                <div style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: '12px',
+                                  color: 'var(--text-secondary)',
+                                  fontSize: '0.8rem'
+                                }}>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <User size={12} />
+                                    {user?.displayName || 'You'}
+                                  </span>
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <Clock size={12} />
+                                    {formattedDate}
+                                  </span>
+                                  {project.agents?.length > 0 && (
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <Users size={12} />
+                                      {project.agents.length} agent{project.agents.length !== 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                </div>
+                                {project.description && (
+                                  <p style={{ 
+                                    margin: '6px 0 0 0', 
+                                    fontSize: '0.8rem', 
+                                    color: 'var(--text-secondary)',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                  }}>
+                                    {project.description}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              {/* Quick Actions */}
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <button 
+                                  className="btn-icon-sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedProject(project);
+                                    if (project.agents?.[0]) {
+                                      setSelectedAgent(project.agents[0]);
+                                      setActiveTab('agents');
+                                    }
+                                  }}
+                                  title="Open Project"
+                                  style={{
+                                    width: '32px',
+                                    height: '32px',
+                                    borderRadius: '8px',
+                                    background: 'var(--color-purple)',
+                                    border: 'none',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                  }}
+                                >
+                                  <Play size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        
+                        {projects.length > 5 && (
+                          <button 
+                            className="btn-pill glass" 
+                            onClick={() => setActiveTab('hub')}
+                            style={{ width: '100%', marginTop: '8px' }}
+                          >
+                            View All {projects.length} Projects <ChevronRight size={14} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </section>
+
                   {/* Brand Strategy Section */}
                   <section className="dashboard-card brand-strategy-card" style={{ marginBottom: '24px' }}>
                     <div className="card-header">
@@ -3286,10 +3507,54 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         );
       case 'resources':
         const LEGAL_RESOURCES = [
-          { title: 'Music Copyright 101', desc: 'Understanding your rights as a creator.', icon: Shield, type: 'Guide' },
-          { title: 'Split Sheet Template', desc: 'Standard agreement for co-writing sessions.', icon: FileText, type: 'Template' },
-          { title: 'Sync Licensing Guide', desc: 'How to get your music in TV & Film.', icon: Tv, type: 'Guide' },
-          { title: 'AI & IP Rights', desc: 'Navigating the legal landscape of AI music.', icon: Lock, type: 'Whitepaper' }
+          { 
+            title: 'Music Copyright 101', 
+            desc: 'Understanding your rights as a creator - ownership, registration, and protection.', 
+            icon: Shield, 
+            type: 'Guide',
+            status: 'coming-soon',
+            eta: 'Jan 2025'
+          },
+          { 
+            title: 'Split Sheet Template', 
+            desc: 'Standard agreement for co-writing sessions. Define ownership before you create.', 
+            icon: FileText, 
+            type: 'Template',
+            status: 'coming-soon',
+            eta: 'Jan 2025'
+          },
+          { 
+            title: 'Sync Licensing Guide', 
+            desc: 'Step-by-step guide to getting your music placed in TV, Film & Ads.', 
+            icon: Tv, 
+            type: 'Guide',
+            status: 'coming-soon',
+            eta: 'Feb 2025'
+          },
+          { 
+            title: 'AI & IP Rights', 
+            desc: 'Navigating the legal landscape of AI-assisted music creation.', 
+            icon: Lock, 
+            type: 'Whitepaper',
+            status: 'coming-soon',
+            eta: 'Feb 2025'
+          },
+          { 
+            title: 'Label Deal Breakdown', 
+            desc: 'Understanding record deals, advances, recoupment, and points.', 
+            icon: FileText, 
+            type: 'Guide',
+            status: 'coming-soon',
+            eta: 'Mar 2025'
+          },
+          { 
+            title: 'Publishing 101', 
+            desc: 'PROs, mechanical royalties, sync fees, and how to collect what you\'re owed.', 
+            icon: CreditCard, 
+            type: 'Guide',
+            status: 'coming-soon',
+            eta: 'Mar 2025'
+          }
         ];
 
         const AGENT_WHITEPAPERS = [
@@ -3331,18 +3596,56 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <div className="section-header">
                   <Shield size={20} className="text-purple" />
                   <h2>Legal & Business</h2>
+                  <span style={{ 
+                    marginLeft: 'auto',
+                    padding: '4px 12px',
+                    background: 'rgba(168, 85, 247, 0.2)',
+                    color: 'var(--color-purple)',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600'
+                  }}>
+                    Coming Q1 2025
+                  </span>
                 </div>
-                <div className="cards-grid">
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
+                  Protect your art. Understand your rights. We're building comprehensive guides for independent creators.
+                </p>
+                <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
                   {LEGAL_RESOURCES.map((item, i) => (
-                    <div key={i} className="resource-card legal">
+                    <div key={i} className="resource-card legal" style={{ 
+                      opacity: item.status === 'coming-soon' ? 0.85 : 1,
+                      position: 'relative'
+                    }}>
+                      {item.status === 'coming-soon' && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '12px',
+                          right: '12px',
+                          padding: '3px 8px',
+                          background: 'rgba(251, 191, 36, 0.2)',
+                          color: '#fbbf24',
+                          borderRadius: '6px',
+                          fontSize: '0.65rem',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          {item.eta}
+                        </div>
+                      )}
                       <div className="card-icon"><item.icon size={24} /></div>
                       <div className="card-content">
                         <h3>{item.title}</h3>
                         <p>{item.desc}</p>
                         <span className="card-tag">{item.type}</span>
                       </div>
-                      <button className="card-action" onClick={() => handleDeadLink(null, item.title)}>
-                        Read Guide
+                      <button 
+                        className="card-action" 
+                        onClick={() => toast('📅 This guide is coming soon! We\'ll notify you when it\'s ready.', { icon: '🔔' })}
+                        style={{ opacity: item.status === 'coming-soon' ? 0.7 : 1 }}
+                      >
+                        {item.status === 'coming-soon' ? 'Notify Me' : 'Read Guide'}
                       </button>
                     </div>
                   ))}
@@ -3353,10 +3656,38 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <div className="section-header">
                   <FileText size={20} className="text-cyan" />
                   <h2>Agent Whitepapers</h2>
+                  <span style={{ 
+                    marginLeft: 'auto',
+                    padding: '4px 12px',
+                    background: 'rgba(6, 182, 212, 0.2)',
+                    color: 'var(--color-cyan)',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600'
+                  }}>
+                    Technical Docs
+                  </span>
                 </div>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
+                  Understand the technology behind each agent. Architecture, capabilities, and best practices.
+                </p>
                 <div className="cards-grid">
                   {AGENT_WHITEPAPERS.map((item, i) => (
-                    <div key={i} className="resource-card whitepaper">
+                    <div key={i} className="resource-card whitepaper" style={{ position: 'relative' }}>
+                      <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        padding: '3px 8px',
+                        background: 'rgba(251, 191, 36, 0.2)',
+                        color: '#fbbf24',
+                        borderRadius: '6px',
+                        fontSize: '0.65rem',
+                        fontWeight: '700',
+                        textTransform: 'uppercase'
+                      }}>
+                        Coming Soon
+                      </div>
                       <div className="card-icon"><item.icon size={24} /></div>
                       <div className="card-content">
                         <div className="wp-header">
@@ -3365,8 +3696,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         </div>
                         <p>{item.desc}</p>
                       </div>
-                      <button className="card-action secondary" onClick={() => handleDeadLink(null, item.title)}>
-                        Technical Spec
+                      <button 
+                        className="card-action secondary" 
+                        onClick={() => toast('📄 Technical documentation coming soon for developers and power users.', { icon: '🔬' })}
+                      >
+                        View Spec
                       </button>
                     </div>
                   ))}
