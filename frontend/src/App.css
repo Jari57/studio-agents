@@ -3480,7 +3480,16 @@
 
 .news-text-stub {
   flex-grow: 1;
-  dQuick Action Buttons */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.line-long { height: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; width: 100%; }
+.line-short { height: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; width: 60%; }
+
+/* Quick Action Buttons */
 .quick-action-icon-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
