@@ -3426,22 +3426,26 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     <select
                       value={selectedModel}
                       onChange={(e) => setSelectedModel(e.target.value)}
+                      className="model-select-dropdown"
                       style={{
                         flex: 1,
                         padding: '10px 14px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        background: '#1a1a2e',
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
                         borderRadius: '10px',
                         color: 'white',
                         fontSize: '0.85rem',
                         fontWeight: '500',
                         cursor: 'pointer',
                         appearance: 'none',
+                        WebkitAppearance: 'none',
+                        MozAppearance: 'none',
                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238b5cf6'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
                         backgroundRepeat: 'no-repeat',
                         backgroundPosition: 'right 12px center',
                         backgroundSize: '16px',
-                        paddingRight: '40px'
+                        paddingRight: '40px',
+                        colorScheme: 'dark'
                       }}
                     >
                       <optgroup label="⚡ Google Gemini">
@@ -4134,6 +4138,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         setShowLoginModal(true);
                       } else {
                         setSelectedAgent(agent);
+                        // Stay on agents tab - the selectedAgent view will show
                       }
                     }}
                   >

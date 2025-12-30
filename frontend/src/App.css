@@ -79,6 +79,43 @@
 }
 
 /* --- Global Components --- */
+
+/* Model Selector Dropdown - Dark Theme Fix */
+.model-select-dropdown,
+select.model-select-dropdown {
+  background-color: #1a1a2e !important;
+  color: white !important;
+}
+
+.model-select-dropdown option,
+.model-select-dropdown optgroup {
+  background-color: #1a1a2e !important;
+  color: white !important;
+  padding: 10px;
+}
+
+.model-select-dropdown optgroup {
+  font-weight: 700;
+  color: #a855f7 !important;
+}
+
+/* Generic select dark styling */
+select {
+  color-scheme: dark;
+}
+
+select option {
+  background-color: #1a1a2e;
+  color: white;
+  padding: 8px;
+}
+
+select optgroup {
+  background-color: #121216;
+  color: #a855f7;
+  font-weight: bold;
+}
+
 .btn-pill {
   display: inline-flex;
   align-items: center;
