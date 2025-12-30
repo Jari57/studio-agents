@@ -490,3 +490,65 @@ button, .nav-link, .agent-card-premium {
   }
 }
 
+/* --- Agent Detail Page Button Fixes --- */
+@media (max-width: 768px) {
+  /* Fix generation actions buttons */
+  .generation-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .generation-actions button,
+  .generation-actions .cta-button-primary,
+  .generation-actions .cta-button-premium,
+  .generation-actions .cta-button-secondary {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 0.9rem;
+    min-height: 48px; /* Proper touch target */
+  }
+
+  /* Fix utility box action buttons */
+  .agent-utility-box .generation-actions {
+    gap: 10px;
+  }
+
+  /* Fix agent detail buttons globally */
+  .agent-detail-layout button:not(.icon-btn):not(.modal-close):not(.close-btn) {
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    min-height: 44px;
+    border-radius: 12px;
+  }
+
+  /* Fix prompt area buttons */
+  .prompt-area + .generation-actions,
+  .agent-utility-box > .generation-actions {
+    flex-direction: column;
+  }
+
+  /* Fix side panel buttons */
+  .agent-side-panel button {
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    min-height: 40px;
+  }
+
+  /* Ensure proper spacing between stacked buttons */
+  .agent-main-panel button + button,
+  .generation-actions button + button {
+    margin-top: 0; /* Gap handles this */
+  }
+}
+
+/* Very small screens */
+@media (max-width: 380px) {
+  .generation-actions button,
+  .agent-detail-layout button:not(.icon-btn):not(.modal-close) {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+}
+
