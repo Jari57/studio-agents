@@ -13,7 +13,7 @@ import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from 'firebas
 
 const firebaseConfig = {
   apiKey: "AIzaSyAKWKmHVfwKHuH_Huf4C2XcMAxk3pkkuz8",
-  authDomain: "studioagentsai.com",
+  authDomain: "studioagents-app.firebaseapp.com",
   projectId: "studioagents-app",
   storageBucket: "studioagents-app.firebasestorage.app",
   messagingSenderId: "460525904786",
