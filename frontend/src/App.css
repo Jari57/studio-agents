@@ -1493,6 +1493,19 @@
   color: white !important;
 }
 
+/* Override any color class on agent names */
+.agent-cyan .agent-name,
+.agent-purple .agent-name,
+.agent-orange .agent-name,
+.agent-emerald .agent-name,
+.agent-indigo .agent-name,
+.agent-pink .agent-name,
+.agent-blue .agent-name,
+.agent-red .agent-name,
+.agent-green .agent-name {
+  color: white !important;
+}
+
 .agent-category-badge {
   display: inline-block;
   padding: 0.25rem 0.75rem;
@@ -3399,9 +3412,12 @@
   font-size: 1.125rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
+  color: white !important;
 }
 
 .agent-studio-info p {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-size: 0.85rem;
 }
 
 .agent-studio-card:hover .agent-launch-btn {
@@ -3838,23 +3854,25 @@
   font-size: 2.5rem;
   font-weight: 900;
   margin-bottom: 0.5rem;
+  color: white !important;
 }
 
 .agent-hero-info p {
-  color: #9ca3af;
+  color: rgba(255, 255, 255, 0.7) !important;
   font-size: 1.125rem;
 }
 
 .agent-badge {
   display: inline-block;
   padding: 0.25rem 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.4);
   border-radius: 100px;
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-purple);
+  color: #a78bfa !important;
   margin-bottom: 0.75rem;
 }
 
@@ -7090,6 +7108,7 @@
   gap: 1rem;
   font-weight: 600;
   font-size: 1.1rem;
+  color: white;
 }
 
 .toggle-btn {
