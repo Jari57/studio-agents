@@ -5906,8 +5906,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
       {/* Project Choice Modal */}
       {showProjectChoiceModal && (
-        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectChoiceModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', textAlign: 'center' }}>
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectChoiceModal(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '100%', textAlign: 'center', margin: '0 12px', boxSizing: 'border-box', maxHeight: 'none', overflow: 'visible' }}>
             <div className="modal-header" style={{ justifyContent: 'center', flexDirection: 'column', gap: '12px', borderBottom: 'none', paddingBottom: 0 }}>
               <div className="agent-mini-icon bg-purple" style={{ width: '60px', height: '60px', margin: '0 auto' }}>
                 <Rocket size={32} />
@@ -5965,8 +5965,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
       {/* Project Wizard Modal */}
       {showProjectWizard && (
-        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectWizard(false)}>
-          <div className="modal-content project-wizard-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectWizard(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content project-wizard-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '100%', margin: '0 12px', boxSizing: 'border-box', maxHeight: 'none', overflow: 'visible' }}>
             <div className="modal-header">
               <div className="modal-title-group">
                 <div className="agent-mini-icon bg-purple">
