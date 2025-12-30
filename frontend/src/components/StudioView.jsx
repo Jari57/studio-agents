@@ -7311,6 +7311,169 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           </div>
         </div>
       )}
+
+      {/* Voice Command Palette Modal (Whisperer-style) */}
+      {showVoiceCommandPalette && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowVoiceCommandPalette(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+            <div className="modal-header">
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Mic size={20} className="text-purple" />
+                Voice Commands
+              </h2>
+              <button className="modal-close" onClick={() => setShowVoiceCommandPalette(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ textAlign: 'left', padding: '16px 24px' }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                Click the mic button and say any of these commands:
+              </p>
+              
+              {['Navigation', 'Actions', 'Settings', 'Voice'].map(category => (
+                <div key={category} style={{ marginBottom: '16px' }}>
+                  <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-purple)', marginBottom: '8px' }}>
+                    {category}
+                  </h4>
+                  {VOICE_COMMANDS.filter(c => c.category === category).map((cmd, i) => (
+                    <div key={i} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 12px',
+                      background: 'rgba(255,255,255,0.03)',
+                      borderRadius: '8px',
+                      marginBottom: '6px',
+                      fontSize: '0.85rem'
+                    }}>
+                      <div>
+                        <span style={{ fontWeight: '600', color: 'white' }}>{cmd.command}</span>
+                        <span style={{ color: 'var(--text-secondary)', marginLeft: '8px', fontSize: '0.75rem' }}>{cmd.description}</span>
+                      </div>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--color-cyan)', fontStyle: 'italic' }}>{cmd.example}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              
+              <div style={{ 
+                marginTop: '16px', 
+                padding: '12px', 
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.1))',
+                borderRadius: '12px',
+                border: '1px solid rgba(139, 92, 246, 0.2)'
+              }}>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  💡 <strong style={{ color: 'white' }}>Pro Tip:</strong> Say anything else and it will be added to your prompt as dictation.
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ padding: '16px 24px' }}>
+              <button 
+                className={`cta-button-premium ${isListening ? 'listening' : ''}`}
+                onClick={() => {
+                  setShowVoiceCommandPalette(false);
+                  handleVoiceToText();
+                }}
+                style={{ width: '100%' }}
+              >
+                <Mic size={18} />
+                {isListening ? 'Stop Listening' : 'Start Listening'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Voice Indicator (Whisperer-style) */}
+      {isListening && (
+        <div style={{
+          position: 'fixed',
+          bottom: '100px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '8px',
+          animation: 'fadeInUp 0.3s ease'
+        }}>
+          {/* Real-time transcript */}
+          {voiceTranscript && (
+            <div style={{
+              background: 'rgba(0,0,0,0.9)',
+              padding: '12px 20px',
+              borderRadius: '12px',
+              color: 'white',
+              fontSize: '0.9rem',
+              maxWidth: '300px',
+              textAlign: 'center',
+              border: '1px solid rgba(139, 92, 246, 0.3)'
+            }}>
+              <span style={{ color: 'var(--color-cyan)' }}>"{voiceTranscript}"</span>
+            </div>
+          )}
+          
+          {/* Listening indicator */}
+          <div style={{
+            background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
+            padding: '16px 24px',
+            borderRadius: '50px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)',
+            cursor: 'pointer'
+          }} onClick={handleVoiceToText}>
+            {/* Animated pulse rings */}
+            <div style={{ position: 'relative', width: '24px', height: '24px' }}>
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                background: 'white',
+                animation: 'pulse 1.5s ease-in-out infinite'
+              }} />
+              <Mic size={24} style={{ position: 'relative', zIndex: 1, color: 'var(--color-purple)' }} />
+            </div>
+            <span style={{ color: 'white', fontWeight: '600', fontSize: '0.9rem' }}>
+              Listening...
+            </span>
+            <button 
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '28px',
+                height: '28px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'white'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleVoiceToText(); // Stop listening
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+          
+          {/* Last command feedback */}
+          {lastVoiceCommand && (
+            <div style={{
+              fontSize: '0.7rem',
+              color: 'var(--text-secondary)',
+              marginTop: '4px'
+            }}>
+              Last: "{lastVoiceCommand.text.substring(0, 25)}{lastVoiceCommand.text.length > 25 ? '...' : ''}"
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -376,18 +376,15 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         </div>
 
         <div className="agents-scroll-container">
-          <div style={{ 
+          <div className="scroll-hint-desktop" style={{ 
             textAlign: 'center', 
             marginBottom: '16px', 
             color: 'var(--text-secondary)', 
             fontSize: '0.8rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
+            display: 'none'
           }}>
-            <ArrowRight size={14} />
-            <span>Swipe to meet the team</span>
+            <ArrowRight size={14} style={{ marginRight: '8px' }} />
+            <span>Explore the team</span>
           </div>
           <div className="agents-grid">
             {AGENTS.map((agent) => {
