@@ -1192,23 +1192,33 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
       {/* Showcase Modal - The Whip Montez Story */}
       {showShowcase && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
-          <div className="legal-modal animate-scaleIn" style={{ 
-            maxWidth: 'min(90vw, 700px)',
-            maxHeight: 'none',
-            overflow: 'visible',
-            background: 'linear-gradient(180deg, #0a0a0a 0%, #111 100%)',
-            border: '1px solid rgba(0, 255, 65, 0.2)'
-          }}>
+        <div 
+          className="modal-overlay animate-fadeIn" 
+          style={{ zIndex: 10000, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
+          onClick={() => setShowShowcase(false)}
+          onTouchEnd={(e) => { if (e.target === e.currentTarget) setShowShowcase(false); }}
+        >
+          <div 
+            className="legal-modal animate-scaleIn" 
+            style={{ 
+              maxWidth: 'min(92vw, 700px)',
+              width: '100%',
+              margin: '1rem auto',
+              background: 'linear-gradient(180deg, #0a0a0a 0%, #111 100%)',
+              border: '1px solid rgba(0, 255, 65, 0.2)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
             <div className="modal-header" style={{ borderBottom: '1px solid rgba(0, 255, 65, 0.2)' }}>
               <h2 style={{ color: '#00ff41', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Sparkles size={24} />
                 RESTORED OS: The Lost Tapes
               </h2>
-              <button className="modal-close" onClick={() => setShowShowcase(false)}><X size={20} /></button>
+              <button className="modal-close" onClick={() => setShowShowcase(false)} onTouchEnd={(e) => { e.preventDefault(); setShowShowcase(false); }}><X size={20} /></button>
             </div>
             
-            <div className="modal-body" style={{ padding: '24px', overflow: 'visible' }}>
+            <div className="modal-body" style={{ padding: '24px' }}>
               {/* Hero Visual */}
               <div style={{ 
                 textAlign: 'center', 
@@ -1392,23 +1402,33 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
       {/* Marketing Modal - The Full Pitch */}
       {showMarketing && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
-          <div className="legal-modal animate-scaleIn" style={{ 
-            maxWidth: 'min(90vw, 700px)',
-            maxHeight: 'none',
-            overflow: 'visible',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
+        <div 
+          className="modal-overlay animate-fadeIn" 
+          style={{ zIndex: 10000, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
+          onClick={() => setShowMarketing(false)}
+          onTouchEnd={(e) => { if (e.target === e.currentTarget) setShowMarketing(false); }}
+        >
+          <div 
+            className="legal-modal animate-scaleIn" 
+            style={{ 
+              maxWidth: 'min(92vw, 700px)',
+              width: '100%',
+              margin: '1rem auto',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Rocket size={24} style={{ color: 'var(--color-purple)' }} />
                 The Independent Artist's Edge
               </h2>
-              <button className="modal-close" onClick={() => setShowMarketing(false)}><X size={20} /></button>
+              <button className="modal-close" onClick={() => setShowMarketing(false)} onTouchEnd={(e) => { e.preventDefault(); setShowMarketing(false); }}><X size={20} /></button>
             </div>
             
-            <div className="modal-body" style={{ padding: '24px', overflow: 'visible', flex: 1 }}>
+            <div className="modal-body" style={{ padding: '24px' }}>
               {/* The Problem */}
               <div style={{ marginBottom: '28px' }}>
                 <h3 style={{ 
@@ -1600,16 +1620,26 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
       {/* Investor Pitch Deck Modal - VC-Ready Full Presentation */}
       {showInvestorPitch && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10001 }}>
-          <div className="legal-modal animate-scaleIn" style={{ 
-            maxWidth: 'min(95vw, 950px)',
-            maxHeight: 'none',
-            overflow: 'visible',
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'linear-gradient(180deg, rgba(15, 15, 25, 0.98) 0%, rgba(10, 10, 18, 0.99) 100%)',
-            border: '1px solid rgba(139, 92, 246, 0.3)'
-          }}>
+        <div 
+          className="modal-overlay animate-fadeIn" 
+          style={{ zIndex: 10001, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
+          onClick={() => setShowInvestorPitch(false)}
+          onTouchEnd={(e) => { if (e.target === e.currentTarget) setShowInvestorPitch(false); }}
+        >
+          <div 
+            className="legal-modal animate-scaleIn" 
+            style={{ 
+              maxWidth: 'min(95vw, 950px)',
+              width: '100%',
+              margin: '1rem auto',
+              display: 'flex',
+              flexDirection: 'column',
+              background: 'linear-gradient(180deg, rgba(15, 15, 25, 0.98) 0%, rgba(10, 10, 18, 0.99) 100%)',
+              border: '1px solid rgba(139, 92, 246, 0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="modal-header" style={{ 
               borderBottom: '1px solid rgba(139, 92, 246, 0.2)',
@@ -1624,7 +1654,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   The AI-Native Label Disrupting a $30B Industry
                 </p>
               </div>
-              <button className="modal-close" onClick={() => setShowInvestorPitch(false)}><X size={20} /></button>
+              <button className="modal-close" onClick={() => setShowInvestorPitch(false)} onTouchEnd={(e) => { e.preventDefault(); setShowInvestorPitch(false); }}><X size={20} /></button>
             </div>
             
             {/* Tabs */}
@@ -2576,16 +2606,26 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         const Icon = agent.icon;
         
         return (
-          <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10002 }}>
-            <div className="legal-modal animate-scaleIn" style={{ 
-              maxWidth: 'min(95vw, 1000px)',
-              maxHeight: 'none',
-              overflow: 'visible',
-              display: 'flex',
-              flexDirection: 'column',
-              background: 'linear-gradient(180deg, rgba(15, 15, 25, 0.99) 0%, rgba(8, 8, 14, 1) 100%)',
-              border: '1px solid rgba(139, 92, 246, 0.3)'
-            }}>
+          <div 
+            className="modal-overlay animate-fadeIn" 
+            style={{ zIndex: 10002, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
+            onClick={() => { setShowAgentWhitepaper(false); setSelectedWhitepaperAgent(null); }}
+            onTouchEnd={(e) => { if (e.target === e.currentTarget) { setShowAgentWhitepaper(false); setSelectedWhitepaperAgent(null); } }}
+          >
+            <div 
+              className="legal-modal animate-scaleIn" 
+              style={{ 
+                maxWidth: 'min(95vw, 1000px)',
+                width: '100%',
+                margin: '1rem auto',
+                display: 'flex',
+                flexDirection: 'column',
+                background: 'linear-gradient(180deg, rgba(15, 15, 25, 0.99) 0%, rgba(8, 8, 14, 1) 100%)',
+                border: '1px solid rgba(139, 92, 246, 0.3)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+            >
               {/* Header */}
               <div className="modal-header" style={{ 
                 borderBottom: '1px solid rgba(139, 92, 246, 0.2)',
@@ -2640,7 +2680,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     </p>
                   </div>
                 </div>
-                <button className="modal-close" onClick={() => setShowAgentWhitepaper(false)}><X size={20} /></button>
+                <button className="modal-close" onClick={() => { setShowAgentWhitepaper(false); setSelectedWhitepaperAgent(null); }} onTouchEnd={(e) => { e.preventDefault(); setShowAgentWhitepaper(false); setSelectedWhitepaperAgent(null); }}><X size={20} /></button>
               </div>
               
               {/* Navigation Tabs */}

@@ -6244,16 +6244,15 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
         {/* Add/Edit Payment Method Modal */}
         {showAddPaymentModal && (
-          <div className="modal-overlay" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}>
+          <div className="modal-overlay" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }} onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}>
             <div 
               className="modal-content animate-fadeInUp" 
               onClick={(e) => e.stopPropagation()} 
               onTouchEnd={(e) => e.stopPropagation()}
               style={{ 
-                maxWidth: 'min(90vw, 700px)', 
-                width: '95%',
-                maxHeight: 'none',
-                overflow: 'visible',
+                maxWidth: 'min(92vw, 700px)', 
+                width: '100%',
+                margin: '1rem auto',
                 display: 'flex',
                 flexDirection: 'column'
               }}
@@ -6712,15 +6711,14 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
       {/* Credits Info Modal */}
       {showCreditsModal && (
-        <div className="modal-overlay animate-fadeIn" onClick={() => setShowCreditsModal(false)}>
+        <div className="modal-overlay animate-fadeIn" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }} onClick={() => setShowCreditsModal(false)}>
           <div 
             className="modal-content credits-modal" 
             onClick={e => e.stopPropagation()} 
             style={{ 
-              maxWidth: 'min(90vw, 560px)', 
-              width: '95%',
-              maxHeight: 'none',
-              overflow: 'visible',
+              maxWidth: 'min(92vw, 560px)', 
+              width: '100%',
+              margin: '1rem auto',
               display: 'flex',
               flexDirection: 'column'
             }}
@@ -7294,8 +7292,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
       {/* Onboarding Modal */}
       {showOnboarding && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000 }}>
-          <div className="modal-content onboarding-modal" style={{ maxWidth: 'min(90vw, 750px)', padding: 0, maxHeight: 'none', overflow: 'visible' }}>
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}>
+          <div className="modal-content onboarding-modal" style={{ maxWidth: 'min(92vw, 750px)', width: '100%', padding: 0, margin: '1rem auto' }}>
             {/* Progress Bar */}
             <div style={{ height: '4px', background: 'var(--color-bg-tertiary)', width: '100%' }}>
               <div style={{ 
@@ -7677,15 +7675,15 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
       {/* Add Agent Modal */}
       {showAddAgentModal && (
-        <div className="modal-overlay animate-fadeIn" onClick={() => setShowAddAgentModal(false)}>
-          <div className="modal-content" style={{ maxWidth: 'min(90vw, 800px)', maxHeight: 'none', overflow: 'visible' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay animate-fadeIn" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }} onClick={() => setShowAddAgentModal(false)}>
+          <div className="modal-content" style={{ maxWidth: 'min(92vw, 800px)', width: '100%', margin: '1rem auto' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Add Agent to Project</h2>
               <button className="modal-close" onClick={() => setShowAddAgentModal(false)}>
                 <X size={20} />
               </button>
             </div>
-            <div className="modal-body" style={{ overflow: 'visible' }}>
+            <div className="modal-body">
               <div className="agent-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
                 {AGENTS.map(agent => {
                   const isSelected = selectedProject?.agents?.some(a => a.id === agent.id);
@@ -7740,8 +7738,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
       {/* Voice Command Palette Modal (Whisperer-style) */}
       {showVoiceCommandPalette && (
-        <div className="modal-overlay animate-fadeIn" onClick={() => setShowVoiceCommandPalette(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 'min(90vw, 520px)', maxHeight: 'none', overflow: 'visible' }}>
+        <div className="modal-overlay animate-fadeIn" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }} onClick={() => setShowVoiceCommandPalette(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 'min(92vw, 520px)', width: '100%', margin: '1rem auto' }}>
             <div className="modal-header">
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Mic size={20} className="text-purple" />
@@ -7751,7 +7749,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <X size={20} />
               </button>
             </div>
-            <div className="modal-body" style={{ textAlign: 'left', padding: '16px 24px', overflow: 'visible' }}>
+            <div className="modal-body" style={{ textAlign: 'left', padding: '16px 24px' }}>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
                 Click the mic button and say any of these commands:
               </p>
