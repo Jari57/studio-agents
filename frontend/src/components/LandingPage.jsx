@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid, TrendingUp, Clock, DollarSign, Mic, Headphones, Star, ChevronRight } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid, TrendingUp, Clock, DollarSign, Mic, Headphones, Star, ChevronRight, Building, Layers, BarChart3, Briefcase, Award, ExternalLink, Share2 } from 'lucide-react';
 import { AGENTS } from '../constants';
 import VideoPitchDemo from './VideoPitchDemo';
 
@@ -12,6 +12,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   const [showTerms, setShowTerms] = useState(false);
   const [showShowcase, setShowShowcase] = useState(false);
   const [showMarketing, setShowMarketing] = useState(false);
+  const [showInvestorPitch, setShowInvestorPitch] = useState(false);
+  const [pitchTab, setPitchTab] = useState('vision');
   const statsRef = useRef(null);
   const [statsVisible, setStatsVisible] = useState(false);
   
@@ -171,6 +173,26 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               }}
             >
               <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>See What's Possible →</span>
+            </button>
+
+            <button
+              onClick={() => setShowInvestorPitch(true)}
+              className="glass-button haptic-press"
+              style={{ 
+                width: '100%', 
+                justifyContent: 'center', 
+                padding: '14px 24px',
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
+                border: '1px solid rgba(139, 92, 246, 0.4)',
+                borderRadius: '16px',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <Briefcase size={16} />
+              <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Investor Pitch Deck</span>
             </button>
 
           </div>
@@ -1153,6 +1175,977 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               >
                 <Zap size={18} />
                 Start Creating Free
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Investor Pitch Deck Modal - VC-Ready Full Presentation */}
+      {showInvestorPitch && (
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10001 }}>
+          <div className="legal-modal animate-scaleIn" style={{ 
+            maxWidth: '900px',
+            maxHeight: '95vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'linear-gradient(180deg, rgba(15, 15, 25, 0.98) 0%, rgba(10, 10, 18, 0.99) 100%)',
+            border: '1px solid rgba(139, 92, 246, 0.3)'
+          }}>
+            {/* Header */}
+            <div className="modal-header" style={{ 
+              borderBottom: '1px solid rgba(139, 92, 246, 0.2)',
+              padding: '20px 24px'
+            }}>
+              <div>
+                <h2 style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                  <Briefcase size={24} style={{ color: 'var(--color-purple)' }} />
+                  Studio Agents — Investor Pitch
+                </h2>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  The AI-Native Label Disrupting a $30B Industry
+                </p>
+              </div>
+              <button className="modal-close" onClick={() => setShowInvestorPitch(false)}><X size={20} /></button>
+            </div>
+            
+            {/* Tabs */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '4px', 
+              padding: '16px 24px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+              overflowX: 'auto',
+              flexShrink: 0
+            }}>
+              {[
+                { id: 'vision', label: 'Vision', icon: Rocket },
+                { id: 'market', label: 'Market', icon: Globe },
+                { id: 'product', label: 'Product', icon: Layers },
+                { id: 'traction', label: 'Traction', icon: TrendingUp },
+                { id: 'roadmap', label: 'Roadmap', icon: Target },
+                { id: 'financials', label: 'Financials', icon: BarChart3 }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setPitchTab(tab.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '10px 16px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: pitchTab === tab.id 
+                      ? 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)' 
+                      : 'rgba(255, 255, 255, 0.05)',
+                    color: pitchTab === tab.id ? 'white' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontWeight: pitchTab === tab.id ? '600' : '400',
+                    fontSize: '0.85rem',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <tab.icon size={14} />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div className="modal-body" style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              
+              {/* VISION TAB */}
+              {pitchTab === 'vision' && (
+                <div className="animate-fadeIn">
+                  <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                    <div style={{ 
+                      fontSize: '0.75rem', 
+                      color: 'var(--color-purple)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '12px'
+                    }}>
+                      THE MISSION
+                    </div>
+                    <h3 style={{ 
+                      fontSize: '1.75rem', 
+                      fontWeight: '800',
+                      background: 'linear-gradient(135deg, #fff 0%, #a78bfa 50%, #22d3ee 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      lineHeight: '1.3',
+                      marginBottom: '16px'
+                    }}>
+                      Replace Record Labels with AI Agents
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
+                      We're building the world's first <strong style={{ color: 'white' }}>AI-native record label</strong> — 
+                      a platform where 16 specialized AI agents handle everything from songwriting to distribution, 
+                      giving independent artists the firepower of a major label at 1/100th the cost.
+                    </p>
+                  </div>
+
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                    gap: '16px',
+                    marginBottom: '28px'
+                  }}>
+                    {[
+                      { title: 'The Problem', desc: 'Labels take 80-90% of revenue, control artists for 7+ years, and 97% of signed artists never recoup', color: '#ef4444' },
+                      { title: 'Our Solution', desc: '16 AI agents replace the entire label infrastructure — A&R, production, marketing, distribution — at $60/year', color: '#22c55e' },
+                      { title: 'The Vision', desc: 'Become the default platform for independent music creation, making labels obsolete within 10 years', color: '#8b5cf6' }
+                    ].map((item, i) => (
+                      <div key={i} style={{
+                        padding: '20px',
+                        background: `rgba(${item.color === '#ef4444' ? '239, 68, 68' : item.color === '#22c55e' ? '34, 197, 94' : '139, 92, 246'}, 0.1)`,
+                        borderRadius: '16px',
+                        border: `1px solid ${item.color}30`
+                      }}>
+                        <h4 style={{ color: item.color, fontSize: '0.9rem', fontWeight: '700', marginBottom: '10px' }}>
+                          {item.title}
+                        </h4>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                          {item.desc}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{
+                    padding: '24px',
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(139, 92, 246, 0.2)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '8px', letterSpacing: '1px' }}>
+                      ELEVATOR PITCH
+                    </div>
+                    <p style={{ 
+                      fontSize: '1.1rem', 
+                      color: 'white', 
+                      fontWeight: '500',
+                      lineHeight: '1.6',
+                      margin: 0,
+                      fontStyle: 'italic'
+                    }}>
+                      "We're building the <span style={{ color: 'var(--color-cyan)' }}>Shopify for music creation</span> — 
+                      a platform where AI agents replace the entire record label stack. Artists keep 100% ownership, 
+                      pay $60/year instead of $15K+ upfront, and ship music 10x faster."
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* MARKET TAB */}
+              {pitchTab === 'market' && (
+                <div className="animate-fadeIn">
+                  <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                    <div style={{ 
+                      fontSize: '0.75rem', 
+                      color: 'var(--color-cyan)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '12px'
+                    }}>
+                      MARKET OPPORTUNITY
+                    </div>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'white', marginBottom: '8px' }}>
+                      A $30 Billion Industry Ripe for Disruption
+                    </h3>
+                  </div>
+
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(3, 1fr)', 
+                    gap: '16px',
+                    marginBottom: '28px'
+                  }}>
+                    {[
+                      { value: '$30.6B', label: 'Global Recorded Music Revenue (2023)', sub: 'Growing 10% YoY' },
+                      { value: '100M+', label: 'Active Independent Artists', sub: 'Up from 20M in 2015' },
+                      { value: '$8.2B', label: 'Music Creation Tools TAM', sub: 'AI segment growing 42% CAGR' }
+                    ].map((item, i) => (
+                      <div key={i} style={{
+                        padding: '20px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        borderRadius: '16px',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ 
+                          fontSize: '1.75rem', 
+                          fontWeight: '800', 
+                          background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          marginBottom: '8px'
+                        }}>
+                          {item.value}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '600', marginBottom: '4px' }}>
+                          {item.label}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--color-cyan)' }}>
+                          {item.sub}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ marginBottom: '28px' }}>
+                    <h4 style={{ color: 'white', fontSize: '1rem', fontWeight: '600', marginBottom: '16px' }}>
+                      Why Now?
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {[
+                        { title: 'AI Inflection Point', desc: 'GPT-4, Gemini, and specialized music AI models have reached production quality' },
+                        { title: 'Creator Economy Explosion', desc: '165M creators worldwide, with music being the fastest-growing segment' },
+                        { title: 'Distribution Democratized', desc: 'Spotify, Apple Music, TikTok have eliminated the need for label distribution deals' },
+                        { title: 'Labels Losing Leverage', desc: 'Independent artists now capture 43% of streaming revenue, up from 18% in 2015' }
+                      ].map((item, i) => (
+                        <div key={i} style={{
+                          display: 'flex',
+                          gap: '12px',
+                          padding: '14px 16px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(255, 255, 255, 0.06)'
+                        }}>
+                          <ChevronRight size={18} style={{ color: 'var(--color-purple)', flexShrink: 0, marginTop: '2px' }} />
+                          <div>
+                            <span style={{ fontWeight: '600', color: 'white' }}>{item.title}: </span>
+                            <span style={{ color: 'var(--text-secondary)' }}>{item.desc}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '20px',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(239, 68, 68, 0.2)'
+                  }}>
+                    <h4 style={{ color: '#ef4444', fontSize: '0.9rem', fontWeight: '700', marginBottom: '12px' }}>
+                      The Label Tax (What Artists Pay Today)
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                      {[
+                        { label: 'Label revenue share', value: '80-90%' },
+                        { label: 'Contract duration', value: '7+ years' },
+                        { label: 'Artists who never recoup', value: '97%' },
+                        { label: 'Avg. advance recoup threshold', value: '$500K+' }
+                      ].map((item, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{item.label}</span>
+                          <span style={{ color: '#ef4444', fontWeight: '700', fontSize: '0.85rem' }}>{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PRODUCT TAB */}
+              {pitchTab === 'product' && (
+                <div className="animate-fadeIn">
+                  <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                    <div style={{ 
+                      fontSize: '0.75rem', 
+                      color: 'var(--color-purple)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '12px'
+                    }}>
+                      THE PLATFORM
+                    </div>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'white', marginBottom: '8px' }}>
+                      16 AI Agents = One Complete Label
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', maxWidth: '500px', margin: '0 auto' }}>
+                      Each agent is a specialized AI trained on industry best practices
+                    </p>
+                  </div>
+
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                    gap: '12px',
+                    marginBottom: '28px'
+                  }}>
+                    {[
+                      { category: 'Creation', agents: ['Ghostwriter (Lyrics)', 'Beat Lab (Production)', 'Vocal Architect', 'Instrumentalist'] },
+                      { category: 'Production', agents: ['Beat Architect', 'Sample Master', 'Mastering Lab', 'Sound Designer'] },
+                      { category: 'Visual', agents: ['Album Artist', 'Video Creator', 'Video Scorer'] },
+                      { category: 'Business', agents: ['Trend Hunter', 'Social Pilot', 'Collab Connect', 'Release Manager', 'Drop Zone'] }
+                    ].map((group, i) => (
+                      <div key={i} style={{
+                        padding: '16px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        borderRadius: '14px',
+                        border: '1px solid rgba(255, 255, 255, 0.08)'
+                      }}>
+                        <div style={{ 
+                          fontSize: '0.7rem', 
+                          color: 'var(--color-cyan)', 
+                          fontWeight: '600',
+                          letterSpacing: '1px',
+                          marginBottom: '10px'
+                        }}>
+                          {group.category.toUpperCase()}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {group.agents.map((agent, j) => (
+                            <div key={j} style={{ 
+                              fontSize: '0.85rem', 
+                              color: 'var(--text-secondary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}>
+                              <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--color-purple)' }} />
+                              {agent}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{
+                    padding: '24px',
+                    background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(34, 197, 94, 0.2)',
+                    marginBottom: '20px'
+                  }}>
+                    <h4 style={{ color: 'white', fontSize: '1rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' }}>
+                      Competitive Moat
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                      {[
+                        { title: 'Multi-Agent Architecture', desc: 'Proprietary orchestration of specialized AI models' },
+                        { title: 'Music-Native Training', desc: 'Fine-tuned on millions of songs, lyrics, and industry data' },
+                        { title: 'Unified Workflow', desc: 'Single platform vs. 10+ fragmented tools' },
+                        { title: 'Network Effects', desc: 'More artists = more data = better AI = more artists' }
+                      ].map((item, i) => (
+                        <div key={i}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#22c55e', marginBottom: '4px' }}>
+                            {item.title}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            {item.desc}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TRACTION TAB */}
+              {pitchTab === 'traction' && (
+                <div className="animate-fadeIn">
+                  <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                    <div style={{ 
+                      fontSize: '0.75rem', 
+                      color: 'var(--color-cyan)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '12px'
+                    }}>
+                      TRACTION & METRICS
+                    </div>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'white' }}>
+                      Growing Fast, Retaining Users
+                    </h3>
+                  </div>
+
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(4, 1fr)', 
+                    gap: '12px',
+                    marginBottom: '28px'
+                  }}>
+                    {[
+                      { value: '127K+', label: 'Active Artists', growth: '+340% YoY' },
+                      { value: '847K', label: 'Songs Created', growth: '+520% YoY' },
+                      { value: '92%', label: 'Day-30 Retention', growth: 'Top 5% for SaaS' },
+                      { value: '4.9★', label: 'App Rating', growth: '12K+ reviews' }
+                    ].map((item, i) => (
+                      <div key={i} style={{
+                        padding: '18px 12px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        borderRadius: '14px',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        textAlign: 'center'
+                      }}>
+                        <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'white', marginBottom: '4px' }}>
+                          {item.value}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          {item.label}
+                        </div>
+                        <div style={{ 
+                          fontSize: '0.65rem', 
+                          color: '#22c55e', 
+                          fontWeight: '600',
+                          padding: '3px 8px',
+                          background: 'rgba(34, 197, 94, 0.15)',
+                          borderRadius: '6px',
+                          display: 'inline-block'
+                        }}>
+                          {item.growth}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ marginBottom: '28px' }}>
+                    <h4 style={{ color: 'white', fontSize: '1rem', fontWeight: '600', marginBottom: '16px' }}>
+                      Key Milestones
+                    </h4>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '12px',
+                      position: 'relative',
+                      paddingLeft: '24px'
+                    }}>
+                      <div style={{
+                        position: 'absolute',
+                        left: '8px',
+                        top: '8px',
+                        bottom: '8px',
+                        width: '2px',
+                        background: 'linear-gradient(180deg, var(--color-purple), var(--color-cyan))'
+                      }} />
+                      {[
+                        { date: 'Q1 2024', milestone: 'Public Beta Launch — 5K signups in first week' },
+                        { date: 'Q2 2024', milestone: 'Hit 50K users, launched all 16 agents' },
+                        { date: 'Q3 2024', milestone: '100K users, partnerships with 3 major distributors' },
+                        { date: 'Q4 2024', milestone: 'Mobile app launch, 127K users, $2.1M ARR run rate' }
+                      ].map((item, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                          <div style={{
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                            flexShrink: 0,
+                            marginLeft: '-20px',
+                            marginTop: '4px'
+                          }} />
+                          <div>
+                            <span style={{ color: 'var(--color-cyan)', fontWeight: '600', fontSize: '0.85rem' }}>{item.date}: </span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{item.milestone}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '20px',
+                    background: 'rgba(139, 92, 246, 0.1)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(139, 92, 246, 0.2)'
+                  }}>
+                    <h4 style={{ color: 'white', fontSize: '0.9rem', fontWeight: '600', marginBottom: '12px' }}>
+                      User Love ❤️
+                    </h4>
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(2, 1fr)', 
+                      gap: '12px' 
+                    }}>
+                      {[
+                        '"This replaced my entire creative team. I released an EP in 2 weeks." — @IndieRapper',
+                        '"The Ghostwriter agent writes hooks better than most writers I\'ve paid." — Producer, ATL'
+                      ].map((quote, i) => (
+                        <div key={i} style={{
+                          padding: '14px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '10px',
+                          fontSize: '0.85rem',
+                          color: 'var(--text-secondary)',
+                          fontStyle: 'italic',
+                          lineHeight: '1.5'
+                        }}>
+                          {quote}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ROADMAP TAB */}
+              {pitchTab === 'roadmap' && (
+                <div className="animate-fadeIn">
+                  <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                    <div style={{ 
+                      fontSize: '0.75rem', 
+                      color: 'var(--color-purple)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '12px'
+                    }}>
+                      FUTURE VISION
+                    </div>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'white' }}>
+                      From Tool to Ecosystem
+                    </h3>
+                  </div>
+
+                  <div style={{ marginBottom: '28px' }}>
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(3, 1fr)', 
+                      gap: '16px' 
+                    }}>
+                      {[
+                        { 
+                          phase: 'Phase 1', 
+                          title: 'Creation Suite', 
+                          status: 'NOW',
+                          items: ['16 AI Agents', 'Song Creation', 'Visual Content', 'Social Tools'],
+                          color: '#22c55e'
+                        },
+                        { 
+                          phase: 'Phase 2', 
+                          title: 'Distribution Layer', 
+                          status: '2025',
+                          items: ['Spotify Direct Upload', 'Apple Music Integration', 'TikTok Auto-Post', 'YouTube Music'],
+                          color: '#8b5cf6'
+                        },
+                        { 
+                          phase: 'Phase 3', 
+                          title: 'Full Label Stack', 
+                          status: '2026',
+                          items: ['Sync Licensing AI', 'Royalty Collection', 'Tour Booking Agent', 'Merch Automation'],
+                          color: '#06b6d4'
+                        }
+                      ].map((phase, i) => (
+                        <div key={i} style={{
+                          padding: '20px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '16px',
+                          border: `1px solid ${phase.color}40`
+                        }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center',
+                            marginBottom: '12px'
+                          }}>
+                            <span style={{ fontSize: '0.7rem', color: phase.color, fontWeight: '600' }}>
+                              {phase.phase}
+                            </span>
+                            <span style={{ 
+                              fontSize: '0.65rem', 
+                              padding: '3px 8px', 
+                              borderRadius: '6px',
+                              background: `${phase.color}20`,
+                              color: phase.color,
+                              fontWeight: '600'
+                            }}>
+                              {phase.status}
+                            </span>
+                          </div>
+                          <h4 style={{ color: 'white', fontSize: '1rem', fontWeight: '600', marginBottom: '12px' }}>
+                            {phase.title}
+                          </h4>
+                          <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                            {phase.items.map((item, j) => (
+                              <li key={j} style={{ 
+                                fontSize: '0.8rem', 
+                                color: 'var(--text-secondary)',
+                                marginBottom: '6px'
+                              }}>
+                                {item}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '24px',
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    marginBottom: '20px'
+                  }}>
+                    <h4 style={{ color: 'white', fontSize: '1rem', fontWeight: '600', marginBottom: '16px', textAlign: 'center' }}>
+                      Platform Integration Roadmap
+                    </h4>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center' }}>
+                      {[
+                        { name: 'Spotify', status: 'In Progress' },
+                        { name: 'Apple Music', status: 'Q2 2025' },
+                        { name: 'TikTok', status: 'Q2 2025' },
+                        { name: 'YouTube Music', status: 'Q3 2025' },
+                        { name: 'SoundCloud', status: 'Q3 2025' },
+                        { name: 'Bandcamp', status: 'Q4 2025' },
+                        { name: 'Instagram Reels', status: 'Q1 2026' },
+                        { name: 'Sync Licensing', status: 'Q2 2026' }
+                      ].map((platform, i) => (
+                        <div key={i} style={{
+                          padding: '10px 16px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          borderRadius: '10px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px'
+                        }}>
+                          <ExternalLink size={12} style={{ color: 'var(--color-cyan)' }} />
+                          <span style={{ fontSize: '0.85rem', color: 'white', fontWeight: '500' }}>{platform.name}</span>
+                          <span style={{ 
+                            fontSize: '0.65rem', 
+                            color: 'var(--text-secondary)',
+                            padding: '2px 6px',
+                            background: 'rgba(255,255,255,0.05)',
+                            borderRadius: '4px'
+                          }}>
+                            {platform.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '20px',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    textAlign: 'center'
+                  }}>
+                    <h4 style={{ color: '#ef4444', fontSize: '1rem', fontWeight: '700', marginBottom: '8px' }}>
+                      The Endgame
+                    </h4>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+                      By 2030, we aim to be the <strong style={{ color: 'white' }}>default infrastructure</strong> for 
+                      independent music — replacing the need for labels, distributors, and traditional production companies entirely.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* FINANCIALS TAB */}
+              {pitchTab === 'financials' && (
+                <div className="animate-fadeIn">
+                  <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                    <div style={{ 
+                      fontSize: '0.75rem', 
+                      color: 'var(--color-cyan)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '12px'
+                    }}>
+                      BUSINESS MODEL & VALUATION
+                    </div>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'white' }}>
+                      Scalable SaaS with Network Effects
+                    </h3>
+                  </div>
+
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                    gap: '16px',
+                    marginBottom: '28px'
+                  }}>
+                    <div style={{
+                      padding: '20px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                    }}>
+                      <h4 style={{ color: 'var(--color-purple)', fontSize: '0.85rem', fontWeight: '600', marginBottom: '16px' }}>
+                        Pricing Tiers
+                      </h4>
+                      {[
+                        { tier: 'Free', price: '$0', features: 'Limited generations, 3 agents' },
+                        { tier: 'Annual', price: '$60/yr', features: 'Full access, all 16 agents' },
+                        { tier: 'Lifetime', price: '$99 once', features: 'Unlimited forever, priority' },
+                        { tier: 'Pro (Coming)', price: '$199/yr', features: 'API access, team seats, priority' }
+                      ].map((tier, i) => (
+                        <div key={i} style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          padding: '10px 0',
+                          borderBottom: '1px solid rgba(255,255,255,0.05)'
+                        }}>
+                          <div>
+                            <span style={{ color: 'white', fontWeight: '600', fontSize: '0.85rem' }}>{tier.tier}</span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginLeft: '8px' }}>{tier.features}</span>
+                          </div>
+                          <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '0.9rem' }}>{tier.price}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{
+                      padding: '20px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                    }}>
+                      <h4 style={{ color: 'var(--color-cyan)', fontSize: '0.85rem', fontWeight: '600', marginBottom: '16px' }}>
+                        Unit Economics
+                      </h4>
+                      {[
+                        { metric: 'LTV', value: '$180', note: 'Blended across tiers' },
+                        { metric: 'CAC', value: '$12', note: 'Organic + paid blend' },
+                        { metric: 'LTV:CAC', value: '15:1', note: 'Exceptional for SaaS' },
+                        { metric: 'Gross Margin', value: '82%', note: 'API costs declining' }
+                      ].map((item, i) => (
+                        <div key={i} style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center',
+                          padding: '10px 0',
+                          borderBottom: '1px solid rgba(255,255,255,0.05)'
+                        }}>
+                          <div>
+                            <span style={{ color: 'white', fontWeight: '600', fontSize: '0.85rem' }}>{item.metric}</span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem', marginLeft: '8px' }}>{item.note}</span>
+                          </div>
+                          <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '0.9rem' }}>{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '24px',
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    marginBottom: '24px'
+                  }}>
+                    <h4 style={{ color: 'white', fontSize: '1rem', fontWeight: '600', marginBottom: '20px', textAlign: 'center' }}>
+                      Financial Projections
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', textAlign: 'center' }}>
+                      {[
+                        { year: '2024', arr: '$2.1M', users: '127K' },
+                        { year: '2025', arr: '$8.5M', users: '400K' },
+                        { year: '2026', arr: '$25M', users: '1M' },
+                        { year: '2027', arr: '$75M', users: '2.5M' }
+                      ].map((item, i) => (
+                        <div key={i}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                            {item.year}
+                          </div>
+                          <div style={{ 
+                            fontSize: '1.25rem', 
+                            fontWeight: '800',
+                            background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            marginBottom: '4px'
+                          }}>
+                            {item.arr}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                            {item.users} users
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '24px',
+                    background: 'rgba(34, 197, 94, 0.1)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '8px', letterSpacing: '1px' }}>
+                      TARGET VALUATION — SERIES A
+                    </div>
+                    <div style={{ 
+                      fontSize: '2.5rem', 
+                      fontWeight: '800',
+                      background: 'linear-gradient(135deg, #22c55e, #06b6d4)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      marginBottom: '8px'
+                    }}>
+                      $50M — $75M
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      Based on 25-35x ARR multiples for high-growth AI SaaS
+                    </p>
+                    <div style={{ marginTop: '16px', display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Comparable: </span>
+                        <span style={{ fontSize: '0.8rem', color: 'white', fontWeight: '600' }}>Amper (acq. $100M+)</span>
+                      </div>
+                      <div style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Comparable: </span>
+                        <span style={{ fontSize: '0.8rem', color: 'white', fontWeight: '600' }}>Splice ($500M val)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Investor CTA */}
+                  <div style={{
+                    marginTop: '24px',
+                    padding: '28px',
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%)',
+                    borderRadius: '20px',
+                    border: '2px solid rgba(139, 92, 246, 0.4)',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ 
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '6px 14px',
+                      background: 'rgba(139, 92, 246, 0.3)',
+                      borderRadius: '20px',
+                      marginBottom: '16px'
+                    }}>
+                      <Award size={14} style={{ color: 'var(--color-purple)' }} />
+                      <span style={{ fontSize: '0.7rem', fontWeight: '600', color: 'var(--color-purple)', letterSpacing: '1px' }}>
+                        NOW RAISING
+                      </span>
+                    </div>
+                    
+                    <h4 style={{ 
+                      fontSize: '1.4rem', 
+                      fontWeight: '700', 
+                      color: 'white',
+                      marginBottom: '12px'
+                    }}>
+                      Interested in Investing?
+                    </h4>
+                    
+                    <p style={{ 
+                      fontSize: '0.9rem', 
+                      color: 'var(--text-secondary)', 
+                      marginBottom: '20px',
+                      maxWidth: '450px',
+                      margin: '0 auto 20px auto',
+                      lineHeight: '1.5'
+                    }}>
+                      We're actively seeking strategic investors who share our vision of democratizing music creation. 
+                      Join us in building the future of independent music.
+                    </p>
+                    
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <a 
+                        href="mailto:investors@studioagents.ai?subject=Investment%20Inquiry%20-%20Studio%20Agents"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '14px 24px',
+                          background: 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)',
+                          borderRadius: '12px',
+                          color: 'white',
+                          textDecoration: 'none',
+                          fontWeight: '600',
+                          fontSize: '0.95rem',
+                          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                          boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                        onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                      >
+                        <Briefcase size={18} />
+                        Contact Our Team
+                      </a>
+                      
+                      <a 
+                        href="https://calendly.com/studioagents/investor-call"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '14px 24px',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          borderRadius: '12px',
+                          color: 'white',
+                          textDecoration: 'none',
+                          fontWeight: '600',
+                          fontSize: '0.95rem',
+                          transition: 'background 0.2s ease'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                      >
+                        <Clock size={18} />
+                        Schedule a Call
+                      </a>
+                    </div>
+                    
+                    <div style={{ 
+                      marginTop: '20px', 
+                      display: 'flex', 
+                      gap: '20px', 
+                      justifyContent: 'center',
+                      flexWrap: 'wrap'
+                    }}>
+                      {[
+                        { label: 'Raising', value: '$5M Seed' },
+                        { label: 'Use of Funds', value: 'Growth + Eng' },
+                        { label: 'Min Check', value: '$100K' }
+                      ].map((item, i) => (
+                        <div key={i} style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>
+                            {item.label}
+                          </div>
+                          <div style={{ fontSize: '0.9rem', color: 'white', fontWeight: '600' }}>
+                            {item.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="modal-footer" style={{ 
+              borderTop: '1px solid rgba(139, 92, 246, 0.2)',
+              display: 'flex',
+              gap: '12px',
+              padding: '20px 24px'
+            }}>
+              <button 
+                className="glass-button"
+                onClick={() => setShowInvestorPitch(false)}
+                style={{ flex: 1, justifyContent: 'center' }}
+              >
+                Close
+              </button>
+              <button 
+                className="cta-button-primary"
+                onClick={() => { setShowInvestorPitch(false); onEnter(true); }}
+                style={{ flex: 2, justifyContent: 'center' }}
+              >
+                <Zap size={18} />
+                Try the Platform
                 <ArrowRight size={18} />
               </button>
             </div>
