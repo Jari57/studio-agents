@@ -3518,59 +3518,367 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 </div>
               </div>
 
-              <div className="agent-history-section">
-                <h3>Recent Creations</h3>
-                <div className="history-grid">
+              <div className="agent-history-section" style={{ marginTop: '24px' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginBottom: '16px'
+                }}>
+                  <h3 style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px',
+                    margin: 0,
+                    fontSize: '1.1rem',
+                    color: 'white'
+                  }}>
+                    <Folder size={18} style={{ color: 'var(--color-purple)' }} />
+                    {selectedAgent.name} Inventory
+                    <span style={{
+                      fontSize: '0.7rem',
+                      padding: '3px 8px',
+                      background: 'rgba(139, 92, 246, 0.2)',
+                      borderRadius: '10px',
+                      color: 'var(--color-purple)',
+                      fontWeight: '600'
+                    }}>
+                      {projects.filter(p => p.agent === selectedAgent.name).length} items
+                    </span>
+                  </h3>
+                  <button
+                    onClick={() => setActiveTab('mystudio')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '10px',
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    View All
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+                
+                {/* Inventory List */}
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '10px',
+                  maxHeight: '400px',
+                  overflowY: 'auto',
+                  paddingRight: '8px'
+                }}>
                   {projects.filter(p => p.agent === selectedAgent.name).length > 0 ? (
-                    projects.filter(p => p.agent === selectedAgent.name).slice(0, 2).map((item) => (
+                    projects.filter(p => p.agent === selectedAgent.name).map((item) => (
                       <div 
                         key={item.id} 
-                        className="history-item"
-                        onClick={() => {
-                          if (item.imageUrl || item.videoUrl) {
-                            setActiveTab('hub');
-                          } else {
-                            const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-                            if (textarea) {
-                              textarea.value = item.snippet;
-                              textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                            }
-                          }
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '14px',
+                          padding: '14px 16px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '14px',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          transition: 'all 0.2s ease'
                         }}
-                        style={{ cursor: 'pointer' }}
-                        title={item.imageUrl || item.videoUrl ? "View in Hub" : "Load text to editor"}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)';
+                          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                        }}
                       >
-                        <div className="history-preview" style={{ 
-                          backgroundImage: item.imageUrl ? `url(${item.imageUrl})` : 'none',
-                          backgroundColor: item.imageUrl ? 'transparent' : 'var(--card-bg)'
+                        {/* Preview Thumbnail */}
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '10px',
+                          background: item.imageUrl 
+                            ? `url(${item.imageUrl}) center/cover` 
+                            : 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
                         }}>
-                          {!item.imageUrl && <div style={{ padding: '5px', fontSize: '8px', overflow: 'hidden' }}>{item.snippet?.substring(0, 50)}</div>}
+                          {!item.imageUrl && <FileText size={20} style={{ color: 'white' }} />}
                         </div>
-                        <div className="history-meta">
-                          <p className="history-title">{item.title}</p>
-                          <p className="history-date">{new Date(item.id).toLocaleDateString()}</p>
+                        
+                        {/* Content Info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ 
+                            fontSize: '0.9rem', 
+                            fontWeight: '600', 
+                            color: 'white',
+                            marginBottom: '4px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {item.title || 'Untitled Creation'}
+                          </div>
+                          <div style={{ 
+                            fontSize: '0.75rem', 
+                            color: 'var(--text-secondary)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {item.snippet?.substring(0, 60) || 'No prompt saved'}...
+                          </div>
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '10px',
+                            marginTop: '6px'
+                          }}>
+                            <span style={{ 
+                              fontSize: '0.65rem', 
+                              color: 'var(--text-secondary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <Clock size={10} />
+                              {item.date || new Date(item.id).toLocaleDateString()}
+                            </span>
+                            {item.projectName && (
+                              <span style={{ 
+                                fontSize: '0.6rem',
+                                padding: '2px 6px',
+                                background: 'rgba(6, 182, 212, 0.2)',
+                                borderRadius: '6px',
+                                color: 'var(--color-cyan)'
+                              }}>
+                                {item.projectName}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <button 
-                          className="history-action"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveTab('hub');
-                          }}
-                          title="Go to Hub"
-                        >
-                          <ArrowRight size={16} />
-                        </button>
+                        
+                        {/* Action Buttons */}
+                        <div style={{ 
+                          display: 'flex', 
+                          gap: '6px',
+                          flexShrink: 0
+                        }}>
+                          {/* Edit/Enhance Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+                              if (textarea && item.snippet) {
+                                textarea.value = item.snippet;
+                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                textarea.focus();
+                                toast.success('Loaded to editor - enhance it!');
+                              }
+                            }}
+                            title="Edit & Enhance"
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              background: 'rgba(139, 92, 246, 0.2)',
+                              border: '1px solid rgba(139, 92, 246, 0.3)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'var(--color-purple)'
+                            }}
+                          >
+                            <PenTool size={14} />
+                          </button>
+                          
+                          {/* Regenerate Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+                              if (textarea && item.snippet) {
+                                textarea.value = item.snippet;
+                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                handleGenerate();
+                              }
+                            }}
+                            title="Regenerate"
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              background: 'rgba(6, 182, 212, 0.2)',
+                              border: '1px solid rgba(6, 182, 212, 0.3)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'var(--color-cyan)'
+                            }}
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                          
+                          {/* View/Open Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (item.imageUrl || item.videoUrl) {
+                                setActiveTab('mystudio');
+                              } else {
+                                // Copy to clipboard
+                                navigator.clipboard.writeText(item.snippet || '');
+                                toast.success('Copied to clipboard!');
+                              }
+                            }}
+                            title={item.imageUrl || item.videoUrl ? "View in Hub" : "Copy to clipboard"}
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              background: 'rgba(255, 255, 255, 0.1)',
+                              border: '1px solid rgba(255, 255, 255, 0.15)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'white'
+                            }}
+                          >
+                            {item.imageUrl || item.videoUrl ? <ExternalLink size={14} /> : <Download size={14} />}
+                          </button>
+                          
+                          {/* Delete Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm('Remove this creation from your inventory?')) {
+                                setProjects(prev => prev.filter(p => p.id !== item.id));
+                                toast.success('Creation removed');
+                              }
+                            }}
+                            title="Remove"
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
+                              background: 'rgba(239, 68, 68, 0.15)',
+                              border: '1px solid rgba(239, 68, 68, 0.25)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: '#ef4444'
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))
                   ) : (
-                    <div className="history-item empty">
-                      <div className="history-meta">
-                        <p className="history-title">No recent history</p>
-                        <p className="history-date">Create something new!</p>
-                      </div>
+                    <div style={{
+                      padding: '40px 20px',
+                      textAlign: 'center',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      borderRadius: '16px',
+                      border: '1px dashed rgba(255, 255, 255, 0.1)'
+                    }}>
+                      <Folder size={32} style={{ color: 'var(--text-secondary)', marginBottom: '12px', opacity: 0.5 }} />
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '4px' }}>
+                        No creations yet
+                      </p>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', opacity: 0.7 }}>
+                        Generate something with {selectedAgent.name} to start building your inventory
+                      </p>
                     </div>
                   )}
                 </div>
+                
+                {/* Prompt History Quick Access */}
+                {projects.filter(p => p.agent === selectedAgent.name).length > 0 && (
+                  <div style={{ 
+                    marginTop: '16px',
+                    padding: '14px 16px',
+                    background: 'rgba(139, 92, 246, 0.08)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(139, 92, 246, 0.15)'
+                  }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      marginBottom: '10px'
+                    }}>
+                      <span style={{ 
+                        fontSize: '0.8rem', 
+                        fontWeight: '600', 
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <Clock size={14} style={{ color: 'var(--color-purple)' }} />
+                        Recent Prompts
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      {projects
+                        .filter(p => p.agent === selectedAgent.name && p.snippet)
+                        .slice(0, 5)
+                        .map((item, i) => (
+                          <button
+                            key={i}
+                            onClick={() => {
+                              const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+                              if (textarea) {
+                                textarea.value = item.snippet;
+                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                toast.success('Prompt loaded!');
+                              }
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '8px',
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.7rem',
+                              cursor: 'pointer',
+                              maxWidth: '150px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
+                              e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.4)';
+                              e.currentTarget.style.color = 'white';
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                              e.currentTarget.style.color = 'var(--text-secondary)';
+                            }}
+                            title={item.snippet}
+                          >
+                            {item.snippet?.substring(0, 25)}...
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
