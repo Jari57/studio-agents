@@ -241,7 +241,7 @@ export const AGENTS = [
       name: 'Mastering Lab', 
       category: 'Audio Engineering', 
       icon: Shield, 
-      tier: 'free', // FREE TIER
+      tier: 'monthly', // MONTHLY TIER
       colorClass: 'agent-purple', 
       description: 'Professional AI audio mastering',
       capabilities: ['LUFS Normalization', 'Stereo Widening', 'EQ Balancing', 'Multi-format Export'],

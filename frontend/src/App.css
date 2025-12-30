@@ -9396,3 +9396,79 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
     grid-template-columns: 1fr !important;
   }
 }
+/* ========================================
+   GLOBAL BUTTON TEXT VISIBILITY FIX
+   Ensures all button text is always visible
+======================================== */
+
+/* Fix text visibility in all CTA buttons */
+.cta-button-primary,
+.cta-button-premium,
+.cta-button-secondary,
+.agent-launch-btn,
+.generation-actions button,
+.action-button {
+  /* Ensure text is visible */
+  color: white !important;
+  font-size: inherit;
+  white-space: nowrap;
+  
+  /* Proper flex layout for icon + text */
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  
+  /* Prevent text clipping */
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* Ensure span text inside buttons is visible */
+.cta-button-primary span,
+.cta-button-premium span,
+.cta-button-secondary span,
+.agent-launch-btn span,
+.generation-actions button span,
+.action-button span {
+  display: inline !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  font-size: inherit !important;
+  color: inherit !important;
+  white-space: nowrap;
+}
+
+/* Specific fix for agent detail page buttons */
+.generation-actions .cta-button-premium {
+  flex: 1;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.875rem 1.5rem;
+}
+
+.generation-actions .cta-button-secondary {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.875rem 1.25rem;
+}
+
+/* Agent grid launch buttons */
+.agent-studio-card .agent-launch-btn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: white !important;
+}
+
+/* Ensure locked agent buttons show text */
+.locked-agent-card button,
+.teaser-agent-card button {
+  color: white !important;
+}
+
+.locked-agent-card button span,
+.teaser-agent-card button span {
+  display: inline !important;
+  visibility: visible !important;
+}
