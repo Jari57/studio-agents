@@ -1538,9 +1538,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         model: selectedModel // Pass selected model to backend
       };
 
-      // Route to specific endpoints for Image/Video agents
+      // Route to specific endpoints for Image/Video/Audio agents
       const isImageAgent = selectedAgent.id === 'album';
       const isVideoAgent = selectedAgent.id === 'video-creator';
+      const isAudioAgent = selectedAgent.id === 'beat' || selectedAgent.id === 'sample';
+      const isSpeechAgent = selectedAgent.id === 'podcast' || selectedAgent.id === 'voiceover';
       
       if (isImageAgent) {
         endpoint = '/api/generate-image';
@@ -1548,6 +1550,18 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       } else if (isVideoAgent) {
         endpoint = '/api/generate-video';
         body = { prompt, model: selectedModel };
+      } else if (isAudioAgent) {
+        endpoint = '/api/generate-audio';
+        body = { 
+          prompt, 
+          bpm: 90, // Could add UI controls for this
+          genre: selectedAgent.id === 'beat' ? 'hip-hop' : 'sample',
+          mood: 'creative',
+          durationSeconds: 15
+        };
+      } else if (isSpeechAgent) {
+        endpoint = '/api/generate-speech';
+        body = { prompt, voice: 'Kore', style: 'natural' };
       }
 
       // Build headers with auth token if logged in
@@ -1570,7 +1584,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
       let data = await response.json();
       
-      // Handle Imagen/Veo API errors gracefully - fall back to text description
+      // Handle Imagen/Veo/Audio API errors gracefully - fall back to text description
       if ((isImageAgent || isVideoAgent) && (data.error || !response.ok)) {
         console.warn(`${isImageAgent ? 'Image' : 'Video'} generation not available, falling back to text description`);
         
@@ -1592,6 +1606,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         // Mark this as a fallback text response
         data._isFallback = true;
         data._fallbackType = isImageAgent ? 'image' : 'video';
+      }
+      
+      // Handle Audio API errors - synthesis params are still useful even without actual audio
+      if ((isAudioAgent || isSpeechAgent) && data.error && !data.params) {
+        console.warn('Audio generation failed, using synthesis parameters');
+        // The backend already provides fallback synthesis params, so we just proceed
       }
       
       // Handle different response types
@@ -1630,6 +1650,24 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                  newItem.videoUrl = videoData.videoUri;
             }
             newItem.snippet = `Generated video for: "${prompt}"`;
+        }
+      } else if ((isAudioAgent || isSpeechAgent) && (data.audioUrl || data.audio)) {
+        // Handle Audio Response (Lyria/TTS)
+        if (data.audioUrl) {
+          newItem.audioUrl = data.audioUrl;
+          newItem.mimeType = data.mimeType || 'audio/wav';
+          newItem.snippet = `🎵 Generated audio for: "${prompt}"`;
+          newItem.type = 'audio';
+        } else if (data.type === 'synthesis' && data.params) {
+          // Synthesis parameters for client-side generation
+          newItem.synthesisParams = data.params;
+          newItem.snippet = data.description || `Beat synthesis parameters for: "${prompt}"`;
+          newItem.bpm = data.bpm;
+          newItem.genre = data.genre;
+          newItem.type = 'synthesis';
+        } else {
+          // Fallback description
+          newItem.snippet = data.description || data.message || `Audio concept for: "${prompt}"`;
         }
       } else if (data.output) {
         // Handle Text Response
@@ -3605,14 +3643,31 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           borderRadius: '10px',
                           background: item.imageUrl 
                             ? `url(${item.imageUrl}) center/cover` 
+                            : item.audioUrl
+                            ? 'linear-gradient(135deg, var(--color-cyan), var(--color-green))'
                             : 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           flexShrink: 0
                         }}>
-                          {!item.imageUrl && <FileText size={20} style={{ color: 'white' }} />}
+                          {!item.imageUrl && !item.audioUrl && <FileText size={20} style={{ color: 'white' }} />}
+                          {item.audioUrl && <Volume2 size={20} style={{ color: 'white' }} />}
                         </div>
+                        
+                        {/* Audio Player for audio items */}
+                        {item.audioUrl && (
+                          <audio 
+                            controls 
+                            src={item.audioUrl}
+                            style={{
+                              height: '32px',
+                              width: '120px',
+                              flexShrink: 0
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
                         
                         {/* Content Info */}
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -3733,15 +3788,24 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (item.imageUrl || item.videoUrl) {
-                                setActiveTab('mystudio');
+                              if (item.imageUrl || item.videoUrl || item.audioUrl) {
+                                if (item.audioUrl) {
+                                  // Download audio file
+                                  const link = document.createElement('a');
+                                  link.href = item.audioUrl;
+                                  link.download = `${item.title || 'audio'}-${Date.now()}.wav`;
+                                  link.click();
+                                  toast.success('Audio downloaded!');
+                                } else {
+                                  setActiveTab('mystudio');
+                                }
                               } else {
                                 // Copy to clipboard
                                 navigator.clipboard.writeText(item.snippet || '');
                                 toast.success('Copied to clipboard!');
                               }
                             }}
-                            title={item.imageUrl || item.videoUrl ? "View in Hub" : "Copy to clipboard"}
+                            title={item.imageUrl || item.videoUrl ? "View in Hub" : item.audioUrl ? "Download audio" : "Copy to clipboard"}
                             style={{
                               width: '32px',
                               height: '32px',

@@ -754,6 +754,209 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// SPEECH/AUDIO GENERATION ROUTE (Gemini TTS)
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+  try {
+    const { 
+      prompt, 
+      voice = 'Kore', 
+      style = 'natural',
+      speakers = null  // For multi-speaker: [{ name: 'Joe', voice: 'Kore' }, { name: 'Jane', voice: 'Puck' }]
+    } = req.body;
+    
+    if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
+
+    logger.info('Generating speech with Gemini TTS', { 
+      textLength: prompt.length, 
+      voice, 
+      multiSpeaker: !!speakers 
+    });
+
+    // Build speech config based on single or multi-speaker
+    let speechConfig;
+    if (speakers && Array.isArray(speakers) && speakers.length > 0) {
+      // Multi-speaker mode
+      speechConfig = {
+        multiSpeakerVoiceConfig: {
+          speakerVoiceConfigs: speakers.map(s => ({
+            speaker: s.name,
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: s.voice || 'Kore' }
+            }
+          }))
+        }
+      };
+    } else {
+      // Single speaker mode
+      speechConfig = {
+        voiceConfig: {
+          prebuiltVoiceConfig: { voiceName: voice }
+        }
+      };
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: speechConfig
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      logger.error('TTS API Error', { status: response.status, error: errorText });
+      throw new Error(`TTS API Error: ${response.status} ${errorText}`);
+    }
+
+    const data = await response.json();
+    logger.info('TTS response received', { hasAudio: !!data.candidates?.[0]?.content?.parts?.[0]?.inlineData });
+
+    // Extract audio data
+    const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    const mimeType = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/wav';
+
+    if (audioData) {
+      res.json({
+        audio: audioData,
+        mimeType: mimeType,
+        audioUrl: `data:${mimeType};base64,${audioData}`
+      });
+    } else {
+      throw new Error('No audio data in response');
+    }
+
+  } catch (error) {
+    logger.error('Speech generation error', { error: error.message });
+    res.status(500).json({ error: 'Speech generation failed', details: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// MUSIC/BEAT GENERATION ROUTE (Lyria RealTime - Simplified)
+// Note: Full Lyria uses WebSockets for streaming. This endpoint provides
+// a single-shot generation by collecting a short clip.
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+  try {
+    const { 
+      prompt,           // e.g., "lo-fi hip hop beat with piano"
+      bpm = 90,
+      durationSeconds = 15,
+      genre = 'hip-hop',
+      mood = 'chill'
+    } = req.body;
+    
+    if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
+
+    logger.info('Generating music/beat', { prompt: prompt.substring(0, 50), bpm, genre, mood });
+
+    // Lyria RealTime requires WebSockets for actual streaming music generation
+    // For now, we'll use a hybrid approach:
+    // 1. Generate a musical description using Gemini
+    // 2. Return metadata that can be used with client-side Web Audio API
+    // OR integrate with a third-party music API if available
+    
+    // Check if Lyria is available via REST (experimental)
+    const lyriaUrl = `https://generativelanguage.googleapis.com/v1alpha/models/lyria-realtime-exp:generateContent?key=${apiKey}`;
+    
+    try {
+      // Try Lyria first (may not work via REST)
+      const lyriaResponse = await fetch(lyriaUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `Generate a ${durationSeconds} second ${genre} beat: ${prompt}. BPM: ${bpm}, Mood: ${mood}` }] }],
+          generationConfig: {
+            responseModalities: ['AUDIO']
+          }
+        })
+      });
+
+      if (lyriaResponse.ok) {
+        const lyriaData = await lyriaResponse.json();
+        const audioData = lyriaData.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if (audioData) {
+          const mimeType = lyriaData.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/wav';
+          return res.json({
+            audio: audioData,
+            mimeType: mimeType,
+            audioUrl: `data:${mimeType};base64,${audioData}`,
+            source: 'lyria'
+          });
+        }
+      }
+    } catch (lyriaError) {
+      logger.info('Lyria not available via REST, falling back to synthesis parameters', { error: lyriaError.message });
+    }
+
+    // Fallback: Generate synthesis parameters for client-side Web Audio API
+    // This returns structured data that the frontend can use to synthesize audio
+    const synthesisPrompt = `You are a music producer. Create detailed synthesis parameters for a ${genre} beat.
+    
+User request: "${prompt}"
+BPM: ${bpm}
+Mood: ${mood}
+Duration: ${durationSeconds} seconds
+
+Return a JSON object with:
+1. "description": Brief description of the beat
+2. "key": Musical key (e.g., "Am", "Cmaj")
+3. "scale": Scale type (e.g., "minor", "major", "pentatonic")
+4. "drums": Array of drum pattern objects with {instrument, pattern (array of 0/1 for 16 steps), velocity}
+5. "bass": Array of bass notes with {note, octave, startBeat, duration, velocity}
+6. "chords": Array of chord progressions with {chord, startBeat, duration}
+7. "melody": Array of melody notes (optional)
+8. "effects": Suggested effects like reverb, delay amounts
+
+Make it sound authentic to ${genre} style.`;
+
+    const genModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const result = await genModel.generateContent(synthesisPrompt);
+    const responseText = result.response.text();
+    
+    // Try to parse as JSON
+    let synthesisParams;
+    try {
+      const jsonMatch = responseText.match(/```json\n?([\s\S]*?)\n?```/) || responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        synthesisParams = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+      }
+    } catch (parseError) {
+      logger.warn('Could not parse synthesis params as JSON', { error: parseError.message });
+    }
+
+    res.json({
+      type: 'synthesis',
+      params: synthesisParams || null,
+      description: responseText,
+      bpm,
+      genre,
+      mood,
+      prompt,
+      message: 'Use these parameters with Web Audio API or a synthesizer to generate the beat. Full Lyria streaming available via WebSocket connection.'
+    });
+
+  } catch (error) {
+    logger.error('Audio generation error', { error: error.message });
+    res.status(500).json({ error: 'Audio generation failed', details: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // VIDEO GENERATION ROUTE (Veo 3.0)
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
