@@ -699,30 +699,52 @@ app.post('/api/generate', verifyFirebaseToken, checkCredits, generationLimiter, 
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
-    const { prompt } = req.body;
+    const { prompt, aspectRatio = '1:1' } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
 
-    // Using REST API for Imagen 4.0
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+    logger.info('Generating image with Imagen 4.0', { prompt: prompt.substring(0, 50) });
+
+    // Using the correct Imagen 4.0 REST API format
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:generateImages?key=${apiKey}`;
     
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        instances: [{ prompt }],
-        parameters: { sampleCount: 1 }
+        prompt: prompt,
+        config: {
+          numberOfImages: 1,
+          aspectRatio: aspectRatio,
+          personGeneration: 'allow_adult'
+        }
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
+      logger.error('Imagen API Error', { status: response.status, error: errorText });
       throw new Error(`Imagen API Error: ${response.status} ${errorText}`);
     }
 
     const data = await response.json();
+    logger.info('Imagen response received', { hasImages: !!data.generatedImages });
+    
+    // Transform response to match frontend expectations
+    if (data.generatedImages && data.generatedImages.length > 0) {
+      const base64Image = data.generatedImages[0].image?.imageBytes;
+      if (base64Image) {
+        res.json({
+          predictions: [{ bytesBase64Encoded: base64Image }],
+          images: [base64Image]
+        });
+        return;
+      }
+    }
+    
+    // If no images in expected format, return raw response
     res.json(data);
 
   } catch (error) {
