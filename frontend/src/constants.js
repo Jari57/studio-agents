@@ -4,7 +4,17 @@ export const BACKEND_URL = (window.location.hostname === 'localhost' || window.l
   ? 'http://localhost:3001' 
   : 'https://web-production-b5922.up.railway.app';
 
+// AGENTS ordered for logical 2-column pairing on mobile
+// Row 1: Lyrics + Beats (core music creation)
+// Row 2: Visual Art + Video (visual content)  
+// Row 3: Vocals + Session Players (performers)
+// Row 4: Drums + Samples (rhythm production)
+// Row 5: EDM Drops + Film Scoring (specialized creation)
+// Row 6: Mastering + Sound Design (audio engineering)
+// Row 7: Trends + Social Media (marketing)
+// Row 8: Collabs + Release Planning (career growth)
 export const AGENTS = [
+    // === ROW 1: Core Music Creation ===
     { 
       id: 'ghost', 
       name: 'Ghostwriter', 
@@ -49,6 +59,7 @@ export const AGENTS = [
       example: 'Genre: "Trap", BPM: 140',
       getStarted: 'Make a Beat'
     },
+    // === ROW 2: Visual Content ===
     { 
       id: 'album', 
       name: 'Album Artist', 
@@ -94,6 +105,163 @@ export const AGENTS = [
       example: 'Scene: "Car chase in 80s style"',
       getStarted: 'Create Video'
     },
+    // === ROW 3: Performers (Vocals + Instruments) ===
+    { 
+      id: 'vocal-arch', 
+      name: 'Vocal Architect', 
+      category: 'Music Creation', 
+      icon: Users, 
+      isBeta: true,
+      colorClass: 'agent-purple', 
+      isPro: true,
+      description: 'AI vocal synthesis and harmony generation',
+      capabilities: ['Vocal Synthesis', 'Harmony Logic', 'Ad-lib Generation', 'Tuning & Correction'],
+      examples: ['Generate a 3-part harmony for this vocal line', 'Create a soulful vocal ad-lib for the chorus'],
+      howToUse: 'Input your lyrics and melody. The AI will generate a vocal performance with customizable tone and expression.',
+      explanation: 'Vocal Architect is a state-of-the-art "Neural Vocoder" that can synthesize human-like singing from text and MIDI. It understands the nuances of "Breath," "Diction," and "Vibrato," allowing for incredibly realistic vocal performances.',
+      helpTips: 'Use the "Harmony Logic" tool to automatically generate backing vocals that follow your lead melody. If the vocal sounds too "clean," use the "Tuning & Correction" tool to add subtle human imperfections.',
+      onboarding: ["Input lyrics.", "Define melody.", "Synthesize vocals."],
+      howTo: 'Enter lyrics and melody. The AI will generate vocals.',
+      example: 'Voice: "Female Pop", Harmony: "3-part"',
+      getStarted: 'Generate Vocals'
+    },
+    { 
+      id: 'instrument', 
+      name: 'Instrumentalist', 
+      category: 'Music Creation', 
+      icon: Music, 
+      colorClass: 'agent-indigo', 
+      isPro: true,
+      isBeta: true,
+      description: 'AI-driven virtual session players',
+      capabilities: ['Solo Generation', 'Rhythm Section AI', 'Style Mimicry', 'Multi-instrumental'],
+      examples: ['Generate a bluesy guitar solo over an A minor backing track', 'Create a funky bassline for a disco beat'],
+      howToUse: 'Select your instrument and style. The AI will generate a performance that fits your track\'s key and tempo.',
+      explanation: 'Instrumentalist uses physical modeling and performance capture data to simulate real session players. It doesn\'t just play notes; it understands the nuances of "touch," "vibrato," and "swing" that make a performance feel human.',
+      helpTips: 'Use the "Style Mimicry" feature to have the AI play in the style of a specific legendary musician. If the performance is too complex, use the "Intensity" slider to dial it back.',
+      onboarding: ["Select your instrument.", "Choose a playing style.", "Generate and refine."],
+      howTo: 'Select an instrument and style. The AI will generate a solo.',
+      example: 'Instrument: "Saxophone", Style: "Jazz"',
+      getStarted: 'Hire Player'
+    },
+    // === ROW 4: Rhythm Production (Drums + Samples) ===
+    { 
+      id: 'beat-arch', 
+      name: 'Beat Architect', 
+      category: 'Music Creation', 
+      icon: Zap, 
+      colorClass: 'agent-pink', 
+      isBeta: true,
+      isPro: true,
+      description: 'Advanced drum machine and rhythm generator',
+      capabilities: ['Custom Kit Design', 'Polyrhythmic Patterns', 'Velocity Humanization', 'Stem Export'],
+      examples: ['Create a complex polyrhythmic drum pattern for a techno track', 'Design a custom drum kit using industrial sounds'],
+      howToUse: 'Build your kit and sequence your patterns. Use the humanization tools to add a natural feel to your beats.',
+      explanation: 'Beat Architect is a generative rhythm engine that uses "Evolutionary Algorithms" to create unique patterns. It analyzes the relationship between different drum elements (kick, snare, hat) to ensure a cohesive and driving groove.',
+      helpTips: 'Use the "Velocity Humanization" tool to add subtle variations to each hit, making the beat feel less "robotic." Export your stems to have full control over the mix in your DAW.',
+      onboarding: ["Build your kit.", "Sequence patterns.", "Humanize and export."],
+      howTo: 'Choose a kit and pattern. The AI will generate a drum loop.',
+      example: 'Kit: "808", Pattern: "Complex"',
+      getStarted: 'Build Drums'
+    },
+    { 
+      id: 'sample-master', 
+      name: 'Sample Master', 
+      category: 'Music Creation', 
+      icon: Folder, 
+      colorClass: 'agent-orange', 
+      isPro: true,
+      description: 'Intelligent sampling and loop manipulation',
+      capabilities: ['Auto-chopping', 'Time-stretching', 'Pitch-shifting', 'Loop Discovery'],
+      examples: ['Chop this soul sample into 16 pads', 'Time-stretch this loop to 120 BPM without changing pitch'],
+      howToUse: 'Upload your sample and let the AI analyze it. Use the chopping and manipulation tools to create something new.',
+      explanation: 'Sample Master uses "Source Separation" and "Transient Detection" to intelligently identify the best parts of a sample. It can isolate vocals, drums, or instruments from a full track, giving you unprecedented sampling freedom.',
+      helpTips: 'Use the "Auto-chopping" feature to quickly find the most rhythmic slices of a sample. If you are getting artifacts during time-stretching, try the "High Fidelity" mode for a cleaner sound.',
+      onboarding: ["Upload sample.", "Analyze and chop.", "Manipulate and loop."],
+      howTo: 'Upload a sample. The AI will chop and rearrange it.',
+      example: 'Mode: "Chop", Style: "Boom Bap"',
+      getStarted: 'Flip Sample'
+    },
+    // === ROW 5: Specialized Creation (EDM + Film) ===
+    { 
+      id: 'drop-zone', 
+      name: 'Drop Zone', 
+      category: 'Music Creation', 
+      icon: Rocket, 
+      colorClass: 'agent-red', 
+      isBeta: true,
+      isPro: true,
+      description: 'High-energy EDM and Trap drop generator',
+      capabilities: ['Build-up Logic', 'Drop Synthesis', 'FX Layering', 'Energy Mapping'],
+      examples: ['Generate a high-energy dubstep drop', 'Create a tension-filled build-up for a house track'],
+      howToUse: 'Define your energy levels and style. The AI will generate a complete build-up and drop sequence.',
+      explanation: 'Drop Zone is a specialized synthesis engine designed for high-impact transitions. It uses "Energy Mapping" to ensure that the tension of the build-up perfectly resolves into the power of the drop.',
+      helpTips: 'Use the "FX Layering" tool to add white noise, risers, and impacts that glue the transition together. Experiment with the "Drop Synthesis" to create unique, never-before-heard lead sounds.',
+      onboarding: ["Define energy.", "Generate build-up.", "Create the drop."],
+      howTo: 'Select a genre and build-up length. The AI will generate a drop.',
+      example: 'Genre: "Dubstep", Build: "8 bars"',
+      getStarted: 'Create Drop'
+    },
+    { 
+      id: 'score-edit', 
+      name: 'Score Editor', 
+      category: 'Music Creation', 
+      icon: Book, 
+      colorClass: 'agent-emerald', 
+      isPro: true,
+      description: 'Precision scoring for film and media',
+      capabilities: ['Sheet Music Export', 'Orchestral Layering', 'Tempo Mapping', 'Dynamic Marking'],
+      examples: ['Score a dramatic orchestral piece for a short film', 'Export this melody as a lead sheet'],
+      howToUse: 'Compose your score using the AI assistant. Export as MIDI or sheet music for live performance or further editing.',
+      explanation: 'Score Editor is a notation-aware AI that understands the rules of counterpoint, harmony, and orchestration. It can take a simple melody and expand it into a full orchestral arrangement while maintaining musical logic.',
+      helpTips: 'Use the "Dynamic Marking" tool to add expression and emotion to your score. If you are writing for live players, use the "Sheet Music Export" to generate professional-grade parts.',
+      onboarding: ["Compose melody.", "Layer orchestration.", "Export sheet music."],
+      howTo: 'Upload a video. The AI will generate a synchronized score.',
+      example: 'Mood: "Suspense", Tempo: "Slow"',
+      getStarted: 'Score Video'
+    },
+    // === ROW 6: Audio Engineering (Mastering + Sound Design) ===
+    { 
+      id: 'master', 
+      name: 'Mastering Lab', 
+      category: 'Audio Engineering', 
+      icon: Shield, 
+      colorClass: 'agent-purple', 
+      description: 'Professional AI audio mastering',
+      capabilities: ['LUFS Normalization', 'Stereo Widening', 'EQ Balancing', 'Multi-format Export'],
+      examples: ['Master this track for Spotify standards (-14 LUFS)', 'Add warmth and analog saturation to the master chain'],
+      howToUse: 'Upload your final mix (WAV or AIFF). Select your target platform and the AI will apply professional-grade processing tailored to that platform\'s specs.',
+      explanation: 'Mastering Lab uses a neural network trained by world-class mastering engineers. It analyzes the frequency spectrum, dynamic range, and stereo image of your mix, applying precise adjustments to ensure it sounds professional on any system.',
+      helpTips: 'Ensure your mix has at least -6dB of headroom (no clipping) before uploading. If the master sounds too "squashed," try lowering the "Intensity" slider to preserve more dynamic range.',
+      onboarding: [
+        "Upload your final mix, ensuring you have at least -6dB of headroom.",
+        "Select a 'Reference Track' to give the AI a target sonic profile.",
+        "Choose your 'Mastering Style' (e.g., 'Transparent', 'Warm', 'Aggressive').",
+        "A/B test the master against your original mix before downloading the final high-res files."
+      ],
+      howTo: 'Upload your track. The AI will master it for streaming.',
+      example: 'Target: "Spotify Loudness"',
+      getStarted: 'Master Track'
+    },
+    { 
+      id: 'sound-design', 
+      name: 'Sound Designer', 
+      category: 'Audio Engineering', 
+      icon: Shield, 
+      colorClass: 'agent-cyan', 
+      isPro: true,
+      description: 'Custom synth patch and texture creation',
+      capabilities: ['Wavetable Synthesis', 'Texture Layering', 'Modulation Mapping', 'Preset Export'],
+      examples: ['Design a gritty bass patch for a dark techno track', 'Create an ethereal pad texture with granular synthesis'],
+      howToUse: 'Use the AI to explore new sonic territories. Generate custom patches and textures for your favorite synths.',
+      explanation: 'Sound Designer is a "Cross-Modal" synthesis engine that can translate descriptive words into complex synth parameters. It understands the relationship between "Timbre" and "Emotion," allowing you to "describe" the sound you want.',
+      helpTips: 'Use specific descriptive words like "Gritty," "Ethereal," or "Metallic" to get more accurate synth patches. Export your presets in "Wavetable" format to use them in popular synths like Serum or Vital.',
+      onboarding: ["Select synthesis type.", "Generate texture.", "Export preset."],
+      howTo: 'Describe a sound. The AI will generate a synth patch.',
+      example: 'Sound: "Retro Sci-Fi Pad"',
+      getStarted: 'Design Sound'
+    },
+    // === ROW 7: Marketing (Trends + Social) ===
     { 
       id: 'trend', 
       name: 'Trend Hunter', 
@@ -117,6 +285,30 @@ export const AGENTS = [
       example: 'Platform: "TikTok", Genre: "Pop"',
       getStarted: 'Find Trends'
     },
+    { 
+      id: 'social', 
+      name: 'Social Pilot', 
+      category: 'Career Growth', 
+      icon: Globe, 
+      colorClass: 'agent-cyan', 
+      hasSocials: true,
+      description: 'Automated social media growth',
+      capabilities: ['Caption Generation', 'Post Scheduling', 'Engagement Automation', 'Analytics Reporting'],
+      examples: ['Write 5 engaging captions for my upcoming music video teaser', 'When is the best time to post on Instagram for my audience?'],
+      howToUse: 'Connect your accounts and let the AI handle the heavy lifting of content creation, hashtag optimization, and optimal posting times.',
+      explanation: 'Social Pilot is a marketing automation engine that uses sentiment analysis and engagement data to craft content that resonates. It understands the specific "culture" of each platform (TikTok vs. Instagram vs. X) and adapts your voice accordingly.',
+      helpTips: 'Use the "Caption Generator" to create multiple variations of a post and A/B test them to see which one performs better. Connect your Spotify account to automatically generate "New Release" alerts.',
+      onboarding: [
+        "Connect your social media accounts and define your 'Brand Voice'.",
+        "Generate a week's worth of content (captions, hashtags, and story ideas) in seconds.",
+        "Schedule posts for 'Peak Engagement' times based on your specific audience data.",
+        "Review the 'Growth Report' to see which types of content are driving the most new followers."
+      ],
+      howTo: 'Connect your accounts. The AI will schedule and post content.',
+      example: 'Goal: "Grow Instagram Followers"',
+      getStarted: 'Grow Socials'
+    },
+    // === ROW 8: Career Growth (Collabs + Release) ===
     { 
       id: 'collab', 
       name: 'Collab Connect', 
@@ -163,144 +355,7 @@ export const AGENTS = [
       example: 'Release Date: "Next Friday"',
       getStarted: 'Plan Release'
     },
-    { 
-      id: 'master', 
-      name: 'Mastering Lab', 
-      category: 'Career Growth', 
-      icon: Shield, 
-      colorClass: 'agent-purple', 
-      description: 'Professional AI audio engineering',
-      capabilities: ['LUFS Normalization', 'Stereo Widening', 'EQ Balancing', 'Multi-format Export'],
-      examples: ['Master this track for Spotify standards (-14 LUFS)', 'Add warmth and analog saturation to the master chain'],
-      howToUse: 'Upload your final mix (WAV or AIFF). Select your target platform and the AI will apply professional-grade processing tailored to that platform\'s specs.',
-      explanation: 'Mastering Lab uses a neural network trained by world-class mastering engineers. It analyzes the frequency spectrum, dynamic range, and stereo image of your mix, applying precise adjustments to ensure it sounds professional on any system.',
-      helpTips: 'Ensure your mix has at least -6dB of headroom (no clipping) before uploading. If the master sounds too "squashed," try lowering the "Intensity" slider to preserve more dynamic range.',
-      onboarding: [
-        "Upload your final mix, ensuring you have at least -6dB of headroom.",
-        "Select a 'Reference Track' to give the AI a target sonic profile.",
-        "Choose your 'Mastering Style' (e.g., 'Transparent', 'Warm', 'Aggressive').",
-        "A/B test the master against your original mix before downloading the final high-res files."
-      ],
-      howTo: 'Upload your track. The AI will master it for streaming.',
-      example: 'Target: "Spotify Loudness"',
-      getStarted: 'Master Track'
-    },
-    { 
-      id: 'social', 
-      name: 'Social Pilot', 
-      category: 'Career Growth', 
-      icon: Globe, 
-      colorClass: 'agent-cyan', 
-      hasSocials: true,
-      description: 'Automated social media growth',
-      capabilities: ['Caption Generation', 'Post Scheduling', 'Engagement Automation', 'Analytics Reporting'],
-      examples: ['Write 5 engaging captions for my upcoming music video teaser', 'When is the best time to post on Instagram for my audience?'],
-      howToUse: 'Connect your accounts and let the AI handle the heavy lifting of content creation, hashtag optimization, and optimal posting times.',
-      explanation: 'Social Pilot is a marketing automation engine that uses sentiment analysis and engagement data to craft content that resonates. It understands the specific "culture" of each platform (TikTok vs. Instagram vs. X) and adapts your voice accordingly.',
-      helpTips: 'Use the "Caption Generator" to create multiple variations of a post and A/B test them to see which one performs better. Connect your Spotify account to automatically generate "New Release" alerts.',
-      onboarding: [
-        "Connect your social media accounts and define your 'Brand Voice'.",
-        "Generate a week's worth of content (captions, hashtags, and story ideas) in seconds.",
-        "Schedule posts for 'Peak Engagement' times based on your specific audience data.",
-        "Review the 'Growth Report' to see which types of content are driving the most new followers."
-      ],
-      howTo: 'Connect your accounts. The AI will schedule and post content.',
-      example: 'Goal: "Grow Instagram Followers"',
-      getStarted: 'Grow Socials'
-    },
-    { 
-      id: 'instrument', 
-      name: 'Instrumentalist', 
-      category: 'Music Creation', 
-      icon: Music, 
-      colorClass: 'agent-indigo', 
-      isPro: true,
-      isBeta: true,
-      description: 'AI-driven virtual session players',
-      capabilities: ['Solo Generation', 'Rhythm Section AI', 'Style Mimicry', 'Multi-instrumental'],
-      examples: ['Generate a bluesy guitar solo over an A minor backing track', 'Create a funky bassline for a disco beat'],
-      howToUse: 'Select your instrument and style. The AI will generate a performance that fits your track\'s key and tempo.',
-      explanation: 'Instrumentalist uses physical modeling and performance capture data to simulate real session players. It doesn\'t just play notes; it understands the nuances of "touch," "vibrato," and "swing" that make a performance feel human.',
-      helpTips: 'Use the "Style Mimicry" feature to have the AI play in the style of a specific legendary musician. If the performance is too complex, use the "Intensity" slider to dial it back.',
-      onboarding: ["Select your instrument.", "Choose a playing style.", "Generate and refine."],
-      howTo: 'Select an instrument and style. The AI will generate a solo.',
-      example: 'Instrument: "Saxophone", Style: "Jazz"',
-      getStarted: 'Hire Player'
-    },
-    { 
-      id: 'beat-arch', 
-      name: 'Beat Architect', 
-      category: 'Music Creation', 
-      icon: Zap, 
-      colorClass: 'agent-pink', 
-      isBeta: true,
-      isPro: true,
-      description: 'Advanced drum machine and rhythm generator',
-      capabilities: ['Custom Kit Design', 'Polyrhythmic Patterns', 'Velocity Humanization', 'Stem Export'],
-      examples: ['Create a complex polyrhythmic drum pattern for a techno track', 'Design a custom drum kit using industrial sounds'],
-      howToUse: 'Build your kit and sequence your patterns. Use the humanization tools to add a natural feel to your beats.',
-      explanation: 'Beat Architect is a generative rhythm engine that uses "Evolutionary Algorithms" to create unique patterns. It analyzes the relationship between different drum elements (kick, snare, hat) to ensure a cohesive and driving groove.',
-      helpTips: 'Use the "Velocity Humanization" tool to add subtle variations to each hit, making the beat feel less "robotic." Export your stems to have full control over the mix in your DAW.',
-      onboarding: ["Build your kit.", "Sequence patterns.", "Humanize and export."],
-      howTo: 'Choose a kit and pattern. The AI will generate a drum loop.',
-      example: 'Kit: "808", Pattern: "Complex"',
-      getStarted: 'Build Drums'
-    },
-    { 
-      id: 'sample-master', 
-      name: 'Sample Master', 
-      category: 'Music Creation', 
-      icon: Folder, 
-      colorClass: 'agent-orange', 
-      isPro: true,
-      description: 'Intelligent sampling and loop manipulation',
-      capabilities: ['Auto-chopping', 'Time-stretching', 'Pitch-shifting', 'Loop Discovery'],
-      examples: ['Chop this soul sample into 16 pads', 'Time-stretch this loop to 120 BPM without changing pitch'],
-      howToUse: 'Upload your sample and let the AI analyze it. Use the chopping and manipulation tools to create something new.',
-      explanation: 'Sample Master uses "Source Separation" and "Transient Detection" to intelligently identify the best parts of a sample. It can isolate vocals, drums, or instruments from a full track, giving you unprecedented sampling freedom.',
-      helpTips: 'Use the "Auto-chopping" feature to quickly find the most rhythmic slices of a sample. If you are getting artifacts during time-stretching, try the "High Fidelity" mode for a cleaner sound.',
-      onboarding: ["Upload sample.", "Analyze and chop.", "Manipulate and loop."],
-      howTo: 'Upload a sample. The AI will chop and rearrange it.',
-      example: 'Mode: "Chop", Style: "Boom Bap"',
-      getStarted: 'Flip Sample'
-    },
-    { 
-      id: 'drop-zone', 
-      name: 'Drop Zone', 
-      category: 'Music Creation', 
-      icon: Rocket, 
-      colorClass: 'agent-red', 
-      isBeta: true,
-      isPro: true,
-      description: 'High-energy EDM and Trap drop generator',
-      capabilities: ['Build-up Logic', 'Drop Synthesis', 'FX Layering', 'Energy Mapping'],
-      examples: ['Generate a high-energy dubstep drop', 'Create a tension-filled build-up for a house track'],
-      howToUse: 'Define your energy levels and style. The AI will generate a complete build-up and drop sequence.',
-      explanation: 'Drop Zone is a specialized synthesis engine designed for high-impact transitions. It uses "Energy Mapping" to ensure that the tension of the build-up perfectly resolves into the power of the drop.',
-      helpTips: 'Use the "FX Layering" tool to add white noise, risers, and impacts that glue the transition together. Experiment with the "Drop Synthesis" to create unique, never-before-heard lead sounds.',
-      onboarding: ["Define energy.", "Generate build-up.", "Create the drop."],
-      howTo: 'Select a genre and build-up length. The AI will generate a drop.',
-      example: 'Genre: "Dubstep", Build: "8 bars"',
-      getStarted: 'Create Drop'
-    },
-    { 
-      id: 'score-edit', 
-      name: 'Score Editor', 
-      category: 'Music Creation', 
-      icon: Book, 
-      colorClass: 'agent-emerald', 
-      isPro: true,
-      description: 'Precision scoring for film and media',
-      capabilities: ['Sheet Music Export', 'Orchestral Layering', 'Tempo Mapping', 'Dynamic Marking'],
-      examples: ['Score a dramatic orchestral piece for a short film', 'Export this melody as a lead sheet'],
-      howToUse: 'Compose your score using the AI assistant. Export as MIDI or sheet music for live performance or further editing.',
-      explanation: 'Score Editor is a notation-aware AI that understands the rules of counterpoint, harmony, and orchestration. It can take a simple melody and expand it into a full orchestral arrangement while maintaining musical logic.',
-      helpTips: 'Use the "Dynamic Marking" tool to add expression and emotion to your score. If you are writing for live players, use the "Sheet Music Export" to generate professional-grade parts.',
-      onboarding: ["Compose melody.", "Layer orchestration.", "Export sheet music."],
-      howTo: 'Upload a video. The AI will generate a synchronized score.',
-      example: 'Mood: "Suspense", Tempo: "Slow"',
-      getStarted: 'Score Video'
-    },
+    // === BONUS: Video Scorer (pairs with Video Creator conceptually) ===
     { 
       id: 'video-scorer', 
       name: 'Video Scorer', 
@@ -319,42 +374,5 @@ export const AGENTS = [
       howTo: 'Upload a video clip. The AI will generate background music.',
       example: 'Style: "Lo-Fi", Length: "30s"',
       getStarted: 'Score Clip'
-    },
-    { 
-      id: 'vocal-arch', 
-      name: 'Vocal Architect', 
-      category: 'Music Creation', 
-      icon: Users, 
-      isBeta: true,
-      colorClass: 'agent-purple', 
-      isPro: true,
-      description: 'AI vocal synthesis and harmony generation',
-      capabilities: ['Vocal Synthesis', 'Harmony Logic', 'Ad-lib Generation', 'Tuning & Correction'],
-      examples: ['Generate a 3-part harmony for this vocal line', 'Create a soulful vocal ad-lib for the chorus'],
-      howToUse: 'Input your lyrics and melody. The AI will generate a vocal performance with customizable tone and expression.',
-      explanation: 'Vocal Architect is a state-of-the-art "Neural Vocoder" that can synthesize human-like singing from text and MIDI. It understands the nuances of "Breath," "Diction," and "Vibrato," allowing for incredibly realistic vocal performances.',
-      helpTips: 'Use the "Harmony Logic" tool to automatically generate backing vocals that follow your lead melody. If the vocal sounds too "clean," use the "Tuning & Correction" tool to add subtle human imperfections.',
-      onboarding: ["Input lyrics.", "Define melody.", "Synthesize vocals."],
-      howTo: 'Enter lyrics and melody. The AI will generate vocals.',
-      example: 'Voice: "Female Pop", Harmony: "3-part"',
-      getStarted: 'Generate Vocals'
-    },
-    { 
-      id: 'sound-design', 
-      name: 'Sound Designer', 
-      category: 'Career Growth', 
-      icon: Shield, 
-      colorClass: 'agent-blue', 
-      isPro: true,
-      description: 'Custom synth patch and texture creation',
-      capabilities: ['Wavetable Synthesis', 'Texture Layering', 'Modulation Mapping', 'Preset Export'],
-      examples: ['Design a gritty bass patch for a dark techno track', 'Create an ethereal pad texture with granular synthesis'],
-      howToUse: 'Use the AI to explore new sonic territories. Generate custom patches and textures for your favorite synths.',
-      explanation: 'Sound Designer is a "Cross-Modal" synthesis engine that can translate descriptive words into complex synth parameters. It understands the relationship between "Timbre" and "Emotion," allowing you to "describe" the sound you want.',
-      helpTips: 'Use specific descriptive words like "Gritty," "Ethereal," or "Metallic" to get more accurate synth patches. Export your presets in "Wavetable" format to use them in popular synths like Serum or Vital.',
-      onboarding: ["Select synthesis type.", "Generate texture.", "Export preset."],
-      howTo: 'Describe a sound. The AI will generate a synth patch.',
-      example: 'Sound: "Retro Sci-Fi Pad"',
-      getStarted: 'Design Sound'
     }
 ];

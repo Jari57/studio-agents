@@ -321,71 +321,59 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       {/* Meet Your Dream Team - Agent Showcase */}
       <section className="agents-section">
         <div className="section-header">
-          <div className="section-tag" style={{ 
-            background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))', 
-            color: 'white',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px'
+          {/* Stacked Title - Like Hero */}
+          <h2 className="section-title" style={{ 
+            fontSize: 'clamp(1.6rem, 5vw, 2.2rem)',
+            lineHeight: '1.2',
+            marginBottom: '8px'
           }}>
-            <Users size={14} />
-            Your AI Dream Team
-          </div>
-          <h2 className="section-title" style={{ fontSize: 'clamp(1.8rem, 5vw, 2.5rem)' }}>
-            Meet the <span className="gradient-text-cyan-purple">16 Specialists</span>
-            <br />
-            <span style={{ fontSize: '0.45em', fontWeight: '400', color: 'var(--text-secondary)', display: 'block', marginTop: '8px' }}>
-              Working 24/7 To Make You a Star
+            <span className="gradient-text-vibrant">
+              MEET YOUR DREAM TEAM
             </span>
           </h2>
-          <p className="section-subtitle" style={{ maxWidth: '420px', margin: '0 auto' }}>
-            Each agent is a master of their craft. From writing lyrics to mastering tracks, 
-            your dream team handles it all.
+          <p style={{ 
+            fontSize: 'clamp(0.9rem, 3vw, 1.1rem)', 
+            color: 'var(--text-primary)', 
+            marginBottom: '4px',
+            fontWeight: '500'
+          }}>
+            16 AI specialists. One studio.
+          </p>
+          <p style={{ 
+            fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)', 
+            color: 'var(--text-secondary)',
+            marginBottom: '20px'
+          }}>
+            From lyrics to mastering—your team handles it all.
           </p>
           
-          {/* Team Stats Banner */}
-          <div className="team-stats-banner" style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '8px',
-            marginTop: '20px',
-            maxWidth: '400px',
-            margin: '20px auto 0'
+          {/* Compact Stats Row */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '16px',
+            marginBottom: '24px',
+            flexWrap: 'wrap'
           }}>
             {[
-              { value: '16', label: 'Agents', icon: Users },
-              { value: '8', label: 'Types', icon: LayoutGrid },
-              { value: '∞', label: 'Creates', icon: Sparkles },
-              { value: '24/7', label: 'Live', icon: Clock }
+              { value: '16', label: 'Agents' },
+              { value: '24/7', label: 'Live' },
+              { value: '∞', label: 'Creates' }
             ].map((stat, i) => (
-              <div key={i} style={{
-                textAlign: 'center',
-                padding: '8px 4px',
-                background: 'rgba(255,255,255,0.03)',
-                borderRadius: '10px',
-                border: '1px solid rgba(255,255,255,0.08)'
+              <div key={i} className="stat-badge" style={{ 
+                padding: '6px 12px',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '20px',
+                border: '1px solid rgba(255,255,255,0.1)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                  <stat.icon size={12} className="text-purple" />
-                  <span style={{ fontSize: '0.95rem', fontWeight: '700', color: 'white' }}>{stat.value}</span>
-                </div>
-                <span style={{ fontSize: '0.55rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{stat.label}</span>
+                <span style={{ fontWeight: '700', color: 'white' }}>{stat.value}</span>
+                <span style={{ color: 'var(--text-secondary)', marginLeft: '4px', fontSize: '0.8rem' }}>{stat.label}</span>
               </div>
             ))}
           </div>
         </div>
 
         <div className="agents-scroll-container">
-          <div className="scroll-hint-desktop" style={{ 
-            textAlign: 'center', 
-            marginBottom: '16px', 
-            color: 'var(--text-secondary)', 
-            fontSize: '0.8rem',
-            display: 'none'
-          }}>
-            <ArrowRight size={14} style={{ marginRight: '8px' }} />
-            <span>Explore the team</span>
-          </div>
           <div className="agents-grid">
             {AGENTS.map((agent) => {
               const Icon = agent.icon;

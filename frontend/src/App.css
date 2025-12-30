@@ -7640,36 +7640,106 @@ html, body {
     height: 28px !important;
   }
 
-  /* 4. Compact Agent Cards - Fix Horizontal Scroll Alignment */
+  /* 4. Landing Page Agents - 2 Column Grid (Industrial Strength) */
   .agents-section {
-    /* Restore horizontal padding to match negative margin of scroll container */
-    padding: 1.5rem 1.5rem !important; 
+    padding: 2rem 1rem !important;
+    overflow: visible !important;
+  }
+  
+  .agents-scroll-container {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+  
+  /* Force 2-column grid layout */
+  .agents-scroll-container .agents-grid,
+  .agents-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
   }
   
   .section-header {
-      margin-bottom: 1rem !important;
-      padding: 0 !important; /* Remove extra padding since parent has it */
+    margin-bottom: 1.5rem !important;
+    padding: 0 !important;
   }
   
   .section-title {
-      font-size: 1.5rem !important;
+    font-size: 1.4rem !important;
   }
 
+  /* Agent cards fill grid cells */
+  .agents-scroll-container .agent-card-premium,
   .agent-card-premium {
-    width: 240px !important;
-    padding: 1.25rem !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 1rem !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    border-radius: 14px !important;
   }
 
-  .agent-card-header-info h3 {
-    font-size: 1rem !important;
+  .agent-card-premium .agent-icon-box {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .agent-card-premium .agent-icon-box svg {
+    width: 16px !important;
+    height: 16px !important;
   }
 
-  .agent-description {
-    font-size: 0.8rem !important;
+  .agent-card-header-info h3,
+  .agent-card-premium .agent-name {
+    font-size: 0.85rem !important;
+    margin-bottom: 0.2rem !important;
+  }
+  
+  .agent-card-premium .agent-category-badge {
+    font-size: 0.55rem !important;
+    padding: 0.1rem 0.4rem !important;
+    margin-bottom: 0.4rem !important;
+  }
+
+  .agent-description,
+  .agent-card-premium .agent-description {
+    font-size: 0.7rem !important;
+    line-height: 1.3 !important;
     -webkit-line-clamp: 2 !important;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .agent-card-premium .agent-card-action {
+    padding: 0.4rem 0.6rem !important;
+    font-size: 0.65rem !important;
+    border-radius: 8px !important;
+  }
+  
+  .agent-card-premium .agent-card-action .action-icon {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  
+  /* Hide hover overlay on mobile */
+  .agent-card-overlay {
+    display: none !important;
+  }
+  
+  /* Odd agent (last one) spans full width for balanced layout */
+  .agents-grid .agent-card-premium:last-child:nth-child(odd) {
+    grid-column: 1 / -1 !important;
+    max-width: 280px !important;
+    margin: 0 auto !important;
   }
   
   /* 5. Ensure Footer is Clean and Privacy Button is Accessible */
