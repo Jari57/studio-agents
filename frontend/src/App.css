@@ -1266,8 +1266,10 @@
   
   .agents-scroll-container {
     margin: 0;
-    padding: 0;
-    overflow: visible;
+    padding: 0 16px;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
   }
   
   .agents-scroll-container::-webkit-scrollbar {
@@ -1281,7 +1283,8 @@
     gap: 12px;
     width: 100%;
     padding-bottom: 80px; /* Space for sticky CTA */
-    overflow: visible;
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
   .agents-scroll-container .agents-grid::-webkit-scrollbar {
@@ -1305,6 +1308,8 @@
   margin: 0 auto;
   position: relative;
   z-index: 1;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .section-header {
@@ -5773,8 +5778,10 @@
 
   .agents-scroll-container {
     margin: 0;
-    padding: 0;
-    overflow: visible; /* Ensure no clipping */
+    padding: 0 12px;
+    overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .agents-scroll-container::-webkit-scrollbar {
@@ -5787,6 +5794,8 @@
     gap: 10px; /* Tighter gap for compact look */
     width: 100%;
     padding-bottom: 80px; /* Extra padding for bottom CTA */
+    overflow: hidden;
+    box-sizing: border-box;
   }
 
   .agent-card-premium {
