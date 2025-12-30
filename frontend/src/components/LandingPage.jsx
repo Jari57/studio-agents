@@ -758,7 +758,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             flexWrap: 'wrap'
           }}>
             {[
-              { value: '16', label: 'Agents' },
+              { value: '4', label: 'Free Agents' },
               { value: '24/7', label: 'Live' },
               { value: '∞', label: 'Creates' }
             ].map((stat, i) => (
@@ -777,7 +777,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
         <div className="agents-scroll-container">
           <div className="agents-grid">
-            {AGENTS.map((agent) => {
+            {AGENTS.filter(a => a.tier === 'free').map((agent) => {
               const Icon = agent.icon;
               const key = agent.id || agent.name;
               const isHovered = hoveredAgent === key;
