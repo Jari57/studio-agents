@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu
 } from 'lucide-react';
 import VideoPitchDemo from './VideoPitchDemo';
 import QuickWorkflow from './QuickWorkflow';
@@ -285,6 +285,29 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
   const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
+
+  // Model Picker State - Available AI Models
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
+  const AI_MODELS = [
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Fastest responses, great for quick tasks', tier: 'free', speed: '⚡⚡⚡', quality: '★★★☆' },
+    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: 'Ultra-fast, cost-effective', tier: 'free', speed: '⚡⚡⚡⚡', quality: '★★☆☆' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Best quality for complex prompts', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Balanced speed and quality', tier: 'free', speed: '⚡⚡⚡', quality: '★★★☆' },
+    { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', provider: 'Google', description: 'Lightweight, efficient', tier: 'free', speed: '⚡⚡⚡⚡', quality: '★★☆☆' },
+    { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (Preview)', provider: 'Google', description: 'Latest capabilities, experimental', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+    { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (Preview)', provider: 'Google', description: 'Next-gen speed + quality', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+    { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent for creative writing', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+    { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Fast and capable', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+    { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Multimodal powerhouse', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Affordable GPT-4 class', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'High capability, larger context', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+    { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta', description: 'Open-source powerhouse', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
+    { id: 'llama-3.2-90b-vision', name: 'Llama 3.2 90B Vision', provider: 'Meta', description: 'Multimodal open model', tier: 'pro', speed: '⚡', quality: '★★★★' },
+    { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'European excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
+    { id: 'codestral', name: 'Codestral', provider: 'Mistral', description: 'Optimized for code generation', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+    { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', description: 'Cost-effective reasoning', tier: 'free', speed: '⚡⚡⚡', quality: '★★★★' },
+    { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Multilingual excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' }
+  ];
 
   // Get recommendation based on selected path
   const getRecommendedAgents = () => {
@@ -1511,7 +1534,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         systemInstruction: `You are ${selectedAgent.name}, a professional AI agent in a high-end music studio. 
           Category: ${selectedAgent.category}. 
           Capabilities: ${selectedAgent.capabilities.join(', ')}.
-          ${selectedAgent.explanation}`
+          ${selectedAgent.explanation}`,
+        model: selectedModel // Pass selected model to backend
       };
 
       // Route to specific endpoints for Image/Video agents
@@ -1520,10 +1544,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       
       if (isImageAgent) {
         endpoint = '/api/generate-image';
-        body = { prompt };
+        body = { prompt, model: selectedModel };
       } else if (isVideoAgent) {
         endpoint = '/api/generate-video';
-        body = { prompt };
+        body = { prompt, model: selectedModel };
       }
 
       // Build headers with auth token if logged in
@@ -3340,6 +3364,100 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Model Picker */}
+                  <div className="model-picker-container" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '12px',
+                    padding: '12px 16px',
+                    background: 'rgba(139, 92, 246, 0.08)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(139, 92, 246, 0.2)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      <Cpu size={16} style={{ color: 'var(--color-purple)' }} />
+                      <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'white' }}>AI Model:</span>
+                    </div>
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: '10px 14px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '10px',
+                        color: 'white',
+                        fontSize: '0.85rem',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        appearance: 'none',
+                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238b5cf6'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 12px center',
+                        backgroundSize: '16px',
+                        paddingRight: '40px'
+                      }}
+                    >
+                      <optgroup label="⚡ Google Gemini">
+                        {AI_MODELS.filter(m => m.provider === 'Google').map(model => (
+                          <option key={model.id} value={model.id}>
+                            {model.name} {model.tier === 'pro' ? '(Pro)' : ''} — {model.speed}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="🧠 Anthropic Claude">
+                        {AI_MODELS.filter(m => m.provider === 'Anthropic').map(model => (
+                          <option key={model.id} value={model.id}>
+                            {model.name} — {model.speed}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="🤖 OpenAI GPT">
+                        {AI_MODELS.filter(m => m.provider === 'OpenAI').map(model => (
+                          <option key={model.id} value={model.id}>
+                            {model.name} — {model.speed}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="🦙 Meta Llama">
+                        {AI_MODELS.filter(m => m.provider === 'Meta').map(model => (
+                          <option key={model.id} value={model.id}>
+                            {model.name} — {model.speed}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="🌊 Mistral AI">
+                        {AI_MODELS.filter(m => m.provider === 'Mistral').map(model => (
+                          <option key={model.id} value={model.id}>
+                            {model.name} — {model.speed}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="🔮 Other Models">
+                        {AI_MODELS.filter(m => !['Google', 'Anthropic', 'OpenAI', 'Meta', 'Mistral'].includes(m.provider)).map(model => (
+                          <option key={model.id} value={model.id}>
+                            {model.name} ({model.provider}) — {model.speed}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      alignItems: 'flex-end',
+                      gap: '2px',
+                      minWidth: '80px'
+                    }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Quality</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--color-cyan)', fontWeight: '600' }}>
+                        {AI_MODELS.find(m => m.id === selectedModel)?.quality || '★★★☆'}
+                      </span>
+                    </div>
+                  </div>
+
                   <textarea 
                     ref={textareaRef}
                     placeholder={`Describe what you want ${selectedAgent.name} to create...`}
