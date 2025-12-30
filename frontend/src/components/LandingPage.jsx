@@ -1,7 +1,372 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid, TrendingUp, Clock, DollarSign, Mic, Headphones, Star, ChevronRight, Building, Layers, BarChart3, Briefcase, Award, ExternalLink, Share2 } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid, TrendingUp, Clock, DollarSign, Mic, Headphones, Star, ChevronRight, Building, Layers, BarChart3, Briefcase, Award, ExternalLink, Share2, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { AGENTS } from '../constants';
 import VideoPitchDemo from './VideoPitchDemo';
+
+// Comprehensive Agent Whitepaper Data
+const AGENT_WHITEPAPER = {
+  'ghost': {
+    fullName: 'Ghostwriter AI',
+    version: '3.2.1',
+    releaseDate: 'October 2024',
+    tagline: 'Your AI Co-Writer for Every Genre',
+    overview: 'Ghostwriter is Studio Agents\' flagship lyric generation engine, designed to function as an always-available, infinitely patient songwriting partner. Built on a proprietary Large Language Model (LLM) fine-tuned on millions of professionally written songs, it understands not just words—but rhythm, cadence, and emotional resonance.',
+    problemSolved: 'Writer\'s block costs artists an estimated 40% of their creative time. Traditional co-writing sessions are expensive ($500-2000/session) and require scheduling coordination. Ghostwriter eliminates both barriers, providing instant, unlimited lyrical ideation.',
+    technicalStack: ['Google Gemini Pro (Base LLM)', 'Custom Rhyme Scheme Analyzer', 'Syllable-Flow Mapping Engine', 'Genre-Specific Vocabulary Models', 'Sentiment & Emotion Classifier'],
+    keyFeatures: [
+      { name: 'Multi-Genre Fluency', desc: 'Trained on 50+ genres from Hip-Hop to Country, K-Pop to Death Metal' },
+      { name: 'Flow Mapping', desc: 'Visualizes syllable placement for precise rhythmic delivery' },
+      { name: 'Reference Artist Mode', desc: 'Mimics the stylistic patterns of legendary writers (Jay-Z, Taylor Swift, etc.)' },
+      { name: 'Rhyme Density Control', desc: 'Adjust from simple AABB to complex internal rhyme schemes' },
+      { name: 'Metaphor Generator', desc: 'Creates unique, non-cliché metaphors based on your theme' }
+    ],
+    whenToUse: [
+      'You have a melody but no words',
+      'You\'re stuck on a specific verse or bridge',
+      'You need 10 hook options in 10 minutes',
+      'You want to explore a genre you\'re unfamiliar with',
+      'You need lyrics for a client project on a deadline'
+    ],
+    whenNotToUse: [
+      'You need lyrics for commercial sync (check licensing)',
+      'You want 100% human-written for purist projects',
+      'The song requires highly personal autobiographical content'
+    ],
+    workflowIntegration: 'Inject Ghostwriter at the ideation phase. Use it to generate 5-10 concept directions, then refine your favorite with iterative prompts. Export the final lyrics with Flow Map to your DAW for recording.',
+    examplePrompts: [
+      '"Write a 16-bar verse about losing a friend to success, in the style of 90s East Coast hip-hop. Use internal rhymes and vivid street imagery."',
+      '"Create 5 hook options for a summer pop anthem about first love. Keep it radio-friendly and catchy."',
+      '"Generate a melancholic bridge about missed opportunities for an indie folk song. Use nature metaphors."'
+    ],
+    outputFormats: ['Plain Text', 'Flow Map (PDF)', 'Teleprompter Mode', 'DAW Marker Export'],
+    limitations: ['Cannot generate audio/vocals', 'May occasionally produce clichés (use Refine)', 'Reference Artist mode is stylistic, not impersonation'],
+    pricing: 'Included in all paid plans. Free tier: 10 generations/month.',
+    successMetrics: '94% user satisfaction | Avg. 3.2 refinements per final lyric | 12M+ lyrics generated'
+  },
+  'beat': {
+    fullName: 'Beat Lab Pro',
+    version: '2.8.0',
+    releaseDate: 'November 2024',
+    tagline: 'Production Ideas at the Speed of Thought',
+    overview: 'Beat Lab is your AI production assistant, combining algorithmic composition with a curated sample library. It generates drum patterns, chord progressions, and melodic ideas that are musically coherent and genre-appropriate.',
+    problemSolved: 'Producers spend 60% of their time on ideation and sound selection. Beat Lab compresses this phase by providing instant, theory-correct musical foundations—freeing you to focus on arrangement and mixing.',
+    technicalStack: ['Markov Chain Pattern Generator', 'Music Theory Logic Engine', 'Sample Metadata AI', 'BPM & Key Detection', 'MIDI Export Pipeline'],
+    keyFeatures: [
+      { name: 'Genre-Locked Generation', desc: 'Patterns guaranteed to fit Hip-Hop, EDM, Pop, R&B, and more' },
+      { name: 'Chord Progression Logic', desc: 'Follows harmonic rules while allowing creative tension' },
+      { name: 'Sample Sourcing', desc: 'Suggests royalty-free samples that match your vibe' },
+      { name: 'MIDI Export', desc: 'Drag patterns directly into any DAW' },
+      { name: 'Variation Engine', desc: 'Auto-generates B-sections and fills' }
+    ],
+    whenToUse: [
+      'Starting a new beat from scratch',
+      'You need a chord progression that "works"',
+      'You want drum pattern inspiration',
+      'You\'re producing in an unfamiliar genre',
+      'You need 20 beat ideas for a sample pack'
+    ],
+    whenNotToUse: [
+      'You need a fully mixed beat (use full DAW)',
+      'You want to play everything live',
+      'You need audio stems (use Beat Architect)'
+    ],
+    workflowIntegration: 'Use Beat Lab at project start. Generate a foundation (drums + chords), export MIDI, then build your arrangement in your DAW. Return to Beat Lab for variations.',
+    examplePrompts: [
+      '"Generate a dark trap drum pattern at 140 BPM with minimal hi-hat rolls"',
+      '"Suggest a jazz-infused chord progression in F minor for a lo-fi beat"',
+      '"Create a reggaeton drum pattern with a modern dembow rhythm"'
+    ],
+    outputFormats: ['MIDI Files', 'Pattern Preview (Audio)', 'Sample Pack Links', 'Theory Analysis PDF'],
+    limitations: ['Patterns are MIDI only (no audio)', 'Complex polyrhythms may need manual editing', 'Sample suggestions are external links'],
+    pricing: 'Included in all paid plans. Free tier: 5 patterns/month.',
+    successMetrics: '89% export-to-DAW rate | 4.8M patterns generated | Avg. session: 12 minutes'
+  },
+  'album': {
+    fullName: 'Album Artist AI',
+    version: '4.0.0',
+    releaseDate: 'December 2024',
+    tagline: 'Your Visual Identity, Perfected',
+    overview: 'Album Artist transforms your musical vision into stunning visual art. Powered by Imagen 3, Google\'s most advanced image generation model, it creates cover art, social media kits, and brand assets that are platform-optimized and print-ready.',
+    problemSolved: 'Professional cover art costs $200-2000 and takes 2-4 weeks. Album Artist delivers unlimited, high-quality artwork in minutes—ensuring every single, EP, and album looks major-label quality.',
+    technicalStack: ['Imagen 3 (Google)', 'Resolution Upscaler', 'Platform Optimizer', 'Typography Engine', 'Color Palette Extractor'],
+    keyFeatures: [
+      { name: 'Multi-Style Generation', desc: 'From photorealistic to abstract, anime to oil painting' },
+      { name: 'Social Kit Export', desc: 'Pre-sized assets for Spotify, Instagram, YouTube, TikTok' },
+      { name: 'Typography Integration', desc: 'Add artist name and title with curated fonts' },
+      { name: 'Brand Palette', desc: 'Extract and apply consistent colors across all assets' },
+      { name: 'Print-Ready Export', desc: '300 DPI output for physical merch and vinyl' }
+    ],
+    whenToUse: [
+      'You need cover art for a new release',
+      'You want a consistent visual brand',
+      'You need social media graphics fast',
+      'You\'re designing merch',
+      'You want to visualize your album concept'
+    ],
+    whenNotToUse: [
+      'You need photography of yourself (use a photographer)',
+      'You want hand-drawn illustration style (commission an artist)',
+      'Legal requires specific image licensing'
+    ],
+    workflowIntegration: 'Generate art after your music is mixed. Use the "Mood" from your track as the prompt foundation. Export Social Kit before release day.',
+    examplePrompts: [
+      '"A cyberpunk cityscape at night, neon purple and cyan, cinematic lighting, for a synthwave album"',
+      '"Minimalist abstract shapes in warm earth tones for an indie folk EP, modern and clean"',
+      '"Dark surrealist portrait with glitch effects for a trap single, high contrast"'
+    ],
+    outputFormats: ['3000x3000 Cover (Spotify/Apple)', 'Social Kit (IG, YT, TikTok)', 'Print-Ready (300 DPI)', 'Brand Board PDF'],
+    limitations: ['Cannot generate real human faces (AI policy)', 'Text rendering may need refinement', 'Complex logos should be vector (use external)'],
+    pricing: 'Included in all paid plans. Free tier: 3 covers/month.',
+    successMetrics: '97% Spotify acceptance rate | 2.1M covers generated | Avg. 4 variations per final'
+  },
+  'video-creator': {
+    fullName: 'Video Creator (Veo 3)',
+    version: '1.5.0 BETA',
+    releaseDate: 'December 2024',
+    tagline: 'Cinematic AI Video for Music',
+    overview: 'Video Creator harnesses Veo 3, Google\'s revolutionary video generation model, to create music videos, visualizers, and cinematic content. Describe a scene and watch it come to life.',
+    problemSolved: 'Music videos cost $5,000-500,000 and require crews, locations, and weeks of production. Video Creator enables any artist to visualize their music with cinematic quality in minutes.',
+    technicalStack: ['Veo 3 (Google DeepMind)', 'Audio-Video Sync Engine', 'Style Transfer Pipeline', 'Motion Interpolation', '4K Upscaler'],
+    keyFeatures: [
+      { name: 'Scene Generation', desc: 'Create any scene from text description' },
+      { name: 'Music Sync', desc: 'Upload audio to sync visuals to beat' },
+      { name: 'Style Transfer', desc: 'Apply cinematic looks (Film Noir, Anime, etc.)' },
+      { name: 'Camera Control', desc: 'Specify drone shots, close-ups, tracking' },
+      { name: 'Loop Mode', desc: 'Perfect for visualizers and social content' }
+    ],
+    whenToUse: [
+      'You need a music video but have no budget',
+      'You want visualizers for streaming platforms',
+      'You need social content (TikTok, Reels)',
+      'You\'re creating a visual album',
+      'You want to pitch a video concept to a director'
+    ],
+    whenNotToUse: [
+      'You need footage of yourself (film it)',
+      'You require broadcast-quality output (use post-production)',
+      'Complex narrative with dialogue'
+    ],
+    workflowIntegration: 'Use after music is mastered. Upload audio, describe scenes for each section, generate clips, then edit together in your video editor.',
+    examplePrompts: [
+      '"A slow-motion shot of rain falling on a city street at night, neon reflections, cinematic, melancholic"',
+      '"Drone shot flying over a desert at golden hour, vast and empty, epic scale"',
+      '"Abstract liquid metal morphing in sync with bass drops, chrome and purple"'
+    ],
+    outputFormats: ['1080p MP4', '4K MP4 (Pro)', 'Loop GIF', 'Vertical (9:16)'],
+    limitations: ['BETA - occasional artifacts', 'Max 30 seconds per generation', 'Human faces may be inconsistent'],
+    pricing: 'Pro plan only during beta. 5 videos/month included.',
+    successMetrics: 'BETA | 340K videos generated | 78% user satisfaction (improving)'
+  },
+  'master': {
+    fullName: 'Mastering Lab AI',
+    version: '3.0.0',
+    releaseDate: 'September 2024',
+    tagline: 'Major Label Sound, Indie Budget',
+    overview: 'Mastering Lab applies professional-grade audio mastering using neural networks trained by Grammy-winning engineers. It analyzes your mix and applies precise EQ, compression, limiting, and stereo enhancement.',
+    problemSolved: 'Professional mastering costs $50-500 per track and requires 3-5 day turnaround. Mastering Lab delivers studio-quality masters in under 60 seconds, with unlimited revisions.',
+    technicalStack: ['Neural Mastering Network', 'LUFS Analyzer', 'Spectral EQ AI', 'Stereo Imaging Engine', 'Multi-Format Encoder'],
+    keyFeatures: [
+      { name: 'Platform Presets', desc: 'Optimized for Spotify, Apple, YouTube, Vinyl' },
+      { name: 'Reference Matching', desc: 'Match the sonic profile of a reference track' },
+      { name: 'A/B Testing', desc: 'Compare original vs. master in real-time' },
+      { name: 'Stem Mastering', desc: 'Upload stems for more control (Pro)' },
+      { name: 'Multi-Format Export', desc: 'WAV, FLAC, MP3, and platform-specific' }
+    ],
+    whenToUse: [
+      'Your mix is done and ready for release',
+      'You need a quick master for pitching',
+      'You\'re releasing to streaming platforms',
+      'You want to compare mastering options',
+      'You\'re on a budget but need quality'
+    ],
+    whenNotToUse: [
+      'Your mix has significant issues (fix in mix)',
+      'You need analog warmth (hire a mastering engineer)',
+      'Major label release (consider hybrid approach)'
+    ],
+    workflowIntegration: 'Use as the final step before distribution. Upload your mixdown (-6dB headroom), select platform, and download your master.',
+    examplePrompts: [
+      '"Master for Spotify, warm and punchy, reference: Drake - God\'s Plan"',
+      '"Vinyl-ready master, preserve dynamics, add analog warmth"',
+      '"Loud and aggressive master for EDM, maximize impact"'
+    ],
+    outputFormats: ['WAV 24-bit', 'WAV 16-bit', 'FLAC', 'MP3 320kbps', 'Platform-Specific'],
+    limitations: ['Cannot fix bad mixes', 'Stem mastering requires Pro plan', 'Some genres may need manual tweaking'],
+    pricing: 'Included in all paid plans. Free tier: 2 masters/month.',
+    successMetrics: '92% Spotify loudness compliance | 1.8M tracks mastered | 4.7★ rating'
+  },
+  'trend': {
+    fullName: 'Trend Hunter AI',
+    version: '2.5.0',
+    releaseDate: 'November 2024',
+    tagline: 'Know What\'s Next Before Everyone Else',
+    overview: 'Trend Hunter monitors social media, streaming platforms, and music charts in real-time to identify emerging trends, viral sounds, and optimal release timing.',
+    problemSolved: 'Artists miss trend windows by 2-4 weeks because they lack data access. Trend Hunter surfaces insights that typically cost $10K+ from music intelligence firms.',
+    technicalStack: ['Social Listening AI', 'Streaming Analytics API', 'Viral Prediction Model', 'Hashtag Analyzer', 'Release Timing Engine'],
+    keyFeatures: [
+      { name: 'Trend Radar', desc: 'Real-time visualization of emerging sounds' },
+      { name: 'Viral Prediction', desc: 'AI scores tracks for viral potential' },
+      { name: 'Release Timing', desc: 'Optimal day/time for your genre' },
+      { name: 'Hashtag Strategy', desc: 'Which tags are gaining momentum' },
+      { name: 'Competitor Analysis', desc: 'What\'s working for similar artists' }
+    ],
+    whenToUse: [
+      'Planning your next single',
+      'Deciding when to release',
+      'Creating content for TikTok',
+      'Understanding your competitive landscape',
+      'Pitching to playlists'
+    ],
+    whenNotToUse: [
+      'You don\'t care about commercial success',
+      'Your genre is extremely niche',
+      'You prefer artistic purity over trends'
+    ],
+    workflowIntegration: 'Check Trend Hunter before starting a new project to align with current momentum. Return before release to optimize timing.',
+    examplePrompts: [
+      '"What sounds are trending in Hip-Hop on TikTok this week?"',
+      '"When is the best time to release an R&B single?"',
+      '"What hashtags should I use for my indie rock release?"'
+    ],
+    outputFormats: ['Trend Report PDF', 'Release Calendar', 'Hashtag List', 'Competitor Dashboard'],
+    limitations: ['Trends change rapidly', 'Not all genres have equal data', 'Predictions are probabilistic'],
+    pricing: 'Included in all paid plans. Free tier: 1 report/month.',
+    successMetrics: '73% trend prediction accuracy | 890K reports generated'
+  },
+  'social': {
+    fullName: 'Social Pilot AI',
+    version: '2.2.0',
+    releaseDate: 'October 2024',
+    tagline: 'Your 24/7 Social Media Manager',
+    overview: 'Social Pilot creates, schedules, and optimizes social media content across all platforms. From captions to carousels, it keeps your audience engaged without burning you out.',
+    problemSolved: 'Artists spend 15+ hours/week on social media, often with inconsistent results. Social Pilot reduces this to 2 hours/week while improving engagement.',
+    technicalStack: ['Multi-Platform API', 'Caption Generator', 'Optimal Timing AI', 'Engagement Predictor', 'Hashtag Optimizer'],
+    keyFeatures: [
+      { name: 'Caption Generator', desc: 'Platform-optimized copy in your voice' },
+      { name: 'Content Calendar', desc: 'Automated scheduling across platforms' },
+      { name: 'Engagement Timing', desc: 'Post when your audience is active' },
+      { name: 'Carousel Creator', desc: 'Multi-image posts for Instagram' },
+      { name: 'Analytics Dashboard', desc: 'Track performance across platforms' }
+    ],
+    whenToUse: [
+      'You need consistent social presence',
+      'You\'re launching a new release',
+      'You want to grow your following',
+      'You\'re tired of writing captions',
+      'You need a content strategy'
+    ],
+    whenNotToUse: [
+      'You prefer spontaneous posting',
+      'Your content is highly personal/reactive',
+      'You have a dedicated social media team'
+    ],
+    workflowIntegration: 'Set up your release campaign in Social Pilot. Generate a month of content, schedule it, and monitor analytics.',
+    examplePrompts: [
+      '"Write 10 Instagram captions for my new single release"',
+      '"Create a TikTok content strategy for the next month"',
+      '"What are the best posting times for my R&B audience?"'
+    ],
+    outputFormats: ['Caption Library', 'Content Calendar', 'Carousel Templates', 'Analytics Report'],
+    limitations: ['Cannot post automatically (requires approval)', 'TikTok video creation is separate', 'Engagement varies by account'],
+    pricing: 'Included in all paid plans. Free tier: 5 posts/month.',
+    successMetrics: '67% avg. engagement increase | 2.3M posts generated'
+  },
+  'collab': {
+    fullName: 'Collab Connect AI',
+    version: '1.8.0',
+    releaseDate: 'November 2024',
+    tagline: 'Find Your Perfect Creative Partner',
+    overview: 'Collab Connect matches you with collaborators based on your sound, style, and goals. From producers to vocalists to engineers, find your next creative partner.',
+    problemSolved: 'Finding the right collaborator takes weeks of networking and often results in mismatched creative visions. Collab Connect surfaces compatible artists instantly.',
+    technicalStack: ['Artist Matching Algorithm', 'Sound Analysis AI', 'Goal Alignment Engine', 'Portfolio Analyzer', 'Communication Hub'],
+    keyFeatures: [
+      { name: 'Sound Matching', desc: 'Find artists whose style complements yours' },
+      { name: 'Goal Alignment', desc: 'Match based on career objectives' },
+      { name: 'Portfolio Review', desc: 'Preview their work before connecting' },
+      { name: 'In-App Messaging', desc: 'Communicate without sharing personal info' },
+      { name: 'Collab Contracts', desc: 'Built-in split sheet templates' }
+    ],
+    whenToUse: [
+      'You need a feature artist',
+      'You want a producer for your project',
+      'You need a mixing/mastering engineer',
+      'You want to expand your network',
+      'You\'re looking for songwriting partners'
+    ],
+    whenNotToUse: [
+      'You prefer working alone',
+      'You have an established network',
+      'You need a specific named artist'
+    ],
+    workflowIntegration: 'Upload your work to create your profile. Browse matches, connect, and use built-in tools to manage the collaboration.',
+    examplePrompts: [
+      '"Find producers who make dark trap beats in Atlanta"',
+      '"Match me with female vocalists for R&B features"',
+      '"Show me mixing engineers who specialize in Hip-Hop"'
+    ],
+    outputFormats: ['Match List', 'Artist Profiles', 'Split Sheet Template', 'Collaboration Dashboard'],
+    limitations: ['Depends on user base in your genre/location', 'Cannot guarantee response rates', 'Quality varies by user'],
+    pricing: 'Included in all paid plans. Free tier: 3 matches/month.',
+    successMetrics: '12K+ collaborations formed | 84% match satisfaction'
+  },
+  'release': {
+    fullName: 'Release Manager AI',
+    version: '2.0.0',
+    releaseDate: 'December 2024',
+    tagline: 'Your Personal A&R Team',
+    overview: 'Release Manager orchestrates your entire release campaign—from metadata to marketing timeline to playlist pitching. It\'s the A&R department in your pocket.',
+    problemSolved: 'Independent artists miss critical release steps, resulting in poor discoverability and wasted marketing spend. Release Manager ensures nothing falls through the cracks.',
+    technicalStack: ['Release Timeline Engine', 'Metadata Optimizer', 'Playlist Pitch Generator', 'Marketing Calendar AI', 'Analytics Integration'],
+    keyFeatures: [
+      { name: 'Release Timeline', desc: 'Countdown with daily tasks' },
+      { name: 'Metadata Optimization', desc: 'Perfect your song info for discovery' },
+      { name: 'Playlist Pitch', desc: 'AI-written pitches for Spotify curators' },
+      { name: 'Marketing Calendar', desc: 'Coordinated social, PR, and paid' },
+      { name: 'Post-Release Analysis', desc: 'Track performance vs. goals' }
+    ],
+    whenToUse: [
+      'You\'re releasing new music',
+      'You want to maximize first-week streams',
+      'You need a coordinated campaign',
+      'You\'re pitching to playlists',
+      'You want to learn release best practices'
+    ],
+    whenNotToUse: [
+      'You have a label handling release',
+      'You\'re releasing casually (no promo)',
+      'You have a dedicated manager'
+    ],
+    workflowIntegration: 'Start Release Manager 4-6 weeks before release. Follow the daily tasks. Use generated assets and pitches across your campaign.',
+    examplePrompts: [
+      '"Create a 6-week release campaign for my debut EP"',
+      '"Write a Spotify playlist pitch for my new single"',
+      '"What should I post the week before release?"'
+    ],
+    outputFormats: ['Release Timeline', 'Playlist Pitch Docs', 'Marketing Calendar', 'Post-Release Report'],
+    limitations: ['Cannot submit to DSPs (use distributor)', 'Playlist placement not guaranteed', 'Requires your active participation'],
+    pricing: 'Included in all paid plans. Free tier: 1 release/month.',
+    successMetrics: '340% avg. first-week stream increase | 45K releases managed'
+  }
+};
+
+// Default whitepaper for agents without detailed data
+const DEFAULT_WHITEPAPER = {
+  version: '1.0.0',
+  releaseDate: 'December 2024',
+  tagline: 'AI-Powered Music Creation',
+  overview: 'This agent is part of Studio Agents\' comprehensive AI toolkit for music creation and career development.',
+  problemSolved: 'Reduces time and cost while improving quality of music production workflows.',
+  technicalStack: ['Google Gemini', 'Custom ML Models', 'Cloud Processing'],
+  keyFeatures: [],
+  whenToUse: ['When you need AI assistance for this task'],
+  whenNotToUse: ['When manual control is required'],
+  workflowIntegration: 'Integrate at the appropriate stage of your music production workflow.',
+  examplePrompts: ['Describe your needs and the AI will assist'],
+  outputFormats: ['Digital Export'],
+  limitations: ['See agent-specific documentation'],
+  pricing: 'Included in paid plans.',
+  successMetrics: 'High user satisfaction'
+};
 
 export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   console.log("LandingPage: Rendering...");
@@ -14,11 +379,26 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   const [showMarketing, setShowMarketing] = useState(false);
   const [showInvestorPitch, setShowInvestorPitch] = useState(false);
   const [pitchTab, setPitchTab] = useState('vision');
+  const [showAgentWhitepaper, setShowAgentWhitepaper] = useState(false);
+  const [selectedWhitepaperAgent, setSelectedWhitepaperAgent] = useState(null);
+  const [whitepaperTab, setWhitepaperTab] = useState('overview');
   const statsRef = useRef(null);
   const [statsVisible, setStatsVisible] = useState(false);
   
   // Animated counter for stats
   const [animatedStats, setAnimatedStats] = useState({ songs: 0, hours: 0, saved: 0, artists: 0 });
+
+  // Open agent whitepaper
+  const openAgentWhitepaper = (agent) => {
+    setSelectedWhitepaperAgent(agent);
+    setWhitepaperTab('overview');
+    setShowAgentWhitepaper(true);
+  };
+
+  // Get whitepaper data for an agent
+  const getWhitepaperData = (agentId) => {
+    return AGENT_WHITEPAPER[agentId] || DEFAULT_WHITEPAPER;
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -409,7 +789,41 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   onMouseLeave={() => setHoveredAgent(null)}
                   className={`agent-card-premium ${agent.colorClass} haptic-press`}
                   onClick={onEnter}
+                  style={{ position: 'relative' }}
                 >
+                  {/* Whitepaper Gear Icon */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
+                    className="agent-whitepaper-btn"
+                    title="View Agent Whitepaper"
+                    style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '8px',
+                      background: 'rgba(139, 92, 246, 0.2)',
+                      border: '1px solid rgba(139, 92, 246, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      zIndex: 10,
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = 'rgba(139, 92, 246, 0.5)';
+                      e.currentTarget.style.transform = 'rotate(45deg) scale(1.1)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
+                      e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
+                    }}
+                  >
+                    <Settings size={14} style={{ color: 'var(--color-purple)' }} />
+                  </button>
+
                   <div className="agent-card-glow"></div>
 
                   <div className={`agent-card-content ${isHovered ? 'blurred' : ''}`}>
@@ -2152,6 +2566,604 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           </div>
         </div>
       )}
+
+      {/* Agent Whitepaper Modal - Technical Documentation */}
+      {showAgentWhitepaper && selectedWhitepaperAgent && (() => {
+        const agent = selectedWhitepaperAgent;
+        const wp = getWhitepaperData(agent.id);
+        const Icon = agent.icon;
+        
+        return (
+          <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10002 }}>
+            <div className="legal-modal animate-scaleIn" style={{ 
+              maxWidth: '950px',
+              maxHeight: '95vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              background: 'linear-gradient(180deg, rgba(15, 15, 25, 0.99) 0%, rgba(8, 8, 14, 1) 100%)',
+              border: '1px solid rgba(139, 92, 246, 0.3)'
+            }}>
+              {/* Header */}
+              <div className="modal-header" style={{ 
+                borderBottom: '1px solid rgba(139, 92, 246, 0.2)',
+                padding: '20px 24px',
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '14px',
+                    background: 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Icon size={24} style={{ color: 'white' }} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2px' }}>
+                      <h2 style={{ margin: 0, fontSize: '1.4rem' }}>{wp.fullName || agent.name}</h2>
+                      <span style={{ 
+                        fontSize: '0.65rem', 
+                        padding: '3px 8px', 
+                        background: 'rgba(139, 92, 246, 0.3)',
+                        borderRadius: '6px',
+                        color: 'var(--color-purple)',
+                        fontWeight: '600'
+                      }}>
+                        v{wp.version}
+                      </span>
+                      {agent.isBeta && (
+                        <span style={{ 
+                          fontSize: '0.65rem', 
+                          padding: '3px 8px', 
+                          background: 'rgba(239, 68, 68, 0.2)',
+                          borderRadius: '6px',
+                          color: '#ef4444',
+                          fontWeight: '600'
+                        }}>
+                          BETA
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ 
+                      fontSize: '0.85rem', 
+                      color: 'var(--text-secondary)', 
+                      margin: 0,
+                      fontStyle: 'italic'
+                    }}>
+                      {wp.tagline}
+                    </p>
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setShowAgentWhitepaper(false)}><X size={20} /></button>
+              </div>
+              
+              {/* Navigation Tabs */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '4px', 
+                padding: '12px 24px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                overflowX: 'auto',
+                flexShrink: 0
+              }}>
+                {[
+                  { id: 'overview', label: 'Overview', icon: FileText },
+                  { id: 'technical', label: 'Tech Stack', icon: Cpu },
+                  { id: 'features', label: 'Features', icon: Layers },
+                  { id: 'usage', label: 'When to Use', icon: Lightbulb },
+                  { id: 'examples', label: 'Examples', icon: Code },
+                  { id: 'specs', label: 'Specs', icon: Settings }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setWhitepaperTab(tab.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '10px 16px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: whitepaperTab === tab.id 
+                        ? 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)' 
+                        : 'rgba(255, 255, 255, 0.05)',
+                      color: whitepaperTab === tab.id ? 'white' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      fontWeight: whitepaperTab === tab.id ? '600' : '400',
+                      fontSize: '0.8rem',
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    <tab.icon size={14} />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Content Area */}
+              <div className="modal-body" style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+                
+                {/* OVERVIEW TAB */}
+                {whitepaperTab === 'overview' && (
+                  <div className="animate-fadeIn">
+                    {/* Product Overview */}
+                    <div style={{ marginBottom: '28px' }}>
+                      <div style={{ 
+                        fontSize: '0.7rem', 
+                        color: 'var(--color-purple)', 
+                        fontWeight: '600',
+                        letterSpacing: '2px',
+                        marginBottom: '12px'
+                      }}>
+                        PRODUCT OVERVIEW
+                      </div>
+                      <p style={{ 
+                        fontSize: '1rem', 
+                        color: 'var(--text-secondary)', 
+                        lineHeight: '1.7',
+                        margin: 0
+                      }}>
+                        {wp.overview}
+                      </p>
+                    </div>
+
+                    {/* Problem & Solution */}
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                      gap: '16px',
+                      marginBottom: '28px'
+                    }}>
+                      <div style={{
+                        padding: '20px',
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        borderRadius: '16px',
+                        border: '1px solid rgba(239, 68, 68, 0.2)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                          <AlertCircle size={18} style={{ color: '#ef4444' }} />
+                          <h4 style={{ color: '#ef4444', fontSize: '0.9rem', fontWeight: '700', margin: 0 }}>
+                            The Problem
+                          </h4>
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6', margin: 0 }}>
+                          {wp.problemSolved}
+                        </p>
+                      </div>
+
+                      <div style={{
+                        padding: '20px',
+                        background: 'rgba(34, 197, 94, 0.08)',
+                        borderRadius: '16px',
+                        border: '1px solid rgba(34, 197, 94, 0.2)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                          <CheckCircle size={18} style={{ color: '#22c55e' }} />
+                          <h4 style={{ color: '#22c55e', fontSize: '0.9rem', fontWeight: '700', margin: 0 }}>
+                            The Solution
+                          </h4>
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6', margin: 0 }}>
+                          {agent.name} automates this workflow with AI, delivering professional results in minutes instead of days.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Success Metrics */}
+                    <div style={{
+                      padding: '20px',
+                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(139, 92, 246, 0.2)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '8px', letterSpacing: '1px' }}>
+                        PERFORMANCE METRICS
+                      </div>
+                      <p style={{ 
+                        fontSize: '1rem', 
+                        color: 'white', 
+                        fontWeight: '500',
+                        margin: 0
+                      }}>
+                        {wp.successMetrics}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* TECHNICAL TAB */}
+                {whitepaperTab === 'technical' && (
+                  <div className="animate-fadeIn">
+                    <div style={{ 
+                      fontSize: '0.7rem', 
+                      color: 'var(--color-cyan)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '20px'
+                    }}>
+                      TECHNICAL ARCHITECTURE
+                    </div>
+
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', 
+                      gap: '12px',
+                      marginBottom: '28px'
+                    }}>
+                      {wp.technicalStack.map((tech, i) => (
+                        <div key={i} style={{
+                          padding: '16px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px'
+                        }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <Cpu size={16} style={{ color: 'white' }} />
+                          </div>
+                          <span style={{ fontSize: '0.85rem', color: 'white', fontWeight: '500' }}>{tech}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Integration */}
+                    <div style={{
+                      padding: '20px',
+                      background: 'rgba(139, 92, 246, 0.08)',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(139, 92, 246, 0.2)'
+                    }}>
+                      <h4 style={{ color: 'var(--color-purple)', fontSize: '0.9rem', fontWeight: '700', marginBottom: '12px' }}>
+                        Workflow Integration
+                      </h4>
+                      <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6', margin: 0 }}>
+                        {wp.workflowIntegration}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* FEATURES TAB */}
+                {whitepaperTab === 'features' && (
+                  <div className="animate-fadeIn">
+                    <div style={{ 
+                      fontSize: '0.7rem', 
+                      color: 'var(--color-purple)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '20px'
+                    }}>
+                      KEY FEATURES & CAPABILITIES
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {(wp.keyFeatures && wp.keyFeatures.length > 0 ? wp.keyFeatures : (agent.capabilities || []).map(c => ({ name: c, desc: '' }))).map((feature, i) => (
+                        <div key={i} style={{
+                          padding: '18px 20px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '14px',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '14px'
+                        }}>
+                          <div style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '8px',
+                            background: 'rgba(139, 92, 246, 0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            marginTop: '2px'
+                          }}>
+                            <CheckCircle size={14} style={{ color: 'var(--color-purple)' }} />
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: '0.95rem', color: 'white', fontWeight: '600', marginBottom: '4px' }}>
+                              {feature.name}
+                            </div>
+                            {feature.desc && (
+                              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
+                                {feature.desc}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* USAGE TAB */}
+                {whitepaperTab === 'usage' && (
+                  <div className="animate-fadeIn">
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                      gap: '20px'
+                    }}>
+                      {/* When to Use */}
+                      <div>
+                        <div style={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          marginBottom: '16px'
+                        }}>
+                          <CheckCircle size={18} style={{ color: '#22c55e' }} />
+                          <span style={{ 
+                            fontSize: '0.75rem', 
+                            color: '#22c55e', 
+                            fontWeight: '600',
+                            letterSpacing: '1px'
+                          }}>
+                            WHEN TO USE
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {wp.whenToUse.map((item, i) => (
+                            <div key={i} style={{
+                              padding: '12px 16px',
+                              background: 'rgba(34, 197, 94, 0.08)',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(34, 197, 94, 0.15)',
+                              fontSize: '0.85rem',
+                              color: 'var(--text-secondary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px'
+                            }}>
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                              {item}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* When NOT to Use */}
+                      <div>
+                        <div style={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          marginBottom: '16px'
+                        }}>
+                          <AlertCircle size={18} style={{ color: '#ef4444' }} />
+                          <span style={{ 
+                            fontSize: '0.75rem', 
+                            color: '#ef4444', 
+                            fontWeight: '600',
+                            letterSpacing: '1px'
+                          }}>
+                            WHEN NOT TO USE
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {wp.whenNotToUse.map((item, i) => (
+                            <div key={i} style={{
+                              padding: '12px 16px',
+                              background: 'rgba(239, 68, 68, 0.08)',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(239, 68, 68, 0.15)',
+                              fontSize: '0.85rem',
+                              color: 'var(--text-secondary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px'
+                            }}>
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                              {item}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* EXAMPLES TAB */}
+                {whitepaperTab === 'examples' && (
+                  <div className="animate-fadeIn">
+                    <div style={{ 
+                      fontSize: '0.7rem', 
+                      color: 'var(--color-cyan)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '20px'
+                    }}>
+                      EXAMPLE PROMPTS & USE CASES
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '28px' }}>
+                      {wp.examplePrompts.map((prompt, i) => (
+                        <div key={i} style={{
+                          padding: '18px 20px',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          borderRadius: '14px',
+                          border: '1px solid rgba(139, 92, 246, 0.2)',
+                          position: 'relative'
+                        }}>
+                          <div style={{
+                            position: 'absolute',
+                            top: '-8px',
+                            left: '16px',
+                            background: 'var(--color-bg)',
+                            padding: '2px 8px',
+                            fontSize: '0.65rem',
+                            color: 'var(--color-purple)',
+                            fontWeight: '600',
+                            borderRadius: '4px'
+                          }}>
+                            EXAMPLE {i + 1}
+                          </div>
+                          <p style={{ 
+                            fontSize: '0.9rem', 
+                            color: 'white', 
+                            lineHeight: '1.6',
+                            margin: 0,
+                            fontFamily: 'monospace',
+                            whiteSpace: 'pre-wrap'
+                          }}>
+                            {prompt}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Output Formats */}
+                    <div style={{ 
+                      fontSize: '0.7rem', 
+                      color: 'var(--color-purple)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '16px'
+                    }}>
+                      OUTPUT FORMATS
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                      {wp.outputFormats.map((format, i) => (
+                        <div key={i} style={{
+                          padding: '8px 16px',
+                          background: 'rgba(139, 92, 246, 0.15)',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(139, 92, 246, 0.3)',
+                          fontSize: '0.8rem',
+                          color: 'white',
+                          fontWeight: '500'
+                        }}>
+                          {format}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* SPECS TAB */}
+                {whitepaperTab === 'specs' && (
+                  <div className="animate-fadeIn">
+                    <div style={{ 
+                      fontSize: '0.7rem', 
+                      color: 'var(--color-purple)', 
+                      fontWeight: '600',
+                      letterSpacing: '2px',
+                      marginBottom: '20px'
+                    }}>
+                      SPECIFICATIONS & LIMITATIONS
+                    </div>
+
+                    {/* Specs Grid */}
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+                      gap: '12px',
+                      marginBottom: '28px'
+                    }}>
+                      {[
+                        { label: 'Version', value: wp.version },
+                        { label: 'Release Date', value: wp.releaseDate },
+                        { label: 'Pricing', value: wp.pricing },
+                        { label: 'Category', value: agent.category }
+                      ].map((spec, i) => (
+                        <div key={i} style={{
+                          padding: '16px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          textAlign: 'center'
+                        }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                            {spec.label}
+                          </div>
+                          <div style={{ fontSize: '0.95rem', color: 'white', fontWeight: '600' }}>
+                            {spec.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Limitations */}
+                    <div style={{
+                      padding: '20px',
+                      background: 'rgba(239, 68, 68, 0.05)',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(239, 68, 68, 0.15)'
+                    }}>
+                      <h4 style={{ 
+                        color: '#ef4444', 
+                        fontSize: '0.85rem', 
+                        fontWeight: '700', 
+                        marginBottom: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <AlertCircle size={16} />
+                        Known Limitations
+                      </h4>
+                      <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                        {(wp.limitations || []).map((item, i) => (
+                          <li key={i} style={{ 
+                            fontSize: '0.85rem', 
+                            color: 'var(--text-secondary)',
+                            marginBottom: '8px',
+                            lineHeight: '1.5'
+                          }}>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="modal-footer" style={{ 
+                borderTop: '1px solid rgba(139, 92, 246, 0.2)',
+                display: 'flex',
+                gap: '12px',
+                padding: '16px 24px'
+              }}>
+                <button 
+                  className="glass-button"
+                  onClick={() => setShowAgentWhitepaper(false)}
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  Close
+                </button>
+                <button 
+                  className="cta-button-primary"
+                  onClick={() => { setShowAgentWhitepaper(false); onEnter(true); }}
+                  style={{ flex: 2, justifyContent: 'center' }}
+                >
+                  <Zap size={18} />
+                  Try {agent.name}
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
