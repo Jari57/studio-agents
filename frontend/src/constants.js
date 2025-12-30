@@ -96,7 +96,7 @@ export const AGENTS = [
       category: 'Visual Identity', 
       icon: PlayCircle, 
       colorClass: 'agent-red', 
-      tier: 'monthly', // MONTHLY TIER
+      tier: 'free', // FREE TIER
       isBeta: true,
       description: 'Generate cinematic videos with Veo 3',
       capabilities: ['Music Video Generation', 'Visualizer Creation', 'Cinematic Scenes', 'Style Transfer'],
