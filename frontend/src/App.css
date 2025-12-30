@@ -2148,30 +2148,26 @@
 /* --- Studio View Styles --- */
 .studio-container {
   display: flex;
-  height: 100dvh; /* Locked to dynamic viewport height */
-  width: 100vw;
-  position: fixed; /* Prevent floating/moving */
-  top: 0;
-  left: 0;
+  min-height: 100dvh;
+  width: 100%;
   background: radial-gradient(circle at top right, #1a1a24 0%, #0a0a0c 100%);
   color: var(--text-primary);
-  overflow: hidden;
+  overflow-x: hidden;
   transition: background 0.3s ease, color 0.3s ease;
-  overscroll-behavior: none; /* Prevent rubber-banding */
 }
 
 /* Sidebar Navigation */
 .studio-nav {
-  width: 280px;
+  width: 260px;
   background: var(--color-bg-secondary);
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  padding: 2rem 1.5rem;
+  padding: 1.25rem 1rem;
   transition: all 0.3s ease;
-  /* overflow-y: auto; REMOVED to allow dropdowns to overflow */
-  overflow: visible; 
-  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100dvh;
   position: sticky;
   top: 0;
   flex-shrink: 0;
@@ -2181,8 +2177,8 @@
 .studio-nav-logo {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 3.5rem;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
   cursor: pointer;
   transition: transform 0.2s;
 }
@@ -2194,23 +2190,25 @@
 .studio-nav-links {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.25rem;
   flex-grow: 1;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
-  border-radius: 16px;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
   background: transparent;
   border: none;
   color: var(--text-secondary);
   font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -2224,7 +2222,8 @@
 }
 
 .studio-nav-footer {
-  padding-top: 1.5rem;
+  padding-top: 1rem;
+  margin-top: auto;
   border-top: 1px solid var(--border-color);
 }
 
@@ -3521,11 +3520,10 @@
   /* Studio View Mobile Fixes */
   .studio-container {
     flex-direction: column;
-    height: 100dvh; /* Use dynamic viewport height to account for mobile address bars */
-    overflow: hidden;
-    position: fixed;
-    inset: 0;
-    overscroll-behavior: none; /* Prevent body rubber-banding */
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-bottom: 80px; /* Space for bottom nav */
   }
 
   .studio-nav {
@@ -3537,17 +3535,15 @@
   }
 
   .studio-main {
-    height: 100%;
-    padding-bottom: 120px; /* Increased padding to ensure content clears bottom nav/UI */
+    flex: 1;
+    padding-bottom: 100px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain; /* Allow internal scroll but prevent chaining */
   }
 
   .studio-content {
     padding: 1rem;
-    /* Ensure content doesn't get cut off */
-    min-height: calc(100% - 80px); 
+    min-height: auto;
   }
 
   .studio-dashboard {
@@ -7018,8 +7014,8 @@ input:checked + .slider:before {
 /* Mobile Responsive for Dashboard */
 @media (max-width: 1024px) {
   .dashboard-sidebar-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    display: flex;
+    flex-direction: column;
   }
   
   .dashboard-sidebar {
@@ -7031,46 +7027,45 @@ input:checked + .slider:before {
     gap: 0.5rem;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
-    background: rgba(10, 10, 12, 0.95); /* Ensure background is opaque */
-    z-index: 90; /* Keep it above content */
-    overflow-x: auto; /* Allow horizontal scroll for nav */
+    background: rgba(10, 10, 12, 0.95);
+    z-index: 90;
+    overflow-x: auto;
     overflow-y: hidden;
+    /* Add fade hint for scrollable content */
+    mask-image: linear-gradient(to right, black 90%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
   }
 
   .sidebar-header {
-    display: none; /* Hide header on mobile to prioritize nav */
+    display: none;
   }
   
   .sidebar-nav {
     display: flex;
     flex-direction: row;
-    overflow-x: auto;
+    flex-wrap: nowrap;
     flex: 1;
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
     -webkit-overflow-scrolling: touch;
-    gap: 0.75rem;
-    padding-right: 2rem; /* Extra padding for last item visibility */
+    gap: 0.5rem;
+    padding-right: 3rem; /* Space for fade effect */
     padding-bottom: 0;
     align-items: center;
-    scrollbar-width: none; /* Hide scrollbar for cleaner look */
-  }
-  
-  .sidebar-nav::-webkit-scrollbar {
-    display: none;
   }
   
   .sidebar-link {
     white-space: nowrap;
-    padding: 0.4rem 0.8rem;
+    padding: 0.5rem 1rem;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 0.4rem;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 100px; /* Pill shape */
-    font-size: 0.75rem;
-    height: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 100px;
+    font-size: 0.8rem;
+    min-height: 36px;
   }
 
   .sidebar-link.active {
@@ -8888,51 +8883,65 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
 }
 
 
-/* --- Dashboard Scroll Locking Fixes --- */
-/* Lock the main dashboard container to viewport */
+/* --- Dashboard Layout (Natural Flow) --- */
+/* Dashboard sits naturally within studio-content - NO fixed positioning */
 .studio-dashboard {
-  height: 100dvh; /* Use dynamic viewport height */
-  width: 100vw;
-  overflow: hidden; /* Prevent outer scroll */
-  position: fixed; /* Lock position */
-  top: 0;
-  left: 0;
-  overscroll-behavior: none; /* Prevent bounce */
-  touch-action: none; /* Disable default touch actions on container */
-}
-
-/* Ensure the layout grid fills the locked container */
-.dashboard-sidebar-layout {
-  height: 100%;
   width: 100%;
-  overflow: hidden;
+  min-height: 100%;
+  padding: 0;
+  margin: 0;
 }
 
-/* Allow scrolling ONLY in the main content area */
-.dashboard-main-content {
-  height: 100%;
+/* Dashboard sidebar layout - clean grid, natural height */
+.dashboard-sidebar-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 0;
+  min-height: calc(100dvh - 80px); /* Account for header */
+  width: 100%;
+}
+
+/* Sidebar scrolls independently if needed */
+.dashboard-sidebar {
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--border-color);
+  padding: 1.5rem 1rem;
+  position: sticky;
+  top: 0;
+  height: fit-content;
+  max-height: 100dvh;
   overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch; /* Smooth scroll */
-  touch-action: pan-y; /* Allow vertical scroll only */
-  padding-bottom: 120px; /* Ensure bottom content is reachable */
 }
 
-/* Mobile specific adjustments */
+/* Main content area - natural scroll within parent */
+.dashboard-main-content {
+  padding: 2rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 100px; /* Space for mobile nav */
+}
+
+/* Mobile: Stack layout, horizontal tab nav */
 @media (max-width: 1024px) {
-  .studio-dashboard {
-    position: fixed; /* Reinforce fixed position on mobile */
+  .dashboard-sidebar-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: auto;
   }
   
   .dashboard-sidebar {
-    flex-shrink: 0; /* Prevent sidebar from shrinking */
-    touch-action: pan-x; /* Allow horizontal scroll for nav items */
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
   }
   
-  /* Ensure content area handles scroll properly */
   .dashboard-main-content {
     padding: 1rem;
-    padding-bottom: 150px; /* Extra padding for mobile nav bars */
+    padding-bottom: 120px; /* Extra for bottom nav */
   }
 }
 
