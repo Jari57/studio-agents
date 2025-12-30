@@ -3514,16 +3514,39 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   </button>
                   
                   {/* Quick Actions for Grid */}
-                  <div className="agent-grid-quick-actions" style={{ display: 'flex', gap: '8px', marginTop: '12px', justifyContent: 'center' }}>
+                  <div className="agent-grid-quick-actions" style={{ 
+                    display: 'flex', 
+                    gap: '8px', 
+                    marginTop: '12px', 
+                    justifyContent: 'center',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    paddingTop: '12px'
+                  }}>
                     <button 
                       className="quick-action-icon-btn"
                       title="Quick Generate"
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '8px 12px',
+                        background: 'rgba(139, 92, 246, 0.08)',
+                        border: '1px solid rgba(139, 92, 246, 0.15)',
+                        borderRadius: '8px',
+                        color: 'var(--color-purple)',
+                        fontSize: '0.75rem',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (agent.isPro && !isLoggedIn) {
                           setShowLoginModal(true);
                         } else {
-                          setQuickWorkflowAgent(agent); // Quick workflow modal
+                          setQuickWorkflowAgent(agent);
                         }
                       }}
                     >
@@ -3532,18 +3555,23 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     </button>
                     <button 
                       className="quick-action-icon-btn"
-                      title="Audio Preview"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTextToVoice(`This is ${agent.name}. ${agent.description}`);
+                      title="How to Use"
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        padding: '8px 12px',
+                        background: 'rgba(6, 182, 212, 0.08)',
+                        border: '1px solid rgba(6, 182, 212, 0.15)',
+                        borderRadius: '8px',
+                        color: 'var(--color-cyan)',
+                        fontSize: '0.75rem',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
                       }}
-                    >
-                      <Volume2 size={14} />
-                      <span>Preview</span>
-                    </button>
-                    <button 
-                      className="quick-action-icon-btn"
-                      title="Get Started Guide"
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowAgentHelpModal(agent);
@@ -6947,20 +6975,31 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       {/* Agent White Paper Modal */}
       {showAgentWhitePaper && (
         <div className="modal-overlay animate-fadeIn" onClick={() => setShowAgentWhitePaper(null)} style={{ zIndex: 2000 }}>
-          <div className="modal-content whitepaper-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div 
+            className="modal-content whitepaper-modal" 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '700px', 
+              width: '95%',
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{ 
-                  width: '48px', height: '48px', borderRadius: '12px', 
+                  width: '44px', height: '44px', borderRadius: '12px', 
                   background: 'var(--color-bg-secondary)', 
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   color: 'var(--text-primary)'
                 }}>
-                  <showAgentWhitePaper.icon size={24} />
+                  <showAgentWhitePaper.icon size={22} />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: '1.5rem', margin: 0 }}>{showAgentWhitePaper.title}</h2>
-                  <p style={{ color: 'var(--text-secondary)', margin: 0 }}>{showAgentWhitePaper.subtitle}</p>
+                  <h2 style={{ fontSize: '1.25rem', margin: 0 }}>{showAgentWhitePaper.title}</h2>
+                  <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>{showAgentWhitePaper.subtitle}</p>
                 </div>
               </div>
               <button className="modal-close" onClick={() => setShowAgentWhitePaper(null)}>
@@ -6968,35 +7007,37 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               </button>
             </div>
 
-            <div className="modal-body" style={{ padding: '24px 0' }}>
-              <div className="whitepaper-section" style={{ marginBottom: '32px' }}>
-                <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', color: 'var(--color-purple)' }}>The Vision</h3>
-                <p style={{ fontSize: '1.05rem', lineHeight: '1.7', color: 'var(--text-primary)' }}>
+            <div className="modal-body" style={{ padding: '1.25rem 0', flex: 1, overflow: 'hidden' }}>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: 'var(--color-purple)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={16} /> The Vision
+                </h3>
+                <p style={{ fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--text-primary)', margin: 0 }}>
                   {showAgentWhitePaper.description}
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
-                <div className="whitepaper-box" style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px' }}>
-                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                    <Users size={18} className="text-cyan" /> Who It's For
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px' }}>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.9rem' }}>
+                    <Users size={16} className="text-cyan" /> Who It's For
                   </h4>
-                  <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+                  <p style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'var(--text-secondary)', margin: 0 }}>
                     {showAgentWhitePaper.whoFor}
                   </p>
                 </div>
-                <div className="whitepaper-box" style={{ background: 'rgba(255,255,255,0.03)', padding: '20px', borderRadius: '12px' }}>
-                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px' }}>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.9rem' }}>
                     <Zap size={18} className="text-orange" /> How It Works
                   </h4>
-                  <p style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+                  <p style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'var(--text-secondary)', margin: 0 }}>
                     {showAgentWhitePaper.howTo}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
               <button 
                 className="cta-button-premium"
                 onClick={() => {

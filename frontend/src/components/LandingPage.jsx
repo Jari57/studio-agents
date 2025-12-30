@@ -318,19 +318,77 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
 
 
-      {/* Agent Showcase - Compact Grid */}
+      {/* Meet Your Dream Team - Agent Showcase */}
       <section className="agents-section">
         <div className="section-header">
-          <div className="section-tag">16 AI Agents</div>
-          <h2 className="section-title">
-            Meet Your <span className="gradient-text-cyan-purple">Dream Team</span>
+          <div className="section-tag" style={{ 
+            background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))', 
+            color: 'white',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <Users size={14} />
+            Your AI Dream Team
+          </div>
+          <h2 className="section-title" style={{ fontSize: 'clamp(1.8rem, 5vw, 2.5rem)' }}>
+            Meet the <span className="gradient-text-cyan-purple">16 Specialists</span>
+            <br />
+            <span style={{ fontSize: '0.45em', fontWeight: '400', color: 'var(--text-secondary)', display: 'block', marginTop: '8px' }}>
+              Working 24/7 To Make You a Star
+            </span>
           </h2>
-          <p className="section-subtitle" style={{ maxWidth: '380px', margin: '0 auto' }}>
-            Each agent is a specialist. Together, they're unstoppable.
+          <p className="section-subtitle" style={{ maxWidth: '420px', margin: '0 auto' }}>
+            Each agent is a master of their craft. From writing lyrics to mastering tracks, 
+            your dream team handles it all.
           </p>
+          
+          {/* Team Stats Banner */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '16px',
+            marginTop: '24px',
+            flexWrap: 'wrap'
+          }}>
+            {[
+              { value: '16', label: 'AI Agents', icon: Users },
+              { value: '8', label: 'Categories', icon: LayoutGrid },
+              { value: '∞', label: 'Creations', icon: Sparkles },
+              { value: '24/7', label: 'Available', icon: Clock }
+            ].map((stat, i) => (
+              <div key={i} style={{
+                textAlign: 'center',
+                padding: '10px 16px',
+                background: 'rgba(255,255,255,0.03)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.08)',
+                minWidth: '70px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <stat.icon size={16} className="text-purple" />
+                  <span style={{ fontSize: '1.2rem', fontWeight: '700', color: 'white' }}>{stat.value}</span>
+                </div>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{stat.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="agents-scroll-container">
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '16px', 
+            color: 'var(--text-secondary)', 
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}>
+            <ArrowRight size={14} />
+            <span>Swipe to meet the team</span>
+          </div>
           <div className="agents-grid">
             {AGENTS.map((agent) => {
               const Icon = agent.icon;
@@ -382,12 +440,98 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             })}
           </div>
         </div>
+        
+        {/* Team CTA */}
+        <div style={{
+          textAlign: 'center',
+          marginTop: '32px',
+          padding: '24px',
+          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.1))',
+          borderRadius: '20px',
+          border: '1px solid rgba(255,255,255,0.1)',
+          maxWidth: '400px',
+          margin: '32px auto 0'
+        }}>
+          <h3 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'white' }}>
+            Ready to Meet Your Team?
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem' }}>
+            All 16 agents are standing by.
+          </p>
+          <button onClick={onEnter} className="cta-button-primary haptic-press" style={{ 
+            padding: '14px 28px',
+            fontSize: '1rem',
+            borderRadius: '14px'
+          }}>
+            <Rocket size={18} />
+            <span>Launch Studio</span>
+          </button>
+        </div>
       </section>
 
-      {/* Social Proof Quotes */}
+      {/* Consolidated: The Edge + What Artists Say */}
       <section style={{ padding: '60px 20px', background: 'var(--color-bg-secondary)' }}>
-        <div style={{ maxWidth: '500px', margin: '0 auto' }}>
-          <div className="section-tag" style={{ textAlign: 'center', marginBottom: '24px' }}>What Artists Say</div>
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <div className="section-header" style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div className="section-tag">The Edge</div>
+            <h2 className="section-title">
+              Why Artists <span className="gradient-text-purple-pink">Choose Us</span>
+            </h2>
+          </div>
+          
+          {/* Benefits Row */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(3, 1fr)', 
+            gap: '16px', 
+            marginBottom: '32px',
+            textAlign: 'center'
+          }}>
+            {[
+              { icon: Zap, title: 'Instant Output', desc: 'Seconds, not days' },
+              { icon: DollarSign, title: 'Save $4,700/yr', desc: 'Skip the middlemen' },
+              { icon: Shield, title: 'You Own It', desc: '100% your rights' }
+            ].map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <div key={idx} style={{
+                  padding: '16px 12px',
+                  background: 'rgba(255,255,255,0.03)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.08)'
+                }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '10px',
+                    background: 'var(--gradient-vibrant)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 10px'
+                  }}>
+                    <Icon size={20} className="text-white" />
+                  </div>
+                  <h4 style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '4px', color: 'white' }}>{item.title}</h4>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{item.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Divider */}
+          <div style={{ 
+            width: '60px', 
+            height: '2px', 
+            background: 'var(--gradient-vibrant)', 
+            margin: '0 auto 24px',
+            borderRadius: '2px'
+          }} />
+          
+          {/* Testimonials */}
+          <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>What Artists Say</span>
+          </div>
           
           {[
             { quote: "Dropped my EP in 2 weeks instead of 6 months. Studio Agents is insane.", name: "@prodbylex", role: "45K Spotify Monthly" },
@@ -395,62 +539,29 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             { quote: "The marketing agent alone saved me $3K in consultant fees.", name: "DJ Phantom", role: "Club DJ, Atlanta" }
           ].map((t, i) => (
             <div key={i} style={{
-              padding: '20px',
+              padding: '16px 20px',
               background: 'rgba(255,255,255,0.03)',
-              borderRadius: '16px',
+              borderRadius: '14px',
               border: '1px solid rgba(255,255,255,0.08)',
-              marginBottom: '16px'
+              marginBottom: '12px'
             }}>
-              <p style={{ fontSize: '1rem', lineHeight: '1.5', marginBottom: '12px', color: 'white' }}>
+              <p style={{ fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '10px', color: 'white', fontStyle: 'italic' }}>
                 "{t.quote}"
               </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ 
-                  width: '36px', 
-                  height: '36px', 
+                  width: '32px', 
+                  height: '32px', 
                   borderRadius: '50%', 
                   background: 'var(--gradient-vibrant)'
                 }} />
                 <div>
-                  <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t.role}</div>
+                  <div style={{ fontWeight: '600', fontSize: '0.85rem' }}>{t.name}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{t.role}</div>
                 </div>
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* Benefits - Streamlined */}
-      <section className="benefits-section">
-        <div className="benefits-wrapper">
-          <div className="section-header">
-            <div className="section-tag">The Edge</div>
-            <h2 className="section-title">
-              Built for <span className="gradient-text-purple-pink">Independent Artists</span>
-            </h2>
-          </div>
-
-          <div className="benefits-grid-native">
-            {[
-              { icon: Zap, title: 'Instant Output', desc: 'Hooks, beats, visuals in seconds—not days' },
-              { icon: DollarSign, title: 'Save $4,700/yr', desc: 'Skip the producers, designers, consultants' },
-              { icon: Shield, title: 'You Own It', desc: '100% rights to everything you create' }
-            ].map((item, idx) => {
-              const Icon = item.icon;
-              return (
-                <div key={idx} className="benefit-card-native haptic-press">
-                  <div className="benefit-icon-wrapper">
-                    <Icon size={28} className="text-white" />
-                  </div>
-                  <div className="benefit-content-native">
-                    <h3 className="benefit-title-native">{item.title}</h3>
-                    <p className="benefit-desc-native">{item.desc}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </section>
 

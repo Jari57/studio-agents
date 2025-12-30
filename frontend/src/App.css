@@ -3283,12 +3283,12 @@
 
 .agent-studio-card {
   background: var(--color-bg-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 20px;
-  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
@@ -3300,8 +3300,8 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  height: 2px;
+  background: var(--gradient-vibrant);
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -3311,9 +3311,9 @@
 }
 
 .agent-studio-card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+  border-color: rgba(139, 92, 246, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(139, 92, 246, 0.2);
 }
 
 .agent-studio-icon {
@@ -3359,16 +3359,23 @@
   border-color: var(--color-purple);
 }
 
-/* Agent Studio Colors - Tinted Style */
-.agent-cyan .agent-studio-icon { background: rgba(6, 182, 212, 0.1); color: var(--color-cyan); }
-.agent-purple .agent-studio-icon { background: rgba(168, 85, 247, 0.1); color: var(--color-purple); }
-.agent-orange .agent-studio-icon { background: rgba(249, 115, 22, 0.1); color: var(--color-orange); }
-.agent-emerald .agent-studio-icon { background: rgba(16, 185, 129, 0.1); color: var(--color-emerald); }
-.agent-indigo .agent-studio-icon { background: rgba(99, 102, 241, 0.1); color: var(--color-indigo); }
-.agent-pink .agent-studio-icon { background: rgba(236, 72, 153, 0.1); color: var(--color-pink); }
-.agent-blue .agent-studio-icon { background: #3b82f6; }
-.agent-red .agent-studio-icon { background: #ef4444; }
-.agent-green .agent-studio-icon { background: #10b981; }
+/* Agent Studio Colors - Unified Design */
+/* All agents use the same clean look with subtle category accents */
+.agent-studio-icon { 
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15)); 
+  color: var(--color-purple); 
+}
+
+/* Category-based subtle border accent on hover only */
+.agent-cyan:hover .agent-studio-icon { color: var(--color-cyan); }
+.agent-purple:hover .agent-studio-icon { color: var(--color-purple); }
+.agent-orange:hover .agent-studio-icon { color: var(--color-orange); }
+.agent-emerald:hover .agent-studio-icon { color: var(--color-emerald); }
+.agent-indigo:hover .agent-studio-icon { color: var(--color-indigo); }
+.agent-pink:hover .agent-studio-icon { color: var(--color-pink); }
+.agent-blue:hover .agent-studio-icon { color: #3b82f6; }
+.agent-red:hover .agent-studio-icon { color: #ef4444; }
+.agent-green:hover .agent-studio-icon { color: #10b981; }
 
 /* Placeholders */
 .comeup-placeholder, .news-placeholder {
