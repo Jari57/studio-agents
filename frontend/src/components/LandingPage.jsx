@@ -344,32 +344,32 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           </p>
           
           {/* Team Stats Banner */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '16px',
-            marginTop: '24px',
-            flexWrap: 'wrap'
+          <div className="team-stats-banner" style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '8px',
+            marginTop: '20px',
+            maxWidth: '400px',
+            margin: '20px auto 0'
           }}>
             {[
-              { value: '16', label: 'AI Agents', icon: Users },
-              { value: '8', label: 'Categories', icon: LayoutGrid },
-              { value: '∞', label: 'Creations', icon: Sparkles },
-              { value: '24/7', label: 'Available', icon: Clock }
+              { value: '16', label: 'Agents', icon: Users },
+              { value: '8', label: 'Types', icon: LayoutGrid },
+              { value: '∞', label: 'Creates', icon: Sparkles },
+              { value: '24/7', label: 'Live', icon: Clock }
             ].map((stat, i) => (
               <div key={i} style={{
                 textAlign: 'center',
-                padding: '10px 16px',
+                padding: '8px 4px',
                 background: 'rgba(255,255,255,0.03)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.08)',
-                minWidth: '70px'
+                borderRadius: '10px',
+                border: '1px solid rgba(255,255,255,0.08)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                  <stat.icon size={16} className="text-purple" />
-                  <span style={{ fontSize: '1.2rem', fontWeight: '700', color: 'white' }}>{stat.value}</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  <stat.icon size={12} className="text-purple" />
+                  <span style={{ fontSize: '0.95rem', fontWeight: '700', color: 'white' }}>{stat.value}</span>
                 </div>
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{stat.label}</span>
+                <span style={{ fontSize: '0.55rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{stat.label}</span>
               </div>
             ))}
           </div>

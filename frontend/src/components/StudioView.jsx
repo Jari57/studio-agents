@@ -243,11 +243,25 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [showVoiceHelp, setShowVoiceHelp] = useState(false);
+  const [showVoiceCommandPalette, setShowVoiceCommandPalette] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [lastVoiceCommand, setLastVoiceCommand] = useState(null);
   const [voiceSettings, setVoiceSettings] = useState({
     gender: 'female',
     region: 'US',
     language: 'English'
   });
+  
+  // Voice Command Definitions for Whisperer-style UI
+  const VOICE_COMMANDS = [
+    { command: 'open [agent]', description: 'Launch an agent', example: '"Open Ghostwriter"', category: 'Navigation' },
+    { command: 'go to [section]', description: 'Navigate to dashboard, hub, news, agents', example: '"Go to hub"', category: 'Navigation' },
+    { command: 'generate', description: 'Start generation with current prompt', example: '"Generate"', category: 'Actions' },
+    { command: 'clear', description: 'Clear the prompt', example: '"Clear prompt"', category: 'Actions' },
+    { command: 'read back', description: 'Read the prompt aloud', example: '"Read back"', category: 'Actions' },
+    { command: 'switch theme', description: 'Toggle dark/light mode', example: '"Switch theme"', category: 'Settings' },
+    { command: 'stop', description: 'Stop listening', example: '"Stop listening"', category: 'Voice' }
+  ];
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [user, setUser] = useState(null);
@@ -1049,7 +1063,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
   };
 
-  // --- PROFESSIONAL VOICE & TRANSLATION LOGIC ---
+  // --- PROFESSIONAL VOICE & TRANSLATION LOGIC (Whisperer-style) ---
   
   const recognitionRef = useRef(null);
   const textareaRef = useRef(null);
@@ -1058,20 +1072,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (isListening) {
       if (recognitionRef.current) recognitionRef.current.stop();
       setIsListening(false);
+      setVoiceTranscript('');
       return;
     }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       toast.error('Speech recognition not supported. Try Chrome or Safari.');
-      return;
-    }
-
-    if (isListening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      setIsListening(false);
       return;
     }
 
@@ -1082,77 +1089,177 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       voiceSettings.language === 'German' ? 'de-DE' :
                       voiceSettings.language === 'Japanese' ? 'ja-JP' : 'en-US';
     
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
 
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
+    recognition.onstart = () => {
+      setIsListening(true);
+      toast.success('🎤 Listening... Say a command or dictate your prompt', { duration: 2000 });
+    };
+    
+    recognition.onend = () => {
+      setIsListening(false);
+      setVoiceTranscript('');
+    };
+    
     recognition.onerror = (event) => {
       console.error("Speech recognition error", event.error);
       setIsListening(false);
+      setVoiceTranscript('');
+      if (event.error !== 'aborted') {
+        toast.error(`Voice error: ${event.error}`);
+      }
     };
 
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript.toLowerCase();
+      let interimTranscript = '';
+      let finalTranscript = '';
       
-      // --- GLOBAL VOICE COMMANDS ---
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript = transcript;
+        }
+      }
+      
+      // Show real-time interim results (Whisperer-style feedback)
+      if (interimTranscript) {
+        setVoiceTranscript(interimTranscript);
+      }
+      
+      if (!finalTranscript) return;
+      
+      const transcript = finalTranscript.toLowerCase().trim();
+      setVoiceTranscript('');
+      setLastVoiceCommand({ text: finalTranscript, time: new Date().toLocaleTimeString() });
+      
+      // --- VOICE COMMAND PROCESSING ---
+      
+      // Stop listening command
+      if (transcript.includes('stop listening') || transcript.includes('stop voice') || transcript === 'stop' || transcript === 'cancel') {
+        if (recognitionRef.current) recognitionRef.current.stop();
+        setIsListening(false);
+        handleTextToVoice("Voice control stopped.");
+        return;
+      }
+      
+      // Open/Launch agent commands
       if (transcript.includes('open') || transcript.includes('launch')) {
         const agentName = transcript.replace('open', '').replace('launch', '').trim();
         const foundAgent = AGENTS.find(a => a.name.toLowerCase().includes(agentName));
         if (foundAgent) {
           setSelectedAgent(foundAgent);
           setActiveTab('agents');
-          handleTextToVoice(`Launching ${foundAgent.name} for you.`);
+          toast.success(`🚀 Launching ${foundAgent.name}`);
+          handleTextToVoice(`Launching ${foundAgent.name}.`);
           return;
         }
       }
 
-      if (transcript.includes('go to') || transcript.includes('show me')) {
-        if (transcript.includes('dashboard') || transcript.includes('studio')) {
+      // Navigation commands
+      if (transcript.includes('go to') || transcript.includes('show me') || transcript.includes('navigate')) {
+        let navigated = false;
+        if (transcript.includes('dashboard') || transcript.includes('studio') || transcript.includes('home')) {
           setActiveTab('mystudio');
+          toast.success('📊 Dashboard');
           handleTextToVoice("Navigating to your dashboard.");
-        }
-        if (transcript.includes('hub')) {
+          navigated = true;
+        } else if (transcript.includes('hub') || transcript.includes('projects')) {
           setActiveTab('hub');
+          toast.success('📁 Project Hub');
           handleTextToVoice("Opening the Project Hub.");
-        }
-        if (transcript.includes('news')) {
+          navigated = true;
+        } else if (transcript.includes('news')) {
           setActiveTab('news');
+          toast.success('📰 News Feed');
           handleTextToVoice("Checking the latest industry news.");
-        }
-        if (transcript.includes('help')) {
+          navigated = true;
+        } else if (transcript.includes('help') || transcript.includes('support')) {
           setActiveTab('support');
+          toast.success('💡 Help Center');
           handleTextToVoice("How can I help you today?");
-        }
-        if (transcript.includes('agents')) {
+          navigated = true;
+        } else if (transcript.includes('agents') || transcript.includes('tools')) {
           setActiveTab('agents');
+          toast.success('🤖 Agents');
           handleTextToVoice("Viewing all available agents.");
+          navigated = true;
         }
-        return;
+        if (navigated) return;
       }
 
+      // Theme toggle
       if (transcript.includes('switch theme') || transcript.includes('toggle theme') || transcript.includes('light mode') || transcript.includes('dark mode')) {
         const newTheme = theme === 'dark' ? 'light' : 'dark';
         setTheme(newTheme);
         localStorage.setItem('studio_theme', newTheme);
+        toast.success(`🎨 ${newTheme === 'dark' ? 'Dark' : 'Light'} mode`);
         handleTextToVoice(`Switching to ${newTheme} mode.`);
         return;
       }
 
-      if (transcript.includes('add payment') || transcript.includes('billing') || transcript.includes('manage card')) {
-        setActiveTab('mystudio');
-        setShowAddPaymentModal(true);
-        handleTextToVoice("Opening the payment management portal.");
+      // Generate command
+      if (transcript === 'generate' || transcript.includes('start generation') || transcript.includes('create now') || transcript.includes('make it')) {
+        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+        if (textarea && textarea.value.trim()) {
+          handleGenerate();
+          toast.success('⚡ Generating...');
+          handleTextToVoice("Starting generation.");
+        } else {
+          toast.error('Please enter a prompt first');
+          handleTextToVoice("Please enter a prompt first.");
+        }
+        return;
+      }
+      
+      // Clear prompt command
+      if (transcript.includes('clear prompt') || transcript.includes('clear text') || transcript.includes('start over') || transcript === 'clear') {
+        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+        if (textarea) {
+          textarea.value = '';
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+          toast.success('🗑️ Prompt cleared');
+          handleTextToVoice("Prompt cleared.");
+        }
+        return;
+      }
+      
+      // Read back command
+      if (transcript.includes('read back') || transcript.includes('read prompt') || transcript.includes('what did i write') || transcript.includes('read it')) {
+        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+        if (textarea && textarea.value.trim()) {
+          handleTextToVoice(textarea.value);
+        } else {
+          handleTextToVoice("The prompt is empty.");
+        }
+        return;
+      }
+      
+      // Show voice commands
+      if (transcript.includes('show commands') || transcript.includes('voice commands') || transcript.includes('what can i say') || transcript.includes('help commands')) {
+        setShowVoiceCommandPalette(true);
+        handleTextToVoice("Here are the available voice commands.");
         return;
       }
 
-      // Default: Append to textarea
+      // Payment commands
+      if (transcript.includes('add payment') || transcript.includes('billing') || transcript.includes('manage card')) {
+        setActiveTab('mystudio');
+        setShowAddPaymentModal(true);
+        handleTextToVoice("Opening payment management.");
+        return;
+      }
+
+      // Default: Append to textarea as dictation
       const textarea = textareaRef.current || document.querySelector('.studio-textarea');
       if (textarea) {
-        const newText = (textarea.value + ' ' + transcript).trim();
+        const newText = (textarea.value + ' ' + finalTranscript).trim();
         textarea.value = newText;
-        // Dispatch input event to ensure any listeners are notified
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        // Brief visual feedback
+        toast.success(`✏️ Added: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`, { duration: 1500 });
       }
     };
 

@@ -3317,14 +3317,21 @@
 }
 
 .agent-studio-icon {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--color-purple);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.1));
+  transition: all 0.3s ease;
+}
+
+.agent-studio-card:hover .agent-studio-icon {
+  background: var(--gradient-vibrant);
   color: white;
-  box-shadow: 0 8px 16px -4px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
 .agent-studio-info h3 {
@@ -3336,19 +3343,21 @@
 .agent-studio-info p {
   font-size: 0.75rem;
   color: #9ca3af;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-}
-
-.agent-launch-btn {
-  width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
+  text-transform: u139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  color: var(--color-purple);
   backdrop-filter: blur(5px);
   position: relative;
   z-index: 30;
+  pointer-events: auto;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.agent-studio-card:hover .agent-launch-btn {
+  background: var(--color-purple);
+  color: white;
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.3
   pointer-events: auto;
 }
 
