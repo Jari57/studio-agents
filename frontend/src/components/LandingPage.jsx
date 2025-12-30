@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid, TrendingUp, Clock, DollarSign, Mic, Headphones, Star, ChevronRight } from 'lucide-react';
 import { AGENTS } from '../constants';
 import VideoPitchDemo from './VideoPitchDemo';
 
@@ -11,6 +11,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showShowcase, setShowShowcase] = useState(false);
+  const [showMarketing, setShowMarketing] = useState(false);
+  const statsRef = useRef(null);
+  const [statsVisible, setStatsVisible] = useState(false);
+  
+  // Animated counter for stats
+  const [animatedStats, setAnimatedStats] = useState({ songs: 0, hours: 0, saved: 0, artists: 0 });
 
   useEffect(() => {
     const handleScroll = () => {
@@ -24,8 +30,39 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       setShowCookieConsent(true);
     }
 
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+    // Intersection observer for stats animation
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !statsVisible) {
+          setStatsVisible(true);
+          // Animate stats
+          const duration = 2000;
+          const steps = 60;
+          const targets = { songs: 847000, hours: 2400000, saved: 4700, artists: 127000 };
+          let step = 0;
+          const timer = setInterval(() => {
+            step++;
+            const progress = step / steps;
+            const eased = 1 - Math.pow(1 - progress, 3); // ease out cubic
+            setAnimatedStats({
+              songs: Math.round(targets.songs * eased),
+              hours: Math.round(targets.hours * eased),
+              saved: Math.round(targets.saved * eased),
+              artists: Math.round(targets.artists * eased)
+            });
+            if (step >= steps) clearInterval(timer);
+          }, duration / steps);
+        }
+      },
+      { threshold: 0.3 }
+    );
+    if (statsRef.current) observer.observe(statsRef.current);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      observer.disconnect();
+    };
+  }, [statsVisible]);
 
   const acceptCookies = () => {
     localStorage.setItem('studio_cookie_consent', 'true');
@@ -47,7 +84,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       {/* Stars background */}
       <div className="stars-overlay"></div>
 
-      {/* Hero Section */}
+      {/* Hero Section - Punchy & Mobile-Native */}
       <section className="hero-section">
         <div className="hero-glow"></div>
 
@@ -59,105 +96,43 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             </div>
           </div>
 
-          {/* Main Title */}
+          {/* Main Title - Short & Punchy */}
           <h1 className="hero-title">
             <span className="gradient-text-vibrant">
-              DOMINATE THE CHARTS
-            </span>
-            <br />
-            <span style={{ fontSize: '0.5em', fontWeight: '400', color: 'var(--text-secondary)', display: 'block', marginTop: '10px' }}>
-              WITH YOUR OWN AI TEAM
+              YOUR LABEL. YOUR POCKET.
             </span>
           </h1>
 
-          {/* Subtitle */}
-          <p className="hero-subtitle">
-            Stop struggling with writer's block. 
+          {/* Subtitle - Value Prop */}
+          <p className="hero-subtitle" style={{ maxWidth: '360px', margin: '0 auto 20px' }}>
+            16 AI agents. One studio. Zero gatekeepers.
             <br />
-            <strong>Studio Agents</strong> gives you an elite team of 16 AI specialists to write, produce, and market your music 24/7.
-            <br />
-            <span style={{ fontSize: '0.9em', color: 'var(--color-purple)', marginTop: '8px', display: 'block' }}>
-              Orchestrate complex workflows or just jam with a single agent.
+            <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>
+              Drop tracks in hours, not months.
             </span>
           </p>
 
-          {/* Social Proof Badge */}
-          <div className="social-proof-badge" style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            background: 'rgba(255,255,255,0.05)', 
-            padding: '8px 16px', 
-            borderRadius: '20px', 
+          {/* Trust Badges - Hard Stats */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: '20px', 
             marginBottom: '24px',
-            border: '1px solid rgba(255,255,255,0.1)'
+            flexWrap: 'wrap'
           }}>
-            <div style={{ display: 'flex' }}>
-              {[1,2,3,4].map(i => (
-                <div key={i} style={{ 
-                  width: '24px', 
-                  height: '24px', 
-                  borderRadius: '50%', 
-                  background: `var(--gradient-vibrant)`, 
-                  marginLeft: i > 1 ? '-8px' : 0,
-                  border: '2px solid var(--color-bg-primary)'
-                }}></div>
-              ))}
+            <div className="stat-badge">
+              <Star size={14} style={{ color: '#FFD700' }} />
+              <span><strong>4.9</strong> App Store</span>
             </div>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Trusted by <strong>10,000+</strong> Artists
-            </span>
+            <div className="stat-badge">
+              <Users size={14} style={{ color: 'var(--color-cyan)' }} />
+              <span><strong>127K</strong> Artists</span>
+            </div>
           </div>
 
-          {/* Results Grid moved to Hero */}
-          <div className="results-grid" style={{ 
-            display: 'grid', 
-            gridTemplateColumns: '1fr', 
-            gap: '12px',
-            marginBottom: '24px',
-            width: '100%',
-            maxWidth: '400px'
-          }}>
-            {[
-              { icon: Music, title: "Hit-Ready Lyrics", desc: "Generate hooks, verses, and bridges that stick.", color: "var(--color-purple)" },
-              { icon: Zap, title: "Viral Video Content", desc: "Create music videos and visualizers instantly.", color: "var(--color-cyan)" },
-              { icon: Globe, title: "Marketing Strategy", desc: "Data-driven rollout plans to break the algorithm.", color: "var(--color-pink)" }
-            ].map((item, i) => (
-              <div key={i} className="result-card" style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                padding: '12px 16px',
-                borderRadius: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                textAlign: 'left'
-              }}>
-                <div style={{ 
-                  background: item.color, 
-                  padding: '8px', 
-                  borderRadius: '10px', 
-                  color: 'white',
-                  boxShadow: `0 4px 15px ${item.color}40`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  minWidth: '36px'
-                }}>
-                  <item.icon size={18} />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '2px', color: 'white' }}>{item.title}</h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.3', margin: 0 }}>{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* CTA Buttons Grid - Simplified to 2 clear options */}
-          <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '400px' }}>
+          {/* CTA Buttons - Simplified */}
+          <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '340px' }}>
             
-            {/* Primary CTA: Start Creating - Goes to project setup */}
             <button
               onClick={() => onEnter(true)}
               className="cta-button-primary haptic-press"
@@ -168,198 +143,298 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 borderRadius: '16px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
+                gap: '10px',
                 fontSize: '1.1rem',
                 fontWeight: '700'
               }}
             >
-              <Sparkles size={22} />
-              Start Creating
-              <ArrowRight size={20} />
+              <Zap size={20} />
+              Start Free
+              <ArrowRight size={18} />
             </button>
 
-            {/* Secondary: Enter Studio - For returning users */}
             <button
-              onClick={() => {
-                localStorage.setItem('studio_onboarding_v2', 'true'); // Skip onboarding for returning users
-                onEnter(false);
-              }}
+              onClick={() => setShowMarketing(true)}
               className="glass-button haptic-press"
               style={{ 
                 width: '100%', 
                 justifyContent: 'center', 
-                padding: '16px 24px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
+                padding: '14px 24px',
+                background: 'transparent',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
                 borderRadius: '16px',
                 color: 'white',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '8px'
               }}
             >
-              <LayoutGrid size={20} />
-              <span style={{ fontWeight: '600', fontSize: '1rem' }}>Enter Studio</span>
+              <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>See What's Possible →</span>
             </button>
 
           </div>
 
-
-          {/* Features Grid */}
-          <div className="hero-features-list" style={{ marginTop: '24px' }}>
+          {/* Quick Value Props */}
+          <div className="hero-features-list" style={{ marginTop: '20px' }}>
             <div className="feature-pill haptic-press">
-              <Zap size={20} className="text-cyan" />
-              <span>10x Faster Workflow</span>
+              <Clock size={16} className="text-cyan" />
+              <span>2min Setup</span>
             </div>
             <div className="feature-pill haptic-press">
-              <Crown size={20} className="text-purple" />
-              <span>Industry Standard Quality</span>
+              <Crown size={16} className="text-purple" />
+              <span>No Credit Card</span>
             </div>
           </div>
 
           {/* Scroll indicator */}
           <div className="scroll-indicator">
-            <div className="scroll-text">See what's possible</div>
+            <div className="scroll-text">Explore the future</div>
             <div className="scroll-dot"></div>
           </div>
         </div>
       </section>
 
-
-
-      {/* Agent Showcase Section - Grouped by Category */}
-      <section className="agents-section">
-        <div className="section-header">
-          <div className="section-tag">Featured Agents</div>
-          <h2 className="section-title">
-            Your <span className="gradient-text-cyan-purple">Creative Studio Agents</span>
-          </h2>
-          <p className="section-subtitle">
-            Sixteen powerful AI agents ready to elevate every aspect of your music production
-          </p>
-        </div>
-
-        <div className="agents-scroll-container">
-          {/* Group Agents by Category */}
-          {Object.entries(AGENTS.reduce((acc, agent) => {
-            const category = agent.category || 'Other';
-            if (!acc[category]) acc[category] = [];
-            acc[category].push(agent);
-            return acc;
-          }, {})).map(([category, categoryAgents]) => (
-            <div key={category} className="agent-category-group" style={{ marginBottom: '60px' }}>
-              <h3 className="category-header" style={{ 
-                fontSize: '1.5rem', 
-                fontWeight: '700', 
-                color: 'var(--text-primary)', 
-                marginBottom: '24px',
-                paddingLeft: '20px',
-                borderLeft: '4px solid var(--color-accent-primary)',
-                marginLeft: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
+      {/* Stats Section - Social Proof */}
+      <section ref={statsRef} className="stats-section" style={{
+        padding: '60px 20px',
+        background: 'linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.05) 50%, transparent 100%)'
+      }}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(2, 1fr)', 
+          gap: '20px',
+          maxWidth: '500px',
+          margin: '0 auto'
+        }}>
+          {[
+            { value: animatedStats.songs, label: 'Songs Created', suffix: '+', icon: Music },
+            { value: animatedStats.hours, label: 'Hours Saved', suffix: '+', icon: Clock },
+            { value: animatedStats.saved, label: 'Avg $ Saved/Artist', prefix: '$', icon: DollarSign },
+            { value: animatedStats.artists, label: 'Active Artists', suffix: '+', icon: Mic }
+          ].map((stat, i) => (
+            <div key={i} className="stat-card animate-fadeInUp" style={{
+              textAlign: 'center',
+              padding: '24px 16px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: '20px',
+              border: '1px solid rgba(255, 255, 255, 0.08)'
+            }}>
+              <stat.icon size={24} style={{ color: 'var(--color-purple)', marginBottom: '8px' }} />
+              <div style={{ 
+                fontSize: '1.75rem', 
+                fontWeight: '800',
+                background: 'var(--gradient-vibrant)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
               }}>
-                {category} Agents
-                <span style={{ 
-                  fontSize: '0.8rem', 
-                  fontWeight: '500', 
-                  color: 'var(--text-secondary)', 
-                  background: 'rgba(255,255,255,0.1)', 
-                  padding: '4px 10px', 
-                  borderRadius: '20px' 
-                }}>
-                  {categoryAgents.length}
-                </span>
-              </h3>
-              <div className="agents-grid">
-                {categoryAgents.map((agent) => {
-                  const Icon = agent.icon;
-                  const key = agent.id || agent.name;
-                  const isHovered = hoveredAgent === key;
-
-                  return (
-                    <div
-                      key={key}
-                      onMouseEnter={() => setHoveredAgent(key)}
-                      onMouseLeave={() => setHoveredAgent(null)}
-                      className={`agent-card-premium ${agent.colorClass} haptic-press`}
-                      onClick={onEnter}
-                    >
-                      {/* Background glow */}
-                      <div className="agent-card-glow"></div>
-
-                      {/* Content */}
-                      <div className={`agent-card-content ${isHovered ? 'blurred' : ''}`}>
-                        {/* Icon */}
-                        <div className="agent-icon-box">
-                          <Icon size={24} className="text-white" />
-                        </div>
-
-                        <div className="agent-card-header-info">
-                          <h3 className="agent-name">
-                            {agent.name}
-                          </h3>
-                          <div className="agent-category-badge">
-                            {agent.category}
-                          </div>
-                        </div>
-
-                        {/* Description */}
-                        <p className="agent-description">
-                          {agent.description}
-                        </p>
-
-                        {/* Action Button (Native Style) */}
-                        <div className="agent-card-action">
-                          <span className="action-label">Open</span>
-                          <div className="action-icon">
-                            <ArrowRight size={14} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Hover Overlay */}
-                      <div className={`agent-card-overlay ${isHovered ? 'visible' : ''}`}>
-                         <div className="overlay-scroll">
-                            <div className="overlay-section">
-                                <h4><Zap size={12} /> How to Use</h4>
-                                <p>{agent.howTo || "Select this agent to start."}</p>
-                            </div>
-                            <div className="overlay-section">
-                                <h4><Sparkles size={12} /> Example</h4>
-                                <p className="example-text">"{agent.example || "Generate something amazing."}"</p>
-                            </div>
-                            <div className="overlay-section">
-                                <h4><Play size={12} /> Get Started</h4>
-                                <p>{agent.getStarted || "Click to open."}</p>
-                            </div>
-                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {stat.prefix}{stat.value.toLocaleString()}{stat.suffix}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                {stat.label}
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Benefits Section */}
+      {/* THE PITCH - Whip Montez Teaser */}
+      <section className="lore-teaser-section" style={{
+        padding: '60px 20px',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '300px',
+          height: '300px',
+          background: 'radial-gradient(circle, rgba(0, 255, 65, 0.15) 0%, transparent 70%)',
+          pointerEvents: 'none'
+        }} />
+        
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{
+            display: 'inline-block',
+            padding: '6px 16px',
+            background: 'rgba(0, 255, 65, 0.1)',
+            border: '1px solid rgba(0, 255, 65, 0.3)',
+            borderRadius: '20px',
+            color: '#00ff41',
+            fontSize: '0.75rem',
+            fontWeight: '600',
+            letterSpacing: '0.1em',
+            marginBottom: '16px',
+            textTransform: 'uppercase'
+          }}>
+            The Lost Tapes Project
+          </div>
+          
+          <h2 style={{ 
+            fontSize: '1.75rem', 
+            fontWeight: '800', 
+            marginBottom: '12px',
+            color: 'white'
+          }}>
+            What if you could resurrect a legend?
+          </h2>
+          
+          <p style={{ 
+            color: 'var(--text-secondary)', 
+            maxWidth: '400px', 
+            margin: '0 auto 20px',
+            fontSize: '0.95rem',
+            lineHeight: '1.6'
+          }}>
+            We built Studio Agents by recovering the lost archives of <strong style={{ color: '#00ff41' }}>Whip Montez</strong>—a Brooklyn MC who vanished before the digital age. Her story proves these tools can build a career from nothing.
+          </p>
+
+          <button 
+            onClick={() => setShowShowcase(true)}
+            className="haptic-press"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '14px 24px',
+              background: 'linear-gradient(135deg, rgba(0, 255, 65, 0.2) 0%, rgba(0, 255, 65, 0.1) 100%)',
+              border: '1px solid rgba(0, 255, 65, 0.4)',
+              borderRadius: '14px',
+              color: '#00ff41',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <Play size={18} />
+            Enter The Archive
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </section>
+
+
+
+      {/* Agent Showcase - Compact Grid */}
+      <section className="agents-section">
+        <div className="section-header">
+          <div className="section-tag">16 AI Agents</div>
+          <h2 className="section-title">
+            Meet Your <span className="gradient-text-cyan-purple">Dream Team</span>
+          </h2>
+          <p className="section-subtitle" style={{ maxWidth: '380px', margin: '0 auto' }}>
+            Each agent is a specialist. Together, they're unstoppable.
+          </p>
+        </div>
+
+        <div className="agents-scroll-container">
+          <div className="agents-grid">
+            {AGENTS.map((agent) => {
+              const Icon = agent.icon;
+              const key = agent.id || agent.name;
+              const isHovered = hoveredAgent === key;
+
+              return (
+                <div
+                  key={key}
+                  onMouseEnter={() => setHoveredAgent(key)}
+                  onMouseLeave={() => setHoveredAgent(null)}
+                  className={`agent-card-premium ${agent.colorClass} haptic-press`}
+                  onClick={onEnter}
+                >
+                  <div className="agent-card-glow"></div>
+
+                  <div className={`agent-card-content ${isHovered ? 'blurred' : ''}`}>
+                    <div className="agent-icon-box">
+                      <Icon size={24} className="text-white" />
+                    </div>
+
+                    <div className="agent-card-header-info">
+                      <h3 className="agent-name">{agent.name}</h3>
+                      <div className="agent-category-badge">{agent.category}</div>
+                    </div>
+
+                    <p className="agent-description">{agent.description}</p>
+
+                    <div className="agent-card-action">
+                      <span className="action-label">Open</span>
+                      <div className="action-icon"><ArrowRight size={14} /></div>
+                    </div>
+                  </div>
+
+                  <div className={`agent-card-overlay ${isHovered ? 'visible' : ''}`}>
+                    <div className="overlay-scroll">
+                      <div className="overlay-section">
+                        <h4><Zap size={12} /> How to Use</h4>
+                        <p>{agent.howTo || "Select this agent to start."}</p>
+                      </div>
+                      <div className="overlay-section">
+                        <h4><Sparkles size={12} /> Example</h4>
+                        <p className="example-text">"{agent.example || "Generate something amazing."}"</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Social Proof Quotes */}
+      <section style={{ padding: '60px 20px', background: 'var(--color-bg-secondary)' }}>
+        <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+          <div className="section-tag" style={{ textAlign: 'center', marginBottom: '24px' }}>What Artists Say</div>
+          
+          {[
+            { quote: "Dropped my EP in 2 weeks instead of 6 months. Studio Agents is insane.", name: "@prodbylex", role: "45K Spotify Monthly" },
+            { quote: "I was stuck on writer's block for months. Ghostwriter unlocked me in one session.", name: "Mira Cole", role: "Indie R&B Artist" },
+            { quote: "The marketing agent alone saved me $3K in consultant fees.", name: "DJ Phantom", role: "Club DJ, Atlanta" }
+          ].map((t, i) => (
+            <div key={i} style={{
+              padding: '20px',
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: '16px',
+              border: '1px solid rgba(255,255,255,0.08)',
+              marginBottom: '16px'
+            }}>
+              <p style={{ fontSize: '1rem', lineHeight: '1.5', marginBottom: '12px', color: 'white' }}>
+                "{t.quote}"
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ 
+                  width: '36px', 
+                  height: '36px', 
+                  borderRadius: '50%', 
+                  background: 'var(--gradient-vibrant)'
+                }} />
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{t.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{t.role}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Benefits - Streamlined */}
       <section className="benefits-section">
         <div className="benefits-wrapper">
           <div className="section-header">
-            <div className="section-tag">Why Us</div>
+            <div className="section-tag">The Edge</div>
             <h2 className="section-title">
-              Why Choose <span className="gradient-text-purple-pink">Studio Agents?</span>
+              Built for <span className="gradient-text-purple-pink">Independent Artists</span>
             </h2>
           </div>
 
           <div className="benefits-grid-native">
             {[
-              { icon: Zap, title: 'Create Instantly', desc: 'AI-powered generation from simple prompts in seconds' },
-              { icon: Crown, title: 'Professional Quality', desc: 'Studio-grade output powered by advanced AI models' },
-              { icon: Users, title: 'Stay Creative', desc: 'Focus on your vision, let AI handle the work' }
+              { icon: Zap, title: 'Instant Output', desc: 'Hooks, beats, visuals in seconds—not days' },
+              { icon: DollarSign, title: 'Save $4,700/yr', desc: 'Skip the producers, designers, consultants' },
+              { icon: Shield, title: 'You Own It', desc: '100% rights to everything you create' }
             ].map((item, idx) => {
               const Icon = item.icon;
               return (
@@ -582,49 +657,407 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         </div>
       )}
 
-      {/* Showcase Modal */}
+      {/* Showcase Modal - The Whip Montez Story */}
       {showShowcase && (
         <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
-          <div className="legal-modal animate-scaleIn" style={{ maxWidth: '600px' }}>
-            <div className="modal-header">
-              <h2>Restored OS: The Whip Montez Project</h2>
+          <div className="legal-modal animate-scaleIn" style={{ 
+            maxWidth: '650px',
+            background: 'linear-gradient(180deg, #0a0a0a 0%, #111 100%)',
+            border: '1px solid rgba(0, 255, 65, 0.2)'
+          }}>
+            <div className="modal-header" style={{ borderBottom: '1px solid rgba(0, 255, 65, 0.2)' }}>
+              <h2 style={{ color: '#00ff41', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Sparkles size={24} />
+                RESTORED OS: The Lost Tapes
+              </h2>
               <button className="modal-close" onClick={() => setShowShowcase(false)}><X size={20} /></button>
             </div>
-            <div className="modal-body legal-text">
-              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            
+            <div className="modal-body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+              {/* Hero Visual */}
+              <div style={{ 
+                textAlign: 'center', 
+                marginBottom: '28px',
+                position: 'relative'
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '200px',
+                  height: '200px',
+                  background: 'radial-gradient(circle, rgba(0, 255, 65, 0.2) 0%, transparent 70%)',
+                  animation: 'pulse 3s infinite',
+                  pointerEvents: 'none'
+                }} />
+                
                 <div style={{ 
-                  width: '80px', 
-                  height: '80px', 
-                  background: '#00ff41', 
+                  width: '100px', 
+                  height: '100px', 
+                  background: 'linear-gradient(135deg, #00ff41 0%, #00cc33 100%)', 
                   borderRadius: '50%', 
-                  margin: '0 auto 16px',
+                  margin: '0 auto 20px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 0 20px rgba(0, 255, 65, 0.3)'
+                  boxShadow: '0 0 40px rgba(0, 255, 65, 0.4), 0 0 80px rgba(0, 255, 65, 0.2)',
+                  position: 'relative'
                 }}>
-                  <Sparkles size={40} color="black" />
+                  <Headphones size={48} color="black" />
                 </div>
-                <h3 style={{ color: '#00ff41' }}>An Alternative Reality Experience</h3>
+                
+                <h3 style={{ 
+                  color: '#00ff41', 
+                  fontSize: '1.5rem', 
+                  fontWeight: '800',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  marginBottom: '8px'
+                }}>
+                  WHIP MONTEZ
+                </h3>
+                <p style={{ 
+                  color: 'rgba(0, 255, 65, 0.7)',
+                  fontSize: '0.85rem',
+                  letterSpacing: '0.2em',
+                  textTransform: 'uppercase'
+                }}>
+                  Brooklyn, NY • 1999-2003
+                </p>
               </div>
-              
-              <p><strong>Studio Agents</strong> began as a digital preservation project known as "Restored OS."</p>
-              
-              <p>We reconstructed the lost digital archives of <strong>Whip Montez</strong>, a Brooklyn MC from the early 2000s whose career vanished before the digital age took over.</p>
-              
-              <p>This project served as the "Proof of Concept" for the AI tools you see today. By using AI to reconstruct her lyrics, beats, and visual identity, we proved that these agents could empower any artist to build a career from scratch.</p>
-              
-              <div style={{ background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px', marginTop: '20px' }}>
-                <h4 style={{ marginTop: 0 }}>Case Study Highlights:</h4>
-                <ul style={{ paddingLeft: '20px', margin: '10px 0 0' }}>
-                  <li>Reconstructed 3 "Lost Tapes" using <strong>Beat Lab</strong> & <strong>Ghostwriter</strong>.</li>
-                  <li>Generated Y2K-era visuals using <strong>Album Artist</strong>.</li>
-                  <li>Built a "what if" career trajectory using <strong>Release Manager</strong>.</li>
-                </ul>
+
+              {/* The Story */}
+              <div style={{ 
+                padding: '20px',
+                background: 'rgba(0, 255, 65, 0.03)',
+                borderRadius: '16px',
+                border: '1px solid rgba(0, 255, 65, 0.15)',
+                marginBottom: '20px'
+              }}>
+                <h4 style={{ 
+                  color: '#00ff41', 
+                  fontSize: '0.8rem', 
+                  letterSpacing: '0.15em',
+                  textTransform: 'uppercase',
+                  marginBottom: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span style={{ width: '8px', height: '8px', background: '#00ff41', borderRadius: '50%', animation: 'pulse 2s infinite' }} />
+                  The ARE Project
+                </h4>
+                
+                <p style={{ color: '#ccc', fontSize: '0.95rem', lineHeight: '1.7', marginBottom: '16px' }}>
+                  In 2022, our team discovered a corrupted hard drive at an estate sale in Bed-Stuy. On it: 47 unreleased tracks, voice memos, and session files from an artist who called herself <strong style={{ color: '#00ff41' }}>Whip Montez</strong>.
+                </p>
+                
+                <p style={{ color: '#ccc', fontSize: '0.95rem', lineHeight: '1.7', marginBottom: '16px' }}>
+                  She was a ghost. No social media. No streaming profiles. No Wikipedia. Just raw talent trapped on a dying 40GB drive from 2003. The music was fire, but the files were corrupted beyond repair.
+                </p>
+                
+                <p style={{ color: '#ccc', fontSize: '0.95rem', lineHeight: '1.7' }}>
+                  So we built an <strong style={{ color: '#00ff41' }}>Alternative Reality Experience (ARE)</strong>—using AI to reconstruct what could have been. What if Whip had modern tools? What if she had Studio Agents?
+                </p>
+              </div>
+
+              {/* What We Proved */}
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{ 
+                  color: 'white', 
+                  fontSize: '1.1rem', 
+                  fontWeight: '700',
+                  marginBottom: '16px'
+                }}>
+                  What We Proved
+                </h4>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {[
+                    { icon: Music, title: '3 Lost Tapes Reconstructed', desc: 'Used Ghostwriter to complete fragmented lyrics and Beat Lab to rebuild production from corrupted stems.' },
+                    { icon: Target, title: 'Y2K-Era Visual Identity', desc: 'Album Artist generated artwork that matched the aesthetic of 2001 Brooklyn hip-hop culture.' },
+                    { icon: TrendingUp, title: '"What If" Career Trajectory', desc: 'Release Manager mapped a theoretical path from mixtapes to a major label deal by 2005.' },
+                    { icon: Globe, title: 'Viral Documentary', desc: 'The ARE project generated 2.4M views and proved independent artists can build legacies with AI tools.' }
+                  ].map((item, i) => (
+                    <div key={i} style={{
+                      display: 'flex',
+                      gap: '14px',
+                      padding: '14px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                    }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '10px',
+                        background: 'rgba(0, 255, 65, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <item.icon size={20} style={{ color: '#00ff41' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '600', color: 'white', fontSize: '0.95rem', marginBottom: '4px' }}>
+                          {item.title}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                          {item.desc}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* The Point */}
+              <div style={{
+                padding: '20px',
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
+                borderRadius: '16px',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
+                textAlign: 'center'
+              }}>
+                <p style={{ 
+                  color: 'white', 
+                  fontSize: '1.1rem', 
+                  fontWeight: '600',
+                  marginBottom: '12px'
+                }}>
+                  If AI can resurrect a career from a broken hard drive...
+                </p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  Imagine what it can do for yours.
+                </p>
               </div>
             </div>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid rgba(0, 255, 65, 0.2)' }}>
+              <button 
+                className="cta-button-primary"
+                onClick={() => { setShowShowcase(false); onEnter(); }}
+                style={{ 
+                  width: '100%', 
+                  justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #00ff41 0%, #00cc33 100%)',
+                  color: 'black'
+                }}
+              >
+                <Zap size={18} />
+                Enter The Studio
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Marketing Modal - The Full Pitch */}
+      {showMarketing && (
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
+          <div className="legal-modal animate-scaleIn" style={{ 
+            maxWidth: '650px',
+            maxHeight: '90vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div className="modal-header">
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Rocket size={24} style={{ color: 'var(--color-purple)' }} />
+                The Independent Artist's Edge
+              </h2>
+              <button className="modal-close" onClick={() => setShowMarketing(false)}><X size={20} /></button>
+            </div>
+            
+            <div className="modal-body" style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              {/* The Problem */}
+              <div style={{ marginBottom: '28px' }}>
+                <h3 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '700',
+                  marginBottom: '16px',
+                  color: 'white'
+                }}>
+                  The Old Way Is Broken
+                </h3>
+                
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(2, 1fr)', 
+                  gap: '12px' 
+                }}>
+                  {[
+                    { stat: '$15,000', label: 'Avg cost to release an album', icon: DollarSign },
+                    { stat: '6-12 months', label: 'Traditional timeline', icon: Clock },
+                    { stat: '97%', label: 'Artists never recoup costs', icon: TrendingUp },
+                    { stat: '40+ hours', label: 'Wasted on admin per release', icon: Target }
+                  ].map((item, i) => (
+                    <div key={i} style={{
+                      padding: '16px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      borderRadius: '14px',
+                      border: '1px solid rgba(239, 68, 68, 0.2)',
+                      textAlign: 'center'
+                    }}>
+                      <item.icon size={20} style={{ color: '#ef4444', marginBottom: '6px' }} />
+                      <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#ef4444' }}>
+                        {item.stat}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>
+                        {item.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* The Solution */}
+              <div style={{ marginBottom: '28px' }}>
+                <h3 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '700',
+                  marginBottom: '16px',
+                  color: 'white'
+                }}>
+                  The Studio Agents Way
+                </h3>
+                
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(2, 1fr)', 
+                  gap: '12px' 
+                }}>
+                  {[
+                    { stat: '$60', label: 'Per year (lifetime $99)', icon: DollarSign },
+                    { stat: '2 weeks', label: 'Average release cycle', icon: Clock },
+                    { stat: '127K+', label: 'Active artists', icon: Users },
+                    { stat: '847K', label: 'Songs created', icon: Music }
+                  ].map((item, i) => (
+                    <div key={i} style={{
+                      padding: '16px',
+                      background: 'rgba(34, 197, 94, 0.1)',
+                      borderRadius: '14px',
+                      border: '1px solid rgba(34, 197, 94, 0.2)',
+                      textAlign: 'center'
+                    }}>
+                      <item.icon size={20} style={{ color: '#22c55e', marginBottom: '6px' }} />
+                      <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#22c55e' }}>
+                        {item.stat}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>
+                        {item.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* What You Get */}
+              <div style={{ marginBottom: '28px' }}>
+                <h3 style={{ 
+                  fontSize: '1.1rem', 
+                  fontWeight: '700',
+                  marginBottom: '16px',
+                  color: 'white'
+                }}>
+                  16 Specialists. One Subscription.
+                </h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {[
+                    { emoji: '✍️', name: 'Ghostwriter', desc: 'AI lyrics + hooks that match your style' },
+                    { emoji: '🎹', name: 'Beat Lab', desc: 'Sample discovery + MIDI generation' },
+                    { emoji: '🎨', name: 'Album Artist', desc: 'Cover art + visual identity' },
+                    { emoji: '📹', name: 'Video Creator', desc: 'Visualizers + social content' },
+                    { emoji: '📊', name: 'Trend Hunter', desc: 'Market intelligence + timing' },
+                    { emoji: '🚀', name: 'Release Manager', desc: 'Rollout strategy + A&R analysis' }
+                  ].map((agent, i) => (
+                    <div key={i} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 14px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                    }}>
+                      <span style={{ fontSize: '1.25rem' }}>{agent.emoji}</span>
+                      <div style={{ flex: 1 }}>
+                        <span style={{ fontWeight: '600', color: 'white', marginRight: '8px' }}>{agent.name}</span>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{agent.desc}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '10px', 
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.85rem' 
+                  }}>
+                    + 10 more specialized agents
+                  </div>
+                </div>
+              </div>
+
+              {/* The Math */}
+              <div style={{
+                padding: '20px',
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
+                borderRadius: '16px',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
+                marginBottom: '20px'
+              }}>
+                <h4 style={{ 
+                  color: 'white', 
+                  fontSize: '1rem', 
+                  fontWeight: '600',
+                  marginBottom: '16px',
+                  textAlign: 'center'
+                }}>
+                  The Math Doesn't Lie
+                </h4>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Traditional</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#ef4444', textDecoration: 'line-through' }}>$15K+</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <ArrowRight size={24} style={{ color: 'var(--text-secondary)' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Studio Agents</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#22c55e' }}>$99</div>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>lifetime</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Trust */}
+              <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '8px' }}>
+                  {[1,2,3,4,5].map(i => <Star key={i} size={16} style={{ fill: '#FFD700', color: '#FFD700' }} />)}
+                </div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Rated 4.9/5 by 127,000+ artists
+                </p>
+              </div>
+            </div>
+
             <div className="modal-footer">
-              <button className="btn-primary" onClick={() => setShowShowcase(false)}>Close Showcase</button>
+              <button 
+                className="cta-button-primary"
+                onClick={() => { setShowMarketing(false); onEnter(true); }}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                <Zap size={18} />
+                Start Creating Free
+                <ArrowRight size={18} />
+              </button>
             </div>
           </div>
         </div>

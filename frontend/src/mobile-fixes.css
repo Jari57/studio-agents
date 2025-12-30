@@ -375,3 +375,118 @@ button, .nav-link, .agent-card-premium {
   overscroll-behavior-x: contain;
 }
 
+/* --- Stat Badge Styles --- */
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.stat-badge strong {
+  color: white;
+  font-weight: 700;
+}
+
+/* --- Enhanced Touch Feedback --- */
+.touch-feedback {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.touch-feedback:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+/* --- Stats Section Animation --- */
+.stat-card {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.1s; }
+.stat-card:nth-child(2) { animation-delay: 0.2s; }
+.stat-card:nth-child(3) { animation-delay: 0.3s; }
+.stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- Lore Section Glow --- */
+.lore-teaser-section {
+  position: relative;
+}
+
+.lore-teaser-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.3), transparent);
+}
+
+.lore-teaser-section::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.3), transparent);
+}
+
+/* --- Modal Mobile Optimization --- */
+@media (max-width: 480px) {
+  .legal-modal {
+    width: 95% !important;
+    max-width: 95% !important;
+    margin: 10px;
+    max-height: 85vh !important;
+  }
+
+  .legal-modal .modal-body {
+    padding: 16px !important;
+  }
+
+  .legal-modal .modal-header h2 {
+    font-size: 1.1rem;
+  }
+}
+
+/* --- Improved Scrolling --- */
+.modal-body {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* --- Hero Title Mobile --- */
+@media (max-width: 380px) {
+  .hero-title {
+    font-size: 1.75rem !important;
+  }
+
+  .hero-subtitle {
+    font-size: 0.9rem !important;
+  }
+
+  .stat-badge {
+    font-size: 0.7rem;
+    padding: 5px 10px;
+  }
+}
+
