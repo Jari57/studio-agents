@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock
 } from 'lucide-react';
 import VideoPitchDemo from './VideoPitchDemo';
 import QuickWorkflow from './QuickWorkflow';
@@ -270,6 +270,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [selectedPath, setSelectedPath] = useState(null);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
+  const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
 
   // Get recommendation based on selected path
   const getRecommendedAgents = () => {
@@ -5816,9 +5817,25 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       </main>
 
       {/* Maintenance Mode Overlay */}
-      {systemStatus.status === 'maintenance' && (
+      {systemStatus.status === 'maintenance' && !maintenanceDismissed && (
         <div className="modal-overlay" style={{ zIndex: 9999, backdropFilter: 'blur(10px)', background: 'rgba(0,0,0,0.85)' }}>
-          <div className="modal-content animate-fadeInUp" style={{ textAlign: 'center', border: '1px solid var(--color-red)' }}>
+          <div className="modal-content animate-fadeInUp" style={{ textAlign: 'center', border: '1px solid var(--color-red)', position: 'relative' }}>
+            <button 
+              onClick={() => setMaintenanceDismissed(true)}
+              style={{ 
+                position: 'absolute', 
+                top: '1rem', 
+                right: '1rem', 
+                background: 'transparent', 
+                border: 'none', 
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+                padding: '4px'
+              }}
+              aria-label="Dismiss maintenance message"
+            >
+              <X size={20} />
+            </button>
             <div className="logo-box" style={{ width: '64px', height: '64px', margin: '0 auto 1.5rem', background: 'rgba(239, 68, 68, 0.1)' }}>
               <Activity size={32} color="var(--color-red)" />
             </div>

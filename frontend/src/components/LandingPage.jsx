@@ -38,7 +38,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           // Animate stats
           const duration = 2000;
           const steps = 60;
-          const targets = { songs: 847000, hours: 2400000, saved: 4700, artists: 127000 };
+          // Conservative, realistic estimates
+          const targets = { songs: 12000, hours: 35000, saved: 1200, artists: 2100 };
           let step = 0;
           const timer = setInterval(() => {
             step++;
