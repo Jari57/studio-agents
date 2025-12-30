@@ -1194,7 +1194,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       {showShowcase && (
         <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
           <div className="legal-modal animate-scaleIn" style={{ 
-            maxWidth: '650px',
+            maxWidth: 'min(90vw, 700px)',
+            maxHeight: 'none',
+            overflow: 'visible',
             background: 'linear-gradient(180deg, #0a0a0a 0%, #111 100%)',
             border: '1px solid rgba(0, 255, 65, 0.2)'
           }}>
@@ -1206,7 +1208,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               <button className="modal-close" onClick={() => setShowShowcase(false)}><X size={20} /></button>
             </div>
             
-            <div className="modal-body" style={{ padding: '24px', maxHeight: '70vh', overflowY: 'auto' }}>
+            <div className="modal-body" style={{ padding: '24px', overflow: 'visible' }}>
               {/* Hero Visual */}
               <div style={{ 
                 textAlign: 'center', 
@@ -1392,9 +1394,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       {showMarketing && (
         <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000 }}>
           <div className="legal-modal animate-scaleIn" style={{ 
-            maxWidth: '650px',
-            maxHeight: '90vh',
-            overflow: 'hidden',
+            maxWidth: 'min(90vw, 700px)',
+            maxHeight: 'none',
+            overflow: 'visible',
             display: 'flex',
             flexDirection: 'column'
           }}>
@@ -1406,7 +1408,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               <button className="modal-close" onClick={() => setShowMarketing(false)}><X size={20} /></button>
             </div>
             
-            <div className="modal-body" style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+            <div className="modal-body" style={{ padding: '24px', overflow: 'visible', flex: 1 }}>
               {/* The Problem */}
               <div style={{ marginBottom: '28px' }}>
                 <h3 style={{ 
@@ -1600,9 +1602,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
       {showInvestorPitch && (
         <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10001 }}>
           <div className="legal-modal animate-scaleIn" style={{ 
-            maxWidth: '900px',
-            maxHeight: '95vh',
-            overflow: 'hidden',
+            maxWidth: 'min(95vw, 950px)',
+            maxHeight: 'none',
+            overflow: 'visible',
             display: 'flex',
             flexDirection: 'column',
             background: 'linear-gradient(180deg, rgba(15, 15, 25, 0.98) 0%, rgba(10, 10, 18, 0.99) 100%)',
@@ -1670,7 +1672,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             </div>
 
             {/* Tab Content */}
-            <div className="modal-body" style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+            <div className="modal-body" style={{ padding: '24px', overflow: 'visible', flex: 1 }}>
               
               {/* VISION TAB */}
               {pitchTab === 'vision' && (
@@ -2576,9 +2578,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         return (
           <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10002 }}>
             <div className="legal-modal animate-scaleIn" style={{ 
-              maxWidth: '950px',
-              maxHeight: '95vh',
-              overflow: 'hidden',
+              maxWidth: 'min(95vw, 1000px)',
+              maxHeight: 'none',
+              overflow: 'visible',
               display: 'flex',
               flexDirection: 'column',
               background: 'linear-gradient(180deg, rgba(15, 15, 25, 0.99) 0%, rgba(8, 8, 14, 1) 100%)',
@@ -2686,7 +2688,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               </div>
 
               {/* Content Area */}
-              <div className="modal-body" style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              <div className="modal-body" style={{ padding: '24px', overflow: 'visible', flex: 1 }}>
                 
                 {/* OVERVIEW TAB */}
                 {whitepaperTab === 'overview' && (

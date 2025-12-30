@@ -6250,10 +6250,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               onClick={(e) => e.stopPropagation()} 
               onTouchEnd={(e) => e.stopPropagation()}
               style={{ 
-                maxWidth: '600px', 
+                maxWidth: 'min(90vw, 700px)', 
                 width: '95%',
-                maxHeight: '90vh',
-                overflow: 'hidden',
+                maxHeight: 'none',
+                overflow: 'visible',
                 display: 'flex',
                 flexDirection: 'column'
               }}
@@ -6268,7 +6268,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <button className="modal-close" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={(e) => { e.preventDefault(); setShowAddPaymentModal(false); setEditingPayment(null); }}><X size={20} /></button>
               </div>
 
-              <div className="modal-body" style={{ padding: '1.5rem', overflow: 'auto', flex: 1 }}>
+              <div className="modal-body" style={{ padding: '1.5rem', overflow: 'visible', flex: 1 }}>
                 {/* Existing Cards Section */}
                 {!editingPayment && savedPaymentMethods.length > 0 && (
                   <div style={{ marginBottom: '1.5rem' }}>
@@ -6717,10 +6717,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             className="modal-content credits-modal" 
             onClick={e => e.stopPropagation()} 
             style={{ 
-              maxWidth: '480px', 
+              maxWidth: 'min(90vw, 560px)', 
               width: '95%',
-              maxHeight: '90vh',
-              overflow: 'hidden',
+              maxHeight: 'none',
+              overflow: 'visible',
               display: 'flex',
               flexDirection: 'column'
             }}
@@ -7295,7 +7295,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       {/* Onboarding Modal */}
       {showOnboarding && (
         <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000 }}>
-          <div className="modal-content onboarding-modal" style={{ maxWidth: '700px', padding: 0, maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="modal-content onboarding-modal" style={{ maxWidth: 'min(90vw, 750px)', padding: 0, maxHeight: 'none', overflow: 'visible' }}>
             {/* Progress Bar */}
             <div style={{ height: '4px', background: 'var(--color-bg-tertiary)', width: '100%' }}>
               <div style={{ 
@@ -7678,15 +7678,15 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       {/* Add Agent Modal */}
       {showAddAgentModal && (
         <div className="modal-overlay animate-fadeIn" onClick={() => setShowAddAgentModal(false)}>
-          <div className="modal-content" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ maxWidth: 'min(90vw, 800px)', maxHeight: 'none', overflow: 'visible' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Add Agent to Project</h2>
               <button className="modal-close" onClick={() => setShowAddAgentModal(false)}>
                 <X size={20} />
               </button>
             </div>
-            <div className="modal-body">
-              <div className="agent-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '16px' }}>
+            <div className="modal-body" style={{ overflow: 'visible' }}>
+              <div className="agent-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
                 {AGENTS.map(agent => {
                   const isSelected = selectedProject?.agents?.some(a => a.id === agent.id);
                   return (
@@ -7694,8 +7694,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       key={agent.id}
                       className={`agent-card-mini ${isSelected ? 'selected' : ''}`}
                       style={{ 
-                        padding: '16px', 
-                        borderRadius: '12px', 
+                        padding: '12px', 
+                        borderRadius: '10px', 
                         background: 'var(--color-bg-secondary)', 
                         border: isSelected ? '1px solid var(--color-purple)' : '1px solid var(--border-color)',
                         cursor: isSelected ? 'default' : 'pointer',
@@ -7704,14 +7704,14 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         flexDirection: 'column',
                         alignItems: 'center',
                         textAlign: 'center',
-                        gap: '12px'
+                        gap: '8px'
                       }}
                       onClick={() => !isSelected && handleAddAgent(agent)}
                     >
                       <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        borderRadius: '12px', 
+                        width: '40px', 
+                        height: '40px', 
+                        borderRadius: '10px', 
                         background: `${agent.color}20`, 
                         color: agent.color,
                         display: 'flex',
@@ -7741,7 +7741,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       {/* Voice Command Palette Modal (Whisperer-style) */}
       {showVoiceCommandPalette && (
         <div className="modal-overlay animate-fadeIn" onClick={() => setShowVoiceCommandPalette(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 'min(90vw, 520px)', maxHeight: 'none', overflow: 'visible' }}>
             <div className="modal-header">
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Mic size={20} className="text-purple" />
@@ -7751,7 +7751,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <X size={20} />
               </button>
             </div>
-            <div className="modal-body" style={{ textAlign: 'left', padding: '16px 24px' }}>
+            <div className="modal-body" style={{ textAlign: 'left', padding: '16px 24px', overflow: 'visible' }}>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
                 Click the mic button and say any of these commands:
               </p>

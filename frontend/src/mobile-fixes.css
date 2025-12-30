@@ -174,14 +174,16 @@
   /* Fix Modal Floating */
   .modal-content {
     width: 95% !important;
-    max-height: 85vh !important;
-    padding: 1.5rem !important;
-    overflow-y: auto !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    padding: 1.25rem !important;
+    overflow: visible !important;
   }
 
   .modal-overlay {
-    align-items: flex-end !important; /* Sheet-like on mobile */
-    padding-bottom: 2rem !important;
+    align-items: flex-start !important;
+    padding-top: 1.5rem !important;
+    padding-bottom: 1rem !important;
   }
 
   /* Ensure content isn't hidden behind fixed header */
@@ -472,6 +474,7 @@ button, .nav-link, .agent-card-premium {
 .modal-body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  overflow: visible;
 }
 
 /* --- Hero Title Mobile --- */
