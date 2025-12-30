@@ -13,6 +13,11 @@ export const BACKEND_URL = (window.location.hostname === 'localhost' || window.l
 // Row 6: Mastering + Sound Design (audio engineering)
 // Row 7: Trends + Social Media (marketing)
 // Row 8: Collabs + Release Planning (career growth)
+
+// Tier Definitions:
+// 'free' = Available to all users (4 agents)
+// 'monthly' = Requires Monthly subscription (8 agents total)
+// 'pro' = Requires Pro subscription (all 16 agents)
 export const AGENTS = [
     // === ROW 1: Core Music Creation ===
     { 
@@ -21,6 +26,7 @@ export const AGENTS = [
       category: 'Music Creation', 
       icon: Sparkles, 
       colorClass: 'agent-purple', 
+      tier: 'free', // FREE TIER
       description: 'AI lyricist creating bars on demand',
       capabilities: ['Full Song Structure', 'Rhyme Scheme Analysis', 'Metaphor Generator', 'Flow Mapping'],
       examples: ['Write a 16-bar verse about Brooklyn in the style of 90s boom bap', 'Create a catchy hook for a summer pop anthem'],
@@ -43,6 +49,7 @@ export const AGENTS = [
       category: 'Music Creation', 
       icon: Zap, 
       colorClass: 'agent-cyan', 
+      tier: 'free', // FREE TIER
       description: 'Generate production ideas instantly',
       capabilities: ['Drum Pattern MIDI', 'Chord Progression Logic', 'Sample Sourcing', 'BPM Matching'],
       examples: ['Generate a dark trap drum pattern at 140 BPM', 'Suggest a jazz-infused chord progression for a lo-fi beat'],
@@ -66,6 +73,7 @@ export const AGENTS = [
       category: 'Visual Identity', 
       icon: Music, 
       colorClass: 'agent-orange', 
+      tier: 'free', // FREE TIER
       description: 'Create stunning album artwork with AI',
       capabilities: ['Cover Art Generation', 'Social Media Kits', 'Typography Design', 'Brand Palette Creator'],
       examples: ['Create a psychedelic cover for a synth-wave album', 'Design a minimalist logo for an indie folk artist'],
@@ -88,6 +96,7 @@ export const AGENTS = [
       category: 'Visual Identity', 
       icon: PlayCircle, 
       colorClass: 'agent-red', 
+      tier: 'monthly', // MONTHLY TIER
       isBeta: true,
       description: 'Generate cinematic videos with Veo 3',
       capabilities: ['Music Video Generation', 'Visualizer Creation', 'Cinematic Scenes', 'Style Transfer'],
@@ -111,6 +120,7 @@ export const AGENTS = [
       name: 'Vocal Architect', 
       category: 'Music Creation', 
       icon: Users, 
+      tier: 'pro', // PRO TIER
       isBeta: true,
       colorClass: 'agent-purple', 
       isPro: true,
@@ -130,6 +140,7 @@ export const AGENTS = [
       name: 'Instrumentalist', 
       category: 'Music Creation', 
       icon: Music, 
+      tier: 'pro', // PRO TIER
       colorClass: 'agent-indigo', 
       isPro: true,
       isBeta: true,
@@ -150,6 +161,7 @@ export const AGENTS = [
       name: 'Beat Architect', 
       category: 'Music Creation', 
       icon: Zap, 
+      tier: 'pro', // PRO TIER
       colorClass: 'agent-pink', 
       isBeta: true,
       isPro: true,
@@ -169,6 +181,7 @@ export const AGENTS = [
       name: 'Sample Master', 
       category: 'Music Creation', 
       icon: Folder, 
+      tier: 'pro', // PRO TIER
       colorClass: 'agent-orange', 
       isPro: true,
       description: 'Intelligent sampling and loop manipulation',
@@ -188,6 +201,7 @@ export const AGENTS = [
       name: 'Drop Zone', 
       category: 'Music Creation', 
       icon: Rocket, 
+      tier: 'pro', // PRO TIER
       colorClass: 'agent-red', 
       isBeta: true,
       isPro: true,
@@ -207,6 +221,7 @@ export const AGENTS = [
       name: 'Score Editor', 
       category: 'Music Creation', 
       icon: Book, 
+      tier: 'pro', // PRO TIER
       colorClass: 'agent-emerald', 
       isPro: true,
       description: 'Precision scoring for film and media',
@@ -226,6 +241,7 @@ export const AGENTS = [
       name: 'Mastering Lab', 
       category: 'Audio Engineering', 
       icon: Shield, 
+      tier: 'free', // FREE TIER
       colorClass: 'agent-purple', 
       description: 'Professional AI audio mastering',
       capabilities: ['LUFS Normalization', 'Stereo Widening', 'EQ Balancing', 'Multi-format Export'],
@@ -248,6 +264,7 @@ export const AGENTS = [
       name: 'Sound Designer', 
       category: 'Audio Engineering', 
       icon: Shield, 
+      tier: 'pro', // PRO TIER
       colorClass: 'agent-cyan', 
       isPro: true,
       description: 'Custom synth patch and texture creation',
@@ -267,6 +284,7 @@ export const AGENTS = [
       name: 'Trend Hunter', 
       category: 'Career Growth', 
       icon: Target, 
+      tier: 'monthly', // MONTHLY TIER
       colorClass: 'agent-emerald', 
       hasSocials: true,
       description: 'Discover what\'s hot right now',
@@ -290,6 +308,7 @@ export const AGENTS = [
       name: 'Social Pilot', 
       category: 'Career Growth', 
       icon: Globe, 
+      tier: 'monthly', // MONTHLY TIER
       colorClass: 'agent-cyan', 
       hasSocials: true,
       description: 'Automated social media growth',
@@ -314,6 +333,7 @@ export const AGENTS = [
       name: 'Collab Connect', 
       category: 'Career Growth', 
       icon: Users, 
+      tier: 'pro', // PRO TIER
       colorClass: 'agent-indigo', 
       hasSocials: true,
       description: 'Find the perfect collaborators',
@@ -337,6 +357,7 @@ export const AGENTS = [
       name: 'Release Manager', 
       category: 'Career Growth', 
       icon: Rocket, 
+      tier: 'monthly', // MONTHLY TIER
       colorClass: 'agent-pink', 
       hasSocials: true,
       description: 'Strategic release planning AI',
@@ -361,6 +382,7 @@ export const AGENTS = [
       name: 'Video Scorer', 
       category: 'Visual Identity', 
       icon: PlayCircle, 
+      tier: 'pro', // PRO TIER
       isBeta: true,
       colorClass: 'agent-cyan', 
       isPro: true,

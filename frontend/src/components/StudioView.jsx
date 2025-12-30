@@ -266,6 +266,47 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [user, setUser] = useState(null);
   const [userPlan, setUserPlan] = useState(() => localStorage.getItem('studio_user_plan') || 'Free');
+  
+  // Free generation tracking (3 free before requiring login/payment)
+  const [freeGenerationsUsed, setFreeGenerationsUsed] = useState(() => {
+    const stored = localStorage.getItem('studio_free_generations');
+    return stored ? parseInt(stored, 10) : 0;
+  });
+  const FREE_GENERATION_LIMIT = 3;
+  
+  // Persist free generations
+  useEffect(() => {
+    localStorage.setItem('studio_free_generations', freeGenerationsUsed.toString());
+  }, [freeGenerationsUsed]);
+  
+  // Get agents available for current tier
+  const getAvailableAgents = () => {
+    const plan = userPlan.toLowerCase();
+    if (plan === 'pro') return AGENTS; // All 16 agents
+    if (plan === 'monthly') return AGENTS.filter(a => a.tier === 'free' || a.tier === 'monthly'); // 8 agents
+    return AGENTS.filter(a => a.tier === 'free'); // 4 agents for free tier
+  };
+  
+  // Get locked agents for teaser section
+  const getLockedAgents = () => {
+    const plan = userPlan.toLowerCase();
+    if (plan === 'pro') return []; // No locked agents
+    if (plan === 'monthly') return AGENTS.filter(a => a.tier === 'pro'); // Only pro locked
+    return AGENTS.filter(a => a.tier !== 'free'); // Monthly + Pro locked
+  };
+  
+  // Check if user can generate (has free uses left or is subscribed)
+  const canGenerate = () => {
+    const plan = userPlan.toLowerCase();
+    if (plan === 'monthly' || plan === 'pro') return true;
+    if (isLoggedIn && userCredits > 0) return true;
+    return freeGenerationsUsed < FREE_GENERATION_LIMIT;
+  };
+  
+  // Get remaining free generations
+  const getRemainingFreeGenerations = () => {
+    return Math.max(0, FREE_GENERATION_LIMIT - freeGenerationsUsed);
+  };
 
   useEffect(() => {
     localStorage.setItem('studio_user_plan', userPlan);
@@ -1501,8 +1542,21 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       return;
     }
 
-    // Check credits for logged-in users
-    if (isLoggedIn && userCredits <= 0) {
+    // Check if user can generate (free limit or credits)
+    if (!canGenerate()) {
+      if (!isLoggedIn) {
+        toast.error(`You've used your ${FREE_GENERATION_LIMIT} free generations! Sign in to continue.`);
+        setShowLoginModal(true);
+      } else {
+        toast.error("Out of credits! Please upgrade your plan.");
+        setDashboardTab('subscription');
+        setActiveTab('mystudio');
+      }
+      return;
+    }
+
+    // Check credits for logged-in users with paid plans
+    if (isLoggedIn && userCredits <= 0 && userPlan.toLowerCase() === 'free') {
       toast.error("Out of credits! Please upgrade your plan.");
       setDashboardTab('subscription');
       setActiveTab('mystudio');
@@ -1724,6 +1778,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         }
         // Decrement local credits (backend already deducted)
         setUserCredits(prev => Math.max(0, prev - 1));
+      } else {
+        // Track free generation for anonymous users
+        setFreeGenerationsUsed(prev => prev + 1);
       }
 
       toast.success(`${selectedAgent.name} generation complete!`, { id: toastId });
@@ -4092,130 +4149,296 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     switch (activeTab) {
 
       case 'agents':
+        const availableAgents = getAvailableAgents();
+        const lockedAgents = getLockedAgents();
+        
         return (
-          <div className="agents-studio-grid">
-            {AGENTS.map((agent, i) => {
-              const Icon = agent.icon;
-              return (
-                <div 
-                  key={agent.id} 
-                  className={`agent-studio-card ${agent.colorClass} ${agent.isPro ? 'pro-card' : ''} animate-fadeInUp`}
-                  style={{ animationDelay: `${i * 0.1}s` }}
-                >
-                  {agent.isPro && (
-                    <div className="pro-badge-mini">
-                      <Crown size={12} />
-                      <span>PRO</span>
-                    </div>
-                  )}
-                  {agent.isBeta && (
-                    <div className="beta-badge-mini" style={{ 
-                      position: 'absolute', 
-                      top: '12px', 
-                      right: agent.isPro ? '60px' : '12px', 
-                      background: 'rgba(255, 165, 0, 0.2)', 
-                      color: 'orange', 
-                      padding: '2px 6px', 
-                      borderRadius: '4px', 
-                      fontSize: '10px', 
-                      fontWeight: 'bold',
-                      border: '1px solid rgba(255, 165, 0, 0.4)'
-                    }}>
-                      BETA
-                    </div>
-                  )}
-                  <div className="agent-studio-icon">
-                    <Icon size={24} />
-                  </div>
-                  <div className="agent-studio-info">
-                    <h3>{agent.name}</h3>
-                    <p>{agent.category}</p>
-                  </div>
-                  <button 
-                    className={`agent-launch-btn ${agent.isPro ? 'pro-btn' : ''}`}
-                    onClick={() => {
-                      if (agent.isPro && !isLoggedIn) {
-                        setShowLoginModal(true);
-                      } else {
-                        setSelectedAgent(agent);
-                        // Stay on agents tab - the selectedAgent view will show
-                      }
-                    }}
-                  >
-                    {agent.isPro && !isLoggedIn ? 'Unlock with Pro' : 'Launch Agent'}
-                  </button>
-                  
-                  {/* Quick Actions for Grid */}
-                  <div className="agent-grid-quick-actions" style={{ 
-                    display: 'flex', 
-                    gap: '8px', 
-                    marginTop: '12px', 
-                    justifyContent: 'center',
-                    borderTop: '1px solid rgba(255,255,255,0.06)',
-                    paddingTop: '12px'
+          <div className="agents-view">
+            {/* Free generation counter */}
+            {!isLoggedIn && (
+              <div className="free-generation-banner" style={{
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                border: '1px solid rgba(139, 92, 246, 0.2)',
+                borderRadius: '12px',
+                padding: '16px 20px',
+                marginBottom: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '10px',
+                    background: 'rgba(139, 92, 246, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}>
-                    <button 
-                      className="quick-action-icon-btn"
-                      title="Quick Generate"
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        padding: '8px 12px',
-                        background: 'rgba(139, 92, 246, 0.08)',
-                        border: '1px solid rgba(139, 92, 246, 0.15)',
-                        borderRadius: '8px',
-                        color: 'var(--color-purple)',
-                        fontSize: '0.75rem',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (agent.isPro && !isLoggedIn) {
-                          setShowLoginModal(true);
-                        } else {
-                          setQuickWorkflowAgent(agent);
-                        }
-                      }}
-                    >
-                      <Zap size={14} />
-                      <span>Quick</span>
-                    </button>
-                    <button 
-                      className="quick-action-icon-btn"
-                      title="How to Use"
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        padding: '8px 12px',
-                        background: 'rgba(6, 182, 212, 0.08)',
-                        border: '1px solid rgba(6, 182, 212, 0.15)',
-                        borderRadius: '8px',
-                        color: 'var(--color-cyan)',
-                        fontSize: '0.75rem',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowAgentHelpModal(agent);
-                      }}
-                    >
-                      <CircleHelp size={14} />
-                      <span>Guide</span>
-                    </button>
+                    <Sparkles size={20} className="text-purple" />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>
+                      {getRemainingFreeGenerations()} of {FREE_GENERATION_LIMIT} Free Generations Left
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      Sign in to unlock more generations
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+                <button 
+                  className="btn-pill primary"
+                  onClick={() => setShowLoginModal(true)}
+                  style={{ padding: '10px 20px' }}
+                >
+                  Sign In Free
+                </button>
+              </div>
+            )}
+            
+            {/* Available Agents Grid */}
+            <div className="agents-section-header" style={{ marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }}>
+                Your Agents ({availableAgents.length})
+              </h3>
+            </div>
+            
+            <div className="agents-studio-grid">
+              {availableAgents.map((agent, i) => {
+                const Icon = agent.icon;
+                return (
+                  <div 
+                    key={agent.id} 
+                    className={`agent-studio-card ${agent.colorClass} animate-fadeInUp`}
+                    style={{ animationDelay: `${i * 0.1}s` }}
+                  >
+                    {agent.isBeta && (
+                      <div className="beta-badge-mini" style={{ 
+                        position: 'absolute', 
+                        top: '12px', 
+                        right: '12px', 
+                        background: 'rgba(255, 165, 0, 0.2)', 
+                        color: 'orange', 
+                        padding: '2px 6px', 
+                        borderRadius: '4px', 
+                        fontSize: '10px', 
+                        fontWeight: 'bold',
+                        border: '1px solid rgba(255, 165, 0, 0.4)'
+                      }}>
+                        BETA
+                      </div>
+                    )}
+                    <div className="agent-studio-icon">
+                      <Icon size={24} />
+                    </div>
+                    <div className="agent-studio-info">
+                      <h3>{agent.name}</h3>
+                      <p>{agent.category}</p>
+                    </div>
+                    <button 
+                      className="agent-launch-btn"
+                      onClick={() => {
+                        setSelectedAgent(agent);
+                      }}
+                    >
+                      Launch Agent
+                    </button>
+                    
+                    {/* Quick Actions for Grid */}
+                    <div className="agent-grid-quick-actions" style={{ 
+                      display: 'flex', 
+                      gap: '8px', 
+                      marginTop: '12px', 
+                      justifyContent: 'center',
+                      borderTop: '1px solid rgba(255,255,255,0.06)',
+                      paddingTop: '12px'
+                    }}>
+                      <button 
+                        className="quick-action-icon-btn"
+                        title="Quick Generate"
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          padding: '8px 12px',
+                          background: 'rgba(139, 92, 246, 0.08)',
+                          border: '1px solid rgba(139, 92, 246, 0.15)',
+                          borderRadius: '8px',
+                          color: 'var(--color-purple)',
+                          fontSize: '0.75rem',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setQuickWorkflowAgent(agent);
+                        }}
+                      >
+                        <Zap size={14} />
+                        <span>Quick</span>
+                      </button>
+                      <button 
+                        className="quick-action-icon-btn"
+                        title="How to Use"
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          padding: '8px 12px',
+                          background: 'rgba(6, 182, 212, 0.08)',
+                          border: '1px solid rgba(6, 182, 212, 0.15)',
+                          borderRadius: '8px',
+                          color: 'var(--color-cyan)',
+                          fontSize: '0.75rem',
+                          fontWeight: '500',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAgentHelpModal(agent);
+                        }}
+                      >
+                        <CircleHelp size={14} />
+                        <span>Guide</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Teaser Section: What Else We Can Do */}
+            {lockedAgents.length > 0 && (
+              <div className="locked-agents-teaser" style={{ marginTop: '48px' }}>
+                <div className="teaser-header" style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '20px',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <h3 style={{ 
+                      fontSize: '1.25rem', 
+                      fontWeight: '700', 
+                      margin: '0 0 4px 0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <Lock size={18} className="text-purple" />
+                      What Else We Can Do
+                    </h3>
+                    <p style={{ 
+                      margin: 0, 
+                      color: 'var(--text-secondary)', 
+                      fontSize: '0.9rem' 
+                    }}>
+                      Unlock {lockedAgents.length} more powerful agents with a subscription
+                    </p>
+                  </div>
+                  <button 
+                    className="btn-pill primary"
+                    onClick={() => {
+                      if (!isLoggedIn) {
+                        setShowLoginModal(true);
+                      } else {
+                        setDashboardTab('subscription');
+                        setActiveTab('mystudio');
+                      }
+                    }}
+                    style={{ padding: '10px 20px' }}
+                  >
+                    <Crown size={16} />
+                    Upgrade Now
+                  </button>
+                </div>
+                
+                <div className="locked-agents-grid" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                  gap: '12px'
+                }}>
+                  {lockedAgents.map((agent, i) => {
+                    const Icon = agent.icon;
+                    const tierLabel = agent.tier === 'monthly' ? 'Monthly' : 'Pro';
+                    const tierColor = agent.tier === 'monthly' ? 'var(--color-cyan)' : 'var(--color-purple)';
+                    
+                    return (
+                      <div 
+                        key={agent.id}
+                        className="locked-agent-card"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid rgba(255, 255, 255, 0.06)',
+                          borderRadius: '12px',
+                          padding: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          position: 'relative',
+                          opacity: 0.7,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onClick={() => {
+                          if (!isLoggedIn) {
+                            setShowLoginModal(true);
+                          } else {
+                            setDashboardTab('subscription');
+                            setActiveTab('mystudio');
+                          }
+                        }}
+                      >
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '8px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <Icon size={18} style={{ opacity: 0.5 }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ 
+                            fontWeight: '600', 
+                            fontSize: '0.85rem',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            {agent.name}
+                          </div>
+                          <div style={{ 
+                            fontSize: '0.7rem', 
+                            color: tierColor,
+                            fontWeight: '600',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                          }}>
+                            {tierLabel}
+                          </div>
+                        </div>
+                        <Lock size={14} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         );
       case 'hub':
