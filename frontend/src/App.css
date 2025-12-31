@@ -6717,7 +6717,7 @@ select optgroup {
   }
   
   .studio-main {
-    padding-bottom: 100px; /* Increased to account for floating Create button */
+    padding-bottom: 80px; /* Account for bottom nav (70px) */
   }
 }
 
