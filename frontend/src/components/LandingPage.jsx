@@ -854,6 +854,15 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                         <p className="example-text">"{agent.example || "Generate something amazing."}"</p>
                       </div>
                     </div>
+                    {/* CTA Button in overlay */}
+                    <div className="agent-card-action overlay-action" style={{ 
+                      marginTop: 'auto',
+                      background: 'var(--color-purple)',
+                      border: 'none'
+                    }}>
+                      <span className="action-label">Open Agent</span>
+                      <div className="action-icon"><ArrowRight size={14} /></div>
+                    </div>
                   </div>
                 </div>
               );

@@ -9454,7 +9454,25 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   padding: 0.875rem 1.25rem;
 }
 
-/* Agent grid launch buttons */
+/* Agent grid launch buttons - BASE STYLES */
+.agent-launch-btn {
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: white !important;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.agent-launch-btn:hover {
+  background: var(--color-purple);
+  border-color: var(--color-purple);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
 .agent-studio-card .agent-launch-btn {
   font-size: 0.8rem;
   font-weight: 600;
