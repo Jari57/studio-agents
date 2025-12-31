@@ -750,17 +750,27 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       return;
     }
     setAuthLoading(true);
+    const loadingToast = toast.loading('Signing in with Google...');
+    
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      await fetchUserCredits(result.user.uid);
+      
+      // Close modal immediately for faster UX
       setShowLoginModal(false);
-      toast.success('Welcome back!');
+      toast.success('Welcome back!', { id: loadingToast });
+      
+      // Fetch credits in background (don't wait)
+      fetchUserCredits(result.user.uid).catch(err => 
+        console.warn('Background credits fetch failed:', err)
+      );
+      
       if (selectedPlan) {
         handleCheckoutRedirect(selectedPlan);
       }
     } catch (error) {
       console.error('Login failed', error);
+      toast.dismiss(loadingToast);
       if (error.code === 'auth/popup-closed-by-user') {
         toast('Sign-in cancelled', { icon: '👋' });
       } else if (error.code === 'auth/unauthorized-domain') {
