@@ -497,7 +497,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (!newProjectData.name || !newProjectData.category) return;
     
     // Check if user has enough credits
-    if (credits < PROJECT_CREDIT_COST) {
+    if (userCredits < PROJECT_CREDIT_COST) {
       toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
       setShowCreditsModal(true);
       return;
@@ -521,7 +521,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     };
 
     // Deduct credits
-    setCredits(prev => prev - PROJECT_CREDIT_COST);
+    setUserCredits(prev => prev - PROJECT_CREDIT_COST);
     toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
     setProjects(prev => [newProject, ...prev]);
@@ -550,7 +550,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   const handleSkipWizard = (targetTab) => {
     // Check if user has enough credits
-    if (credits < PROJECT_CREDIT_COST) {
+    if (userCredits < PROJECT_CREDIT_COST) {
       toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
       setShowCreditsModal(true);
       return;
@@ -571,7 +571,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     };
 
     // Deduct credits
-    setCredits(prev => prev - PROJECT_CREDIT_COST);
+    setUserCredits(prev => prev - PROJECT_CREDIT_COST);
     toast.success(`Quick project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
     setProjects(prev => [newProject, ...prev]);
@@ -620,7 +620,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   const handleCreateProjectWithAsset = (projectName, asset) => {
     // Check if user has enough credits
-    if (credits < PROJECT_CREDIT_COST) {
+    if (userCredits < PROJECT_CREDIT_COST) {
       toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
       setShowCreditsModal(true);
       return;
@@ -641,7 +641,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     };
     
     // Deduct credits
-    setCredits(prev => prev - PROJECT_CREDIT_COST);
+    setUserCredits(prev => prev - PROJECT_CREDIT_COST);
     toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
     setProjects(prev => [newProject, ...prev]);
