@@ -1793,11 +1793,22 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       if (isLoggedIn) {
         const uid = localStorage.getItem('studio_user_id');
         if (uid) {
-           fetch(`${BACKEND_URL}/api/projects`, {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ userId: uid, project: newItem })
-           }).catch(err => console.error("Failed to save to cloud", err));
+          // Build headers with auth token
+          const saveHeaders = { 'Content-Type': 'application/json' };
+          if (auth?.currentUser) {
+            try {
+              const token = await auth.currentUser.getIdToken();
+              saveHeaders['Authorization'] = `Bearer ${token}`;
+            } catch (tokenErr) {
+              console.warn('Could not get auth token for save:', tokenErr);
+            }
+          }
+          
+          fetch(`${BACKEND_URL}/api/projects`, {
+            method: 'POST',
+            headers: saveHeaders,
+            body: JSON.stringify({ userId: uid, project: newItem })
+          }).catch(err => console.error("Failed to save to cloud", err));
         }
         // Decrement local credits (backend already deducted)
         setUserCredits(prev => Math.max(0, prev - 1));
@@ -1968,10 +1979,24 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
 
     if (isLoggedIn && uid) {
-      // Fetch from backend if logged in
-      fetch(`${BACKEND_URL}/api/projects?userId=${uid}`)
-        .then(res => res.json())
-        .then(data => {
+      // Fetch from backend if logged in (with auth token)
+      const fetchProjects = async () => {
+        try {
+          const headers = { 'Content-Type': 'application/json' };
+          
+          // Add auth token if available
+          if (auth?.currentUser) {
+            try {
+              const token = await auth.currentUser.getIdToken();
+              headers['Authorization'] = `Bearer ${token}`;
+            } catch (tokenErr) {
+              console.warn('Could not get auth token for projects fetch:', tokenErr);
+            }
+          }
+          
+          const res = await fetch(`${BACKEND_URL}/api/projects?userId=${uid}`, { headers });
+          const data = await res.json();
+          
           if (data.projects) {
             // Merge local and remote
             const allProjects = [...data.projects, ...localProjects];
@@ -1981,11 +2006,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           } else {
             setProjects(localProjects);
           }
-        })
-        .catch(err => {
+        } catch (err) {
           console.error("Failed to fetch remote projects", err);
           setProjects(localProjects);
-        });
+        }
+      };
+      
+      fetchProjects();
     } else {
       setProjects(localProjects);
     }
