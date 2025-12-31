@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid, TrendingUp, Clock, DollarSign, Mic, Headphones, Star, ChevronRight, Building, Layers, BarChart3, Briefcase, Award, ExternalLink, Share2, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid, TrendingUp, Clock, DollarSign, Mic, Headphones, Star, ChevronRight, Building, Layers, BarChart3, Briefcase, Award, ExternalLink, Share2, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock } from 'lucide-react';
 import { AGENTS } from '../constants';
 import VideoPitchDemo from './VideoPitchDemo';
 
@@ -1519,41 +1519,47 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   marginBottom: '16px',
                   color: 'white'
                 }}>
-                  16 Specialists. One Subscription.
+                  {AGENTS.length} Specialists. One Subscription.
                 </h3>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {[
-                    { emoji: '✍️', name: 'Ghostwriter', desc: 'AI lyrics + hooks that match your style' },
-                    { emoji: '🎹', name: 'Beat Lab', desc: 'Sample discovery + MIDI generation' },
-                    { emoji: '🎨', name: 'Album Artist', desc: 'Cover art + visual identity' },
-                    { emoji: '📹', name: 'Video Creator', desc: 'Visualizers + social content' },
-                    { emoji: '📊', name: 'Trend Hunter', desc: 'Market intelligence + timing' },
-                    { emoji: '🚀', name: 'Release Manager', desc: 'Rollout strategy + A&R analysis' }
-                  ].map((agent, i) => (
-                    <div key={i} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      padding: '12px 14px',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(255, 255, 255, 0.08)'
-                    }}>
-                      <span style={{ fontSize: '1.25rem' }}>{agent.emoji}</span>
-                      <div style={{ flex: 1 }}>
-                        <span style={{ fontWeight: '600', color: 'white', marginRight: '8px' }}>{agent.name}</span>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{agent.desc}</span>
+                  {AGENTS.filter(a => a.tier === 'free').map((agent, i) => {
+                    const Icon = agent.icon;
+                    return (
+                      <div key={agent.id} style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '12px 14px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 255, 255, 0.08)'
+                      }}>
+                        <div style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          borderRadius: '8px',
+                          background: 'rgba(139, 92, 246, 0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Icon size={16} style={{ color: 'var(--color-purple)' }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontWeight: '600', color: 'white', marginRight: '8px' }}>{agent.name}</span>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{agent.description}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div style={{ 
                     textAlign: 'center', 
                     padding: '10px', 
                     color: 'var(--text-secondary)',
                     fontSize: '0.85rem' 
                   }}>
-                    + 10 more specialized agents
+                    + {AGENTS.filter(a => a.tier !== 'free').length} more agents with subscription
                   </div>
                 </div>
               </div>
@@ -1913,7 +1919,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                       THE PLATFORM
                     </div>
                     <h3 style={{ fontSize: '1.5rem', fontWeight: '700', color: 'white', marginBottom: '8px' }}>
-                      16 AI Agents = One Complete Label
+                      {AGENTS.length} AI Agents = One Complete Label
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', maxWidth: '500px', margin: '0 auto' }}>
                       Each agent is a specialized AI trained on industry best practices
@@ -1926,43 +1932,53 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     gap: '12px',
                     marginBottom: '28px'
                   }}>
+                    {/* Dynamically group agents by category */}
                     {[
-                      { category: 'Creation', agents: ['Ghostwriter (Lyrics)', 'Beat Lab (Production)', 'Vocal Architect', 'Instrumentalist'] },
-                      { category: 'Production', agents: ['Beat Architect', 'Sample Master', 'Mastering Lab', 'Sound Designer'] },
-                      { category: 'Visual', agents: ['Album Artist', 'Video Creator', 'Video Scorer'] },
-                      { category: 'Business', agents: ['Trend Hunter', 'Social Pilot', 'Collab Connect', 'Release Manager', 'Drop Zone'] }
-                    ].map((group, i) => (
-                      <div key={i} style={{
-                        padding: '16px',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        borderRadius: '14px',
-                        border: '1px solid rgba(255, 255, 255, 0.08)'
-                      }}>
-                        <div style={{ 
-                          fontSize: '0.7rem', 
-                          color: 'var(--color-cyan)', 
-                          fontWeight: '600',
-                          letterSpacing: '1px',
-                          marginBottom: '10px'
+                      { category: 'Music Creation', label: 'Creation' },
+                      { category: 'Audio Engineering', label: 'Production' },
+                      { category: 'Visual Identity', label: 'Visual' },
+                      { category: 'Career Growth', label: 'Business' }
+                    ].map((group, i) => {
+                      const categoryAgents = AGENTS.filter(a => a.category === group.category);
+                      return (
+                        <div key={i} style={{
+                          padding: '16px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: '14px',
+                          border: '1px solid rgba(255, 255, 255, 0.08)'
                         }}>
-                          {group.category.toUpperCase()}
+                          <div style={{ 
+                            fontSize: '0.7rem', 
+                            color: 'var(--color-cyan)', 
+                            fontWeight: '600',
+                            letterSpacing: '1px',
+                            marginBottom: '10px'
+                          }}>
+                            {group.label.toUpperCase()}
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {categoryAgents.map((agent, j) => (
+                              <div key={agent.id} style={{ 
+                                fontSize: '0.85rem', 
+                                color: agent.tier === 'free' ? 'white' : 'var(--text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                              }}>
+                                <div style={{ 
+                                  width: '4px', 
+                                  height: '4px', 
+                                  borderRadius: '50%', 
+                                  background: agent.tier === 'free' ? 'var(--color-cyan)' : 'var(--color-purple)' 
+                                }} />
+                                {agent.name}
+                                {agent.tier !== 'free' && <Lock size={10} style={{ opacity: 0.5 }} />}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {group.agents.map((agent, j) => (
-                            <div key={j} style={{ 
-                              fontSize: '0.85rem', 
-                              color: 'var(--text-secondary)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px'
-                            }}>
-                              <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--color-purple)' }} />
-                              {agent}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div style={{
