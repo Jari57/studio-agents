@@ -9548,3 +9548,122 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
     border-bottom: none;
   }
 }
+
+/* ========================================
+   MODAL MOBILE FIXES - Consistent Layout
+======================================== */
+
+/* All modals - consistent close button position */
+.modal-close {
+  position: absolute !important;
+  top: 1rem !important;
+  right: 1rem !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  color: var(--text-secondary) !important;
+  transition: all 0.2s ease !important;
+  z-index: 10 !important;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+}
+
+/* Modal header needs padding for close button */
+.modal-header {
+  position: relative;
+  padding-right: 50px !important;
+}
+
+/* Legal modal and whitepaper modal mobile fixes */
+@media (max-width: 640px) {
+  .legal-modal,
+  .whitepaper-modal,
+  .agent-help-modal {
+    max-height: calc(100vh - 2rem) !important;
+    max-width: 100% !important;
+    margin: 0.5rem !important;
+    border-radius: 16px !important;
+  }
+  
+  .legal-modal .modal-body,
+  .whitepaper-modal .modal-body {
+    padding: 16px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-height: calc(100vh - 180px) !important;
+  }
+  
+  /* Stack 2-column grids on mobile */
+  .whitepaper-modal .modal-body > div:last-child {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  /* Marketing modal - stack problem/solution grids */
+  .legal-modal .modal-body > div > div[style*="grid-template-columns: repeat(2"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  
+  /* Smaller text on mobile */
+  .legal-modal h3,
+  .whitepaper-modal h3 {
+    font-size: 1rem !important;
+  }
+  
+  .legal-modal h2,
+  .whitepaper-modal h2 {
+    font-size: 1.1rem !important;
+  }
+  
+  /* Investor pitch modal tabs - smaller on mobile */
+  .legal-modal [style*="overflowX: auto"] button {
+    padding: 8px 12px !important;
+    font-size: 0.75rem !important;
+  }
+  
+  /* Modal footer - full width button on mobile */
+  .modal-footer button {
+    width: 100% !important;
+  }
+}
+
+/* Prevent fixed position issues */
+.modal-overlay * {
+  position: relative;
+}
+
+/* Ensure modal content doesn't overflow */
+.modal-content,
+.legal-modal {
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.modal-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  min-height: 0 !important;
+}
+
+/* Agent cards in modals - ensure 2x2 on mobile */
+.modal-body .agents-studio-grid {
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 10px !important;
+}
+
+@media (max-width: 400px) {
+  .modal-body .agents-studio-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

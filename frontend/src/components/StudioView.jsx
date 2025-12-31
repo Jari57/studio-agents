@@ -2202,10 +2202,16 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     if (selectedProject.sessionState) {
                       initialTracks = selectedProject.sessionState;
                     } else {
-                      // Auto-select best assets for the session
-                      const audioAsset = selectedProject.assets.find(a => a.type === 'Audio' || a.type === 'Music Creation');
-                      const vocalAsset = selectedProject.assets.find(a => (a.type === 'Audio' || a.type === 'Lyrics') && a.id !== audioAsset?.id);
-                      const visualAsset = selectedProject.assets.find(a => a.type === 'Video' || a.type === 'Image' || a.type === 'Visual Identity');
+                      // Auto-select best assets for the session - check both audioUrl and type
+                      const audioAsset = selectedProject.assets.find(a => 
+                        a.audioUrl || a.type === 'audio' || a.type === 'Music Creation' || a.type === 'synthesis'
+                      );
+                      const vocalAsset = selectedProject.assets.find(a => 
+                        (a.audioUrl || a.type === 'audio') && a.id !== audioAsset?.id
+                      );
+                      const visualAsset = selectedProject.assets.find(a => 
+                        a.imageUrl || a.videoUrl || a.type === 'image' || a.type === 'video' || a.type === 'Visual Identity'
+                      );
                       
                       initialTracks = {
                         audio: audioAsset || null,
@@ -3481,100 +3487,69 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     </div>
                   </div>
                   
-                  {/* Model Picker */}
-                  <div className="model-picker-container" style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
+                  {/* Model Picker - Clean Card Design */}
+                  <div className="model-picker-card" style={{
                     marginBottom: '12px',
-                    padding: '12px 16px',
-                    background: 'rgba(139, 92, 246, 0.08)',
+                    padding: '12px',
+                    background: 'var(--color-bg-secondary)',
                     borderRadius: '12px',
-                    border: '1px solid rgba(139, 92, 246, 0.2)'
+                    border: '1px solid rgba(255, 255, 255, 0.06)'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                      <Cpu size={16} style={{ color: 'var(--color-purple)' }} />
-                      <span style={{ fontSize: '0.8rem', fontWeight: '600', color: 'white' }}>AI Model:</span>
-                    </div>
-                    <select
-                      value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      className="model-select-dropdown"
-                      style={{
-                        flex: 1,
-                        padding: '10px 14px',
-                        background: '#1a1a2e',
-                        border: '1px solid rgba(139, 92, 246, 0.3)',
-                        borderRadius: '10px',
-                        color: 'white',
-                        fontSize: '0.85rem',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        appearance: 'none',
-                        WebkitAppearance: 'none',
-                        MozAppearance: 'none',
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238b5cf6'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                        backgroundRepeat: 'no-repeat',
-                        backgroundPosition: 'right 12px center',
-                        backgroundSize: '16px',
-                        paddingRight: '40px',
-                        colorScheme: 'dark'
-                      }}
-                    >
-                      <optgroup label="⚡ Google Gemini">
-                        {AI_MODELS.filter(m => m.provider === 'Google').map(model => (
-                          <option key={model.id} value={model.id}>
-                            {model.name} {model.tier === 'pro' ? '(Pro)' : ''} — {model.speed}
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="🧠 Anthropic Claude">
-                        {AI_MODELS.filter(m => m.provider === 'Anthropic').map(model => (
-                          <option key={model.id} value={model.id}>
-                            {model.name} — {model.speed}
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="🤖 OpenAI GPT">
-                        {AI_MODELS.filter(m => m.provider === 'OpenAI').map(model => (
-                          <option key={model.id} value={model.id}>
-                            {model.name} — {model.speed}
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="🦙 Meta Llama">
-                        {AI_MODELS.filter(m => m.provider === 'Meta').map(model => (
-                          <option key={model.id} value={model.id}>
-                            {model.name} — {model.speed}
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="🌊 Mistral AI">
-                        {AI_MODELS.filter(m => m.provider === 'Mistral').map(model => (
-                          <option key={model.id} value={model.id}>
-                            {model.name} — {model.speed}
-                          </option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="🔮 Other Models">
-                        {AI_MODELS.filter(m => !['Google', 'Anthropic', 'OpenAI', 'Meta', 'Mistral'].includes(m.provider)).map(model => (
-                          <option key={model.id} value={model.id}>
-                            {model.name} ({model.provider}) — {model.speed}
-                          </option>
-                        ))}
-                      </optgroup>
-                    </select>
                     <div style={{ 
                       display: 'flex', 
-                      flexDirection: 'column', 
-                      alignItems: 'flex-end',
-                      gap: '2px',
-                      minWidth: '80px'
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      gap: '12px'
                     }}>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Quality</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--color-cyan)', fontWeight: '600' }}>
-                        {AI_MODELS.find(m => m.id === selectedModel)?.quality || '★★★☆'}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '10px',
+                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.2))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Cpu size={18} style={{ color: 'var(--color-purple)' }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>AI Model</div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: '600', color: 'white' }}>
+                            {AI_MODELS.find(m => m.id === selectedModel)?.name || 'Gemini Flash'}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <select
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        style={{
+                          padding: '8px 32px 8px 12px',
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '8px',
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          appearance: 'none',
+                          WebkitAppearance: 'none',
+                          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'right 8px center',
+                          backgroundSize: '14px'
+                        }}
+                      >
+                        {AI_MODELS.filter(m => m.provider === 'Google').map(model => (
+                          <option key={model.id} value={model.id}>{model.name}</option>
+                        ))}
+                        {AI_MODELS.filter(m => m.provider === 'Anthropic').map(model => (
+                          <option key={model.id} value={model.id}>{model.name}</option>
+                        ))}
+                        {AI_MODELS.filter(m => m.provider === 'OpenAI').map(model => (
+                          <option key={model.id} value={model.id}>{model.name}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
@@ -6233,7 +6208,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Disc size={24} className="text-cyan" /></div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 1 (Audio)</label>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 1 (Beat/Audio)</label>
                     <select 
                       style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
                       value={sessionTracks.audio?.id || ''}
@@ -6243,7 +6218,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       }}
                     >
                       <option value="">Select Audio Asset...</option>
-                      {selectedProject?.assets.filter(a => a.audioUrl).map(a => (
+                      {selectedProject?.assets.filter(a => a.audioUrl || a.type === 'audio' || a.type === 'synthesis').map(a => (
                         <option key={a.id} value={a.id}>{a.title} ({a.agent})</option>
                       ))}
                     </select>
@@ -6266,7 +6241,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Mic size={24} className="text-purple" /></div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 2 (Audio)</label>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 2 (Vocal/Audio)</label>
                     <select 
                       style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
                       value={sessionTracks.vocal?.id || ''}
@@ -6276,7 +6251,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       }}
                     >
                       <option value="">Select Audio Asset...</option>
-                      {selectedProject?.assets.filter(a => a.audioUrl).map(a => (
+                      {selectedProject?.assets.filter(a => a.audioUrl || a.type === 'audio' || a.type === 'synthesis').map(a => (
                         <option key={a.id} value={a.id}>{a.title} ({a.agent})</option>
                       ))}
                     </select>
