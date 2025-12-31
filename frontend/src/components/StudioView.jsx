@@ -8307,7 +8307,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               {/* Step 3: Path Selection */}
               {onboardingStep === 3 && (
                 <div className="path-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '24px' }}>
-                  {goalOptions.map(path => (
+                  {(goalOptions || []).map(path => (
                     <div 
                       key={path.id}
                       onClick={() => setSelectedPath(path.id)}
