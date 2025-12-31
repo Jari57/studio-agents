@@ -9472,3 +9472,36 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   display: inline !important;
   visibility: visible !important;
 }
+
+/* ========================================
+   EDGE-TO-EDGE STATS SECTION RESPONSIVE
+======================================== */
+.stats-section {
+  width: 100%;
+}
+
+.stats-section > div {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 768px) {
+  .stats-section > div {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .stats-section .stat-card {
+    border-right: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 24px 12px !important;
+  }
+  
+  .stats-section .stat-card:nth-child(odd) {
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  .stats-section .stat-card:nth-child(3),
+  .stats-section .stat-card:nth-child(4) {
+    border-bottom: none;
+  }
+}

@@ -599,15 +599,16 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
       {/* Stats Section - Social Proof */}
       <section ref={statsRef} className="stats-section" style={{
-        padding: '60px 20px',
-        background: 'linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.05) 50%, transparent 100%)'
+        padding: '60px 0',
+        background: 'linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.08) 50%, transparent 100%)'
       }}>
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(2, 1fr)', 
-          gap: '20px',
-          maxWidth: '500px',
-          margin: '0 auto'
+          gridTemplateColumns: 'repeat(4, 1fr)', 
+          gap: '0',
+          width: '100%',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
           {[
             { value: animatedStats.songs, label: 'Songs Created', suffix: '+', icon: Music },
@@ -617,14 +618,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           ].map((stat, i) => (
             <div key={i} className="stat-card animate-fadeInUp" style={{
               textAlign: 'center',
-              padding: '24px 16px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              borderRadius: '20px',
-              border: '1px solid rgba(255, 255, 255, 0.08)'
+              padding: '32px 16px',
+              borderRight: i < 3 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'
             }}>
               <stat.icon size={24} style={{ color: 'var(--color-purple)', marginBottom: '8px' }} />
               <div style={{ 
-                fontSize: '1.75rem', 
+                fontSize: '2rem', 
                 fontWeight: '800',
                 background: 'var(--gradient-vibrant)',
                 WebkitBackgroundClip: 'text',
@@ -632,7 +631,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               }}>
                 {stat.prefix}{stat.value.toLocaleString()}{stat.suffix}
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
                 {stat.label}
               </div>
             </div>
