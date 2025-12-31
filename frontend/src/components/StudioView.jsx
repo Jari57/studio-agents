@@ -8076,64 +8076,166 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         />
       )}
 
-      {/* Add Agent Modal */}
+      {/* Add Agent Modal - Uses same styling as Agents page */}
       {showAddAgentModal && (
         <div className="modal-overlay animate-fadeIn" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }} onClick={() => setShowAddAgentModal(false)}>
-          <div className="modal-content" style={{ maxWidth: 'min(92vw, 800px)', width: '100%', margin: '1rem auto' }} onClick={e => e.stopPropagation()}>
+          <div className="modal-content" style={{ maxWidth: 'min(92vw, 700px)', width: '100%', margin: '1rem auto' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Add Agent to Project</h2>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Users size={20} className="text-purple" />
+                Add Agent to Project
+              </h2>
               <button className="modal-close" onClick={() => setShowAddAgentModal(false)}>
                 <X size={20} />
               </button>
             </div>
-            <div className="modal-body">
-              <div className="agent-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px' }}>
-                {AGENTS.map(agent => {
-                  const isSelected = selectedProject?.agents?.some(a => a.id === agent.id);
-                  return (
-                    <div 
-                      key={agent.id}
-                      className={`agent-card-mini ${isSelected ? 'selected' : ''}`}
-                      style={{ 
-                        padding: '12px', 
-                        borderRadius: '10px', 
-                        background: 'var(--color-bg-secondary)', 
-                        border: isSelected ? '1px solid var(--color-purple)' : '1px solid var(--border-color)',
-                        cursor: isSelected ? 'default' : 'pointer',
-                        opacity: isSelected ? 0.6 : 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        textAlign: 'center',
-                        gap: '8px'
-                      }}
-                      onClick={() => !isSelected && handleAddAgent(agent)}
-                    >
-                      <div style={{ 
-                        width: '40px', 
-                        height: '40px', 
-                        borderRadius: '10px', 
-                        background: `${agent.color}20`, 
-                        color: agent.color,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <agent.icon size={24} />
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>{agent.name}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{agent.role}</div>
-                      </div>
-                      {isSelected && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-purple)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Check size={12} /> Added
+            <div className="modal-body" style={{ padding: '20px' }}>
+              {/* Available Agents */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '12px', color: 'var(--text-secondary)' }}>
+                  Your Agents ({getAvailableAgents().length})
+                </h3>
+                <div className="agents-studio-grid" style={{ maxWidth: '100%', margin: 0 }}>
+                  {getAvailableAgents().map((agent, i) => {
+                    const Icon = agent.icon;
+                    const isAlreadyAdded = selectedProject?.agents?.some(a => a.id === agent.id);
+                    return (
+                      <div 
+                        key={agent.id} 
+                        className={`agent-studio-card ${agent.colorClass} ${isAlreadyAdded ? 'opacity-50' : ''}`}
+                        style={{ 
+                          animationDelay: `${i * 0.05}s`, 
+                          position: 'relative',
+                          cursor: isAlreadyAdded ? 'not-allowed' : 'pointer'
+                        }}
+                        onClick={() => !isAlreadyAdded && handleAddAgent(agent)}
+                      >
+                        {isAlreadyAdded && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '8px',
+                            right: '8px',
+                            background: 'var(--color-purple)',
+                            borderRadius: '50%',
+                            width: '20px',
+                            height: '20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Check size={12} color="white" />
+                          </div>
+                        )}
+                        <div className="agent-studio-icon">
+                          <Icon size={24} />
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        <div className="agent-studio-info">
+                          <h3>{agent.name}</h3>
+                          <p>{agent.category}</p>
+                        </div>
+                        <button 
+                          className="agent-launch-btn"
+                          disabled={isAlreadyAdded}
+                          style={{ 
+                            opacity: isAlreadyAdded ? 0.5 : 1,
+                            pointerEvents: isAlreadyAdded ? 'none' : 'auto'
+                          }}
+                        >
+                          {isAlreadyAdded ? 'Added' : 'Add to Project'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+              
+              {/* Locked Agents */}
+              {getLockedAgents().length > 0 && (
+                <div>
+                  <h3 style={{ 
+                    fontSize: '0.9rem', 
+                    fontWeight: '600', 
+                    marginBottom: '12px', 
+                    color: 'var(--text-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <Lock size={14} />
+                    Upgrade to Unlock ({getLockedAgents().length})
+                  </h3>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '10px'
+                  }}>
+                    {getLockedAgents().map((agent) => {
+                      const Icon = agent.icon;
+                      const tierLabel = agent.tier === 'monthly' ? 'Monthly' : 'Pro';
+                      const tierColor = agent.tier === 'monthly' ? 'var(--color-cyan)' : 'var(--color-purple)';
+                      
+                      return (
+                        <div 
+                          key={agent.id}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: '12px',
+                            padding: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            opacity: 0.6,
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            setShowAddAgentModal(false);
+                            if (!isLoggedIn) {
+                              setShowLoginModal(true);
+                            } else {
+                              setDashboardTab('subscription');
+                              setActiveTab('mystudio');
+                            }
+                          }}
+                        >
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <Icon size={16} style={{ opacity: 0.5 }} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ 
+                              fontWeight: '600', 
+                              fontSize: '0.85rem',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {agent.name}
+                            </div>
+                            <div style={{ 
+                              fontSize: '0.65rem', 
+                              color: tierColor,
+                              fontWeight: '600',
+                              textTransform: 'uppercase'
+                            }}>
+                              {tierLabel}
+                            </div>
+                          </div>
+                          <Lock size={12} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
