@@ -1,9 +1,10 @@
 // Service Worker for Studio Agents PWA
-const CACHE_NAME = 'studio-agents-v1';
+const CACHE_NAME = 'studio-agents-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/icons/icon.svg'
 ];
 
 // Install event - cache static assets
