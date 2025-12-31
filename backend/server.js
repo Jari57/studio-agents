@@ -101,6 +101,16 @@ try {
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
   
+  // Debug: Log which variables are present (not values)
+  logger.info('🔍 Firebase env check:', {
+    hasServiceAccountJson: !!serviceAccountJson,
+    hasServiceAccountPath: !!serviceAccountPath,
+    hasProjectId: !!projectId,
+    hasClientEmail: !!clientEmail,
+    hasPrivateKey: !!privateKey,
+    privateKeyLength: privateKey ? privateKey.length : 0
+  });
+  
   if (serviceAccountJson) {
     // Parse JSON from environment variable (Railway/production)
     const serviceAccount = JSON.parse(serviceAccountJson);
