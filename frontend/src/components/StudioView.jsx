@@ -587,6 +587,19 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     // Go straight to studio - user already saw onboarding if they were a new user
   };
 
+  // Open agent whitepaper modal for any agent
+  const openAgentWhitepaper = (agent) => {
+    setShowAgentWhitePaper({
+      key: agent.id,
+      icon: agent.icon,
+      title: agent.name,
+      subtitle: agent.category,
+      description: agent.explanation || agent.description,
+      whoFor: agent.helpTips || `Artists and creators looking to leverage AI for ${agent.category.toLowerCase()}.`,
+      howTo: agent.howToUse || agent.howTo || `Enter your prompt and let ${agent.name} generate results instantly.`
+    });
+  };
+
   // QuickWorkflow handlers - centralized project save flow
   const handleSaveAssetToProject = (projectId, asset) => {
     setProjects(prev => prev.map(p => {
@@ -4213,8 +4226,40 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   <div 
                     key={agent.id} 
                     className={`agent-studio-card ${agent.colorClass} animate-fadeInUp`}
-                    style={{ animationDelay: `${i * 0.1}s` }}
+                    style={{ animationDelay: `${i * 0.1}s`, position: 'relative' }}
                   >
+                    {/* Whitepaper Gear Button */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
+                      title="View Agent Whitepaper"
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        left: '10px',
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '8px',
+                        background: 'rgba(139, 92, 246, 0.2)',
+                        border: '1px solid rgba(139, 92, 246, 0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        zIndex: 10,
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = 'rgba(139, 92, 246, 0.5)';
+                        e.currentTarget.style.transform = 'rotate(45deg) scale(1.1)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
+                        e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
+                      }}
+                    >
+                      <Settings size={14} style={{ color: 'var(--color-purple)' }} />
+                    </button>
+                    
                     {agent.isBeta && (
                       <div className="beta-badge-mini" style={{ 
                         position: 'absolute', 
@@ -4400,6 +4445,39 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           }
                         }}
                       >
+                        {/* Whitepaper Gear - available for all agents */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
+                          title="View Agent Whitepaper"
+                          style={{
+                            position: 'absolute',
+                            top: '6px',
+                            right: '6px',
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '6px',
+                            background: 'rgba(139, 92, 246, 0.2)',
+                            border: '1px solid rgba(139, 92, 246, 0.3)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            zIndex: 10,
+                            transition: 'all 0.2s ease',
+                            opacity: 1
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.5)';
+                            e.currentTarget.style.transform = 'rotate(45deg) scale(1.1)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
+                            e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
+                          }}
+                        >
+                          <Settings size={11} style={{ color: 'var(--color-purple)' }} />
+                        </button>
+                        
                         <div style={{
                           width: '36px',
                           height: '36px',
