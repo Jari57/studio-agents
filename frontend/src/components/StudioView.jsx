@@ -503,6 +503,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const handleCreateProject = () => {
     if (!newProjectData.name || !newProjectData.category) return;
     
+    console.log('[CreateProject] Creating project with data:', newProjectData);
+
     // Check if user has enough credits
     if (userCredits < PROJECT_CREDIT_COST) {
       toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
@@ -638,7 +640,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       name: projectName,
       category: 'pro',
       description: `Created from ${asset.agentName}`,
-      agents: [AGENTS.find(a => a.id === asset.agent)].filter(Boolean),
+      agents: [asset.agent], // Store ID string
       workflow: 'custom',
       date: new Date().toLocaleDateString(),
       status: 'Active',
@@ -5962,12 +5964,19 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         return {
           id: `step-${index}`,
           label: agent ? `Consult ${agent.name}` : 'Agent Task',
-          desc: agent ? agent.role : 'Execute task',
+          desc: agent ? (agent.description || agent.category) : 'Execute task',
           agentId: agentId,
           icon: agent ? agent.icon : Zap,
           completed: false
         };
       });
+    }
+
+    // If custom workflow but no agents selected, show generic step
+    if (selectedProject.workflow === 'custom') {
+      return [
+        { id: 'add-agent', label: 'Add Your First Agent', agentId: null, icon: Plus, desc: 'Select an agent to start working' }
+      ];
     }
 
     // Fallback based on category
@@ -7614,7 +7623,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 </div>
                 <div>
                   <h2 style={{ margin: 0 }}>Studio Credits</h2>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Balance: <strong style={{ color: '#facc15' }}>{credits} credits</strong></p>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Balance: <strong style={{ color: '#facc15' }}>{userCredits} credits</strong></p>
                 </div>
               </div>
               <button className="modal-close" onClick={() => setShowCreditsModal(false)}>
@@ -7636,7 +7645,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     <button
                       key={amount}
                       onClick={() => {
-                        setCredits(prev => prev + amount);
+                        setUserCredits(prev => prev + amount);
                         toast.success(`+${amount} credits added!`);
                       }}
                       style={{

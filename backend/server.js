@@ -718,16 +718,16 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
 
     logger.info('Generating image with Imagen 4.0', { prompt: prompt.substring(0, 50) });
 
-    // Using the correct Imagen 4.0 REST API format
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:generateImages?key=${apiKey}`;
+    // Using the correct Imagen 4.0 :predict endpoint
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
     
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        prompt: prompt,
-        config: {
-          numberOfImages: 1,
+        instances: [{ prompt: prompt }],
+        parameters: {
+          sampleCount: 1,
           aspectRatio: aspectRatio,
           personGeneration: 'allow_adult'
         }
@@ -741,14 +741,14 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
     }
 
     const data = await response.json();
-    logger.info('Imagen response received', { hasImages: !!data.generatedImages });
+    logger.info('Imagen response received', { hasPredictions: !!data.predictions });
     
     // Transform response to match frontend expectations
-    if (data.generatedImages && data.generatedImages.length > 0) {
-      const base64Image = data.generatedImages[0].image?.imageBytes;
+    if (data.predictions && data.predictions.length > 0) {
+      const base64Image = data.predictions[0].bytesBase64Encoded;
       if (base64Image) {
         res.json({
-          predictions: [{ bytesBase64Encoded: base64Image }],
+          predictions: data.predictions,
           images: [base64Image]
         });
         return;
@@ -1008,7 +1008,7 @@ Make it sound authentic to ${genre} style.`;
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// VIDEO GENERATION ROUTE (Veo 3.0)
+// VIDEO GENERATION ROUTE (Veo 3.0 - Long Running Operation)
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
@@ -1018,24 +1018,82 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
 
-    // Using REST API for Veo 3.0
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-001:predict?key=${apiKey}`;
+    logger.info('Starting video generation', { promptLength: prompt.length });
+
+    // Veo 3.0 uses predictLongRunning (async generation)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-001:predictLongRunning?key=${apiKey}`;
     
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        instances: [{ prompt }]
+        instances: [{ prompt }],
+        parameters: {
+          sampleCount: 1,
+          aspectRatio: "16:9",
+          durationSeconds: 8,
+          personGeneration: "allow_adult"
+        }
       })
     });
 
     if (!response.ok) {
       const errorText = await response.text();
+      logger.error('Veo API error', { status: response.status, error: errorText });
       throw new Error(`Veo API Error: ${response.status} ${errorText}`);
     }
 
-    const data = await response.json();
-    res.json(data);
+    const operationData = await response.json();
+    logger.info('Video generation operation started', { operationName: operationData.name });
+
+    // Poll for completion (max 5 minutes with 10s intervals)
+    const maxAttempts = 30;
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      attempts++;
+      await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+      
+      const pollUrl = `https://generativelanguage.googleapis.com/v1beta/${operationData.name}?key=${apiKey}`;
+      const pollResponse = await fetch(pollUrl);
+      
+      if (!pollResponse.ok) {
+        const pollError = await pollResponse.text();
+        logger.error('Poll error', { status: pollResponse.status, error: pollError });
+        continue;
+      }
+      
+      const pollData = await pollResponse.json();
+      logger.info('Poll attempt', { attempt: attempts, done: pollData.done });
+      
+      if (pollData.done) {
+        if (pollData.error) {
+          throw new Error(`Video generation failed: ${JSON.stringify(pollData.error)}`);
+        }
+        
+        // Extract video from response (Veo 3.0 format)
+        const result = pollData.response;
+        const videoResponse = result?.generateVideoResponse;
+        if (videoResponse?.generatedSamples?.[0]?.video) {
+          const video = videoResponse.generatedSamples[0].video;
+          // Append API key to download URL
+          const videoUrl = video.uri.includes('?') 
+            ? `${video.uri}&key=${apiKey}` 
+            : `${video.uri}?key=${apiKey}`;
+          res.json({
+            output: videoUrl,
+            mimeType: 'video/mp4',
+            type: 'video'
+          });
+          return;
+        }
+        
+        res.json({ output: result, type: 'video' });
+        return;
+      }
+    }
+    
+    throw new Error('Video generation timed out after 5 minutes');
 
   } catch (error) {
     logger.error('Video generation error', { error: error.message });
