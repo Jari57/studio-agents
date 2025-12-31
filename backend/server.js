@@ -870,52 +870,91 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
     
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
-
+    const replicateKey = process.env.REPLICATE_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+    
     logger.info('Generating music/beat', { prompt: prompt.substring(0, 50), bpm, genre, mood });
 
-    // Lyria RealTime requires WebSockets for actual streaming music generation
-    // For now, we'll use a hybrid approach:
-    // 1. Generate a musical description using Gemini
-    // 2. Return metadata that can be used with client-side Web Audio API
-    // OR integrate with a third-party music API if available
-    
-    // Check if Lyria is available via REST (experimental)
-    const lyriaUrl = `https://generativelanguage.googleapis.com/v1alpha/models/lyria-realtime-exp:generateContent?key=${apiKey}`;
-    
-    try {
-      // Try Lyria first (may not work via REST)
-      const lyriaResponse = await fetch(lyriaUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `Generate a ${durationSeconds} second ${genre} beat: ${prompt}. BPM: ${bpm}, Mood: ${mood}` }] }],
-          generationConfig: {
-            responseModalities: ['AUDIO']
-          }
-        })
-      });
+    // ═══════════════════════════════════════════════════════════════════
+    // OPTION 1: Replicate MusicGen (Real Audio Generation)
+    // ═══════════════════════════════════════════════════════════════════
+    if (replicateKey) {
+      try {
+        logger.info('Using Replicate MusicGen for audio generation');
+        
+        // Enhanced prompt for better results
+        const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. High quality, professional production.`;
+        
+        // Start the prediction
+        const startResponse = await fetch('https://api.replicate.com/v1/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${replicateKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            version: 'b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38', // MusicGen Large
+            input: {
+              prompt: musicPrompt,
+              duration: Math.min(durationSeconds, 30), // Max 30 seconds
+              model_version: 'stereo-large',
+              output_format: 'mp3',
+              normalization_strategy: 'peak'
+            }
+          })
+        });
 
-      if (lyriaResponse.ok) {
-        const lyriaData = await lyriaResponse.json();
-        const audioData = lyriaData.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (audioData) {
-          const mimeType = lyriaData.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/wav';
-          return res.json({
-            audio: audioData,
-            mimeType: mimeType,
-            audioUrl: `data:${mimeType};base64,${audioData}`,
-            source: 'lyria'
-          });
+        if (!startResponse.ok) {
+          const errText = await startResponse.text();
+          throw new Error(`Replicate API error: ${errText}`);
         }
+
+        const prediction = await startResponse.json();
+        logger.info('Replicate prediction started', { id: prediction.id });
+
+        // Poll for completion (max 60 seconds)
+        let result = prediction;
+        const maxAttempts = 30;
+        for (let i = 0; i < maxAttempts && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
+          await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds
+          
+          const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+            headers: { 'Authorization': `Token ${replicateKey}` }
+          });
+          result = await pollResponse.json();
+          logger.info('Polling Replicate...', { status: result.status, attempt: i + 1 });
+        }
+
+        if (result.status === 'succeeded' && result.output) {
+          logger.info('MusicGen audio generated successfully');
+          return res.json({
+            audioUrl: result.output,
+            mimeType: 'audio/mpeg',
+            duration: durationSeconds,
+            source: 'musicgen',
+            prompt: musicPrompt
+          });
+        } else if (result.status === 'failed') {
+          throw new Error(result.error || 'MusicGen generation failed');
+        } else {
+          throw new Error('MusicGen generation timed out');
+        }
+      } catch (replicateError) {
+        logger.warn('Replicate MusicGen failed, falling back', { error: replicateError.message });
+        // Fall through to Gemini fallback
       }
-    } catch (lyriaError) {
-      logger.info('Lyria not available via REST, falling back to synthesis parameters', { error: lyriaError.message });
     }
 
-    // Fallback: Generate synthesis parameters for client-side Web Audio API
-    // This returns structured data that the frontend can use to synthesize audio
+    // ═══════════════════════════════════════════════════════════════════
+    // FALLBACK: Gemini text description (no actual audio)
+    // ═══════════════════════════════════════════════════════════════════
+    if (!geminiKey) {
+      return res.status(500).json({ error: 'No audio generation API configured. Add REPLICATE_API_KEY for real audio.' });
+    }
+    
+    logger.info('Using Gemini fallback for audio description');
+
+    // Fallback: Generate a detailed beat description using Gemini
     const synthesisPrompt = `You are a music producer. Create detailed synthesis parameters for a ${genre} beat.
     
 User request: "${prompt}"
@@ -953,12 +992,13 @@ Make it sound authentic to ${genre} style.`;
     res.json({
       type: 'synthesis',
       params: synthesisParams || null,
-      description: responseText,
+      description: synthesisParams?.description || responseText.substring(0, 500),
+      output: synthesisParams?.description || `${genre} beat concept: ${responseText.substring(0, 300)}...`,
       bpm,
       genre,
       mood,
       prompt,
-      message: 'Use these parameters with Web Audio API or a synthesizer to generate the beat. Full Lyria streaming available via WebSocket connection.'
+      message: 'Add REPLICATE_API_KEY to generate real audio. This is a text description only.'
     });
 
   } catch (error) {

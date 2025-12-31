@@ -1747,7 +1747,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             }
             newItem.snippet = `Generated video for: "${prompt}"`;
         }
-      } else if ((isAudioAgent || isSpeechAgent) && (data.audioUrl || data.audio)) {
+      } else if ((isAudioAgent || isSpeechAgent) && (data.audioUrl || data.audio || data.type === 'synthesis' || data.description || data.message)) {
         // Handle Audio Response (Lyria/TTS)
         if (data.audioUrl) {
           newItem.audioUrl = data.audioUrl;
@@ -1762,8 +1762,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           newItem.genre = data.genre;
           newItem.type = 'synthesis';
         } else {
-          // Fallback description
-          newItem.snippet = data.description || data.message || `Audio concept for: "${prompt}"`;
+          // Fallback description - capture any text output
+          newItem.snippet = data.description || data.message || data.output || `Audio concept for: "${prompt}"`;
+          newItem.type = 'text';
         }
       } else if (data.output) {
         // Handle Text Response
@@ -1782,11 +1783,15 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           if (transData.translatedText) finalOutput = transData.translatedText;
         }
         newItem.snippet = finalOutput;
+      } else if (data.description || data.message) {
+        // Handle any response with description or message fields
+        newItem.snippet = data.description || data.message;
+        newItem.type = 'text';
       } else {
         // Fallback or Error
         if (data.error) throw new Error(data.error);
-        // If we got here but no specific data, maybe it's a raw text response?
-        // But we expect JSON.
+        // Log what we actually got for debugging
+        console.warn('Unexpected AI response format:', JSON.stringify(data).substring(0, 200));
         throw new Error("Unknown response format from AI");
       }
 
