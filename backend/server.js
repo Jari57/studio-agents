@@ -261,6 +261,9 @@ app.use(helmet({
       frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com", "https://*.firebaseapp.com"]
     },
   },
+  // Allow Firebase popup auth to work properly
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  crossOriginEmbedderPolicy: false, // Required for Firebase auth
   hsts: {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
