@@ -167,22 +167,34 @@ function QuickWorkflow({
         style={{ maxWidth: '600px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       >
         {/* Header */}
-        <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', padding: '16px 24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="modal-header" style={{ 
+          borderBottom: '1px solid var(--border-color)', 
+          padding: '16px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
             <div style={{ 
               width: '40px', height: '40px', borderRadius: '10px',
               background: `${agent.color || 'var(--color-purple)'}20`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: agent.color || 'var(--color-purple)'
+              color: agent.color || 'var(--color-purple)',
+              flexShrink: 0
             }}>
               <agent.icon size={20} />
             </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{agent.name}</h3>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{agent.role || agent.category}</p>
+            <div style={{ minWidth: 0 }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</h3>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.role || agent.category}</p>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose}>
+          <button 
+            className="modal-close" 
+            onClick={onClose}
+            style={{ position: 'relative', top: 'auto', right: 'auto', flexShrink: 0 }}
+          >
             <X size={20} />
           </button>
         </div>
