@@ -2272,7 +2272,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   // Save projects to localStorage whenever they change (with quota handling)
   useEffect(() => {
-    if (projects.length > 0) {
+    if (projects && projects.length > 0) {
       // Limit to 50 projects max to prevent quota issues
       const projectsToSave = projects.slice(0, 50);
       safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
@@ -2386,7 +2386,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (!window.confirm("Are you sure you want to delete this project?")) return;
 
     // Optimistic UI update
-    setProjects(projects.filter(p => p.id !== projectId));
+    setProjects((projects || []).filter(p => p.id !== projectId));
 
     if (isLoggedIn) {
       const uid = localStorage.getItem('studio_user_id');
@@ -2979,7 +2979,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       </div>
                     ) : (
                       <div className="projects-list-view" style={{ marginTop: '16px' }}>
-                        {projects.slice(0, 5).map((project, idx) => {
+                        {(projects || []).slice(0, 5).map((project, idx) => {
                           const createdDate = project.createdAt ? new Date(project.createdAt) : (project.date ? new Date(project.date) : new Date());
                           const formattedDate = createdDate.toLocaleDateString('en-US', { 
                             month: 'short', 
@@ -4001,7 +4001,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       color: 'var(--color-purple)',
                       fontWeight: '600'
                     }}>
-                      {projects.filter(p => p.agent === selectedAgent.name).length} items
+                      {(projects || []).filter(p => p.agent === selectedAgent.name).length} items
                     </span>
                   </h3>
                   <button
@@ -4033,8 +4033,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   overflowY: 'auto',
                   paddingRight: '8px'
                 }}>
-                  {projects.filter(p => p.agent === selectedAgent.name).length > 0 ? (
-                    projects.filter(p => p.agent === selectedAgent.name).map((item) => (
+                  {(projects || []).filter(p => p.agent === selectedAgent.name).length > 0 ? (
+                    (projects || []).filter(p => p.agent === selectedAgent.name).map((item) => (
                       <div 
                         key={item.id} 
                         style={{
@@ -5463,11 +5463,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
             <div className="profile-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
               <div className="stat-card" style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-purple)', marginBottom: '4px' }}>{projects.length}</h4>
+                <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-purple)', marginBottom: '4px' }}>{(projects || []).length}</h4>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Projects</span>
               </div>
               <div className="stat-card" style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-cyan)', marginBottom: '4px' }}>{new Set(projects.map(p => p.agent)).size}</h4>
+                <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-cyan)', marginBottom: '4px' }}>{new Set((projects || []).map(p => p.agent)).size}</h4>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Agents Used</span>
               </div>
               <div 
