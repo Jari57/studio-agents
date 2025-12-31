@@ -1823,9 +1823,17 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       } else {
         // Fallback or Error
         if (data.error) throw new Error(data.error);
-        // Log what we actually got for debugging
-        console.warn('Unexpected AI response format:', JSON.stringify(data).substring(0, 200));
-        throw new Error("Unknown response format from AI");
+        
+        // Last resort: if we have ANY data, try to stringify it
+        if (Object.keys(data).length > 0) {
+           console.warn('Using generic fallback for unknown format:', data);
+           newItem.snippet = JSON.stringify(data, null, 2);
+           newItem.type = 'text';
+        } else {
+           // Log what we actually got for debugging
+           console.warn('Unexpected AI response format:', JSON.stringify(data).substring(0, 200));
+           throw new Error(`Unknown response format from AI. Keys: ${Object.keys(data).join(', ')}`);
+        }
       }
 
       // Show preview modal instead of auto-saving
