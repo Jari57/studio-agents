@@ -6338,7 +6338,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Disc size={24} className="text-cyan" /></div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 1 (Beat/Audio)</label>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 1 (Audio/Content)</label>
                     <select 
                       style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
                       value={sessionTracks.audio?.id || ''}
@@ -6347,9 +6347,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         updateSessionWithHistory(prev => ({ ...prev, audio: asset || null }));
                       }}
                     >
-                      <option value="">Select Audio Asset...</option>
-                      {selectedProject?.assets.filter(a => a.audioUrl || a.type === 'audio' || a.type === 'synthesis').map(a => (
-                        <option key={a.id} value={a.id}>{a.title} ({a.agent})</option>
+                      <option value="">Select Asset...</option>
+                      {selectedProject?.assets.map(a => (
+                        <option key={a.id} value={a.id}>{a.title || 'Untitled'} ({a.agent || a.type})</option>
                       ))}
                     </select>
                   </div>
@@ -6371,7 +6371,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Mic size={24} className="text-purple" /></div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 2 (Vocal/Audio)</label>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 2 (Vocal/Content)</label>
                     <select 
                       style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
                       value={sessionTracks.vocal?.id || ''}
@@ -6380,9 +6380,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         updateSessionWithHistory(prev => ({ ...prev, vocal: asset || null }));
                       }}
                     >
-                      <option value="">Select Audio Asset...</option>
-                      {selectedProject?.assets.filter(a => a.audioUrl || a.type === 'audio' || a.type === 'synthesis').map(a => (
-                        <option key={a.id} value={a.id}>{a.title} ({a.agent})</option>
+                      <option value="">Select Asset...</option>
+                      {selectedProject?.assets.map(a => (
+                        <option key={a.id} value={a.id}>{a.title || 'Untitled'} ({a.agent || a.type})</option>
                       ))}
                     </select>
                   </div>
@@ -6413,9 +6413,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         updateSessionWithHistory(prev => ({ ...prev, visual: asset || null }));
                       }}
                     >
-                      <option value="">Select Visual...</option>
-                      {selectedProject?.assets.filter(a => a.imageUrl || a.videoUrl).map(a => (
-                        <option key={a.id} value={a.id}>{a.title} ({a.agent})</option>
+                      <option value="">Select Visual/Asset...</option>
+                      {selectedProject?.assets.map(a => (
+                        <option key={a.id} value={a.id}>{a.title || 'Untitled'} ({a.agent || a.type})</option>
                       ))}
                     </select>
                   </div>
