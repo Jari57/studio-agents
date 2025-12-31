@@ -3,6 +3,7 @@ import {
   Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu
 } from 'lucide-react';
 import VideoPitchDemo from './VideoPitchDemo';
+import MultiAgentDemo from './MultiAgentDemo';
 import QuickWorkflow from './QuickWorkflow';
 import ProjectHub from './ProjectHub';
 import NewsHub from './NewsHub';
@@ -4721,16 +4722,16 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               <p>Essential tools, guides, and technical documentation for professional growth.</p>
             </div>
 
-            {/* New Demo Tool */}
+            {/* Multi-Agent Demo */}
             <div className="resources-demo-section" style={{ marginBottom: '40px', padding: '20px', background: 'var(--color-bg-secondary)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
               <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                 <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                  <Video size={24} className="text-cyan" /> 
-                  New: Viral Pitch Generator
+                  <Zap size={24} className="text-purple" /> 
+                  Multi-Agent Orchestration
                 </h2>
-                <p style={{ color: 'var(--text-secondary)' }}>Create a 7-second video hook for your next release instantly.</p>
+                <p style={{ color: 'var(--text-secondary)' }}>Watch 4 AI agents work in parallel to create your release package.</p>
               </div>
-              <VideoPitchDemo initialTopic="My new single" />
+              <MultiAgentDemo />
             </div>
 
             <div className="resources-grid">
