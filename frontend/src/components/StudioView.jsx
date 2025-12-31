@@ -2267,10 +2267,15 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   className="btn-pill primary" 
                   style={{ width: '100%', justifyContent: 'center' }}
                   onClick={() => {
-                    if (!selectedProject.assets || selectedProject.assets.length === 0) {
+                    console.log('[Orchestrate] Button clicked, selectedProject:', selectedProject);
+                    console.log('[Orchestrate] Assets:', selectedProject?.assets);
+                    
+                    if (!selectedProject?.assets || selectedProject.assets.length === 0) {
                       toast.error('Generate some assets first!');
                       return;
                     }
+                    
+                    toast.success('Opening Studio Session...');
                     
                     let initialTracks;
 
@@ -2297,6 +2302,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       };
                     }
                     
+                    console.log('[Orchestrate] Setting session tracks:', initialTracks);
                     setSessionTracks(initialTracks);
                     setSessionHistory([initialTracks]);
                     setHistoryIndex(0);
