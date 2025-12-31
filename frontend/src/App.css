@@ -9667,3 +9667,93 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ========================================
+   ACCESSIBILITY IMPROVEMENTS
+======================================== */
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus Visible Indicators */
+*:focus-visible {
+  outline: 2px solid var(--color-purple) !important;
+  outline-offset: 2px !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-cyan) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.2) !important;
+}
+
+/* Skip focus for mouse users */
+*:focus:not(:focus-visible) {
+  outline: none !important;
+}
+
+/* Touch Action Optimization */
+.touch-target {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+/* Minimum Touch Target Size */
+button, a, [role="button"] {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Small buttons override (icon buttons) */
+.icon-btn, .modal-close, .close-btn, .btn-icon-circle {
+  min-height: 32px;
+  min-width: 32px;
+}
+
+/* Image Loading Shimmer */
+img[loading="lazy"] {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+img[loading="lazy"][src]:not([src=""]) {
+  animation: none;
+  background: transparent;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: rgba(255, 255, 255, 0.3);
+  }
+  
+  .agent-studio-card, .dashboard-card, .modal-content {
+    border-width: 2px !important;
+  }
+}
+
+/* Screen Reader Only (Hidden Visually) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

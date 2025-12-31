@@ -332,6 +332,7 @@ function NewsHub({
                       <img 
                         src={item.imageUrl} 
                         alt={item.title}
+                        loading="lazy"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         onError={(e) => { e.target.style.display = 'none'; }}
                       />
@@ -382,6 +383,7 @@ function NewsHub({
                     <img 
                       src={item.imageUrl} 
                       alt={item.title} 
+                      loading="lazy"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
                       onError={(e) => { e.target.parentElement.style.display = 'none'; }}
                       onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}

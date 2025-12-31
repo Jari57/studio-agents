@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu
 } from 'lucide-react';
 import VideoPitchDemo from './VideoPitchDemo';
 import QuickWorkflow from './QuickWorkflow';
@@ -331,6 +331,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
   const [exportPreset, setExportPreset] = useState('streaming');
   const [isExporting, setIsExporting] = useState(false);
+
+  // Add Asset to Project Modal State
+  const [addToProjectAsset, setAddToProjectAsset] = useState(null); // Asset waiting to be added to project
+  const [newProjectNameFromAsset, setNewProjectNameFromAsset] = useState('');
 
   // Model Picker State - Available AI Models
   const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
@@ -1780,6 +1784,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         setSelectedProject(updatedProject);
         // Update the project in the global list as well
         setProjects(prev => [newItem, ...prev.map(p => p.id === updatedProject.id ? updatedProject : p)]);
+      } else {
+        // No project selected - show "Add to Project" modal
+        setAddToProjectAsset(newItem);
       }
 
       // Save to Backend if logged in
@@ -2294,21 +2301,51 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     {selectedProject.assets && selectedProject.assets.length > 0 ? (
                       selectedProject.assets.map((asset, idx) => (
                         <div key={idx} className="asset-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: asset.type === 'Master' ? 'var(--color-cyan)' : 'var(--color-purple)' }}></div>
-                             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0, background: asset.type === 'Master' ? 'var(--color-cyan)' : 'var(--color-purple)' }}></div>
+                             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
                                {asset.title || (asset.snippet ? asset.snippet.substring(0, 20) + '...' : 'New Asset')}
                              </span>
                           </div>
-                          {asset.type === 'Master' && (
-                             <button 
-                               onClick={(e) => { e.stopPropagation(); handleShareToFeed(asset); }}
-                               title="Share to Activity Wall"
-                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-                             >
-                               <Share2 size={14} />
-                             </button>
-                          )}
+                          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                            {/* Copy to another project */}
+                            <button 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setAddToProjectAsset({...asset, id: Date.now(), sourceProject: selectedProject.id}); 
+                              }}
+                              title="Copy to another project"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+                            >
+                              <FolderPlus size={14} />
+                            </button>
+                            {/* Share to Activity Wall */}
+                            {(asset.type === 'Master' || asset.audioUrl || asset.videoUrl || asset.imageUrl) && (
+                               <button 
+                                 onClick={(e) => { e.stopPropagation(); handleShareToFeed(asset); }}
+                                 title="Share to Activity Wall"
+                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+                               >
+                                 <Share2 size={14} />
+                               </button>
+                            )}
+                            {/* Delete asset */}
+                            <button 
+                              onClick={(e) => { 
+                                e.stopPropagation();
+                                if (confirm('Remove this asset from the project?')) {
+                                  const updated = { ...selectedProject, assets: selectedProject.assets.filter((_, i) => i !== idx) };
+                                  setSelectedProject(updated);
+                                  setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                                  toast.success('Asset removed');
+                                }
+                              }}
+                              title="Remove from project"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -2438,7 +2475,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         color: 'white',
                         boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)'
                       }}>
-                        {user?.photoURL ? <img src={user.photoURL} alt="Profile" style={{width: '100%', height: '100%', borderRadius: '50%'}} /> : <User size={40} />}
+                        {user?.photoURL ? <img src={user.photoURL} alt="Profile" loading="lazy" style={{width: '100%', height: '100%', borderRadius: '50%'}} /> : <User size={40} />}
                       </div>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
@@ -4989,7 +5026,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
                     {item.type === 'image' && item.imageUrl && (
                       <div className="activity-media-preview image">
-                        <img src={item.imageUrl} alt={item.title} />
+                        <img src={item.imageUrl} alt={item.title} loading="lazy" />
                       </div>
                     )}
 
@@ -5017,6 +5054,24 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       <button className="activity-btn" onClick={() => window.open(item.url, '_blank')}>
                         <Share2 size={16} />
                         <span>Share</span>
+                      </button>
+                      <button 
+                        className="activity-btn" 
+                        onClick={() => setAddToProjectAsset({
+                          id: Date.now(),
+                          title: item.title,
+                          snippet: item.snippet,
+                          agent: item.agent,
+                          type: item.type || 'text',
+                          audioUrl: item.audioUrl,
+                          videoUrl: item.videoUrl,
+                          imageUrl: item.imageUrl,
+                          date: 'Just now'
+                        })}
+                        title="Add to Project"
+                      >
+                        <FolderPlus size={16} />
+                        <span>Save</span>
                       </button>
                     </div>
                     <button className="remix-cta" onClick={() => window.open(item.url, '_blank')}>
@@ -6056,6 +6111,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           src={playingItem.imageUrl} 
                           alt={playingItem.title} 
                           className="player-video" 
+                          loading="lazy"
                           style={{ objectFit: 'contain', background: '#000' }}
                         />
                       ) : (
@@ -6121,7 +6177,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Multi-Agent Orchestration</p>
                 </div>
                 <button 
-                  onClick={() => alert("Studio Session Guide:\n1. Select a Beat (Track 1)\n2. Select Vocals (Track 2)\n3. Select a Visual\n4. Press Play to preview the mix\n5. Click 'Render Master' to save the combined asset.")}
+                  onClick={() => toast("1. Select Beat (Track 1)\n2. Select Vocals (Track 2)\n3. Add a Visual\n4. Press Play to preview\n5. Click Render Master to save", { duration: 6000, icon: '🎛️' })}
                   style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}
                 >
                   <CircleHelp size={14} color="var(--text-secondary)" />
@@ -6152,7 +6208,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       }}
                     />
                   ) : (
-                    <img src={sessionTracks.visual.imageUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <img src={sessionTracks.visual.imageUrl} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   )
                 ) : (
                   <div style={{ color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
@@ -6432,7 +6488,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     setStorageConnections(prev => ({ ...prev, googleDrive: true }));
                     setShowExternalSaveModal(false); 
                   }}>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Google Drive" width="24" />
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Google Drive" width="24" loading="lazy" />
                     <span>Google Drive</span>
                   </button>
                   <button className="storage-btn" onClick={() => { 
@@ -6440,7 +6496,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     toast('OneDrive coming soon!', { icon: '🚧' }); 
                     setShowExternalSaveModal(false); 
                   }}>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg" alt="OneDrive" width="24" />
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg" alt="OneDrive" width="24" loading="lazy" />
                     <span>OneDrive</span>
                   </button>
                   <button className="storage-btn" onClick={() => { 
@@ -6448,7 +6504,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     toast('Dropbox coming soon!', { icon: '🚧' }); 
                     setShowExternalSaveModal(false); 
                   }}>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Dropbox_Icon.svg" alt="Dropbox" width="24" />
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Dropbox_Icon.svg" alt="Dropbox" width="24" loading="lazy" />
                     <span>Dropbox</span>
                   </button>
                   <button className="storage-btn" onClick={() => { 
@@ -6456,13 +6512,138 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     toast('iCloud coming soon!', { icon: '🚧' }); 
                     setShowExternalSaveModal(false); 
                   }}>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/1c/ICloud_logo.svg" alt="iCloud" width="24" />
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/1c/ICloud_logo.svg" alt="iCloud" width="24" loading="lazy" />
                     <span>iCloud</span>
                   </button>
                 </div>
               </div>
               <div className="modal-footer">
                 <p>Your files will be synced automatically after generation.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Asset to Project Modal */}
+        {addToProjectAsset && (
+          <div className="modal-overlay" onClick={() => { setAddToProjectAsset(null); setNewProjectNameFromAsset(''); }}>
+            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px' }}>
+              <button className="modal-close" onClick={() => { setAddToProjectAsset(null); setNewProjectNameFromAsset(''); }}><X size={20} /></button>
+              
+              <div className="modal-header">
+                <div style={{ 
+                  width: '56px', height: '56px', borderRadius: '16px', 
+                  background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 16px'
+                }}>
+                  <FolderPlus size={28} color="white" />
+                </div>
+                <h2 style={{ textAlign: 'center', marginBottom: '8px' }}>Save to Project</h2>
+                <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  Add <strong>"{addToProjectAsset.title || addToProjectAsset.snippet?.substring(0, 30) + '...'}"</strong> to a project
+                </p>
+              </div>
+
+              <div className="modal-body" style={{ padding: '20px' }}>
+                {/* Create New Project */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', display: 'block' }}>
+                    <FolderPlus size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+                    Create new project
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      value={newProjectNameFromAsset}
+                      onChange={(e) => setNewProjectNameFromAsset(e.target.value)}
+                      placeholder="Project name..."
+                      style={{
+                        flex: 1,
+                        padding: '12px 14px',
+                        background: 'var(--color-bg-tertiary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '10px',
+                        color: 'white',
+                        fontSize: '0.95rem'
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        if (!newProjectNameFromAsset.trim()) return;
+                        handleCreateProjectWithAsset(newProjectNameFromAsset, addToProjectAsset);
+                        setAddToProjectAsset(null);
+                        setNewProjectNameFromAsset('');
+                        toast.success('Project created with asset!');
+                      }}
+                      disabled={!newProjectNameFromAsset.trim()}
+                      className="cta-button-premium"
+                      style={{ padding: '12px 20px', opacity: newProjectNameFromAsset.trim() ? 1 : 0.5 }}
+                    >
+                      Create
+                    </button>
+                  </div>
+                </div>
+
+                {/* Or add to existing */}
+                {projects.length > 0 && (
+                  <div>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '10px', display: 'block' }}>
+                      Or add to existing project
+                    </label>
+                    <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {projects.slice(0, 10).map(project => (
+                        <button
+                          key={project.id}
+                          onClick={() => {
+                            handleSaveAssetToProject(project.id, addToProjectAsset);
+                            setAddToProjectAsset(null);
+                            toast.success(`Added to "${project.name}"!`);
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '12px 14px',
+                            background: 'var(--color-bg-tertiary)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '10px',
+                            color: 'white',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
+                          onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <Folder size={18} style={{ color: 'var(--color-purple)' }} />
+                            <span style={{ fontWeight: '500' }}>{project.name}</span>
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            {project.assets?.length || 0} assets
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {projects.length === 0 && (
+                  <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '8px' }}>
+                    Create your first project above to organize your work!
+                  </p>
+                )}
+              </div>
+
+              <div className="modal-footer" style={{ padding: '16px 20px', borderTop: '1px solid var(--border-color)' }}>
+                <button 
+                  onClick={() => { setAddToProjectAsset(null); setNewProjectNameFromAsset(''); }}
+                  className="cta-button-secondary"
+                  style={{ width: '100%' }}
+                >
+                  Skip for Now
+                </button>
               </div>
             </div>
           </div>
