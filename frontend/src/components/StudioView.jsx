@@ -23,7 +23,13 @@ import {
   getDoc,
   setDoc,
   updateDoc,
-  increment
+  increment,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  deleteDoc,
+  writeBatch
 } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
 
@@ -182,11 +188,132 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       return [];
     }
   });
+  
+  // Cloud sync state
+  const [projectsSyncing, setProjectsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+  const syncTimeoutRef = useRef(null);
 
-  // Persist projects
+  // Persist projects to localStorage
   useEffect(() => {
     localStorage.setItem('studio_projects', JSON.stringify(projects));
   }, [projects]);
+  
+  // Debounced cloud sync when projects change (only if logged in)
+  useEffect(() => {
+    if (!user?.uid || projects.length === 0) return;
+    
+    // Clear existing timeout
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    
+    // Debounce sync by 3 seconds to avoid excessive writes
+    syncTimeoutRef.current = setTimeout(() => {
+      syncProjectsToCloud(user.uid, projects);
+    }, 3000);
+    
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, [projects, user?.uid]);
+  
+  // Load projects from Firestore
+  const loadProjectsFromCloud = async (uid) => {
+    if (!db || !uid) return [];
+    try {
+      const projectsRef = collection(db, 'users', uid, 'projects');
+      const q = query(projectsRef, orderBy('updatedAt', 'desc'));
+      const snapshot = await getDocs(q);
+      const cloudProjects = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id,
+        // Convert Firestore timestamps to ISO strings
+        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
+        updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
+      }));
+      console.log(`Loaded ${cloudProjects.length} projects from cloud`);
+      return cloudProjects;
+    } catch (err) {
+      console.error('Failed to load projects from cloud:', err);
+      return [];
+    }
+  };
+  
+  // Save a single project to Firestore
+  const saveProjectToCloud = async (uid, project) => {
+    if (!db || !uid || !project) return;
+    try {
+      const projectRef = doc(db, 'users', uid, 'projects', project.id);
+      await setDoc(projectRef, {
+        ...project,
+        updatedAt: new Date().toISOString(),
+        syncedAt: new Date().toISOString()
+      }, { merge: true });
+      console.log(`Saved project ${project.id} to cloud`);
+    } catch (err) {
+      console.error('Failed to save project to cloud:', err);
+    }
+  };
+  
+  // Sync all projects to Firestore (debounced)
+  const syncProjectsToCloud = async (uid, projectsToSync) => {
+    if (!db || !uid || !projectsToSync?.length) return;
+    setProjectsSyncing(true);
+    try {
+      const batch = writeBatch(db);
+      for (const project of projectsToSync) {
+        const projectRef = doc(db, 'users', uid, 'projects', project.id);
+        batch.set(projectRef, {
+          ...project,
+          updatedAt: project.updatedAt || new Date().toISOString(),
+          syncedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+      await batch.commit();
+      setLastSyncTime(new Date());
+      console.log(`Synced ${projectsToSync.length} projects to cloud`);
+    } catch (err) {
+      console.error('Failed to sync projects to cloud:', err);
+      toast.error('Failed to sync projects');
+    } finally {
+      setProjectsSyncing(false);
+    }
+  };
+  
+  // Merge local and cloud projects (cloud takes priority for conflicts)
+  const mergeProjects = (localProjects, cloudProjects) => {
+    const merged = new Map();
+    
+    // Add all cloud projects first (they take priority)
+    for (const project of cloudProjects) {
+      merged.set(project.id, project);
+    }
+    
+    // Add local projects that aren't in cloud
+    for (const project of localProjects) {
+      if (!merged.has(project.id)) {
+        merged.set(project.id, project);
+      } else {
+        // Compare timestamps, keep newer
+        const cloudProject = merged.get(project.id);
+        const localTime = new Date(project.updatedAt || project.createdAt || 0).getTime();
+        const cloudTime = new Date(cloudProject.updatedAt || cloudProject.createdAt || 0).getTime();
+        if (localTime > cloudTime) {
+          merged.set(project.id, project);
+        }
+      }
+    }
+    
+    // Sort by updated time
+    return Array.from(merged.values()).sort((a, b) => {
+      const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+  };
   
   // Studio Session State (Global Mechanism)
   const [showStudioSession, setShowStudioSession] = useState(false);
@@ -710,6 +837,20 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 const credits = userDoc.data().credits || 0;
                 setUserCredits(credits);
                 setUserProfile(prev => ({ ...prev, credits }));
+              }
+              
+              // Load and merge projects from cloud
+              const cloudProjects = await loadProjectsFromCloud(currentUser.uid);
+              if (cloudProjects.length > 0) {
+                setProjects(prev => {
+                  const merged = mergeProjects(prev, cloudProjects);
+                  console.log(`Merged ${prev.length} local + ${cloudProjects.length} cloud = ${merged.length} projects`);
+                  return merged;
+                });
+                toast.success(`Synced ${cloudProjects.length} projects from cloud`);
+              } else if (projects.length > 0) {
+                // No cloud projects but have local - sync them up
+                syncProjectsToCloud(currentUser.uid, projects);
               }
             } catch (err) {
               console.error('Failed to fetch user data:', err);

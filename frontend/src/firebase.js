@@ -9,7 +9,20 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  increment,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  deleteDoc,
+  writeBatch
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAKWKmHVfwKHuH_Huf4C2XcMAxk3pkkuz8",
@@ -48,5 +61,11 @@ export {
   getDoc,
   setDoc,
   updateDoc,
-  increment
+  increment,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  deleteDoc,
+  writeBatch
 };
