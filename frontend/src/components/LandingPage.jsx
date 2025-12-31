@@ -931,13 +931,107 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         </div>
       </section>
 
-      {/* Live Demo Section */}
+      {/* Live Demo Section - Two Examples */}
       <section className="demo-section" style={{ padding: '80px 20px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
         <div className="section-header" style={{ textAlign: 'center', marginBottom: '40px' }}>
           <h2 className="section-title">See It In <span className="gradient-text-cyan">Action</span></h2>
-          <p className="section-subtitle">Generate a viral video pitch in seconds. Try it now.</p>
+          <p className="section-subtitle">Real examples of what you can create with Studio Agents.</p>
         </div>
-        <VideoPitchDemo />
+        
+        {/* Two Demo Cards */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+          gap: '24px', 
+          maxWidth: '900px', 
+          margin: '0 auto' 
+        }}>
+          {/* Demo 1: Video Pitch Generator */}
+          <div style={{
+            background: 'var(--color-bg-tertiary)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(255,255,255,0.1)'
+          }}>
+            <div style={{
+              display: 'inline-block',
+              padding: '4px 10px',
+              background: 'rgba(139, 92, 246, 0.15)',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              borderRadius: '8px',
+              color: 'var(--color-purple)',
+              fontSize: '0.65rem',
+              fontWeight: '600',
+              letterSpacing: '0.05em',
+              marginBottom: '12px',
+              textTransform: 'uppercase'
+            }}>
+              Try It Live
+            </div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '8px', color: 'white' }}>
+              Instant Video Pitch
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '16px' }}>
+              Generate a viral video concept in seconds. Just describe your idea.
+            </p>
+            <VideoPitchDemo />
+          </div>
+          
+          {/* Demo 2: Whip Montez Case Study */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(0, 255, 65, 0.03) 0%, rgba(0, 255, 65, 0.01) 100%)',
+            borderRadius: '20px',
+            padding: '24px',
+            border: '1px solid rgba(0, 255, 65, 0.15)',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{
+              display: 'inline-block',
+              padding: '4px 10px',
+              background: 'rgba(0, 255, 65, 0.1)',
+              border: '1px solid rgba(0, 255, 65, 0.25)',
+              borderRadius: '8px',
+              color: '#00ff41',
+              fontSize: '0.65rem',
+              fontWeight: '600',
+              letterSpacing: '0.05em',
+              marginBottom: '12px',
+              textTransform: 'uppercase',
+              width: 'fit-content'
+            }}>
+              🎵 Case Study
+            </div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '8px', color: 'white' }}>
+              The Lost Tapes of <a href="https://whipmontez.com" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff41', textDecoration: 'underline' }}>Whip Montez</a>
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.6', marginBottom: '16px', flex: 1 }}>
+              We built Studio Agents by resurrecting the lost archives of a Brooklyn MC who vanished before the digital age. Her story proves these tools can build a career from nothing.
+            </p>
+            <button 
+              onClick={() => setShowShowcase(true)}
+              className="haptic-press"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                background: 'rgba(0, 255, 65, 0.1)',
+                border: '1px solid rgba(0, 255, 65, 0.3)',
+                borderRadius: '10px',
+                color: '#00ff41',
+                fontWeight: '600',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                width: '100%'
+              }}
+            >
+              <Play size={16} />
+              Enter The Archive
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* Footer CTA */}
@@ -952,65 +1046,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           <span>Launch Studio Now</span>
           <ArrowRight size={24} />
         </button>
-      </section>
-
-      {/* Bonus: Lost Tapes Easter Egg */}
-      <section style={{
-        padding: '48px 20px',
-        background: 'linear-gradient(180deg, var(--color-bg-primary) 0%, rgba(0, 255, 65, 0.03) 100%)',
-        borderTop: '1px solid rgba(0, 255, 65, 0.1)'
-      }}>
-        <div style={{
-          maxWidth: '400px',
-          margin: '0 auto',
-          padding: '24px',
-          background: 'rgba(0, 255, 65, 0.02)',
-          borderRadius: '16px',
-          border: '1px solid rgba(0, 255, 65, 0.15)',
-          textAlign: 'center'
-        }}>
-          <div style={{
-            display: 'inline-block',
-            padding: '4px 10px',
-            background: 'rgba(0, 255, 65, 0.1)',
-            border: '1px solid rgba(0, 255, 65, 0.25)',
-            borderRadius: '10px',
-            color: '#00ff41',
-            fontSize: '0.6rem',
-            fontWeight: '600',
-            letterSpacing: '0.1em',
-            marginBottom: '10px',
-            textTransform: 'uppercase'
-          }}>
-            🎵 Hidden Archive
-          </div>
-          <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '6px', color: 'white' }}>
-            The Lost Tapes of <a href="https://whipmontez.com" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff41', textDecoration: 'underline' }}>Whip Montez</a>
-          </h4>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.5', marginBottom: '12px' }}>
-            We built these tools by resurrecting the lost archives of a Brooklyn MC who vanished before the digital age.
-          </p>
-          <button 
-            onClick={() => setShowShowcase(true)}
-            className="haptic-press"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              background: 'rgba(0, 255, 65, 0.1)',
-              border: '1px solid rgba(0, 255, 65, 0.3)',
-              borderRadius: '8px',
-              color: '#00ff41',
-              fontWeight: '600',
-              fontSize: '0.8rem',
-              cursor: 'pointer'
-            }}
-          >
-            <Play size={12} />
-            Enter The Archive
-          </button>
-        </div>
       </section>
 
       {/* Footer */}
