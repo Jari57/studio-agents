@@ -240,6 +240,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [showNudge, setShowNudge] = useState(true);
   const [hubFilter, setHubFilter] = useState('All');
   const [playingItem, setPlayingItem] = useState(null);
+  
+  // Preview Modal State (for reviewing AI generations before saving)
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewItem, setPreviewItem] = useState(null);
+  const [previewPrompt, setPreviewPrompt] = useState('');
+  
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
@@ -1784,53 +1790,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         throw new Error("Unknown response format from AI");
       }
 
-      setProjects([newItem, ...projects]);
-
-      // If we are working inside a project context, add this artifact to the project assets
-      if (selectedProject) {
-        const updatedProject = {
-          ...selectedProject,
-          assets: [newItem, ...(selectedProject.assets || [])]
-        };
-        setSelectedProject(updatedProject);
-        // Update the project in the global list as well
-        setProjects(prev => [newItem, ...prev.map(p => p.id === updatedProject.id ? updatedProject : p)]);
-      } else {
-        // No project selected - show "Add to Project" modal
-        setAddToProjectAsset(newItem);
-      }
-
-      // Save to Backend if logged in
-      if (isLoggedIn) {
-        const uid = localStorage.getItem('studio_user_id');
-        if (uid) {
-          // Build headers with auth token
-          const saveHeaders = { 'Content-Type': 'application/json' };
-          if (auth?.currentUser) {
-            try {
-              const token = await auth.currentUser.getIdToken();
-              saveHeaders['Authorization'] = `Bearer ${token}`;
-            } catch (tokenErr) {
-              console.warn('Could not get auth token for save:', tokenErr);
-            }
-          }
-          
-          fetch(`${BACKEND_URL}/api/projects`, {
-            method: 'POST',
-            headers: saveHeaders,
-            body: JSON.stringify({ userId: uid, project: newItem })
-          }).catch(err => console.error("Failed to save to cloud", err));
-        }
-        // Decrement local credits (backend already deducted)
-        setUserCredits(prev => Math.max(0, prev - 1));
-      } else {
-        // Track free generation for anonymous users
-        setFreeGenerationsUsed(prev => prev + 1);
-      }
-
-      toast.success(`${selectedAgent.name} generation complete!`, { id: toastId });
-      setActiveTab('hub');
-      setSelectedAgent(null);
+      // Show preview modal instead of auto-saving
+      setPreviewItem(newItem);
+      setPreviewPrompt(prompt);
+      toast.success(`Generation complete! Review your result.`, { id: toastId });
 
     } catch (error) {
       console.error("Generation error", error);
@@ -1838,6 +1801,75 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Save the previewed item to projects
+  const handleSavePreview = async () => {
+    if (!previewItem) return;
+    
+    setProjects([previewItem, ...projects]);
+
+    // If we are working inside a project context, add this artifact to the project assets
+    if (selectedProject) {
+      const updatedProject = {
+        ...selectedProject,
+        assets: [previewItem, ...(selectedProject.assets || [])]
+      };
+      setSelectedProject(updatedProject);
+      setProjects(prev => [previewItem, ...prev.map(p => p.id === updatedProject.id ? updatedProject : p)]);
+    } else {
+      // No project selected - show "Add to Project" modal
+      setAddToProjectAsset(previewItem);
+    }
+
+    // Save to Backend if logged in
+    if (isLoggedIn) {
+      const uid = localStorage.getItem('studio_user_id');
+      if (uid) {
+        const saveHeaders = { 'Content-Type': 'application/json' };
+        if (auth?.currentUser) {
+          try {
+            const token = await auth.currentUser.getIdToken();
+            saveHeaders['Authorization'] = `Bearer ${token}`;
+          } catch (tokenErr) {
+            console.warn('Could not get auth token for save:', tokenErr);
+          }
+        }
+        
+        fetch(`${BACKEND_URL}/api/projects`, {
+          method: 'POST',
+          headers: saveHeaders,
+          body: JSON.stringify({ userId: uid, project: previewItem })
+        }).catch(err => console.error("Failed to save to cloud", err));
+      }
+      setUserCredits(prev => Math.max(0, prev - 1));
+    } else {
+      setFreeGenerationsUsed(prev => prev + 1);
+    }
+
+    toast.success('Saved to your Hub!');
+    setPreviewItem(null);
+    setPreviewPrompt('');
+    setActiveTab('hub');
+    setSelectedAgent(null);
+  };
+
+  // Discard the preview and go back to agent
+  const handleDiscardPreview = () => {
+    setPreviewItem(null);
+    setPreviewPrompt('');
+    toast('Discarded. Try again!', { icon: '🔄' });
+  };
+
+  // Regenerate with the same prompt
+  const handleRegeneratePreview = () => {
+    if (!previewPrompt) {
+      toast.error('No prompt to regenerate');
+      return;
+    }
+    setPreviewItem(null);
+    // Re-trigger generation with same prompt
+    handleGenerate(previewPrompt);
   };
 
   const fetchActivity = async (page = 1) => {
@@ -6742,6 +6774,154 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   style={{ width: '100%' }}
                 >
                   Skip for Now
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Preview Modal - Review AI Generation Before Saving */}
+        {previewItem && (
+          <div className="modal-overlay" onClick={handleDiscardPreview}>
+            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <button className="modal-close" onClick={handleDiscardPreview}><X size={20} /></button>
+              <div className="modal-header" style={{ flexShrink: 0 }}>
+                <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem', background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                  <Eye size={24} color="white" />
+                </div>
+                <h2>Preview Your Creation</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                  Review your AI-generated content before saving to your Hub.
+                </p>
+              </div>
+              <div className="modal-body" style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
+                {/* Content Type Badge */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <span style={{ 
+                    background: previewItem.type === 'image' ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 
+                                previewItem.type === 'audio' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
+                                previewItem.type === 'video' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
+                                'linear-gradient(135deg, #3b82f6, #2563eb)',
+                    padding: '0.25rem 0.75rem', 
+                    borderRadius: '9999px', 
+                    fontSize: '0.75rem', 
+                    fontWeight: '600',
+                    color: 'white',
+                    textTransform: 'uppercase'
+                  }}>
+                    {previewItem.type || 'Text'}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                    {previewItem.agent || 'AI Generated'}
+                  </span>
+                </div>
+
+                {/* Preview Content */}
+                <div style={{ 
+                  background: 'var(--bg-secondary)', 
+                  borderRadius: '12px', 
+                  padding: '1.5rem',
+                  border: '1px solid var(--border-color)',
+                  maxHeight: '300px',
+                  overflow: 'auto'
+                }}>
+                  {previewItem.type === 'image' && previewItem.imageUrl ? (
+                    <img 
+                      src={previewItem.imageUrl} 
+                      alt="Generated" 
+                      style={{ width: '100%', borderRadius: '8px' }} 
+                    />
+                  ) : previewItem.type === 'audio' && previewItem.audioUrl ? (
+                    <audio controls src={previewItem.audioUrl} style={{ width: '100%' }} />
+                  ) : previewItem.type === 'video' && previewItem.videoUrl ? (
+                    <video controls src={previewItem.videoUrl} style={{ width: '100%', borderRadius: '8px' }} />
+                  ) : (
+                    <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--text-primary)' }}>
+                      {previewItem.snippet || previewItem.title || 'No content generated'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Prompt Used */}
+                {previewPrompt && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                      Prompt used:
+                    </p>
+                    <div style={{ 
+                      background: 'var(--bg-tertiary)', 
+                      padding: '0.75rem', 
+                      borderRadius: '8px', 
+                      fontSize: '0.875rem',
+                      color: 'var(--text-secondary)',
+                      fontStyle: 'italic'
+                    }}>
+                      "{previewPrompt.length > 150 ? previewPrompt.substring(0, 150) + '...' : previewPrompt}"
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '0.75rem', 
+                padding: '1rem 1.5rem',
+                borderTop: '1px solid var(--border-color)',
+                flexShrink: 0
+              }}>
+                <button 
+                  onClick={handleDiscardPreview}
+                  style={{ 
+                    flex: 1, 
+                    padding: '0.75rem', 
+                    borderRadius: '8px', 
+                    border: '1px solid var(--border-color)',
+                    background: 'transparent',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <Trash2 size={16} /> Discard
+                </button>
+                <button 
+                  onClick={handleRegeneratePreview}
+                  disabled={isGenerating}
+                  style={{ 
+                    flex: 1, 
+                    padding: '0.75rem', 
+                    borderRadius: '8px', 
+                    border: '1px solid var(--border-color)',
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    cursor: isGenerating ? 'not-allowed' : 'pointer',
+                    opacity: isGenerating ? 0.5 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <RefreshCw size={16} className={isGenerating ? 'animate-spin' : ''} /> 
+                  {isGenerating ? 'Generating...' : 'Regenerate'}
+                </button>
+                <button 
+                  onClick={handleSavePreview}
+                  className="cta-button-premium"
+                  style={{ 
+                    flex: 1.5, 
+                    padding: '0.75rem', 
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <Save size={16} /> Save to Hub
                 </button>
               </div>
             </div>
