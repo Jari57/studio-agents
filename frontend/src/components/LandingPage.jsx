@@ -639,86 +639,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         </div>
       </section>
 
-      {/* THE PITCH - Whip Montez Teaser */}
-      <section className="lore-teaser-section" style={{
-        padding: '60px 20px',
-        textAlign: 'center',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '300px',
-          height: '300px',
-          background: 'radial-gradient(circle, rgba(0, 255, 65, 0.15) 0%, transparent 70%)',
-          pointerEvents: 'none'
-        }} />
-        
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{
-            display: 'inline-block',
-            padding: '6px 16px',
-            background: 'rgba(0, 255, 65, 0.1)',
-            border: '1px solid rgba(0, 255, 65, 0.3)',
-            borderRadius: '20px',
-            color: '#00ff41',
-            fontSize: '0.75rem',
-            fontWeight: '600',
-            letterSpacing: '0.1em',
-            marginBottom: '16px',
-            textTransform: 'uppercase'
-          }}>
-            The Lost Tapes Project
-          </div>
-          
-          <h2 style={{ 
-            fontSize: '1.75rem', 
-            fontWeight: '800', 
-            marginBottom: '12px',
-            color: 'white'
-          }}>
-            What if you could resurrect a legend?
-          </h2>
-          
-          <p style={{ 
-            color: 'var(--text-secondary)', 
-            maxWidth: '400px', 
-            margin: '0 auto 20px',
-            fontSize: '0.95rem',
-            lineHeight: '1.6'
-          }}>
-            We built Studio Agents by recovering the lost archives of <strong style={{ color: '#00ff41' }}>Whip Montez</strong>—a Brooklyn MC who vanished before the digital age. Her story proves these tools can build a career from nothing.
-          </p>
-
-          <button 
-            onClick={() => setShowShowcase(true)}
-            className="haptic-press"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '14px 24px',
-              background: 'linear-gradient(135deg, rgba(0, 255, 65, 0.2) 0%, rgba(0, 255, 65, 0.1) 100%)',
-              border: '1px solid rgba(0, 255, 65, 0.4)',
-              borderRadius: '14px',
-              color: '#00ff41',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            <Play size={18} />
-            Enter The Archive
-            <ChevronRight size={18} />
-          </button>
-        </div>
-      </section>
-
-
-
       {/* Meet Your Dream Team - Agent Showcase */}
       <section className="agents-section">
         <div className="section-header">
@@ -894,6 +814,85 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           }}>
             <Rocket size={18} />
             <span>Launch Studio</span>
+          </button>
+        </div>
+      </section>
+
+      {/* CASE STUDY - Whip Montez Example */}
+      <section className="lore-teaser-section" style={{
+        padding: '60px 20px',
+        textAlign: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        background: 'linear-gradient(180deg, var(--color-bg-primary) 0%, rgba(0, 255, 65, 0.03) 50%, var(--color-bg-primary) 100%)'
+      }}>
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '300px',
+          height: '300px',
+          background: 'radial-gradient(circle, rgba(0, 255, 65, 0.15) 0%, transparent 70%)',
+          pointerEvents: 'none'
+        }} />
+        
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: '500px', margin: '0 auto' }}>
+          <div style={{
+            display: 'inline-block',
+            padding: '6px 16px',
+            background: 'rgba(0, 255, 65, 0.1)',
+            border: '1px solid rgba(0, 255, 65, 0.3)',
+            borderRadius: '20px',
+            color: '#00ff41',
+            fontSize: '0.7rem',
+            fontWeight: '600',
+            letterSpacing: '0.1em',
+            marginBottom: '16px',
+            textTransform: 'uppercase'
+          }}>
+            Case Study: The Lost Tapes Project
+          </div>
+          
+          <h2 style={{ 
+            fontSize: '1.5rem', 
+            fontWeight: '800', 
+            marginBottom: '12px',
+            color: 'white'
+          }}>
+            What if you could resurrect a legend?
+          </h2>
+          
+          <p style={{ 
+            color: 'var(--text-secondary)', 
+            margin: '0 auto 20px',
+            fontSize: '0.9rem',
+            lineHeight: '1.6'
+          }}>
+            We tested Studio Agents by recovering the lost archives of <strong style={{ color: '#00ff41' }}>Whip Montez</strong>—a Brooklyn MC who vanished before the digital age. Her story proves these tools can build a career from nothing.
+          </p>
+
+          <button 
+            onClick={() => setShowShowcase(true)}
+            className="haptic-press"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '12px 20px',
+              background: 'linear-gradient(135deg, rgba(0, 255, 65, 0.2) 0%, rgba(0, 255, 65, 0.1) 100%)',
+              border: '1px solid rgba(0, 255, 65, 0.4)',
+              borderRadius: '12px',
+              color: '#00ff41',
+              fontWeight: '600',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <Play size={16} />
+            Enter The Archive
+            <ChevronRight size={16} />
           </button>
         </div>
       </section>
