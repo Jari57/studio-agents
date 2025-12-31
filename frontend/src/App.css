@@ -9526,3 +9526,25 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
     border-bottom: none;
   }
 }
+
+/* Landing Page Stats Grid Responsive */
+@media (max-width: 768px) {
+  .landing-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .landing-stats-grid > div {
+    border-right: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 20px 12px !important;
+  }
+  
+  .landing-stats-grid > div:nth-child(odd) {
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  .landing-stats-grid > div:nth-child(3),
+  .landing-stats-grid > div:nth-child(4) {
+    border-bottom: none;
+  }
+}

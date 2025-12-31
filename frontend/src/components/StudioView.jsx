@@ -1711,6 +1711,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         if (base64Image) {
             newItem.imageUrl = base64Image.startsWith('data:') ? base64Image : `data:image/png;base64,${base64Image}`;
             newItem.snippet = `Generated artwork for: "${prompt}"`;
+            newItem.type = 'image'; // Set type to image for proper display
         }
       } else if (selectedAgent.id === 'video-creator' && (data.predictions || data.video)) {
         // Handle Video Response (Veo)
@@ -1718,8 +1719,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         if (videoData) {
             if (videoData.bytesBase64Encoded) {
                  newItem.videoUrl = `data:video/mp4;base64,${videoData.bytesBase64Encoded}`;
+                 newItem.type = 'video'; // Set type to video for proper display
             } else if (videoData.videoUri) {
                  newItem.videoUrl = videoData.videoUri;
+                 newItem.type = 'video'; // Set type to video for proper display
             }
             newItem.snippet = `Generated video for: "${prompt}"`;
         }
