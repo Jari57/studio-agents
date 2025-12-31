@@ -1,5 +1,5 @@
 // Service Worker for Studio Agents PWA
-const CACHE_NAME = 'studio-agents-v4';
+const CACHE_NAME = 'studio-agents-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
