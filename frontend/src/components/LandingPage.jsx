@@ -370,7 +370,6 @@ const DEFAULT_WHITEPAPER = {
 
 export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   console.log("LandingPage: Rendering...");
-  const [hoveredAgent, setHoveredAgent] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [showCookieConsent, setShowCookieConsent] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -694,100 +693,69 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           </div>
         </div>
 
-        <div className="agents-scroll-container">
-          <div className="agents-grid">
-            {AGENTS.filter(a => a.tier === 'free').map((agent) => {
-              const Icon = agent.icon;
-              const key = agent.id || agent.name;
-              const isHovered = hoveredAgent === key;
+        <div className="agents-studio-grid" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          {AGENTS.filter(a => a.tier === 'free').map((agent, i) => {
+            const Icon = agent.icon;
+            const key = agent.id || agent.name;
 
-              return (
-                <div
-                  key={key}
-                  onMouseEnter={() => setHoveredAgent(key)}
-                  onMouseLeave={() => setHoveredAgent(null)}
-                  className={`agent-card-premium ${agent.colorClass} haptic-press`}
-                  onClick={onEnter}
-                  style={{ position: 'relative' }}
+            return (
+              <div 
+                key={key} 
+                className={`agent-studio-card ${agent.colorClass} animate-fadeInUp haptic-press`}
+                style={{ animationDelay: `${i * 0.1}s`, position: 'relative' }}
+                onClick={onEnter}
+              >
+                {/* Whitepaper Gear Button */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
+                  title="View Agent Whitepaper"
+                  style={{
+                    position: 'absolute',
+                    top: '10px',
+                    left: '10px',
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '8px',
+                    background: 'rgba(139, 92, 246, 0.2)',
+                    border: '1px solid rgba(139, 92, 246, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    zIndex: 10,
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.5)';
+                    e.currentTarget.style.transform = 'rotate(45deg) scale(1.1)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
+                    e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
+                  }}
                 >
-                  {/* Whitepaper Gear Icon */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
-                    className="agent-whitepaper-btn"
-                    title="View Agent Whitepaper"
-                    style={{
-                      position: 'absolute',
-                      top: '10px',
-                      right: '10px',
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '8px',
-                      background: 'rgba(139, 92, 246, 0.2)',
-                      border: '1px solid rgba(139, 92, 246, 0.4)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      zIndex: 10,
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = 'rgba(139, 92, 246, 0.5)';
-                      e.currentTarget.style.transform = 'rotate(45deg) scale(1.1)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
-                      e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
-                    }}
-                  >
-                    <Settings size={14} style={{ color: 'var(--color-purple)' }} />
-                  </button>
-
-                  <div className="agent-card-glow"></div>
-
-                  <div className={`agent-card-content ${isHovered ? 'blurred' : ''}`}>
-                    <div className="agent-icon-box">
-                      <Icon size={24} className="text-white" />
-                    </div>
-
-                    <div className="agent-card-header-info">
-                      <h3 className="agent-name">{agent.name}</h3>
-                      <div className="agent-category-badge">{agent.category}</div>
-                    </div>
-
-                    <p className="agent-description">{agent.description}</p>
-
-                    <div className="agent-card-action">
-                      <span className="action-label">Open</span>
-                      <div className="action-icon"><ArrowRight size={14} /></div>
-                    </div>
-                  </div>
-
-                  <div className={`agent-card-overlay ${isHovered ? 'visible' : ''}`}>
-                    <div className="overlay-scroll">
-                      <div className="overlay-section">
-                        <h4><Zap size={12} /> How to Use</h4>
-                        <p>{agent.howTo || "Select this agent to start."}</p>
-                      </div>
-                      <div className="overlay-section">
-                        <h4><Sparkles size={12} /> Example</h4>
-                        <p className="example-text">"{agent.example || "Generate something amazing."}"</p>
-                      </div>
-                    </div>
-                    {/* CTA Button in overlay */}
-                    <div className="agent-card-action overlay-action" style={{ 
-                      marginTop: 'auto',
-                      background: 'var(--color-purple)',
-                      border: 'none'
-                    }}>
-                      <span className="action-label">Open Agent</span>
-                      <div className="action-icon"><ArrowRight size={14} /></div>
-                    </div>
-                  </div>
+                  <Settings size={14} style={{ color: 'var(--color-purple)' }} />
+                </button>
+                
+                <div className="agent-studio-icon">
+                  <Icon size={24} />
                 </div>
-              );
-            })}
-          </div>
+                <div className="agent-studio-info">
+                  <h3>{agent.name}</h3>
+                  <p>{agent.category}</p>
+                </div>
+                <button 
+                  className="agent-launch-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEnter();
+                  }}
+                >
+                  Launch Agent
+                </button>
+              </div>
+            );
+          })}
         </div>
         
         {/* Team CTA */}
