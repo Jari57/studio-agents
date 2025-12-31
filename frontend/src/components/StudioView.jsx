@@ -1865,7 +1865,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   };
 
   const fetchNews = async (page = 1, searchQuery = '') => {
-    if (isLoadingNews || (!hasMoreNews && page !== 1)) return;
+    if (isLoadingNews || (!hasMoreNews && page !== 1)) return { success: false };
     
     setIsLoadingNews(true);
     try {
@@ -1889,12 +1889,15 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         } else {
           setHasMoreNews(true);
         }
+        return { success: true, count: data.articles.length };
       } else {
         if (page === 1) setNewsArticles([]);
         setHasMoreNews(false);
+        return { success: true, count: 0 };
       }
     } catch (err) {
       console.error('Failed to fetch news', err);
+      return { success: false, error: err };
     } finally {
       setIsLoadingNews(false);
     }
@@ -1906,10 +1909,21 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   useEffect(() => {
     if (newsSearchDebounce) clearTimeout(newsSearchDebounce);
     
-    const timeout = setTimeout(() => {
+    const timeout = setTimeout(async () => {
       if (activeTab === 'news' && newsSearch.trim()) {
+        // Show searching toast
+        const toastId = toast.loading(`Searching: "${newsSearch.trim()}"...`);
         setHasMoreNews(true);
-        fetchNews(1, newsSearch.trim());
+        const result = await fetchNews(1, newsSearch.trim());
+        if (result?.success) {
+          if (result.count > 0) {
+            toast.success(`Found ${result.count} results`, { id: toastId });
+          } else {
+            toast(`No results for "${newsSearch.trim()}"`, { id: toastId, icon: '🔍' });
+          }
+        } else {
+          toast.error('Search failed', { id: toastId });
+        }
       } else if (activeTab === 'news' && !newsSearch.trim() && newsArticles.length === 0) {
         fetchNews(1);
       }
