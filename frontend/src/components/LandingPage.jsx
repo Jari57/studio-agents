@@ -384,6 +384,32 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   const statsRef = useRef(null);
   const [statsVisible, setStatsVisible] = useState(false);
   
+  // Investor Pitch Access Control
+  const [investorAccessUnlocked, setInvestorAccessUnlocked] = useState(() => {
+    // Check if already unlocked in this session
+    return sessionStorage.getItem('investor_access_unlocked') === 'true';
+  });
+  const [accessCodeInput, setAccessCodeInput] = useState('');
+  const [accessCodeError, setAccessCodeError] = useState('');
+  
+  // Valid access codes (in production, validate server-side)
+  const VALID_ACCESS_CODES = ['STUDIO2025', 'INVESTOR', 'VCACCESS', 'STUDIOVC'];
+  
+  const handleAccessCodeSubmit = () => {
+    const code = accessCodeInput.trim().toUpperCase();
+    if (VALID_ACCESS_CODES.includes(code)) {
+      setInvestorAccessUnlocked(true);
+      sessionStorage.setItem('investor_access_unlocked', 'true');
+      setAccessCodeError('');
+      setAccessCodeInput('');
+    } else {
+      setAccessCodeError('Invalid access code. Please contact us for access.');
+    }
+  };
+  
+  // Protected tabs that require access code
+  const PROTECTED_TABS = ['traction', 'roadmap', 'financials'];
+  
   // Animated counter for stats
   const [animatedStats, setAnimatedStats] = useState({ songs: 0, hours: 0, saved: 0, artists: 0 });
 
@@ -1594,39 +1620,179 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 { id: 'vision', label: 'Vision', icon: Rocket },
                 { id: 'market', label: 'Market', icon: Globe },
                 { id: 'product', label: 'Product', icon: Layers },
-                { id: 'traction', label: 'Traction', icon: TrendingUp },
-                { id: 'roadmap', label: 'Roadmap', icon: Target },
-                { id: 'financials', label: 'Financials', icon: BarChart3 }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setPitchTab(tab.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '10px 16px',
-                    borderRadius: '10px',
-                    border: 'none',
-                    background: pitchTab === tab.id 
-                      ? 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)' 
-                      : 'rgba(255, 255, 255, 0.05)',
-                    color: pitchTab === tab.id ? 'white' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    fontWeight: pitchTab === tab.id ? '600' : '400',
-                    fontSize: '0.85rem',
-                    transition: 'all 0.2s ease',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  <tab.icon size={14} />
-                  {tab.label}
-                </button>
-              ))}
+                { id: 'traction', label: 'Traction', icon: TrendingUp, protected: true },
+                { id: 'roadmap', label: 'Roadmap', icon: Target, protected: true },
+                { id: 'financials', label: 'Financials', icon: BarChart3, protected: true }
+              ].map(tab => {
+                const isLocked = tab.protected && !investorAccessUnlocked;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setPitchTab(tab.id)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '10px 16px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: pitchTab === tab.id 
+                        ? 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)' 
+                        : isLocked ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.05)',
+                      color: pitchTab === tab.id ? 'white' : isLocked ? 'rgba(255,255,255,0.3)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      fontWeight: pitchTab === tab.id ? '600' : '400',
+                      fontSize: '0.85rem',
+                      transition: 'all 0.2s ease',
+                      whiteSpace: 'nowrap',
+                      opacity: isLocked ? 0.7 : 1
+                    }}
+                  >
+                    {isLocked ? <Lock size={12} /> : <tab.icon size={14} />}
+                    {tab.label}
+                    {isLocked && <span style={{ fontSize: '0.6rem', marginLeft: '2px' }}>🔒</span>}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Tab Content */}
             <div className="modal-body" style={{ padding: '24px', overflow: 'visible', flex: 1 }}>
+              
+              {/* ACCESS CODE GATE for protected tabs */}
+              {PROTECTED_TABS.includes(pitchTab) && !investorAccessUnlocked && (
+                <div className="animate-fadeIn" style={{ 
+                  textAlign: 'center', 
+                  padding: '60px 20px',
+                  minHeight: '400px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <div style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%)',
+                    border: '2px solid rgba(139, 92, 246, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '24px'
+                  }}>
+                    <Lock size={36} style={{ color: 'var(--color-purple)' }} />
+                  </div>
+                  
+                  <h3 style={{ 
+                    fontSize: '1.5rem', 
+                    fontWeight: '700', 
+                    color: 'white',
+                    marginBottom: '12px'
+                  }}>
+                    Protected Content
+                  </h3>
+                  
+                  <p style={{ 
+                    color: 'var(--text-secondary)', 
+                    fontSize: '0.95rem',
+                    maxWidth: '400px',
+                    marginBottom: '32px',
+                    lineHeight: '1.6'
+                  }}>
+                    This section contains sensitive company data. Enter your investor access code to view {pitchTab.charAt(0).toUpperCase() + pitchTab.slice(1)} information.
+                  </p>
+                  
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '12px', 
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    width: '100%',
+                    maxWidth: '320px'
+                  }}>
+                    <input
+                      type="text"
+                      value={accessCodeInput}
+                      onChange={(e) => {
+                        setAccessCodeInput(e.target.value);
+                        setAccessCodeError('');
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAccessCodeSubmit()}
+                      placeholder="Enter access code..."
+                      style={{
+                        width: '100%',
+                        padding: '14px 18px',
+                        borderRadius: '12px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: accessCodeError ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
+                        color: 'white',
+                        fontSize: '1rem',
+                        textAlign: 'center',
+                        letterSpacing: '2px',
+                        textTransform: 'uppercase'
+                      }}
+                    />
+                    
+                    {accessCodeError && (
+                      <div style={{ 
+                        color: '#ef4444', 
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <AlertCircle size={14} />
+                        {accessCodeError}
+                      </div>
+                    )}
+                    
+                    <button
+                      onClick={handleAccessCodeSubmit}
+                      style={{
+                        width: '100%',
+                        padding: '14px 24px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)',
+                        border: 'none',
+                        color: 'white',
+                        fontWeight: '600',
+                        fontSize: '0.95rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <Shield size={18} />
+                      Unlock Access
+                    </button>
+                  </div>
+                  
+                  <div style={{ 
+                    marginTop: '32px',
+                    padding: '16px 24px',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.08)'
+                  }}>
+                    <p style={{ 
+                      color: 'var(--text-secondary)', 
+                      fontSize: '0.85rem',
+                      margin: 0
+                    }}>
+                      Don't have an access code? Contact us at{' '}
+                      <a 
+                        href="mailto:investors@studioagents.ai?subject=Investor%20Access%20Request"
+                        style={{ color: 'var(--color-cyan)', textDecoration: 'underline' }}
+                      >
+                        investors@studioagents.ai
+                      </a>
+                    </p>
+                  </div>
+                </div>
+              )}
               
               {/* VISION TAB */}
               {pitchTab === 'vision' && (
