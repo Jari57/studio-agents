@@ -1913,6 +1913,43 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (selectedAgent) setShowNudge(true);
   }, [selectedAgent]);
 
+  // Helper to safely save to localStorage with quota handling
+  const safeLocalStorageSet = (key, value) => {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (e) {
+      if (e.name === 'QuotaExceededError') {
+        console.warn(`[Storage] Quota exceeded for ${key}, cleaning up old data...`);
+        // Try to free up space by removing old/large items
+        try {
+          // Remove oldest projects if saving projects
+          if (key === 'studio_agents_projects') {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed) && parsed.length > 20) {
+              // Keep only the 20 most recent projects
+              const trimmed = parsed.slice(0, 20);
+              localStorage.setItem(key, JSON.stringify(trimmed));
+              console.log('[Storage] Trimmed projects to 20 most recent');
+              return true;
+            }
+          }
+          // Clear some non-essential cached data
+          localStorage.removeItem('studio_theme');
+          localStorage.removeItem('studio_onboarding_v3');
+          // Try again
+          localStorage.setItem(key, value);
+          return true;
+        } catch (retryError) {
+          console.error('[Storage] Still failed after cleanup:', retryError);
+          return false;
+        }
+      }
+      console.error(`[Storage] Failed to save ${key}:`, e);
+      return false;
+    }
+  };
+
   // Load projects from localStorage on mount
   useEffect(() => {
     const uid = localStorage.getItem('studio_user_id');
@@ -1954,9 +1991,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
   }, [isLoggedIn]);
 
-  // Save projects to localStorage whenever they change
+  // Save projects to localStorage whenever they change (with quota handling)
   useEffect(() => {
-    localStorage.setItem('studio_agents_projects', JSON.stringify(projects));
+    if (projects.length > 0) {
+      // Limit to 50 projects max to prevent quota issues
+      const projectsToSave = projects.slice(0, 50);
+      safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
+    }
   }, [projects]);
 
   const handleDeadLink = (e, featureName) => {
