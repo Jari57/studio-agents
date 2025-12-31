@@ -1772,9 +1772,18 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             newItem.snippet = `Generated video for: "${prompt}"`;
         }
       } else if ((isAudioAgent || isSpeechAgent) && (data.audioUrl || data.audio || data.type === 'synthesis' || data.description || data.message)) {
-        // Handle Audio Response (Lyria/TTS)
+        // Handle Audio Response (Lyria/TTS/MusicGen)
         if (data.audioUrl) {
-          newItem.audioUrl = data.audioUrl;
+          // Check if it's a full URL or base64
+          if (data.audioUrl.startsWith('http')) {
+             newItem.audioUrl = data.audioUrl;
+          } else if (data.audioUrl.startsWith('data:')) {
+             newItem.audioUrl = data.audioUrl;
+          } else {
+             // Assume base64 if not http/data
+             newItem.audioUrl = `data:${data.mimeType || 'audio/wav'};base64,${data.audioUrl}`;
+          }
+          
           newItem.mimeType = data.mimeType || 'audio/wav';
           newItem.snippet = `🎵 Generated audio for: "${prompt}"`;
           newItem.type = 'audio';
