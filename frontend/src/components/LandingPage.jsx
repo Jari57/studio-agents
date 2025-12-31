@@ -596,48 +596,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
         </div>
       </section>
 
-      {/* Stats Section - Social Proof */}
-      <section ref={statsRef} className="stats-section" style={{
-        padding: '60px 0',
-        background: 'linear-gradient(180deg, transparent 0%, rgba(139, 92, 246, 0.08) 50%, transparent 100%)'
-      }}>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(4, 1fr)', 
-          gap: '0',
-          width: '100%',
-          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          {[
-            { value: animatedStats.songs, label: 'Songs Created', suffix: '+', icon: Music },
-            { value: animatedStats.hours, label: 'Hours Saved', suffix: '+', icon: Clock },
-            { value: animatedStats.saved, label: 'Avg $ Saved/Artist', prefix: '$', icon: DollarSign },
-            { value: animatedStats.artists, label: 'Active Artists', suffix: '+', icon: Mic }
-          ].map((stat, i) => (
-            <div key={i} className="stat-card animate-fadeInUp" style={{
-              textAlign: 'center',
-              padding: '32px 16px',
-              borderRight: i < 3 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'
-            }}>
-              <stat.icon size={24} style={{ color: 'var(--color-purple)', marginBottom: '8px' }} />
-              <div style={{ 
-                fontSize: '2rem', 
-                fontWeight: '800',
-                background: 'var(--gradient-vibrant)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>
-                {stat.prefix}{stat.value.toLocaleString()}{stat.suffix}
-              </div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                {stat.label}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Meet Your Dream Team - Agent Showcase */}
       <section className="agents-section">
         <div className="section-header">
@@ -757,140 +715,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             );
           })}
         </div>
-        
-        {/* Stats Section - 2x2 Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '0',
-          marginTop: '48px',
-          maxWidth: '500px',
-          margin: '48px auto 0',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: '16px',
-          overflow: 'hidden'
-        }} className="landing-stats-grid">
-          {[
-            { value: '12,000+', label: 'Songs Created' },
-            { value: '35,000+', label: 'Hours Saved' },
-            { value: '$1,200', label: 'Avg $ Saved/Artist' },
-            { value: '2,100+', label: 'Active Artists' }
-          ].map((stat, i) => (
-            <div key={i} style={{
-              padding: '24px 16px',
-              textAlign: 'center',
-              borderRight: i % 2 === 0 ? '1px solid rgba(255,255,255,0.1)' : 'none',
-              borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.1)' : 'none',
-              background: 'rgba(255,255,255,0.02)'
-            }}>
-              <div style={{
-                fontSize: '1.75rem',
-                fontWeight: '800',
-                background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                marginBottom: '4px'
-              }}>{stat.value}</div>
-              <div style={{
-                fontSize: '0.8rem',
-                color: 'var(--text-secondary)',
-                fontWeight: '500'
-              }}>{stat.label}</div>
-            </div>
-          ))}
-        </div>
-        
-        {/* Lost Tapes Teaser */}
-        <div style={{
-          marginTop: '48px',
-          padding: '32px 24px',
-          background: 'linear-gradient(135deg, rgba(0, 255, 65, 0.05) 0%, rgba(0, 255, 65, 0.02) 100%)',
-          borderRadius: '20px',
-          border: '1px solid rgba(0, 255, 65, 0.2)',
-          textAlign: 'center',
-          maxWidth: '500px',
-          margin: '48px auto 0'
-        }}>
-          <div style={{
-            display: 'inline-block',
-            padding: '4px 12px',
-            background: 'rgba(0, 255, 65, 0.1)',
-            border: '1px solid rgba(0, 255, 65, 0.3)',
-            borderRadius: '12px',
-            color: '#00ff41',
-            fontSize: '0.65rem',
-            fontWeight: '600',
-            letterSpacing: '0.1em',
-            marginBottom: '12px',
-            textTransform: 'uppercase'
-          }}>
-            The Lost Tapes Project
-          </div>
-          <h3 style={{ 
-            fontSize: '1.25rem', 
-            fontWeight: '700', 
-            marginBottom: '8px',
-            color: 'white'
-          }}>
-            What if you could resurrect a legend?
-          </h3>
-          <p style={{ 
-            color: 'var(--text-secondary)', 
-            fontSize: '0.85rem',
-            lineHeight: '1.6',
-            marginBottom: '16px'
-          }}>
-            We built Studio Agents by recovering the lost archives of <strong style={{ color: '#00ff41' }}>Whip Montez</strong>—a Brooklyn MC who vanished before the digital age. Her story proves these tools can build a career from nothing.
-          </p>
-          <button 
-            onClick={() => setShowShowcase(true)}
-            className="haptic-press"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '10px 18px',
-              background: 'rgba(0, 255, 65, 0.15)',
-              border: '1px solid rgba(0, 255, 65, 0.4)',
-              borderRadius: '10px',
-              color: '#00ff41',
-              fontWeight: '600',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            <Play size={14} />
-            Enter The Archive
-          </button>
-        </div>
-        
-        {/* Team CTA */}
-        <div style={{
-          textAlign: 'center',
-          marginTop: '32px',
-          padding: '24px',
-          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.1))',
-          borderRadius: '20px',
-          border: '1px solid rgba(255,255,255,0.1)',
-          maxWidth: '400px',
-          margin: '32px auto 0'
-        }}>
-          <h3 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'white' }}>
-            Ready to Meet Your Team?
-          </h3>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '0.9rem' }}>
-            All 16 agents are standing by.
-          </p>
-          <button onClick={onEnter} className="cta-button-primary haptic-press" style={{ 
-            padding: '14px 28px',
-            fontSize: '1rem',
-            borderRadius: '14px'
-          }}>
-            <Rocket size={18} />
-            <span>Launch Studio</span>
-          </button>
-        </div>
       </section>
 
       {/* Consolidated: The Edge + What Artists Say */}
@@ -941,6 +765,42 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 </div>
               );
             })}
+          </div>
+          
+          {/* Stats Grid */}
+          <div ref={statsRef} style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '0',
+            marginBottom: '32px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '12px',
+            overflow: 'hidden'
+          }}>
+            {[
+              { value: animatedStats.songs, label: 'Songs Created', suffix: '+' },
+              { value: animatedStats.hours, label: 'Hours Saved', suffix: '+' },
+              { value: animatedStats.saved, label: 'Avg Saved/Artist', prefix: '$' },
+              { value: animatedStats.artists, label: 'Active Artists', suffix: '+' }
+            ].map((stat, i) => (
+              <div key={i} style={{
+                padding: '20px 12px',
+                textAlign: 'center',
+                borderRight: i % 2 === 0 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                background: 'rgba(255,255,255,0.02)'
+              }}>
+                <div style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '800',
+                  background: 'var(--gradient-vibrant)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  marginBottom: '2px'
+                }}>{stat.prefix}{stat.value.toLocaleString()}{stat.suffix}</div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{stat.label}</div>
+              </div>
+            ))}
           </div>
           
           {/* Divider */}
@@ -1092,6 +952,65 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           <span>Launch Studio Now</span>
           <ArrowRight size={24} />
         </button>
+      </section>
+
+      {/* Bonus: Lost Tapes Easter Egg */}
+      <section style={{
+        padding: '48px 20px',
+        background: 'linear-gradient(180deg, var(--color-bg-primary) 0%, rgba(0, 255, 65, 0.03) 100%)',
+        borderTop: '1px solid rgba(0, 255, 65, 0.1)'
+      }}>
+        <div style={{
+          maxWidth: '400px',
+          margin: '0 auto',
+          padding: '24px',
+          background: 'rgba(0, 255, 65, 0.02)',
+          borderRadius: '16px',
+          border: '1px solid rgba(0, 255, 65, 0.15)',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            display: 'inline-block',
+            padding: '4px 10px',
+            background: 'rgba(0, 255, 65, 0.1)',
+            border: '1px solid rgba(0, 255, 65, 0.25)',
+            borderRadius: '10px',
+            color: '#00ff41',
+            fontSize: '0.6rem',
+            fontWeight: '600',
+            letterSpacing: '0.1em',
+            marginBottom: '10px',
+            textTransform: 'uppercase'
+          }}>
+            🎵 Hidden Archive
+          </div>
+          <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '6px', color: 'white' }}>
+            The Lost Tapes of <a href="https://whipmontez.com" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff41', textDecoration: 'underline' }}>Whip Montez</a>
+          </h4>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.5', marginBottom: '12px' }}>
+            We built these tools by resurrecting the lost archives of a Brooklyn MC who vanished before the digital age.
+          </p>
+          <button 
+            onClick={() => setShowShowcase(true)}
+            className="haptic-press"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              background: 'rgba(0, 255, 65, 0.1)',
+              border: '1px solid rgba(0, 255, 65, 0.3)',
+              borderRadius: '8px',
+              color: '#00ff41',
+              fontWeight: '600',
+              fontSize: '0.8rem',
+              cursor: 'pointer'
+            }}
+          >
+            <Play size={12} />
+            Enter The Archive
+          </button>
+        </div>
       </section>
 
       {/* Footer */}

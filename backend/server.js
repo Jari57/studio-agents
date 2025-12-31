@@ -1375,23 +1375,50 @@ app.get('/api/concerts', async (req, res) => {
 let newsCache = { data: [], timestamp: 0, query: '' };
 const NEWS_CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
-// Entertainment news sources - comprehensive list
+// Entertainment news sources - comprehensive list (25+ sources)
 const NEWS_SOURCES = [
-  // Music Industry
+  // Music Industry - Core
   { name: 'PITCHFORK', url: 'https://pitchfork.com/feed/feed-news/rss', category: 'music', color: 'agent-purple' },
   { name: 'BILLBOARD', url: 'https://www.billboard.com/feed/', category: 'music', color: 'agent-cyan' },
   { name: 'ROLLING STONE', url: 'https://www.rollingstone.com/music/feed/', category: 'music', color: 'agent-red' },
   { name: 'NME', url: 'https://www.nme.com/feed', category: 'music', color: 'agent-orange' },
   { name: 'COMPLEX', url: 'https://www.complex.com/music/feed', category: 'music', color: 'agent-pink' },
-  { name: 'HYPEBEAST', url: 'https://hypebeast.com/feed', category: 'culture', color: 'agent-yellow' },
+  { name: 'CONSEQUENCE', url: 'https://consequence.net/feed/', category: 'music', color: 'agent-purple' },
+  { name: 'STEREOGUM', url: 'https://www.stereogum.com/feed/', category: 'music', color: 'agent-cyan' },
+  { name: 'SPIN', url: 'https://www.spin.com/feed/', category: 'music', color: 'agent-red' },
+  
+  // Hip-Hop & Urban
+  { name: 'HOTNEWHIPHOP', url: 'https://www.hotnewhiphop.com/rss/news.xml', category: 'hiphop', color: 'agent-orange' },
+  { name: 'XXL', url: 'https://www.xxlmag.com/feed/', category: 'hiphop', color: 'agent-red' },
+  { name: 'THE SOURCE', url: 'https://thesource.com/feed/', category: 'hiphop', color: 'agent-gold' },
+  { name: 'RAP-UP', url: 'https://www.rap-up.com/feed/', category: 'hiphop', color: 'agent-purple' },
+  { name: 'HIP HOP DX', url: 'https://hiphopdx.com/feed', category: 'hiphop', color: 'agent-cyan' },
+  { name: 'VIBE', url: 'https://www.vibe.com/feed/', category: 'hiphop', color: 'agent-pink' },
+  
+  // Electronic & DJ Culture
+  { name: 'DJ MAG', url: 'https://djmag.com/feed', category: 'electronic', color: 'agent-cyan' },
+  { name: 'MIXMAG', url: 'https://mixmag.net/feed', category: 'electronic', color: 'agent-purple' },
+  { name: 'EDM.COM', url: 'https://edm.com/feed', category: 'electronic', color: 'agent-blue' },
+  { name: 'DANCING ASTRONAUT', url: 'https://dancingastronaut.com/feed/', category: 'electronic', color: 'agent-pink' },
+  
   // Entertainment & Celebrity
   { name: 'VARIETY', url: 'https://variety.com/feed/', category: 'entertainment', color: 'agent-blue' },
   { name: 'TMZ', url: 'https://www.tmz.com/rss.xml', category: 'celebrity', color: 'agent-red' },
   { name: 'E! NEWS', url: 'https://www.eonline.com/syndication/feeds/rssfeeds/topstories.xml', category: 'celebrity', color: 'agent-pink' },
   { name: 'HOLLYWOOD REPORTER', url: 'https://www.hollywoodreporter.com/feed/', category: 'entertainment', color: 'agent-gold' },
-  // Tech & Culture
+  { name: 'ENTERTAINMENT WEEKLY', url: 'https://ew.com/feed/', category: 'entertainment', color: 'agent-red' },
+  { name: 'DEADLINE', url: 'https://deadline.com/feed/', category: 'entertainment', color: 'agent-orange' },
+  { name: 'PEOPLE', url: 'https://people.com/feed/', category: 'celebrity', color: 'agent-pink' },
+  
+  // Culture & Lifestyle
+  { name: 'HYPEBEAST', url: 'https://hypebeast.com/feed', category: 'culture', color: 'agent-yellow' },
+  { name: 'HIGHSNOBIETY', url: 'https://www.highsnobiety.com/feed/', category: 'culture', color: 'agent-purple' },
+  { name: 'FADER', url: 'https://www.thefader.com/rss.xml', category: 'culture', color: 'agent-cyan' },
+  
+  // Tech & Music Tech
   { name: 'THE VERGE', url: 'https://www.theverge.com/rss/index.xml', category: 'tech', color: 'agent-purple' },
-  { name: 'WIRED', url: 'https://www.wired.com/feed/rss', category: 'tech', color: 'agent-cyan' }
+  { name: 'WIRED', url: 'https://www.wired.com/feed/rss', category: 'tech', color: 'agent-cyan' },
+  { name: 'DIGITAL TRENDS', url: 'https://www.digitaltrends.com/feed/', category: 'tech', color: 'agent-blue' }
 ];
 
 app.get('/api/news', async (req, res) => {

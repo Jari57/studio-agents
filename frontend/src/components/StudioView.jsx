@@ -5856,7 +5856,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             onClick={() => { setActiveTab('agents'); setSelectedAgent(null); }}
           >
             <LayoutGrid size={20} />
-            <span>Agents</span>
+            <span>Agents Team</span>
           </button>
           <button 
             className={`nav-link ${activeTab === 'hub' ? 'active' : ''}`}
@@ -7168,7 +7168,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             tabIndex={0}
           >
             <LayoutGrid size={22} />
-            <span>Agents</span>
+            <span>Team</span>
           </div>
           
           <div 

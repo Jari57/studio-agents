@@ -132,10 +132,10 @@ function NewsHub({
               gap: '10px'
             }}>
               <Flame size={28} style={{ color: 'var(--color-pink)' }} />
-              Industry Pulse
+              News
             </h1>
             <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-              Real-time news, trends, and insights from the music world
+              Latest trends and insights from the music world
             </p>
           </div>
           
