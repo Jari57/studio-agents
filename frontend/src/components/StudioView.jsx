@@ -1677,6 +1677,17 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
       let data = await response.json();
       
+      // Debug logging
+      console.log('API Response:', { 
+        ok: response.ok, 
+        status: response.status,
+        isAudioAgent,
+        isSpeechAgent,
+        dataKeys: Object.keys(data),
+        hasAudioUrl: !!data.audioUrl,
+        hasError: !!data.error
+      });
+      
       // Handle Imagen/Veo/Audio API errors gracefully - fall back to text description
       if ((isImageAgent || isVideoAgent) && (data.error || !response.ok)) {
         console.warn(`${isImageAgent ? 'Image' : 'Video'} generation not available, falling back to text description`);
@@ -1701,10 +1712,23 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         data._fallbackType = isImageAgent ? 'image' : 'video';
       }
       
-      // Handle Audio API errors - synthesis params are still useful even without actual audio
-      if ((isAudioAgent || isSpeechAgent) && data.error && !data.params) {
-        console.warn('Audio generation failed, using synthesis parameters');
-        // The backend already provides fallback synthesis params, so we just proceed
+      // Handle Audio API errors - fall back to text description
+      if ((isAudioAgent || isSpeechAgent) && (data.error || !response.ok) && !data.audioUrl && !data.description && !data.output) {
+        console.warn('Audio generation failed, falling back to text description', data.error);
+        
+        const fallbackBody = {
+          prompt: `Describe in vivid detail what a ${selectedAgent.id === 'beat' ? 'beat/instrumental' : 'audio sample'} would sound like for: "${prompt}". Include instruments, rhythm, tempo, mood, and production style.`,
+          systemInstruction: `You are a music producer providing detailed audio descriptions.`
+        };
+        
+        const fallbackResponse = await fetch(`${BACKEND_URL}/api/generate`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(fallbackBody)
+        });
+        data = await fallbackResponse.json();
+        data._isFallback = true;
+        data._fallbackType = 'audio';
       }
       
       // Handle different response types
