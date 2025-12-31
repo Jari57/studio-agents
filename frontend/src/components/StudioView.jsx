@@ -260,11 +260,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   
   // Sync all projects to Firestore (debounced)
   const syncProjectsToCloud = async (uid, projectsToSync) => {
-    if (!db || !uid || !projectsToSync?.length) return;
+    if (!db || !uid || !Array.isArray(projectsToSync) || projectsToSync.length === 0) return;
     setProjectsSyncing(true);
     try {
       const batch = writeBatch(db);
       for (const project of projectsToSync) {
+        if (!project || !project.id) continue;
         const projectRef = doc(db, 'users', uid, 'projects', project.id);
         batch.set(projectRef, {
           ...project,
@@ -286,14 +287,19 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   // Merge local and cloud projects (cloud takes priority for conflicts)
   const mergeProjects = (localProjects, cloudProjects) => {
     const merged = new Map();
+    const local = Array.isArray(localProjects) ? localProjects : [];
+    const cloud = Array.isArray(cloudProjects) ? cloudProjects : [];
     
     // Add all cloud projects first (they take priority)
-    for (const project of cloudProjects) {
-      merged.set(project.id, project);
+    for (const project of cloud) {
+      if (project && project.id) {
+        merged.set(project.id, project);
+      }
     }
     
     // Add local projects that aren't in cloud
-    for (const project of localProjects) {
+    for (const project of local) {
+      if (!project || !project.id) continue;
       if (!merged.has(project.id)) {
         merged.set(project.id, project);
       } else {
