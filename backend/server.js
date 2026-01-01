@@ -543,6 +543,20 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// DEBUG: Show which env vars are present (not values)
+app.get('/api/debug-env', (req, res) => {
+  const envVars = Object.keys(process.env)
+    .filter(k => k.includes('FIREBASE') || k.includes('GEMINI') || k.includes('NODE') || k.includes('PORT'))
+    .reduce((acc, k) => {
+      acc[k] = process.env[k] ? `set (${process.env[k].length} chars)` : 'not set';
+      return acc;
+    }, {});
+  res.json({ 
+    envVars,
+    totalEnvVars: Object.keys(process.env).length
+  });
+});
+
 // MODELS ROUTE - returns available models that support generateContent
 app.get('/api/models', async (req, res) => {
   try {
