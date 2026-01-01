@@ -94,8 +94,9 @@ try {
 let firebaseInitialized = false;
 
 try {
-  // Check for service account credentials (JSON string or file path)
+  // Check for service account credentials (multiple methods supported)
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+  const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
   const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -104,6 +105,7 @@ try {
   // Debug: Log which variables are present (not values)
   logger.info('🔍 Firebase env check:', {
     hasServiceAccountJson: !!serviceAccountJson,
+    hasServiceAccountBase64: !!serviceAccountBase64,
     hasServiceAccountPath: !!serviceAccountPath,
     hasProjectId: !!projectId,
     hasClientEmail: !!clientEmail,
@@ -111,14 +113,23 @@ try {
     privateKeyLength: privateKey ? privateKey.length : 0
   });
   
-  if (serviceAccountJson) {
+  if (serviceAccountBase64) {
+    // WORKAROUND: Decode base64-encoded service account (avoids special char issues)
+    const decoded = Buffer.from(serviceAccountBase64, 'base64').toString('utf8');
+    const serviceAccount = JSON.parse(decoded);
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    firebaseInitialized = true;
+    logger.info('🔥 Firebase Admin initialized from BASE64 environment variable');
+  } else if (serviceAccountJson) {
     // Parse JSON from environment variable (Railway/production)
     const serviceAccount = JSON.parse(serviceAccountJson);
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount)
     });
     firebaseInitialized = true;
-    logger.info('🔥 Firebase Admin initialized from environment variable');
+    logger.info('🔥 Firebase Admin initialized from JSON environment variable');
   } else if (projectId && clientEmail && privateKey) {
     // Initialize from individual environment variables
     admin.initializeApp({
@@ -140,7 +151,7 @@ try {
     logger.info('🔥 Firebase Admin initialized from file');
   } else {
     logger.warn('⚠️ Firebase Admin not configured - auth features disabled');
-    logger.warn('   Set FIREBASE_SERVICE_ACCOUNT (JSON) or FIREBASE_SERVICE_ACCOUNT_PATH');
+    logger.warn('   Set FIREBASE_SERVICE_ACCOUNT_BASE64 or FIREBASE_SERVICE_ACCOUNT (JSON)');
   }
 } catch (error) {
   logger.error('❌ Firebase Admin initialization failed:', error.message);
