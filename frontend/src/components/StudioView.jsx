@@ -329,7 +329,23 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     vocal: null, 
     visual: null,
     audioVolume: 0.8,
-    vocalVolume: 1.0
+    vocalVolume: 1.0,
+    // Professional sync settings
+    bpm: 120,
+    timeSignature: '4/4',
+    key: 'C Major',
+    frameRate: 30,
+    aspectRatio: '16:9',
+    sampleRate: 48000,
+    bitDepth: 24,
+    syncLocked: true,
+    // Real assets toggle
+    generateRealAssets: false,
+    // Render tracking
+    renderCount: 0,
+    maxRenders: 3,
+    lastRenderTime: null,
+    renderHistory: []
   });
   const [sessionHistory, setSessionHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -6868,6 +6884,127 @@ When you write a song, you create intellectual property that generates money eve
               {/* Mixer / Timeline */}
               <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 
+                {/* Simple Pro Settings Bar - Captions.ai Style */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '12px',
+                  padding: '12px 16px'
+                }}>
+                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    {/* Real Assets Toggle */}
+                    <div 
+                      onClick={() => updateSessionWithHistory(prev => ({ ...prev, generateRealAssets: !prev.generateRealAssets }))}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px', 
+                        cursor: 'pointer',
+                        background: sessionTracks.generateRealAssets ? 'linear-gradient(135deg, var(--color-purple), var(--color-pink))' : 'rgba(255,255,255,0.1)',
+                        padding: '6px 12px',
+                        borderRadius: '20px',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <div style={{ 
+                        width: '32px', 
+                        height: '18px', 
+                        borderRadius: '9px', 
+                        background: sessionTracks.generateRealAssets ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+                        position: 'relative',
+                        transition: 'all 0.3s ease'
+                      }}>
+                        <div style={{
+                          width: '14px',
+                          height: '14px',
+                          borderRadius: '50%',
+                          background: 'white',
+                          position: 'absolute',
+                          top: '2px',
+                          left: sessionTracks.generateRealAssets ? '16px' : '2px',
+                          transition: 'left 0.3s ease'
+                        }} />
+                      </div>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                        {sessionTracks.generateRealAssets ? '⚡ Real Assets' : '📝 Text Mode'}
+                      </span>
+                    </div>
+                    
+                    <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)' }} />
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>BPM</span>
+                      <input 
+                        type="number" 
+                        value={sessionTracks.bpm || 120}
+                        onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, bpm: parseInt(e.target.value) || 120 }))}
+                        style={{ width: '50px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', padding: '4px 8px', color: 'var(--color-cyan)', fontSize: '0.85rem', fontWeight: 600, textAlign: 'center' }}
+                      />
+                    </div>
+                    <select 
+                      value={sessionTracks.frameRate || 30}
+                      onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, frameRate: parseInt(e.target.value) }))}
+                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', padding: '4px 8px', color: 'white', fontSize: '0.8rem', cursor: 'pointer' }}
+                    >
+                      <option value="24">24fps</option>
+                      <option value="30">30fps</option>
+                      <option value="60">60fps</option>
+                    </select>
+                    <select 
+                      value={sessionTracks.aspectRatio || '16:9'}
+                      onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, aspectRatio: e.target.value }))}
+                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', padding: '4px 8px', color: 'white', fontSize: '0.8rem', cursor: 'pointer' }}
+                    >
+                      <option value="16:9">16:9</option>
+                      <option value="9:16">9:16</option>
+                      <option value="1:1">1:1</option>
+                    </select>
+                  </div>
+                  
+                  {/* Render Counter - Simple */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {[1, 2, 3].map(n => (
+                        <div 
+                          key={n}
+                          style={{ 
+                            width: '8px', 
+                            height: '8px', 
+                            borderRadius: '50%',
+                            background: n <= (sessionTracks.renderCount || 0) ? 'var(--color-purple)' : 'rgba(255,255,255,0.2)'
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {3 - (sessionTracks.renderCount || 0)} renders left
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Real Assets Info Banner */}
+                {sessionTracks.generateRealAssets && (
+                  <div style={{ 
+                    padding: '10px 16px', 
+                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2))', 
+                    borderRadius: '8px',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <strong>⚡ Real Asset Mode</strong> — AI will generate actual audio, images & video
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      Uses Imagen 4.0 • Veo 3.0 • MusicGen
+                    </div>
+                  </div>
+                )}
+
                 {/* Agent Insight / Tip */}
                 <div style={{ padding: '12px', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '8px', borderLeft: '4px solid var(--color-purple)', fontSize: '0.9rem', display: 'flex', gap: '12px', alignItems: 'center' }}>
                    <Sparkles size={18} className="text-purple" />
@@ -7253,7 +7390,15 @@ When you write a song, you create intellectual property that generates money eve
 
                  <button 
                    className="btn-pill primary"
+                   disabled={(sessionTracks.renderCount || 0) >= 3}
+                   style={{ opacity: (sessionTracks.renderCount || 0) >= 3 ? 0.5 : 1 }}
                    onClick={async () => {
+                     // Check render limit
+                     if ((sessionTracks.renderCount || 0) >= 3) {
+                       toast.error('Maximum 3 renders reached. Pro users can reset.');
+                       return;
+                     }
+                     
                      // Collect selected assets for orchestration
                      const agentOutputs = [
                        sessionTracks.audio,
@@ -7266,8 +7411,9 @@ When you write a song, you create intellectual property that generates money eve
                        return;
                      }
                      
-                     handleTextToVoice("Orchestrating your agents. This may take a moment.");
-                     toast.loading('AMO Processing...', { id: 'amo-render' });
+                     const renderNumber = (sessionTracks.renderCount || 0) + 1;
+                     handleTextToVoice(`Render pass ${renderNumber} of 3. Orchestrating your agents.`);
+                     toast.loading(`AMO Render ${renderNumber}/3...`, { id: 'amo-render' });
                      
                      try {
                        // Get auth token
@@ -7277,7 +7423,7 @@ When you write a song, you create intellectual property that generates money eve
                          headers['Authorization'] = `Bearer ${token}`;
                        }
                        
-                       // Call the AMO orchestrator endpoint
+                       // Call the AMO orchestrator endpoint with sync settings
                        const response = await fetch(`${BACKEND_URL}/api/orchestrate`, {
                          method: 'POST',
                          headers,
@@ -7292,7 +7438,19 @@ When you write a song, you create intellectual property that generates money eve
                              videoUrl: a.videoUrl
                            })),
                            projectName: selectedProject.name,
-                           projectDescription: selectedProject.description
+                           projectDescription: selectedProject.description,
+                           // Professional sync settings for TV-ready output
+                           syncSettings: {
+                             bpm: sessionTracks.bpm || 120,
+                             timeSignature: sessionTracks.timeSignature || '4/4',
+                             key: sessionTracks.key || 'C Major',
+                             frameRate: sessionTracks.frameRate || 30,
+                             sampleRate: sessionTracks.sampleRate || 48000,
+                             bitDepth: sessionTracks.bitDepth || 24,
+                             aspectRatio: sessionTracks.aspectRatio || '16:9'
+                           },
+                           renderPass: renderNumber,
+                           generateRealAssets: sessionTracks.generateRealAssets || false
                          })
                        });
                        
@@ -7302,28 +7460,80 @@ When you write a song, you create intellectual property that generates money eve
                          throw new Error(data.error || 'Orchestration failed');
                        }
                        
+                       // If generateRealAssets is enabled, also call media generation APIs
+                       let generatedAudioUrl = sessionTracks.audio?.audioUrl;
+                       let generatedImageUrl = sessionTracks.visual?.imageUrl;
+                       let generatedVideoUrl = sessionTracks.visual?.videoUrl;
+                       
+                       if (sessionTracks.generateRealAssets) {
+                         toast.loading('Generating real assets...', { id: 'amo-assets' });
+                         
+                         // Generate image if we have visual content but no URL
+                         if (sessionTracks.visual && !sessionTracks.visual.imageUrl) {
+                           try {
+                             const imagePrompt = sessionTracks.visual.snippet || sessionTracks.visual.content || `Album artwork for ${selectedProject.name}`;
+                             const imgRes = await fetch(`${BACKEND_URL}/api/generate-image`, {
+                               method: 'POST',
+                               headers,
+                               body: JSON.stringify({ prompt: imagePrompt.substring(0, 500), aspectRatio: sessionTracks.aspectRatio || '16:9' })
+                             });
+                             const imgData = await imgRes.json();
+                             if (imgData.imageUrl) generatedImageUrl = imgData.imageUrl;
+                           } catch (e) { console.log('Image generation skipped:', e.message); }
+                         }
+                         
+                         // Generate audio if we have audio content but no URL
+                         if (sessionTracks.audio && !sessionTracks.audio.audioUrl) {
+                           try {
+                             const audioPrompt = sessionTracks.audio.snippet || sessionTracks.audio.content || `${sessionTracks.bpm || 120} BPM beat`;
+                             const audRes = await fetch(`${BACKEND_URL}/api/generate-audio`, {
+                               method: 'POST',
+                               headers,
+                               body: JSON.stringify({ prompt: audioPrompt.substring(0, 200) })
+                             });
+                             const audData = await audRes.json();
+                             if (audData.audioUrl) generatedAudioUrl = audData.audioUrl;
+                           } catch (e) { console.log('Audio generation skipped:', e.message); }
+                         }
+                         
+                         toast.dismiss('amo-assets');
+                       }
+                       
+                       // Increment render count
+                       updateSessionWithHistory(prev => ({
+                         ...prev,
+                         renderCount: renderNumber,
+                         lastRenderTime: new Date().toISOString(),
+                         renderHistory: [...(prev.renderHistory || []), { pass: renderNumber, timestamp: Date.now() }]
+                       }));
+                       
                        // Use the master asset from the API response
                        const masterAsset = data.masterAsset || {
                          id: `master-${Date.now()}`,
-                         title: "Studio Master - " + selectedProject.name,
+                         title: `Studio Master ${renderNumber}/3 - ${selectedProject.name}`,
                          type: "Master",
                          agent: "AMO Orchestrator",
                          date: "Just now",
                          color: "agent-purple",
                          snippet: data.output?.slice(0, 200) || "Orchestrated Master Composition.",
                          content: data.output,
-                         audioUrl: sessionTracks.audio?.audioUrl,
+                         audioUrl: generatedAudioUrl,
                          stems: {
-                           audio: sessionTracks.audio?.audioUrl,
+                           audio: generatedAudioUrl,
                            vocal: sessionTracks.vocal?.audioUrl
                          },
-                         imageUrl: sessionTracks.visual?.imageUrl,
-                         videoUrl: sessionTracks.visual?.videoUrl,
+                         imageUrl: generatedImageUrl,
+                         videoUrl: generatedVideoUrl,
                          metadata: {
                            audioVolume: sessionTracks.audioVolume,
                            vocalVolume: sessionTracks.vocalVolume,
                            agentsProcessed: agentOutputs.length,
-                           renderedAt: new Date().toISOString()
+                           renderedAt: new Date().toISOString(),
+                           renderPass: renderNumber,
+                           bpm: sessionTracks.bpm || 120,
+                           frameRate: sessionTracks.frameRate || 30,
+                           aspectRatio: sessionTracks.aspectRatio || '16:9',
+                           realAssets: sessionTracks.generateRealAssets || false
                          }
                        };
                        
