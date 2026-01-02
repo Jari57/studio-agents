@@ -466,6 +466,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [selectedPath, setSelectedPath] = useState(null);
   const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
+  const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
   const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
 
   // Audio Export/Mastering State
@@ -4883,56 +4884,314 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             desc: 'Understanding your rights as a creator - ownership, registration, and protection.', 
             icon: Shield, 
             type: 'Guide',
-            status: 'coming-soon',
-            eta: 'Jan 2025'
+            status: 'available',
+            content: `
+# Music Copyright 101
+
+## What You Own
+When you create an original song, you automatically own the copyright. No registration required (though it helps in court).
+
+### Two Types of Copyright:
+1. **Composition Copyright** - The song itself (lyrics + melody)
+2. **Sound Recording Copyright** - The specific recording (master)
+
+## Key Rights You Control:
+- Reproduction (copies)
+- Distribution (selling/streaming)
+- Public Performance (radio, venues)
+- Derivative Works (remixes, samples)
+- Sync (TV, film, ads)
+
+## Best Practices:
+- Register with the Copyright Office ($65)
+- Keep dated drafts and session files
+- Use split sheets before sessions
+- Consider publishing admin
+
+## AI-Generated Content:
+Currently, AI-generated content without human authorship may not be copyrightable. Always add meaningful human creative input.
+            `
           },
           { 
             title: 'Split Sheet Template', 
             desc: 'Standard agreement for co-writing sessions. Define ownership before you create.', 
             icon: FileText, 
             type: 'Template',
-            status: 'coming-soon',
-            eta: 'Jan 2025'
+            status: 'available',
+            content: `
+# Split Sheet Template
+
+## SONG INFORMATION
+**Song Title:** _______________
+**Date Written:** _______________
+**Session Location:** _______________
+
+---
+
+## CONTRIBUTOR SPLITS
+
+| Name | Role | Ownership % | PRO | IPI/CAE |
+|------|------|-------------|-----|---------|
+| | | % | | |
+| | | % | | |
+| | | % | | |
+| | | % | | |
+
+**Total Must Equal 100%**
+
+---
+
+## AGREEMENT TERMS
+
+1. Each contributor agrees to the percentage split listed above
+2. Any sample clearances are the responsibility of: _______________
+3. Lead artist for release: _______________
+4. Publishing admin: _______________
+
+---
+
+## SIGNATURES
+
+Contributor 1: _______________ Date: _______________
+Contributor 2: _______________ Date: _______________
+Contributor 3: _______________ Date: _______________
+Contributor 4: _______________ Date: _______________
+
+---
+
+*Keep copies for all contributors. This is a binding agreement.*
+            `
           },
           { 
             title: 'Sync Licensing Guide', 
             desc: 'Step-by-step guide to getting your music placed in TV, Film & Ads.', 
             icon: Tv, 
             type: 'Guide',
-            status: 'coming-soon',
-            eta: 'Feb 2025'
+            status: 'available',
+            content: `
+# Sync Licensing Guide
+
+## What is Sync?
+Synchronization licensing = permission to use music with visual media (TV, film, ads, games, YouTube).
+
+## The Two Licenses You Need:
+1. **Sync License** - From the publisher/songwriter (composition)
+2. **Master License** - From the label/artist (recording)
+
+If you own both, you can grant both!
+
+## How to Get Placements:
+
+### 1. Music Libraries
+- Musicbed, Artlist, Epidemic Sound
+- Non-exclusive = keep your rights
+- Lower fees but steady income
+
+### 2. Sync Agents
+- Pitch to music supervisors for you
+- Take 15-50% commission
+- Best for quality catalog
+
+### 3. Direct Outreach
+- Build relationships with music supervisors
+- Attend sync conferences
+- Use LinkedIn and industry events
+
+## Pricing Guidelines:
+- Student Film: Free - $500
+- Indie Film: $1,000 - $10,000
+- TV Show: $5,000 - $50,000
+- Major Ad Campaign: $50,000 - $500,000+
+
+## Pro Tips:
+- Instrumental versions are essential
+- Clean versions (no explicit)
+- Stems available on request
+- Quick turnaround = more placements
+            `
           },
           { 
             title: 'AI & IP Rights', 
             desc: 'Navigating the legal landscape of AI-assisted music creation.', 
             icon: Lock, 
             type: 'Whitepaper',
-            status: 'coming-soon',
-            eta: 'Feb 2025'
+            status: 'available',
+            content: `
+# AI & Intellectual Property Rights
+
+## Current Legal Landscape (2026)
+
+### Copyright Office Position:
+- Works must have human authorship
+- Pure AI output = no copyright
+- Human + AI collaboration = copyrightable (human elements)
+
+### Best Practices for AI-Assisted Creation:
+
+1. **Document Your Process**
+   - Save prompts and iterations
+   - Note your creative decisions
+   - Keep before/after versions
+
+2. **Add Meaningful Human Input**
+   - Edit AI outputs substantially
+   - Use AI as starting point, not final product
+   - Combine multiple generations with human curation
+
+3. **Disclosure Considerations**
+   - No legal requirement (yet) to disclose AI use
+   - Some platforms have policies
+   - Industry norms are evolving
+
+## Studio Agents & Your Rights
+
+When you use Studio Agents:
+- You own the outputs you create
+- We don't claim rights to your work
+- You're responsible for ensuring originality
+- We recommend human review of all outputs
+
+## Training Data Concerns:
+- Some AI models trained on copyrighted works
+- Legal challenges ongoing
+- Studio Agents uses licensed/permitted training data
+
+## Stay Updated:
+AI law is evolving rapidly. This document will be updated as regulations develop.
+            `
           },
           { 
             title: 'Label Deal Breakdown', 
             desc: 'Understanding record deals, advances, recoupment, and points.', 
             icon: FileText, 
             type: 'Guide',
-            status: 'coming-soon',
-            eta: 'Mar 2025'
+            status: 'available',
+            content: `
+# Label Deal Breakdown
+
+## Types of Deals
+
+### 1. Traditional Record Deal
+- Label owns masters
+- Artist gets 12-20% royalty
+- Advance recouped from royalties
+- Label funds recording, marketing, distribution
+
+### 2. Distribution Deal
+- You own masters
+- Keep 80-100% of revenue
+- Pay distributor fee (15-30%)
+- You fund everything
+
+### 3. Licensing Deal
+- You own masters
+- License to label for set term (3-7 years)
+- Higher royalty (50-70%)
+- Masters revert to you after term
+
+### 4. Joint Venture (JV)
+- Shared ownership (50/50)
+- Shared costs and profits
+- Best of both worlds
+- Requires leverage to negotiate
+
+## Key Terms to Know:
+
+**Advance:** Loan against future royalties (not free money!)
+**Recoupment:** Label recoups costs before you see royalties
+**Cross-collateralization:** Losses on one album offset gains on another
+**Options:** Label's right to your next albums
+**360 Deal:** Label takes cut of touring, merch, publishing
+
+## Red Flags:
+- Perpetual ownership of masters
+- Cross-collateralization across revenue streams
+- Excessive option periods
+- Vague "commercially reasonable" language
+
+## Negotiation Tips:
+- Always have an entertainment lawyer
+- Sunset clauses on recoupment
+- Audit rights
+- Reversion clauses
+- Cap on recoupable expenses
+            `
           },
           { 
             title: 'Publishing 101', 
-            desc: 'PROs, mechanical royalties, sync fees, and how to collect what you\'re owed.', 
+            desc: 'PROs, mechanical royalties, sync fees, and how to collect what you are owed.', 
             icon: CreditCard, 
             type: 'Guide',
-            status: 'coming-soon',
-            eta: 'Mar 2025'
+            status: 'available',
+            content: `
+# Publishing 101
+
+## What is Music Publishing?
+Publishing = the business of your SONGS (not recordings)
+
+When you write a song, you create intellectual property that generates money every time it's:
+- Streamed or downloaded (Mechanical)
+- Played on radio or in public (Performance)
+- Used in TV/Film/Ads (Sync)
+- Printed as sheet music (Print)
+
+## The Money Flow
+
+### Performance Royalties
+- Collected by PROs (ASCAP, BMI, SESAC, GMR)
+- Radio, TV, streaming, live venues, bars, stores
+- Split: 50% writer / 50% publisher
+
+### Mechanical Royalties
+- Paid for reproductions of your song
+- Streaming, downloads, CDs
+- In US: collected by MLC (Mechanical Licensing Collective)
+- Rate: ~$0.0008 per stream
+
+### Sync Fees
+- One-time licensing fees
+- Negotiated per placement
+- You keep 100% (minus admin fees)
+
+## Who Collects What?
+
+| Source | Who Collects |
+|--------|--------------|
+| US Performance | Your PRO (ASCAP/BMI/SESAC) |
+| US Mechanicals | The MLC |
+| International | Sub-publishers or admin |
+| Sync | Publisher or you directly |
+
+## Getting Started:
+1. Join a PRO (free)
+2. Register with The MLC
+3. Consider a publishing admin (Songtrust, CD Baby Pro)
+4. Register every song you write
+
+## Publisher vs Publishing Admin:
+- **Publisher:** Takes ownership, active pitching, 50% of publishing
+- **Admin:** No ownership, just collection, 10-20% fee
+            `
           }
         ];
 
         const AGENT_WHITEPAPERS = [
-          { title: 'Ghostwriter v2.4', desc: 'LLM Architecture & Lyric Generation', version: 'v2.4', icon: FileText },
-          { title: 'Beat Architect v3.1', desc: 'Rhythmic Pattern Analysis Engine', version: 'v3.1', icon: Zap },
-          { title: 'Imagen 3 Integration', desc: 'High-Fidelity Visual Synthesis', version: 'v3.0', icon: Image },
-          { title: 'Veo Video Model', desc: 'Cinematic Video Generation Specs', version: 'v1.0', icon: Video }
+          { title: 'Ghostwriter', desc: 'LLM-powered lyric generation with flow mapping, rhyme scheme analysis, and style mimicry across 50+ genres.', version: 'v2.4', icon: Sparkles, tier: 'Free' },
+          { title: 'Beat Lab', desc: 'Algorithmic drum pattern generation, chord progression logic, and BPM-matched sample sourcing.', version: 'v3.1', icon: Zap, tier: 'Free' },
+          { title: 'Album Artist', desc: 'Imagen 3-powered cover art generation with typography, brand palettes, and social media kit export.', version: 'v3.0', icon: Music, tier: 'Free' },
+          { title: 'Video Creator', desc: 'Veo 3.0 cinematic video generation with scene detection, style transfer, and music video creation.', version: 'v1.0', icon: PlayCircle, tier: 'Free' },
+          { title: 'Vocal Architect', desc: 'Neural vocoder synthesis with harmony generation, ad-lib creation, and expressive tuning.', version: 'v2.0', icon: Users, tier: 'Pro' },
+          { title: 'Instrumentalist', desc: 'AI session players with physical modeling, style mimicry, and multi-instrumental performance.', version: 'v1.5', icon: Music, tier: 'Pro' },
+          { title: 'Beat Architect', desc: 'Advanced rhythm production with drum synthesis, groove templates, and dynamic arrangement.', version: 'v2.2', icon: Target, tier: 'Monthly' },
+          { title: 'Sample Wizard', desc: 'Intelligent sample discovery, clearance checking, and stem isolation technology.', version: 'v1.8', icon: Folder, tier: 'Monthly' },
+          { title: 'Drop Engineer', desc: 'EDM-focused production with build-up generation, impact design, and festival-ready drops.', version: 'v1.3', icon: Rocket, tier: 'Pro' },
+          { title: 'Film Composer', desc: 'Orchestral scoring with emotional mapping, sync-point logic, and multi-genre soundtrack creation.', version: 'v2.1', icon: Film, tier: 'Pro' },
+          { title: 'Master Engineer', desc: 'AI-assisted mastering with loudness optimization, stereo imaging, and format-specific exports.', version: 'v3.0', icon: Shield, tier: 'Monthly' },
+          { title: 'Sound Designer', desc: 'Foley generation, texture synthesis, and cinematic sound design for any project.', version: 'v1.6', icon: Volume2, tier: 'Pro' },
+          { title: 'Trend Analyst', desc: 'Real-time music industry trend tracking, viral prediction, and audience insights.', version: 'v2.5', icon: TrendingUp, tier: 'Monthly' },
+          { title: 'Social Strategist', desc: 'Platform-specific content optimization, hashtag research, and posting schedule generation.', version: 'v1.9', icon: Globe, tier: 'Pro' },
+          { title: 'Collab Finder', desc: 'AI-powered artist matching, style compatibility analysis, and networking recommendations.', version: 'v1.4', icon: Users, tier: 'Pro' },
+          { title: 'Release Planner', desc: 'Strategic rollout planning with timeline generation, budget allocation, and milestone tracking.', version: 'v2.0', icon: Rocket, tier: 'Pro' }
         ];
 
         const PRODUCTION_TOOLS = [
@@ -4970,53 +5229,49 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   <span style={{ 
                     marginLeft: 'auto',
                     padding: '4px 12px',
-                    background: 'rgba(168, 85, 247, 0.2)',
-                    color: 'var(--color-purple)',
+                    background: 'rgba(34, 197, 94, 0.2)',
+                    color: '#22c55e',
                     borderRadius: '20px',
                     fontSize: '0.75rem',
                     fontWeight: '600'
                   }}>
-                    Coming Q1 2025
+                    Available Now
                   </span>
                 </div>
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
-                  Protect your art. Understand your rights. We're building comprehensive guides for independent creators.
+                  Protect your art. Understand your rights. Comprehensive guides for independent creators.
                 </p>
                 <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
                   {LEGAL_RESOURCES.map((item, i) => (
                     <div key={i} className="resource-card legal" style={{ 
-                      opacity: item.status === 'coming-soon' ? 0.85 : 1,
+                      opacity: 1,
                       position: 'relative'
                     }}>
-                      {item.status === 'coming-soon' && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '12px',
-                          right: '12px',
-                          padding: '3px 8px',
-                          background: 'rgba(251, 191, 36, 0.2)',
-                          color: '#fbbf24',
-                          borderRadius: '6px',
-                          fontSize: '0.65rem',
-                          fontWeight: '700',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.5px'
-                        }}>
-                          {item.eta}
-                        </div>
-                      )}
+                      <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        padding: '3px 8px',
+                        background: item.type === 'Whitepaper' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(6, 182, 212, 0.2)',
+                        color: item.type === 'Whitepaper' ? 'var(--color-purple)' : 'var(--color-cyan)',
+                        borderRadius: '6px',
+                        fontSize: '0.65rem',
+                        fontWeight: '700',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}>
+                        {item.type}
+                      </div>
                       <div className="card-icon"><item.icon size={24} /></div>
                       <div className="card-content">
                         <h3>{item.title}</h3>
                         <p>{item.desc}</p>
-                        <span className="card-tag">{item.type}</span>
                       </div>
                       <button 
                         className="card-action" 
-                        onClick={() => toast('📅 This guide is coming soon! We\'ll notify you when it\'s ready.', { icon: '🔔' })}
-                        style={{ opacity: item.status === 'coming-soon' ? 0.7 : 1 }}
+                        onClick={() => setShowResourceContent(item)}
                       >
-                        {item.status === 'coming-soon' ? 'Notify Me' : 'Read Guide'}
+                        Read {item.type}
                       </button>
                     </div>
                   ))}
@@ -5036,13 +5291,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     fontSize: '0.75rem',
                     fontWeight: '600'
                   }}>
-                    Technical Docs
+                    16 Agents
                   </span>
                 </div>
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
-                  Understand the technology behind each agent. Architecture, capabilities, and best practices.
+                  Technical documentation for each AI agent. Architecture, capabilities, and best practices.
                 </p>
-                <div className="cards-grid">
+                <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
                   {AGENT_WHITEPAPERS.map((item, i) => (
                     <div key={i} className="resource-card whitepaper" style={{ position: 'relative' }}>
                       <div style={{
@@ -5050,14 +5305,14 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         top: '12px',
                         right: '12px',
                         padding: '3px 8px',
-                        background: 'rgba(251, 191, 36, 0.2)',
-                        color: '#fbbf24',
+                        background: item.tier === 'Free' ? 'rgba(34, 197, 94, 0.2)' : item.tier === 'Monthly' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(168, 85, 247, 0.2)',
+                        color: item.tier === 'Free' ? '#22c55e' : item.tier === 'Monthly' ? '#fbbf24' : 'var(--color-purple)',
                         borderRadius: '6px',
                         fontSize: '0.65rem',
                         fontWeight: '700',
                         textTransform: 'uppercase'
                       }}>
-                        Coming Soon
+                        {item.tier}
                       </div>
                       <div className="card-icon"><item.icon size={24} /></div>
                       <div className="card-content">
@@ -5065,11 +5320,15 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           <h3>{item.title}</h3>
                           <span className="version-badge">{item.version}</span>
                         </div>
-                        <p>{item.desc}</p>
+                        <p style={{ fontSize: '0.85rem' }}>{item.desc}</p>
                       </div>
                       <button 
                         className="card-action secondary" 
-                        onClick={() => toast('📄 Technical documentation coming soon for developers and power users.', { icon: '🔬' })}
+                        onClick={() => {
+                          const agent = AGENTS.find(a => a.name === item.title || a.name.includes(item.title.split(' ')[0]));
+                          if (agent) openAgentWhitepaper(agent);
+                          else toast(`📄 ${item.title} - ${item.desc}`, { icon: '🔬', duration: 4000 });
+                        }}
                       >
                         View Spec
                       </button>
@@ -8622,6 +8881,84 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 }}
               >
                 Launch Agent
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Legal & Business Resource Content Modal */}
+      {showResourceContent && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowResourceContent(null)} style={{ zIndex: 2000 }}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '800px', 
+              width: '95%',
+              maxHeight: '90vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ 
+                  width: '44px', height: '44px', borderRadius: '12px', 
+                  background: 'var(--color-bg-secondary)', 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--color-purple)'
+                }}>
+                  <showResourceContent.icon size={22} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1.25rem', margin: 0 }}>{showResourceContent.title}</h2>
+                  <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>{showResourceContent.type}</p>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setShowResourceContent(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '1.5rem', flex: 1, overflowY: 'auto' }}>
+              <div 
+                style={{ 
+                  whiteSpace: 'pre-wrap', 
+                  fontFamily: 'inherit',
+                  fontSize: '0.95rem',
+                  lineHeight: '1.7',
+                  color: 'var(--text-primary)'
+                }}
+                dangerouslySetInnerHTML={{ 
+                  __html: showResourceContent.content
+                    .replace(/^# (.*$)/gm, '<h1 style="font-size: 1.5rem; margin: 1.5rem 0 1rem; color: var(--text-primary);">$1</h1>')
+                    .replace(/^## (.*$)/gm, '<h2 style="font-size: 1.2rem; margin: 1.25rem 0 0.75rem; color: var(--color-cyan);">$1</h2>')
+                    .replace(/^### (.*$)/gm, '<h3 style="font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--color-purple);">$1</h3>')
+                    .replace(/^\*\*(.*?)\*\*/gm, '<strong>$1</strong>')
+                    .replace(/^- (.*$)/gm, '<li style="margin-left: 1.5rem; margin-bottom: 0.25rem;">$1</li>')
+                    .replace(/^\d+\. (.*$)/gm, '<li style="margin-left: 1.5rem; margin-bottom: 0.25rem;">$1</li>')
+                    .replace(/\n\n/g, '<br/><br/>')
+                }}
+              />
+            </div>
+
+            <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '12px', flexShrink: 0 }}>
+              <button 
+                className="btn-secondary"
+                onClick={() => {
+                  navigator.clipboard.writeText(showResourceContent.content);
+                  toast.success('Copied to clipboard!');
+                }}
+              >
+                Copy Text
+              </button>
+              <button 
+                className="cta-button-premium"
+                onClick={() => setShowResourceContent(null)}
+              >
+                Done
               </button>
             </div>
           </div>
