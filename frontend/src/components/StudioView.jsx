@@ -9238,28 +9238,46 @@ When you write a song, you create intellectual property that generates money eve
             </div>
 
             <div style={{ padding: '32px', position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <button 
-                  onClick={handleSkipOnboarding}
-                  style={{ 
-                    background: 'none', 
-                    border: 'none', 
-                    color: 'var(--text-secondary)', 
-                    fontSize: '0.9rem', 
-                    cursor: 'pointer',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Skip Setup
-                </button>
-                <button 
-                  className="modal-close" 
-                  onClick={() => setShowOnboarding(false)}
-                  style={{ position: 'static' }}
-                >
-                  <X size={20} />
-                </button>
-              </div>
+              {/* Skip and Close buttons - properly spaced */}
+              <button 
+                onClick={handleSkipOnboarding}
+                style={{ 
+                  position: 'absolute',
+                  top: '20px', 
+                  right: '70px',
+                  background: 'none', 
+                  border: 'none', 
+                  color: 'var(--text-secondary)', 
+                  fontSize: '0.9rem', 
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  zIndex: 10
+                }}
+              >
+                Skip
+              </button>
+              <button 
+                onClick={() => setShowOnboarding(false)}
+                style={{ 
+                  position: 'absolute',
+                  top: '16px', 
+                  right: '20px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  borderRadius: '50%',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'white',
+                  zIndex: 10,
+                  padding: 0
+                }}
+              >
+                <X size={20} />
+              </button>
 
               <div style={{ marginBottom: '24px' }}>
                 <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-purple)' }}>
