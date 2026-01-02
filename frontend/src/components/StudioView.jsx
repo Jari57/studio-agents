@@ -8133,7 +8133,8 @@ When you write a song, you create intellectual property that generates money eve
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 onClick={() => {
                   setShowCreditsModal(false);
-                  setActiveTab('settings');
+                  setDashboardTab('billing');
+                  setActiveTab('mystudio');
                 }}
               >
                 <Plus size={18} style={{ marginRight: '6px' }} /> Add Credits
