@@ -175,6 +175,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   );
   const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
   const [selectedAgent, setSelectedAgent] = useState(null);
+  const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [newsSearch, setNewsSearch] = useState('');
@@ -404,7 +405,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   ];
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  const [user, setUser] = useState(null);
+  // user state moved to top of component (before cloud sync useEffect)
   const [userPlan, setUserPlan] = useState(() => localStorage.getItem('studio_user_plan') || 'Free');
   
   // Free generation tracking (3 free before requiring login/payment)
@@ -1425,8 +1426,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           navigated = true;
         } else if (transcript.includes('news')) {
           setActiveTab('news');
-          toast.success('📰 News Feed');
-          handleTextToVoice("Checking the latest industry news.");
+          toast.success('📰 Industry Pulse');
+          handleTextToVoice("Checking the latest industry pulse.");
           navigated = true;
         } else if (transcript.includes('help') || transcript.includes('support')) {
           setActiveTab('support');
@@ -3541,7 +3542,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   <div className="settings-list">
                     <div className="setting-row">
                       <div className="setting-info">
-                        <h4>Show News Feed</h4>
+                        <h4>Show Industry Pulse</h4>
                         <p>Display the latest music industry news in your dashboard.</p>
                       </div>
                       <label className="switch">
@@ -5114,7 +5115,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     <h4>Community</h4>
                     <ul>
                       <li onClick={() => setActiveTab('activity')}>Activity Wall</li>
-                      <li onClick={() => setActiveTab('news')}>News Feed</li>
+                      <li onClick={() => setActiveTab('news')}>Industry Pulse</li>
                     </ul>
                   </div>
                   <div className="sitemap-column">
@@ -5701,7 +5702,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           { keywords: ['billing', 'payment', 'card', 'subscription', 'plan', 'wallet', 'money', 'cost', 'price'], label: 'Billing & Wallet', action: () => { setActiveTab('mystudio'); setDashboardTab('billing'); } },
           { keywords: ['settings', 'config', 'preferences', 'dark mode', 'theme', 'language', 'voice'], label: 'App Settings', action: () => { setActiveTab('mystudio'); setDashboardTab('settings'); } },
           { keywords: ['profile', 'account', 'user', 'avatar', 'login', 'logout', 'email'], label: 'User Profile', action: () => { setActiveTab('mystudio'); setDashboardTab('overview'); } },
-          { keywords: ['news', 'feed', 'updates', 'industry', 'trends'], label: 'Industry News', action: () => setActiveTab('news') },
+          { keywords: ['news', 'feed', 'updates', 'industry', 'trends', 'pulse'], label: 'Industry Pulse', action: () => setActiveTab('news') },
           { keywords: ['hub', 'projects', 'files', 'saved', 'library', 'creations'], label: 'Project Hub', action: () => setActiveTab('hub') },
           { keywords: ['activity', 'wall', 'community', 'social', 'share', 'feed'], label: 'Activity Wall', action: () => setActiveTab('activity') },
           { keywords: ['agents', 'tools', 'create', 'make', 'generate'], label: 'Agent Studio', action: () => setActiveTab('agents') }
@@ -5902,7 +5903,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         // Mobile "More" menu with all navigation options
         const moreMenuItems = [
           { id: 'activity', icon: MessageSquare, label: 'Activity Wall', desc: 'Community feed & updates', color: 'var(--color-purple)' },
-          { id: 'news', icon: Globe, label: 'Industry News', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
+          { id: 'news', icon: Globe, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
           { id: 'resources', icon: Book, label: 'Resources', desc: 'Guides & tutorials', color: 'var(--color-orange)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-pink)' },
           { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-emerald)' },
@@ -6217,7 +6218,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             onClick={() => { setActiveTab('news'); setSelectedAgent(null); }}
           >
             <Globe size={20} />
-            <span>News</span>
+            <span>Industry Pulse</span>
           </button>
           <button 
             className={`nav-link ${activeTab === 'support' ? 'active' : ''}`}
