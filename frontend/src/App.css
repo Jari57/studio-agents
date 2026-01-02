@@ -1500,8 +1500,10 @@ select optgroup {
 
 .agents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .agent-card-premium {
@@ -1510,6 +1512,7 @@ select optgroup {
   border: 1px solid var(--border-color);
   border-radius: 32px;
   padding: 2.5rem;
+  min-height: 280px;
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
@@ -1534,9 +1537,9 @@ select optgroup {
 }
 
 .agent-icon-box {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1544,12 +1547,17 @@ select optgroup {
   transition: transform 0.3s ease;
 }
 
+.agent-icon-box svg {
+  width: 32px;
+  height: 32px;
+}
+
 .agent-card-premium:hover .agent-icon-box {
   transform: scale(1.1) rotate(5deg);
 }
 
 .agent-name {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
   color: white !important;
