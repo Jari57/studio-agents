@@ -32,6 +32,7 @@ import {
   writeBatch
 } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
+import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
 
 // --- CONSTANTS FOR ONBOARDING & SUPPORT ---
 
@@ -265,9 +266,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         }
       }
       
-      const projectRef = doc(db, 'users', uid, 'projects', project.id);
+      const projectRef = doc(db, 'users', uid, 'projects', String(project.id));
       await setDoc(projectRef, {
         ...sanitizedProject,
+        id: String(project.id), // Ensure ID is string in document
         updatedAt: new Date().toISOString(),
         syncedAt: new Date().toISOString()
       }, { merge: true });
@@ -302,9 +304,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           }
         }
         
-        const projectRef = doc(db, 'users', uid, 'projects', project.id);
+        const projectRef = doc(db, 'users', uid, 'projects', String(project.id));
         batch.set(projectRef, {
           ...sanitizedProject,
+          id: String(project.id), // Ensure ID is string
           updatedAt: sanitizedProject.updatedAt || new Date().toISOString(),
           syncedAt: new Date().toISOString()
         }, { merge: true });
@@ -597,7 +600,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     const agentObjects = recommendedAgents.map(id => AGENTS.find(a => a.id === id)).filter(Boolean);
     
     const newProject = {
-      id: Date.now(),
+      id: String(Date.now()),
       name: userProfile.stageName ? `${userProfile.stageName}'s Project` : `Project ${projects.length + 1}`,
       category: selectedPath === 'write' ? 'pro' : selectedPath === 'produce' ? 'vybing' : selectedPath === 'grow' ? 'social' : 'mixtapes',
       description: `Created from ${selectedPath || 'explore'} goal`,
@@ -720,7 +723,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
     
     const newProject = {
-      id: Date.now(),
+      id: String(Date.now()),
       name: newProjectData.name,
       category: newProjectData.category,
       description: newProjectData.description,
@@ -773,7 +776,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
 
     const newProject = {
-      id: Date.now(),
+      id: String(Date.now()),
       name: `Untitled Project ${projects.length + 1}`,
       category: "music",
       description: "Quick start project",
@@ -843,7 +846,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
 
     const newProject = {
-      id: Date.now(),
+      id: String(Date.now()),
       name: projectName,
       category: 'pro',
       description: `Created from ${asset.agentName}`,
@@ -1796,6 +1799,45 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     const textarea = textareaRef.current || document.querySelector('.studio-textarea');
     if (!textarea || !textarea.value) {
       toast.error("Please enter a prompt first.");
+      return;
+    }
+
+    // Check if user typed the demo code ("pitch")
+    if (checkDemoCode(textarea.value)) {
+      setShowDemoBanner(true);
+      textarea.value = '';
+      toast.success('🎭 Demo mode activated! Type "pitch" again to generate a demo response.', {
+        duration: 5000,
+        icon: '🎬'
+      });
+      return;
+    }
+
+    // Demo mode - return mock response without hitting API
+    if (getDemoModeState()) {
+      setIsGenerating(true);
+      const toastId = toast.loading(`${selectedAgent.name} is working... (Demo Mode)`);
+      try {
+        const mockOutput = await getMockResponse(selectedAgent.id, textarea.value);
+        const newItem = {
+          id: Date.now(),
+          title: `${selectedAgent.name} Result`,
+          type: selectedAgent.category,
+          agent: selectedAgent.name,
+          date: 'Just now',
+          color: selectedAgent.colorClass,
+          snippet: mockOutput,
+          isDemo: true
+        };
+        setLatestResult(newItem);
+        setWorkHistory(prev => [newItem, ...prev]);
+        setActiveTab('result');
+        toast.success('Demo response generated!', { id: toastId });
+      } catch (err) {
+        toast.error('Demo error: ' + err.message, { id: toastId });
+      } finally {
+        setIsGenerating(false);
+      }
       return;
     }
 
@@ -6503,8 +6545,26 @@ When you write a song, you create intellectual property that generates money eve
 
   const activeProjectSteps = getProjectSteps();
 
+  // Demo mode state for banner visibility
+  const [showDemoBanner, setShowDemoBanner] = useState(getDemoModeState());
+
   return (
     <div className={`studio-container ${theme}-theme`} {...swipeHandlers}>
+      {/* Demo Mode Banner */}
+      {showDemoBanner && (
+        <div 
+          onClick={() => {
+            toggleDemoMode();
+            setShowDemoBanner(false);
+            toast.success('Demo mode disabled - using real API');
+          }}
+          style={DEMO_BANNER_STYLES.container}
+          title="Click to disable demo mode"
+        >
+          <span>{DEMO_BANNER_STYLES.icon}</span>
+          <span>{DEMO_BANNER_STYLES.text}</span>
+        </div>
+      )}
       <Toaster 
         position="top-center"
         toastOptions={{
