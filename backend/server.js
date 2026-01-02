@@ -1367,6 +1367,168 @@ app.post('/api/generate', verifyFirebaseToken, checkCredits, generationLimiter, 
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// AGENT MODEL ORCHESTRATOR (AMO) - Combine up to 4 agent outputs
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/orchestrate', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+  try {
+    const { agentOutputs, projectName, projectDescription } = req.body;
+    
+    // Validate inputs
+    if (!agentOutputs || !Array.isArray(agentOutputs) || agentOutputs.length === 0) {
+      return res.status(400).json({ error: 'At least one agent output is required' });
+    }
+    
+    if (agentOutputs.length > 4) {
+      return res.status(400).json({ error: 'Maximum 4 agent outputs allowed' });
+    }
+    
+    // Get user ID for saving
+    const userId = req.user?.uid;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required for orchestration' });
+    }
+    
+    logger.info('🎛️ AMO Orchestration request', { 
+      userId, 
+      agentCount: agentOutputs.length,
+      agents: agentOutputs.map(a => a.agent || a.type || 'unknown')
+    });
+    
+    // Build orchestration prompt from agent outputs
+    const agentSummaries = agentOutputs.map((output, idx) => {
+      const agentName = output.agent || output.type || `Agent ${idx + 1}`;
+      const content = output.content || output.snippet || output.text || output.output || JSON.stringify(output);
+      return `## ${agentName} Output:\n${typeof content === 'string' ? content.slice(0, 2000) : JSON.stringify(content).slice(0, 2000)}`;
+    }).join('\n\n');
+    
+    const orchestrationPrompt = `You are the Agent Model Orchestrator (AMO), a master AI that combines outputs from multiple specialized agents into a cohesive final product.
+
+PROJECT: ${sanitizeInput(projectName || 'Untitled Project', 200)}
+DESCRIPTION: ${sanitizeInput(projectDescription || 'Music production project', 500)}
+
+You have received outputs from ${agentOutputs.length} specialized agents:
+
+${agentSummaries}
+
+---
+
+Your task:
+1. Analyze all agent outputs and identify synergies
+2. Resolve any conflicts or inconsistencies between outputs
+3. Create a unified, polished final product that leverages the best of each agent's contribution
+4. Provide production notes on how the elements work together
+
+Generate a comprehensive MASTER OUTPUT that combines all elements into a professional, release-ready result. Include:
+- Combined creative direction
+- How each agent's contribution enhances the final product
+- Any adjustments made for cohesion
+- Final polished content ready for use`;
+
+    const systemInstruction = `You are the Agent Model Orchestrator (AMO) - an expert at synthesizing multiple AI agent outputs into cohesive, professional results. You understand music production, marketing, visual design, and creative direction. Always produce polished, actionable output that artists can immediately use.`;
+    
+    if (!apiKey) {
+      throw new Error("Server missing API Key");
+    }
+    
+    const desiredModel = process.env.GENERATIVE_MODEL || "gemini-2.0-flash";
+    
+    const model = genAI.getGenerativeModel({ 
+      model: desiredModel,
+      systemInstruction
+    });
+    
+    const startTime = Date.now();
+    const result = await model.generateContent(orchestrationPrompt);
+    const response = await result.response;
+    const orchestratedOutput = response.text();
+    const duration = Date.now() - startTime;
+    
+    logger.info('🎛️ AMO Orchestration complete', { 
+      userId,
+      duration: `${duration}ms`,
+      outputLength: orchestratedOutput.length
+    });
+    
+    // Create the master asset
+    const masterAsset = {
+      id: `master-${Date.now()}`,
+      title: `Master: ${projectName || 'Untitled'}`,
+      type: 'Master',
+      agent: 'AMO Orchestrator',
+      date: new Date().toISOString(),
+      color: 'agent-purple',
+      snippet: orchestratedOutput.slice(0, 200) + '...',
+      content: orchestratedOutput,
+      metadata: {
+        agentCount: agentOutputs.length,
+        agents: agentOutputs.map(a => a.agent || a.type),
+        orchestratedAt: new Date().toISOString(),
+        processingTime: duration
+      },
+      // Preserve media URLs from input assets
+      audioUrl: agentOutputs.find(a => a.audioUrl)?.audioUrl,
+      imageUrl: agentOutputs.find(a => a.imageUrl)?.imageUrl,
+      videoUrl: agentOutputs.find(a => a.videoUrl)?.videoUrl,
+      stems: {
+        audio: agentOutputs.filter(a => a.audioUrl).map(a => ({ url: a.audioUrl, agent: a.agent })),
+        visual: agentOutputs.filter(a => a.imageUrl || a.videoUrl).map(a => ({ 
+          url: a.videoUrl || a.imageUrl, 
+          type: a.videoUrl ? 'video' : 'image',
+          agent: a.agent 
+        }))
+      }
+    };
+    
+    // Save to Firestore
+    const db = getFirestoreDb();
+    if (db) {
+      try {
+        // Save to user's projects collection
+        await db.collection('users').doc(userId).collection('projects').doc(masterAsset.id).set({
+          ...masterAsset,
+          savedAt: admin.firestore.FieldValue.serverTimestamp(),
+          sourceAssets: agentOutputs.map(a => ({ id: a.id, agent: a.agent, type: a.type }))
+        });
+        
+        // Also add to generations history
+        await db.collection('users').doc(userId).collection('generations').add({
+          type: 'orchestration',
+          masterAssetId: masterAsset.id,
+          agentCount: agentOutputs.length,
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        
+        logger.info('💾 Master asset saved to Firestore', { userId, assetId: masterAsset.id });
+      } catch (saveErr) {
+        logger.error('❌ Failed to save master asset', { error: saveErr.message });
+        // Continue - we'll still return the result even if save failed
+      }
+    }
+    
+    res.json({ 
+      success: true,
+      masterAsset,
+      output: orchestratedOutput,
+      metadata: {
+        processingTime: duration,
+        agentsProcessed: agentOutputs.length,
+        savedToCloud: !!db
+      }
+    });
+    
+  } catch (error) {
+    const msg = error?.message || String(error);
+    logger.error('❌ AMO Orchestration error', { error: msg, stack: error?.stack });
+    
+    if (msg.includes('429')) {
+      return res.status(429).json({ error: 'Rate limited', details: 'Please try again in a moment' });
+    }
+    
+    res.status(500).json({ error: 'Orchestration failed', details: msg });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // IMAGE GENERATION ROUTE (Imagen 4.0)
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {

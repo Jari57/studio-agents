@@ -149,12 +149,14 @@ function AgentOutputCard({ icon: Icon, title, color, output, isLoading, delay = 
 export default function MultiAgentDemo() {
   const [songIdea, setSongIdea] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isOrchestrating, setIsOrchestrating] = useState(false);
   const [outputs, setOutputs] = useState({
     hook: null,
     caption: null,
     hashtags: null,
     pitch: null
   });
+  const [masterOutput, setMasterOutput] = useState(null);
   
   const inputRef = useRef(null);
   
@@ -169,6 +171,7 @@ export default function MultiAgentDemo() {
     if (!songIdea.trim()) return;
     
     setIsGenerating(true);
+    setMasterOutput(null);
     setOutputs({ hook: null, caption: null, hashtags: null, pitch: null });
     
     // Generate all outputs in parallel
@@ -218,8 +221,40 @@ export default function MultiAgentDemo() {
       const results = await Promise.all(requests);
       const newOutputs = Object.fromEntries(results);
       setOutputs(newOutputs);
+      setIsGenerating(false);
       
-    } finally {
+      // Now orchestrate all 4 outputs with AMO
+      setIsOrchestrating(true);
+      try {
+        const agentOutputs = [
+          { agent: 'Ghostwriter', type: 'hook', content: newOutputs.hook },
+          { agent: 'Social Copy', type: 'caption', content: newOutputs.caption },
+          { agent: 'Hashtag Engine', type: 'hashtags', content: newOutputs.hashtags },
+          { agent: 'Pitch Writer', type: 'pitch', content: newOutputs.pitch }
+        ];
+        
+        const orchestrateRes = await fetch(`${BACKEND_URL}/api/orchestrate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agentOutputs,
+            projectName: songIdea,
+            projectDescription: `Multi-agent demo for song concept: ${songIdea}`
+          })
+        });
+        
+        const orchestrateData = await orchestrateRes.json();
+        if (orchestrateRes.ok && orchestrateData.output) {
+          setMasterOutput(orchestrateData.output);
+        }
+      } catch (err) {
+        console.log('AMO orchestration skipped (demo mode):', err);
+      } finally {
+        setIsOrchestrating(false);
+      }
+      
+    } catch (err) {
+      console.error('Generation error:', err);
       setIsGenerating(false);
     }
   };

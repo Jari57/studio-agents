@@ -6999,60 +6999,109 @@ When you write a song, you create intellectual property that generates money eve
 
                  <button 
                    className="btn-pill primary"
-                   onClick={() => {
-                     // Render Logic
-                     if (!sessionTracks.audio && !sessionTracks.visual) {
+                   onClick={async () => {
+                     // Collect selected assets for orchestration
+                     const agentOutputs = [
+                       sessionTracks.audio,
+                       sessionTracks.vocal,
+                       sessionTracks.visual
+                     ].filter(Boolean);
+                     
+                     if (agentOutputs.length === 0) {
                        toast.error('Select at least one asset to render');
                        return;
                      }
                      
-                     handleTextToVoice("Rendering master file. This may take a moment.");
+                     handleTextToVoice("Orchestrating your agents. This may take a moment.");
+                     toast.loading('AMO Processing...', { id: 'amo-render' });
                      
-                     // Simulate processing
-                     setTimeout(() => {
-                        const masterAsset = {
-                          id: Date.now(),
-                          title: "Studio Master - " + selectedProject.name,
-                          type: "Master",
-                          agent: "Studio Session",
-                          date: "Just now",
-                          color: "agent-purple",
-                          snippet: "Orchestrated Master Composition. Professional Quality Render.",
-                          audioUrl: sessionTracks.audio?.audioUrl, // Primary audio
-                          stems: {
-                            audio: sessionTracks.audio?.audioUrl,
-                            vocal: sessionTracks.vocal?.audioUrl
-                          },
-                          imageUrl: sessionTracks.visual?.imageUrl,
-                          videoUrl: sessionTracks.visual?.videoUrl,
-                          metadata: {
-                             audioVolume: sessionTracks.audioVolume,
-                             vocalVolume: sessionTracks.vocalVolume,
-                             renderedAt: new Date().toISOString()
-                          }
-                        };
-                        
-                        // Create a downloadable file for the master
-                        const masterData = JSON.stringify(masterAsset, null, 2);
-                        const blob = new Blob([masterData], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `${masterAsset.title.replace(/\s+/g, '_')}.json`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-
-                        const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets] };
-                        setSelectedProject(updated);
-                        setProjects(projects.map(p => p.id === updated.id ? updated : p));
-                        
-                        setShowStudioSession(false);
-                        setSessionPlaying(false);
-                        handleTextToVoice("Master render complete.");
-                        toast.success('Master rendered and saved!');
-                     }, 2000);
+                     try {
+                       // Get auth token
+                       const headers = { 'Content-Type': 'application/json' };
+                       if (auth?.currentUser) {
+                         const token = await auth.currentUser.getIdToken();
+                         headers['Authorization'] = `Bearer ${token}`;
+                       }
+                       
+                       // Call the AMO orchestrator endpoint
+                       const response = await fetch(`${BACKEND_URL}/api/orchestrate`, {
+                         method: 'POST',
+                         headers,
+                         body: JSON.stringify({
+                           agentOutputs: agentOutputs.map(a => ({
+                             id: a.id,
+                             agent: a.agent || a.type,
+                             type: a.type,
+                             content: a.snippet || a.content || a.text,
+                             audioUrl: a.audioUrl,
+                             imageUrl: a.imageUrl,
+                             videoUrl: a.videoUrl
+                           })),
+                           projectName: selectedProject.name,
+                           projectDescription: selectedProject.description
+                         })
+                       });
+                       
+                       const data = await response.json();
+                       
+                       if (!response.ok) {
+                         throw new Error(data.error || 'Orchestration failed');
+                       }
+                       
+                       // Use the master asset from the API response
+                       const masterAsset = data.masterAsset || {
+                         id: `master-${Date.now()}`,
+                         title: "Studio Master - " + selectedProject.name,
+                         type: "Master",
+                         agent: "AMO Orchestrator",
+                         date: "Just now",
+                         color: "agent-purple",
+                         snippet: data.output?.slice(0, 200) || "Orchestrated Master Composition.",
+                         content: data.output,
+                         audioUrl: sessionTracks.audio?.audioUrl,
+                         stems: {
+                           audio: sessionTracks.audio?.audioUrl,
+                           vocal: sessionTracks.vocal?.audioUrl
+                         },
+                         imageUrl: sessionTracks.visual?.imageUrl,
+                         videoUrl: sessionTracks.visual?.videoUrl,
+                         metadata: {
+                           audioVolume: sessionTracks.audioVolume,
+                           vocalVolume: sessionTracks.vocalVolume,
+                           agentsProcessed: agentOutputs.length,
+                           renderedAt: new Date().toISOString()
+                         }
+                       };
+                       
+                       // Update project with master asset
+                       const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets] };
+                       setSelectedProject(updated);
+                       setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                       
+                       // Also save to cloud
+                       if (isLoggedIn) {
+                         const uid = localStorage.getItem('studio_user_id');
+                         if (uid) {
+                           fetch(`${BACKEND_URL}/api/projects`, {
+                             method: 'POST',
+                             headers,
+                             body: JSON.stringify({ userId: uid, project: updated })
+                           }).catch(err => console.error("Failed to sync to cloud", err));
+                         }
+                       }
+                       
+                       toast.dismiss('amo-render');
+                       setShowStudioSession(false);
+                       setSessionPlaying(false);
+                       handleTextToVoice("Master render complete. Your orchestrated production is ready.");
+                       toast.success('Master rendered and saved to your Hub!');
+                       
+                     } catch (err) {
+                       console.error('AMO Orchestration error:', err);
+                       toast.dismiss('amo-render');
+                       toast.error(err.message || 'Orchestration failed. Please try again.');
+                       handleTextToVoice("Orchestration failed. Please try again.");
+                     }
                    }}
                  >
                    <Zap size={18} /> Render Master
