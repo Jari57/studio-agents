@@ -5334,12 +5334,32 @@ select optgroup {
 
 .modal-close {
   position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
-  background: none;
-  border: none;
-  color: #6b7280;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  color: white;
+  z-index: 100;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.modal-close svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.5;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
 }
 
 .modal-header h2 {
@@ -9558,23 +9578,38 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   position: absolute !important;
   top: 1rem !important;
   right: 1rem !important;
-  background: rgba(255, 255, 255, 0.1) !important;
-  border: none !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
   border-radius: 50% !important;
-  width: 32px !important;
-  height: 32px !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  color: var(--text-secondary) !important;
+  color: white !important;
   transition: all 0.2s ease !important;
-  z-index: 10 !important;
+  z-index: 100 !important;
+  padding: 0 !important;
+}
+
+.modal-close svg {
+  width: 20px !important;
+  height: 20px !important;
+  stroke-width: 2.5 !important;
+  color: white !important;
 }
 
 .modal-close:hover {
-  background: rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.3) !important;
   color: white !important;
+  transform: scale(1.1);
+}
+
+.modal-close:active {
+  transform: scale(0.95);
 }
 
 /* Modal header needs padding for close button */

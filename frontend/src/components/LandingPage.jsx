@@ -396,6 +396,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   const [accessLoading, setAccessLoading] = useState(false);
   const [accessPending, setAccessPending] = useState(false);
   
+  // Detect local development environment
+  const isLocal = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  
   // Backend API for investor access validation
   const INVESTOR_API_URL = isLocal 
     ? 'http://localhost:3001/api/investor-access'

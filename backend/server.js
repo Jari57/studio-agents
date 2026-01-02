@@ -2102,6 +2102,122 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// AMO ORCHESTRATOR ENDPOINT - Multi-Agent Session Processing
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/amo/orchestrate', verifyFirebaseToken, apiLimiter, async (req, res) => {
+  try {
+    const { session, tracks, masterSettings } = req.body;
+    
+    if (!tracks || !Array.isArray(tracks) || tracks.length === 0) {
+      return res.status(400).json({ error: 'tracks array is required' });
+    }
+    
+    logger.info('AMO Orchestrator request', { 
+      trackCount: tracks.length,
+      renderMode: masterSettings?.renderMode || 'text',
+      bpm: session?.bpm
+    });
+    
+    // Process each track with the appropriate agent
+    const processedTracks = [];
+    
+    for (const track of tracks) {
+      const { agent, prompt, outputType = 'text' } = track;
+      
+      if (!agent || !prompt) {
+        processedTracks.push({
+          agent,
+          error: 'Missing agent or prompt',
+          status: 'failed'
+        });
+        continue;
+      }
+      
+      try {
+        // Generate content using Gemini for text mode
+        if (masterSettings?.renderMode === 'text' || outputType === 'text') {
+          const systemInstruction = getAgentSystemPrompt(agent, session);
+          const model = genAI.getGenerativeModel({ 
+            model: process.env.GENERATIVE_MODEL || "gemini-1.5-flash",
+            systemInstruction 
+          });
+          
+          const result = await model.generateContent(prompt);
+          const output = result.response.text();
+          
+          processedTracks.push({
+            agent,
+            prompt,
+            output,
+            outputType: 'text',
+            status: 'completed'
+          });
+        } else {
+          // For real asset mode, return a placeholder
+          processedTracks.push({
+            agent,
+            prompt,
+            output: `[Real asset generation for ${agent} - requires specific API]`,
+            outputType,
+            status: 'pending_asset'
+          });
+        }
+      } catch (trackError) {
+        logger.error(`Track processing failed for ${agent}:`, trackError.message);
+        processedTracks.push({
+          agent,
+          prompt,
+          error: trackError.message,
+          status: 'failed'
+        });
+      }
+    }
+    
+    // Combine results into master output
+    const masterOutput = {
+      session: {
+        bpm: session?.bpm || 120,
+        key: session?.key || 'C major',
+        style: session?.style || 'Default',
+        processedAt: new Date().toISOString()
+      },
+      tracks: processedTracks,
+      summary: {
+        total: tracks.length,
+        completed: processedTracks.filter(t => t.status === 'completed').length,
+        failed: processedTracks.filter(t => t.status === 'failed').length,
+        pending: processedTracks.filter(t => t.status === 'pending_asset').length
+      }
+    };
+    
+    res.json({ 
+      success: true,
+      output: masterOutput
+    });
+    
+  } catch (error) {
+    logger.error('AMO Orchestrator error', { error: error.message });
+    res.status(500).json({ error: 'AMO orchestration failed', details: error.message });
+  }
+});
+
+// Helper function to get agent-specific system prompts
+function getAgentSystemPrompt(agent, session) {
+  const baseContext = session ? `Session context: BPM=${session.bpm || 120}, Key=${session.key || 'C major'}, Style=${session.style || 'contemporary'}.` : '';
+  
+  const agentPrompts = {
+    'Ghostwriter': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay and authentic voice.`,
+    'BeatArchitect': `You are the Beat Architect AI, a master producer and beatmaker. ${baseContext} Create detailed beat concepts, drum patterns, and production notes.`,
+    'VisualVibe': `You are the Visual Vibe AI, a music video and artwork conceptualist. ${baseContext} Design compelling visual concepts, color palettes, and mood boards for music.`,
+    'SoundscapeDesigner': `You are the Soundscape Designer AI, an ambient and texture specialist. ${baseContext} Create atmospheric soundscapes, textures, and ambient elements.`,
+    'MelodyMaker': `You are the Melody Maker AI, a melodic composition expert. ${baseContext} Compose memorable melodies, hooks, and harmonic progressions.`,
+    'ArrangerPro': `You are the Arranger Pro AI, a song structure and arrangement specialist. ${baseContext} Design song structures, transitions, and dynamic arrangements.`
+  };
+  
+  return agentPrompts[agent] || `You are a creative AI assistant for music production. ${baseContext} Help with the requested task.`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // AUDIO MASTERING ROUTE - Convert to Distribution-Ready Format
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/master-audio', verifyFirebaseToken, async (req, res) => {
