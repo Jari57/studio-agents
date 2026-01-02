@@ -98,7 +98,7 @@ let firebaseInitialized = false;
 const FIREBASE_CONFIG = {
   type: 'service_account',
   project_id: 'studioagents-app',
-  private_key_id: 'd256093af297f0e1a039dd523b77d57c20a0c5d1',
+  private_key_id: '4f9aafecec75ab4e23decdec5a0212046fd78697',
   client_email: 'firebase-adminsdk-fbsvc@studioagents-app.iam.gserviceaccount.com',
   client_id: '101326229195887107234',
   auth_uri: 'https://accounts.google.com/o/oauth2/auth',
@@ -109,7 +109,8 @@ const FIREBASE_CONFIG = {
 };
 
 // Private key stored as base64 to avoid GitHub detection (decode at runtime)
-const FIREBASE_PRIVATE_KEY_B64 = 'LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2Z0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktnd2dnU2tBZ0VBQW9JQkFRQzZQd0h6V3VRSDg3TVQKQTVzL1hKdDVZYnIrb3hNaVAvSDVjNkNLdmNJNExpN3NBUi9qZWRnV1czQmZuM3Fxb3c4ODVwQVUvVFN6RktzMwpoVWV4M3JtZi9KeGhmbGRha3pmM0tqWjRPSkw5dlZLREl3czZYUXhTbEZTdVVyc2ZzM01MMmVvQVE3Y2JTc3RUCnkzWjViNnRUY2d0MUppTElERVNtSzNOVloxSEVNVlFtZGUrUlJTTFptcEJKaXJWSWlzaEhmOXdHV0NPempGSlAKbk5zbGJDQnlUc0NtZVR4WWltN09aUHhJdTRjcGVhNm4yalZBVlpubmc0M3RodUQvdnJSNmZYR0hjc0dCVHFrYwpzME42TnorZzV1UGgyc0FyRUZlMG8xYXc1QXEvMlVzSEhUTExzdi9ZM3UrUkhxQ1FwUWpDdFY0eFcrclc1V1c0CmttWEF3aDROQWdNQkFBRUNnZ0VBSTAySEtxQTdZaEI5REtrZDE5UlBlaUlleGw2VjVXT1drOUNwaVRMdjZpTkMKN0tSSDdaL3VhRXA3MGZ4U1RaN3I2QURTSmRCYkdXamREWUNiZHVrL2FVYUNRKzZsVXp0ZG0rR3FBbjdDeWdzRgpaV3NTbVVVQzdYSkZYT2U4cFlVbjFRTEEycno3SzlheEZOaVh3K3Y1WHk5YVlhSFJiUGI2V2o4Wk5RS0pHclZtCkw4NFBSN2FaRVVYb0Z4eXdNVnZSMXZHTEFVZzRlVFhza0hIUlJTMVFodmwvbE83U0Q1RjIrbkZIblpkNFBIUzQKeGY0V0lLWmJVTW9wQk9QblJVaHIyby9xY25Rc1hiQ2NhaGlPaGZYc0gxWVQvRnpOT2l1Sm1LdE9VTkdxaTE4SApldnFGaGxFN2k1aGtnSldacFVtL2JVbGgrTmFEWFF0UlZqdWNCcWdyeHdLQmdRRGZPOHI4anUvMWx1UVlQMkR3CkFJYjU4d1pmUmsySVIwYzN5dnU1WTFvb2Vib2trV0hwdUVERzk3L1ZHNEVMNkJBY0p2M0VpRk96UGh0c3Y4SlcKRzc0STZEdUk0TXpMaWRkSmQrK3c3Umh2MTdZaWl3NzBBcGIxeTZRRjVxdG5LZzJJSFd6T2V0ZW82L2ZoNlNjTApQdVZHekI2bjNTQUswRGFVekpsSm5JV1ppd0tCZ1FEVmxXQ2dKbU4yWm5VZE95N3ROVGhuT1ZEaGVXZFdPVFM4ClFDUldURFp1REMyUE5EWDZHUElYbmUxZks2NWN6SHdhcjNWSklGcnRZeDA1YkR0Q3RVVkNwYTlkNUNqMU1scDkKV3hJNE5Oa2RUcGM0Z1ROeFFnQnd0bXJtRkpCcnJPMDRuU3dlN3N5N1FnT1A2eFdpalVRNFVCemZyeTBnUjZwdAoyVkJZK3dHcHh3S0JnQU8wdW1uMjlZVGVQR3Nxb2pGWjBPUFZaUVd2NVJtZUZWQ1h6aFlGMERsYnkvdFBicEN5CnZtQ1BQR0FOVk5jZHd5YTBmd0lFUVY5NGFId2xzdFE3SWF5RUxualhRbzhlZXJSOWlUMG1zb0VvMDUwL01jQmIKU3FaSit5OGQ1VHFST0NoS1ZNUVl4ZnZIN3hXUkNWVG1kbWYyZTR2TjMvcE4rcG45eTQydFM0cUJBb0dCQU1wQwpNVVMzMWN6VDdlZ0dtY1BNZUdOWUpiMi82Qm9CQm0yWEdGSVl6aHFjc2JCQk16UnAxeWlDUjcydWNlb3pRdnRLCldQa3RDSzV4QThYVE5yTlBVZzF4TllibWY5cmpHa3BIcWhOTUNLYjJPOElvcC95REVrT3FtOFRTaUlsUE16NC8KcVA2S0NacnpRc2hSU1NXc1BZUk9hV2x5VEh1YklrdndWV1JPSHg4VkFvR0JBTlBOZXp5NkpzY3A2UVQrb3Q5UQp3Ny8vdEZpRm5rZGpGTXhHeGdjRkJzWmJaUUtPMXBnZksyQ3h2UXM0SWIwRm96T0wrZWxTekpKYXgvWnZBd04zCnVPSXZhSGNnRTkvRXBnZStESFJIZ01ZR3RHR0x6Q3RZK3EwNEdSU0ZJb0ZFVVVqbGtYRHBaOEI4VVE2RXEwM00KYjR0Y3lGN2M0MHpjdFljNHlOMmh6WU9rCi0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K';
+const FIREBASE_PRIVATE_KEY_B64 = 'LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktjd2dnU2pBZ0VBQW9JQkFRQzh5OWlpc1FBUkliTTMKdkJYVzc5VlNDMXMxSTh' +
+  'FTGVvMHp3Y2RQWHpUS1FKMTUxTGhLK2c1ZTNZUTQ2VGxGd3NaZTZ1ODNQZkIxNjZjcAp3SjZJUkFtYUh4eDkydHRlL0pkcEl6aGJLL01oVXFVU1k0OUhGZXFEdE9SZVNJblQ2UWRMWVBoeXV5R3c5eVNOClJtZGorWkhzL2grdEIvRGFTdGhZMmI3ZmF4bnAwYVlDRDNhUzBVU0dUUEs1SGkwQ1ZDcE90TTcvK28vL2FLT2EKSEs2YjJoZzl6aHprMGVRNG5QOHMybElvbFg0cnV1RkovbzdlNjhYemZzTWNuYlVxMkJIZktNaVRnWm9QRnZMQQpLREFUekp3bXYwb01HcWNidDdET05WeEVGejlEV3o5N1F0MTJjc3lNcnF2QnZJeDAxNTg2UkFUcXJlVUNSTUFpCjN2ZTVRS1BuQWdNQkFBRUNnZ0VBUmp4YnVxSzRrS2NGNGwweGpzV29pWjQ1N3puKzdrTklWcEhua1FxdE8vVHYKNE13WFI2VmhSVCtKbWhhQnZRY3AvMVBOYkxLNVMxVkEyaEtUcDhRUUFtdENrVHVqVXVJTGZneWhRYUhIRUlXTApiWnptUjU3S29QYmg0b1YvNlBzUFFLYXhweFVoQXBIZTRrUG40TlNPeWlqOEpjWUhmMTVLd0RzNWZDcCsrSEhuCk5DLzh0Qi9CVW1lc1JNNUdUclV3eXAxKzlJbGZ4cExJeGJ5di9lZGxFUmNpMTJwQ29iUzllczhIS00rN2VnM0cKOW1xeUNiZXB2by9HTit0SHJCSElOMk42aWhyQW9jbkN5UWdaWGlidzY0RFZRZnhnQ0cvcFU3d0JzUXdrZTFMNApQcnBsTWJJVEJEWDJiSUYydU5vMEtNMTZ5MXBUamVzYlMxWDh6enZCYVFLQmdRRHFZb1Y2RE9RU3h5eGpFWTdmCjBNTjhTdlZOMmJqUVIwaU95WHZyMFJKVXhhRXpCaHlKZFhLc0lIMlhTQzRTbHVNaUhabSsyb1c4T0NGdUdzVVUKbGxDekd2cFdYZU1ubU9SZWpWaXFKYmowbkFNMThhV0JBMHpFalQ1cVphODRBdUJKdHBocXNPeWs4dTErT0VJVQpxSlM3SmlQYzJaWnJpbk5NTnIxZ0V0UER0UUtCZ1FET05RdlVqeDZsQU5DcmxGYlBla0JVSXdqMDA4NjZsZFpGCitHc0dYUi8reEtwbzkyYytwTTVWQnVyNzZrWnRJSTJGc2NvRVlGR01Obml0SXdLcHVOVThLc2VwbjBta1BJY08KUTA2c2VRZS9LWWRKZ2hYMHJ6Z05qWXhJRXJLd0tQOWo2b3NESDlUZ1JYQ2k2VkFaSUhOdXBaTTY0bTJ6aDhWdAptTVRZTTUrQ3F3S0JnQlZNSEhySm54UEJ1MXZKSmFWYXI5aWthd1BHNjg4cEd3TzJkU2NwV1RRUXZTUUl3eUVPClpmd1QrN1Y2WG8xYjNvbWtET3RWcWQ4L2JuSTF4b0NuWSsvU1hMcnFUeEN6Q05VNm5McmhNSnd4Yk8xQzV0b0IKTmNHS1lBaUU4dFh4RlBZOXZEMjlrOU10SzcxVFdWWE5ONjZGdWE2QXF2VmNvRHRsb2ZHUDVHUWRBb0dBSU5CbQpNb3dYNTFBSzVOTDFRWTBGd1ozVnBnZ3lwSlNGaFpyemhRNjZzYk1nSHhZSHN2dE03bERzZ2V3VkN2YWNMc05OCkQ0YzRVdVMwTFhFZDBsNWNhSGV5VURiTjVEblJrQjU3M1l4aEJEV2Fsc01CdFc5UXJ5OXdQR1BsVlkwZ253aksKMkZOdmI4VDlHSitpSkcxNmtRZitOdWVqWjJkYXJvY2FCQUdyQjRNQ2dZRUFnQWliL1B5eXMyd3JpZ0xrZFFscwpTSGdHOVg1blgxbXRxOHdYSGE1L0M0Z2RzczBxeURzbDNONWZOR1pTSHQrYlJxOFAyY2hpQjVxUXNGakpNVDM2CmxkaDB5Sy8ySG1PbWRXenUyeFdXeFNwcXVNQWRxN2lHendlTThIdi9BZTcxdGRZWVZMV2lzQnJVOWJ1RTIxWjEKd1N5OUhjTERJUjhRelJzWEZIT3JBaU09Ci0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K';
 
 try {
   // Check for service account credentials (multiple methods supported)
@@ -189,6 +190,21 @@ try {
   logger.error('❌ Firebase Admin initialization failed:', error.message);
 }
 
+// Firestore database helper - uses named database 'studio-agents-db'
+const FIRESTORE_DATABASE_ID = 'studio-agents-db';
+let firestoreDb = null;
+
+function getFirestoreDb() {
+  if (!firebaseInitialized) return null;
+  if (!firestoreDb) {
+    // Use getFirestore with database ID for named databases
+    const { getFirestore } = require('firebase-admin/firestore');
+    firestoreDb = getFirestore(admin.app(), FIRESTORE_DATABASE_ID);
+    logger.info(`🔥 Firestore connected to database: ${FIRESTORE_DATABASE_ID}`);
+  }
+  return firestoreDb;
+}
+
 // Firebase Auth Middleware - Verifies JWT tokens
 const verifyFirebaseToken = async (req, res, next) => {
   if (!firebaseInitialized) {
@@ -238,7 +254,9 @@ const checkCredits = async (req, res, next) => {
     return next(); 
   }
 
-  const db = admin.firestore();
+  const db = getFirestoreDb();
+  if (!db) return next();
+  
   const userRef = db.collection('users').doc(req.user.uid);
 
   try {
@@ -2329,8 +2347,10 @@ if (FIREBASE_SERVICE_ACCOUNT) {
       firebaseAdmin = admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
       });
-      adminDb = admin.firestore();
-      logger.info('🔥 Firebase Admin initialized successfully');
+      // Use named database
+      const { getFirestore } = require('firebase-admin/firestore');
+      adminDb = getFirestore(admin.app(), 'studio-agents-db');
+      logger.info('🔥 Firebase Admin initialized successfully with studio-agents-db');
     }
   } catch (err) {
     logger.error('❌ Firebase Admin init failed', { error: err.message });
