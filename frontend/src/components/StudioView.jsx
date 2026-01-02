@@ -33,6 +33,7 @@ import {
 } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
 import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
+import { Analytics, trackPageView } from '../utils/analytics';
 
 // --- CONSTANTS FOR ONBOARDING & SUPPORT ---
 
@@ -165,6 +166,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (tab !== activeTab) {
       _setActiveTab(tab);
       window.location.hash = `#/studio/${tab}`;
+      // Track page view for tab change
+      trackPageView(`/studio/${tab}`, `Studio - ${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
     }
   };
   
@@ -751,6 +754,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     setShowProjectWizard(false);
     setProjectWizardStep(1);
     
+    // Track project creation
+    Analytics.projectCreated(newProject.category);
+    
     // Project created successfully - go straight to dashboard
     // (User already completed onboarding before reaching wizard)
 
@@ -996,6 +1002,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       setShowLoginModal(false);
       toast.success('Welcome back!', { id: loadingToast });
       
+      // Track login
+      Analytics.login('google');
+      
       // Fetch credits in background (don't wait)
       fetchUserCredits(result.user.uid).catch(err => 
         console.warn('Background credits fetch failed:', err)
@@ -1036,9 +1045,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       if (authMode === 'signup') {
         result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
         toast.success('Account created successfully!');
+        Analytics.signUp('email');
       } else {
         result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
         toast.success('Welcome back!');
+        Analytics.login('email');
       }
       await fetchUserCredits(result.user.uid);
       setShowLoginModal(false);
@@ -2108,10 +2119,14 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       setPreviewItem(newItem);
       setPreviewPrompt(prompt);
       toast.success(`Generation complete! Review your result.`, { id: toastId });
+      
+      // Track successful generation
+      Analytics.contentGenerated(selectedAgent.id, newItem.type || 'text');
 
     } catch (error) {
       console.error("Generation error", error);
       toast.error(error.message || 'Generation failed', { id: toastId });
+      Analytics.errorOccurred('generation_failed', error.message);
     } finally {
       setIsGenerating(false);
     }
@@ -4773,6 +4788,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       className="agent-launch-btn"
                       onClick={() => {
                         setSelectedAgent(agent);
+                        Analytics.agentUsed(agent.id);
                       }}
                     >
                       Launch Agent
