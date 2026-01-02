@@ -429,6 +429,87 @@ export default function MultiAgentDemo() {
         />
       </div>
       
+      {/* AMO Master Output Section */}
+      {(isOrchestrating || masterOutput) && (
+        <div style={{
+          marginTop: '24px',
+          padding: '20px',
+          background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
+          borderRadius: '16px',
+          border: '1px solid rgba(168, 85, 247, 0.3)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          {/* Animated border glow */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '2px',
+            background: 'linear-gradient(90deg, #8b5cf6, #06b6d4, #ec4899, #8b5cf6)',
+            backgroundSize: '200% 100%',
+            animation: isOrchestrating ? 'shimmer 2s linear infinite' : 'none'
+          }} />
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Zap size={20} color="white" />
+            </div>
+            <div>
+              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: 'white' }}>
+                AMO Master Output
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                Agent Model Orchestrator • Combined Production
+              </p>
+            </div>
+            {isOrchestrating && (
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <RefreshCw size={16} className="spin" color="#8b5cf6" />
+                <span style={{ fontSize: '0.8rem', color: '#8b5cf6' }}>Orchestrating...</span>
+              </div>
+            )}
+          </div>
+          
+          {isOrchestrating ? (
+            <div style={{ 
+              padding: '20px', 
+              textAlign: 'center',
+              color: 'var(--text-secondary)'
+            }}>
+              <p style={{ margin: 0 }}>Combining agent outputs into a cohesive master...</p>
+            </div>
+          ) : masterOutput ? (
+            <div style={{
+              background: 'rgba(0,0,0,0.3)',
+              borderRadius: '12px',
+              padding: '16px',
+              maxHeight: '300px',
+              overflowY: 'auto'
+            }}>
+              <p style={{ 
+                fontSize: '0.9rem', 
+                lineHeight: '1.6', 
+                color: 'rgba(255,255,255,0.9)',
+                margin: 0,
+                whiteSpace: 'pre-wrap'
+              }}>
+                {masterOutput}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      )}
+      
       {/* CSS for animations */}
       <style>{`
         .loading-dots {
@@ -448,6 +529,10 @@ export default function MultiAgentDemo() {
         @keyframes bounce {
           0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
           40% { transform: scale(1); opacity: 1; }
+        
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
         }
         
         @keyframes pulse {

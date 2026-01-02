@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera
 } from 'lucide-react';
 import VideoPitchDemo from './VideoPitchDemo';
 import MultiAgentDemo from './MultiAgentDemo';
@@ -2004,19 +2004,26 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const handleSavePreview = async () => {
     if (!previewItem) return;
     
-    setProjects([previewItem, ...projects]);
+    // Ensure agent field is set
+    const itemToSave = {
+      ...previewItem,
+      agent: previewItem.agent || selectedAgent?.name || 'Unknown Agent',
+      savedAt: new Date().toISOString()
+    };
+    
+    setProjects([itemToSave, ...projects]);
 
     // If we are working inside a project context, add this artifact to the project assets
     if (selectedProject) {
       const updatedProject = {
         ...selectedProject,
-        assets: [previewItem, ...(selectedProject.assets || [])]
+        assets: [itemToSave, ...(selectedProject.assets || [])]
       };
       setSelectedProject(updatedProject);
-      setProjects(prev => [previewItem, ...prev.map(p => p.id === updatedProject.id ? updatedProject : p)]);
+      setProjects(prev => [itemToSave, ...prev.map(p => p.id === updatedProject.id ? updatedProject : p)]);
     } else {
       // No project selected - show "Add to Project" modal
-      setAddToProjectAsset(previewItem);
+      setAddToProjectAsset(itemToSave);
     }
 
     // Save to Backend if logged in
@@ -2033,11 +2040,30 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           }
         }
         
+        // Save to projects collection
         fetch(`${BACKEND_URL}/api/projects`, {
           method: 'POST',
           headers: saveHeaders,
-          body: JSON.stringify({ userId: uid, project: previewItem })
+          body: JSON.stringify({ userId: uid, project: itemToSave })
         }).catch(err => console.error("Failed to save to cloud", err));
+        
+        // Also log to generations history (for agent-based inventory)
+        fetch(`${BACKEND_URL}/api/user/generations`, {
+          method: 'POST',
+          headers: saveHeaders,
+          body: JSON.stringify({
+            type: itemToSave.type || 'text',
+            agent: itemToSave.agent,
+            prompt: previewPrompt || itemToSave.snippet,
+            output: itemToSave.content || itemToSave.snippet,
+            metadata: {
+              projectId: itemToSave.id,
+              imageUrl: itemToSave.imageUrl,
+              audioUrl: itemToSave.audioUrl,
+              videoUrl: itemToSave.videoUrl
+            }
+          })
+        }).catch(err => console.error("Failed to log generation", err));
       }
       setUserCredits(prev => Math.max(0, prev - 1));
     } else {
@@ -6854,90 +6880,318 @@ When you write a song, you create intellectual property that generates money eve
                 </div>
 
                 {/* Track 1: Beat / Audio A */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Disc size={24} className="text-cyan" /></div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 1 (Audio/Content)</label>
-                    <select 
-                      style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
-                      value={sessionTracks.audio?.id || ''}
-                      onChange={(e) => {
-                        const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
-                        updateSessionWithHistory(prev => ({ ...prev, audio: asset || null }));
-                      }}
-                    >
-                      <option value="">Select Asset...</option>
-                      {selectedProject?.assets.map(a => (
-                        <option key={a.id} value={a.id}>{a.title || 'Untitled'} ({a.agent || a.type})</option>
-                      ))}
-                    </select>
+                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', border: sessionTracks.audio ? '1px solid var(--color-cyan)' : '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: sessionTracks.audio ? '12px' : 0 }}>
+                    <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Disc size={24} className="text-cyan" /></div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track 1</label>
+                        <select 
+                          style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--color-cyan)', fontSize: '0.75rem', cursor: 'pointer' }}
+                          value={sessionTracks.audioOutputType || 'waveform'}
+                          onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, audioOutputType: e.target.value }))}
+                        >
+                          <option value="waveform">🎵 Waveform</option>
+                          <option value="file">📁 File</option>
+                          <option value="stems">🎛️ Stems</option>
+                          <option value="midi">🎹 MIDI</option>
+                        </select>
+                      </div>
+                      <select 
+                        style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                        value={sessionTracks.audio?.id || ''}
+                        onChange={(e) => {
+                          const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
+                          updateSessionWithHistory(prev => ({ ...prev, audio: asset || null }));
+                        }}
+                      >
+                        <option value="">Select Audio Asset...</option>
+                        {selectedProject?.assets.filter(a => a.audioUrl || a.type === 'audio' || a.agent?.includes('Beat') || a.agent?.includes('Sound')).map(a => (
+                          <option key={a.id} value={a.id}>🎵 {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                        ))}
+                        {selectedProject?.assets.filter(a => !a.audioUrl && a.type !== 'audio').map(a => (
+                          <option key={a.id} value={a.id}>📄 {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ width: '80px', textAlign: 'center' }}>
+                       <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Vol</label>
+                       <input 
+                         type="range" 
+                         min="0" 
+                         max="1" 
+                         step="0.1" 
+                         value={sessionTracks.audioVolume || 0.8}
+                         onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, audioVolume: parseFloat(e.target.value) }))}
+                         style={{ width: '100%' }} 
+                       />
+                       <div style={{ fontSize: '0.7rem', color: 'var(--color-cyan)' }}>{Math.round((sessionTracks.audioVolume || 0.8) * 100)}%</div>
+                    </div>
                   </div>
-                  <div style={{ width: '100px' }}>
-                     <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Volume</label>
-                     <input 
-                       type="range" 
-                       min="0" 
-                       max="1" 
-                       step="0.1" 
-                       value={sessionTracks.audioVolume || 0.8}
-                       onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, audioVolume: parseFloat(e.target.value) }))}
-                       style={{ width: '100%' }} 
-                     />
-                  </div>
+                  {/* Waveform Visualization for Track 1 */}
+                  {sessionTracks.audio && (
+                    <div style={{ marginTop: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px', overflow: 'hidden' }}>
+                      {sessionTracks.audioOutputType === 'waveform' || !sessionTracks.audioOutputType ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '40px' }}>
+                          {/* Animated Waveform Bars */}
+                          {[...Array(48)].map((_, i) => (
+                            <div 
+                              key={i}
+                              style={{
+                                flex: 1,
+                                background: `linear-gradient(to top, var(--color-cyan), rgba(6, 182, 212, 0.3))`,
+                                borderRadius: '2px',
+                                height: sessionPlaying ? `${20 + Math.sin(i * 0.5 + Date.now() / 200) * 20}px` : `${10 + Math.sin(i * 0.3) * 15}px`,
+                                transition: 'height 0.1s ease',
+                                animation: sessionPlaying ? `waveform${i % 4} 0.5s ease-in-out infinite` : 'none'
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : sessionTracks.audioOutputType === 'file' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-cyan)', fontSize: '0.85rem' }}>
+                          <FileAudio size={24} />
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{sessionTracks.audio.title || 'Audio File'}</div>
+                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{sessionTracks.audio.agent} • WAV/MP3</div>
+                          </div>
+                          <div style={{ marginLeft: 'auto', fontSize: '0.75rem', opacity: 0.5 }}>~3:24</div>
+                        </div>
+                      ) : sessionTracks.audioOutputType === 'stems' ? (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {['Drums', 'Bass', 'Melody', 'FX'].map((stem, i) => (
+                            <div key={stem} style={{ flex: 1, background: `rgba(6, 182, 212, ${0.2 + i * 0.1})`, borderRadius: '6px', padding: '6px', textAlign: 'center', fontSize: '0.7rem' }}>
+                              <div style={{ color: 'var(--color-cyan)' }}>{stem}</div>
+                              <div style={{ width: '100%', height: '16px', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', marginTop: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${60 + i * 10}%`, height: '100%', background: 'var(--color-cyan)', borderRadius: '4px' }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-cyan)', fontSize: '0.8rem' }}>
+                          <Piano size={20} />
+                          <div style={{ display: 'flex', gap: '2px', flex: 1 }}>
+                            {/* MIDI Note representation */}
+                            {[...Array(16)].map((_, i) => (
+                              <div key={i} style={{ 
+                                width: '8px', 
+                                height: `${8 + (i % 3) * 6}px`, 
+                                background: i % 2 === 0 ? 'var(--color-cyan)' : 'transparent',
+                                border: '1px solid var(--color-cyan)',
+                                borderRadius: '2px' 
+                              }} />
+                            ))}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>128 BPM • C Major</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Track 2: Vocals / Audio B */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Mic size={24} className="text-purple" /></div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Track 2 (Vocal/Content)</label>
-                    <select 
-                      style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
-                      value={sessionTracks.vocal?.id || ''}
-                      onChange={(e) => {
-                        const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
-                        updateSessionWithHistory(prev => ({ ...prev, vocal: asset || null }));
-                      }}
-                    >
-                      <option value="">Select Asset...</option>
-                      {selectedProject?.assets.map(a => (
-                        <option key={a.id} value={a.id}>{a.title || 'Untitled'} ({a.agent || a.type})</option>
-                      ))}
-                    </select>
+                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', border: sessionTracks.vocal ? '1px solid var(--color-purple)' : '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: sessionTracks.vocal ? '12px' : 0 }}>
+                    <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Mic size={24} className="text-purple" /></div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track 2</label>
+                        <select 
+                          style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--color-purple)', fontSize: '0.75rem', cursor: 'pointer' }}
+                          value={sessionTracks.vocalOutputType || 'waveform'}
+                          onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, vocalOutputType: e.target.value }))}
+                        >
+                          <option value="waveform">🎵 Waveform</option>
+                          <option value="file">📁 File</option>
+                          <option value="lyrics">📝 Lyrics</option>
+                          <option value="adlibs">🎤 Adlibs</option>
+                        </select>
+                      </div>
+                      <select 
+                        style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                        value={sessionTracks.vocal?.id || ''}
+                        onChange={(e) => {
+                          const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
+                          updateSessionWithHistory(prev => ({ ...prev, vocal: asset || null }));
+                        }}
+                      >
+                        <option value="">Select Vocal/Lyrics Asset...</option>
+                        {selectedProject?.assets.filter(a => a.agent?.includes('Ghost') || a.agent?.includes('Vocal') || a.type === 'lyrics').map(a => (
+                          <option key={a.id} value={a.id}>🎤 {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                        ))}
+                        {selectedProject?.assets.filter(a => !a.agent?.includes('Ghost') && !a.agent?.includes('Vocal') && a.type !== 'lyrics').map(a => (
+                          <option key={a.id} value={a.id}>📄 {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ width: '80px', textAlign: 'center' }}>
+                       <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Vol</label>
+                       <input 
+                         type="range" 
+                         min="0" 
+                         max="1" 
+                         step="0.1" 
+                         value={sessionTracks.vocalVolume || 1.0}
+                         onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, vocalVolume: parseFloat(e.target.value) }))}
+                         style={{ width: '100%' }} 
+                       />
+                       <div style={{ fontSize: '0.7rem', color: 'var(--color-purple)' }}>{Math.round((sessionTracks.vocalVolume || 1.0) * 100)}%</div>
+                    </div>
                   </div>
-                  <div style={{ width: '100px' }}>
-                     <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Volume</label>
-                     <input 
-                       type="range" 
-                       min="0" 
-                       max="1" 
-                       step="0.1" 
-                       value={sessionTracks.vocalVolume || 1.0}
-                       onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, vocalVolume: parseFloat(e.target.value) }))}
-                       style={{ width: '100%' }} 
-                     />
-                  </div>
+                  {/* Waveform/Lyrics Visualization for Track 2 */}
+                  {sessionTracks.vocal && (
+                    <div style={{ marginTop: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px', overflow: 'hidden' }}>
+                      {sessionTracks.vocalOutputType === 'waveform' || !sessionTracks.vocalOutputType ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '40px' }}>
+                          {[...Array(48)].map((_, i) => (
+                            <div 
+                              key={i}
+                              style={{
+                                flex: 1,
+                                background: `linear-gradient(to top, var(--color-purple), rgba(168, 85, 247, 0.3))`,
+                                borderRadius: '2px',
+                                height: sessionPlaying ? `${15 + Math.cos(i * 0.4 + Date.now() / 180) * 25}px` : `${8 + Math.cos(i * 0.3) * 12}px`,
+                                transition: 'height 0.1s ease'
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : sessionTracks.vocalOutputType === 'file' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-purple)', fontSize: '0.85rem' }}>
+                          <FileAudio size={24} />
+                          <div>
+                            <div style={{ fontWeight: 600 }}>{sessionTracks.vocal.title || 'Vocal File'}</div>
+                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{sessionTracks.vocal.agent} • WAV</div>
+                          </div>
+                          <div style={{ marginLeft: 'auto', fontSize: '0.75rem', opacity: 0.5 }}>~2:48</div>
+                        </div>
+                      ) : sessionTracks.vocalOutputType === 'lyrics' ? (
+                        <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.85rem', lineHeight: 1.6, maxHeight: '80px', overflow: 'auto' }}>
+                          <div style={{ color: 'var(--color-purple)', marginBottom: '4px', fontSize: '0.7rem' }}>📝 Lyrics Preview</div>
+                          {sessionTracks.vocal.content?.substring(0, 200) || sessionTracks.vocal.snippet?.substring(0, 200) || 'No lyrics content...'}
+                          {(sessionTracks.vocal.content?.length > 200 || sessionTracks.vocal.snippet?.length > 200) && '...'}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {['Yeah!', 'Uh', 'Let\'s go', 'Woo!', 'Ayy'].map((adlib, i) => (
+                            <div key={adlib} style={{ 
+                              background: 'rgba(168, 85, 247, 0.2)', 
+                              border: '1px solid var(--color-purple)',
+                              borderRadius: '16px', 
+                              padding: '4px 12px', 
+                              fontSize: '0.75rem',
+                              color: 'var(--color-purple)'
+                            }}>
+                              {adlib}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Track 3: Visual */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Video size={24} className="text-pink" /></div>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Visual Layer</label>
-                    <select 
-                      style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
-                      value={sessionTracks.visual?.id || ''}
-                      onChange={(e) => {
-                        const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
-                        updateSessionWithHistory(prev => ({ ...prev, visual: asset || null }));
-                      }}
-                    >
-                      <option value="">Select Visual/Asset...</option>
-                      {selectedProject?.assets.map(a => (
-                        <option key={a.id} value={a.id}>{a.title || 'Untitled'} ({a.agent || a.type})</option>
-                      ))}
-                    </select>
+                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', border: sessionTracks.visual ? '1px solid var(--color-pink)' : '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: sessionTracks.visual ? '12px' : 0 }}>
+                    <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Video size={24} className="text-pink" /></div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track 3</label>
+                        <select 
+                          style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--color-pink)', fontSize: '0.75rem', cursor: 'pointer' }}
+                          value={sessionTracks.visualOutputType || 'video'}
+                          onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualOutputType: e.target.value }))}
+                        >
+                          <option value="video">🎬 Video</option>
+                          <option value="image">🖼️ Image</option>
+                          <option value="animation">✨ Animation</option>
+                          <option value="thumbnail">📷 Thumbnail</option>
+                        </select>
+                      </div>
+                      <select 
+                        style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                        value={sessionTracks.visual?.id || ''}
+                        onChange={(e) => {
+                          const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
+                          updateSessionWithHistory(prev => ({ ...prev, visual: asset || null }));
+                        }}
+                      >
+                        <option value="">Select Visual Asset...</option>
+                        {selectedProject?.assets.filter(a => a.imageUrl || a.videoUrl || a.type === 'image' || a.type === 'video').map(a => (
+                          <option key={a.id} value={a.id}>{a.videoUrl ? '🎬' : '🖼️'} {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                        ))}
+                        {selectedProject?.assets.filter(a => !a.imageUrl && !a.videoUrl && a.type !== 'image' && a.type !== 'video').map(a => (
+                          <option key={a.id} value={a.id}>📄 {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
+                  {/* Visual Preview for Track 3 */}
+                  {sessionTracks.visual && (
+                    <div style={{ marginTop: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px', overflow: 'hidden' }}>
+                      {sessionTracks.visualOutputType === 'video' || !sessionTracks.visualOutputType ? (
+                        sessionTracks.visual.videoUrl ? (
+                          <video src={sessionTracks.visual.videoUrl} style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '6px' }} muted />
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-pink)', fontSize: '0.85rem' }}>
+                            <Video size={24} />
+                            <div>
+                              <div style={{ fontWeight: 600 }}>{sessionTracks.visual.title || 'Video Asset'}</div>
+                              <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Video will be generated on render</div>
+                            </div>
+                          </div>
+                        )
+                      ) : sessionTracks.visualOutputType === 'image' ? (
+                        sessionTracks.visual.imageUrl ? (
+                          <img src={sessionTracks.visual.imageUrl} alt="Visual" style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '6px' }} />
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-pink)', fontSize: '0.85rem' }}>
+                            <ImageIcon size={24} />
+                            <div>Image will be generated</div>
+                          </div>
+                        )
+                      ) : sessionTracks.visualOutputType === 'animation' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-pink)' }}>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            {[...Array(6)].map((_, i) => (
+                              <div key={i} style={{
+                                width: '32px',
+                                height: '32px',
+                                background: `linear-gradient(135deg, var(--color-pink), var(--color-purple))`,
+                                borderRadius: '4px',
+                                opacity: 0.3 + (i * 0.14),
+                                transform: `rotate(${i * 15}deg)`
+                              }} />
+                            ))}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', marginLeft: '12px' }}>
+                            <div style={{ fontWeight: 600 }}>Animation Sequence</div>
+                            <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>6 keyframes • 30fps</div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ 
+                            width: '80px', 
+                            height: '45px', 
+                            background: 'linear-gradient(135deg, var(--color-pink), var(--color-purple))',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Camera size={20} color="white" />
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-pink)' }}>
+                            <div style={{ fontWeight: 600 }}>Cover Thumbnail</div>
+                            <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>1280x720 • YouTube Ready</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* <button className="btn-dashed" style={{ width: '100%', padding: '8px', fontSize: '0.8rem' }}>+ Add Track</button> */}

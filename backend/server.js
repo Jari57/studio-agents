@@ -867,6 +867,7 @@ app.get('/api/user/generations', verifyFirebaseToken, async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 100);
     const type = req.query.type; // Filter by type
+    const agent = req.query.agent; // Filter by agent name
     const favoritesOnly = req.query.favorites === 'true';
     
     let query = db.collection('users').doc(req.user.uid)
@@ -876,6 +877,9 @@ app.get('/api/user/generations', verifyFirebaseToken, async (req, res) => {
     
     if (type) {
       query = query.where('type', '==', type);
+    }
+    if (agent) {
+      query = query.where('agent', '==', agent);
     }
     if (favoritesOnly) {
       query = query.where('favorite', '==', true);
