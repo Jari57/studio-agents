@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import VideoPitchDemo from './VideoPitchDemo';
 import MultiAgentDemo from './MultiAgentDemo';
+import StudioOrchestrator from './StudioOrchestrator';
 import QuickWorkflow from './QuickWorkflow';
 import ProjectHub from './ProjectHub';
 import NewsHub from './NewsHub';
@@ -399,6 +400,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       return bTime - aTime;
     });
   };
+  
+  // Studio Orchestrator State (New Clean Interface)
+  const [showOrchestrator, setShowOrchestrator] = useState(false);
   
   // Studio Session State (Global Mechanism)
   const [showStudioSession, setShowStudioSession] = useState(false);
@@ -2698,61 +2702,21 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               {/* MAS Orchestration Section */}
               <div className="orchestration-panel" style={{ marginTop: '24px', padding: '16px', background: 'rgba(168, 85, 247, 0.05)', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
                 <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '1rem', color: 'var(--color-purple)' }}>
-                  <Zap size={16} /> Master & Release
+                  <Zap size={16} /> Studio Orchestrator
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                  Combine your assets into a final production.
+                  Generate lyrics, beats, visuals & more with one click.
                 </p>
                 
                 <button 
                   className="btn-pill primary" 
                   style={{ width: '100%', justifyContent: 'center' }}
                   onClick={() => {
-                    console.log('[Orchestrate] Button clicked, selectedProject:', selectedProject);
-                    console.log('[Orchestrate] Assets:', selectedProject?.assets);
-                    
-                    if (!selectedProject?.assets || selectedProject.assets.length === 0) {
-                      toast.error('Generate some assets first!');
-                      return;
-                    }
-                    
-                    toast.success('Opening Studio Session...');
-                    
-                    let initialTracks;
-
-                    if (selectedProject.sessionState) {
-                      initialTracks = selectedProject.sessionState;
-                    } else {
-                      // Auto-select best assets for the session - check both audioUrl and type
-                      const audioAsset = selectedProject.assets.find(a => 
-                        a.audioUrl || a.type === 'audio' || a.type === 'Music Creation' || a.type === 'synthesis'
-                      );
-                      const vocalAsset = selectedProject.assets.find(a => 
-                        (a.audioUrl || a.type === 'audio') && a.id !== audioAsset?.id
-                      );
-                      const visualAsset = selectedProject.assets.find(a => 
-                        a.imageUrl || a.videoUrl || a.type === 'image' || a.type === 'video' || a.type === 'Visual Identity'
-                      );
-                      
-                      initialTracks = {
-                        audio: audioAsset || null,
-                        vocal: vocalAsset || null,
-                        visual: visualAsset || null,
-                        audioVolume: 0.8,
-                        vocalVolume: 1.0
-                      };
-                    }
-                    
-                    console.log('[Orchestrate] Setting session tracks:', initialTracks);
-                    setSessionTracks(initialTracks);
-                    setSessionHistory([initialTracks]);
-                    setHistoryIndex(0);
-                    
-                    setShowStudioSession(true);
-                    handleTextToVoice("Opening Studio Session. Orchestrate your agents.");
+                    setShowOrchestrator(true);
+                    handleTextToVoice("Opening Studio Orchestrator.");
                   }}
                 >
-                  Orchestrate Project
+                  <Sparkles size={16} /> Open Orchestrator
                 </button>
               </div>
             </div>
@@ -8067,6 +8031,21 @@ When you write a song, you create intellectual property that generates money eve
           </div>
         )}
 
+        {/* Studio Orchestrator (New Clean Interface) */}
+        <StudioOrchestrator
+          isOpen={showOrchestrator}
+          onClose={() => setShowOrchestrator(false)}
+          authToken={auth?.currentUser ? localStorage.getItem('firebase_token') : null}
+          existingProject={selectedProject}
+          onCreateProject={(project) => {
+            // Add to projects list
+            setProjects(prev => [project, ...prev]);
+            setSelectedProject(project);
+            setActiveTab('project_canvas');
+            toast.success(`Project "${project.name}" created!`);
+          }}
+        />
+
         {/* Login Modal */}
         {showLoginModal && (
           <div className="modal-overlay" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); setAuthMode('login'); setAuthEmail(''); setAuthPassword(''); }} onTouchEnd={() => { setShowLoginModal(false); setSelectedPlan(null); }}>
@@ -8878,6 +8857,25 @@ When you write a song, you create intellectual property that generates money eve
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Manually Create</div>
                     <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: 'normal' }}>Skip setup and go straight to studio</div>
+                  </div>
+                </div>
+              </button>
+
+              <button 
+                className="cta-button-secondary" 
+                style={{ width: '100%', justifyContent: 'center', padding: '20px', height: 'auto', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15))', border: '1px solid rgba(139, 92, 246, 0.3)' }}
+                onClick={() => {
+                  setShowProjectChoiceModal(false);
+                  setShowOrchestrator(true);
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', padding: '10px', borderRadius: '50%' }}>
+                    <Zap size={24} color="white" />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#8b5cf6' }}>Studio Orchestrator</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: 'normal' }}>One idea → Full production (AI-powered)</div>
                   </div>
                 </div>
               </button>
