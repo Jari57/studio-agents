@@ -618,6 +618,99 @@ app.get('/api/models', async (req, res) => {
   }
 });
 
+// ==================== INVESTOR ACCESS API ====================
+// Approved investor emails (add to .env: APPROVED_INVESTOR_EMAILS=email1@vc.com,email2@fund.com)
+const APPROVED_INVESTOR_EMAILS = (process.env.APPROVED_INVESTOR_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+
+// Request investor access - validates email and logs access
+app.post('/api/investor-access/request', apiLimiter, async (req, res) => {
+  try {
+    const { email, name, firm } = req.body;
+    
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email required' });
+    }
+    
+    const normalizedEmail = email.trim().toLowerCase();
+    const timestamp = new Date().toISOString();
+    
+    // Log the access request to Firestore
+    if (db) {
+      try {
+        await db.collection('investor_access_requests').add({
+          email: normalizedEmail,
+          name: name || 'Not provided',
+          firm: firm || 'Not provided',
+          requestedAt: timestamp,
+          ip: req.ip || req.connection.remoteAddress,
+          userAgent: req.get('User-Agent'),
+          status: 'pending'
+        });
+      } catch (dbErr) {
+        logger.warn('Failed to log investor access request to Firestore:', dbErr.message);
+      }
+    }
+    
+    // Check if email is pre-approved
+    const isApproved = APPROVED_INVESTOR_EMAILS.includes(normalizedEmail) || 
+                       APPROVED_INVESTOR_EMAILS.some(approved => normalizedEmail.endsWith(approved));
+    
+    if (isApproved) {
+      // Log successful access
+      if (db) {
+        try {
+          await db.collection('investor_access_log').add({
+            email: normalizedEmail,
+            name: name || 'Not provided',
+            firm: firm || 'Not provided',
+            accessedAt: timestamp,
+            ip: req.ip || req.connection.remoteAddress
+          });
+        } catch (dbErr) {
+          logger.warn('Failed to log investor access:', dbErr.message);
+        }
+      }
+      
+      logger.info(`Investor access granted: ${normalizedEmail}`);
+      return res.json({ 
+        success: true, 
+        approved: true,
+        message: 'Access granted. Welcome to Studio Agents.'
+      });
+    }
+    
+    // Not pre-approved - request is logged, will need manual approval
+    logger.info(`Investor access requested (pending): ${normalizedEmail}`);
+    return res.json({ 
+      success: true, 
+      approved: false,
+      message: 'Access request received. We will review and contact you within 24 hours.'
+    });
+    
+  } catch (err) {
+    logger.error('Investor access request error:', err);
+    res.status(500).json({ error: 'Access request failed', details: err.message });
+  }
+});
+
+// Check if email has approved access
+app.get('/api/investor-access/check', apiLimiter, async (req, res) => {
+  try {
+    const email = (req.query.email || '').trim().toLowerCase();
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email required' });
+    }
+    
+    const isApproved = APPROVED_INVESTOR_EMAILS.includes(email) || 
+                       APPROVED_INVESTOR_EMAILS.some(approved => email.endsWith(approved));
+    
+    res.json({ approved: isApproved });
+  } catch (err) {
+    res.status(500).json({ error: 'Check failed', details: err.message });
+  }
+});
+
 // GENERATION ROUTE (with optional Firebase auth)
 app.post('/api/generate', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {

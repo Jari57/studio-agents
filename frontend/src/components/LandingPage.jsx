@@ -384,26 +384,71 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   const statsRef = useRef(null);
   const [statsVisible, setStatsVisible] = useState(false);
   
-  // Investor Pitch Access Control
+  // Investor Pitch Access Control - Email-based validation
   const [investorAccessUnlocked, setInvestorAccessUnlocked] = useState(() => {
     // Check if already unlocked in this session
     return sessionStorage.getItem('investor_access_unlocked') === 'true';
   });
-  const [accessCodeInput, setAccessCodeInput] = useState('');
-  const [accessCodeError, setAccessCodeError] = useState('');
+  const [investorEmail, setInvestorEmail] = useState('');
+  const [investorName, setInvestorName] = useState('');
+  const [investorFirm, setInvestorFirm] = useState('');
+  const [accessError, setAccessError] = useState('');
+  const [accessLoading, setAccessLoading] = useState(false);
+  const [accessPending, setAccessPending] = useState(false);
   
-  // Valid access codes (in production, validate server-side)
-  const VALID_ACCESS_CODES = ['STUDIO2025', 'INVESTOR', 'VCACCESS', 'STUDIOVC'];
+  // Backend API for investor access validation
+  const INVESTOR_API_URL = isLocal 
+    ? 'http://localhost:3001/api/investor-access'
+    : 'https://web-production-b5922.up.railway.app/api/investor-access';
   
-  const handleAccessCodeSubmit = () => {
-    const code = accessCodeInput.trim().toUpperCase();
-    if (VALID_ACCESS_CODES.includes(code)) {
-      setInvestorAccessUnlocked(true);
-      sessionStorage.setItem('investor_access_unlocked', 'true');
-      setAccessCodeError('');
-      setAccessCodeInput('');
-    } else {
-      setAccessCodeError('Invalid access code. Please contact us for access.');
+  const handleInvestorAccessSubmit = async () => {
+    const email = investorEmail.trim().toLowerCase();
+    const name = investorName.trim();
+    const firm = investorFirm.trim();
+    
+    // Basic validation
+    if (!email || !name) {
+      setAccessError('Please enter your name and email address.');
+      return;
+    }
+    
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setAccessError('Please enter a valid email address.');
+      return;
+    }
+    
+    setAccessLoading(true);
+    setAccessError('');
+    
+    try {
+      const response = await fetch(`${INVESTOR_API_URL}/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, name, firm })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.approved) {
+        // Access granted - email is on approved list
+        setInvestorAccessUnlocked(true);
+        sessionStorage.setItem('investor_access_unlocked', 'true');
+        sessionStorage.setItem('investor_email', email);
+        setInvestorEmail('');
+        setInvestorName('');
+        setInvestorFirm('');
+      } else if (data.success && !data.approved) {
+        // Access request submitted - pending review
+        setAccessPending(true);
+        setAccessError('');
+      } else {
+        setAccessError(data.message || 'Unable to verify access. Please try again.');
+      }
+    } catch (err) {
+      console.error('Investor access error:', err);
+      setAccessError('Connection error. Please try again or contact founders@studioagents.ai');
+    } finally {
+      setAccessLoading(false);
     }
   };
   
@@ -1659,7 +1704,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             {/* Tab Content */}
             <div className="modal-body" style={{ padding: '24px', overflow: 'visible', flex: 1 }}>
               
-              {/* ACCESS CODE GATE for protected tabs */}
+              {/* EMAIL-BASED ACCESS GATE for protected tabs */}
               {PROTECTED_TABS.includes(pitchTab) && !investorAccessUnlocked && (
                 <div className="animate-fadeIn" style={{ 
                   textAlign: 'center', 
@@ -1684,113 +1729,199 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                     <Lock size={36} style={{ color: 'var(--color-purple)' }} />
                   </div>
                   
-                  <h3 style={{ 
-                    fontSize: '1.5rem', 
-                    fontWeight: '700', 
-                    color: 'white',
-                    marginBottom: '12px'
-                  }}>
-                    Protected Content
-                  </h3>
-                  
-                  <p style={{ 
-                    color: 'var(--text-secondary)', 
-                    fontSize: '0.95rem',
-                    maxWidth: '400px',
-                    marginBottom: '32px',
-                    lineHeight: '1.6'
-                  }}>
-                    This section contains sensitive company data. Enter your investor access code to view {pitchTab.charAt(0).toUpperCase() + pitchTab.slice(1)} information.
-                  </p>
-                  
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '12px', 
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    width: '100%',
-                    maxWidth: '320px'
-                  }}>
-                    <input
-                      type="text"
-                      value={accessCodeInput}
-                      onChange={(e) => {
-                        setAccessCodeInput(e.target.value);
-                        setAccessCodeError('');
-                      }}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAccessCodeSubmit()}
-                      placeholder="Enter access code..."
-                      style={{
-                        width: '100%',
-                        padding: '14px 18px',
-                        borderRadius: '12px',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        border: accessCodeError ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
+                  {accessPending ? (
+                    /* Access Request Submitted - Pending Approval */
+                    <>
+                      <h3 style={{ 
+                        fontSize: '1.5rem', 
+                        fontWeight: '700', 
                         color: 'white',
-                        fontSize: '1rem',
-                        textAlign: 'center',
-                        letterSpacing: '2px',
-                        textTransform: 'uppercase'
-                      }}
-                    />
-                    
-                    {accessCodeError && (
-                      <div style={{ 
-                        color: '#ef4444', 
-                        fontSize: '0.85rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
+                        marginBottom: '12px'
                       }}>
-                        <AlertCircle size={14} />
-                        {accessCodeError}
-                      </div>
-                    )}
-                    
-                    <button
-                      onClick={handleAccessCodeSubmit}
-                      style={{
-                        width: '100%',
-                        padding: '14px 24px',
-                        borderRadius: '12px',
-                        background: 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)',
-                        border: 'none',
-                        color: 'white',
-                        fontWeight: '600',
+                        ✅ Request Submitted
+                      </h3>
+                      <p style={{ 
+                        color: 'var(--text-secondary)', 
                         fontSize: '0.95rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px'
-                      }}
-                    >
-                      <Shield size={18} />
-                      Unlock Access
-                    </button>
-                  </div>
-                  
-                  <div style={{ 
-                    marginTop: '32px',
-                    padding: '16px 24px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255, 255, 255, 0.08)'
-                  }}>
-                    <p style={{ 
-                      color: 'var(--text-secondary)', 
-                      fontSize: '0.85rem',
-                      margin: 0
-                    }}>
-                      Don't have an access code? Contact us at{' '}
-                      <a 
-                        href="mailto:investors@studioagents.ai?subject=Investor%20Access%20Request"
-                        style={{ color: 'var(--color-cyan)', textDecoration: 'underline' }}
+                        maxWidth: '400px',
+                        marginBottom: '24px',
+                        lineHeight: '1.6'
+                      }}>
+                        Thank you for your interest! Our team will review your request and grant access within 24 hours. You'll receive an email confirmation.
+                      </p>
+                      <button
+                        onClick={() => setAccessPending(false)}
+                        style={{
+                          padding: '12px 24px',
+                          borderRadius: '12px',
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          color: 'white',
+                          fontWeight: '500',
+                          cursor: 'pointer'
+                        }}
                       >
-                        investors@studioagents.ai
-                      </a>
-                    </p>
-                  </div>
+                        Try Different Email
+                      </button>
+                    </>
+                  ) : (
+                    /* Email Access Form */
+                    <>
+                      <h3 style={{ 
+                        fontSize: '1.5rem', 
+                        fontWeight: '700', 
+                        color: 'white',
+                        marginBottom: '12px'
+                      }}>
+                        Investor Access Required
+                      </h3>
+                      
+                      <p style={{ 
+                        color: 'var(--text-secondary)', 
+                        fontSize: '0.95rem',
+                        maxWidth: '400px',
+                        marginBottom: '32px',
+                        lineHeight: '1.6'
+                      }}>
+                        This section contains sensitive company data. Verify your identity to view {pitchTab.charAt(0).toUpperCase() + pitchTab.slice(1)} information.
+                      </p>
+                      
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '12px', 
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        width: '100%',
+                        maxWidth: '320px'
+                      }}>
+                        <input
+                          type="text"
+                          value={investorName}
+                          onChange={(e) => {
+                            setInvestorName(e.target.value);
+                            setAccessError('');
+                          }}
+                          placeholder="Your Name *"
+                          style={{
+                            width: '100%',
+                            padding: '14px 18px',
+                            borderRadius: '12px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: accessError && !investorName.trim() ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
+                            color: 'white',
+                            fontSize: '1rem'
+                          }}
+                        />
+                        
+                        <input
+                          type="email"
+                          value={investorEmail}
+                          onChange={(e) => {
+                            setInvestorEmail(e.target.value);
+                            setAccessError('');
+                          }}
+                          onKeyDown={(e) => e.key === 'Enter' && handleInvestorAccessSubmit()}
+                          placeholder="Email Address *"
+                          style={{
+                            width: '100%',
+                            padding: '14px 18px',
+                            borderRadius: '12px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: accessError && !investorEmail.trim() ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.1)',
+                            color: 'white',
+                            fontSize: '1rem'
+                          }}
+                        />
+                        
+                        <input
+                          type="text"
+                          value={investorFirm}
+                          onChange={(e) => setInvestorFirm(e.target.value)}
+                          placeholder="Firm / Company (optional)"
+                          style={{
+                            width: '100%',
+                            padding: '14px 18px',
+                            borderRadius: '12px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            color: 'white',
+                            fontSize: '1rem'
+                          }}
+                        />
+                        
+                        {accessError && (
+                          <div style={{ 
+                            color: '#ef4444', 
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}>
+                            <AlertCircle size={14} />
+                            {accessError}
+                          </div>
+                        )}
+                        
+                        <button
+                          onClick={handleInvestorAccessSubmit}
+                          disabled={accessLoading}
+                          style={{
+                            width: '100%',
+                            padding: '14px 24px',
+                            borderRadius: '12px',
+                            background: accessLoading 
+                              ? 'rgba(139, 92, 246, 0.5)' 
+                              : 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)',
+                            border: 'none',
+                            color: 'white',
+                            fontWeight: '600',
+                            fontSize: '0.95rem',
+                            cursor: accessLoading ? 'not-allowed' : 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            opacity: accessLoading ? 0.7 : 1
+                          }}
+                        >
+                          {accessLoading ? (
+                            <>
+                              <div style={{
+                                width: '18px',
+                                height: '18px',
+                                border: '2px solid rgba(255,255,255,0.3)',
+                                borderTopColor: 'white',
+                                borderRadius: '50%',
+                                animation: 'spin 1s linear infinite'
+                              }} />
+                              Verifying...
+                            </>
+                          ) : (
+                            <>
+                              <Shield size={18} />
+                              Request Access
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      
+                      <div style={{ 
+                        marginTop: '32px',
+                        padding: '16px 24px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 255, 255, 0.08)'
+                      }}>
+                        <p style={{ 
+                          color: 'var(--text-secondary)', 
+                          fontSize: '0.85rem',
+                          margin: 0
+                        }}>
+                          Pre-approved investors get instant access. New requests reviewed within 24 hours.
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
               
