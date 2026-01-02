@@ -1092,6 +1092,179 @@ app.post('/api/user/billing/update-payment', verifyFirebaseToken, async (req, re
 });
 
 // ============================================================================
+// CREDITS ENDPOINTS - User credit management
+// ============================================================================
+
+// GET /api/user/credits - Get user's current credits
+app.get('/api/user/credits', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const userDoc = await db.collection('users').doc(req.user.uid).get();
+    
+    if (!userDoc.exists) {
+      return res.json({ credits: 3, tier: 'free', bonus: 0 }); // New users get 3 trial credits
+    }
+    
+    const userData = userDoc.data();
+    res.json({
+      credits: userData.credits || 0,
+      tier: userData.tier || 'free',
+      bonus: userData.bonusCredits || 0,
+      lifetime: userData.lifetimeCredits || userData.credits || 0
+    });
+  } catch (err) {
+    logger.error('Get credits error:', err);
+    res.status(500).json({ error: 'Failed to get credits', details: err.message });
+  }
+});
+
+// POST /api/user/credits - Add credits to user account (admin/purchase)
+app.post('/api/user/credits', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const { amount, reason } = req.body;
+  
+  if (!amount || typeof amount !== 'number' || amount <= 0) {
+    return res.status(400).json({ error: 'Valid positive amount required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const userRef = db.collection('users').doc(req.user.uid);
+    
+    await db.runTransaction(async (t) => {
+      const doc = await t.get(userRef);
+      const currentCredits = doc.exists ? (doc.data().credits || 0) : 0;
+      const lifetimeCredits = doc.exists ? (doc.data().lifetimeCredits || 0) : 0;
+      
+      t.set(userRef, {
+        credits: currentCredits + amount,
+        lifetimeCredits: lifetimeCredits + amount,
+        lastCreditUpdate: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      
+      // Log credit transaction
+      t.create(db.collection('users').doc(req.user.uid).collection('credit_history').doc(), {
+        type: 'add',
+        amount,
+        reason: reason || 'purchase',
+        balanceBefore: currentCredits,
+        balanceAfter: currentCredits + amount,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    
+    logger.info('💰 Credits added', { userId: req.user.uid, amount, reason });
+    res.json({ success: true, message: `Added ${amount} credits`, reason });
+  } catch (err) {
+    logger.error('Add credits error:', err);
+    res.status(500).json({ error: 'Failed to add credits', details: err.message });
+  }
+});
+
+// POST /api/user/credits/deduct - Deduct credits (internal use)
+app.post('/api/user/credits/deduct', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const { amount, reason } = req.body;
+  
+  if (!amount || typeof amount !== 'number' || amount <= 0) {
+    return res.status(400).json({ error: 'Valid positive amount required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const userRef = db.collection('users').doc(req.user.uid);
+    
+    await db.runTransaction(async (t) => {
+      const doc = await t.get(userRef);
+      
+      if (!doc.exists) {
+        throw new Error('User not found');
+      }
+      
+      const currentCredits = doc.data().credits || 0;
+      
+      if (currentCredits < amount) {
+        throw new Error('Insufficient credits');
+      }
+      
+      t.update(userRef, {
+        credits: currentCredits - amount,
+        lastCreditUpdate: admin.firestore.FieldValue.serverTimestamp()
+      });
+      
+      // Log credit transaction
+      t.create(db.collection('users').doc(req.user.uid).collection('credit_history').doc(), {
+        type: 'deduct',
+        amount,
+        reason: reason || 'generation',
+        balanceBefore: currentCredits,
+        balanceAfter: currentCredits - amount,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    
+    logger.info('💸 Credits deducted', { userId: req.user.uid, amount, reason });
+    res.json({ success: true, message: `Deducted ${amount} credits`, reason });
+  } catch (err) {
+    logger.error('Deduct credits error:', err);
+    
+    if (err.message === 'Insufficient credits') {
+      return res.status(402).json({ error: 'Insufficient credits', required: amount });
+    }
+    
+    res.status(500).json({ error: 'Failed to deduct credits', details: err.message });
+  }
+});
+
+// GET /api/user/credits/history - Get credit transaction history
+app.get('/api/user/credits/history', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const snapshot = await db.collection('users').doc(req.user.uid)
+      .collection('credit_history')
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get();
+    
+    const history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.json(history);
+  } catch (err) {
+    logger.error('Get credit history error:', err);
+    res.status(500).json({ error: 'Failed to get credit history', details: err.message });
+  }
+});
+
+// ============================================================================
 // SAVED PROJECTS ENDPOINTS
 // ============================================================================
 
