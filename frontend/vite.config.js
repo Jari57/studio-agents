@@ -8,9 +8,17 @@ export default defineConfig({
     react(),
     tailwindcss()
   ],
+  cacheDir: '.vite/cache',
   build: {
     // Raise warning threshold a bit and split large vendor chunks
     chunkSizeWarningLimit: 700,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console logs in production
+        drop_debugger: true
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -22,6 +30,14 @@ export default defineConfig({
           }
         }
       }
+    }
+  },
+  server: {
+    middlewareMode: true,
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+      port: 5173
     }
   }
 })

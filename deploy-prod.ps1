@@ -21,6 +21,7 @@ if ($gitStatus) {
 # Step 2: Build frontend
 Write-Host "Building frontend for production..." -ForegroundColor Cyan
 Set-Location frontend
+npm ci  # Use npm ci instead of npm install for deterministic, faster installs
 npm run build
 if ($LASTEXITCODE -ne 0) {
     Write-Host "   Frontend build failed!" -ForegroundColor Red

@@ -14,6 +14,16 @@ dist/
 build/
 .next/
 out/
+.vite/
+.turbo/
+
+# --- Cache Directories ---
+.eslintcache
+.stylelintcache
+*.cache/
+.parcel-cache/
+.cache/
+.next/cache/
 
 # --- Logs ---
 *.log

@@ -11,8 +11,10 @@
     "backend": "echo Starting backend... && cd backend && npm start",
     "kill": "powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\" && echo All Node processes killed",
     "fresh": "npm run kill && timeout /t 2 /nobreak && echo Starting fresh... && npm run backend",
-    "build": "cd frontend && npm install --include=dev && npm run build",
-    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm ci && npm run build",
+    "build:clean": "powershell -File scripts/cleanup-build.ps1 && npm run build",
+    "clean": "powershell -File scripts/cleanup-build.ps1",
+    "install:all": "npm ci && cd backend && npm ci && cd ../frontend && npm ci",
     "start": "cd backend && npm start"
   },
   "postinstall": "cd backend && npm install && if exist ..\\frontend\\dist (rd /s /q backend\\public & mkdir backend\\public & xcopy /E /I /Y ..\\frontend\\dist backend\\public)"
