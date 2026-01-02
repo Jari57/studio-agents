@@ -729,6 +729,489 @@ app.get('/api/investor-access/check', apiLimiter, async (req, res) => {
   }
 });
 
+// ============================================================================
+// USER DATA & PREFERENCES ENDPOINTS
+// ============================================================================
+
+// GET /api/user/profile - Get user profile and preferences
+app.get('/api/user/profile', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const userDoc = await db.collection('users').doc(req.user.uid).get();
+    
+    if (!userDoc.exists) {
+      // Create default profile
+      const defaultProfile = {
+        email: req.user.email,
+        displayName: req.user.email?.split('@')[0] || 'User',
+        credits: 3,
+        tier: 'free',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        preferences: {
+          theme: 'dark',
+          defaultAgent: null,
+          emailNotifications: true,
+          autoSave: true
+        }
+      };
+      await db.collection('users').doc(req.user.uid).set(defaultProfile);
+      return res.json(defaultProfile);
+    }
+    
+    res.json(userDoc.data());
+  } catch (err) {
+    logger.error('Get profile error:', err);
+    res.status(500).json({ error: 'Failed to get profile', details: err.message });
+  }
+});
+
+// PUT /api/user/profile - Update user profile
+app.put('/api/user/profile', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const { displayName, artistName, bio, preferences } = req.body;
+    
+    const updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    if (displayName) updateData.displayName = displayName.slice(0, 100);
+    if (artistName) updateData.artistName = artistName.slice(0, 100);
+    if (bio) updateData.bio = bio.slice(0, 500);
+    if (preferences) {
+      updateData.preferences = {
+        theme: preferences.theme || 'dark',
+        defaultAgent: preferences.defaultAgent || null,
+        emailNotifications: preferences.emailNotifications !== false,
+        autoSave: preferences.autoSave !== false,
+        favoriteGenre: preferences.favoriteGenre || null,
+        defaultBpm: preferences.defaultBpm || 120
+      };
+    }
+    
+    await db.collection('users').doc(req.user.uid).update(updateData);
+    
+    const updated = await db.collection('users').doc(req.user.uid).get();
+    res.json(updated.data());
+  } catch (err) {
+    logger.error('Update profile error:', err);
+    res.status(500).json({ error: 'Failed to update profile', details: err.message });
+  }
+});
+
+// ============================================================================
+// GENERATION HISTORY ENDPOINTS
+// ============================================================================
+
+// POST /api/user/generations - Log a generation (called after AI generation)
+app.post('/api/user/generations', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const { type, agent, prompt, output, metadata } = req.body;
+    
+    const generation = {
+      type: type || 'text', // 'lyrics', 'hook', 'beat', 'mix', etc.
+      agent: agent || 'unknown',
+      prompt: (prompt || '').slice(0, 1000),
+      output: (output || '').slice(0, 5000),
+      metadata: metadata || {},
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      favorite: false
+    };
+    
+    const docRef = await db.collection('users').doc(req.user.uid)
+      .collection('generations').add(generation);
+    
+    res.json({ success: true, id: docRef.id });
+  } catch (err) {
+    logger.error('Log generation error:', err);
+    res.status(500).json({ error: 'Failed to log generation', details: err.message });
+  }
+});
+
+// GET /api/user/generations - Get generation history
+app.get('/api/user/generations', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const type = req.query.type; // Filter by type
+    const favoritesOnly = req.query.favorites === 'true';
+    
+    let query = db.collection('users').doc(req.user.uid)
+      .collection('generations')
+      .orderBy('createdAt', 'desc')
+      .limit(limit);
+    
+    if (type) {
+      query = query.where('type', '==', type);
+    }
+    if (favoritesOnly) {
+      query = query.where('favorite', '==', true);
+    }
+    
+    const snapshot = await query.get();
+    const generations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    res.json(generations);
+  } catch (err) {
+    logger.error('Get generations error:', err);
+    res.status(500).json({ error: 'Failed to get generations', details: err.message });
+  }
+});
+
+// PUT /api/user/generations/:id/favorite - Toggle favorite
+app.put('/api/user/generations/:id/favorite', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const { id } = req.params;
+    const { favorite } = req.body;
+    
+    await db.collection('users').doc(req.user.uid)
+      .collection('generations').doc(id)
+      .update({ favorite: favorite === true });
+    
+    res.json({ success: true, favorite: favorite === true });
+  } catch (err) {
+    logger.error('Toggle favorite error:', err);
+    res.status(500).json({ error: 'Failed to toggle favorite', details: err.message });
+  }
+});
+
+// DELETE /api/user/generations/:id - Delete a generation
+app.delete('/api/user/generations/:id', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const { id } = req.params;
+    
+    await db.collection('users').doc(req.user.uid)
+      .collection('generations').doc(id).delete();
+    
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('Delete generation error:', err);
+    res.status(500).json({ error: 'Failed to delete generation', details: err.message });
+  }
+});
+
+// ============================================================================
+// SESSION LOGGING (for security & analytics)
+// ============================================================================
+
+// POST /api/user/session - Log user session/login
+app.post('/api/user/session', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const { action, deviceInfo } = req.body; // action: 'login', 'logout', 'refresh'
+    
+    const session = {
+      action: action || 'login',
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      ip: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      deviceInfo: deviceInfo || {}
+    };
+    
+    await db.collection('users').doc(req.user.uid)
+      .collection('sessions').add(session);
+    
+    // Update last login on user profile
+    await db.collection('users').doc(req.user.uid).update({
+      lastLoginAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('Log session error:', err);
+    res.status(500).json({ error: 'Failed to log session', details: err.message });
+  }
+});
+
+// ============================================================================
+// SUBSCRIPTION & BILLING INFO
+// ============================================================================
+
+// GET /api/user/subscription - Get subscription status
+app.get('/api/user/subscription', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const userDoc = await db.collection('users').doc(req.user.uid).get();
+    
+    if (!userDoc.exists) {
+      return res.json({
+        tier: 'free',
+        credits: 0,
+        subscription: null
+      });
+    }
+    
+    const userData = userDoc.data();
+    
+    res.json({
+      tier: userData.tier || 'free',
+      credits: userData.credits || 0,
+      subscription: userData.subscription || null,
+      stripeCustomerId: userData.stripeCustomerId ? '***' + userData.stripeCustomerId.slice(-4) : null,
+      currentPeriodEnd: userData.currentPeriodEnd || null
+    });
+  } catch (err) {
+    logger.error('Get subscription error:', err);
+    res.status(500).json({ error: 'Failed to get subscription', details: err.message });
+  }
+});
+
+// GET /api/user/billing - Get billing history (Stripe invoices)
+app.get('/api/user/billing', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    // Get billing history from Firestore
+    const snapshot = await db.collection('users').doc(req.user.uid)
+      .collection('billing_history')
+      .orderBy('createdAt', 'desc')
+      .limit(20)
+      .get();
+    
+    const invoices = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    res.json(invoices);
+  } catch (err) {
+    logger.error('Get billing error:', err);
+    res.status(500).json({ error: 'Failed to get billing history', details: err.message });
+  }
+});
+
+// POST /api/user/billing/update-payment - Update payment method (redirect to Stripe portal)
+app.post('/api/user/billing/update-payment', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const userDoc = await db.collection('users').doc(req.user.uid).get();
+    
+    if (!userDoc.exists || !userDoc.data().stripeCustomerId) {
+      return res.status(400).json({ error: 'No billing account found. Please subscribe first.' });
+    }
+    
+    // Create Stripe Customer Portal session
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    if (!stripe) {
+      return res.status(503).json({ error: 'Payment system not configured' });
+    }
+    
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: userDoc.data().stripeCustomerId,
+      return_url: req.body.returnUrl || 'https://studioagents.ai/account'
+    });
+    
+    res.json({ url: portalSession.url });
+  } catch (err) {
+    logger.error('Update payment error:', err);
+    res.status(500).json({ error: 'Failed to create billing portal', details: err.message });
+  }
+});
+
+// ============================================================================
+// SAVED PROJECTS ENDPOINTS
+// ============================================================================
+
+// POST /api/user/projects - Save a project
+app.post('/api/user/projects', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const { name, type, data, metadata } = req.body;
+    
+    if (!name || !data) {
+      return res.status(400).json({ error: 'Name and data are required' });
+    }
+    
+    const project = {
+      name: name.slice(0, 200),
+      type: type || 'song', // 'song', 'beat', 'lyrics', 'mix'
+      data: data,
+      metadata: metadata || {},
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    const docRef = await db.collection('users').doc(req.user.uid)
+      .collection('projects').add(project);
+    
+    res.json({ success: true, id: docRef.id, ...project });
+  } catch (err) {
+    logger.error('Save project error:', err);
+    res.status(500).json({ error: 'Failed to save project', details: err.message });
+  }
+});
+
+// GET /api/user/projects - Get all projects
+app.get('/api/user/projects', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const snapshot = await db.collection('users').doc(req.user.uid)
+      .collection('projects')
+      .orderBy('updatedAt', 'desc')
+      .limit(100)
+      .get();
+    
+    const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    res.json(projects);
+  } catch (err) {
+    logger.error('Get projects error:', err);
+    res.status(500).json({ error: 'Failed to get projects', details: err.message });
+  }
+});
+
+// PUT /api/user/projects/:id - Update a project
+app.put('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const { id } = req.params;
+    const { name, data, metadata } = req.body;
+    
+    const updateData = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+    
+    if (name) updateData.name = name.slice(0, 200);
+    if (data) updateData.data = data;
+    if (metadata) updateData.metadata = metadata;
+    
+    await db.collection('users').doc(req.user.uid)
+      .collection('projects').doc(id).update(updateData);
+    
+    res.json({ success: true, id });
+  } catch (err) {
+    logger.error('Update project error:', err);
+    res.status(500).json({ error: 'Failed to update project', details: err.message });
+  }
+});
+
+// DELETE /api/user/projects/:id - Delete a project
+app.delete('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const { id } = req.params;
+    
+    await db.collection('users').doc(req.user.uid)
+      .collection('projects').doc(id).delete();
+    
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('Delete project error:', err);
+    res.status(500).json({ error: 'Failed to delete project', details: err.message });
+  }
+});
+
 // GENERATION ROUTE (with optional Firebase auth)
 app.post('/api/generate', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
@@ -2497,20 +2980,37 @@ async function handleSuccessfulCheckout(session) {
 
   logger.info('💳 Processing successful checkout', { userId: userId.slice(0, 8) + '...', tier });
 
-  if (adminDb) {
+  const db = getFirestoreDb();
+  if (db) {
     try {
       // Get subscription details from Stripe
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       
-      await adminDb.collection('users').doc(userId).set({
+      await db.collection('users').doc(userId).set({
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
         subscriptionTier: tier,
+        tier: tier, // Also update the tier field
         subscriptionStatus: 'active',
         subscriptionStart: new Date(subscription.current_period_start * 1000),
         subscriptionEnd: new Date(subscription.current_period_end * 1000),
-        updatedAt: new Date()
+        currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
+
+      // Log billing history
+      const invoice = await stripe.invoices.retrieve(subscription.latest_invoice);
+      await db.collection('users').doc(userId).collection('billing_history').add({
+        type: 'subscription',
+        tier: tier,
+        amount: invoice.amount_paid / 100,
+        currency: invoice.currency?.toUpperCase() || 'USD',
+        stripeInvoiceId: invoice.id,
+        status: 'paid',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        periodStart: new Date(subscription.current_period_start * 1000),
+        periodEnd: new Date(subscription.current_period_end * 1000)
+      });
 
       logger.info('✅ Subscription saved to Firebase', { userId: userId.slice(0, 8) + '...', tier });
     } catch (err) {
@@ -2521,13 +3021,14 @@ async function handleSuccessfulCheckout(session) {
 
 // Handle subscription updates (upgrade/downgrade)
 async function handleSubscriptionUpdate(subscription) {
-  if (!adminDb) return;
+  const db = getFirestoreDb();
+  if (!db) return;
 
   const customerId = subscription.customer;
   
   try {
     // Find user by Stripe customer ID
-    const usersSnapshot = await adminDb.collection('users')
+    const usersSnapshot = await db.collection('users')
       .where('stripeCustomerId', '==', customerId)
       .limit(1)
       .get();
@@ -2546,9 +3047,11 @@ async function handleSubscriptionUpdate(subscription) {
 
     await userDoc.ref.update({
       subscriptionTier: tier,
+      tier: tier,
       subscriptionStatus: subscription.status,
       subscriptionEnd: new Date(subscription.current_period_end * 1000),
-      updatedAt: new Date()
+      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
     logger.info('✅ Subscription updated', { userId: userDoc.id.slice(0, 8) + '...', tier, status: subscription.status });
@@ -2559,12 +3062,13 @@ async function handleSubscriptionUpdate(subscription) {
 
 // Handle subscription cancellation
 async function handleSubscriptionCancelled(subscription) {
-  if (!adminDb) return;
+  const db = getFirestoreDb();
+  if (!db) return;
 
   const customerId = subscription.customer;
   
   try {
-    const usersSnapshot = await adminDb.collection('users')
+    const usersSnapshot = await db.collection('users')
       .where('stripeCustomerId', '==', customerId)
       .limit(1)
       .get();
@@ -2573,8 +3077,9 @@ async function handleSubscriptionCancelled(subscription) {
       const userDoc = usersSnapshot.docs[0];
       await userDoc.ref.update({
         subscriptionTier: 'free',
+        tier: 'free',
         subscriptionStatus: 'cancelled',
-        updatedAt: new Date()
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
       
       logger.info('✅ Subscription cancelled', { userId: userDoc.id.slice(0, 8) + '...' });
@@ -2586,12 +3091,13 @@ async function handleSubscriptionCancelled(subscription) {
 
 // Handle failed payment
 async function handlePaymentFailed(invoice) {
-  if (!adminDb) return;
+  const db = getFirestoreDb();
+  if (!db) return;
 
   const customerId = invoice.customer;
   
   try {
-    const usersSnapshot = await adminDb.collection('users')
+    const usersSnapshot = await db.collection('users')
       .where('stripeCustomerId', '==', customerId)
       .limit(1)
       .get();
@@ -2600,8 +3106,18 @@ async function handlePaymentFailed(invoice) {
       const userDoc = usersSnapshot.docs[0];
       await userDoc.ref.update({
         subscriptionStatus: 'past_due',
-        paymentFailedAt: new Date(),
-        updatedAt: new Date()
+        paymentFailedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+      // Log failed payment in billing history
+      await db.collection('users').doc(userDoc.id).collection('billing_history').add({
+        type: 'payment_failed',
+        amount: invoice.amount_due / 100,
+        currency: invoice.currency?.toUpperCase() || 'USD',
+        stripeInvoiceId: invoice.id,
+        status: 'failed',
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
       
       logger.info('⚠️ Payment failed - subscription past due', { userId: userDoc.id.slice(0, 8) + '...' });
