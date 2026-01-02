@@ -2816,31 +2816,8 @@ const STRIPE_PRICES = {
   lifetime: process.env.STRIPE_PRICE_LIFETIME || 'price_lifetime_one_time' // $99 one-time
 };
 
-// Initialize Firebase Admin for server-side subscription management
-let firebaseAdmin = null;
-let adminDb = null;
-const FIREBASE_SERVICE_ACCOUNT = process.env.FIREBASE_SERVICE_ACCOUNT;
-
-if (FIREBASE_SERVICE_ACCOUNT) {
-  try {
-    const admin = require('firebase-admin');
-    const serviceAccount = JSON.parse(FIREBASE_SERVICE_ACCOUNT);
-    
-    if (!admin.apps.length) {
-      firebaseAdmin = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-      });
-      // Use named database
-      const { getFirestore } = require('firebase-admin/firestore');
-      adminDb = getFirestore(admin.app(), 'studio-agents-db');
-      logger.info('🔥 Firebase Admin initialized successfully with studio-agents-db');
-    }
-  } catch (err) {
-    logger.error('❌ Firebase Admin init failed', { error: err.message });
-  }
-} else {
-  logger.warn('⚠️ FIREBASE_SERVICE_ACCOUNT not set - subscription sync disabled');
-}
+// Firebase Admin is already initialized at the top of the file via getFirestoreDb()
+// No need for a second initialization here
 
 // POST /api/stripe/create-checkout-session - Create a Stripe Checkout session
 app.post('/api/stripe/create-checkout-session', async (req, res) => {
@@ -2863,8 +2840,9 @@ app.post('/api/stripe/create-checkout-session', async (req, res) => {
   try {
     // Check if user already has a Stripe customer ID
     let customerId = null;
-    if (adminDb) {
-      const userDoc = await adminDb.collection('users').doc(userId).get();
+    const db = getFirestoreDb();
+    if (db) {
+      const userDoc = await db.collection('users').doc(userId).get();
       if (userDoc.exists) {
         customerId = userDoc.data()?.stripeCustomerId;
       }
@@ -3135,13 +3113,14 @@ app.get('/api/stripe/subscription-status', async (req, res) => {
     return res.status(400).json({ error: 'userId required' });
   }
 
-  if (!adminDb) {
+  const db = getFirestoreDb();
+  if (!db) {
     // Return free tier if Firebase not configured
     return res.json({ tier: 'free', status: 'none' });
   }
 
   try {
-    const userDoc = await adminDb.collection('users').doc(userId).get();
+    const userDoc = await db.collection('users').doc(userId).get();
     
     if (!userDoc.exists) {
       return res.json({ tier: 'free', status: 'none' });
@@ -3187,8 +3166,9 @@ app.post('/api/stripe/create-portal-session', async (req, res) => {
   try {
     // Get customer ID from Firebase
     let customerId = null;
-    if (adminDb) {
-      const userDoc = await adminDb.collection('users').doc(userId).get();
+    const db = getFirestoreDb();
+    if (db) {
+      const userDoc = await db.collection('users').doc(userId).get();
       if (userDoc.exists) {
         customerId = userDoc.data()?.stripeCustomerId;
       }
@@ -3231,8 +3211,9 @@ app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
   }
 
   try {
-    if (adminDb) {
-      await adminDb.collection('users').doc(targetUserId).collection('projects').doc(String(project.id)).set({
+    const db = getFirestoreDb();
+    if (db) {
+      await db.collection('users').doc(targetUserId).collection('projects').doc(String(project.id)).set({
         ...project,
         savedAt: admin.firestore.FieldValue.serverTimestamp()
       });
@@ -3259,8 +3240,9 @@ app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
   }
 
   try {
-    if (adminDb) {
-      const snapshot = await adminDb.collection('users').doc(targetUserId).collection('projects')
+    const db = getFirestoreDb();
+    if (db) {
+      const snapshot = await db.collection('users').doc(targetUserId).collection('projects')
         .orderBy('savedAt', 'desc')
         .limit(50)
         .get();
@@ -3289,8 +3271,9 @@ app.delete('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
   }
 
   try {
-    if (adminDb) {
-      await adminDb.collection('users').doc(targetUserId).collection('projects').doc(projectId).delete();
+    const db = getFirestoreDb();
+    if (db) {
+      await db.collection('users').doc(targetUserId).collection('projects').doc(projectId).delete();
       logger.info('🗑️ Project deleted', { userId: targetUserId, projectId });
       res.json({ success: true });
     } else {
