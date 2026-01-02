@@ -1,0 +1,122 @@
+# Studio Agents - Load Testing Configuration
+# Uses Artillery for API stress testing
+#
+# Run with: npx artillery run load-test.yml
+# Run quick test: npx artillery run --quick
+
+config:
+  target: "http://localhost:3001"
+  phases:
+    # Warm-up phase
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm up"
+    # Ramp up load
+    - duration: 60
+      arrivalRate: 5
+      rampTo: 20
+      name: "Ramp up load"
+    # Sustained load
+    - duration: 120
+      arrivalRate: 20
+      name: "Sustained load"
+    # Spike test
+    - duration: 30
+      arrivalRate: 50
+      name: "Spike test"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  plugins:
+    expect: {}
+
+scenarios:
+  # Health Check - Should always be fast
+  - name: "Health Check"
+    weight: 10
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+            - contentType: application/json
+
+  # Public endpoints - No auth required
+  - name: "Check Investor Access"
+    weight: 5
+    flow:
+      - get:
+          url: "/api/investor-access/check?email=test@example.com"
+          expect:
+            - statusCode: 200
+
+  # Text Generation - Main workload
+  - name: "Text Generation"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/generate"
+          json:
+            prompt: "Write a short hook about success"
+            systemInstruction: "Be creative and lyrical"
+          expect:
+            - statusCode: 200
+          capture:
+            - json: "$.output"
+              as: "generatedText"
+
+  # Protected endpoints - Should return 401
+  - name: "Protected Route - User Profile"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/user/profile"
+          expect:
+            - statusCode: 401
+
+  # Protected endpoints - Should return 401  
+  - name: "Protected Route - Credits"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/user/credits"
+          expect:
+            - statusCode: 401
+
+  # Models list
+  - name: "List Models"
+    weight: 5
+    flow:
+      - get:
+          url: "/api/models"
+          expect:
+            - statusCode:
+                - 200
+                - 501
+
+  # Full user flow simulation
+  - name: "Full Flow - Browse and Generate"
+    weight: 30
+    flow:
+      # Check health first
+      - get:
+          url: "/health"
+      - think: 1
+      # Try to access profile (will fail without auth)
+      - get:
+          url: "/api/user/profile"
+      - think: 2
+      # Generate content
+      - post:
+          url: "/api/generate"
+          json:
+            prompt: "Write 4 lines about dreams coming true"
+            systemInstruction: "You are a professional songwriter"
+          expect:
+            - statusCode: 200
+      - think: 1
+      # Check investor access
+      - get:
+          url: "/api/investor-access/check?email=random@test.com"
+          expect:
+            - statusCode: 200

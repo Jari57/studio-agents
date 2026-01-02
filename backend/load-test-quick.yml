@@ -1,0 +1,33 @@
+# Studio Agents - Quick Load Test
+# A shorter test for rapid validation
+#
+# Run with: npx artillery run load-test-quick.yml
+
+config:
+  target: "http://localhost:3001"
+  phases:
+    # Quick ramp
+    - duration: 10
+      arrivalRate: 2
+      rampTo: 10
+      name: "Quick ramp"
+    # Brief sustained
+    - duration: 20
+      arrivalRate: 10
+      name: "Sustained"
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+scenarios:
+  - name: "Health and Generate"
+    flow:
+      - get:
+          url: "/health"
+      - post:
+          url: "/api/generate"
+          json:
+            prompt: "Hello world test"
+            systemInstruction: "Be brief"
+      - get:
+          url: "/api/investor-access/check?email=test@test.com"

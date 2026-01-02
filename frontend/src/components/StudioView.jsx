@@ -245,41 +245,97 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   
   // Save a single project to Firestore
   const saveProjectToCloud = async (uid, project) => {
-    if (!db || !uid || !project) return;
+    if (!db || !uid || !project || !project.id) {
+      console.warn('saveProjectToCloud: Missing required data', { hasDb: !!db, hasUid: !!uid, hasProject: !!project });
+      return false;
+    }
+    
     try {
+      // Sanitize project data - remove undefined values, functions, and circular refs
+      const sanitizedProject = {};
+      for (const [key, value] of Object.entries(project)) {
+        if (value !== undefined && typeof value !== 'function') {
+          // Deep clone to avoid circular reference issues
+          try {
+            sanitizedProject[key] = JSON.parse(JSON.stringify(value));
+          } catch (e) {
+            // Skip values that can't be serialized
+            console.warn(`Skipping non-serializable field: ${key}`);
+          }
+        }
+      }
+      
       const projectRef = doc(db, 'users', uid, 'projects', project.id);
       await setDoc(projectRef, {
-        ...project,
+        ...sanitizedProject,
         updatedAt: new Date().toISOString(),
         syncedAt: new Date().toISOString()
       }, { merge: true });
+      
       console.log(`Saved project ${project.id} to cloud`);
+      return true;
     } catch (err) {
-      console.error('Failed to save project to cloud:', err);
+      console.error('Failed to save project to cloud:', err.message || err);
+      // Don't show toast here - let the caller handle it
+      return false;
     }
   };
   
-  // Sync all projects to Firestore (debounced)
+  // Sync all projects to Firestore (with fallback to individual saves)
   const syncProjectsToCloud = async (uid, projectsToSync) => {
     if (!db || !uid || !Array.isArray(projectsToSync) || projectsToSync.length === 0) return;
     setProjectsSyncing(true);
+    
     try {
+      // Try batch write first (more efficient)
       const batch = writeBatch(db);
+      let validProjects = 0;
+      
       for (const project of projectsToSync) {
         if (!project || !project.id) continue;
+        
+        // Sanitize project data - remove undefined values and functions
+        const sanitizedProject = {};
+        for (const [key, value] of Object.entries(project)) {
+          if (value !== undefined && typeof value !== 'function') {
+            sanitizedProject[key] = value;
+          }
+        }
+        
         const projectRef = doc(db, 'users', uid, 'projects', project.id);
         batch.set(projectRef, {
-          ...project,
-          updatedAt: project.updatedAt || new Date().toISOString(),
+          ...sanitizedProject,
+          updatedAt: sanitizedProject.updatedAt || new Date().toISOString(),
           syncedAt: new Date().toISOString()
         }, { merge: true });
+        validProjects++;
       }
-      await batch.commit();
-      setLastSyncTime(new Date());
-      console.log(`Synced ${projectsToSync.length} projects to cloud`);
+      
+      if (validProjects > 0) {
+        await batch.commit();
+        setLastSyncTime(new Date());
+        console.log(`Synced ${validProjects} projects to cloud`);
+      }
     } catch (err) {
-      console.error('Failed to sync projects to cloud:', err);
-      toast.error('Failed to sync projects');
+      console.error('Batch sync failed, trying individual saves:', err);
+      
+      // Fallback: Try saving projects individually
+      let successCount = 0;
+      for (const project of projectsToSync) {
+        try {
+          await saveProjectToCloud(uid, project);
+          successCount++;
+        } catch (individualErr) {
+          console.error(`Failed to save project ${project?.id}:`, individualErr);
+        }
+      }
+      
+      if (successCount > 0) {
+        setLastSyncTime(new Date());
+        console.log(`Saved ${successCount}/${projectsToSync.length} projects individually`);
+      } else {
+        toast.error('Failed to sync projects - check your connection');
+      }
     } finally {
       setProjectsSyncing(false);
     }

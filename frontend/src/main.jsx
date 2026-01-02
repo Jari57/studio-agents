@@ -3,12 +3,16 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary'
 import { initAnalytics } from './utils/analytics'
+import { initErrorMonitoring } from './utils/errorMonitoring'
 import './index.css'
 import './App.css'
 import './design-system.css'
 
 // Initialize Google Analytics
 initAnalytics();
+
+// Initialize Error Monitoring (Sentry when configured)
+initErrorMonitoring();
 
 console.log("Main.jsx: Starting execution...");
 

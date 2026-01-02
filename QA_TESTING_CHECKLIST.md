@@ -122,13 +122,46 @@
 
 ## 🧪 AUTOMATED TESTS
 
-### Playwright API Tests (120 tests)
+### Playwright API Tests (191+ tests)
 ```bash
 cd frontend
-npx playwright test api.spec.js --reporter=list
+npx playwright test --reporter=list
 ```
 
-Expected: 120 passed
+Expected: 191+ passed
+
+### Run Specific Test Suites
+```bash
+# API tests only
+npx playwright test api.spec.js
+
+# UI tests only
+npx playwright test ui.spec.ts
+
+# E2E tests only
+npx playwright test e2e.spec.ts
+
+# Authenticated tests (requires token)
+TEST_FIREBASE_TOKEN=your_token npx playwright test auth.spec.ts
+```
+
+### Load Testing with Artillery
+```bash
+cd backend
+
+# Install Artillery (one-time)
+npm install -g artillery
+
+# Quick load test (30 seconds)
+npx artillery run load-test-quick.yml
+
+# Full load test (4 minutes)
+npx artillery run load-test.yml
+
+# Generate HTML report
+npx artillery run load-test.yml --output report.json
+npx artillery report report.json
+```
 
 ### Test Suites:
 - Backend API Health (2 tests)
