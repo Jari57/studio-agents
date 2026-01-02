@@ -11,6 +11,10 @@ const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const admin = require('firebase-admin');
 
+// Services
+const emailService = require('./services/emailService');
+const userPreferencesService = require('./services/userPreferencesService');
+
 // Audio processing imports
 let WaveFile;
 try {
@@ -1095,6 +1099,80 @@ app.put('/api/user/profile', verifyFirebaseToken, async (req, res) => {
 });
 
 // ============================================================================
+// USER PREFERENCES & CONTACT INFO
+// ============================================================================
+
+// GET /api/user/preferences - Get user preferences
+app.get('/api/user/preferences', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const preferences = await userPreferencesService.getUserPreferences(admin, req.user.uid);
+    res.json(preferences);
+  } catch (err) {
+    logger.error('Get preferences error:', err);
+    res.status(500).json({ error: 'Failed to get preferences', details: err.message });
+  }
+});
+
+// PUT /api/user/preferences - Update user preferences
+app.put('/api/user/preferences', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const { preferences } = req.body;
+    if (!preferences) {
+      return res.status(400).json({ error: 'Preferences object required' });
+    }
+
+    await userPreferencesService.saveUserPreferences(admin, req.user.uid, preferences);
+    res.json({ success: true, message: 'Preferences updated' });
+  } catch (err) {
+    logger.error('Update preferences error:', err);
+    res.status(500).json({ error: 'Failed to update preferences', details: err.message });
+  }
+});
+
+// GET /api/user/contact - Get user contact info
+app.get('/api/user/contact', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const contact = await userPreferencesService.getUserContactInfo(admin, req.user.uid);
+    res.json(contact);
+  } catch (err) {
+    logger.error('Get contact info error:', err);
+    res.status(500).json({ error: 'Failed to get contact info', details: err.message });
+  }
+});
+
+// PUT /api/user/contact - Update user contact info
+app.put('/api/user/contact', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const { contact } = req.body;
+    if (!contact) {
+      return res.status(400).json({ error: 'Contact object required' });
+    }
+
+    await userPreferencesService.updateUserContactInfo(admin, req.user.uid, contact);
+    res.json({ success: true, message: 'Contact info updated' });
+  } catch (err) {
+    logger.error('Update contact info error:', err);
+    res.status(500).json({ error: 'Failed to update contact info', details: err.message });
+  }
+});
+
+// ============================================================================
 // GENERATION HISTORY ENDPOINTS
 // ============================================================================
 
@@ -1257,6 +1335,28 @@ app.post('/api/user/session', verifyFirebaseToken, async (req, res) => {
     await db.collection('users').doc(req.user.uid).update({
       lastLoginAt: admin.firestore.FieldValue.serverTimestamp()
     });
+    
+    // Send login notification email if user preference allows
+    if (action === 'login') {
+      const shouldNotify = await userPreferencesService.shouldNotify(admin, req.user.uid, 'emailOnLogin');
+      if (shouldNotify) {
+        // Notify user
+        emailService.notifyUser(req.user.email, 'loginNotification', {
+          email: req.user.email,
+          uid: req.user.uid,
+          ip: req.ip || req.connection.remoteAddress,
+          userAgent: req.get('User-Agent')
+        }).catch(err => logger.warn('Login email notification failed:', err.message));
+        
+        // Notify admins
+        emailService.notifyAdmins('loginNotification', {
+          email: req.user.email,
+          uid: req.user.uid,
+          ip: req.ip || req.connection.remoteAddress,
+          userAgent: req.get('User-Agent')
+        }).catch(err => logger.warn('Admin login notification failed:', err.message));
+      }
+    }
     
     res.json({ success: true });
   } catch (err) {
@@ -3952,6 +4052,19 @@ app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
         savedAt: admin.firestore.FieldValue.serverTimestamp()
       });
       logger.info('💾 Project saved', { userId: targetUserId, projectId: project.id });
+      
+      // Send project creation notification
+      if (req.user && req.user.email) {
+        const shouldNotify = await userPreferencesService.shouldNotify(admin, targetUserId, 'emailOnProjectCreate');
+        if (shouldNotify) {
+          emailService.notifyAdmins('projectCreated', {
+            email: req.user.email,
+            uid: targetUserId,
+            projectData: { name: project.name, category: project.category, id: project.id }
+          }).catch(err => logger.warn('Project creation notification failed:', err.message));
+        }
+      }
+      
       res.json({ success: true });
     } else {
       // Fallback if Firebase not init (local dev without creds)
@@ -3999,6 +4112,7 @@ app.delete('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
   const projectId = req.params.id;
   const userId = req.query.userId;
   const targetUserId = req.user ? req.user.uid : userId;
+  const projectName = req.query.projectName || projectId; // Pass project name for notification
 
   if (!targetUserId) {
     return res.status(401).json({ error: 'User ID required' });
@@ -4009,6 +4123,19 @@ app.delete('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
     if (db) {
       await db.collection('users').doc(targetUserId).collection('projects').doc(projectId).delete();
       logger.info('🗑️ Project deleted', { userId: targetUserId, projectId });
+      
+      // Send project deletion notification
+      if (req.user && req.user.email) {
+        const shouldNotify = await userPreferencesService.shouldNotify(admin, targetUserId, 'emailOnProjectDelete');
+        if (shouldNotify) {
+          emailService.notifyAdmins('projectDeleted', {
+            email: req.user.email,
+            uid: targetUserId,
+            projectData: { name: projectName, id: projectId }
+          }).catch(err => logger.warn('Project deletion notification failed:', err.message));
+        }
+      }
+      
       res.json({ success: true });
     } else {
       logger.warn('🗑️ Firebase not init, skipping delete');

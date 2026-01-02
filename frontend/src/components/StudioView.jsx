@@ -9343,7 +9343,9 @@ When you write a song, you create intellectual property that generates money eve
               {onboardingStep === 1 && (
                 <div className="profile-setup-step animate-fadeInUp" style={{ marginTop: '24px' }}>
                   <div className="form-group" style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Stage Name</label>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                      Stage Name <span style={{ color: 'var(--color-purple)' }}>*</span>
+                    </label>
                     <input 
                       type="text" 
                       className="search-input" 
@@ -9351,8 +9353,21 @@ When you write a song, you create intellectual property that generates money eve
                       value={userProfile.stageName}
                       onChange={(e) => setUserProfile({...userProfile, stageName: e.target.value})}
                       autoFocus
-                      style={{ width: '100%', padding: '12px', fontSize: '1.1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'white' }}
+                      style={{ 
+                        width: '100%', 
+                        padding: '12px', 
+                        fontSize: '1.1rem', 
+                        background: 'rgba(255,255,255,0.05)', 
+                        border: userProfile.stageName ? '1px solid var(--color-purple)' : '1px solid var(--border-color)', 
+                        borderRadius: '8px', 
+                        color: 'white' 
+                      }}
                     />
+                    {!userProfile.stageName && (
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        Required to personalize your experience
+                      </p>
+                    )}
                   </div>
 
                   <div className="form-group" style={{ marginBottom: '20px' }}>
@@ -9475,12 +9490,28 @@ When you write a song, you create intellectual property that generates money eve
                   Back
                 </button>
                 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {/* Hint for required fields */}
+                  {onboardingStep === 1 && !userProfile.stageName && (
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginRight: '8px' }}>
+                      Enter stage name to continue
+                    </span>
+                  )}
+                  {onboardingStep === 2 && !selectedPath && (
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginRight: '8px' }}>
+                      Select a path to continue
+                    </span>
+                  )}
+                  
                   {onboardingStep < onboardingSteps.length - 1 ? (
                     <button 
                       className="cta-button-premium"
                       onClick={() => setOnboardingStep(prev => prev + 1)}
                       disabled={(onboardingStep === 2 && !selectedPath) || (onboardingStep === 1 && !userProfile.stageName)}
+                      style={{ 
+                        opacity: ((onboardingStep === 2 && !selectedPath) || (onboardingStep === 1 && !userProfile.stageName)) ? 0.5 : 1,
+                        cursor: ((onboardingStep === 2 && !selectedPath) || (onboardingStep === 1 && !userProfile.stageName)) ? 'not-allowed' : 'pointer'
+                      }}
                     >
                       Next Step
                     </button>
