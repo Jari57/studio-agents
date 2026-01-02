@@ -5,7 +5,7 @@ import './App.css';
 import './mobile-fixes.css';
 
 function App() {
-  console.log("App.jsx: Rendering component...");
+  console.log("App.jsx: Rendering component (v2)...");
   
   // Hash-based routing state
   const [currentHash, setCurrentHash] = useState(window.location.hash || '#/');
