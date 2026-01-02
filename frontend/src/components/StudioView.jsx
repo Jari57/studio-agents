@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera
 } from 'lucide-react';
+
+// Alias for clarity and to avoid potential minification issues
+const Users = UsersIcon;
 import VideoPitchDemo from './VideoPitchDemo';
 import MultiAgentDemo from './MultiAgentDemo';
 import StudioOrchestrator from './StudioOrchestrator';
@@ -2669,7 +2672,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
           <div className="canvas-grid">
             <div className="canvas-column">
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Users size={18} className="text-purple" /> The Team</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><UsersIcon size={18} className="text-purple" /> The Team</h3>
               <div className="team-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {selectedProject.agents && selectedProject.agents.length > 0 ? (
                   selectedProject.agents.map((agentId, idx) => {
@@ -2923,7 +2926,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   className={`sidebar-link ${dashboardTab === 'agents' ? 'active' : ''}`}
                   onClick={() => setDashboardTab('agents')}
                 >
-                  <Users size={18} /> Manage Agents
+                  <UsersIcon size={18} /> Manage Agents
                 </button>
                 <button 
                   className={`sidebar-link ${dashboardTab === 'billing' ? 'active' : ''}`}
@@ -3040,7 +3043,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   {/* Audience Overview (Simulated) */}
                   <div className="audience-overview">
                     {[
-                      { label: 'Monthly Listeners', value: performanceStats.listeners.toLocaleString(), icon: Users, color: 'var(--color-blue)' },
+                      { label: 'Monthly Listeners', value: performanceStats.listeners.toLocaleString(), icon: UsersIcon, color: 'var(--color-blue)' },
                       { label: 'Total Streams', value: performanceStats.streams.toLocaleString(), icon: PlayCircle, color: 'var(--color-emerald)' },
                       { label: 'Followers', value: performanceStats.followers.toLocaleString(), icon: Crown, color: 'var(--color-purple)' },
                       { label: 'Growth', value: performanceStats.growth, icon: TrendingUp, color: 'var(--color-cyan)' }
@@ -3131,7 +3134,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           step: 2, 
                           title: "Assemble Your Team", 
                           desc: "Choose from 16 specialized AI agents for lyrics, beats, and production.", 
-                          icon: Users, 
+                          icon: UsersIcon, 
                           color: "var(--color-purple)" 
                         },
                         { 
@@ -3310,7 +3313,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                                   </span>
                                   {project.agents?.length > 0 && (
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                      <Users size={12} />
+                                      <UsersIcon size={12} />
                                       {project.agents.length} agent{project.agents.length !== 1 ? 's' : ''}
                                     </span>
                                   )}
@@ -5401,7 +5404,7 @@ When you write a song, you create intellectual property that generates money eve
           { title: 'Beat Lab', desc: 'Algorithmic drum pattern generation, chord progression logic, and BPM-matched sample sourcing.', version: 'v3.1', icon: Zap, tier: 'Free' },
           { title: 'Album Artist', desc: 'Imagen 3-powered cover art generation with typography, brand palettes, and social media kit export.', version: 'v3.0', icon: Music, tier: 'Free' },
           { title: 'Video Creator', desc: 'Veo 3.0 cinematic video generation with scene detection, style transfer, and music video creation.', version: 'v1.0', icon: PlayCircle, tier: 'Free' },
-          { title: 'Vocal Architect', desc: 'Neural vocoder synthesis with harmony generation, ad-lib creation, and expressive tuning.', version: 'v2.0', icon: Users, tier: 'Pro' },
+          { title: 'Vocal Architect', desc: 'Neural vocoder synthesis with harmony generation, ad-lib creation, and expressive tuning.', version: 'v2.0', icon: UsersIcon, tier: 'Pro' },
           { title: 'Instrumentalist', desc: 'AI session players with physical modeling, style mimicry, and multi-instrumental performance.', version: 'v1.5', icon: Music, tier: 'Pro' },
           { title: 'Beat Architect', desc: 'Advanced rhythm production with drum synthesis, groove templates, and dynamic arrangement.', version: 'v2.2', icon: Target, tier: 'Monthly' },
           { title: 'Sample Wizard', desc: 'Intelligent sample discovery, clearance checking, and stem isolation technology.', version: 'v1.8', icon: Folder, tier: 'Monthly' },
@@ -5411,7 +5414,7 @@ When you write a song, you create intellectual property that generates money eve
           { title: 'Sound Designer', desc: 'Foley generation, texture synthesis, and cinematic sound design for any project.', version: 'v1.6', icon: Volume2, tier: 'Pro' },
           { title: 'Trend Analyst', desc: 'Real-time music industry trend tracking, viral prediction, and audience insights.', version: 'v2.5', icon: TrendingUp, tier: 'Monthly' },
           { title: 'Social Strategist', desc: 'Platform-specific content optimization, hashtag research, and posting schedule generation.', version: 'v1.9', icon: Globe, tier: 'Pro' },
-          { title: 'Collab Finder', desc: 'AI-powered artist matching, style compatibility analysis, and networking recommendations.', version: 'v1.4', icon: Users, tier: 'Pro' },
+          { title: 'Collab Finder', desc: 'AI-powered artist matching, style compatibility analysis, and networking recommendations.', version: 'v1.4', icon: UsersIcon, tier: 'Pro' },
           { title: 'Release Planner', desc: 'Strategic rollout planning with timeline generation, budget allocation, and milestone tracking.', version: 'v2.0', icon: Rocket, tier: 'Pro' }
         ];
 
@@ -5743,7 +5746,7 @@ When you write a song, you create intellectual property that generates money eve
                     justifyContent: 'center', 
                     marginBottom: '20px' 
                   }}>
-                    <Users size={24} className="text-pink" />
+                    <UsersIcon size={24} className="text-pink" />
                   </div>
                   <h3 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>For Creators</h3>
                   <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>
@@ -9739,7 +9742,7 @@ When you write a song, you create intellectual property that generates money eve
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px' }}>
                   <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.9rem' }}>
-                    <Users size={16} className="text-cyan" /> Who It's For
+                    <UsersIcon size={16} className="text-cyan" /> Who It's For
                   </h4>
                   <p style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'var(--text-secondary)', margin: 0 }}>
                     {showAgentWhitePaper.whoFor}
@@ -9945,7 +9948,7 @@ When you write a song, you create intellectual property that generates money eve
           <div className="modal-content" style={{ maxWidth: 'min(92vw, 700px)', width: '100%', margin: '1rem auto' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Users size={20} className="text-purple" />
+                <UsersIcon size={20} className="text-purple" />
                 Add Agent to Project
               </h2>
               <button className="modal-close" onClick={() => setShowAddAgentModal(false)}>

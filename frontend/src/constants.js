@@ -1,4 +1,4 @@
-import { Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark } from 'lucide-react';
+import { Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark } from 'lucide-react';
 
 export const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
   ? 'http://localhost:3001' 
@@ -119,7 +119,7 @@ export const AGENTS = [
       id: 'vocal-arch', 
       name: 'Vocal Architect', 
       category: 'Music Creation', 
-      icon: Users, 
+      icon: UsersIcon, 
       tier: 'pro', // PRO TIER
       isBeta: true,
       colorClass: 'agent-purple', 
@@ -332,7 +332,7 @@ export const AGENTS = [
       id: 'collab', 
       name: 'Collab Connect', 
       category: 'Career Growth', 
-      icon: Users, 
+      icon: UsersIcon, 
       tier: 'pro', // PRO TIER
       colorClass: 'agent-indigo', 
       hasSocials: true,

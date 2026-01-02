@@ -15,8 +15,8 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 test.describe('Generation Flow - Text Mode', () => {
 
   test.beforeEach(async ({ page }) => {
-    await page.goto(FRONTEND_URL);
-    await page.waitForLoadState('networkidle');
+    await page.goto(FRONTEND_URL, { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('load');
   });
 
   test('Text generation returns response without errors', async ({ request }) => {
