@@ -1834,7 +1834,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       try {
         const mockOutput = await getMockResponse(selectedAgent.id, textarea.value);
         const newItem = {
-          id: Date.now(),
+          id: String(Date.now()),
           title: `${selectedAgent.name} Result`,
           type: selectedAgent.category,
           agent: selectedAgent.name,
@@ -2012,7 +2012,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       
       // Handle different response types
       let newItem = {
-        id: Date.now(),
+        id: String(Date.now()),
         title: `${selectedAgent.name} Result`,
         type: selectedAgent.category,
         agent: selectedAgent.name,
@@ -2474,7 +2474,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     
     const newActivity = {
       ...item,
-      id: Date.now(),
+      id: String(Date.now()),
       user: isLoggedIn ? 'Pro Creator' : 'Guest Creator',
       time: 'Just now',
       likes: 0,
@@ -2798,7 +2798,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                             <button 
                               onClick={(e) => { 
                                 e.stopPropagation(); 
-                                setAddToProjectAsset({...asset, id: Date.now(), sourceProject: selectedProject.id}); 
+                                setAddToProjectAsset({...asset, id: String(Date.now()), sourceProject: selectedProject.id}); 
                               }}
                               title="Copy to another project"
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
@@ -2851,7 +2851,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                             const url = URL.createObjectURL(file);
                             const type = file.type.startsWith('audio') ? 'Audio' : file.type.startsWith('video') ? 'Video' : 'Image';
                             const newAsset = {
-                              id: Date.now(),
+                              id: String(Date.now()),
                               title: file.name,
                               type: type,
                               agent: 'User Upload',
@@ -5803,7 +5803,7 @@ When you write a song, you create intellectual property that generates money eve
                       <button 
                         className="activity-btn" 
                         onClick={() => setAddToProjectAsset({
-                          id: Date.now(),
+                          id: String(Date.now()),
                           title: item.title,
                           snippet: item.snippet,
                           agent: item.agent,
