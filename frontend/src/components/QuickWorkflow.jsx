@@ -21,6 +21,9 @@ function QuickWorkflow({
   user
 }) {
   const [prompt, setPrompt] = useState('');
+  const [language, setLanguage] = useState('English');
+  const [style, setStyle] = useState('Modern Hip-Hop');
+  const [model, setModel] = useState('Gemini 2.0 Flash');
   const [output, setOutput] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSaveOptions, setShowSaveOptions] = useState(false);
@@ -64,12 +67,22 @@ function QuickWorkflow({
       const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
+      // Map display model name to API model ID
+      const modelMapping = {
+        'Gemini 2.0 Flash': 'gemini-2.0-flash',
+        'Gemini 2.0 Pro (Exp)': 'gemini-2.0-flash-exp',
+        'Gemini 1.5 Flash': 'gemini-1.5-flash',
+        'Gemini 1.5 Pro': 'gemini-1.5-pro'
+      };
+      const apiModel = modelMapping[model] || 'gemini-2.0-flash';
+
       const res = await fetch(`${BACKEND_URL}/api/generate`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: prompt,
-          systemInstruction: agent.systemPrompt || `You are ${agent.name}, a ${agent.role || agent.description}. ${agent.howToUse || ''}`
+          prompt: `[Language: ${language}] [Style: ${style}] ${prompt}`,
+          systemInstruction: agent.systemPrompt || `You are ${agent.name}, a ${agent.role || agent.description}. ${agent.howToUse || ''} Please respond in ${language}.`,
+          model: apiModel
         })
       });
 
@@ -201,6 +214,83 @@ function QuickWorkflow({
 
         {/* Body - scrollable */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+          
+          {/* Configuration Bar */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '12px', 
+            marginBottom: '20px'
+          }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Language</label>
+              <select 
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'white',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {['English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese', 'Italian', 'Chinese'].map(lang => (
+                  <option key={lang} value={lang} style={{ background: '#1a1a1a' }}>{lang}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Style</label>
+              <select 
+                value={style}
+                onChange={(e) => setStyle(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'white',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {['Modern Hip-Hop', '90s Boom Bap', 'Trap', 'R&B / Soul', 'Pop', 'Rock', 'Electronic', 'Cinematic', 'Jazz', 'Lo-Fi'].map(s => (
+                  <option key={s} value={s} style={{ background: '#1a1a1a' }}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Model</label>
+              <select 
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'white',
+                  fontSize: '0.85rem',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Flash', 'Gemini 1.5 Pro'].map(m => (
+                  <option key={m} value={m} style={{ background: '#1a1a1a' }}>{m}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Quick Prompts */}
           {quickPrompts.length > 0 && !output && (
             <div style={{ marginBottom: '16px' }}>

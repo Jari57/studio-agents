@@ -148,6 +148,9 @@ function AgentOutputCard({ icon: Icon, title, color, output, isLoading, delay = 
 
 export default function MultiAgentDemo() {
   const [songIdea, setSongIdea] = useState('');
+  const [language, setLanguage] = useState('English');
+  const [style, setStyle] = useState('Modern Hip-Hop');
+  const [model, setModel] = useState('Gemini 2.0 Flash');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOrchestrating, setIsOrchestrating] = useState(false);
   const [outputs, setOutputs] = useState({
@@ -177,31 +180,40 @@ export default function MultiAgentDemo() {
     // Generate all outputs in parallel
     const prompts = {
       hook: {
-        prompt: `Write a 2-line viral song hook for: "${songIdea}". Make it catchy, memorable, under 20 words total. Just the hook, no explanation.`,
-        systemInstruction: "You are a hit songwriter. Write only the hook lyrics, nothing else."
+        prompt: `Write a 2-line viral song hook for: "${songIdea}". Language: ${language}. Style: ${style}. Make it catchy, memorable, under 20 words total. Just the hook, no explanation.`,
+        systemInstruction: `You are a hit songwriter. Write only the hook lyrics in ${language}, nothing else.`
       },
       caption: {
-        prompt: `Write a short Instagram caption (max 15 words) for a new song about: "${songIdea}". Include 1 emoji. Just the caption.`,
-        systemInstruction: "You are a social media expert for musicians."
+        prompt: `Write a short Instagram caption (max 15 words) for a new song about: "${songIdea}". Style: ${style}. Include 1 emoji. Just the caption.`,
+        systemInstruction: `You are a social media expert for musicians. Write in ${language}.`
       },
       hashtags: {
-        prompt: `Generate 5 trending hashtags for a song about: "${songIdea}". Format: #tag1 #tag2 #tag3 #tag4 #tag5`,
+        prompt: `Generate 5 trending hashtags for a song about: "${songIdea}". Style: ${style}. Format: #tag1 #tag2 #tag3 #tag4 #tag5`,
         systemInstruction: "You are a music marketing specialist."
       },
       pitch: {
-        prompt: `Write a one-sentence elevator pitch for a song about: "${songIdea}". Make it compelling for a record label. Under 25 words.`,
-        systemInstruction: "You are a music industry A&R."
+        prompt: `Write a one-sentence elevator pitch for a song about: "${songIdea}". Language: ${language}. Style: ${style}. Make it compelling for a record label. Under 25 words.`,
+        systemInstruction: `You are a music industry A&R. Write in ${language}.`
       }
     };
     
     try {
+      // Map display model name to API model ID
+      const modelMapping = {
+        'Gemini 2.0 Flash': 'gemini-2.0-flash',
+        'Gemini 2.0 Pro (Exp)': 'gemini-2.0-flash-exp',
+        'Gemini 1.5 Flash': 'gemini-1.5-flash',
+        'Gemini 1.5 Pro': 'gemini-1.5-pro'
+      };
+      const apiModel = modelMapping[model] || 'gemini-2.0-flash';
+
       // Fire all requests simultaneously
       const requests = Object.entries(prompts).map(async ([key, { prompt, systemInstruction }]) => {
         try {
           const res = await fetch(`${BACKEND_URL}/api/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt, systemInstruction })
+            body: JSON.stringify({ prompt, systemInstruction, model: apiModel })
           });
           const data = await res.json();
           return [key, data.output?.trim() || 'Generation failed'];
@@ -299,6 +311,83 @@ export default function MultiAgentDemo() {
       
       {/* Input Section */}
       <div style={{ marginBottom: '24px' }}>
+        {/* Configuration Bar */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          marginBottom: '12px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ flex: 1, minWidth: '150px' }}>
+            <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Language</label>
+            <select 
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'white',
+                fontSize: '0.85rem',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {['English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese', 'Italian', 'Chinese'].map(lang => (
+                <option key={lang} value={lang} style={{ background: '#1a1a1a' }}>{lang}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ flex: 1, minWidth: '150px' }}>
+            <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Style</label>
+            <select 
+              value={style}
+              onChange={(e) => setStyle(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'white',
+                fontSize: '0.85rem',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {['Modern Hip-Hop', '90s Boom Bap', 'Trap', 'R&B / Soul', 'Pop', 'Rock', 'Electronic', 'Cinematic', 'Jazz', 'Lo-Fi'].map(s => (
+                <option key={s} value={s} style={{ background: '#1a1a1a' }}>{s}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ flex: 1, minWidth: '150px' }}>
+            <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Model</label>
+            <select 
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'white',
+                fontSize: '0.85rem',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Flash', 'Gemini 1.5 Pro'].map(m => (
+                <option key={m} value={m} style={{ background: '#1a1a1a' }}>{m}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         <div style={{ 
           display: 'flex', 
           gap: '12px',

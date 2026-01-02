@@ -717,6 +717,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     name: '',
     category: '',
     description: '',
+    language: 'English',
+    style: 'Modern Hip-Hop',
+    model: 'Gemini 2.0 Flash',
     selectedAgents: [],
     socialHandle: '',
     socialBio: '',
@@ -753,6 +756,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       name: newProjectData.name,
       category: newProjectData.category,
       description: newProjectData.description,
+      language: newProjectData.language,
+      style: newProjectData.style,
+      model: newProjectData.model,
       agents: newProjectData.selectedAgents,
       workflow: newProjectData.workflow || 'custom',
       socialHandle: newProjectData.socialHandle,
@@ -8949,6 +8955,70 @@ When you write a song, you create intellectual property that generates money eve
                       autoFocus
                       style={{ width: '100%', padding: '12px', fontSize: '1rem' }}
                     />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Language</label>
+                      <select 
+                        value={newProjectData.language}
+                        onChange={(e) => setNewProjectData({...newProjectData, language: e.target.value})}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '10px',
+                          background: 'var(--color-bg-tertiary)',
+                          border: '1px solid var(--border-color)',
+                          color: 'white',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        {['English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese', 'Italian', 'Chinese'].map(lang => (
+                          <option key={lang} value={lang}>{lang}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Style / Genre</label>
+                      <select 
+                        value={newProjectData.style}
+                        onChange={(e) => setNewProjectData({...newProjectData, style: e.target.value})}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '10px',
+                          background: 'var(--color-bg-tertiary)',
+                          border: '1px solid var(--border-color)',
+                          color: 'white',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        {['Modern Hip-Hop', '90s Boom Bap', 'Trap', 'R&B / Soul', 'Pop', 'Rock', 'Electronic', 'Cinematic', 'Jazz', 'Lo-Fi'].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>AI Model</label>
+                      <select 
+                        value={newProjectData.model}
+                        onChange={(e) => setNewProjectData({...newProjectData, model: e.target.value})}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '10px',
+                          background: 'var(--color-bg-tertiary)',
+                          border: '1px solid var(--border-color)',
+                          color: 'white',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        {['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Flash', 'Gemini 1.5 Pro'].map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                   </div>
                   
                   <div className="form-group" style={{ marginBottom: '24px' }}>

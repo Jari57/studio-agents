@@ -1,11 +1,105 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Play, Pause, Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, Save, FolderPlus, Volume2, X,
-  Check, Loader2
+  Check, Loader2, Maximize2
 } from 'lucide-react';
-import { BACKEND_URL } from '../constants';
+import WaveSurfer from 'wavesurfer.js';
+import Plyr from 'plyr-react';
+import 'plyr-react/dist/plyr.css';
+import { BACKEND_URL, AGENTS } from '../constants';
 import toast from 'react-hot-toast';
+
+// Professional Waveform Player Component
+const WaveformPlayer = ({ url, color }) => {
+  const containerRef = useRef(null);
+  const wavesurferRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const ws = WaveSurfer.create({
+      container: containerRef.current,
+      waveColor: `${color}44`,
+      progressColor: color,
+      cursorColor: color,
+      barWidth: 2,
+      barRadius: 3,
+      responsive: true,
+      height: 40,
+      normalize: true,
+      partialRender: true
+    });
+
+    ws.load(url);
+
+    ws.on('ready', () => {
+      setDuration(ws.getDuration());
+      wavesurferRef.current = ws;
+    });
+
+    ws.on('audioprocess', () => {
+      setCurrentTime(ws.getCurrentTime());
+    });
+
+    ws.on('play', () => setIsPlaying(true));
+    ws.on('pause', () => setIsPlaying(false));
+    ws.on('finish', () => setIsPlaying(false));
+
+    return () => ws.destroy();
+  }, [url, color]);
+
+  const togglePlay = () => {
+    if (wavesurferRef.current) {
+      wavesurferRef.current.playPause();
+    }
+  };
+
+  const formatTime = (time) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <button
+        onClick={togglePlay}
+        style={{
+          width: '36px',
+          height: '36px',
+          borderRadius: '50%',
+          background: color,
+          border: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          flexShrink: 0,
+          boxShadow: `0 4px 12px ${color}44`
+        }}
+      >
+        {isPlaying ? <Pause size={16} color="white" /> : <Play size={16} color="white" />}
+      </button>
+      <div style={{ flex: 1, position: 'relative' }}>
+        <div ref={containerRef} />
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          fontSize: '0.65rem', 
+          color: 'rgba(255,255,255,0.4)',
+          marginTop: '2px'
+        }}>
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration)}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Streaming text effect hook
 function useTypewriter(text, speed = 15, trigger = false) {
@@ -53,8 +147,6 @@ function AgentOutputCard({
 }) {
   const [showContent, setShowContent] = useState(false);
   const { displayed, isTyping } = useTypewriter(output, 12, showContent);
-  const audioRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   
   useEffect(() => {
     if (output && !isLoading) {
@@ -64,17 +156,6 @@ function AgentOutputCard({
       setShowContent(false);
     }
   }, [output, isLoading, delay]);
-  
-  const toggleAudio = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
   
   return (
     <div style={{
@@ -185,48 +266,32 @@ function AgentOutputCard({
               borderRadius: '8px', 
               padding: '8px',
               display: 'flex',
-              alignItems: 'center',
+              flexDirection: 'column',
               gap: '8px'
             }}>
               {mediaType === 'audio' && (
-                <>
-                  <audio ref={audioRef} src={mediaUrl} onEnded={() => setIsPlaying(false)} />
-                  <button
-                    onClick={toggleAudio}
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: '50%',
-                      background: color,
-                      border: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {isPlaying ? <Pause size={16} color="white" /> : <Play size={16} color="white" />}
-                  </button>
-                  <div style={{ flex: 1, height: '24px', background: 'rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden' }}>
-                    <div style={{ 
-                      height: '100%', 
-                      width: isPlaying ? '60%' : '0%',
-                      background: `linear-gradient(90deg, ${color}66, ${color})`,
-                      transition: 'width 0.3s ease'
-                    }} />
-                  </div>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>MP3</span>
-                </>
+                <WaveformPlayer url={mediaUrl} color={color} />
               )}
               {mediaType === 'image' && (
                 <img 
                   src={mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`} 
                   alt="Generated" 
-                  style={{ width: '100%', borderRadius: '6px', maxHeight: '120px', objectFit: 'cover' }} 
+                  style={{ width: '100%', borderRadius: '6px', maxHeight: '160px', objectFit: 'cover' }} 
                 />
               )}
               {mediaType === 'video' && (
-                <video src={mediaUrl} controls style={{ width: '100%', borderRadius: '6px', maxHeight: '120px' }} />
+                <div style={{ borderRadius: '6px', overflow: 'hidden', width: '100%' }}>
+                  <Plyr
+                    source={{
+                      type: 'video',
+                      sources: [{ src: mediaUrl, type: 'video/mp4' }]
+                    }}
+                    options={{
+                      controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
+                      settings: ['quality', 'speed']
+                    }}
+                  />
+                </div>
               )}
             </div>
           ) : onGenerateMedia ? (
@@ -279,6 +344,15 @@ export default function StudioOrchestrator({
   existingProject = null 
 }) {
   const [songIdea, setSongIdea] = useState(existingProject?.name || '');
+  const [language, setLanguage] = useState('English');
+  const [style, setStyle] = useState('Modern Hip-Hop');
+  const [model, setModel] = useState('Gemini 2.0 Flash');
+  const [selectedAgents, setSelectedAgents] = useState({
+    hook: 'ghost',
+    beat: 'beat-arch',
+    visual: 'album',
+    pitch: 'release'
+  });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOrchestrating, setIsOrchestrating] = useState(false);
   const [outputs, setOutputs] = useState({
@@ -329,23 +403,38 @@ export default function StudioOrchestrator({
     
     const headers = await getHeaders();
     
+    // Map display model name to API model ID
+    const modelMapping = {
+      'Gemini 2.0 Flash': 'gemini-2.0-flash',
+      'Gemini 2.0 Pro (Exp)': 'gemini-2.0-flash-exp',
+      'Gemini 1.5 Flash': 'gemini-1.5-flash',
+      'Gemini 1.5 Pro': 'gemini-1.5-pro'
+    };
+    const apiModel = modelMapping[model] || 'gemini-2.0-flash';
+    
+    // Get selected agent objects
+    const agentHook = AGENTS.find(a => a.id === selectedAgents.hook) || AGENTS[0];
+    const agentBeat = AGENTS.find(a => a.id === selectedAgents.beat) || AGENTS[1];
+    const agentVisual = AGENTS.find(a => a.id === selectedAgents.visual) || AGENTS[2];
+    const agentPitch = AGENTS.find(a => a.id === selectedAgents.pitch) || AGENTS[3];
+
     // Generate all text outputs in parallel
     const prompts = {
       hook: {
-        prompt: `Write a 4-line song hook for: "${songIdea}". Make it catchy, memorable. Just the lyrics, no explanation.`,
-        systemInstruction: "You are Ghostwriter, a hit songwriter. Write only the hook lyrics."
+        prompt: `Write a 4-line song hook for: "${songIdea}". Language: ${language}. Style: ${style}. Make it catchy, memorable. Just the lyrics, no explanation.`,
+        systemInstruction: `${agentHook.systemPrompt || `You are ${agentHook.name}, a ${agentHook.role || agentHook.description}.`} Write only the hook lyrics in ${language}.`
       },
       beat: {
-        prompt: `Describe the perfect beat/instrumental for a song about: "${songIdea}". Include BPM, key, instruments, vibe. 50 words max.`,
-        systemInstruction: "You are Beat Architect, a music producer. Describe the beat production only."
+        prompt: `Describe the perfect beat/instrumental for a song about: "${songIdea}". Style: ${style}. Include BPM, key, instruments, vibe. 50 words max.`,
+        systemInstruction: `${agentBeat.systemPrompt || `You are ${agentBeat.name}, a ${agentBeat.role || agentBeat.description}.`} Describe the beat production only.`
       },
       visual: {
-        prompt: `Describe the music video or album cover visual concept for: "${songIdea}". Include colors, mood, setting. 50 words max.`,
-        systemInstruction: "You are Visual Director, a creative director. Describe the visual concept only."
+        prompt: `Describe the music video or album cover visual concept for: "${songIdea}". Style: ${style}. Include colors, mood, setting. 50 words max.`,
+        systemInstruction: `${agentVisual.systemPrompt || `You are ${agentVisual.name}, a ${agentVisual.role || agentVisual.description}.`} Describe the visual concept only.`
       },
       pitch: {
-        prompt: `Write a one-paragraph elevator pitch for a song about: "${songIdea}". Make it compelling for a record label. Under 60 words.`,
-        systemInstruction: "You are Pitch Writer, a music industry A&R."
+        prompt: `Write a one-paragraph elevator pitch for a song about: "${songIdea}". Language: ${language}. Style: ${style}. Make it compelling for a record label. Under 60 words.`,
+        systemInstruction: `${agentPitch.systemPrompt || `You are ${agentPitch.name}, a ${agentPitch.role || agentPitch.description}.`} Write in ${language}.`
       }
     };
     
@@ -355,7 +444,7 @@ export default function StudioOrchestrator({
           const res = await fetch(`${BACKEND_URL}/api/generate`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ prompt, systemInstruction })
+            body: JSON.stringify({ prompt, systemInstruction, model: apiModel })
           });
           const data = await res.json();
           return [key, data.output?.trim() || 'Generation failed'];
@@ -441,12 +530,12 @@ export default function StudioOrchestrator({
     }
   };
   
-  // Generate real image with Imagen 4.0
+  // Generate real image with Gemini Nano Banana
   const handleGenerateImage = async () => {
     if (!outputs.visual) return;
     
     setGeneratingMedia(prev => ({ ...prev, image: true }));
-    toast.loading('Generating image with Imagen 4.0...', { id: 'gen-image' });
+    toast.loading('Generating image with Gemini Nano Banana...', { id: 'gen-image' });
     
     try {
       const headers = await getHeaders();
@@ -474,12 +563,12 @@ export default function StudioOrchestrator({
     }
   };
   
-  // Generate real video with Veo 3.0
+  // Generate real video with Veo 3.1
   const handleGenerateVideo = async () => {
     if (!outputs.visual) return;
     
     setGeneratingMedia(prev => ({ ...prev, video: true }));
-    toast.loading('Generating video with Veo 3.0 (this takes ~5 min)...', { id: 'gen-video', duration: 300000 });
+    toast.loading('Generating video with Veo 3.1 Preview (takes ~2-3 min)...', { id: 'gen-video', duration: 300000 });
     
     try {
       const headers = await getHeaders();
@@ -585,6 +674,9 @@ export default function StudioOrchestrator({
       name: projectName || songIdea || 'Untitled Project',
       description: `Created with Studio Orchestrator from: "${songIdea}"`,
       category: 'Music',
+      language,
+      style,
+      model,
       date: new Date().toLocaleDateString(),
       agents: ['Ghostwriter', 'Beat Architect', 'Visual Director', 'Pitch Writer', 'AMO Orchestrator'],
       assets,
@@ -671,6 +763,131 @@ export default function StudioOrchestrator({
       {/* Main Content */}
       <div style={{ flex: 1, padding: '24px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
         
+        {/* Configuration Bar */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          marginBottom: '16px',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ flex: 1, minWidth: '150px' }}>
+            <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Language</label>
+            <select 
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'white',
+                fontSize: '0.85rem',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {['English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese', 'Italian', 'Chinese'].map(lang => (
+                <option key={lang} value={lang} style={{ background: '#1a1a1a' }}>{lang}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ flex: 1, minWidth: '150px' }}>
+            <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Style / Genre</label>
+            <select 
+              value={style}
+              onChange={(e) => setStyle(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'white',
+                fontSize: '0.85rem',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {['Modern Hip-Hop', '90s Boom Bap', 'Trap', 'R&B / Soul', 'Pop', 'Rock', 'Electronic / Dance', 'Cinematic', 'Jazz', 'Lo-Fi'].map(s => (
+                <option key={s} value={s} style={{ background: '#1a1a1a' }}>{s}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ flex: 1, minWidth: '150px' }}>
+            <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>AI Model</label>
+            <select 
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'white',
+                fontSize: '0.85rem',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              {['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Flash', 'Gemini 1.5 Pro'].map(m => (
+                <option key={m} value={m} style={{ background: '#1a1a1a' }}>{m}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Team Selection */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          marginBottom: '24px',
+          padding: '16px',
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: '12px',
+          border: '1px solid rgba(255,255,255,0.05)',
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ width: '100%', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Users size={14} color="var(--text-secondary)" />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Production Team</span>
+          </div>
+          
+          {[
+            { key: 'hook', label: 'Lyrics', color: '#8b5cf6' },
+            { key: 'beat', label: 'Production', color: '#06b6d4' },
+            { key: 'visual', label: 'Visuals', color: '#ec4899' },
+            { key: 'pitch', label: 'Business', color: '#f59e0b' }
+          ].map(slot => (
+            <div key={slot.key} style={{ flex: 1, minWidth: '140px' }}>
+              <select 
+                value={selectedAgents[slot.key]}
+                onChange={(e) => setSelectedAgents(prev => ({ ...prev, [slot.key]: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  background: 'rgba(0,0,0,0.3)',
+                  border: `1px solid ${slot.color}44`,
+                  color: 'white',
+                  fontSize: '0.8rem',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {AGENTS.map(agent => (
+                  <option key={agent.id} value={agent.id} style={{ background: '#1a1a1a' }}>
+                    {agent.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+
         {/* Input Section */}
         <div style={{ marginBottom: '32px' }}>
           <div style={{ 
@@ -760,16 +977,16 @@ export default function StudioOrchestrator({
           marginBottom: '24px'
         }}>
           <AgentOutputCard
-            icon={Mic2}
-            title="Ghostwriter"
+            icon={AGENTS.find(a => a.id === selectedAgents.hook)?.icon || Mic2}
+            title={AGENTS.find(a => a.id === selectedAgents.hook)?.name || "Ghostwriter"}
             color="#8b5cf6"
             output={outputs.hook}
             isLoading={isGenerating}
             delay={0}
           />
           <AgentOutputCard
-            icon={Music}
-            title="Beat Architect"
+            icon={AGENTS.find(a => a.id === selectedAgents.beat)?.icon || Music}
+            title={AGENTS.find(a => a.id === selectedAgents.beat)?.name || "Beat Architect"}
             color="#06b6d4"
             output={outputs.beat}
             isLoading={isGenerating}
@@ -780,8 +997,8 @@ export default function StudioOrchestrator({
             isGeneratingMedia={generatingMedia.audio}
           />
           <AgentOutputCard
-            icon={ImageIcon}
-            title="Visual Director"
+            icon={AGENTS.find(a => a.id === selectedAgents.visual)?.icon || ImageIcon}
+            title={AGENTS.find(a => a.id === selectedAgents.visual)?.name || "Visual Director"}
             color="#ec4899"
             output={outputs.visual}
             isLoading={isGenerating}
@@ -792,8 +1009,8 @@ export default function StudioOrchestrator({
             isGeneratingMedia={generatingMedia.image}
           />
           <AgentOutputCard
-            icon={FileText}
-            title="Pitch Writer"
+            icon={AGENTS.find(a => a.id === selectedAgents.pitch)?.icon || FileText}
+            title={AGENTS.find(a => a.id === selectedAgents.pitch)?.name || "Pitch Writer"}
             color="#f59e0b"
             output={outputs.pitch}
             isLoading={isGenerating}
@@ -810,53 +1027,77 @@ export default function StudioOrchestrator({
             border: '1px solid rgba(236, 72, 153, 0.3)',
             marginBottom: '24px',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
+            flexDirection: 'column',
+            gap: '16px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Video size={24} color="#ec4899" />
-              <div>
-                <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Generate Music Video Clip</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Uses Veo 3.0 • Takes ~5 minutes • 8 second clip
+            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Video size={24} color="#ec4899" />
+                <div>
+                  <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Generate Music Video Clip</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Uses Veo 3.1 Preview • Takes ~2-3 minutes • 8 second clip
+                  </div>
                 </div>
               </div>
+              
+              {mediaUrls.video ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981' }}>
+                  <CheckCircle2 size={16} />
+                  <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Video Ready</span>
+                </div>
+              ) : (
+                <button
+                  onClick={handleGenerateVideo}
+                  disabled={generatingMedia.video}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    background: generatingMedia.video ? 'rgba(255,255,255,0.1)' : '#ec4899',
+                    border: 'none',
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: '0.85rem',
+                    cursor: generatingMedia.video ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {generatingMedia.video ? (
+                    <>
+                      <RefreshCw size={14} className="spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Video size={14} />
+                      Generate Video
+                    </>
+                  )}
+                </button>
+              )}
             </div>
-            {mediaUrls.video ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981' }}>
-                <Check size={16} />
-                <span style={{ fontSize: '0.85rem' }}>Video Ready</span>
+
+            {mediaUrls.video && (
+              <div style={{ 
+                borderRadius: '12px', 
+                overflow: 'hidden', 
+                width: '100%',
+                background: 'black',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+              }}>
+                <Plyr
+                  source={{
+                    type: 'video',
+                    sources: [{ src: mediaUrls.video, type: 'video/mp4' }]
+                  }}
+                  options={{
+                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
+                    settings: ['quality', 'speed']
+                  }}
+                />
               </div>
-            ) : (
-              <button
-                onClick={handleGenerateVideo}
-                disabled={generatingMedia.video}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  background: generatingMedia.video ? 'rgba(255,255,255,0.1)' : '#ec4899',
-                  border: 'none',
-                  color: 'white',
-                  fontWeight: '600',
-                  fontSize: '0.85rem',
-                  cursor: generatingMedia.video ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                {generatingMedia.video ? (
-                  <>
-                    <RefreshCw size={14} className="spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Video size={14} />
-                    Generate Video
-                  </>
-                )}
-              </button>
             )}
           </div>
         )}

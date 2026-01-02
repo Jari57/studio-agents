@@ -28,6 +28,9 @@ function ProjectHub({
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [newProjectName, setNewProjectName] = useState('');
+  const [language, setLanguage] = useState('English');
+  const [style, setStyle] = useState('Modern Hip-Hop');
+  const [model, setModel] = useState('Gemini 2.0 Flash');
   const [showProjectMenu, setShowProjectMenu] = useState(null);
   const [editingProject, setEditingProject] = useState(null);
 
@@ -72,6 +75,11 @@ function ProjectHub({
     if (!selectedTemplate) return;
     
     const newProject = createProjectFromTemplate(selectedTemplate, newProjectName);
+    // Add language, style and model to the new project
+    newProject.language = language;
+    newProject.style = style;
+    newProject.model = model;
+    
     setProjects(prev => [newProject, ...prev]);
     setShowTemplateModal(false);
     setSelectedTemplate(null);
@@ -624,6 +632,70 @@ function ProjectHub({
                       }}
                       autoFocus
                     />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Language</label>
+                      <select 
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '10px',
+                          background: 'var(--color-bg-tertiary)',
+                          border: '1px solid var(--border-color)',
+                          color: 'white',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        {['English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese', 'Italian', 'Chinese'].map(lang => (
+                          <option key={lang} value={lang}>{lang}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Style / Genre</label>
+                      <select 
+                        value={style}
+                        onChange={(e) => setStyle(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '10px',
+                          background: 'var(--color-bg-tertiary)',
+                          border: '1px solid var(--border-color)',
+                          color: 'white',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        {['Modern Hip-Hop', '90s Boom Bap', 'Trap', 'R&B / Soul', 'Pop', 'Rock', 'Electronic', 'Cinematic', 'Jazz', 'Lo-Fi'].map(s => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ flex: 1, minWidth: '150px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Model</label>
+                      <select 
+                        value={model}
+                        onChange={(e) => setModel(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '10px',
+                          background: 'var(--color-bg-tertiary)',
+                          border: '1px solid var(--border-color)',
+                          color: 'white',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        {['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Flash', 'Gemini 1.5 Pro'].map(m => (
+                          <option key={m} value={m} style={{ background: '#1a1a1a' }}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
 
                   <div style={{ 
