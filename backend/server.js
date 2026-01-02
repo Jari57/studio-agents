@@ -2436,10 +2436,11 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
 
-    logger.info('Starting video generation with Veo 3.1', { promptLength: prompt.length });
+    logger.info('Starting video generation', { promptLength: prompt.length });
 
-    // Veo 3.1 uses generateVideos endpoint
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:generateVideos?key=${apiKey}`;
+    // Try Veo 2.0 as primary (more stable)
+    const modelId = "veo-2.0-generate-001";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateVideos?key=${apiKey}`;
     
     const response = await fetch(url, {
       method: 'POST',
@@ -2448,8 +2449,8 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
         prompt: prompt,
         config: {
           aspectRatio: "16:9",
-          durationSeconds: 8,
-          personGeneration: "allow_all"
+          durationSeconds: 5, // Shorter for faster generation
+          personGeneration: "dont_allow"
         }
       })
     });
@@ -2458,30 +2459,36 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
       const errorText = await response.text();
       logger.error('Veo API error', { status: response.status, error: errorText });
       
-      // If Veo 3.1 fails, try Veo 2 as fallback
-      logger.info('Trying Veo 2 as fallback...');
-      const veo2Url = `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:generateVideos?key=${apiKey}`;
-      const veo2Response = await fetch(veo2Url, {
+      // If Veo 2.0 fails, try Veo 3.1 Preview as fallback
+      logger.info('Trying Veo 3.1 Preview as fallback...');
+      const veo3Url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:generateVideos?key=${apiKey}`;
+      const veo3Response = await fetch(veo3Url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: prompt,
           config: {
             aspectRatio: "16:9",
-            durationSeconds: 8,
-            personGeneration: "dont_allow"
+            durationSeconds: 5,
+            personGeneration: "allow_all"
           }
         })
       });
       
-      if (!veo2Response.ok) {
-        const veo2Error = await veo2Response.text();
-        logger.error('Veo 2 fallback also failed', { error: veo2Error });
-        throw new Error(`Video generation not available: ${response.status}. Veo models may require additional API access.`);
+      if (!veo3Response.ok) {
+        const veo3Error = await veo3Response.text();
+        logger.error('Veo 3.1 fallback also failed', { error: veo3Error });
+        
+        // Final fallback: return a helpful error message about API access
+        return res.status(503).json({ 
+          error: 'Video Generation Unavailable', 
+          details: 'The Veo video generation models are currently restricted or unavailable for this API key. Please ensure your Google Cloud project has "Generative AI on Vertex AI" or "Generative Language API" enabled with Video permissions.',
+          status: response.status
+        });
       }
       
-      const veo2Data = await veo2Response.json();
-      return handleVeoOperation(veo2Data, apiKey, res);
+      const veo3Data = await veo3Response.json();
+      return handleVeoOperation(veo3Data, apiKey, res);
     }
 
     const operationData = await response.json();

@@ -1008,7 +1008,30 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
       {/* Live Demo Section - Multi-Agent Demo */}
       <section className="demo-section" style={{ padding: '80px 20px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '16px' }}>
+            Experience <span className="gradient-text-cyan-blue">Parallel Intelligence</span>
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '700px', margin: '0 auto' }}>
+            Watch our specialized agents work in sync to build your entire release package in seconds.
+          </p>
+        </div>
+        
         <MultiAgentDemo />
+        
+        <div style={{ textAlign: 'center', marginTop: '48px' }}>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+            Ready for the full production pipeline?
+          </p>
+          <button 
+            onClick={onEnter}
+            className="cta-button-premium haptic-press"
+            style={{ padding: '16px 32px' }}
+          >
+            <Zap size={20} />
+            Try Studio Orchestrator
+          </button>
+        </div>
         
         {/* Whip Montez Case Study - Below Demo */}
         <div style={{

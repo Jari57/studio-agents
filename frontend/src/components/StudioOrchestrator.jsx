@@ -5,8 +5,8 @@ import {
   Check, Loader2, Maximize2
 } from 'lucide-react';
 import WaveSurfer from 'wavesurfer.js';
-import Plyr from 'plyr-react';
-import 'plyr-react/dist/plyr.css';
+import { Plyr } from 'plyr-react';
+import 'plyr-react/plyr.css';
 import { BACKEND_URL, AGENTS } from '../constants';
 import toast from 'react-hot-toast';
 
@@ -396,6 +396,11 @@ export default function StudioOrchestrator({
   const handleGenerate = async () => {
     if (!songIdea.trim()) return;
     
+    if (!authToken) {
+      toast.error('Please log in to use the Studio Orchestrator');
+      return;
+    }
+    
     setIsGenerating(true);
     setMasterOutput(null);
     setOutputs({ hook: null, beat: null, visual: null, pitch: null });
@@ -499,6 +504,11 @@ export default function StudioOrchestrator({
   const handleGenerateAudio = async () => {
     if (!outputs.beat) return;
     
+    if (!authToken) {
+      toast.error('Authentication required');
+      return;
+    }
+    
     setGeneratingMedia(prev => ({ ...prev, audio: true }));
     toast.loading('Generating audio with MusicGen...', { id: 'gen-audio' });
     
@@ -534,6 +544,11 @@ export default function StudioOrchestrator({
   const handleGenerateImage = async () => {
     if (!outputs.visual) return;
     
+    if (!authToken) {
+      toast.error('Authentication required');
+      return;
+    }
+    
     setGeneratingMedia(prev => ({ ...prev, image: true }));
     toast.loading('Generating image with Gemini Nano Banana...', { id: 'gen-image' });
     
@@ -566,6 +581,11 @@ export default function StudioOrchestrator({
   // Generate real video with Veo 3.1
   const handleGenerateVideo = async () => {
     if (!outputs.visual) return;
+    
+    if (!authToken) {
+      toast.error('Authentication required');
+      return;
+    }
     
     setGeneratingMedia(prev => ({ ...prev, video: true }));
     toast.loading('Generating video with Veo 3.1 Preview (takes ~2-3 min)...', { id: 'gen-video', duration: 300000 });

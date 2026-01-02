@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Image, PenTool, PenTool as Tool, Map, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera
+  Sparkles, Zap, Music, PlayCircle, Target, Users, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera
 } from 'lucide-react';
 import VideoPitchDemo from './VideoPitchDemo';
 import MultiAgentDemo from './MultiAgentDemo';
@@ -194,6 +194,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [newsSearch, setNewsSearch] = useState('');
@@ -949,6 +950,14 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           setUser(currentUser);
           localStorage.setItem('studio_user_id', currentUser.uid);
           
+          // Get and store token
+          try {
+            const token = await currentUser.getIdToken();
+            setUserToken(token);
+          } catch (tokenErr) {
+            console.error("Error getting user token:", tokenErr);
+          }
+          
           // Check if admin account
           const adminStatus = isAdminEmail(currentUser.email);
           setIsAdmin(adminStatus);
@@ -990,6 +999,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         } else {
           setIsLoggedIn(false);
           setUser(null);
+          setUserToken(null);
           setUserCredits(3); // Reset to trial
           localStorage.removeItem('studio_user_id');
         }
@@ -3050,6 +3060,59 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     ))}
                   </div>
 
+                  {/* AI Production Pipeline Card - NEW PRIMARY ACTION */}
+                  <div className="dashboard-card orchestrator-promo-card animate-fadeInUp" style={{ 
+                    marginBottom: '24px', 
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    borderRadius: '24px',
+                    padding: '24px',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1 }}>
+                      <Zap size={120} color="var(--color-purple)" />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+                      <div style={{ flex: 1, minWidth: '280px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                          <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', padding: '10px', borderRadius: '12px', color: 'white' }}>
+                            <Zap size={24} />
+                          </div>
+                          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.5px' }}>AI Production Pipeline</h2>
+                        </div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.5', margin: '0 0 20px 0' }}>
+                          Transform a single idea into a complete release package. Our multi-agent orchestrator handles lyrics, beats, visuals, and marketing in one automated flow.
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <button 
+                            className="cta-button-premium"
+                            onClick={() => setShowOrchestrator(true)}
+                            style={{ padding: '12px 24px' }}
+                          >
+                            Start AI Production
+                          </button>
+                          <button 
+                            className="btn-pill glass"
+                            onClick={() => setActiveTab('resources')}
+                          >
+                            Watch Demo
+                          </button>
+                        </div>
+                      </div>
+                      <div className="orchestrator-stats" style={{ display: 'flex', gap: '20px' }}>
+                        <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-purple)' }}>4</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Agents</div>
+                        </div>
+                        <div style={{ textAlign: 'center', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-cyan)' }}>1-Click</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Workflow</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Workflow Onboarding Card */}
                   <div className="dashboard-card workflow-card" style={{ marginBottom: '24px', background: 'var(--color-bg-secondary)', border: '1px solid var(--border-color)' }}>
                     <div className="card-header">
@@ -3189,7 +3252,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                                 flexShrink: 0
                               }}>
                                 {project.category === 'music' ? <Disc size={22} /> :
-                                 project.category === 'visual' ? <Image size={22} /> :
+                                 project.category === 'visual' ? <ImageIcon size={22} /> :
                                  project.category === 'marketing' ? <Share2 size={22} /> :
                                  <Folder size={22} />}
                               </div>
@@ -5367,16 +5430,39 @@ When you write a song, you create intellectual property that generates money eve
               <p>Essential tools, guides, and technical documentation for professional growth.</p>
             </div>
 
-            {/* Multi-Agent Demo */}
-            <div className="resources-demo-section" style={{ marginBottom: '40px', padding: '20px', background: 'var(--color-bg-secondary)', borderRadius: '16px', border: '1px solid var(--border-color)' }}>
-              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                  <Zap size={24} className="text-purple" /> 
-                  Multi-Agent Orchestration
-                </h2>
-                <p style={{ color: 'var(--text-secondary)' }}>Watch 4 AI agents work in parallel to create your release package.</p>
+            {/* Multi-Agent & Video Pitch Demos */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+              <div className="resources-demo-section" style={{ padding: '24px', background: 'var(--color-bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.5rem', fontWeight: '800' }}>
+                    <Zap size={24} className="text-purple" /> 
+                    Multi-Agent Brainstorm
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Watch 4 AI agents work in parallel to create your release package.</p>
+                </div>
+                <MultiAgentDemo onCreateProject={(p) => {
+                  setProjects(prev => [p, ...prev]);
+                  setSelectedProject(p);
+                  setActiveTab('mystudio');
+                  toast.success("Project created from brainstorm!");
+                }} />
               </div>
-              <MultiAgentDemo />
+
+              <div className="resources-demo-section" style={{ padding: '24px', background: 'var(--color-bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
+                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.5rem', fontWeight: '800' }}>
+                    <Video size={24} className="text-blue" /> 
+                    Viral Pitch Lab
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Create a 7-second viral hook and convert it to a full project.</p>
+                </div>
+                <VideoPitchDemo onCreateProject={(p) => {
+                  setProjects(prev => [p, ...prev]);
+                  setSelectedProject(p);
+                  setActiveTab('mystudio');
+                  toast.success("Project created from pitch!");
+                }} />
+              </div>
             </div>
 
             <div className="resources-grid">
@@ -5516,7 +5602,7 @@ When you write a song, you create intellectual property that generates money eve
 
               <section className="resources-section">
                 <div className="section-header">
-                  <Map size={20} className="text-emerald" />
+                  <MapIcon size={20} className="text-emerald" />
                   <h2>Studio Site Map</h2>
                 </div>
                 <div className="sitemap-container">
@@ -6981,7 +7067,7 @@ When you write a song, you create intellectual property that generates money eve
                   )
                 ) : (
                   <div style={{ color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                    <Image size={48} />
+                    <ImageIcon size={48} />
                     <span>No Visual Selected</span>
                   </div>
                 )}
@@ -8041,7 +8127,7 @@ When you write a song, you create intellectual property that generates money eve
         <StudioOrchestrator
           isOpen={showOrchestrator}
           onClose={() => setShowOrchestrator(false)}
-          authToken={auth?.currentUser ? localStorage.getItem('firebase_token') : null}
+          authToken={userToken}
           existingProject={selectedProject}
           onCreateProject={(project) => {
             // Add to projects list
@@ -8831,19 +8917,27 @@ When you write a song, you create intellectual property that generates money eve
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '32px 0' }}>
               <button 
                 className="cta-button-premium" 
-                style={{ width: '100%', justifyContent: 'center', padding: '20px', height: 'auto' }}
+                style={{ 
+                  width: '100%', 
+                  justifyContent: 'center', 
+                  padding: '24px', 
+                  height: 'auto',
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
+                  boxShadow: '0 10px 30px rgba(139, 92, 246, 0.3)',
+                  border: 'none'
+                }}
                 onClick={() => {
                   setShowProjectChoiceModal(false);
-                  setShowProjectWizard(true);
+                  setShowOrchestrator(true);
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.2)', padding: '10px', borderRadius: '50%' }}>
-                    <Sparkles size={24} />
+                  <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '50%' }}>
+                    <Zap size={28} color="white" />
                   </div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Use Wizard Guide</div>
-                    <div style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: 'normal' }}>Step-by-step setup for best results</div>
+                    <div style={{ fontWeight: '900', fontSize: '1.2rem', color: 'white', letterSpacing: '0.5px' }}>AI STUDIO ORCHESTRATOR</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: '500', color: 'white' }}>One idea → Full production pipeline</div>
                   </div>
                 </div>
               </button>
@@ -8853,35 +8947,35 @@ When you write a song, you create intellectual property that generates money eve
                 style={{ width: '100%', justifyContent: 'center', padding: '20px', height: 'auto', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)' }}
                 onClick={() => {
                   setShowProjectChoiceModal(false);
-                  handleManualCreate();
+                  setShowProjectWizard(true);
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '50%' }}>
-                    <PenTool size={24} />
+                    <Sparkles size={24} />
                   </div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Manually Create</div>
-                    <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: 'normal' }}>Skip setup and go straight to studio</div>
+                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Guided Project Wizard</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: 'normal' }}>Step-by-step manual setup</div>
                   </div>
                 </div>
               </button>
 
               <button 
                 className="cta-button-secondary" 
-                style={{ width: '100%', justifyContent: 'center', padding: '20px', height: 'auto', background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15))', border: '1px solid rgba(139, 92, 246, 0.3)' }}
+                style={{ width: '100%', justifyContent: 'center', padding: '20px', height: 'auto', background: 'transparent', border: '1px solid var(--border-color)' }}
                 onClick={() => {
                   setShowProjectChoiceModal(false);
-                  setShowOrchestrator(true);
+                  handleManualCreate();
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', padding: '10px', borderRadius: '50%' }}>
-                    <Zap size={24} color="white" />
+                  <div style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '50%' }}>
+                    <PenTool size={24} />
                   </div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#8b5cf6' }}>Studio Orchestrator</div>
-                    <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: 'normal' }}>One idea → Full production (AI-powered)</div>
+                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Quick Manual Start</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.6, fontWeight: 'normal' }}>Skip setup and go straight to studio</div>
                   </div>
                 </div>
               </button>
@@ -9018,7 +9112,6 @@ When you write a song, you create intellectual property that generates money eve
                         ))}
                       </select>
                     </div>
-                  </div>
                   </div>
                   
                   <div className="form-group" style={{ marginBottom: '24px' }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap } from 'lucide-react';
+import { Play, Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, FolderPlus } from 'lucide-react';
 import { BACKEND_URL } from '../constants';
 
 // Streaming text effect hook
@@ -146,7 +146,7 @@ function AgentOutputCard({ icon: Icon, title, color, output, isLoading, delay = 
   );
 }
 
-export default function MultiAgentDemo() {
+export default function MultiAgentDemo({ onCreateProject = null }) {
   const [songIdea, setSongIdea] = useState('');
   const [language, setLanguage] = useState('English');
   const [style, setStyle] = useState('Modern Hip-Hop');
@@ -160,8 +160,35 @@ export default function MultiAgentDemo() {
     pitch: null
   });
   const [masterOutput, setMasterOutput] = useState(null);
+  const [showSaveOptions, setShowSaveOptions] = useState(false);
   
   const inputRef = useRef(null);
+
+  const handleCreateProject = () => {
+    if (!onCreateProject || !songIdea) return;
+
+    const newProject = {
+      id: String(Date.now()),
+      name: songIdea,
+      category: 'music',
+      description: `Multi-agent demo project: ${songIdea}`,
+      language,
+      style,
+      model,
+      date: new Date().toLocaleDateString(),
+      status: 'active',
+      progress: 25,
+      assets: [
+        { id: 'hook-1', type: 'text', title: 'Song Hook', content: outputs.hook, agent: 'Ghostwriter' },
+        { id: 'social-1', type: 'text', title: 'Social Copy', content: outputs.caption, agent: 'Social Copy' },
+        { id: 'tags-1', type: 'text', title: 'Hashtags', content: outputs.hashtags, agent: 'Hashtag Engine' },
+        { id: 'pitch-1', type: 'text', title: 'Elevator Pitch', content: outputs.pitch, agent: 'Pitch Writer' },
+        { id: 'master-1', type: 'text', title: 'Master Orchestration', content: masterOutput, agent: 'AMO' }
+      ].filter(a => a.content)
+    };
+
+    onCreateProject(newProject);
+  };
   
   const EXAMPLE_IDEAS = [
     "Summer love in Brooklyn",
@@ -596,6 +623,30 @@ export default function MultiAgentDemo() {
               </p>
             </div>
           ) : null}
+
+          {masterOutput && onCreateProject && (
+            <button
+              onClick={handleCreateProject}
+              style={{
+                marginTop: '16px',
+                width: '100%',
+                padding: '12px',
+                borderRadius: '10px',
+                background: 'white',
+                color: 'black',
+                fontWeight: 'bold',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <FolderPlus size={18} />
+              Create Project from these Results
+            </button>
+          )}
         </div>
       )}
       

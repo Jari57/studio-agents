@@ -1,0 +1,15 @@
+# Robots.txt for Studio Agents AI
+# https://studioagentsai.com
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://studioagentsai.com/sitemap.xml
+
+# Block API endpoints from indexing
+Disallow: /api/
+
+# Block service worker and manifest from indexing
+Disallow: /sw.js
+Disallow: /manifest.json

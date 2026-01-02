@@ -2,20 +2,94 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Studio Agents AI</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-BMt0DKZa.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/vendor-BhzMasd3.js">
-    <link rel="modulepreload" crossorigin href="/assets/react-vendor-T6idl2xJ.js">
-    <link rel="modulepreload" crossorigin href="/assets/icons-AfEMcJU7.js">
-    <link rel="modulepreload" crossorigin href="/assets/firebase-xr2zpm5N.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-B8CE6XW0.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    
+    <!-- Primary Meta Tags -->
+    <title>Studio Agents AI - AI-Powered Creative Studio for Artists</title>
+    <meta name="title" content="Studio Agents AI - AI-Powered Creative Studio for Artists" />
+    <meta name="description" content="16 specialized AI agents for independent artists. Create lyrics, beats, visuals, and grow your career. Your AI-powered creative team." />
+    <meta name="keywords" content="AI music, songwriting AI, beat maker, music production, artist tools, creative AI, lyrics generator" />
+    <meta name="author" content="Studio Agents" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://studioagentsai.com/" />
+    <meta property="og:title" content="Studio Agents AI - AI-Powered Creative Studio" />
+    <meta property="og:description" content="16 specialized AI agents for independent artists. Create lyrics, beats, visuals, and grow your career." />
+    <meta property="og:image" content="https://studioagentsai.com/og-image.png" />
+    <meta property="og:site_name" content="Studio Agents AI" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://studioagentsai.com/" />
+    <meta property="twitter:title" content="Studio Agents AI - AI-Powered Creative Studio" />
+    <meta property="twitter:description" content="16 specialized AI agents for independent artists. Create lyrics, beats, visuals, and grow your career." />
+    <meta property="twitter:image" content="https://studioagentsai.com/og-image.png" />
+    <meta name="twitter:creator" content="@StudioAgentsAI" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#8b5cf6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Studio Agents" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Studio Agents AI" />
+    <meta name="msapplication-TileColor" content="#8b5cf6" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon.svg" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://www.googletagmanager.com" />
+    <link rel="preconnect" href="https://www.google-analytics.com" />
+    <link rel="preconnect" href="https://web-production-b5922.up.railway.app" />
+    
+    <!-- Google Analytics 4 - Primary initialization (also in analytics.js for SPA support) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-37J2MVHXS7"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-37J2MVHXS7', {
+        page_title: document.title,
+        send_page_view: true,
+        anonymize_ip: true
+      });
+    </script>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://studioagentsai.com/" />
+    <script type="module" crossorigin src="/assets/index-MED8oi5Y.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-_6PIXcq7.js">
+    <link rel="modulepreload" crossorigin href="/assets/react-vendor-BR78lmDG.js">
+    <link rel="modulepreload" crossorigin href="/assets/icons-DNj0P_Vl.js">
+    <link rel="modulepreload" crossorigin href="/assets/firebase-CCkuN2o3.js">
+    <link rel="stylesheet" crossorigin href="/assets/react-vendor-DfvD7XFm.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-B9042ico.css">
   </head>
   <body>
     <div id="root"></div>
+    
+    <!-- Register Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('[SW] Registered:', reg.scope))
+            .catch(err => console.warn('[SW] Registration failed:', err));
+        });
+      }
+    </script>
   </body>
 </html>
