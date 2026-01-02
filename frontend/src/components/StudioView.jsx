@@ -9353,8 +9353,8 @@ When you write a song, you create intellectual property that generates money eve
                 </div>
               )}
 
-              {/* Step 3: Path Selection */}
-              {onboardingStep === 3 && (
+              {/* Step 2: Path Selection */}
+              {onboardingStep === 2 && (
                 <div className="path-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '24px' }}>
                   {(goalOptions || []).map(path => (
                     <div 
@@ -9378,8 +9378,8 @@ When you write a song, you create intellectual property that generates money eve
                 </div>
               )}
 
-              {/* Step 4: Recommendation */}
-              {onboardingStep === 4 && selectedPath && (
+              {/* Step 3: Recommendation */}
+              {onboardingStep === 3 && selectedPath && (
                 <div className="recommendation-box animate-fadeInUp" style={{ marginTop: '24px', padding: '20px', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
                   {(() => {
                     const recId = getRecommendation();
@@ -9417,7 +9417,7 @@ When you write a song, you create intellectual property that generates money eve
                     <button 
                       className="cta-button-premium"
                       onClick={() => setOnboardingStep(prev => prev + 1)}
-                      disabled={(onboardingStep === 3 && !selectedPath) || (onboardingStep === 1 && !userProfile.stageName)}
+                      disabled={(onboardingStep === 2 && !selectedPath) || (onboardingStep === 1 && !userProfile.stageName)}
                     >
                       Next Step
                     </button>
