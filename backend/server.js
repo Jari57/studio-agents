@@ -2085,19 +2085,57 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// IMAGE GENERATION ROUTE (Imagen 4.0)
+// IMAGE GENERATION ROUTE (Nano Banana / Imagen 4.0 fallback)
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
-    const { prompt, aspectRatio = '1:1' } = req.body;
+    const { prompt, aspectRatio = '1:1', model = 'nano-banana' } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
 
+    // Try Nano Banana first (Gemini native image generation)
+    if (model === 'nano-banana' || model === 'gemini') {
+      try {
+        logger.info('Generating image with Nano Banana', { prompt: prompt.substring(0, 50) });
+        
+        const nanoBananaModel = genAI.getGenerativeModel({ 
+          model: 'gemini-2.5-flash-image'
+        });
+        
+        const result = await nanoBananaModel.generateContent({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseModalities: ['IMAGE']
+          }
+        });
+        
+        const response = await result.response;
+        const parts = response.candidates?.[0]?.content?.parts || [];
+        
+        for (const part of parts) {
+          if (part.inlineData?.mimeType?.startsWith('image/')) {
+            const base64Image = part.inlineData.data;
+            logger.info('Nano Banana image generated successfully');
+            return res.json({
+              images: [base64Image],
+              mimeType: part.inlineData.mimeType,
+              model: 'nano-banana'
+            });
+          }
+        }
+        
+        // If no image in response, fall through to Imagen
+        logger.warn('Nano Banana returned no image, falling back to Imagen');
+      } catch (nanoBananaError) {
+        logger.warn('Nano Banana failed, falling back to Imagen', { error: nanoBananaError.message });
+      }
+    }
+
+    // Fallback to Imagen 4.0
     logger.info('Generating image with Imagen 4.0', { prompt: prompt.substring(0, 50) });
 
-    // Using the correct Imagen 4.0 :predict endpoint
     const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
     
     const response = await fetch(url, {
@@ -2128,7 +2166,8 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
       if (base64Image) {
         res.json({
           predictions: data.predictions,
-          images: [base64Image]
+          images: [base64Image],
+          model: 'imagen-4'
         });
         return;
       }
