@@ -93,6 +93,25 @@ try {
 
 let firebaseInitialized = false;
 
+// =============================================================================
+// ADMIN ACCOUNTS CONFIGURATION
+// =============================================================================
+// These emails have full admin access for testing and demo purposes
+const ADMIN_EMAILS = [
+  'jari@studioagents.ai',          // Primary admin
+  'demo@studioagents.ai',          // Demo account for presentations
+  'test@studioagents.ai',          // QA testing account
+  'support@studioagents.ai',       // Support team access
+  'dev@studioagents.ai'            // Developer testing account
+];
+
+// Demo accounts with pre-loaded credits for testing
+const DEMO_ACCOUNTS = {
+  'demo@studioagents.ai': { credits: 1000, tier: 'lifetime', displayName: 'Demo User' },
+  'test@studioagents.ai': { credits: 500, tier: 'pro', displayName: 'Test User' },
+  'jari@studioagents.ai': { credits: 9999, tier: 'lifetime', displayName: 'Jari (Admin)' }
+};
+
 // Hardcoded Firebase config (Railway env vars not working)
 // The private key is split to avoid GitHub secret scanning
 const FIREBASE_CONFIG = {
@@ -239,6 +258,28 @@ const verifyFirebaseToken = async (req, res, next) => {
 const requireAuth = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
+  }
+  next();
+};
+
+// Admin check middleware - verifies user is an admin
+const requireAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  if (!req.user.email || !ADMIN_EMAILS.includes(req.user.email.toLowerCase())) {
+    logger.warn(`🚫 Admin access denied for: ${req.user.email}`);
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  req.user.isAdmin = true;
+  logger.info(`✅ Admin access granted: ${req.user.email}`);
+  next();
+};
+
+// Check if user is admin (doesn't block, just sets flag)
+const checkAdmin = (req, res, next) => {
+  if (req.user && req.user.email && ADMIN_EMAILS.includes(req.user.email.toLowerCase())) {
+    req.user.isAdmin = true;
   }
   next();
 };
@@ -726,6 +767,244 @@ app.get('/api/investor-access/check', apiLimiter, async (req, res) => {
     res.json({ approved: isApproved });
   } catch (err) {
     res.status(500).json({ error: 'Check failed', details: err.message });
+  }
+});
+
+// ============================================================================
+// ADMIN ENDPOINTS
+// ============================================================================
+
+// GET /api/admin/status - Check if current user is admin
+app.get('/api/admin/status', verifyFirebaseToken, (req, res) => {
+  if (!req.user) {
+    return res.json({ isAdmin: false, authenticated: false });
+  }
+  
+  const isAdmin = ADMIN_EMAILS.includes(req.user.email?.toLowerCase());
+  const isDemoAccount = DEMO_ACCOUNTS[req.user.email?.toLowerCase()];
+  
+  res.json({ 
+    isAdmin,
+    authenticated: true,
+    email: req.user.email,
+    isDemoAccount: !!isDemoAccount,
+    demoConfig: isDemoAccount || null
+  });
+});
+
+// GET /api/admin/users - List all users (admin only)
+app.get('/api/admin/users', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const usersSnapshot = await db.collection('users')
+      .orderBy('createdAt', 'desc')
+      .limit(100)
+      .get();
+    
+    const users = usersSnapshot.docs.map(doc => ({
+      uid: doc.id,
+      ...doc.data(),
+      isAdmin: ADMIN_EMAILS.includes(doc.data().email?.toLowerCase()),
+      isDemoAccount: !!DEMO_ACCOUNTS[doc.data().email?.toLowerCase()]
+    }));
+    
+    res.json({ users, total: users.length });
+  } catch (error) {
+    logger.error('Admin users list failed:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// POST /api/admin/users/:uid/credits - Set user credits (admin only)
+app.post('/api/admin/users/:uid/credits', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  const { uid } = req.params;
+  const { credits, reason } = req.body;
+  
+  if (typeof credits !== 'number' || credits < 0) {
+    return res.status(400).json({ error: 'Invalid credits value' });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const userRef = db.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const previousCredits = userDoc.data().credits || 0;
+    
+    await userRef.update({
+      credits,
+      lastCreditUpdate: admin.firestore.FieldValue.serverTimestamp(),
+      creditUpdateReason: reason || 'Admin adjustment',
+      creditUpdatedBy: req.user.email
+    });
+    
+    logger.info(`💰 Admin credit update: ${uid} ${previousCredits} -> ${credits} by ${req.user.email}`);
+    
+    res.json({ 
+      success: true, 
+      uid, 
+      previousCredits, 
+      newCredits: credits,
+      updatedBy: req.user.email
+    });
+  } catch (error) {
+    logger.error('Admin credit update failed:', error);
+    res.status(500).json({ error: 'Failed to update credits' });
+  }
+});
+
+// POST /api/admin/users/:uid/tier - Set user tier (admin only)
+app.post('/api/admin/users/:uid/tier', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  const { uid } = req.params;
+  const { tier } = req.body;
+  
+  const validTiers = ['free', 'creator', 'pro', 'lifetime'];
+  if (!validTiers.includes(tier)) {
+    return res.status(400).json({ error: `Invalid tier. Must be one of: ${validTiers.join(', ')}` });
+  }
+  
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const userRef = db.collection('users').doc(uid);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const previousTier = userDoc.data().tier || 'free';
+    
+    await userRef.update({
+      tier,
+      lastTierUpdate: admin.firestore.FieldValue.serverTimestamp(),
+      tierUpdatedBy: req.user.email
+    });
+    
+    logger.info(`🎖️ Admin tier update: ${uid} ${previousTier} -> ${tier} by ${req.user.email}`);
+    
+    res.json({ 
+      success: true, 
+      uid, 
+      previousTier, 
+      newTier: tier,
+      updatedBy: req.user.email
+    });
+  } catch (error) {
+    logger.error('Admin tier update failed:', error);
+    res.status(500).json({ error: 'Failed to update tier' });
+  }
+});
+
+// POST /api/admin/demo/setup - Initialize demo accounts with credits (admin only)
+app.post('/api/admin/demo/setup', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    const results = [];
+    
+    for (const [email, config] of Object.entries(DEMO_ACCOUNTS)) {
+      // Find user by email
+      const usersSnapshot = await db.collection('users')
+        .where('email', '==', email)
+        .limit(1)
+        .get();
+      
+      if (usersSnapshot.empty) {
+        results.push({ email, status: 'not_found', message: 'User must sign up first' });
+        continue;
+      }
+      
+      const userDoc = usersSnapshot.docs[0];
+      await userDoc.ref.update({
+        credits: config.credits,
+        tier: config.tier,
+        displayName: config.displayName,
+        isDemoAccount: true,
+        demoSetupAt: admin.firestore.FieldValue.serverTimestamp(),
+        demoSetupBy: req.user.email
+      });
+      
+      results.push({ 
+        email, 
+        status: 'success', 
+        credits: config.credits, 
+        tier: config.tier 
+      });
+      
+      logger.info(`🎭 Demo account setup: ${email} - ${config.credits} credits, ${config.tier} tier`);
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Demo accounts configured',
+      results 
+    });
+  } catch (error) {
+    logger.error('Demo setup failed:', error);
+    res.status(500).json({ error: 'Failed to setup demo accounts' });
+  }
+});
+
+// GET /api/admin/stats - Get platform statistics (admin only)
+app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+  
+  try {
+    // Get user counts
+    const usersSnapshot = await db.collection('users').get();
+    const totalUsers = usersSnapshot.size;
+    
+    let totalCredits = 0;
+    let paidUsers = 0;
+    let tierCounts = { free: 0, creator: 0, pro: 0, lifetime: 0 };
+    
+    usersSnapshot.forEach(doc => {
+      const data = doc.data();
+      totalCredits += data.credits || 0;
+      if (data.tier && data.tier !== 'free') paidUsers++;
+      tierCounts[data.tier || 'free'] = (tierCounts[data.tier || 'free'] || 0) + 1;
+    });
+    
+    res.json({
+      users: {
+        total: totalUsers,
+        paid: paidUsers,
+        free: totalUsers - paidUsers,
+        byTier: tierCounts
+      },
+      credits: {
+        totalInCirculation: totalCredits,
+        averagePerUser: totalUsers > 0 ? Math.round(totalCredits / totalUsers) : 0
+      },
+      admins: ADMIN_EMAILS,
+      demoAccounts: Object.keys(DEMO_ACCOUNTS),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Admin stats failed:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
 

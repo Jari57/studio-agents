@@ -37,6 +37,18 @@ import { Analytics, trackPageView } from '../utils/analytics';
 
 // --- CONSTANTS FOR ONBOARDING & SUPPORT ---
 
+// Admin accounts - full access to all features
+const ADMIN_EMAILS = [
+  'jari57@gmail.com',
+  'info@studioagentsai.com'
+];
+
+// Check if email is admin
+const isAdminEmail = (email) => {
+  if (!email) return false;
+  return ADMIN_EMAILS.includes(email.toLowerCase());
+};
+
 // Simplified 4-step onboarding flow
 const onboardingSteps = [
   {
@@ -181,6 +193,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [newsSearch, setNewsSearch] = useState('');
   const [isRefreshingNews, setIsRefreshingNews] = useState(false);
@@ -504,29 +517,32 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   // Get agents available for current tier
   const getAvailableAgents = () => {
     const plan = userPlan.toLowerCase();
-    if (plan === 'pro') return AGENTS; // All 16 agents
+    if (plan === 'pro' || plan === 'lifetime access') return AGENTS; // All 16 agents
     if (plan === 'monthly') return AGENTS.filter(a => a.tier === 'free' || a.tier === 'monthly'); // 8 agents
     return AGENTS.filter(a => a.tier === 'free'); // 4 agents for free tier
   };
   
   // Get locked agents for teaser section
   const getLockedAgents = () => {
+    if (isAdmin) return []; // Admins have all agents
     const plan = userPlan.toLowerCase();
-    if (plan === 'pro') return []; // No locked agents
+    if (plan === 'pro' || plan === 'lifetime access') return []; // No locked agents
     if (plan === 'monthly') return AGENTS.filter(a => a.tier === 'pro'); // Only pro locked
     return AGENTS.filter(a => a.tier !== 'free'); // Monthly + Pro locked
   };
   
   // Check if user can generate (has free uses left or is subscribed)
   const canGenerate = () => {
+    if (isAdmin) return true; // Admins always have access
     const plan = userPlan.toLowerCase();
-    if (plan === 'monthly' || plan === 'pro') return true;
+    if (plan === 'monthly' || plan === 'pro' || plan === 'lifetime access') return true;
     if (isLoggedIn && userCredits > 0) return true;
     return freeGenerationsUsed < FREE_GENERATION_LIMIT;
   };
   
   // Get remaining free generations
   const getRemainingFreeGenerations = () => {
+    if (isAdmin) return 999999; // Unlimited for admins
     return Math.max(0, FREE_GENERATION_LIMIT - freeGenerationsUsed);
   };
 
@@ -881,10 +897,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     
     const currentAgents = selectedProject.agents || [];
 
-    // Enforce Plan Limits
-    let limit = 3; // Free
-    if (userPlan === 'Creator') limit = 5;
-    if (userPlan === 'Studio Pro' || userPlan === 'Lifetime Access') limit = 16;
+    // Enforce Plan Limits (admins have no limit)
+    let limit = isAdmin ? 999 : 3; // Free default
+    if (!isAdmin) {
+      if (userPlan === 'Creator') limit = 5;
+      if (userPlan === 'Studio Pro' || userPlan === 'Lifetime Access') limit = 16;
+    }
 
     if (currentAgents.length >= limit) {
       toast.error(`Agent limit reached for ${userPlan} plan. Please upgrade.`);
@@ -920,8 +938,19 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           setIsLoggedIn(true);
           setUser(currentUser);
           localStorage.setItem('studio_user_id', currentUser.uid);
-          // Fetch credits from Firestore
-          if (db) {
+          
+          // Check if admin account
+          const adminStatus = isAdminEmail(currentUser.email);
+          setIsAdmin(adminStatus);
+          if (adminStatus) {
+            console.log('🔐 Admin access granted:', currentUser.email);
+            setUserPlan('Lifetime Access');
+            setUserCredits(999999); // Unlimited credits for admin
+            toast.success('Welcome, Administrator!', { icon: '🔐' });
+          }
+          
+          // Fetch credits from Firestore (non-admins)
+          if (db && !adminStatus) {
             try {
               const userRef = doc(db, 'users', currentUser.uid);
               const userDoc = await getDoc(userRef);
