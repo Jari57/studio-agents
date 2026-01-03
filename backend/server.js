@@ -2001,6 +2001,7 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
 
     const systemInstruction = `You are the Agent Model Orchestrator (AMO) - an expert at synthesizing multiple AI agent outputs into cohesive, professional results. You understand music production, marketing, visual design, and creative direction. Always produce polished, actionable output that artists can immediately use.`;
     
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error("Server missing API Key");
     }
