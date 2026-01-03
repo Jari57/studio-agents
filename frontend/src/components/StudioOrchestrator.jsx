@@ -1531,16 +1531,61 @@ export default function StudioOrchestrator({
                   border: '1px solid rgba(34, 197, 94, 0.3)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px'
+                  justifyContent: 'space-between'
                 }}>
-                  <Eye size={16} style={{ color: '#22c55e' }} />
-                  <span style={{ fontSize: '0.9rem', color: 'rgba(34, 197, 94, 0.9)' }}>
-                    {[mediaUrls.audio, mediaUrls.image, mediaUrls.video].filter(Boolean).length} of 3 assets generated
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Eye size={16} style={{ color: '#22c55e' }} />
+                    <span style={{ fontSize: '0.9rem', color: 'rgba(34, 197, 94, 0.9)' }}>
+                      All Outputs & Assets
+                    </span>
+                  </div>
+                  {(outputs.hook || outputs.beat || outputs.visual || outputs.pitch) && (
+                    <button
+                      onClick={handleGenerate}
+                      disabled={isGenerating}
+                      style={{
+                        padding: '6px 12px',
+                        background: isGenerating ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.3)',
+                        border: '1px solid rgba(59, 130, 246, 0.5)',
+                        color: '#3b82f6',
+                        borderRadius: '6px',
+                        cursor: isGenerating ? 'not-allowed' : 'pointer',
+                        fontSize: '0.75rem',
+                        fontWeight: '600'
+                      }}
+                    >
+                      {isGenerating ? '⚙️ Regenerating...' : '🔄 Regenerate All'}
+                    </button>
+                  )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                  {/* Audio Asset */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '16px' }}>
+                  {/* Hook Output Card */}
+                  <div style={{
+                    background: 'rgba(139, 92, 246, 0.1)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: '600', color: '#8b5cf6', margin: 0 }}>🎤 Hook</h3>
+                      {outputs.hook && <span style={{ fontSize: '0.7rem', color: '#8b5cf6' }}>✓</span>}
+                    </div>
+                    {outputs.hook ? (
+                      <div style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', maxHeight: '120px', overflow: 'auto', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px' }}>
+                        {outputs.hook}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '30px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                        Click Generate to create
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Beat Output Card */}
                   <div style={{
                     background: 'rgba(6, 182, 212, 0.1)',
                     borderRadius: '12px',
@@ -1548,39 +1593,46 @@ export default function StudioOrchestrator({
                     border: '1px solid rgba(6, 182, 212, 0.3)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '12px'
+                    gap: '10px'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <h3 style={{ fontSize: '0.95rem', fontWeight: '600', color: '#06b6d4', margin: 0 }}>🎵 Beat</h3>
-                      {mediaUrls.audio && <div style={{ fontSize: '0.7rem', color: '#06b6d4', background: 'rgba(6, 182, 212, 0.2)', padding: '4px 8px', borderRadius: '4px' }}>READY</div>}
+                      {outputs.beat && <span style={{ fontSize: '0.7rem', color: '#06b6d4' }}>✓</span>}
                     </div>
-                    {mediaUrls.audio ? (
+                    {outputs.beat ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <WaveformPlayer url={mediaUrls.audio} color="#06b6d4" />
-                        <button
-                          onClick={() => setShowPreview(true) /* TODO: Pass audio data */}
-                          style={{
-                            padding: '8px 12px',
-                            background: 'rgba(6, 182, 212, 0.2)',
-                            border: '1px solid rgba(6, 182, 212, 0.4)',
-                            color: '#06b6d4',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem',
-                            fontWeight: '600'
-                          }}
-                        >
-                          Full Screen Preview
-                        </button>
+                        <div style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', maxHeight: '80px', overflow: 'auto', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px' }}>
+                          {outputs.beat}
+                        </div>
+                        {mediaUrls.audio ? (
+                          <WaveformPlayer url={mediaUrls.audio} color="#06b6d4" />
+                        ) : (
+                          <button
+                            onClick={handleGenerateAudio}
+                            disabled={generatingMedia.audio}
+                            style={{
+                              padding: '6px 10px',
+                              background: generatingMedia.audio ? 'rgba(6, 182, 212, 0.2)' : 'rgba(6, 182, 212, 0.25)',
+                              border: '1px solid rgba(6, 182, 212, 0.4)',
+                              color: '#06b6d4',
+                              borderRadius: '6px',
+                              cursor: generatingMedia.audio ? 'not-allowed' : 'pointer',
+                              fontSize: '0.75rem',
+                              fontWeight: '600'
+                            }}
+                          >
+                            {generatingMedia.audio ? '⚙️ Generating...' : '🎧 Generate Audio'}
+                          </button>
+                        )}
                       </div>
                     ) : (
-                      <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '12px' }}>
-                        {outputs.beat ? 'Click "Generate Audio" to create beat' : 'Generate beat first'}
+                      <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '30px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                        Click Generate to create
                       </div>
                     )}
                   </div>
 
-                  {/* Image Asset */}
+                  {/* Visual Output Card */}
                   <div style={{
                     background: 'rgba(168, 85, 247, 0.1)',
                     borderRadius: '12px',
@@ -1588,49 +1640,75 @@ export default function StudioOrchestrator({
                     border: '1px solid rgba(168, 85, 247, 0.3)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '12px'
+                    gap: '10px'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <h3 style={{ fontSize: '0.95rem', fontWeight: '600', color: '#a855f7', margin: 0 }}>🎨 Visual</h3>
-                      {mediaUrls.image && <div style={{ fontSize: '0.7rem', color: '#a855f7', background: 'rgba(168, 85, 247, 0.2)', padding: '4px 8px', borderRadius: '4px' }}>READY</div>}
+                      {outputs.visual && <span style={{ fontSize: '0.7rem', color: '#a855f7' }}>✓</span>}
                     </div>
-                    {mediaUrls.image ? (
+                    {outputs.visual ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <img 
-                          src={mediaUrls.image.startsWith('data:') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
-                          alt="Visual"
-                          style={{ 
-                            width: '100%', 
-                            height: '160px', 
-                            objectFit: 'cover', 
-                            borderRadius: '8px',
-                            cursor: 'pointer'
-                          }}
-                        />
-                        <button
-                          onClick={() => {/* Preview */}}
-                          style={{
-                            padding: '8px 12px',
-                            background: 'rgba(168, 85, 247, 0.2)',
-                            border: '1px solid rgba(168, 85, 247, 0.4)',
-                            color: '#a855f7',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem',
-                            fontWeight: '600'
-                          }}
-                        >
-                          Full Screen Preview
-                        </button>
+                        <div style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', maxHeight: '80px', overflow: 'auto', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px' }}>
+                          {outputs.visual}
+                        </div>
+                        {mediaUrls.image ? (
+                          <img 
+                            src={mediaUrls.image.startsWith('data:') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
+                            alt="Visual"
+                            style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '6px' }}
+                          />
+                        ) : (
+                          <button
+                            onClick={handleGenerateImage}
+                            disabled={generatingMedia.image}
+                            style={{
+                              padding: '6px 10px',
+                              background: generatingMedia.image ? 'rgba(168, 85, 247, 0.2)' : 'rgba(168, 85, 247, 0.25)',
+                              border: '1px solid rgba(168, 85, 247, 0.4)',
+                              color: '#a855f7',
+                              borderRadius: '6px',
+                              cursor: generatingMedia.image ? 'not-allowed' : 'pointer',
+                              fontSize: '0.75rem',
+                              fontWeight: '600'
+                            }}
+                          >
+                            {generatingMedia.image ? '⚙️ Generating...' : '🖼️ Generate Image'}
+                          </button>
+                        )}
                       </div>
                     ) : (
-                      <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '12px' }}>
-                        {outputs.visual ? 'Click "Generate Image" to create visual' : 'Generate visual first'}
+                      <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '30px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                        Click Generate to create
                       </div>
                     )}
                   </div>
 
-                  {/* Video Asset */}
+                  {/* Pitch Output Card */}
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: '600', color: '#f59e0b', margin: 0 }}>📊 Pitch</h3>
+                      {outputs.pitch && <span style={{ fontSize: '0.7rem', color: '#f59e0b' }}>✓</span>}
+                    </div>
+                    {outputs.pitch ? (
+                      <div style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', maxHeight: '120px', overflow: 'auto', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px' }}>
+                        {outputs.pitch}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '30px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                        Click Generate to create
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Video Card */}
                   <div style={{
                     background: 'rgba(236, 72, 153, 0.1)',
                     borderRadius: '12px',
@@ -1638,84 +1716,40 @@ export default function StudioOrchestrator({
                     border: '1px solid rgba(236, 72, 153, 0.3)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '12px'
+                    gap: '10px'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <h3 style={{ fontSize: '0.95rem', fontWeight: '600', color: '#ec4899', margin: 0 }}>🎬 Video</h3>
-                      {mediaUrls.video && <div style={{ fontSize: '0.7rem', color: '#ec4899', background: 'rgba(236, 72, 153, 0.2)', padding: '4px 8px', borderRadius: '4px' }}>READY</div>}
+                      {mediaUrls.video && <span style={{ fontSize: '0.7rem', color: '#ec4899' }}>✓</span>}
                     </div>
                     {mediaUrls.video ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <video 
-                          src={mediaUrls.video}
-                          controls
-                          autoPlay
-                          style={{ 
-                            width: '100%', 
-                            height: '160px', 
-                            objectFit: 'cover', 
-                            borderRadius: '8px',
-                            background: 'rgba(0,0,0,0.3)'
-                          }}
-                        />
-                        <button
-                          onClick={() => {/* Preview in full screen via PreviewModal */}}
-                          style={{
-                            padding: '8px 12px',
-                            background: 'rgba(236, 72, 153, 0.2)',
-                            border: '1px solid rgba(236, 72, 153, 0.4)',
-                            color: '#ec4899',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem',
-                            fontWeight: '600'
-                          }}
-                        >
-                          Full Screen Preview
-                        </button>
-                      </div>
+                      <video 
+                        src={mediaUrls.video}
+                        controls
+                        autoPlay
+                        style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '6px', background: 'rgba(0,0,0,0.3)' }}
+                      />
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div style={{ 
-                          fontSize: '0.85rem', 
-                          color: 'rgba(255,255,255,0.4)', 
-                          textAlign: 'center', 
-                          padding: '24px 12px',
-                          background: 'rgba(0,0,0,0.2)',
-                          borderRadius: '6px'
-                        }}>
-                          {outputs.visual ? 'Ready to generate' : 'Generate visual first'}
+                        <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '30px 10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
+                          {outputs.visual ? 'Ready' : 'Generate visual first'}
                         </div>
                         {outputs.visual && (
                           <button
                             onClick={handleGenerateVideo}
                             disabled={generatingMedia.video}
                             style={{
-                              padding: '10px 14px',
-                              background: generatingMedia.video ? 'rgba(236, 72, 153, 0.2)' : 'rgba(236, 72, 153, 0.3)',
-                              border: '1px solid rgba(236, 72, 153, 0.5)',
+                              padding: '6px 10px',
+                              background: generatingMedia.video ? 'rgba(236, 72, 153, 0.2)' : 'rgba(236, 72, 153, 0.25)',
+                              border: '1px solid rgba(236, 72, 153, 0.4)',
                               color: '#ec4899',
                               borderRadius: '6px',
                               cursor: generatingMedia.video ? 'not-allowed' : 'pointer',
-                              fontSize: '0.85rem',
-                              fontWeight: '600',
-                              opacity: generatingMedia.video ? 0.6 : 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px'
+                              fontSize: '0.75rem',
+                              fontWeight: '600'
                             }}
                           >
-                            {generatingMedia.video ? (
-                              <>
-                                <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⚙️</span>
-                                Generating...
-                              </>
-                            ) : (
-                              <>
-                                ▶️ Generate Video
-                              </>
-                            )}
+                            {generatingMedia.video ? '⚙️ Generating...' : '🎞️ Generate Video'}
                           </button>
                         )}
                       </div>
