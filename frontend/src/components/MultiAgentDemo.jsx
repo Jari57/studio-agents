@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, FolderPlus } from 'lucide-react';
 import { BACKEND_URL } from '../constants';
+import { useLazyLoadImages } from '../hooks/useLazyLoadImages';
 
 // Streaming text effect hook
 function useTypewriter(text, speed = 20, trigger = false) {
@@ -147,6 +148,9 @@ function AgentOutputCard({ icon: Icon, title, color, output, isLoading, delay = 
 }
 
 export default function MultiAgentDemo({ onCreateProject = null }) {
+  const containerRef = useRef(null);
+  useLazyLoadImages(containerRef);
+  
   const [songIdea, setSongIdea] = useState('');
   const [language, setLanguage] = useState('English');
   const [style, setStyle] = useState('Modern Hip-Hop');
@@ -304,7 +308,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
   };
   
   return (
-    <div className="multi-agent-demo" style={{
+    <div ref={containerRef} className="multi-agent-demo" style={{
       background: 'linear-gradient(180deg, rgba(139, 92, 246, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%)',
       borderRadius: '24px',
       padding: '32px 24px',

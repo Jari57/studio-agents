@@ -8,6 +8,7 @@ import WaveSurfer from 'wavesurfer.js';
 import { Plyr } from 'plyr-react';
 import 'plyr-react/plyr.css';
 import { BACKEND_URL, AGENTS } from '../constants';
+import { useLazyLoadImages } from '../hooks/useLazyLoadImages';
 import toast from 'react-hot-toast';
 
 // Professional Waveform Player Component
@@ -274,7 +275,7 @@ function AgentOutputCard({
               )}
               {mediaType === 'image' && (
                 <img 
-                  src={mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`} 
+                  data-src={mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
                   alt="Generated" 
                   style={{ width: '100%', borderRadius: '6px', maxHeight: '160px', objectFit: 'cover' }} 
                 />
@@ -343,6 +344,9 @@ export default function StudioOrchestrator({
   authToken = null,
   existingProject = null 
 }) {
+  const containerRef = useRef(null);
+  useLazyLoadImages(containerRef);
+  
   const [songIdea, setSongIdea] = useState(existingProject?.name || '');
   const [language, setLanguage] = useState('English');
   const [style, setStyle] = useState('Modern Hip-Hop');
@@ -716,6 +720,7 @@ export default function StudioOrchestrator({
   
   return (
     <div 
+      ref={containerRef}
       className="studio-orchestrator-overlay animate-fadeIn"
       style={{
         position: 'fixed',
