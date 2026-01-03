@@ -4,7 +4,6 @@ import {
   Music, Image as ImageIcon, Download, Save, FolderPlus, Volume2, X,
   Check, Loader2, Maximize2, Users, Eye
 } from 'lucide-react';
-import WaveSurfer from 'wavesurfer.js';
 import { Plyr } from 'plyr-react';
 import 'plyr-react/plyr.css';
 import { BACKEND_URL, AGENTS } from '../constants';
@@ -12,51 +11,20 @@ import { useLazyLoadImages } from '../hooks/useLazyLoadImages';
 import toast from 'react-hot-toast';
 import PreviewModal from './PreviewModal';
 
-// Professional Waveform Player Component
-const WaveformPlayer = ({ url, color }) => {
-  const containerRef = useRef(null);
-  const wavesurferRef = useRef(null);
+// Professional Audio Player Component (using native HTML5)
+const AudioPlayer = ({ url, color }) => {
+  const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const ws = WaveSurfer.create({
-      container: containerRef.current,
-      waveColor: `${color}44`,
-      progressColor: color,
-      cursorColor: color,
-      barWidth: 2,
-      barRadius: 3,
-      responsive: true,
-      height: 40,
-      normalize: true,
-      partialRender: true
-    });
-
-    ws.load(url);
-
-    ws.on('ready', () => {
-      setDuration(ws.getDuration());
-      wavesurferRef.current = ws;
-    });
-
-    ws.on('audioprocess', () => {
-      setCurrentTime(ws.getCurrentTime());
-    });
-
-    ws.on('play', () => setIsPlaying(true));
-    ws.on('pause', () => setIsPlaying(false));
-    ws.on('finish', () => setIsPlaying(false));
-
-    return () => ws.destroy();
-  }, [url, color]);
-
   const togglePlay = () => {
-    if (wavesurferRef.current) {
-      wavesurferRef.current.playPause();
+    if (audioRef.current) {
+      if (audioRef.current.paused) {
+        audioRef.current.play();
+      } else {
+        audioRef.current.pause();
+      }
     }
   };
 
@@ -86,18 +54,30 @@ const WaveformPlayer = ({ url, color }) => {
       >
         {isPlaying ? <Pause size={16} color="white" /> : <Play size={16} color="white" />}
       </button>
-      <div style={{ flex: 1, position: 'relative' }}>
-        <div ref={containerRef} />
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          fontSize: '0.65rem', 
-          color: 'rgba(255,255,255,0.4)',
-          marginTop: '2px'
-        }}>
-          <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
-        </div>
+      <audio 
+        ref={audioRef}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration || 0)}
+        onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime || 0)}
+        style={{ flex: 1 }}
+        controlsList="nodownload"
+      >
+        <source src={url} type="audio/mpeg" />
+        <source src={url} type="audio/wav" />
+        Your browser does not support the audio element.
+      </audio>
+      <div style={{ 
+        display: 'flex', 
+        gap: '4px',
+        fontSize: '0.65rem', 
+        color: 'rgba(255,255,255,0.4)',
+        minWidth: '60px',
+        justifyContent: 'flex-end'
+      }}>
+        <span>{formatTime(currentTime)}</span>
+        <span>/</span>
+        <span>{formatTime(duration)}</span>
       </div>
     </div>
   );
@@ -273,7 +253,7 @@ function AgentOutputCard({
               gap: '8px'
             }}>
               {mediaType === 'audio' && (
-                <WaveformPlayer url={mediaUrl} color={color} />
+                <AudioPlayer url={mediaUrl} color={color} />
               )}
               {mediaType === 'image' && (
                 <div style={{ position: 'relative', cursor: 'pointer' }}>
@@ -1293,7 +1273,7 @@ export default function StudioOrchestrator({
                         {generatingMedia.audio && <Loader2 size={14} className="spin" color="#06b6d4" />}
                       </div>
                       {mediaUrls.audio ? (
-                        <WaveformPlayer url={mediaUrls.audio} color="#06b6d4" />
+                        <AudioPlayer url={mediaUrls.audio} color="#06b6d4" />
                       ) : (
                         <>
                           <div style={{ fontSize: '0.85rem', lineHeight: '1.4', color: 'rgba(255,255,255,0.7)', marginBottom: '8px' }}>
@@ -1438,7 +1418,7 @@ export default function StudioOrchestrator({
                     }}>
                       <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#06b6d4', textTransform: 'uppercase' }}>Beat</div>
                       {mediaUrls.audio ? (
-                        <WaveformPlayer url={mediaUrls.audio} color="#06b6d4" />
+                        <AudioPlayer url={mediaUrls.audio} color="#06b6d4" />
                       ) : (
                         <div style={{ fontSize: '0.8rem', lineHeight: '1.4', color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap' }}>
                           {outputs.beat}
@@ -1618,7 +1598,7 @@ export default function StudioOrchestrator({
                           {outputs.beat}
                         </div>
                         {mediaUrls.audio ? (
-                          <WaveformPlayer url={mediaUrls.audio} color="#06b6d4" />
+                          <AudioPlayer url={mediaUrls.audio} color="#06b6d4" />
                         ) : (
                           <button
                             onClick={handleGenerateAudio}
