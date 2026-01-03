@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Play, Pause, Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, Save, FolderPlus, Volume2, X,
-  Check, Loader2, Maximize2, Users
+  Check, Loader2, Maximize2, Users, Eye
 } from 'lucide-react';
 import WaveSurfer from 'wavesurfer.js';
 import { Plyr } from 'plyr-react';
@@ -10,6 +10,7 @@ import 'plyr-react/plyr.css';
 import { BACKEND_URL, AGENTS } from '../constants';
 import { useLazyLoadImages } from '../hooks/useLazyLoadImages';
 import toast from 'react-hot-toast';
+import PreviewModal from './PreviewModal';
 
 // Professional Waveform Player Component
 const WaveformPlayer = ({ url, color }) => {
@@ -147,6 +148,7 @@ function AgentOutputCard({
   isGeneratingMedia = false
 }) {
   const [showContent, setShowContent] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const { displayed, isTyping } = useTypewriter(output, 12, showContent);
   
   useEffect(() => {
@@ -274,14 +276,64 @@ function AgentOutputCard({
                 <WaveformPlayer url={mediaUrl} color={color} />
               )}
               {mediaType === 'image' && (
-                <img 
-                  data-src={mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
-                  alt="Generated" 
-                  style={{ width: '100%', borderRadius: '6px', maxHeight: '160px', objectFit: 'cover' }} 
-                />
+                <div style={{ position: 'relative', cursor: 'pointer' }}>
+                  <img 
+                    data-src={mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
+                    alt="Generated" 
+                    onClick={() => setShowPreview(true)}
+                    style={{ 
+                      width: '100%', 
+                      borderRadius: '6px', 
+                      maxHeight: '160px', 
+                      objectFit: 'cover',
+                      transition: 'all 0.2s',
+                      filter: 'brightness(0.9)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.filter = 'brightness(1)';
+                      e.target.style.transform = 'scale(1.02)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.filter = 'brightness(0.9)';
+                      e.target.style.transform = 'scale(1)';
+                    }}
+                  />
+                  <button
+                    onClick={() => setShowPreview(true)}
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      background: 'rgba(59, 130, 246, 0.9)',
+                      border: 'none',
+                      color: 'white',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      zIndex: 2,
+                      opacity: 0,
+                      transition: 'opacity 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.opacity = '1';
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.opacity = '0';
+                    }}
+                  >
+                    <Eye size={14} />
+                    Expand
+                  </button>
+                </div>
               )}
               {mediaType === 'video' && (
-                <div style={{ borderRadius: '6px', overflow: 'hidden', width: '100%' }}>
+                <div style={{ borderRadius: '6px', overflow: 'hidden', width: '100%', position: 'relative' }}>
                   <Plyr
                     source={{
                       type: 'video',
@@ -292,6 +344,29 @@ function AgentOutputCard({
                       settings: ['quality', 'speed']
                     }}
                   />
+                  <button
+                    onClick={() => setShowPreview(true)}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: 'rgba(59, 130, 246, 0.9)',
+                      border: 'none',
+                      color: 'white',
+                      padding: '6px 10px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      zIndex: 10
+                    }}
+                  >
+                    <Maximize2 size={12} />
+                    Fullscreen
+                  </button>
                 </div>
               )}
             </div>
@@ -333,6 +408,15 @@ function AgentOutputCard({
           ) : null}
         </div>
       )}
+
+      {/* Preview Modal */}
+      <PreviewModal
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        mediaUrl={mediaUrl}
+        mediaType={mediaType}
+        title={title}
+      />
     </div>
   );
 }
