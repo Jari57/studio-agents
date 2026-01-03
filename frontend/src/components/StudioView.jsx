@@ -578,6 +578,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [agentCreations, setAgentCreations] = useState({
     // Format: { agentId: { video: url, image: url, audio: url } }
   });
+  
+  // Asset preview state
+  const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image', url, title }
 
   // Audio Export/Mastering State
   const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
@@ -2800,63 +2803,94 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               </div>
               <div className="marketing-card" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px' }}>
                  <h4 style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--text-secondary)' }}>Campaign Assets</h4>
-                 <div className="asset-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {selectedProject.assets && selectedProject.assets.length > 0 ? (
-                      selectedProject.assets.map((asset, idx) => (
-                        <div key={idx} className="asset-item" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', justifyContent: 'space-between' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                             <div style={{ width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0, background: asset.type === 'Master' ? 'var(--color-cyan)' : 'var(--color-purple)' }}></div>
-                             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
-                               {asset.title || (asset.snippet ? asset.snippet.substring(0, 20) + '...' : 'New Asset')}
-                             </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                            {/* Copy to another project */}
-                            <button 
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                setAddToProjectAsset({...asset, id: String(Date.now()), sourceProject: selectedProject.id}); 
-                              }}
-                              title="Copy to another project"
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
-                            >
-                              <FolderPlus size={14} />
-                            </button>
-                            {/* Share to Activity Wall */}
-                            {(asset.type === 'Master' || asset.audioUrl || asset.videoUrl || asset.imageUrl) && (
-                               <button 
-                                 onClick={(e) => { e.stopPropagation(); handleShareToFeed(asset); }}
-                                 title="Share to Activity Wall"
-                                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
-                               >
-                                 <Share2 size={14} />
-                               </button>
-                            )}
-                            {/* Delete asset */}
-                            <button 
-                              onClick={(e) => { 
-                                e.stopPropagation();
-                                if (confirm('Remove this asset from the project?')) {
-                                  const updated = { ...selectedProject, assets: selectedProject.assets.filter((_, i) => i !== idx) };
-                                  setSelectedProject(updated);
-                                  setProjects(projects.map(p => p.id === updated.id ? updated : p));
-                                  toast.success('Asset removed');
-                                }
-                              }}
-                              title="Remove from project"
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-muted text-sm">No assets generated yet</div>
-                    )}
-                 </div>
-                 <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                    <button className="btn-text" style={{ fontSize: '0.8rem', color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>+ Generate Assets</button>
+                 
+                 {selectedProject.assets && selectedProject.assets.length > 0 ? (
+                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                     {selectedProject.assets.map((asset, idx) => (
+                       <div 
+                         key={idx} 
+                         onClick={() => {
+                           // Show asset preview modal
+                           if (asset.audioUrl || asset.imageUrl || asset.videoUrl) {
+                             setShowPreview({
+                               type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
+                               url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
+                               title: asset.title
+                             });
+                           }
+                         }}
+                         style={{
+                           background: 'rgba(255,255,255,0.05)',
+                           borderRadius: '8px',
+                           padding: '8px',
+                           border: '1px solid rgba(255,255,255,0.1)',
+                           cursor: asset.audioUrl || asset.imageUrl || asset.videoUrl ? 'pointer' : 'default',
+                           transition: 'all 0.2s ease',
+                           display: 'flex',
+                           flexDirection: 'column',
+                           gap: '6px',
+                           minHeight: '120px'
+                         }}
+                         onMouseEnter={(e) => {
+                           if (asset.audioUrl || asset.imageUrl || asset.videoUrl) {
+                             e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
+                             e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                           }
+                         }}
+                         onMouseLeave={(e) => {
+                           e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+                           e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                         }}
+                       >
+                         {/* Media Preview */}
+                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', overflow: 'hidden', minHeight: '60px' }}>
+                           {asset.imageUrl ? (
+                             <img 
+                               src={asset.imageUrl}
+                               alt={asset.title}
+                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                             />
+                           ) : asset.videoUrl ? (
+                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                               <Video size={24} style={{ color: 'rgba(255,255,255,0.5)' }} />
+                             </div>
+                           ) : asset.audioUrl ? (
+                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                               <Music size={24} style={{ color: 'rgba(255,255,255,0.5)' }} />
+                             </div>
+                           ) : (
+                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                               <FileText size={24} style={{ color: 'rgba(255,255,255,0.5)' }} />
+                             </div>
+                           )}
+                         </div>
+                         
+                         {/* Title */}
+                         <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                           {asset.title}
+                         </div>
+                         
+                         {/* Agent */}
+                         <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                           {asset.agent}
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 ) : (
+                   <div className="text-muted text-sm" style={{ marginBottom: '12px' }}>No assets generated yet</div>
+                 )}
+
+                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <button 
+                      className="btn-text" 
+                      style={{ fontSize: '0.8rem', color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      onClick={() => {
+                        setShowOrchestrator(true);
+                      }}
+                    >
+                      + Generate Assets
+                    </button>
                     <label className="btn-text" style={{ fontSize: '0.8rem', color: 'var(--color-cyan)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <input 
                         type="file" 
@@ -9911,6 +9945,61 @@ When you write a song, you create intellectual property that generates money eve
               >
                 Done
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Asset Preview Modal */}
+      {showPreview && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowPreview(null)} style={{ zIndex: 2000 }}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '90vw', 
+              maxHeight: '90vh',
+              width: '100%',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              background: 'rgba(0,0,0,0.9)',
+              borderRadius: '12px'
+            }}
+          >
+            <div className="modal-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem', flexShrink: 0 }}>
+              <h2 style={{ fontSize: '1.1rem', margin: 0 }}>{showPreview.title}</h2>
+              <button className="modal-close" onClick={() => setShowPreview(null)} style={{ color: '#fff' }}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '1.5rem', flex: 1, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {showPreview.type === 'audio' && (
+                <audio 
+                  src={showPreview.url}
+                  controls
+                  style={{ width: '100%', maxWidth: '400px' }}
+                  autoPlay
+                  controlsList="nodownload"
+                />
+              )}
+              {showPreview.type === 'image' && (
+                <img 
+                  src={showPreview.url}
+                  alt={showPreview.title}
+                  style={{ width: '100%', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+                />
+              )}
+              {showPreview.type === 'video' && (
+                <video 
+                  src={showPreview.url}
+                  controls
+                  autoPlay
+                  style={{ width: '100%', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+                  controlsList="nodownload"
+                />
+              )}
             </div>
           </div>
         </div>
