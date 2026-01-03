@@ -619,7 +619,12 @@ export default function StudioOrchestrator({
       });
       
       const data = await res.json();
+      console.log('Audio response:', data); // DEBUG
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
       if (data.audioUrl) {
+        console.log('Setting audio URL:', data.audioUrl); // DEBUG
         setMediaUrls(prev => ({ ...prev, audio: data.audioUrl }));
         toast.success('Audio generated!', { id: 'gen-audio' });
       } else {
@@ -657,7 +662,12 @@ export default function StudioOrchestrator({
       });
       
       const data = await res.json();
+      console.log('Image response:', data); // DEBUG
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
       if (data.images && data.images[0]) {
+        console.log('Setting image:', data.images[0].substring(0, 50)); // DEBUG
         setMediaUrls(prev => ({ ...prev, image: data.images[0] }));
         toast.success('Image generated!', { id: 'gen-image' });
       } else {
@@ -694,7 +704,12 @@ export default function StudioOrchestrator({
       });
       
       const data = await res.json();
+      console.log('Video response:', data); // DEBUG
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
       if (data.output) {
+        console.log('Setting video:', data.output.substring(0, 50)); // DEBUG
         setMediaUrls(prev => ({ ...prev, video: data.output }));
         toast.success('Video generated!', { id: 'gen-video' });
       } else {
@@ -1346,82 +1361,114 @@ export default function StudioOrchestrator({
 
             {/* Final Mix View */}
             {canvasMode === 'composition' && (
-              <div style={{ display: 'flex', gap: '16px', height: '300px' }}>
-                {/* Left: Lyrics */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minHeight: '400px' }}>
+                {/* Top: Audio + Visuals Synced */}
+                <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: '200px' }}>
+                  {/* Left: Audio Waveform */}
+                  {(mediaUrls.audio || outputs.beat) && (
+                    <div style={{
+                      flex: '0 0 150px',
+                      background: 'rgba(6, 182, 212, 0.1)',
+                      borderRadius: '10px',
+                      padding: '12px',
+                      border: '1px solid rgba(6, 182, 212, 0.3)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      overflow: 'auto'
+                    }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#06b6d4', textTransform: 'uppercase' }}>Beat</div>
+                      {mediaUrls.audio ? (
+                        <WaveformPlayer url={mediaUrls.audio} color="#06b6d4" />
+                      ) : (
+                        <div style={{ fontSize: '0.8rem', lineHeight: '1.4', color: 'rgba(255,255,255,0.6)', whiteSpace: 'pre-wrap' }}>
+                          {outputs.beat}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Center: Visual Preview */}
+                  <div style={{
+                    flex: 1,
+                    background: 'rgba(0,0,0,0.4)',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}>
+                    {mediaUrls.video && (
+                      <Plyr
+                        source={{
+                          type: 'video',
+                          sources: [{ src: mediaUrls.video, type: 'video/mp4' }]
+                        }}
+                        options={{
+                          controls: ['play', 'progress', 'fullscreen'],
+                          settings: []
+                        }}
+                      />
+                    )}
+                    {!mediaUrls.video && mediaUrls.image && (
+                      <img 
+                        src={mediaUrls.image.startsWith('data:') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
+                        alt="Visual"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    )}
+                    {!mediaUrls.image && !mediaUrls.video && outputs.visual && (
+                      <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)', padding: '20px' }}>
+                        <div style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Visual Concept</div>
+                        <div style={{ fontSize: '0.8rem', lineHeight: '1.4', color: 'rgba(255,255,255,0.5)' }}>
+                          {outputs.visual}
+                        </div>
+                      </div>
+                    )}
+                    {!mediaUrls.image && !mediaUrls.video && !outputs.visual && (
+                      <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>
+                        <div style={{ fontSize: '0.9rem' }}>Visual assets will appear here</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: Pitch */}
+                  {outputs.pitch && (
+                    <div style={{
+                      flex: '0 0 150px',
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      borderRadius: '10px',
+                      padding: '12px',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      overflow: 'auto'
+                    }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#f59e0b', textTransform: 'uppercase' }}>Pitch</div>
+                      <div style={{ fontSize: '0.8rem', lineHeight: '1.4', color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', flex: 1 }}>
+                        {outputs.pitch}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bottom: Hook Lyrics (Full width) */}
                 {outputs.hook && (
                   <div style={{
-                    flex: '0 0 200px',
                     background: 'rgba(139, 92, 246, 0.1)',
                     borderRadius: '10px',
                     padding: '12px',
                     border: '1px solid rgba(139, 92, 246, 0.3)',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '8px',
-                    overflow: 'auto'
+                    gap: '8px'
                   }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#8b5cf6', textTransform: 'uppercase' }}>Hook</div>
-                    <div style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', flex: 1 }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#8b5cf6', textTransform: 'uppercase' }}>Song Hook (Lyrics)</div>
+                    <div style={{ fontSize: '0.9rem', lineHeight: '1.6', color: 'rgba(255,255,255,0.9)', whiteSpace: 'pre-wrap', fontWeight: '500' }}>
                       {outputs.hook}
-                    </div>
-                  </div>
-                )}
-
-                {/* Center: Visual Preview */}
-                <div style={{
-                  flex: 1,
-                  background: 'rgba(0,0,0,0.4)',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  position: 'relative'
-                }}>
-                  {mediaUrls.image && (
-                    <img 
-                      src={mediaUrls.image.startsWith('data:') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
-                      alt="Visual"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  )}
-                  {mediaUrls.video && (
-                    <Plyr
-                      source={{
-                        type: 'video',
-                        sources: [{ src: mediaUrls.video, type: 'video/mp4' }]
-                      }}
-                      options={{
-                        controls: ['play', 'progress', 'fullscreen'],
-                        settings: []
-                      }}
-                    />
-                  )}
-                  {!mediaUrls.image && !mediaUrls.video && (
-                    <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>
-                      <div style={{ fontSize: '0.9rem' }}>Visual assets will appear here</div>
-                      <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>Generate image or video to preview</div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right: Pitch */}
-                {outputs.pitch && (
-                  <div style={{
-                    flex: '0 0 200px',
-                    background: 'rgba(245, 158, 11, 0.1)',
-                    borderRadius: '10px',
-                    padding: '12px',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    overflow: 'auto'
-                  }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#f59e0b', textTransform: 'uppercase' }}>Pitch</div>
-                    <div style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', flex: 1 }}>
-                      {outputs.pitch}
                     </div>
                   </div>
                 )}
