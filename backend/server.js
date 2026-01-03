@@ -1958,7 +1958,7 @@ app.post('/api/generate', verifyFirebaseToken, checkCredits, generationLimiter, 
 // ═══════════════════════════════════════════════════════════════════
 // AGENT MODEL ORCHESTRATOR (AMO) - Combine up to 4 agent outputs
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/orchestrate', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+app.post('/api/orchestrate', verifyFirebaseToken, checkCredits, async (req, res) => {
   try {
     const { agentOutputs, projectName, projectDescription } = req.body;
     
