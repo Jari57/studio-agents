@@ -39,9 +39,10 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - network first, fallback to cache
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests and API calls
+  // Skip non-GET requests, API calls, and non-HTTP(S) protocols
   if (event.request.method !== 'GET') return;
   if (event.request.url.includes('/api/')) return;
+  if (!event.request.url.startsWith('http')) return; // Skip chrome-extension://, etc.
   
   event.respondWith(
     fetch(event.request)
