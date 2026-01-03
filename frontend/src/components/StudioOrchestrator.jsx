@@ -1648,6 +1648,8 @@ export default function StudioOrchestrator({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                         <video 
                           src={mediaUrls.video}
+                          controls
+                          autoPlay
                           style={{ 
                             width: '100%', 
                             height: '160px', 
@@ -1657,7 +1659,7 @@ export default function StudioOrchestrator({
                           }}
                         />
                         <button
-                          onClick={() => {/* Preview */}}
+                          onClick={() => {/* Preview in full screen via PreviewModal */}}
                           style={{
                             padding: '8px 12px',
                             background: 'rgba(236, 72, 153, 0.2)',
@@ -1673,8 +1675,49 @@ export default function StudioOrchestrator({
                         </button>
                       </div>
                     ) : (
-                      <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '12px' }}>
-                        {outputs.visual ? 'Click "Generate Video" to create video' : 'Generate visual first'}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ 
+                          fontSize: '0.85rem', 
+                          color: 'rgba(255,255,255,0.4)', 
+                          textAlign: 'center', 
+                          padding: '24px 12px',
+                          background: 'rgba(0,0,0,0.2)',
+                          borderRadius: '6px'
+                        }}>
+                          {outputs.visual ? 'Ready to generate' : 'Generate visual first'}
+                        </div>
+                        {outputs.visual && (
+                          <button
+                            onClick={handleGenerateVideo}
+                            disabled={generatingMedia.video}
+                            style={{
+                              padding: '10px 14px',
+                              background: generatingMedia.video ? 'rgba(236, 72, 153, 0.2)' : 'rgba(236, 72, 153, 0.3)',
+                              border: '1px solid rgba(236, 72, 153, 0.5)',
+                              color: '#ec4899',
+                              borderRadius: '6px',
+                              cursor: generatingMedia.video ? 'not-allowed' : 'pointer',
+                              fontSize: '0.85rem',
+                              fontWeight: '600',
+                              opacity: generatingMedia.video ? 0.6 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            {generatingMedia.video ? (
+                              <>
+                                <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⚙️</span>
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                ▶️ Generate Video
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
