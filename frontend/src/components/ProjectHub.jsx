@@ -298,14 +298,32 @@ function ProjectHub({
               >
                 {/* Card Header */}
                 <div className="project-card-thumb" style={{
-                  background: `linear-gradient(135deg, ${getStatusColor(project.status)}30 0%, var(--color-bg-tertiary) 100%)`
+                  background: project.coverImage 
+                    ? `url(${project.coverImage}) center/cover`
+                    : `linear-gradient(135deg, ${getStatusColor(project.status)}30 0%, var(--color-bg-tertiary) 100%)`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  position: 'relative'
                 }}>
+                  {/* Cover Overlay */}
+                  {project.coverImage && (
+                    <div style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.6) 100%)'
+                    }} />
+                  )}
+                  
                   <div style={{
                     position: 'absolute',
                     top: '12px',
                     left: '12px',
                     display: 'flex',
-                    gap: '8px'
+                    gap: '8px',
+                    zIndex: 2
                   }}>
                     <span style={{
                       padding: '4px 10px',
@@ -334,7 +352,8 @@ function ProjectHub({
                       padding: '8px',
                       color: 'white',
                       cursor: 'pointer',
-                      backdropFilter: 'blur(8px)'
+                      backdropFilter: 'blur(8px)',
+                      zIndex: 2
                     }}
                   >
                     <MoreVertical size={16} />
@@ -387,15 +406,54 @@ function ProjectHub({
                     </div>
                   )}
 
-                  {/* Center Icon */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%'
-                  }}>
-                    <CategoryIcon size={48} style={{ opacity: 0.3 }} />
-                  </div>
+                  {/* Center Icon (if no cover image) */}
+                  {!project.coverImage && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '100%'
+                    }}>
+                      <CategoryIcon size={48} style={{ opacity: 0.3 }} />
+                    </div>
+                  )}
+
+                  {/* Audio Player Overlay (appears on hover) */}
+                  {(() => {
+                    // Find the beat audio asset
+                    const beatAsset = project.assets?.find(a => a.audioUrl);
+                    return beatAsset ? (
+                      <div 
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 100%)',
+                          padding: '12px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          zIndex: 2
+                        }}
+                      >
+                        <audio 
+                          controls
+                          style={{ 
+                            width: '100%', 
+                            height: '24px',
+                            accentColor: 'var(--color-purple)'
+                          }}
+                          controlsList="nodownload"
+                        >
+                          <source src={beatAsset.audioUrl} type="audio/mpeg" />
+                          <source src={beatAsset.audioUrl} type="audio/wav" />
+                          Your browser does not support the audio element.
+                        </audio>
+                      </div>
+                    ) : null;
+                  })()}
 
                   {/* Progress Bar */}
                   {project.progress > 0 && (
