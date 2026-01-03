@@ -3,6 +3,10 @@ import LandingPage from './components/LandingPage';
 import StudioView from './components/StudioView';
 import './App.css';
 import './mobile-fixes.css';
+import { suppressExtensionErrors } from './utils/suppressExtensionErrors';
+
+// Suppress harmless browser extension errors (MetaMask, etc.)
+suppressExtensionErrors();
 
 function App() {
   console.log("App.jsx: Rendering component (v2)...");
