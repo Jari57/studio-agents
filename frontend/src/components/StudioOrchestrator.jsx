@@ -581,18 +581,17 @@ export default function StudioOrchestrator({
         
         if (!orchestrateRes.ok) {
           console.error('❌ Orchestrate failed:', orchestrateData.error || orchestrateData); // DEBUG
-          toast.error(`Orchestration failed: ${orchestrateData.error || 'Unknown error'}`);
+          console.log('Continuing with individual assets (AMO orchestration unavailable)');
         } else if (orchestrateData.output) {
           console.log('✅ Setting master output:', orchestrateData.output.substring(0, 100)); // DEBUG
           setMasterOutput(orchestrateData.output);
           toast.success('Master output generated!');
         } else {
           console.warn('⚠️ No output in orchestrate response:', orchestrateData); // DEBUG
-          toast.warning('Orchestration completed but no output generated');
         }
       } catch (err) {
         console.error('🔴 AMO orchestration error:', err); // DEBUG
-        toast.error(`Orchestration error: ${err.message}`);
+        console.log('Orchestration unavailable, continuing with individual assets');
       } finally {
         setIsOrchestrating(false);
       }
@@ -702,7 +701,10 @@ export default function StudioOrchestrator({
   
   // Generate real video with Veo 3.1
   const handleGenerateVideo = async () => {
-    if (!outputs.visual) return;
+    if (!outputs.visual) {
+      toast.error('Generate visual concept first');
+      return;
+    }
     
     if (!authToken) {
       toast.error('Authentication required');
@@ -710,7 +712,7 @@ export default function StudioOrchestrator({
     }
     
     setGeneratingMedia(prev => ({ ...prev, video: true }));
-    toast.loading('Generating video with Veo 3.1 Preview (takes ~2-3 min)...', { id: 'gen-video', duration: 300000 });
+    toast.loading('Generating video with Veo (takes ~2-3 min)...', { id: 'gen-video', duration: 300000 });
     
     try {
       const headers = await getHeaders();
@@ -724,8 +726,14 @@ export default function StudioOrchestrator({
       
       const data = await res.json();
       console.log('Video response:', data); // DEBUG
+      
+      if (res.status === 503) {
+        toast.error('Video generation currently unavailable. Veo API not configured.', { id: 'gen-video', duration: 5 });
+        throw new Error('Video API unavailable (Veo models not accessible)');
+      }
+      
       if (!res.ok) {
-        throw new Error(data.error || `HTTP ${res.status}`);
+        throw new Error(data.details || data.error || `HTTP ${res.status}`);
       }
       if (data.output) {
         console.log('Setting video:', data.output.substring(0, 50)); // DEBUG
@@ -834,7 +842,6 @@ export default function StudioOrchestrator({
       onCreateProject(project);
     }
     
-    toast.success(`Project "${project.name}" created!`);
     setShowCreateProject(false);
     onClose?.();
   };
