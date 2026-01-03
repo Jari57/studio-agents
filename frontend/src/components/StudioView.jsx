@@ -1019,6 +1019,16 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
   }, []);
 
+  // Listen for auth modal open events from child components
+  useEffect(() => {
+    const handleOpenAuthModal = () => {
+      setShowLoginModal(true);
+    };
+
+    window.addEventListener('openAuthModal', handleOpenAuthModal);
+    return () => window.removeEventListener('openAuthModal', handleOpenAuthModal);
+  }, []);
+
   // --- AUTH STATE ---
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset'
   const [authEmail, setAuthEmail] = useState('');

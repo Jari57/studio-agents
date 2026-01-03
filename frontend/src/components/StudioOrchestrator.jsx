@@ -471,7 +471,18 @@ export default function StudioOrchestrator({
     if (!songIdea.trim()) return;
     
     if (!authToken) {
-      toast.error('Please log in to use the Studio Orchestrator');
+      toast.error('Please sign in to use the Studio Orchestrator', {
+        duration: 4000,
+        action: {
+          label: 'Sign In',
+          onClick: () => {
+            // Close orchestrator and trigger parent auth modal
+            onClose();
+            // Try to trigger login modal through global event or direct callback
+            window.dispatchEvent(new CustomEvent('openAuthModal'));
+          }
+        }
+      });
       return;
     }
     
@@ -591,11 +602,11 @@ export default function StudioOrchestrator({
     if (!outputs.beat) return;
     
     if (!authToken) {
-      toast.error('Authentication required');
+      toast.error('Please sign in to generate audio', {
+        duration: 4000
+      });
       return;
     }
-    
-    setGeneratingMedia(prev => ({ ...prev, audio: true }));
     toast.loading('Generating audio with MusicGen...', { id: 'gen-audio' });
     
     try {
@@ -648,7 +659,9 @@ export default function StudioOrchestrator({
     if (!outputs.visual) return;
     
     if (!authToken) {
-      toast.error('Authentication required');
+      toast.error('Please sign in to generate images', {
+        duration: 4000
+      });
       return;
     }
     
@@ -698,7 +711,9 @@ export default function StudioOrchestrator({
     }
     
     if (!authToken) {
-      toast.error('Authentication required');
+      toast.error('Please sign in to generate videos', {
+        duration: 4000
+      });
       return;
     }
     
