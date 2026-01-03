@@ -720,7 +720,6 @@ export default function StudioOrchestrator({
   
   return (
     <div 
-      ref={containerRef}
       className="studio-orchestrator-overlay animate-fadeIn"
       style={{
         position: 'fixed',
@@ -786,7 +785,7 @@ export default function StudioOrchestrator({
       </div>
       
       {/* Main Content */}
-      <div style={{ flex: 1, padding: '24px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
+      <div ref={containerRef} style={{ flex: 1, padding: '24px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
         
         {/* Configuration Bar */}
         <div style={{ 
