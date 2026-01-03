@@ -6340,6 +6340,32 @@ select optgroup {
   text-transform: uppercase;
 }
 
+.ltd-badge-native {
+  position: absolute;
+  top: -10px;
+  right: 20px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  animation: pulse 2s infinite;
+}
+
+.urgency-message-native {
+  font-size: 0.8rem;
+  color: #fbbf24;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-align: center;
+  padding: 8px 12px;
+  background: rgba(251, 191, 36, 0.08);
+  border-radius: 8px;
+  border-left: 2px solid #fbbf24;
+}
+
 .plan-header-native {
   margin-bottom: 1.5rem;
 }
@@ -6361,6 +6387,14 @@ select optgroup {
   font-size: 2rem;
   font-weight: 900;
   color: white;
+}
+
+.plan-strikethrough-native {
+  font-size: 1rem;
+  color: #9ca3af;
+  text-decoration: line-through;
+  font-weight: 600;
+  margin-right: 8px;
 }
 
 .plan-period-native {

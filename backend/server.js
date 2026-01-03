@@ -430,12 +430,24 @@ const validatePromptSafety = (prompt) => {
 
 // Enhanced CORS with origin whitelist
 const allowedOrigins = isDevelopment 
-  ? ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
+  ? [
+  'http://localhost:5173', 
+  'http://localhost:3000', 
+  'http://localhost:3001', 
+  'http://127.0.0.1:3001',
+  'https://studioagentsai.com',
+  'https://www.studioagentsai.com',
+  'https://studio-agents.vercel.app',
+  process.env.FRONTEND_URL]
   : [
       process.env.FRONTEND_URL,
-      'https://studioagentsai.com',
-      'https://www.studioagentsai.com',
-      'https://studio-agents.vercel.app'
+  'http://localhost:5173', 
+  'http://localhost:3000', 
+  'http://localhost:3001', 
+  'http://127.0.0.1:3001',
+  'https://studioagentsai.com',
+  'https://www.studioagentsai.com',
+  'https://studio-agents.vercel.app',
     ].filter(Boolean);
 
 app.use(cors({

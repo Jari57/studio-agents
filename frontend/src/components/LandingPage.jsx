@@ -942,23 +942,31 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             },
             {
               name: 'Creator',
-              price: '$4.99',
+              price: '$14.99',
               period: '/month',
-              features: ['100 uses/month', '30s audio output', 'Save creations', 'Priority processing'],
-              popular: true
+              features: ['100 uses/month', '30s audio output', 'Save creations', 'Priority processing']
             },
             {
               name: 'Studio Pro',
-              price: '$14.99',
+              price: '$49.99',
               period: '/month',
-              features: ['Unlimited uses', '60s audio output', 'All Creator features', 'API access', 'Team collab']
+              features: ['2,000 uses/month', '60s audio output', 'All Creator features', 'API access', 'Team collab', 'Analytics']
+            },
+            {
+              name: '🔥 Early Bird Lifetime',
+              price: '$49',
+              period: 'one-time',
+              features: ['Unlimited everything forever', 'Future updates included', 'Priority Support', 'Commercial License', 'Founder Badge'],
+              popular: true,
+              ltd: true,
+              urgency: 'Limited to first 1000 users'
             },
             {
               name: 'Lifetime Access',
               price: '$99',
               period: 'one-time',
               features: ['Unlimited everything forever', 'Future updates included', 'Priority Support', 'Commercial License', 'Founder Badge'],
-              ltd: true
+              strikethrough: '$49'
             }
           ].map((plan, idx) => (
             <div
@@ -975,10 +983,18 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   Limited Time
                 </div>
               )}
+              {plan.urgency && (
+                <div className="urgency-message-native">
+                  {plan.urgency}
+                </div>
+              )}
 
               <div className="plan-header-native">
                 <h3 className="plan-name-native">{plan.name}</h3>
                 <div className="plan-price-box-native">
+                  {plan.strikethrough && (
+                    <span className="plan-strikethrough-native">{plan.strikethrough}</span>
+                  )}
                   <span className="plan-price-native">{plan.price}</span>
                   {plan.period && <span className="plan-period-native">{plan.period}</span>}
                 </div>
