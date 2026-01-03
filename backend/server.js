@@ -476,7 +476,7 @@ app.use(cors({
   credentials: true
 }));
 
-pp.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve static frontend build copied into backend/public (Railway release)
@@ -510,8 +510,7 @@ if (fs.existsSync(staticDir)) {
   }
 }
 //  REQUEST LOGGING
-if (isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-      return callback(null, true); {
+if (isDevelopment) {
   app.use(morgan('dev')); // Colorful logs for development
 } else {
   // Production: Log to file and include more details
