@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Play, Pause, Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, Save, FolderPlus, Volume2, X,
-  Check, Loader2, Maximize2
+  Check, Loader2, Maximize2, Users
 } from 'lucide-react';
 import WaveSurfer from 'wavesurfer.js';
 import { Plyr } from 'plyr-react';

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, FolderPlus } from 'lucide-react';
 import { BACKEND_URL } from '../constants';
 import { useLazyLoadImages } from '../hooks/useLazyLoadImages';
+import { auth } from '../firebase';
+import { getIdToken } from 'firebase/auth';
 
 // Streaming text effect hook
 function useTypewriter(text, speed = 20, trigger = false) {
@@ -208,6 +210,16 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
     setMasterOutput(null);
     setOutputs({ hook: null, caption: null, hashtags: null, pitch: null });
     
+    // Get Firebase token for authentication
+    let authToken = '';
+    try {
+      if (auth.currentUser) {
+        authToken = await getIdToken(auth.currentUser);
+      }
+    } catch (error) {
+      console.error('Failed to get auth token:', error);
+    }
+    
     // Generate all outputs in parallel
     const prompts = {
       hook: {
@@ -241,9 +253,14 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
       // Fire all requests simultaneously
       const requests = Object.entries(prompts).map(async ([key, { prompt, systemInstruction }]) => {
         try {
+          const headers = { 'Content-Type': 'application/json' };
+          if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+          }
+          
           const res = await fetch(`${BACKEND_URL}/api/generate`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ prompt, systemInstruction, model: apiModel })
           });
           const data = await res.json();
@@ -278,7 +295,10 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
         
         const orchestrateRes = await fetch(`${BACKEND_URL}/api/orchestrate`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authToken ? {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          } : { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             agentOutputs,
             projectName: songIdea,
