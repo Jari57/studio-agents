@@ -463,6 +463,11 @@ export default function StudioOrchestrator({
   const [projectName, setProjectName] = useState('');
   const [showCreateProject, setShowCreateProject] = useState(false);
   
+  // Unified canvas state
+  const [activeTrack, setActiveTrack] = useState('hook'); // which track is in focus
+  const [playbackTime, setPlaybackTime] = useState(0); // timeline position
+  const [canvasMode, setCanvasMode] = useState('timeline'); // 'timeline' or 'composition'
+  
   const inputRef = useRef(null);
   
   const EXAMPLE_IDEAS = [
@@ -1077,138 +1082,354 @@ export default function StudioOrchestrator({
           </div>
         </div>
         
-        {/* Agent Outputs Grid - 2x2 */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '16px',
-          marginBottom: '24px'
-        }}>
-          <AgentOutputCard
-            icon={AGENTS.find(a => a.id === selectedAgents.hook)?.icon || Mic2}
-            title={AGENTS.find(a => a.id === selectedAgents.hook)?.name || "Ghostwriter"}
-            color="#8b5cf6"
-            output={outputs.hook}
-            isLoading={isGenerating}
-            delay={0}
-          />
-          <AgentOutputCard
-            icon={AGENTS.find(a => a.id === selectedAgents.beat)?.icon || Music}
-            title={AGENTS.find(a => a.id === selectedAgents.beat)?.name || "Beat Architect"}
-            color="#06b6d4"
-            output={outputs.beat}
-            isLoading={isGenerating}
-            delay={200}
-            mediaType="audio"
-            mediaUrl={mediaUrls.audio}
-            onGenerateMedia={handleGenerateAudio}
-            isGeneratingMedia={generatingMedia.audio}
-          />
-          <AgentOutputCard
-            icon={AGENTS.find(a => a.id === selectedAgents.visual)?.icon || ImageIcon}
-            title={AGENTS.find(a => a.id === selectedAgents.visual)?.name || "Visual Director"}
-            color="#ec4899"
-            output={outputs.visual}
-            isLoading={isGenerating}
-            delay={400}
-            mediaType="image"
-            mediaUrl={mediaUrls.image}
-            onGenerateMedia={handleGenerateImage}
-            isGeneratingMedia={generatingMedia.image}
-          />
-          <AgentOutputCard
-            icon={AGENTS.find(a => a.id === selectedAgents.pitch)?.icon || FileText}
-            title={AGENTS.find(a => a.id === selectedAgents.pitch)?.name || "Pitch Writer"}
-            color="#f59e0b"
-            output={outputs.pitch}
-            isLoading={isGenerating}
-            delay={600}
-          />
-        </div>
-        
-        {/* Video Generation (Separate because it's slow) */}
-        {outputs.visual && (
+        {/* UNIFIED CANVAS - Timeline View (Like CapCut/Captions.com) */}
+        {Object.values(outputs).some(o => o) && (
           <div style={{
-            padding: '16px',
-            background: 'rgba(236, 72, 153, 0.1)',
-            borderRadius: '12px',
-            border: '1px solid rgba(236, 72, 153, 0.3)',
+            background: 'rgba(0,0,0,0.6)',
+            borderRadius: '16px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            padding: '20px',
             marginBottom: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
+            backdropFilter: 'blur(10px)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyBetween: 'space-between', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Video size={24} color="#ec4899" />
-                <div>
-                  <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>Generate Music Video Clip</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    Uses Veo 3.1 Preview • Takes ~2-3 minutes • 8 second clip
-                  </div>
-                </div>
-              </div>
-              
-              {mediaUrls.video ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10b981' }}>
-                  <CheckCircle2 size={16} />
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Video Ready</span>
-                </div>
-              ) : (
-                <button
-                  onClick={handleGenerateVideo}
-                  disabled={generatingMedia.video}
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: '8px',
-                    background: generatingMedia.video ? 'rgba(255,255,255,0.1)' : '#ec4899',
-                    border: 'none',
-                    color: 'white',
-                    fontWeight: '600',
-                    fontSize: '0.85rem',
-                    cursor: generatingMedia.video ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  {generatingMedia.video ? (
-                    <>
-                      <RefreshCw size={14} className="spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Video size={14} />
-                      Generate Video
-                    </>
-                  )}
-                </button>
-              )}
+            {/* Canvas Mode Toggle */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginBottom: '16px',
+              borderBottom: '1px solid rgba(255,255,255,0.1)',
+              paddingBottom: '12px'
+            }}>
+              <button
+                onClick={() => setCanvasMode('timeline')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: canvasMode === 'timeline' ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${canvasMode === 'timeline' ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
+                  color: canvasMode === 'timeline' ? '#8b5cf6' : 'rgba(255,255,255,0.6)',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Music size={14} />
+                Timeline View
+              </button>
+              <button
+                onClick={() => setCanvasMode('composition')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: canvasMode === 'composition' ? 'rgba(236, 72, 153, 0.3)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${canvasMode === 'composition' ? '#ec4899' : 'rgba(255,255,255,0.1)'}`,
+                  color: canvasMode === 'composition' ? '#ec4899' : 'rgba(255,255,255,0.6)',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Maximize2 size={14} />
+                Final Mix
+              </button>
             </div>
 
-            {mediaUrls.video && (
-              <div style={{ 
-                borderRadius: '12px', 
-                overflow: 'hidden', 
-                width: '100%',
-                background: 'black',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
-              }}>
-                <Plyr
-                  source={{
-                    type: 'video',
-                    sources: [{ src: mediaUrls.video, type: 'video/mp4' }]
-                  }}
-                  options={{
-                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
-                    settings: ['quality', 'speed']
-                  }}
-                />
+            {/* Timeline View */}
+            {canvasMode === 'timeline' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Production Pipeline */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: outputs.hook ? '#8b5cf6' : 'rgba(255,255,255,0.1)' }} />
+                    Hook
+                  </span>
+                  <span style={{ color: outputs.hook ? '#8b5cf6' : 'rgba(255,255,255,0.2)' }}>→</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: outputs.beat ? '#06b6d4' : 'rgba(255,255,255,0.1)' }} />
+                    Beat
+                  </span>
+                  <span style={{ color: outputs.beat ? '#06b6d4' : 'rgba(255,255,255,0.2)' }}>→</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: outputs.visual ? '#ec4899' : 'rgba(255,255,255,0.1)' }} />
+                    Visual
+                  </span>
+                  <span style={{ color: outputs.visual ? '#ec4899' : 'rgba(255,255,255,0.2)' }}>→</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: outputs.pitch ? '#f59e0b' : 'rgba(255,255,255,0.1)' }} />
+                    Pitch
+                  </span>
+                </div>
+
+                {/* Track Strips */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Lyrics Track */}
+                  {outputs.hook && (
+                    <div 
+                      onClick={() => setActiveTrack('hook')}
+                      style={{
+                        background: activeTrack === 'hook' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(0,0,0,0.4)',
+                        border: `1px solid ${activeTrack === 'hook' ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: '10px',
+                        padding: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.2)', border: '1px solid #8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Mic2 size={16} color="#8b5cf6" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#8b5cf6' }}>Song Hook</div>
+                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Ghostwriter Output</div>
+                        </div>
+                        {isGenerating && <Loader2 size={14} className="spin" color="#8b5cf6" />}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', lineHeight: '1.4', color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', maxHeight: '60px', overflow: 'auto' }}>
+                        {outputs.hook}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Audio Track */}
+                  {outputs.beat && (
+                    <div 
+                      onClick={() => setActiveTrack('beat')}
+                      style={{
+                        background: activeTrack === 'beat' ? 'rgba(6, 182, 212, 0.15)' : 'rgba(0,0,0,0.4)',
+                        border: `1px solid ${activeTrack === 'beat' ? '#06b6d4' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: '10px',
+                        padding: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(6, 182, 212, 0.2)', border: '1px solid #06b6d4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Music size={16} color="#06b6d4" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#06b6d4' }}>Beat & Audio</div>
+                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{mediaUrls.audio ? 'Audio Generated' : 'Beat Description'}</div>
+                        </div>
+                        {generatingMedia.audio && <Loader2 size={14} className="spin" color="#06b6d4" />}
+                      </div>
+                      {mediaUrls.audio ? (
+                        <WaveformPlayer url={mediaUrls.audio} color="#06b6d4" />
+                      ) : (
+                        <>
+                          <div style={{ fontSize: '0.85rem', lineHeight: '1.4', color: 'rgba(255,255,255,0.7)', marginBottom: '8px' }}>
+                            {outputs.beat}
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleGenerateAudio(); }}
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              borderRadius: '6px',
+                              background: 'rgba(6, 182, 212, 0.2)',
+                              border: '1px solid #06b6d4',
+                              color: '#06b6d4',
+                              fontSize: '0.75rem',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Generate Audio
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Visual Track */}
+                  {outputs.visual && (
+                    <div 
+                      onClick={() => setActiveTrack('visual')}
+                      style={{
+                        background: activeTrack === 'visual' ? 'rgba(236, 72, 153, 0.15)' : 'rgba(0,0,0,0.4)',
+                        border: `1px solid ${activeTrack === 'visual' ? '#ec4899' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: '10px',
+                        padding: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(236, 72, 153, 0.2)', border: '1px solid #ec4899', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <ImageIcon size={16} color="#ec4899" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#ec4899' }}>Visuals</div>
+                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>{mediaUrls.image || mediaUrls.video ? 'Assets Generated' : 'Visual Description'}</div>
+                        </div>
+                        {(generatingMedia.image || generatingMedia.video) && <Loader2 size={14} className="spin" color="#ec4899" />}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {mediaUrls.image && (
+                          <img 
+                            src={mediaUrls.image.startsWith('data:') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
+                            alt="Generated"
+                            style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover' }}
+                          />
+                        )}
+                        {!mediaUrls.image && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleGenerateImage(); }}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              background: 'rgba(236, 72, 153, 0.2)',
+                              border: '1px solid #ec4899',
+                              color: '#ec4899',
+                              fontSize: '0.7rem',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Gen Image
+                          </button>
+                        )}
+                        {!mediaUrls.video && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleGenerateVideo(); }}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              background: 'rgba(236, 72, 153, 0.2)',
+                              border: '1px solid #ec4899',
+                              color: '#ec4899',
+                              fontSize: '0.7rem',
+                              fontWeight: '600',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Gen Video
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pitch Track */}
+                  {outputs.pitch && (
+                    <div 
+                      onClick={() => setActiveTrack('pitch')}
+                      style={{
+                        background: activeTrack === 'pitch' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(0,0,0,0.4)',
+                        border: `1px solid ${activeTrack === 'pitch' ? '#f59e0b' : 'rgba(255,255,255,0.1)'}`,
+                        borderRadius: '10px',
+                        padding: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.2)', border: '1px solid #f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <FileText size={16} color="#f59e0b" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#f59e0b' }}>Industry Pitch</div>
+                          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>For Record Labels</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', lineHeight: '1.4', color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap', maxHeight: '60px', overflow: 'auto' }}>
+                        {outputs.pitch}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Final Mix View */}
+            {canvasMode === 'composition' && (
+              <div style={{ display: 'flex', gap: '16px', height: '300px' }}>
+                {/* Left: Lyrics */}
+                {outputs.hook && (
+                  <div style={{
+                    flex: '0 0 200px',
+                    background: 'rgba(139, 92, 246, 0.1)',
+                    borderRadius: '10px',
+                    padding: '12px',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    overflow: 'auto'
+                  }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#8b5cf6', textTransform: 'uppercase' }}>Hook</div>
+                    <div style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', flex: 1 }}>
+                      {outputs.hook}
+                    </div>
+                  </div>
+                )}
+
+                {/* Center: Visual Preview */}
+                <div style={{
+                  flex: 1,
+                  background: 'rgba(0,0,0,0.4)',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                  position: 'relative'
+                }}>
+                  {mediaUrls.image && (
+                    <img 
+                      src={mediaUrls.image.startsWith('data:') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
+                      alt="Visual"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  )}
+                  {mediaUrls.video && (
+                    <Plyr
+                      source={{
+                        type: 'video',
+                        sources: [{ src: mediaUrls.video, type: 'video/mp4' }]
+                      }}
+                      options={{
+                        controls: ['play', 'progress', 'fullscreen'],
+                        settings: []
+                      }}
+                    />
+                  )}
+                  {!mediaUrls.image && !mediaUrls.video && (
+                    <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.4)' }}>
+                      <div style={{ fontSize: '0.9rem' }}>Visual assets will appear here</div>
+                      <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>Generate image or video to preview</div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: Pitch */}
+                {outputs.pitch && (
+                  <div style={{
+                    flex: '0 0 200px',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    borderRadius: '10px',
+                    padding: '12px',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    overflow: 'auto'
+                  }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#f59e0b', textTransform: 'uppercase' }}>Pitch</div>
+                    <div style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', flex: 1 }}>
+                      {outputs.pitch}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
+
         
         {/* AMO Master Output */}
         {(isOrchestrating || masterOutput) && (
@@ -1286,6 +1507,55 @@ export default function StudioOrchestrator({
           </div>
           
           <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={() => {
+                // One-click export: bundle everything as JSON
+                const exportData = {
+                  project: songIdea,
+                  timestamp: new Date().toISOString(),
+                  language, style, model,
+                  outputs: {
+                    hook: outputs.hook,
+                    beat: outputs.beat,
+                    visual: outputs.visual,
+                    pitch: outputs.pitch,
+                    master: masterOutput
+                  },
+                  mediaAssets: {
+                    audioUrl: mediaUrls.audio ? '[Audio File]' : null,
+                    imageUrl: mediaUrls.image ? '[Image File]' : null,
+                    videoUrl: mediaUrls.video ? '[Video File]' : null
+                  }
+                };
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${songIdea || 'project'}-${Date.now()}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                toast.success('Project exported!');
+              }}
+              style={{
+                padding: '12px 20px',
+                borderRadius: '10px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'white',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.85rem'
+              }}
+            >
+              <Download size={14} />
+              Export
+            </button>
             <button
               onClick={() => setShowCreateProject(true)}
               style={{
