@@ -103,6 +103,7 @@ let firebaseInitialized = false;
 // These emails have full admin access for testing and demo purposes
 const ADMIN_EMAILS = [
   'jari@studioagents.ai',          // Primary admin
+  'jari57@gmail.com',              // Jari personal email
   'demo@studioagents.ai',          // Demo account for presentations
   'test@studioagents.ai',          // QA testing account
   'support@studioagents.ai',       // Support team access
@@ -297,6 +298,12 @@ const checkCredits = async (req, res, next) => {
   
   if (!req.user) {
     return next(); 
+  }
+
+  // Skip credit check for admin users
+  if (ADMIN_EMAILS.includes(req.user.email)) {
+    logger.info(`✅ Admin user ${req.user.email} - skipping credit check`);
+    return next();
   }
 
   const db = getFirestoreDb();
