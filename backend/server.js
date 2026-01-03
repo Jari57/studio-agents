@@ -525,7 +525,8 @@ if (isDevelopment) {
 // Fingerprint-based user tracking for rate limiting (IPv6-safe)
 const createFingerprint = (req) => {
   const ipHash = ipKeyGenerator(req); // IPv6-safe IP normalization
-  const userId = req.body?.userId || 'anon';
+  // Use authenticated user ID (from Firebase token) OR body userId OR anon
+  const userId = req.user?.uid || req.body?.userId || 'anon';
   const userAgent = req.headers['user-agent'] || 'unknown';
   const components = `${ipHash}-${userId}-${userAgent}`;
   return crypto.createHash('md5').update(components).digest('hex');
@@ -557,11 +558,12 @@ app.use('/api/', apiLimiter);
 // Stricter limit for AI generation (most expensive operation)
 const generationLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 60, // Limit each fingerprint to 60 AI generations per minute
+  max: 120, // Limit each fingerprint to 120 AI generations per minute
   keyGenerator: createFingerprint,
   handler: (req, res) => {
     logger.warn('⚠️ AI generation rate limit exceeded', {
       ip: req.ip,
+      userId: req.user?.uid || 'unknown',
       fingerprint: createFingerprint(req)
     });
     res.status(429).json({
