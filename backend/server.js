@@ -488,7 +488,7 @@ logger.info(`Dashboard path: ${dashboardPath}`);
 logger.info(`isDevelopment: ${isDevelopment}`);
 
 // In development, serve the backend dashboard at root to distinguish from frontend dev server
-if (isDevelopment && fs.existsSync(dashboardPath)) {app.use(morgan('dev'))
+if (isDevelopment && fs.existsSync(dashboardPath)) {app.use(morgan('dev'));
 
 }
 
