@@ -466,7 +466,7 @@ export default function StudioOrchestrator({
   // Unified canvas state
   const [activeTrack, setActiveTrack] = useState('hook'); // which track is in focus
   const [playbackTime, setPlaybackTime] = useState(0); // timeline position
-  const [canvasMode, setCanvasMode] = useState('timeline'); // 'timeline' or 'composition'
+  const [canvasMode, setCanvasMode] = useState('timeline'); // 'timeline', 'composition', or 'gallery'
   
   const inputRef = useRef(null);
   
@@ -1132,7 +1132,8 @@ export default function StudioOrchestrator({
               gap: '12px',
               marginBottom: '16px',
               borderBottom: '1px solid rgba(255,255,255,0.1)',
-              paddingBottom: '12px'
+              paddingBottom: '12px',
+              flexWrap: 'wrap'
             }}>
               <button
                 onClick={() => setCanvasMode('timeline')}
@@ -1171,6 +1172,25 @@ export default function StudioOrchestrator({
               >
                 <Maximize2 size={14} />
                 Final Mix
+              </button>
+              <button
+                onClick={() => setCanvasMode('gallery')}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: canvasMode === 'gallery' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${canvasMode === 'gallery' ? '#22c55e' : 'rgba(255,255,255,0.1)'}`,
+                  color: canvasMode === 'gallery' ? '#22c55e' : 'rgba(255,255,255,0.6)',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Eye size={14} />
+                Assets Gallery
               </button>
             </div>
 
@@ -1491,6 +1511,167 @@ export default function StudioOrchestrator({
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Gallery View - All Assets Preview */}
+            {canvasMode === 'gallery' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ 
+                  padding: '16px', 
+                  background: 'rgba(34, 197, 94, 0.1)', 
+                  borderRadius: '10px',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Eye size={16} style={{ color: '#22c55e' }} />
+                  <span style={{ fontSize: '0.9rem', color: 'rgba(34, 197, 94, 0.9)' }}>
+                    {[mediaUrls.audio, mediaUrls.image, mediaUrls.video].filter(Boolean).length} of 3 assets generated
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                  {/* Audio Asset */}
+                  <div style={{
+                    background: 'rgba(6, 182, 212, 0.1)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid rgba(6, 182, 212, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: '600', color: '#06b6d4', margin: 0 }}>🎵 Beat</h3>
+                      {mediaUrls.audio && <div style={{ fontSize: '0.7rem', color: '#06b6d4', background: 'rgba(6, 182, 212, 0.2)', padding: '4px 8px', borderRadius: '4px' }}>READY</div>}
+                    </div>
+                    {mediaUrls.audio ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <WaveformPlayer url={mediaUrls.audio} color="#06b6d4" />
+                        <button
+                          onClick={() => setShowPreview(true) /* TODO: Pass audio data */}
+                          style={{
+                            padding: '8px 12px',
+                            background: 'rgba(6, 182, 212, 0.2)',
+                            border: '1px solid rgba(6, 182, 212, 0.4)',
+                            color: '#06b6d4',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600'
+                          }}
+                        >
+                          Full Screen Preview
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '12px' }}>
+                        {outputs.beat ? 'Click "Generate Audio" to create beat' : 'Generate beat first'}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Image Asset */}
+                  <div style={{
+                    background: 'rgba(168, 85, 247, 0.1)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: '600', color: '#a855f7', margin: 0 }}>🎨 Visual</h3>
+                      {mediaUrls.image && <div style={{ fontSize: '0.7rem', color: '#a855f7', background: 'rgba(168, 85, 247, 0.2)', padding: '4px 8px', borderRadius: '4px' }}>READY</div>}
+                    </div>
+                    {mediaUrls.image ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <img 
+                          src={mediaUrls.image.startsWith('data:') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
+                          alt="Visual"
+                          style={{ 
+                            width: '100%', 
+                            height: '160px', 
+                            objectFit: 'cover', 
+                            borderRadius: '8px',
+                            cursor: 'pointer'
+                          }}
+                        />
+                        <button
+                          onClick={() => {/* Preview */}}
+                          style={{
+                            padding: '8px 12px',
+                            background: 'rgba(168, 85, 247, 0.2)',
+                            border: '1px solid rgba(168, 85, 247, 0.4)',
+                            color: '#a855f7',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600'
+                          }}
+                        >
+                          Full Screen Preview
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '12px' }}>
+                        {outputs.visual ? 'Click "Generate Image" to create visual' : 'Generate visual first'}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Video Asset */}
+                  <div style={{
+                    background: 'rgba(236, 72, 153, 0.1)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid rgba(236, 72, 153, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: '600', color: '#ec4899', margin: 0 }}>🎬 Video</h3>
+                      {mediaUrls.video && <div style={{ fontSize: '0.7rem', color: '#ec4899', background: 'rgba(236, 72, 153, 0.2)', padding: '4px 8px', borderRadius: '4px' }}>READY</div>}
+                    </div>
+                    {mediaUrls.video ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <video 
+                          src={mediaUrls.video}
+                          style={{ 
+                            width: '100%', 
+                            height: '160px', 
+                            objectFit: 'cover', 
+                            borderRadius: '8px',
+                            background: 'rgba(0,0,0,0.3)'
+                          }}
+                        />
+                        <button
+                          onClick={() => {/* Preview */}}
+                          style={{
+                            padding: '8px 12px',
+                            background: 'rgba(236, 72, 153, 0.2)',
+                            border: '1px solid rgba(236, 72, 153, 0.4)',
+                            color: '#ec4899',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600'
+                          }}
+                        >
+                          Full Screen Preview
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '12px' }}>
+                        {outputs.visual ? 'Click "Generate Video" to create video' : 'Generate visual first'}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>

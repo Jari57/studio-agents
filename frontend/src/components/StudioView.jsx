@@ -82,11 +82,11 @@ const onboardingSteps = [
 ];
 
 const goalOptions = [
-  { id: 'write', label: "Write songs", icon: Feather, agents: ['ghost', 'beat'] },
-  { id: 'produce', label: "Make beats", icon: Disc, agents: ['beat', 'sample'] },
-  { id: 'grow', label: "Grow my audience", icon: Hash, agents: ['video-creator', 'trend', 'social'] },
-  { id: 'brand', label: "Build my brand", icon: ImageIcon, agents: ['album', 'video-creator'] },
-  { id: 'explore', label: "Just exploring", icon: Sparkles, agents: [] }
+  { id: 'write', label: "Write songs", description: "Collaborate with AI to finish your lyrics", icon: Feather, agents: ['ghost', 'beat'] },
+  { id: 'produce', label: "Make beats", description: "Create production with intelligent sampling", icon: Disc, agents: ['beat', 'sample'] },
+  { id: 'grow', label: "Grow my audience", description: "Leverage trends and create content", icon: Hash, agents: ['video-creator', 'trend', 'social'] },
+  { id: 'brand', label: "Build my brand", description: "Develop visual and sonic identity", icon: ImageIcon, agents: ['album', 'video-creator'] },
+  { id: 'explore', label: "Just exploring", description: "Discover what's possible", icon: Sparkles, agents: [] }
 ];
 
 const agentDetails = {
