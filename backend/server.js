@@ -471,13 +471,13 @@ app.use(cors({
     }
 
     logger.warn('🚫 CORS blocked', { origin, allowedOrigins });
-    callback(new Error('Not allowed by CORS'));
+    callback(null, false);
   },
   credentials: true
 }));
 
-app.use(express.json());
-app.use(cookieParser()); // Parse cookies for Twitter OAuth
+pp.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve static frontend build copied into backend/public (Railway release)
 const staticDir = path.join(__dirname, 'public');
@@ -488,11 +488,8 @@ logger.info(`Dashboard path: ${dashboardPath}`);
 logger.info(`isDevelopment: ${isDevelopment}`);
 
 // In development, serve the backend dashboard at root to distinguish from frontend dev server
-if (isDevelopment && fs.existsSync(dashboardPath)) {
-  logger.info('🔌 Development mode: Serving backend dashboard at /');
-  app.get('/', (req, res) => {
-    res.sendFile(dashboardPath);
-  });
+if (isDevelopment && fs.existsSync(dashboardPath)) {app.use(morgan('dev'))
+
 }
 
 // Always serve dashboard at /dashboard
@@ -513,7 +510,8 @@ if (fs.existsSync(staticDir)) {
   }
 }
 //  REQUEST LOGGING
-if (isDevelopment) {
+if (isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+      return callback(null, true); {
   app.use(morgan('dev')); // Colorful logs for development
 } else {
   // Production: Log to file and include more details
@@ -716,8 +714,11 @@ app.post('/api/investor-access/request', apiLimiter, async (req, res) => {
     const normalizedEmail = email.trim().toLowerCase();
     const timestamp = new Date().toISOString();
     
+    // FIX: Define db before using it
+    const db = getFirestoreDb();
+    
     // Log the access request to Firestore
-    if (db) {
+    if (db){
       try {
         await db.collection('investor_access_requests').add({
           email: normalizedEmail,
