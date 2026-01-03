@@ -577,11 +577,22 @@ export default function StudioOrchestrator({
         });
         
         const orchestrateData = await orchestrateRes.json();
-        if (orchestrateRes.ok && orchestrateData.output) {
+        console.log('🎛️ Orchestrate response:', { status: orchestrateRes.status, ok: orchestrateRes.ok, data: orchestrateData }); // DEBUG
+        
+        if (!orchestrateRes.ok) {
+          console.error('❌ Orchestrate failed:', orchestrateData.error || orchestrateData); // DEBUG
+          toast.error(`Orchestration failed: ${orchestrateData.error || 'Unknown error'}`);
+        } else if (orchestrateData.output) {
+          console.log('✅ Setting master output:', orchestrateData.output.substring(0, 100)); // DEBUG
           setMasterOutput(orchestrateData.output);
+          toast.success('Master output generated!');
+        } else {
+          console.warn('⚠️ No output in orchestrate response:', orchestrateData); // DEBUG
+          toast.warning('Orchestration completed but no output generated');
         }
       } catch (err) {
-        console.log('AMO orchestration error:', err);
+        console.error('🔴 AMO orchestration error:', err); // DEBUG
+        toast.error(`Orchestration error: ${err.message}`);
       } finally {
         setIsOrchestrating(false);
       }
@@ -623,10 +634,18 @@ export default function StudioOrchestrator({
       if (!res.ok) {
         throw new Error(data.error || `HTTP ${res.status}`);
       }
+      
+      // Handle both real audio and text fallback
       if (data.audioUrl) {
         console.log('Setting audio URL:', data.audioUrl); // DEBUG
         setMediaUrls(prev => ({ ...prev, audio: data.audioUrl }));
         toast.success('Audio generated!', { id: 'gen-audio' });
+      } else if (data.description || data.output) {
+        // Fallback: Show text description if real audio failed
+        console.log('Audio fallback (text description):', data.description || data.output);
+        toast.info(`Audio fallback: ${data.message || 'Real audio unavailable'}`, { id: 'gen-audio', duration: 4 });
+        // Still update beat description
+        toast.info('See beat description above', { id: 'gen-audio-2' });
       } else {
         throw new Error(data.error || 'No audio returned');
       }

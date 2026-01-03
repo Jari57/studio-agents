@@ -669,6 +669,18 @@ app.get('/api/debug-env', (req, res) => {
 });
 
 // MODELS ROUTE - returns available models that support generateContent
+// ==================== DIAGNOSTIC: Check which APIs are configured ====================
+app.get('/api/status/apis', (req, res) => {
+  const status = {
+    gemini: !!process.env.GEMINI_API_KEY,
+    replicate: !!process.env.REPLICATE_API_KEY,
+    firebaseAdmin: firebaseInitialized,
+    googleCloudProject: !!process.env.GOOGLE_CLOUD_PROJECT || !!process.env.GCP_PROJECT_ID,
+    message: 'If replicate is false, audio will fall back to text descriptions instead of actual audio generation.'
+  };
+  res.json(status);
+});
+
 app.get('/api/models', async (req, res) => {
   try {
     if (!apiKey) {
