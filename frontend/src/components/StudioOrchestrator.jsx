@@ -426,7 +426,8 @@ export default function StudioOrchestrator({
   onClose, 
   onCreateProject,
   authToken = null,
-  existingProject = null 
+  existingProject = null,
+  onUpdateCreations = null // Callback to update agent creations in parent
 }) {
   const containerRef = useRef(null);
   useLazyLoadImages(containerRef);
@@ -638,6 +639,10 @@ export default function StudioOrchestrator({
       if (data.audioUrl) {
         console.log('Setting audio URL:', data.audioUrl); // DEBUG
         setMediaUrls(prev => ({ ...prev, audio: data.audioUrl }));
+        // Update agent creations in parent
+        if (onUpdateCreations) {
+          onUpdateCreations('beat', { audio: data.audioUrl });
+        }
         toast.success('Audio generated!', { id: 'gen-audio' });
       } else if (data.description || data.output) {
         // Fallback: Show text description if real audio failed
@@ -687,6 +692,10 @@ export default function StudioOrchestrator({
       if (data.images && data.images[0]) {
         console.log('Setting image:', data.images[0].substring(0, 50)); // DEBUG
         setMediaUrls(prev => ({ ...prev, image: data.images[0] }));
+        // Update agent creations in parent
+        if (onUpdateCreations) {
+          onUpdateCreations('album', { image: data.images[0] });
+        }
         toast.success('Image generated!', { id: 'gen-image' });
       } else {
         throw new Error(data.error || 'No image returned');
@@ -738,6 +747,10 @@ export default function StudioOrchestrator({
       if (data.output) {
         console.log('Setting video:', data.output.substring(0, 50)); // DEBUG
         setMediaUrls(prev => ({ ...prev, video: data.output }));
+        // Update agent creations in parent
+        if (onUpdateCreations) {
+          onUpdateCreations('video-creator', { video: data.output });
+        }
         toast.success('Video generated!', { id: 'gen-video' });
       } else {
         throw new Error(data.error || 'No video returned');

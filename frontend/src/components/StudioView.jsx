@@ -573,6 +573,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
   const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
   const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
+  
+  // Track generated creations per agent for preview in agent details
+  const [agentCreations, setAgentCreations] = useState({
+    // Format: { agentId: { video: url, image: url, audio: url } }
+  });
 
   // Audio Export/Mastering State
   const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
@@ -8139,6 +8144,12 @@ When you write a song, you create intellectual property that generates money eve
             setActiveTab('project_canvas');
             toast.success(`Project "${project.name}" created!`);
           }}
+          onUpdateCreations={(agentId, creations) => {
+            setAgentCreations(prev => ({
+              ...prev,
+              [agentId]: creations
+            }));
+          }}
         />
 
         {/* Login Modal */}
@@ -9701,7 +9712,7 @@ When you write a song, you create intellectual property that generates money eve
             className="modal-content whitepaper-modal" 
             onClick={e => e.stopPropagation()} 
             style={{ 
-              maxWidth: '700px', 
+              maxWidth: '800px', 
               width: '95%',
               maxHeight: '90vh',
               overflow: 'hidden',
@@ -9729,7 +9740,7 @@ When you write a song, you create intellectual property that generates money eve
               </button>
             </div>
 
-            <div className="modal-body" style={{ padding: '1.25rem 0', flex: 1, overflow: 'hidden' }}>
+            <div className="modal-body" style={{ padding: '1.25rem', flex: 1, overflow: 'auto' }}>
               <div style={{ marginBottom: '1.25rem' }}>
                 <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', color: 'var(--color-purple)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Sparkles size={16} /> The Vision
@@ -9739,7 +9750,7 @@ When you write a song, you create intellectual property that generates money eve
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '10px' }}>
                   <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.9rem' }}>
                     <UsersIcon size={16} className="text-cyan" /> Who It's For
@@ -9757,6 +9768,55 @@ When you write a song, you create intellectual property that generates money eve
                   </p>
                 </div>
               </div>
+
+              {/* Display Generated Creations */}
+              {agentCreations[showAgentWhitePaper.key] && (Object.values(agentCreations[showAgentWhitePaper.key]).some(v => v)) && (
+                <div style={{ marginBottom: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', fontSize: '0.95rem', color: 'var(--color-purple)' }}>
+                    <Eye size={16} /> Generated Creations
+                  </h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                    {/* Video Preview */}
+                    {agentCreations[showAgentWhitePaper.key].video && (
+                      <div style={{ background: 'rgba(236, 72, 153, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(236, 72, 153, 0.3)' }}>
+                        <p style={{ fontSize: '0.8rem', color: 'rgba(236, 72, 153, 1)', marginBottom: '8px', fontWeight: '600' }}>🎬 Video</p>
+                        <video 
+                          src={agentCreations[showAgentWhitePaper.key].video}
+                          controls
+                          style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', background: '#000' }}
+                          controlsList="nodownload"
+                        />
+                      </div>
+                    )}
+
+                    {/* Image Preview */}
+                    {agentCreations[showAgentWhitePaper.key].image && (
+                      <div style={{ background: 'rgba(168, 85, 247, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
+                        <p style={{ fontSize: '0.8rem', color: 'rgba(168, 85, 247, 1)', marginBottom: '8px', fontWeight: '600' }}>🎨 Image</p>
+                        <img 
+                          src={agentCreations[showAgentWhitePaper.key].image.startsWith('data:') ? agentCreations[showAgentWhitePaper.key].image : `data:image/png;base64,${agentCreations[showAgentWhitePaper.key].image}`}
+                          alt="Generated"
+                          style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px' }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Audio Preview */}
+                    {agentCreations[showAgentWhitePaper.key].audio && (
+                      <div style={{ background: 'rgba(6, 182, 212, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(6, 182, 212, 0.3)', gridColumn: 'span 1' }}>
+                        <p style={{ fontSize: '0.8rem', color: 'rgba(6, 182, 212, 1)', marginBottom: '8px', fontWeight: '600' }}>🎵 Audio</p>
+                        <audio 
+                          src={agentCreations[showAgentWhitePaper.key].audio}
+                          controls
+                          style={{ width: '100%', height: '32px' }}
+                          controlsList="nodownload"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
