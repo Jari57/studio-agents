@@ -14,9 +14,16 @@ export function suppressExtensionErrors() {
   // List of harmless extension errors to suppress
   const suppressPatterns = [
     /ObjectMultiplex.*malformed chunk/i,
+    /ObjectMultiplex - malformed chunk without name "ACK"/i,
     /StreamMiddleware.*Unknown response id/i,
     /MetaMask/i,
     /inpage\.js/i,
+    /runtime\.lastError.*listener indicated an asynchronous response/i,
+    /message channel closed before a response was received/i,
+    /A listener indicated an asynchronous response by returning true/i,
+    /Unchecked runtime\.lastError/i,
+    /Extension context invalidated/i,
+    /Could not establish connection\. Receiving end does not exist/i
   ];
 
   const shouldSuppress = (message) => {
@@ -41,9 +48,14 @@ export function suppressExtensionErrors() {
 }
 
 /**
- * Suppress extension errors in production only
- * In development, you might want to see all errors
+ * Suppress extension errors in production, warn in development
  */
 if (process.env.NODE_ENV === 'production') {
+  suppressExtensionErrors();
+} else {
+  // In development, still suppress but with a warning
+  setTimeout(() => {
+    console.info('%c[Console Cleaner] Extension error suppression active in development', 'color: #888; font-style: italic;');
+  }, 1000);
   suppressExtensionErrors();
 }
