@@ -13,7 +13,11 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[SW] Caching static assets');
-      return cache.addAll(STATIC_ASSETS);
+      return cache.addAll(STATIC_ASSETS).catch((err) => {
+        console.warn('[SW] Failed to cache some assets:', err);
+        // Don't fail installation if some assets can't be cached
+        return Promise.resolve();
+      });
     })
   );
   self.skipWaiting();
@@ -39,9 +43,10 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - network first, fallback to cache
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests and API calls
+  // Skip non-GET requests, API calls, and non-HTTP(S) protocols
   if (event.request.method !== 'GET') return;
   if (event.request.url.includes('/api/')) return;
+  if (!event.request.url.startsWith('http')) return; // Skip chrome-extension://, etc.
   
   event.respondWith(
     fetch(event.request)
@@ -91,4 +96,34 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url || '/';
   event.waitUntil(clients.openWindow(url));
+});
+
+// Handle message events from the main thread
+self.addEventListener('message', (event) => {
+  try {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+      self.skipWaiting();
+      return;
+    }
+    
+    // Handle other message types gracefully
+    console.log('[SW] Received message:', event.data);
+  } catch (error) {
+    // Silently handle message parsing errors
+    console.warn('[SW] Message handling error:', error);
+  }
+});
+
+// Global error handler for uncaught service worker errors
+self.addEventListener('error', (event) => {
+  console.warn('[SW] Error:', event.error);
+  // Don't let service worker errors crash the app
+  event.preventDefault();
+});
+
+// Handle unhandled promise rejections
+self.addEventListener('unhandledrejection', (event) => {
+  console.warn('[SW] Unhandled promise rejection:', event.reason);
+  // Don't let promise rejections crash the service worker
+  event.preventDefault();
 });

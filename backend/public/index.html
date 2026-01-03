@@ -70,11 +70,11 @@
     
     <!-- Canonical URL -->
     <link rel="canonical" href="https://studioagentsai.com/" />
-    <script type="module" crossorigin src="/assets/index-B3d3MRAx.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/vendor-BYZZ6hGn.js">
-    <link rel="modulepreload" crossorigin href="/assets/react-vendor-CgIKDF3D.js">
-    <link rel="modulepreload" crossorigin href="/assets/icons-DjC3_kj9.js">
-    <link rel="modulepreload" crossorigin href="/assets/firebase-D0ECRZl1.js">
+    <script type="module" crossorigin src="/assets/index-DxTa5Tye.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-CBzJQH0s.js">
+    <link rel="modulepreload" crossorigin href="/assets/react-vendor-71wVyZ9l.js">
+    <link rel="modulepreload" crossorigin href="/assets/icons-Bm0C_SGg.js">
+    <link rel="modulepreload" crossorigin href="/assets/firebase-CyWIhgCW.js">
     <link rel="stylesheet" crossorigin href="/assets/react-vendor-DfvD7XFm.css">
     <link rel="stylesheet" crossorigin href="/assets/index-C5yYvAqt.css">
   </head>
@@ -86,8 +86,25 @@
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
-            .then(reg => console.log('[SW] Registered:', reg.scope))
-            .catch(err => console.warn('[SW] Registration failed:', err));
+            .then(reg => {
+              console.log('[SW] Registered:', window.location.origin + '/');
+              
+              // Handle service worker updates
+              reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                if (newWorker) {
+                  newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      console.log('[SW] New version available');
+                    }
+                  });
+                }
+              });
+            })
+            .catch(err => {
+              console.warn('[SW] Registration failed:', err);
+              // Don't let service worker failures break the app
+            });
         });
       }
     </script>
