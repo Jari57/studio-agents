@@ -2013,12 +2013,28 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
 
     const systemInstruction = `You are the Agent Model Orchestrator (AMO) - an expert at synthesizing multiple AI agent outputs into cohesive, professional results. You understand music production, marketing, visual design, and creative direction. Always produce polished, actionable output that artists can immediately use.`;
     
+    // Check if API key is available
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error("Server missing API Key");
+      logger.warn('⚠️ GEMINI_API_KEY not configured for orchestration');
+      return res.status(503).json({ 
+        error: 'Orchestration unavailable',
+        details: 'API key not configured',
+        fallback: 'Using individual asset outputs'
+      });
     }
     
     const desiredModel = process.env.GENERATIVE_MODEL || "gemini-2.0-flash";
+    
+    // Verify genAI is initialized
+    if (!genAI) {
+      logger.error('❌ genAI not initialized');
+      return res.status(503).json({ 
+        error: 'Orchestration unavailable',
+        details: 'AI service not initialized',
+        fallback: 'Using individual asset outputs'
+      });
+    }
     
     const model = genAI.getGenerativeModel({ 
       model: desiredModel,
@@ -2028,7 +2044,16 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
     const startTime = Date.now();
     const result = await model.generateContent(orchestrationPrompt);
     const response = await result.response;
+    
+    if (!response) {
+      throw new Error('No response from model');
+    }
+    
     const orchestratedOutput = response.text();
+    if (!orchestratedOutput) {
+      throw new Error('Empty response from model');
+    }
+    
     const duration = Date.now() - startTime;
     
     logger.info('🎛️ AMO Orchestration complete', { 
@@ -2067,7 +2092,7 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
       }
     };
     
-    // Save to Firestore
+    // Save to Firestore (optional - don't fail if save fails)
     const db = getFirestoreDb();
     if (db) {
       try {
@@ -2088,9 +2113,11 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
         
         logger.info('💾 Master asset saved to Firestore', { userId, assetId: masterAsset.id });
       } catch (saveErr) {
-        logger.error('❌ Failed to save master asset', { error: saveErr.message });
+        logger.warn('⚠️ Failed to save master asset to Firestore', { error: saveErr.message });
         // Continue - we'll still return the result even if save failed
       }
+    } else {
+      logger.warn('⚠️ Firestore not available for saving');
     }
     
     res.json({ 
@@ -2108,11 +2135,29 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
     const msg = error?.message || String(error);
     logger.error('❌ AMO Orchestration error', { error: msg, stack: error?.stack });
     
-    if (msg.includes('429')) {
-      return res.status(429).json({ error: 'Rate limited', details: 'Please try again in a moment' });
+    // Specific error handling
+    if (msg.includes('429') || msg.includes('rate')) {
+      return res.status(429).json({ 
+        error: 'Rate limited', 
+        details: 'Please try again in a moment',
+        fallback: 'Using individual asset outputs'
+      });
     }
     
-    res.status(500).json({ error: 'Orchestration failed', details: msg });
+    if (msg.includes('API key') || msg.includes('authentication') || msg.includes('401')) {
+      return res.status(503).json({ 
+        error: 'Orchestration temporarily unavailable',
+        details: 'Authentication issue',
+        fallback: 'Using individual asset outputs'
+      });
+    }
+    
+    // Return 503 for all orchestration errors to indicate it's optional
+    res.status(503).json({ 
+      error: 'Orchestration unavailable', 
+      details: msg,
+      fallback: 'Using individual asset outputs'
+    });
   }
 });
 
