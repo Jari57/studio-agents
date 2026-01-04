@@ -785,7 +785,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     console.log('[CreateProject] Creating project with data:', newProjectData);
 
     // Check if user has enough credits
-    if (userCredits < PROJECT_CREDIT_COST) {
+    const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
+    if (currentCredits < PROJECT_CREDIT_COST) {
       toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
       setShowCreditsModal(true);
       return;
@@ -844,7 +845,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   const handleSkipWizard = (targetTab) => {
     // Check if user has enough credits
-    if (userCredits < PROJECT_CREDIT_COST) {
+    const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
+    if (currentCredits < PROJECT_CREDIT_COST) {
       toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
       setShowCreditsModal(true);
       return;
@@ -914,7 +916,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   const handleCreateProjectWithAsset = (projectName, asset) => {
     // Check if user has enough credits
-    if (userCredits < PROJECT_CREDIT_COST) {
+    const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
+    if (currentCredits < PROJECT_CREDIT_COST) {
       toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
       setShowCreditsModal(true);
       return;
@@ -924,7 +927,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       id: String(Date.now()),
       name: projectName,
       category: 'pro',
-      description: `Created from ${asset.agentName}`,
+      description: `Created from ${asset.agentName || asset.agent || 'AI Agent'}`,
       agents: [asset.agent], // Store ID string
       workflow: 'custom',
       date: new Date().toLocaleDateString(),
@@ -7689,7 +7692,7 @@ When you write a song, you create intellectual property that generates money eve
                   className="action-button primary haptic-press"
                   onClick={() => setShowProjectChoiceModal(true)}
                 >
-                  New Project ({projects.length})
+                  New Project ({projects?.length || 0})
                 </button>
               </div>
             ) : (
