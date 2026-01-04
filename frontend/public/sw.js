@@ -49,6 +49,12 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('/api/')) return;
   if (!event.request.url.startsWith('http')) return; // Skip chrome-extension://, etc.
   
+  // Skip Firebase authentication domains
+  if (event.request.url.includes('firebaseapp.com')) return;
+  if (event.request.url.includes('googleapis.com')) return;
+  if (event.request.url.includes('identitytoolkit.googleapis.com')) return;
+  if (event.request.url.includes('securetoken.googleapis.com')) return;
+  
   event.respondWith(
     fetch(event.request)
       .then((response) => {
