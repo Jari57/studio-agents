@@ -2950,232 +2950,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 </div>
               </div>
               <div className="marketing-card" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '16px' }}>
-                 <h4 style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--text-secondary)' }}>Campaign Assets</h4>
-                 
-                 {selectedProject.assets && selectedProject.assets.length > 0 ? (
-                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px', marginBottom: '12px' }}>
-                     {selectedProject.assets.map((asset, idx) => (
-                       <div 
-                         key={idx} 
-                         className="asset-card-canvas"
-                         style={{
-                           background: 'rgba(255,255,255,0.05)',
-                           borderRadius: '10px',
-                           padding: '10px',
-                           border: '1px solid rgba(255,255,255,0.1)',
-                           transition: 'all 0.2s ease',
-                           display: 'flex',
-                           flexDirection: 'column',
-                           gap: '8px',
-                           minHeight: '160px',
-                           position: 'relative'
-                         }}
-                         onMouseEnter={(e) => {
-                           e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.5)';
-                           e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                           e.currentTarget.querySelector('.asset-actions')?.style && (e.currentTarget.querySelector('.asset-actions').style.opacity = '1');
-                         }}
-                         onMouseLeave={(e) => {
-                           e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-                           e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                           e.currentTarget.querySelector('.asset-actions')?.style && (e.currentTarget.querySelector('.asset-actions').style.opacity = '0');
-                         }}
-                       >
-                         {/* Media Preview - Clickable */}
-                         <div 
-                           onClick={() => {
-                             if (asset.audioUrl || asset.imageUrl || asset.videoUrl) {
-                               const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
-                               const currentIndex = previewableAssets.findIndex(a => a.id === asset.id || (a.title === asset.title && a.type === asset.type));
-                               setShowPreview({
-                                 type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
-                                 url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                                 title: asset.title,
-                                 asset: asset,
-                                 assets: previewableAssets,
-                                 currentIndex: currentIndex >= 0 ? currentIndex : 0
-                               });
-                             }
-                           }}
-                           style={{ 
-                             flex: 1, 
-                             display: 'flex', 
-                             alignItems: 'center', 
-                             justifyContent: 'center', 
-                             background: 'rgba(0,0,0,0.3)', 
-                             borderRadius: '8px', 
-                             overflow: 'hidden', 
-                             minHeight: '70px',
-                             cursor: asset.audioUrl || asset.imageUrl || asset.videoUrl ? 'pointer' : 'default',
-                             position: 'relative'
-                           }}
-                         >
-                           {asset.imageUrl ? (
-                             <img 
-                               src={asset.imageUrl}
-                               alt={asset.title}
-                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                             />
-                           ) : asset.videoUrl ? (
-                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', gap: '4px' }}>
-                               <Video size={28} style={{ color: 'var(--color-red)' }} />
-                               <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>Video</span>
-                             </div>
-                           ) : asset.audioUrl ? (
-                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', gap: '4px' }}>
-                               <Music size={28} style={{ color: 'var(--color-purple)' }} />
-                               <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>Audio</span>
-                             </div>
-                           ) : (
-                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', gap: '4px' }}>
-                               <FileText size={28} style={{ color: 'var(--color-cyan)' }} />
-                               <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>Text</span>
-                             </div>
-                           )}
-                           {/* Play overlay for media */}
-                           {(asset.audioUrl || asset.videoUrl) && (
-                             <div style={{ 
-                               position: 'absolute', 
-                               inset: 0, 
-                               display: 'flex', 
-                               alignItems: 'center', 
-                               justifyContent: 'center',
-                               background: 'rgba(0,0,0,0.3)',
-                               opacity: 0,
-                               transition: 'opacity 0.2s'
-                             }} className="play-overlay">
-                               <Play size={24} style={{ color: 'white' }} />
-                             </div>
-                           )}
-                         </div>
-                         
-                         {/* Title & Agent */}
-                         <div style={{ padding: '0 2px' }}>
-                           <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                             {asset.title}
-                           </div>
-                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                             {asset.agent}
-                           </div>
-                         </div>
-
-                         {/* Action Buttons */}
-                         <div 
-                           className="asset-actions"
-                           style={{ 
-                             display: 'flex', 
-                             gap: '4px', 
-                             opacity: 0, 
-                             transition: 'opacity 0.2s',
-                             paddingTop: '4px',
-                             borderTop: '1px solid rgba(255,255,255,0.1)'
-                           }}
-                         >
-                           {/* Preview Button */}
-                           {(asset.audioUrl || asset.imageUrl || asset.videoUrl) && (
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
-                                 const currentIndex = previewableAssets.findIndex(a => a.id === asset.id);
-                                 setShowPreview({
-                                   type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
-                                   url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                                   title: asset.title,
-                                   asset: asset,
-                                   assets: previewableAssets,
-                                   currentIndex: currentIndex >= 0 ? currentIndex : 0
-                                 });
-                               }}
-                               title="Preview"
-                               style={{
-                                 flex: 1,
-                                 padding: '6px',
-                                 borderRadius: '6px',
-                                 border: 'none',
-                                 background: 'rgba(168, 85, 247, 0.2)',
-                                 color: 'var(--color-purple)',
-                                 cursor: 'pointer',
-                                 display: 'flex',
-                                 alignItems: 'center',
-                                 justifyContent: 'center',
-                                 gap: '4px',
-                                 fontSize: '0.7rem'
-                               }}
-                             >
-                               <Eye size={12} /> View
-                             </button>
-                           )}
-                           
-                           {/* Re-run Agent Button */}
-                           {asset.agent && asset.agent !== 'User Upload' && (
-                             <button
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 // Find the agent and open it with the asset's snippet as prompt
-                                 const agent = AGENTS.find(a => a.name === asset.agent);
-                                 if (agent) {
-                                   setSelectedAgent(agent);
-                                   setPendingPrompt(asset.snippet || asset.title);
-                                   setActiveTab('agents');
-                                   toast.success(`Opened ${agent.name} - edit prompt and regenerate!`);
-                                 }
-                               }}
-                               title="Re-run with this agent"
-                               style={{
-                                 flex: 1,
-                                 padding: '6px',
-                                 borderRadius: '6px',
-                                 border: 'none',
-                                 background: 'rgba(6, 182, 212, 0.2)',
-                                 color: 'var(--color-cyan)',
-                                 cursor: 'pointer',
-                                 display: 'flex',
-                                 alignItems: 'center',
-                                 justifyContent: 'center',
-                                 gap: '4px',
-                                 fontSize: '0.7rem'
-                               }}
-                             >
-                               <RefreshCw size={12} /> Re-run
-                             </button>
-                           )}
-                           
-                           {/* Delete Button */}
-                           <button
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               if (confirm(`Delete "${asset.title}"?`)) {
-                                 const updatedAssets = selectedProject.assets.filter((_, i) => i !== idx);
-                                 const updated = { ...selectedProject, assets: updatedAssets };
-                                 setSelectedProject(updated);
-                                 setProjects(projects.map(p => p.id === updated.id ? updated : p));
-                                 toast.success('Asset deleted');
-                               }
-                             }}
-                             title="Delete"
-                             style={{
-                               padding: '6px 8px',
-                               borderRadius: '6px',
-                               border: 'none',
-                               background: 'rgba(239, 68, 68, 0.2)',
-                               color: 'var(--color-red)',
-                               cursor: 'pointer',
-                               display: 'flex',
-                               alignItems: 'center',
-                               justifyContent: 'center'
-                             }}
-                           >
-                             <Trash2 size={12} />
-                           </button>
-                         </div>
-                       </div>
-                     ))}
-                   </div>
-                 ) : (
-                   <div className="text-muted text-sm" style={{ marginBottom: '12px' }}>No assets generated yet</div>
-                 )}
-
+                 <h4 style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--text-secondary)' }}>Quick Actions</h4>
                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                     <button 
                       className="btn-text" 
@@ -3219,6 +2994,210 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                  </div>
               </div>
             </div>
+          </div>
+          
+          {/* Project Generations Section */}
+          <div className="project-generations-section" style={{ marginTop: '32px', paddingBottom: '40px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '24px' }}>
+             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+               <h3 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                 <Layers size={20} className="text-purple" /> 
+                 Project Generations
+                 <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '12px', color: 'var(--text-secondary)' }}>
+                   {selectedProject.assets?.length || 0}
+                 </span>
+               </h3>
+               
+               <div style={{ display: 'flex', gap: '12px' }}>
+                  <button 
+                    className="btn-pill" 
+                    style={{ fontSize: '0.85rem', padding: '8px 16px' }}
+                    onClick={() => setShowOrchestrator(true)}
+                  >
+                    <Sparkles size={14} /> Generate New
+                  </button>
+               </div>
+             </div>
+             
+             {selectedProject.assets && selectedProject.assets.length > 0 ? (
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
+                 {selectedProject.assets.map((asset, idx) => (
+                   <div 
+                     key={idx} 
+                     className="asset-card-canvas"
+                     style={{
+                       background: 'rgba(255,255,255,0.03)',
+                       borderRadius: '16px',
+                       padding: '16px',
+                       border: '1px solid rgba(255,255,255,0.08)',
+                       transition: 'all 0.2s ease',
+                       display: 'flex',
+                       flexDirection: 'column',
+                       gap: '12px',
+                       position: 'relative',
+                       height: '100%'
+                     }}
+                     onMouseEnter={(e) => {
+                       e.currentTarget.style.borderColor = 'var(--color-purple)';
+                       e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                       e.currentTarget.style.transform = 'translateY(-2px)';
+                     }}
+                     onMouseLeave={(e) => {
+                       e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                       e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                       e.currentTarget.style.transform = 'translateY(0)';
+                     }}
+                   >
+                     {/* Media Preview */}
+                     <div 
+                       onClick={() => {
+                         if (asset.audioUrl || asset.imageUrl || asset.videoUrl) {
+                           const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
+                           const currentIndex = previewableAssets.findIndex(a => a.id === asset.id || (a.title === asset.title && a.type === asset.type));
+                           setShowPreview({
+                             type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
+                             url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
+                             title: asset.title,
+                             asset: asset,
+                             assets: previewableAssets,
+                             currentIndex: currentIndex >= 0 ? currentIndex : 0
+                           });
+                         }
+                       }}
+                       style={{ 
+                         width: '100%',
+                         aspectRatio: '16/9',
+                         background: 'rgba(0,0,0,0.3)', 
+                         borderRadius: '12px', 
+                         overflow: 'hidden', 
+                         cursor: asset.audioUrl || asset.imageUrl || asset.videoUrl ? 'pointer' : 'default',
+                         position: 'relative',
+                         display: 'flex',
+                         alignItems: 'center',
+                         justifyContent: 'center'
+                       }}
+                     >
+                       {asset.imageUrl ? (
+                         <img 
+                           src={asset.imageUrl}
+                           alt={asset.title}
+                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                         />
+                       ) : asset.videoUrl ? (
+                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                           <Video size={32} style={{ color: 'var(--color-red)' }} />
+                         </div>
+                       ) : asset.audioUrl ? (
+                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                           <Music size={32} style={{ color: 'var(--color-purple)' }} />
+                           <div style={{ width: '60%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
+                              <div style={{ width: '40%', height: '100%', background: 'var(--color-purple)', borderRadius: '2px' }}></div>
+                           </div>
+                         </div>
+                       ) : (
+                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                           <FileText size={32} style={{ color: 'var(--color-cyan)' }} />
+                         </div>
+                       )}
+                       
+                       {/* Type Badge */}
+                       <div style={{
+                         position: 'absolute',
+                         top: '8px',
+                         left: '8px',
+                         background: 'rgba(0,0,0,0.6)',
+                         backdropFilter: 'blur(4px)',
+                         padding: '4px 8px',
+                         borderRadius: '6px',
+                         fontSize: '0.65rem',
+                         color: 'white',
+                         display: 'flex',
+                         alignItems: 'center',
+                         gap: '4px'
+                       }}>
+                         {asset.type === 'Video' && <Video size={10} />}
+                         {asset.type === 'Audio' && <Music size={10} />}
+                         {asset.type === 'Image' && <Image size={10} />}
+                         {asset.type}
+                       </div>
+                     </div>
+                     
+                     {/* Info */}
+                     <div style={{ flex: 1 }}>
+                       <div style={{ fontSize: '0.95rem', fontWeight: '600', color: 'white', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                         {asset.title}
+                       </div>
+                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                           <User size={10} /> {asset.agent}
+                         </div>
+                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                           {asset.date}
+                         </div>
+                       </div>
+                     </div>
+
+                     {/* Actions */}
+                     <div style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                       <button
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
+                           const currentIndex = previewableAssets.findIndex(a => a.id === asset.id);
+                           setShowPreview({
+                             type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
+                             url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
+                             title: asset.title,
+                             asset: asset,
+                             assets: previewableAssets,
+                             currentIndex: currentIndex >= 0 ? currentIndex : 0
+                           });
+                         }}
+                         className="btn-icon-sm"
+                         title="View"
+                         style={{ flex: 1, background: 'rgba(255,255,255,0.05)' }}
+                       >
+                         <Eye size={14} />
+                       </button>
+                       
+                       <button
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (confirm(`Delete "${asset.title}"?`)) {
+                             const updatedAssets = selectedProject.assets.filter((_, i) => i !== idx);
+                             const updated = { ...selectedProject, assets: updatedAssets };
+                             setSelectedProject(updated);
+                             setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                             toast.success('Asset deleted');
+                           }
+                         }}
+                         className="btn-icon-sm"
+                         title="Delete"
+                         style={{ flex: 1, background: 'rgba(239, 68, 68, 0.1)', color: 'var(--color-red)' }}
+                       >
+                         <Trash2 size={14} />
+                       </button>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             ) : (
+               <div style={{ 
+                 padding: '60px', 
+                 textAlign: 'center', 
+                 background: 'rgba(255,255,255,0.02)', 
+                 borderRadius: '16px', 
+                 border: '2px dashed rgba(255,255,255,0.05)' 
+               }}>
+                 <Layers size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+                 <h3 style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>No generations yet</h3>
+                 <p style={{ color: 'var(--text-secondary)', opacity: 0.7, maxWidth: '400px', margin: '0 auto 24px auto' }}>
+                   Start by opening the Studio Orchestrator or uploading your own files.
+                 </p>
+                 <button className="btn-pill primary" onClick={() => setShowOrchestrator(true)}>
+                   <Sparkles size={16} /> Start Creating
+                 </button>
+               </div>
+             )}
           </div>
         </div>
       );
@@ -4772,7 +4751,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   </button>
                 </div>
                 
-                {/* Inventory List */}
+                {/* Inventory List (Agent History) */}
                 <div style={{ 
                   display: 'flex', 
                   flexDirection: 'column', 
@@ -4781,73 +4760,157 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   overflowY: 'auto',
                   paddingRight: '8px'
                 }}>
-                  {(projects || []).filter(p => p.agent === selectedAgent.name).length > 0 ? (
-                    (projects || []).filter(p => p.agent === selectedAgent.name).map((item) => (
-                      <div 
-                        key={item.id} 
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '14px',
-                          padding: '14px 16px',
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          borderRadius: '14px',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onMouseOver={(e) => {
-                          e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)';
-                          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
-                        }}
-                        onMouseOut={(e) => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-                        }}
-                      >
-                        {/* Preview Thumbnail */}
-                        <div style={{
-                          width: '48px',
-                          height: '48px',
-                          borderRadius: '10px',
-                          background: item.imageUrl 
-                            ? `url(${item.imageUrl}) center/cover` 
-                            : item.audioUrl
-                            ? 'linear-gradient(135deg, var(--color-cyan), var(--color-green))'
-                            : 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                          position: 'relative',
-                          overflow: 'hidden'
-                        }}>
-                          {!item.imageUrl && !item.audioUrl && <FileText size={20} style={{ color: 'white' }} />}
-                          {item.audioUrl && !item.imageUrl && <Volume2 size={20} style={{ color: 'white' }} />}
-                          {item.imageUrl && item.audioUrl && (
-                            <div style={{
-                              position: 'absolute',
-                              bottom: 0,
-                              right: 0,
-                              background: 'rgba(0,0,0,0.6)',
-                              padding: '2px',
-                              borderTopLeftRadius: '6px'
+                  {(() => {
+                    // Find all assets created by this agent across all projects
+                    const agentAssets = projects.flatMap(p => p.assets || [])
+                      .filter(a => a.agent === selectedAgent.name || a.agentId === selectedAgent.id)
+                      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+                      
+                    if (agentAssets.length > 0) {
+                      return agentAssets.map((item, idx) => (
+                        <div 
+                          key={idx} 
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '14px',
+                            padding: '14px 16px',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            borderRadius: '14px',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            transition: 'all 0.2s ease',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => setPreviewItem(item)}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)';
+                            e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                          }}
+                        >
+                          {/* Preview Thumbnail */}
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '10px',
+                            background: item.imageUrl 
+                              ? `url(${item.imageUrl}) center/cover` 
+                              : item.audioUrl
+                              ? 'linear-gradient(135deg, var(--color-cyan), var(--color-green))'
+                              : 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            position: 'relative',
+                            overflow: 'hidden'
+                          }}>
+                            {!item.imageUrl && !item.audioUrl && <FileText size={20} style={{ color: 'white' }} />}
+                            {item.audioUrl && !item.imageUrl && <Volume2 size={20} style={{ color: 'white' }} />}
+                            {item.imageUrl && item.audioUrl && (
+                              <div style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                right: 0,
+                                background: 'rgba(0,0,0,0.6)',
+                                padding: '2px',
+                                borderTopLeftRadius: '6px'
+                              }}>
+                                <Music size={12} color="white" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Content Info */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ 
+                              fontSize: '0.9rem', 
+                              fontWeight: '600', 
+                              color: 'white',
+                              marginBottom: '4px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
                             }}>
-                              <Music size={12} color="white" />
+                              {item.title || item.snippet?.substring(0, 30) || 'Untitled Creation'}
                             </div>
-                          )}
+                            <div style={{ 
+                              fontSize: '0.75rem', 
+                              color: 'var(--text-secondary)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              {item.snippet?.substring(0, 60) || 'No prompt saved'}...
+                            </div>
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '10px',
+                              marginTop: '6px'
+                            }}>
+                              <span style={{ 
+                                fontSize: '0.65rem', 
+                                color: 'var(--text-secondary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                <Clock size={10} />
+                                {item.date || 'Recent'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Action Buttons */}
+                          <div style={{ 
+                            display: 'flex', 
+                            gap: '6px',
+                            flexShrink: 0
+                          }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewItem(item);
+                              }}
+                              title="View"
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '8px',
+                                background: 'rgba(255, 255, 255, 0.1)',
+                                border: '1px solid rgba(255, 255, 255, 0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'white'
+                              }}
+                            >
+                              <Eye size={14} />
+                            </button>
+                          </div>
                         </div>
-                        
-                        {/* Audio Player for audio items */}
-                        {item.audioUrl && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginRight: '12px' }}>
-                            {item.backingTrackUrl ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <div style={{ fontSize: '0.7rem', color: 'var(--color-pink)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <Mic size={10} /> Vocals + Beat
-                                </div>
-                                <audio 
-                                  controls 
-                                  src={item.audioUrl}
+                      ));
+                    } else {
+                      return (
+                        <div style={{ 
+                          padding: '32px', 
+                          textAlign: 'center', 
+                          color: 'var(--text-secondary)',
+                          background: 'rgba(255,255,255,0.02)',
+                          borderRadius: '12px'
+                        }}>
+                          <Sparkles size={24} style={{ opacity: 0.3, marginBottom: '8px' }} />
+                          <p>No creations yet. Start generating!</p>
+                        </div>
+                      );
+                    }
+                  })()}
+                </div>
                                   style={{ height: '24px', width: '180px', borderRadius: '12px' }}
                                   onPlay={(e) => {
                                     const container = e.target.parentElement;
@@ -5732,6 +5795,335 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             setQuickWorkflowAgent={setQuickWorkflowAgent}
           />
         );
+      case 'project_canvas':
+        if (!selectedProject) {
+          // Fallback if no project selected
+          setTimeout(() => setActiveTab('hub'), 0);
+          return null;
+        }
+        
+        return (
+          <div className="project-canvas animate-fadeIn" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+            {/* Header */}
+            <div className="canvas-header" style={{ marginBottom: '32px' }}>
+              <button 
+                onClick={() => setActiveTab('hub')} 
+                className="back-btn"
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '8px', 
+                  background: 'none', border: 'none', color: 'var(--text-secondary)', 
+                  cursor: 'pointer', marginBottom: '16px', fontSize: '0.9rem'
+                }}
+              >
+                <ArrowLeft size={18} /> Back to Hub
+              </button>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                    <h1 style={{ fontSize: '2rem', fontWeight: '700', margin: 0 }}>{selectedProject.name}</h1>
+                    <span style={{ 
+                      padding: '4px 10px', borderRadius: '20px', 
+                      background: 'rgba(139, 92, 246, 0.1)', color: 'var(--color-purple)',
+                      fontSize: '0.75rem', fontWeight: '600', border: '1px solid rgba(139, 92, 246, 0.2)'
+                    }}>
+                      {selectedProject.category?.toUpperCase() || 'PROJECT'}
+                    </span>
+                  </div>
+                  <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: 0 }}>
+                    {selectedProject.description || 'No description provided.'}
+                  </p>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button 
+                    className="btn-secondary"
+                    onClick={() => setShowAddAgentModal(true)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Users size={18} /> Add Agents
+                  </button>
+                  <button 
+                    className="btn-primary"
+                    onClick={() => {
+                      // Launch first agent or show picker
+                      if (selectedProject.agents && selectedProject.agents.length > 0) {
+                        setSelectedAgent(selectedProject.agents[0]);
+                      } else {
+                        setShowAddAgentModal(true);
+                      }
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <Zap size={18} /> Open Studio
+                  </button>
+                </div>
+              </div>
+              
+              {/* Stats Bar */}
+              <div style={{ 
+                display: 'flex', gap: '24px', marginTop: '24px', 
+                padding: '16px', background: 'var(--bg-secondary)', borderRadius: '12px',
+                border: '1px solid var(--border-color)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Clock size={16} className="text-cyan" />
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    Created: <span style={{ color: 'white' }}>{selectedProject.date}</span>
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <LayoutGrid size={16} className="text-purple" />
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    Assets: <span style={{ color: 'white' }}>{selectedProject.assets?.length || 0}</span>
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={16} className="text-green" />
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    Team: <span style={{ color: 'white' }}>{selectedProject.agents?.length || 0} Agents</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Content Sections */}
+            <div className="canvas-content">
+              
+              {/* 1. Active Agents */}
+              <div style={{ marginBottom: '40px' }}>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={20} className="text-purple" /> Active Agents
+                </h3>
+                
+                {selectedProject.agents && selectedProject.agents.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
+                    {selectedProject.agents.map(agent => {
+                      const AgentIcon = agent.icon || Sparkles;
+                      return (
+                        <div 
+                          key={agent.id}
+                          onClick={() => setSelectedAgent(agent)}
+                          style={{
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '12px',
+                            padding: '16px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--color-purple)';
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--border-color)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                          }}
+                        >
+                          <div style={{ 
+                            width: '40px', height: '40px', borderRadius: '10px',
+                            background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                            <AgentIcon size={20} className="text-purple" />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: '600' }}>{agent.name}</div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{agent.category}</div>
+                          </div>
+                          <ArrowRight size={16} style={{ marginLeft: 'auto', opacity: 0.5 }} />
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Add Agent Button */}
+                    <button
+                      onClick={() => setShowAddAgentModal(true)}
+                      style={{
+                        background: 'transparent',
+                        border: '1px dashed var(--border-color)',
+                        borderRadius: '12px',
+                        padding: '16px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        color: 'var(--text-secondary)',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--color-cyan)';
+                        e.currentTarget.style.color = 'var(--color-cyan)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--border-color)';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                      }}
+                    >
+                      <Plus size={20} />
+                      <span>Add Agent</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ 
+                    padding: '32px', textAlign: 'center', background: 'var(--bg-secondary)', 
+                    borderRadius: '12px', border: '1px dashed var(--border-color)'
+                  }}>
+                    <Users size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>No agents assigned to this project yet.</p>
+                    <button className="btn-secondary" onClick={() => setShowAddAgentModal(true)}>
+                      Assign Agents
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Project Generations (Assets) */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <h3 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <LayoutGrid size={20} className="text-cyan" /> Project Generations
+                  </h3>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-icon-sm" title="Grid View"><LayoutGrid size={16} /></button>
+                    <button className="btn-icon-sm" title="List View"><List size={16} /></button>
+                  </div>
+                </div>
+
+                {selectedProject.assets && selectedProject.assets.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+                    {selectedProject.assets.map((asset, idx) => (
+                      <div 
+                        key={idx}
+                        className="asset-card"
+                        style={{
+                          background: 'var(--bg-secondary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '12px',
+                          overflow: 'hidden',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        {/* Preview Area */}
+                        <div 
+                          style={{ 
+                            height: '160px', 
+                            background: asset.imageUrl 
+                              ? `url(${asset.imageUrl}) center/cover` 
+                              : 'linear-gradient(135deg, #1e1e2e, #2d2d44)',
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          onClick={() => setPreviewItem(asset)}
+                        >
+                          {!asset.imageUrl && (
+                            asset.type === 'audio' ? <Music size={48} style={{ opacity: 0.2 }} /> :
+                            asset.type === 'video' ? <Video size={48} style={{ opacity: 0.2 }} /> :
+                            <FileText size={48} style={{ opacity: 0.2 }} />
+                          )}
+                          
+                          {/* Type Badge */}
+                          <div style={{ 
+                            position: 'absolute', top: '10px', right: '10px',
+                            padding: '4px 8px', borderRadius: '6px',
+                            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+                            fontSize: '0.7rem', fontWeight: '600', color: 'white',
+                            textTransform: 'uppercase'
+                          }}>
+                            {asset.type || 'Text'}
+                          </div>
+                          
+                          {/* Play Button Overlay */}
+                          {(asset.type === 'audio' || asset.type === 'video') && (
+                            <div className="play-overlay" style={{
+                              width: '48px', height: '48px', borderRadius: '50%',
+                              background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              cursor: 'pointer'
+                            }}>
+                              <Play size={24} fill="white" color="white" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info Area */}
+                        <div style={{ padding: '16px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-purple)', fontWeight: '600' }}>
+                              {asset.agent || 'AI Generated'}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              {asset.date || 'Just now'}
+                            </span>
+                          </div>
+                          <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {asset.title || asset.snippet?.substring(0, 30) || 'Untitled Asset'}
+                          </h4>
+                          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', height: '40px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                            {asset.snippet || asset.description || 'No description available.'}
+                          </p>
+                          
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                            <button 
+                              className="btn-secondary-sm" 
+                              style={{ flex: 1 }}
+                              onClick={() => setPreviewItem(asset)}
+                            >
+                              <Eye size={14} /> View
+                            </button>
+                            <button 
+                              className="btn-secondary-sm" 
+                              style={{ flex: 1 }}
+                              onClick={() => {
+                                // Load into editor/context
+                                if (asset.snippet) {
+                                  navigator.clipboard.writeText(asset.snippet);
+                                  toast.success('Copied to clipboard');
+                                }
+                              }}
+                            >
+                              <Copy size={14} /> Copy
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ 
+                    padding: '48px', textAlign: 'center', background: 'var(--bg-secondary)', 
+                    borderRadius: '12px', border: '1px dashed var(--border-color)'
+                  }}>
+                    <LayoutGrid size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+                    <h3 style={{ marginBottom: '8px' }}>No generations yet</h3>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                      Launch an agent to start creating content for this project.
+                    </p>
+                    <button 
+                      className="btn-primary"
+                      onClick={() => {
+                        if (selectedProject.agents && selectedProject.agents.length > 0) {
+                          setSelectedAgent(selectedProject.agents[0]);
+                        } else {
+                          setShowAddAgentModal(true);
+                        }
+                      }}
+                    >
+                      Start Creating
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
       case 'resources':
         const LEGAL_RESOURCES = [
           { 
