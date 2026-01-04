@@ -2853,60 +2853,63 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                  <h4 style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--text-secondary)' }}>Campaign Assets</h4>
                  
                  {selectedProject.assets && selectedProject.assets.length > 0 ? (
-                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px', marginBottom: '12px' }}>
                      {selectedProject.assets.map((asset, idx) => (
                        <div 
                          key={idx} 
-                         onClick={() => {
-                           // Debug: Log asset details
-                           console.log('[AssetClick] Asset:', {
-                             title: asset.title,
-                             type: asset.type,
-                             audioUrl: asset.audioUrl ? asset.audioUrl.substring(0, 50) + '...' : null,
-                             imageUrl: asset.imageUrl ? asset.imageUrl.substring(0, 50) + '...' : null,
-                             videoUrl: asset.videoUrl ? asset.videoUrl.substring(0, 50) + '...' : null
-                           });
-                           // Show asset preview modal with navigation support
-                           if (asset.audioUrl || asset.imageUrl || asset.videoUrl) {
-                             // Get all previewable assets
-                             const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
-                             const currentIndex = previewableAssets.findIndex(a => a.id === asset.id || (a.title === asset.title && a.type === asset.type));
-                             console.log('[AssetClick] Opening preview:', { type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image', totalAssets: previewableAssets.length, currentIndex });
-                             setShowPreview({
-                               type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
-                               url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                               title: asset.title,
-                               asset: asset,
-                               assets: previewableAssets,
-                               currentIndex: currentIndex >= 0 ? currentIndex : 0
-                             });
-                           }
-                         }}
+                         className="asset-card-canvas"
                          style={{
                            background: 'rgba(255,255,255,0.05)',
-                           borderRadius: '8px',
-                           padding: '8px',
+                           borderRadius: '10px',
+                           padding: '10px',
                            border: '1px solid rgba(255,255,255,0.1)',
-                           cursor: asset.audioUrl || asset.imageUrl || asset.videoUrl ? 'pointer' : 'default',
                            transition: 'all 0.2s ease',
                            display: 'flex',
                            flexDirection: 'column',
-                           gap: '6px',
-                           minHeight: '120px'
+                           gap: '8px',
+                           minHeight: '160px',
+                           position: 'relative'
                          }}
                          onMouseEnter={(e) => {
-                           if (asset.audioUrl || asset.imageUrl || asset.videoUrl) {
-                             e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
-                             e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
-                           }
+                           e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+                           e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                           e.currentTarget.querySelector('.asset-actions')?.style && (e.currentTarget.querySelector('.asset-actions').style.opacity = '1');
                          }}
                          onMouseLeave={(e) => {
                            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                           e.currentTarget.querySelector('.asset-actions')?.style && (e.currentTarget.querySelector('.asset-actions').style.opacity = '0');
                          }}
                        >
-                         {/* Media Preview */}
-                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', borderRadius: '6px', overflow: 'hidden', minHeight: '60px' }}>
+                         {/* Media Preview - Clickable */}
+                         <div 
+                           onClick={() => {
+                             if (asset.audioUrl || asset.imageUrl || asset.videoUrl) {
+                               const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
+                               const currentIndex = previewableAssets.findIndex(a => a.id === asset.id || (a.title === asset.title && a.type === asset.type));
+                               setShowPreview({
+                                 type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
+                                 url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
+                                 title: asset.title,
+                                 asset: asset,
+                                 assets: previewableAssets,
+                                 currentIndex: currentIndex >= 0 ? currentIndex : 0
+                               });
+                             }
+                           }}
+                           style={{ 
+                             flex: 1, 
+                             display: 'flex', 
+                             alignItems: 'center', 
+                             justifyContent: 'center', 
+                             background: 'rgba(0,0,0,0.3)', 
+                             borderRadius: '8px', 
+                             overflow: 'hidden', 
+                             minHeight: '70px',
+                             cursor: asset.audioUrl || asset.imageUrl || asset.videoUrl ? 'pointer' : 'default',
+                             position: 'relative'
+                           }}
+                         >
                            {asset.imageUrl ? (
                              <img 
                                src={asset.imageUrl}
@@ -2914,28 +2917,157 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                              />
                            ) : asset.videoUrl ? (
-                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                               <Video size={24} style={{ color: 'rgba(255,255,255,0.5)' }} />
+                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', gap: '4px' }}>
+                               <Video size={28} style={{ color: 'var(--color-red)' }} />
+                               <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>Video</span>
                              </div>
                            ) : asset.audioUrl ? (
-                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                               <Music size={24} style={{ color: 'rgba(255,255,255,0.5)' }} />
+                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', gap: '4px' }}>
+                               <Music size={28} style={{ color: 'var(--color-purple)' }} />
+                               <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>Audio</span>
                              </div>
                            ) : (
-                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                               <FileText size={24} style={{ color: 'rgba(255,255,255,0.5)' }} />
+                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', gap: '4px' }}>
+                               <FileText size={28} style={{ color: 'var(--color-cyan)' }} />
+                               <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>Text</span>
+                             </div>
+                           )}
+                           {/* Play overlay for media */}
+                           {(asset.audioUrl || asset.videoUrl) && (
+                             <div style={{ 
+                               position: 'absolute', 
+                               inset: 0, 
+                               display: 'flex', 
+                               alignItems: 'center', 
+                               justifyContent: 'center',
+                               background: 'rgba(0,0,0,0.3)',
+                               opacity: 0,
+                               transition: 'opacity 0.2s'
+                             }} className="play-overlay">
+                               <Play size={24} style={{ color: 'white' }} />
                              </div>
                            )}
                          </div>
                          
-                         {/* Title */}
-                         <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                           {asset.title}
+                         {/* Title & Agent */}
+                         <div style={{ padding: '0 2px' }}>
+                           <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                             {asset.title}
+                           </div>
+                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                             {asset.agent}
+                           </div>
                          </div>
-                         
-                         {/* Agent */}
-                         <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                           {asset.agent}
+
+                         {/* Action Buttons */}
+                         <div 
+                           className="asset-actions"
+                           style={{ 
+                             display: 'flex', 
+                             gap: '4px', 
+                             opacity: 0, 
+                             transition: 'opacity 0.2s',
+                             paddingTop: '4px',
+                             borderTop: '1px solid rgba(255,255,255,0.1)'
+                           }}
+                         >
+                           {/* Preview Button */}
+                           {(asset.audioUrl || asset.imageUrl || asset.videoUrl) && (
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
+                                 const currentIndex = previewableAssets.findIndex(a => a.id === asset.id);
+                                 setShowPreview({
+                                   type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
+                                   url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
+                                   title: asset.title,
+                                   asset: asset,
+                                   assets: previewableAssets,
+                                   currentIndex: currentIndex >= 0 ? currentIndex : 0
+                                 });
+                               }}
+                               title="Preview"
+                               style={{
+                                 flex: 1,
+                                 padding: '6px',
+                                 borderRadius: '6px',
+                                 border: 'none',
+                                 background: 'rgba(168, 85, 247, 0.2)',
+                                 color: 'var(--color-purple)',
+                                 cursor: 'pointer',
+                                 display: 'flex',
+                                 alignItems: 'center',
+                                 justifyContent: 'center',
+                                 gap: '4px',
+                                 fontSize: '0.7rem'
+                               }}
+                             >
+                               <Eye size={12} /> View
+                             </button>
+                           )}
+                           
+                           {/* Re-run Agent Button */}
+                           {asset.agent && asset.agent !== 'User Upload' && (
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 // Find the agent and open it with the asset's snippet as prompt
+                                 const agent = AGENTS.find(a => a.name === asset.agent);
+                                 if (agent) {
+                                   setSelectedAgent(agent);
+                                   setPromptInput(asset.snippet || asset.title);
+                                   setActiveTab('agents');
+                                   toast.success(`Opened ${agent.name} - edit prompt and regenerate!`);
+                                 }
+                               }}
+                               title="Re-run with this agent"
+                               style={{
+                                 flex: 1,
+                                 padding: '6px',
+                                 borderRadius: '6px',
+                                 border: 'none',
+                                 background: 'rgba(6, 182, 212, 0.2)',
+                                 color: 'var(--color-cyan)',
+                                 cursor: 'pointer',
+                                 display: 'flex',
+                                 alignItems: 'center',
+                                 justifyContent: 'center',
+                                 gap: '4px',
+                                 fontSize: '0.7rem'
+                               }}
+                             >
+                               <RefreshCw size={12} /> Re-run
+                             </button>
+                           )}
+                           
+                           {/* Delete Button */}
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               if (confirm(`Delete "${asset.title}"?`)) {
+                                 const updatedAssets = selectedProject.assets.filter((_, i) => i !== idx);
+                                 const updated = { ...selectedProject, assets: updatedAssets };
+                                 setSelectedProject(updated);
+                                 setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                                 toast.success('Asset deleted');
+                               }
+                             }}
+                             title="Delete"
+                             style={{
+                               padding: '6px 8px',
+                               borderRadius: '6px',
+                               border: 'none',
+                               background: 'rgba(239, 68, 68, 0.2)',
+                               color: 'var(--color-red)',
+                               cursor: 'pointer',
+                               display: 'flex',
+                               alignItems: 'center',
+                               justifyContent: 'center'
+                             }}
+                           >
+                             <Trash2 size={12} />
+                           </button>
                          </div>
                        </div>
                      ))}
@@ -10382,6 +10514,119 @@ When you write a song, you create intellectual property that generates money eve
                 ))}
               </div>
             )}
+
+            {/* Action Buttons Footer */}
+            <div style={{
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              padding: '12px 16px',
+              display: 'flex',
+              gap: '10px',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              background: 'rgba(0,0,0,0.4)'
+            }}>
+              {/* Re-run Agent Button */}
+              {showPreview.asset?.agent && showPreview.asset.agent !== 'User Upload' && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const agent = AGENTS.find(a => a.name === showPreview.asset.agent);
+                    if (agent) {
+                      setSelectedAgent(agent);
+                      setPromptInput(showPreview.asset.snippet || showPreview.title || '');
+                      setActiveTab('agents');
+                      setShowPreview(null);
+                      toast.success(`Opened ${agent.name} - edit prompt and regenerate!`);
+                    }
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, var(--color-cyan), var(--color-purple))',
+                    color: 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: '600',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  <RefreshCw size={16} /> Re-run with {showPreview.asset?.agent}
+                </button>
+              )}
+
+              {/* Use in Orchestrator Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Pass asset to orchestrator via sessionState
+                  if (selectedProject) {
+                    const asset = showPreview.asset;
+                    const updated = {
+                      ...selectedProject,
+                      sessionState: {
+                        ...selectedProject.sessionState,
+                        ...(asset?.audioUrl && { audio: { audioUrl: asset.audioUrl, title: asset.title } }),
+                        ...(asset?.imageUrl && { visual: { ...selectedProject.sessionState?.visual, imageUrl: asset.imageUrl, title: asset.title } }),
+                        ...(asset?.videoUrl && { visual: { ...selectedProject.sessionState?.visual, videoUrl: asset.videoUrl, title: asset.title } })
+                      }
+                    };
+                    setSelectedProject(updated);
+                    setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                  }
+                  setShowPreview(null);
+                  setShowOrchestrator(true);
+                  toast.success('Asset loaded into Orchestrator!');
+                }}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(168, 85, 247, 0.5)',
+                  background: 'rgba(168, 85, 247, 0.2)',
+                  color: 'var(--color-purple)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: '600',
+                  fontSize: '0.85rem'
+                }}
+              >
+                <Sparkles size={16} /> Use in Orchestrator
+              </button>
+
+              {/* Download Button (for media) */}
+              {showPreview.url && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const link = document.createElement('a');
+                    link.href = showPreview.url;
+                    link.download = showPreview.title || 'download';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    toast.success('Download started!');
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  <Download size={16} /> Download
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

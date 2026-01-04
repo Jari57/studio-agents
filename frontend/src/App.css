@@ -994,9 +994,32 @@ select optgroup {
 
 /* Asset cards in project canvas */
 .light-theme .asset-card,
+.light-theme .asset-card-canvas,
 .light-theme [style*="rgba(255,255,255,0.05)"] {
   background: var(--color-bg-secondary) !important;
   border: 1px solid var(--border-color) !important;
+}
+
+/* Asset card canvas hover effects */
+.asset-card-canvas:hover .play-overlay {
+  opacity: 1 !important;
+}
+
+.asset-card-canvas:hover .asset-actions {
+  opacity: 1 !important;
+}
+
+/* Light theme asset action buttons */
+.light-theme .asset-card-canvas button[style*="rgba(168, 85, 247, 0.2)"] {
+  background: rgba(168, 85, 247, 0.15) !important;
+}
+
+.light-theme .asset-card-canvas button[style*="rgba(6, 182, 212, 0.2)"] {
+  background: rgba(6, 182, 212, 0.15) !important;
+}
+
+.light-theme .asset-card-canvas button[style*="rgba(239, 68, 68, 0.2)"] {
+  background: rgba(239, 68, 68, 0.15) !important;
 }
 
 /* Dropdown menus and selects */
