@@ -789,7 +789,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 key={key} 
                 className={`agent-studio-card ${agent.colorClass} animate-fadeInUp haptic-press`}
                 style={{ animationDelay: `${i * 0.1}s`, position: 'relative' }}
-                onClick={onEnter}
+                onClick={() => handleCtaClick('agent')}
               >
                 {/* Whitepaper Gear Button */}
                 <button
@@ -834,7 +834,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                   className="agent-launch-btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onEnter();
+                    handleCtaClick('agent');
                   }}
                 >
                   Launch Agent
@@ -1093,7 +1093,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             Ready for the full production pipeline?
           </p>
           <button 
-            onClick={onEnter}
+            onClick={() => handleCtaClick('orchestrator')}
             className="cta-button-premium haptic-press"
             style={{ padding: '16px 32px' }}
           >
@@ -1168,7 +1168,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
           Ready to create something <span className="gradient-text-purple-pink">amazing?</span>
         </h2>
         <button
-          onClick={onEnter}
+          onClick={() => handleCtaClick('start')}
           className="cta-button-premium haptic-press"
         >
           <span>Launch Studio Now</span>
@@ -1195,7 +1195,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
 
       {/* Mobile Sticky Bottom CTA */}
       <div className="mobile-sticky-cta">
-        <button onClick={onEnter} className="sticky-cta-btn haptic-press">
+        <button onClick={() => handleCtaClick('start')} className="sticky-cta-btn haptic-press">
           <span>Launch Studio</span>
           <ArrowRight size={20} />
         </button>
@@ -1626,7 +1626,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             <div className="modal-footer" style={{ borderTop: '1px solid rgba(0, 255, 65, 0.2)' }}>
               <button 
                 className="cta-button-primary"
-                onClick={() => { setShowShowcase(false); onEnter(); }}
+                onClick={() => { setShowShowcase(false); handleCtaClick('start'); }}
                 style={{ 
                   width: '100%', 
                   justifyContent: 'center',
@@ -1855,7 +1855,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             <div className="modal-footer">
               <button 
                 className="cta-button-primary"
-                onClick={() => { setShowMarketing(false); onEnter(true); }}
+                onClick={() => { setShowMarketing(false); handleCtaClick('start'); }}
                 style={{ width: '100%', justifyContent: 'center' }}
               >
                 <Zap size={18} />
@@ -3072,7 +3072,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
               </button>
               <button 
                 className="cta-button-primary"
-                onClick={() => { setShowInvestorPitch(false); onEnter(true); }}
+                onClick={() => { setShowInvestorPitch(false); handleCtaClick('start'); }}
                 style={{ flex: 2, justifyContent: 'center' }}
               >
                 <Zap size={18} />
@@ -3679,7 +3679,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 </button>
                 <button 
                   className="cta-button-primary"
-                  onClick={() => { setShowAgentWhitepaper(false); onEnter(true); }}
+                  onClick={() => { setShowAgentWhitepaper(false); handleCtaClick('agent'); }}
                   style={{ flex: 2, justifyContent: 'center' }}
                 >
                   <Zap size={18} />
