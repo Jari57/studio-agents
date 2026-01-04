@@ -1244,56 +1244,13 @@ export default function StudioOrchestratorV2({
           ))}
         </div>
 
-        {/* 4 Generator Cards Grid - 2x2 layout */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '20px',
-          marginBottom: '24px'
-        }}>
-          {GENERATOR_SLOTS.map(slot => (
-            <GeneratorCard
-              key={slot.key}
-              slot={slot.key}
-              agentId={selectedAgents[slot.key]}
-              icon={slot.icon}
-              title={slot.title}
-              subtitle={slot.subtitle}
-              color={slot.color}
-              output={outputs[slot.key]}
-              isLoading={isGenerating && selectedAgents[slot.key]}
-              mediaType={slot.mediaType}
-              mediaUrl={
-                slot.key === 'audio' ? mediaUrls.audio :
-                slot.key === 'visual' ? mediaUrls.image :
-                slot.key === 'video' ? mediaUrls.video : null
-              }
-              onGenerateMedia={
-                slot.key === 'audio' ? handleGenerateAudio :
-                slot.key === 'visual' ? handleGenerateImage :
-                slot.key === 'video' ? handleGenerateVideo : null
-              }
-              isGeneratingMedia={
-                slot.key === 'audio' ? generatingMedia.audio :
-                slot.key === 'visual' ? generatingMedia.image :
-                slot.key === 'video' ? generatingMedia.video : false
-              }
-              onRegenerate={() => handleRegenerate(slot.key)}
-              onEdit={(text) => handleEdit(slot.key, text)}
-              onDelete={() => handleDelete(slot.key)}
-              onDownload={() => handleDownload(slot.key)}
-              onSpeak={() => speakText(outputs[slot.key], slot.key)}
-              isSpeaking={speakingSlot === slot.key}
-            />
-          ))}
-        </div>
-
         {/* Agent Selection */}
         <div style={{
           background: 'rgba(255,255,255,0.03)',
           borderRadius: '16px',
           padding: '20px',
-          border: '1px solid rgba(255,255,255,0.06)'
+          border: '1px solid rgba(255,255,255,0.06)',
+          marginBottom: '24px'
         }}>
           <div style={{ 
             display: 'flex', 
@@ -1357,6 +1314,50 @@ export default function StudioOrchestratorV2({
               </div>
             ))}
           </div>
+        </div>
+
+        {/* 4 Generator Cards Grid - 2x2 layout */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: '20px',
+          marginBottom: '24px'
+        }}>
+          {GENERATOR_SLOTS.map(slot => (
+            <GeneratorCard
+              key={slot.key}
+              slot={slot.key}
+              agentId={selectedAgents[slot.key]}
+              icon={slot.icon}
+              title={slot.title}
+              subtitle={slot.subtitle}
+              color={slot.color}
+              output={outputs[slot.key]}
+              isLoading={isGenerating && selectedAgents[slot.key]}
+              mediaType={slot.mediaType}
+              mediaUrl={
+                slot.key === 'audio' ? mediaUrls.audio :
+                slot.key === 'visual' ? mediaUrls.image :
+                slot.key === 'video' ? mediaUrls.video : null
+              }
+              onGenerateMedia={
+                slot.key === 'audio' ? handleGenerateAudio :
+                slot.key === 'visual' ? handleGenerateImage :
+                slot.key === 'video' ? handleGenerateVideo : null
+              }
+              isGeneratingMedia={
+                slot.key === 'audio' ? generatingMedia.audio :
+                slot.key === 'visual' ? generatingMedia.image :
+                slot.key === 'video' ? generatingMedia.video : false
+              }
+              onRegenerate={() => handleRegenerate(slot.key)}
+              onEdit={(text) => handleEdit(slot.key, text)}
+              onDelete={() => handleDelete(slot.key)}
+              onDownload={() => handleDownload(slot.key)}
+              onSpeak={() => speakText(outputs[slot.key], slot.key)}
+              isSpeaking={speakingSlot === slot.key}
+            />
+          ))}
         </div>
       </div>
 
