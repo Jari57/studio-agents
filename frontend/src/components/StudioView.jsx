@@ -609,6 +609,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   
   // Asset preview state - enhanced with navigation
   const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image', url, title, asset, assets, currentIndex }
+  const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
 
   // Audio Export/Mastering State
   const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
@@ -2842,6 +2843,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const renderContent = () => {
     if (activeTab === 'project_canvas' && !selectedAgent) {
       if (!selectedProject) return <div className="p-8 text-center">No project selected</div>;
+      
+      // Auto-select first asset if none selected
+      if (!canvasPreviewAsset && selectedProject.assets && selectedProject.assets.length > 0) {
+        // Use timeout to avoid render loop
+        setTimeout(() => setCanvasPreviewAsset(selectedProject.assets[0]), 0);
+      }
+
       return (
         <div className="project-canvas-view animate-fadeIn">
           <div className="canvas-header">
@@ -2859,6 +2867,115 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
               <button className="btn-pill primary" onClick={() => setActiveTab('agents')}>
                 <Zap size={16} /> Open Studio
               </button>
+            </div>
+          </div>
+
+          {/* Studio Monitor (Embedded Preview) */}
+          <div className="studio-monitor-panel" style={{ 
+            background: 'rgba(20, 20, 25, 0.6)', 
+            borderRadius: '16px', 
+            border: '1px solid rgba(255,255,255,0.1)',
+            marginBottom: '24px',
+            overflow: 'hidden',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
+          }}>
+            <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', color: 'var(--color-cyan)' }}>
+                <Activity size={18} /> Studio Monitor
+              </h3>
+              {canvasPreviewAsset ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {canvasPreviewAsset.title}
+                  </span>
+                  <span className={`badge ${canvasPreviewAsset.type === 'Audio' ? 'bg-purple' : canvasPreviewAsset.type === 'Video' ? 'bg-cyan' : 'bg-pink'}`} style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+                    {canvasPreviewAsset.type}
+                  </span>
+                </div>
+              ) : (
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>No asset selected</span>
+              )}
+            </div>
+            
+            <div style={{ minHeight: '360px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', position: 'relative' }}>
+               {canvasPreviewAsset ? (
+                 <>
+                   {canvasPreviewAsset.type === 'Video' && canvasPreviewAsset.videoUrl && (
+                     <video 
+                       src={canvasPreviewAsset.videoUrl} 
+                       controls 
+                       style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }} 
+                     />
+                   )}
+                   {canvasPreviewAsset.type === 'Image' && canvasPreviewAsset.imageUrl && (
+                     <img 
+                       src={canvasPreviewAsset.imageUrl} 
+                       alt={canvasPreviewAsset.title}
+                       style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }} 
+                     />
+                   )}
+                   {canvasPreviewAsset.type === 'Audio' && canvasPreviewAsset.audioUrl && (
+                     <div style={{ width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
+                       <div style={{ 
+                         width: '120px', 
+                         height: '120px', 
+                         borderRadius: '50%', 
+                         background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
+                         display: 'flex', 
+                         alignItems: 'center', 
+                         justifyContent: 'center',
+                         boxShadow: '0 0 40px rgba(168, 85, 247, 0.3)'
+                       }}>
+                         <Music size={48} color="white" />
+                       </div>
+                       <audio 
+                         src={canvasPreviewAsset.audioUrl} 
+                         controls 
+                         style={{ width: '100%', maxWidth: '600px' }} 
+                       />
+                     </div>
+                   )}
+                   
+                   {/* Quick Actions Overlay */}
+                   <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '8px' }}>
+                     <button 
+                       onClick={() => {
+                         const link = document.createElement('a');
+                         link.href = canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl;
+                         link.download = canvasPreviewAsset.title;
+                         document.body.appendChild(link);
+                         link.click();
+                         document.body.removeChild(link);
+                       }}
+                       className="btn-icon-circle glass"
+                       title="Download"
+                     >
+                       <Download size={18} />
+                     </button>
+                     <button 
+                       onClick={() => {
+                         setShowPreview({
+                           type: canvasPreviewAsset.type.toLowerCase(),
+                           url: canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl,
+                           title: canvasPreviewAsset.title,
+                           asset: canvasPreviewAsset,
+                           assets: selectedProject.assets,
+                           currentIndex: selectedProject.assets.findIndex(a => a.id === canvasPreviewAsset.id)
+                         });
+                       }}
+                       className="btn-icon-circle glass"
+                       title="Fullscreen"
+                     >
+                       <Maximize2 size={18} />
+                     </button>
+                   </div>
+                 </>
+               ) : (
+                 <div style={{ textAlign: 'center', color: 'var(--text-secondary)', opacity: 0.5 }}>
+                   <Activity size={48} style={{ marginBottom: '16px' }} />
+                   <p>Select an asset to preview</p>
+                 </div>
+               )}
             </div>
           </div>
 
@@ -3085,20 +3202,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                    >
                      {/* Media Preview */}
                      <div 
-                       onClick={() => {
-                         if (asset.audioUrl || asset.imageUrl || asset.videoUrl) {
-                           const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
-                           const currentIndex = previewableAssets.findIndex(a => a.id === asset.id || (a.title === asset.title && a.type === asset.type));
-                           setShowPreview({
-                             type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
-                             url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                             title: asset.title,
-                             asset: asset,
-                             assets: previewableAssets,
-                             currentIndex: currentIndex >= 0 ? currentIndex : 0
-                           });
-                         }
-                       }}
+                       onClick={() => setCanvasPreviewAsset(asset)}
                        style={{ 
                          width: '100%',
                          aspectRatio: '16/9',
@@ -3109,7 +3213,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                          position: 'relative',
                          display: 'flex',
                          alignItems: 'center',
-                         justifyContent: 'center'
+                         justifyContent: 'center',
+                         border: canvasPreviewAsset?.id === asset.id ? '2px solid var(--color-cyan)' : 'none'
                        }}
                      >
                        {asset.imageUrl ? (
@@ -3203,6 +3308,18 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                        <button
                          onClick={(e) => {
                            e.stopPropagation();
+                           setCanvasPreviewAsset(asset);
+                         }}
+                         className="btn-icon-sm"
+                         title="View in Monitor"
+                         style={{ flex: 1, background: 'rgba(255,255,255,0.05)' }}
+                       >
+                         <Activity size={14} />
+                       </button>
+                       
+                       <button
+                         onClick={(e) => {
+                           e.stopPropagation();
                            const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
                            const currentIndex = previewableAssets.findIndex(a => a.id === asset.id);
                            setShowPreview({
@@ -3215,10 +3332,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                            });
                          }}
                          className="btn-icon-sm"
-                         title="View"
+                         title="Fullscreen"
                          style={{ flex: 1, background: 'rgba(255,255,255,0.05)' }}
                        >
-                         <Eye size={14} />
+                         <Maximize2 size={14} />
                        </button>
                        
                        <button
