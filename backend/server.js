@@ -2641,10 +2641,11 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
     logger.info('Starting video generation', { promptLength: prompt.length });
 
     // 1. Try Replicate (Minimax) as Primary
-    if (process.env.REPLICATE_API_TOKEN) {
+    const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+    if (replicateKey) {
       try {
         logger.info('Trying Replicate (Minimax) as primary video generator...');
-        const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
+        const replicate = new Replicate({ auth: replicateKey });
         
         // Using Minimax Video-01 (High quality, 5s)
         const output = await replicate.run(
@@ -2674,14 +2675,14 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
         logger.error('Replicate generation failed, falling back to Veo', { error: repError.message });
       }
     } else {
-        logger.info('REPLICATE_API_TOKEN not found, skipping Replicate');
+        logger.info('REPLICATE_API_KEY not found, skipping Replicate');
     }
 
     // 2. Try Google Veo (Gemini) as Secondary
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
         // If both keys are missing, fail early
-        if (!process.env.REPLICATE_API_TOKEN) {
+        if (!replicateKey) {
             return res.status(500).json({ error: 'No video generation API keys found (Replicate or Gemini)' });
         }
     } else {
