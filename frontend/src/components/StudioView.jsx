@@ -9276,6 +9276,24 @@ When you write a song, you create intellectual property that generates money eve
               setProjects(prev => [project, ...prev]);
               setSelectedProject(project);
               setActiveTab('project_canvas');
+              
+              // Save to cloud if user is logged in
+              if (isLoggedIn && user && db) {
+                console.log('[Orchestrator] Saving project to cloud:', project.id);
+                saveProjectToCloud(user.uid, project).then(success => {
+                  if (success) {
+                    console.log('[Orchestrator] Project saved to cloud successfully');
+                  } else {
+                    console.warn('[Orchestrator] Cloud save returned false');
+                  }
+                }).catch(err => {
+                  console.error('[Orchestrator] Cloud save error:', err);
+                  toast.error('Failed to save project to cloud');
+                });
+              } else {
+                console.warn('[Orchestrator] Not saving to cloud - user not logged in');
+              }
+              
               toast.success(`Project "${project.name}" created!`);
             }}
             onUpdateCreations={(agentId, creations) => {

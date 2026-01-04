@@ -416,11 +416,12 @@ export default function StudioOrchestrator({
   const [language, setLanguage] = useState('English');
   const [style, setStyle] = useState('Modern Hip-Hop');
   const [model, setModel] = useState('Gemini 2.0 Flash');
+  // Default to the 4 free tier agents: Ghostwriter, Beat Lab, Album Artist, Video Creator
   const [selectedAgents, setSelectedAgents] = useState({
-    hook: 'ghost',
-    beat: 'beat-arch',
-    visual: 'album',
-    pitch: 'release'
+    hook: 'ghost',        // Ghostwriter - Lyrics
+    beat: 'beat',         // Beat Lab - Production  
+    visual: 'album',      // Album Artist - Visuals
+    pitch: 'video-creator' // Video Creator - Business/Video
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOrchestrating, setIsOrchestrating] = useState(false);
@@ -486,6 +487,13 @@ export default function StudioOrchestrator({
   const handleGenerate = async () => {
     if (!songIdea.trim()) return;
     
+    // Count selected agents (non-null values)
+    const activeAgentCount = Object.values(selectedAgents).filter(v => v).length;
+    if (activeAgentCount === 0) {
+      toast.error('Please select at least one agent', { duration: 3000 });
+      return;
+    }
+    
     if (!authToken) {
       toast.error('Please sign in to use the Studio Orchestrator', {
         duration: 4000,
@@ -518,31 +526,52 @@ export default function StudioOrchestrator({
     };
     const apiModel = modelMapping[model] || 'gemini-2.0-flash';
     
-    // Get selected agent objects
-    const agentHook = AGENTS.find(a => a.id === selectedAgents.hook) || AGENTS[0];
-    const agentBeat = AGENTS.find(a => a.id === selectedAgents.beat) || AGENTS[1];
-    const agentVisual = AGENTS.find(a => a.id === selectedAgents.visual) || AGENTS[2];
-    const agentPitch = AGENTS.find(a => a.id === selectedAgents.pitch) || AGENTS[3];
-
-    // Generate all text outputs in parallel
-    const prompts = {
-      hook: {
-        prompt: `Write a 4-line song hook for: "${songIdea}". Language: ${language}. Style: ${style}. Make it catchy, memorable. Just the lyrics, no explanation.`,
-        systemInstruction: `${agentHook.systemPrompt || `You are ${agentHook.name}, a ${agentHook.role || agentHook.description}.`} Write only the hook lyrics in ${language}.`
-      },
-      beat: {
-        prompt: `Describe the perfect beat/instrumental for a song about: "${songIdea}". Style: ${style}. Include BPM, key, instruments, vibe. 50 words max.`,
-        systemInstruction: `${agentBeat.systemPrompt || `You are ${agentBeat.name}, a ${agentBeat.role || agentBeat.description}.`} Describe the beat production only.`
-      },
-      visual: {
-        prompt: `Describe the music video or album cover visual concept for: "${songIdea}". Style: ${style}. Include colors, mood, setting. 50 words max.`,
-        systemInstruction: `${agentVisual.systemPrompt || `You are ${agentVisual.name}, a ${agentVisual.role || agentVisual.description}.`} Describe the visual concept only.`
-      },
-      pitch: {
-        prompt: `Write a one-paragraph elevator pitch for a song about: "${songIdea}". Language: ${language}. Style: ${style}. Make it compelling for a record label. Under 60 words.`,
-        systemInstruction: `${agentPitch.systemPrompt || `You are ${agentPitch.name}, a ${agentPitch.role || agentPitch.description}.`} Write in ${language}.`
+    // Build prompts only for selected agents (non-null)
+    const prompts = {};
+    
+    if (selectedAgents.hook) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.hook);
+      if (agent) {
+        prompts.hook = {
+          prompt: `Write a 4-line song hook for: "${songIdea}". Language: ${language}. Style: ${style}. Make it catchy, memorable. Just the lyrics, no explanation.`,
+          systemInstruction: `${agent.systemPrompt || `You are ${agent.name}, a ${agent.role || agent.description}.`} Write only the hook lyrics in ${language}.`,
+          agentName: agent.name
+        };
       }
-    };
+    }
+    
+    if (selectedAgents.beat) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.beat);
+      if (agent) {
+        prompts.beat = {
+          prompt: `Describe the perfect beat/instrumental for a song about: "${songIdea}". Style: ${style}. Include BPM, key, instruments, vibe. 50 words max.`,
+          systemInstruction: `${agent.systemPrompt || `You are ${agent.name}, a ${agent.role || agent.description}.`} Describe the beat production only.`,
+          agentName: agent.name
+        };
+      }
+    }
+    
+    if (selectedAgents.visual) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.visual);
+      if (agent) {
+        prompts.visual = {
+          prompt: `Describe the music video or album cover visual concept for: "${songIdea}". Style: ${style}. Include colors, mood, setting. 50 words max.`,
+          systemInstruction: `${agent.systemPrompt || `You are ${agent.name}, a ${agent.role || agent.description}.`} Describe the visual concept only.`,
+          agentName: agent.name
+        };
+      }
+    }
+    
+    if (selectedAgents.pitch) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.pitch);
+      if (agent) {
+        prompts.pitch = {
+          prompt: `Write a one-paragraph elevator pitch for a song about: "${songIdea}". Language: ${language}. Style: ${style}. Make it compelling for a record label. Under 60 words.`,
+          systemInstruction: `${agent.systemPrompt || `You are ${agent.name}, a ${agent.role || agent.description}.`} Write in ${language}.`,
+          agentName: agent.name
+        };
+      }
+    }
     
     try {
       const requests = Object.entries(prompts).map(async ([key, { prompt, systemInstruction }]) => {
@@ -561,49 +590,51 @@ export default function StudioOrchestrator({
       
       const results = await Promise.all(requests);
       const newOutputs = Object.fromEntries(results);
-      setOutputs(newOutputs);
+      setOutputs(prev => ({ ...prev, ...newOutputs }));
       setIsGenerating(false);
       
-      // Orchestrate with AMO (graceful fallback if unavailable)
-      setIsOrchestrating(true);
-      try {
-        const agentOutputs = [
-          { agent: 'Ghostwriter', type: 'hook', content: newOutputs.hook },
-          { agent: 'Beat Architect', type: 'beat', content: newOutputs.beat },
-          { agent: 'Visual Director', type: 'visual', content: newOutputs.visual },
-          { agent: 'Pitch Writer', type: 'pitch', content: newOutputs.pitch }
-        ];
-        
-        const orchestrateRes = await fetch(`${BACKEND_URL}/api/orchestrate`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            agentOutputs,
-            projectName: songIdea,
-            projectDescription: `Studio Orchestrator project: ${songIdea}`
-          })
-        });
-        
-        const orchestrateData = await orchestrateRes.json();
-        
-        if (orchestrateRes.ok && orchestrateData.output) {
-          console.log('✅ Master output generated by AMO');
-          setMasterOutput(orchestrateData.output);
-          toast.success('Master orchestration complete!');
-        } else if (orchestrateRes.status === 503 || orchestrateRes.status === 429) {
-          // Orchestration service unavailable or rate limited - gracefully continue
-          console.log('⚠️ AMO orchestration unavailable:', orchestrateData.error);
-          toast.info('Using individual outputs (orchestration service unavailable)');
-        } else {
-          // Other errors
-          console.error('❌ Orchestrate error:', orchestrateData);
-          toast.info('Using individual outputs');
+      // Orchestrate with AMO only if we have multiple outputs
+      const outputCount = Object.keys(newOutputs).length;
+      if (outputCount >= 2) {
+        setIsOrchestrating(true);
+        try {
+          const agentOutputs = Object.entries(newOutputs).map(([type, content]) => ({
+            agent: prompts[type]?.agentName || type,
+            type,
+            content
+          }));
+          
+          const orchestrateRes = await fetch(`${BACKEND_URL}/api/orchestrate`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              agentOutputs,
+              projectName: songIdea,
+              projectDescription: `Studio Orchestrator project: ${songIdea}`
+            })
+          });
+          
+          const orchestrateData = await orchestrateRes.json();
+          
+          if (orchestrateRes.ok && orchestrateData.output) {
+            console.log('✅ Master output generated by AMO');
+            setMasterOutput(orchestrateData.output);
+            toast.success('Master orchestration complete!');
+          } else if (orchestrateRes.status === 503 || orchestrateRes.status === 429) {
+            console.log('⚠️ AMO orchestration unavailable:', orchestrateData.error);
+            toast.info('Using individual outputs (orchestration service unavailable)');
+          } else {
+            console.error('❌ Orchestrate error:', orchestrateData);
+            toast.info('Using individual outputs');
+          }
+        } catch (err) {
+          console.error('Orchestration error:', err);
+        } finally {
+          setIsOrchestrating(false);
         }
-      } catch (err) {
-        console.error('Orchestration error:', err);
-        // Silently continue - orchestration is optional
-      } finally {
-        setIsOrchestrating(false);
+      } else {
+        // Single agent - no orchestration needed
+        toast.success(`Generated ${outputCount} output${outputCount > 1 ? 's' : ''}!`);
       }
       
     } catch (err) {
@@ -780,13 +811,14 @@ export default function StudioOrchestrator({
   const handleCreateProject = () => {
     const assets = [];
     
-    // Add text outputs as assets
-    if (outputs.hook) {
+    // Add text outputs as assets - use actual selected agent names
+    if (outputs.hook && selectedAgents.hook) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.hook);
       assets.push({
         id: String(Date.now()),
         title: 'Song Hook',
         type: 'lyrics',
-        agent: 'Ghostwriter',
+        agent: agent?.name || 'Ghostwriter',
         content: outputs.hook,
         snippet: outputs.hook.substring(0, 100),
         date: 'Just now',
@@ -794,12 +826,13 @@ export default function StudioOrchestrator({
       });
     }
     
-    if (outputs.beat) {
+    if (outputs.beat && selectedAgents.beat) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.beat);
       assets.push({
         id: String(Date.now() + 1),
         title: 'Beat Description',
         type: 'beat',
-        agent: 'Beat Architect',
+        agent: agent?.name || 'Beat Lab',
         content: outputs.beat,
         snippet: outputs.beat.substring(0, 100),
         audioUrl: mediaUrls.audio,
@@ -808,12 +841,13 @@ export default function StudioOrchestrator({
       });
     }
     
-    if (outputs.visual) {
+    if (outputs.visual && selectedAgents.visual) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.visual);
       assets.push({
         id: String(Date.now() + 2),
         title: 'Visual Concept',
         type: 'visual',
-        agent: 'Visual Director',
+        agent: agent?.name || 'Album Artist',
         content: outputs.visual,
         snippet: outputs.visual.substring(0, 100),
         imageUrl: mediaUrls.image ? `data:image/png;base64,${mediaUrls.image}` : null,
@@ -823,12 +857,13 @@ export default function StudioOrchestrator({
       });
     }
     
-    if (outputs.pitch) {
+    if (outputs.pitch && selectedAgents.pitch) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.pitch);
       assets.push({
         id: String(Date.now() + 3),
-        title: 'Industry Pitch',
+        title: 'Video/Pitch Concept',
         type: 'pitch',
-        agent: 'Pitch Writer',
+        agent: agent?.name || 'Video Creator',
         content: outputs.pitch,
         snippet: outputs.pitch.substring(0, 100),
         date: 'Just now',
@@ -850,6 +885,26 @@ export default function StudioOrchestrator({
       });
     }
     
+    // Build agent list from selected agents only
+    const usedAgents = [];
+    if (selectedAgents.hook) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.hook);
+      if (agent) usedAgents.push(agent.name);
+    }
+    if (selectedAgents.beat) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.beat);
+      if (agent) usedAgents.push(agent.name);
+    }
+    if (selectedAgents.visual) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.visual);
+      if (agent) usedAgents.push(agent.name);
+    }
+    if (selectedAgents.pitch) {
+      const agent = AGENTS.find(a => a.id === selectedAgents.pitch);
+      if (agent) usedAgents.push(agent.name);
+    }
+    if (masterOutput) usedAgents.push('AMO Orchestrator');
+    
     const project = {
       id: String(Date.now() + 5),
       name: projectName || songIdea || 'Untitled Project',
@@ -859,7 +914,7 @@ export default function StudioOrchestrator({
       style,
       model,
       date: new Date().toLocaleDateString(),
-      agents: ['Ghostwriter', 'Beat Architect', 'Visual Director', 'Pitch Writer', 'AMO Orchestrator'],
+      agents: usedAgents,
       assets,
       coverImage: mediaUrls.image ? `data:image/png;base64,${mediaUrls.image}` : null
     };
@@ -1043,22 +1098,26 @@ export default function StudioOrchestrator({
             { key: 'pitch', label: 'Business', color: '#f59e0b' }
           ].map(slot => (
             <div key={slot.key} style={{ flex: 1, minWidth: '140px' }}>
+              <label style={{ display: 'block', fontSize: '0.65rem', color: slot.color, marginBottom: '4px', fontWeight: '500' }}>
+                {slot.label}
+              </label>
               <select 
-                value={selectedAgents[slot.key]}
-                onChange={(e) => setSelectedAgents(prev => ({ ...prev, [slot.key]: e.target.value }))}
+                value={selectedAgents[slot.key] || ''}
+                onChange={(e) => setSelectedAgents(prev => ({ ...prev, [slot.key]: e.target.value || null }))}
                 style={{
                   width: '100%',
                   padding: '6px 10px',
                   borderRadius: '6px',
-                  background: 'rgba(0,0,0,0.3)',
-                  border: `1px solid ${slot.color}44`,
-                  color: 'white',
+                  background: selectedAgents[slot.key] ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)',
+                  border: `1px solid ${selectedAgents[slot.key] ? slot.color + '66' : 'rgba(255,255,255,0.1)'}`,
+                  color: selectedAgents[slot.key] ? 'white' : 'var(--text-muted)',
                   fontSize: '0.8rem',
                   outline: 'none',
                   cursor: 'pointer'
                 }}
               >
-                {AGENTS.map(agent => (
+                <option value="" style={{ background: '#1a1a1a', color: '#888' }}>— None —</option>
+                {AGENTS.filter(a => a.tier === 'free').map(agent => (
                   <option key={agent.id} value={agent.id} style={{ background: '#1a1a1a' }}>
                     {agent.name}
                   </option>
