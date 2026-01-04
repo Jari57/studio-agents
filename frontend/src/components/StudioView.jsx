@@ -3295,7 +3295,19 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                    >
                      {/* Media Preview */}
                      <div 
-                       onClick={() => setCanvasPreviewAsset(asset)}
+                       onClick={() => {
+                         // Open fullscreen preview (auto-plays audio/video)
+                         const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
+                         const currentIndex = previewableAssets.findIndex(a => a.id === asset.id);
+                         setShowPreview({
+                           type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
+                           url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
+                           title: asset.title,
+                           asset: asset,
+                           assets: previewableAssets,
+                           currentIndex: currentIndex >= 0 ? currentIndex : 0
+                         });
+                       }}
                        style={{ 
                          width: '100%',
                          aspectRatio: '16/9',
@@ -3398,6 +3410,36 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
                      {/* Actions */}
                      <div style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                       {/* Quick Play for Audio/Video */}
+                       {(asset.audioUrl || asset.videoUrl) && (
+                         <button
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
+                             const currentIndex = previewableAssets.findIndex(a => a.id === asset.id);
+                             setShowPreview({
+                               type: asset.audioUrl ? 'audio' : 'video',
+                               url: asset.audioUrl || asset.videoUrl,
+                               title: asset.title,
+                               asset: asset,
+                               assets: previewableAssets,
+                               currentIndex: currentIndex >= 0 ? currentIndex : 0
+                             });
+                           }}
+                           className="btn-icon-sm"
+                           title={asset.audioUrl ? "Play Audio" : "Play Video"}
+                           style={{ 
+                             flex: 1, 
+                             background: asset.audioUrl 
+                               ? 'rgba(168, 85, 247, 0.15)' 
+                               : 'rgba(34, 211, 238, 0.15)',
+                             color: asset.audioUrl ? 'var(--color-purple)' : 'var(--color-cyan)'
+                           }}
+                         >
+                           {asset.audioUrl ? <Volume2 size={14} /> : <Play size={14} />}
+                         </button>
+                       )}
+                       
                        <button
                          onClick={(e) => {
                            e.stopPropagation();
