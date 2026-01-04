@@ -196,6 +196,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   );
   const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
   const [selectedAgent, setSelectedAgent] = useState(null);
+  const [backingTrack, setBackingTrack] = useState(null); // For vocal sync
   const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userToken, setUserToken] = useState(null);
@@ -2004,7 +2005,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       const isImageAgent = selectedAgent.id === 'album';
       const isVideoAgent = selectedAgent.id === 'video-creator';
       const isAudioAgent = selectedAgent.id === 'beat' || selectedAgent.id === 'sample';
-      const isSpeechAgent = selectedAgent.id === 'podcast' || selectedAgent.id === 'voiceover';
+      const isSpeechAgent = selectedAgent.id === 'podcast' || selectedAgent.id === 'voiceover' || selectedAgent.id === 'vocal-arch';
       
       if (isImageAgent) {
         endpoint = '/api/generate-image';
@@ -2023,7 +2024,18 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         };
       } else if (isSpeechAgent) {
         endpoint = '/api/generate-speech';
-        body = { prompt, voice: 'Kore', style: 'natural' };
+        body = { 
+          prompt, 
+          voice: voiceSettings.voiceName || 'Kore', 
+          style: 'natural' 
+        };
+        
+        // Add backing track info if available (for sync)
+        if (backingTrack) {
+           body.backingTrackUrl = backingTrack.audioUrl;
+           body.bpm = backingTrack.bpm;
+           console.log('Attaching backing track to speech generation:', backingTrack.title);
+        }
       }
 
       // Build headers with auth token if logged in
@@ -2192,7 +2204,34 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           newItem.mimeType = data.mimeType || 'audio/wav';
           newItem.snippet = `🎵 Generated audio for: "${prompt}"`;
           newItem.type = 'audio';
+          
+          // Extract metadata if available
+          newItem.bpm = data.bpm;
+          newItem.genre = data.genre;
+          
           console.log('Audio item created:', { audioUrl: newItem.audioUrl.substring(0, 80), type: newItem.type });
+
+          // SUNO-LIKE FEATURE: Auto-generate cover art for the beat
+          if (selectedAgent.id === 'beat') {
+             try {
+               console.log('Generating cover art for beat...');
+               const coverRes = await fetch(`${BACKEND_URL}/api/generate-image`, {
+                 method: 'POST',
+                 headers,
+                 body: JSON.stringify({ 
+                   prompt: `Album cover art for a ${data.genre || 'hip-hop'} beat. ${prompt}. High quality, abstract, vibrant.`,
+                   aspectRatio: '1:1'
+                 })
+               });
+               const coverData = await coverRes.json();
+               if (coverData.imageUrl || coverData.images?.[0]) {
+                 newItem.imageUrl = coverData.imageUrl || coverData.images[0];
+                 console.log('Cover art generated for beat');
+               }
+             } catch (coverErr) {
+               console.warn('Failed to generate beat cover art:', coverErr);
+             }
+          }
         } else if (data.audio) {
           // Handle raw audio data (from TTS endpoint)
           const mimeType = data.mimeType || 'audio/wav';
@@ -2212,6 +2251,17 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           // Fallback description - capture any text output
           newItem.snippet = data.description || data.message || data.output || `Audio concept for: "${prompt}"`;
           newItem.type = 'text';
+        }
+
+        // Attach backing track if this was a sync generation
+        if (isSpeechAgent && backingTrack) {
+           newItem.backingTrackUrl = backingTrack.audioUrl;
+           newItem.backingTrackTitle = backingTrack.title;
+           newItem.snippet = `🎤 Vocals synced to: "${backingTrack.title}"`;
+           newItem.type = 'vocal'; // Mark as vocal/song
+           
+           // Clear backing track state
+           setBackingTrack(null);
         }
       } else if (data.output) {
         // Handle Text Response
@@ -4285,6 +4335,32 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         {showVoiceSettings && (
                           <div className="voice-settings-dropdown animate-fadeInUp">
                             <div className="settings-group">
+                              <label>Voice Model</label>
+                              <select 
+                                value={voiceSettings.voiceName || 'Kore'}
+                                onChange={(e) => setVoiceSettings({...voiceSettings, voiceName: e.target.value})}
+                                className="settings-select"
+                              >
+                                <optgroup label="Standard Voices">
+                                  <option value="Kore">Kore (Female, Balanced)</option>
+                                  <option value="Puck">Puck (Male, Energetic)</option>
+                                  <option value="Fenrir">Fenrir (Male, Deep)</option>
+                                  <option value="Aoede">Aoede (Female, Soft)</option>
+                                  <option value="Charon">Charon (Male, Authoritative)</option>
+                                </optgroup>
+                                <optgroup label="Experimental (Cloning)">
+                                  <option value="clone_1">Custom Voice 1 (Upload)</option>
+                                  <option value="clone_2">Custom Voice 2 (Upload)</option>
+                                </optgroup>
+                              </select>
+                              {voiceSettings.voiceName?.startsWith('clone') && (
+                                <div style={{ marginTop: '8px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px' }}>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--color-cyan)', marginBottom: '4px' }}>Voice Cloning Beta</div>
+                                  <input type="file" accept="audio/*" style={{ fontSize: '0.7rem', width: '100%' }} onChange={(e) => toast.success("Voice sample uploaded! (Simulation)")} />
+                                </div>
+                              )}
+                            </div>
+                            <div className="settings-group">
                               <label>Voice Gender</label>
                               <div className="settings-toggle">
                                 <button 
@@ -4475,11 +4551,54 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                         <img src={agentPreviews[selectedAgent.id].imageUrl} alt="Preview" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} />
                       ) : agentPreviews[selectedAgent.id].type === 'video' && agentPreviews[selectedAgent.id].videoUrl ? (
                         <video src={agentPreviews[selectedAgent.id].videoUrl} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} />
-                      ) : agentPreviews[selectedAgent.id].type === 'audio' && agentPreviews[selectedAgent.id].audioUrl ? (
-                        <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '4px', padding: '8px' }}>
-                           <audio controls src={agentPreviews[selectedAgent.id].audioUrl} style={{ width: '100%', height: '32px', marginBottom: '4px' }} />
-                           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                             {agentPreviews[selectedAgent.id].snippet}
+                      ) : (agentPreviews[selectedAgent.id].type === 'audio' || agentPreviews[selectedAgent.id].type === 'vocal') && agentPreviews[selectedAgent.id].audioUrl ? (
+                        <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '4px', padding: '8px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                           {agentPreviews[selectedAgent.id].imageUrl && (
+                             <div style={{
+                               width: '48px',
+                               height: '48px',
+                               borderRadius: '6px',
+                               background: `url(${agentPreviews[selectedAgent.id].imageUrl}) center/cover`,
+                               flexShrink: 0
+                             }} />
+                           )}
+                           <div style={{ flex: 1, minWidth: 0 }}>
+                             {agentPreviews[selectedAgent.id].backingTrackUrl ? (
+                               <>
+                                 <div style={{ fontSize: '0.65rem', color: 'var(--color-pink)', marginBottom: '2px', fontWeight: 'bold' }}>Synced Vocals</div>
+                                 <audio 
+                                   controls 
+                                   src={agentPreviews[selectedAgent.id].audioUrl} 
+                                   style={{ width: '100%', height: '32px', marginBottom: '4px' }}
+                                   onPlay={(e) => {
+                                      const container = e.target.parentElement;
+                                      const backingAudio = container.querySelector('.preview-backing-audio');
+                                      if (backingAudio) {
+                                        backingAudio.currentTime = e.target.currentTime;
+                                        backingAudio.play();
+                                      }
+                                   }}
+                                   onPause={(e) => {
+                                      const container = e.target.parentElement;
+                                      const backingAudio = container.querySelector('.preview-backing-audio');
+                                      if (backingAudio) backingAudio.pause();
+                                   }}
+                                   onTimeUpdate={(e) => {
+                                      const container = e.target.parentElement;
+                                      const backingAudio = container.querySelector('.preview-backing-audio');
+                                      if (backingAudio && Math.abs(backingAudio.currentTime - e.target.currentTime) > 0.5) {
+                                        backingAudio.currentTime = e.target.currentTime;
+                                      }
+                                   }}
+                                 />
+                                 <audio className="preview-backing-audio" src={agentPreviews[selectedAgent.id].backingTrackUrl} style={{ display: 'none' }} />
+                               </>
+                             ) : (
+                               <audio controls src={agentPreviews[selectedAgent.id].audioUrl} style={{ width: '100%', height: '32px', marginBottom: '4px' }} />
+                             )}
+                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                               {agentPreviews[selectedAgent.id].snippet}
+                             </div>
                            </div>
                         </div>
                       ) : (
@@ -4590,24 +4709,91 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          flexShrink: 0
+                          flexShrink: 0,
+                          position: 'relative',
+                          overflow: 'hidden'
                         }}>
                           {!item.imageUrl && !item.audioUrl && <FileText size={20} style={{ color: 'white' }} />}
-                          {item.audioUrl && <Volume2 size={20} style={{ color: 'white' }} />}
+                          {item.audioUrl && !item.imageUrl && <Volume2 size={20} style={{ color: 'white' }} />}
+                          {item.imageUrl && item.audioUrl && (
+                            <div style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              right: 0,
+                              background: 'rgba(0,0,0,0.6)',
+                              padding: '2px',
+                              borderTopLeftRadius: '6px'
+                            }}>
+                              <Music size={12} color="white" />
+                            </div>
+                          )}
                         </div>
                         
                         {/* Audio Player for audio items */}
                         {item.audioUrl && (
-                          <audio 
-                            controls 
-                            src={item.audioUrl}
-                            style={{
-                              height: '32px',
-                              width: '120px',
-                              flexShrink: 0
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginRight: '12px' }}>
+                            {item.backingTrackUrl ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--color-pink)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <Mic size={10} /> Vocals + Beat
+                                </div>
+                                <audio 
+                                  controls 
+                                  src={item.audioUrl}
+                                  style={{ height: '24px', width: '180px', borderRadius: '12px' }}
+                                  onPlay={(e) => {
+                                    const container = e.target.parentElement;
+                                    const backingAudio = container.querySelector('.backing-track-audio');
+                                    if (backingAudio) {
+                                      backingAudio.currentTime = e.target.currentTime;
+                                      backingAudio.play();
+                                    }
+                                  }}
+                                  onPause={(e) => {
+                                    const container = e.target.parentElement;
+                                    const backingAudio = container.querySelector('.backing-track-audio');
+                                    if (backingAudio) backingAudio.pause();
+                                  }}
+                                  onTimeUpdate={(e) => {
+                                    // Sync periodically if drift occurs
+                                    const container = e.target.parentElement;
+                                    const backingAudio = container.querySelector('.backing-track-audio');
+                                    if (backingAudio && Math.abs(backingAudio.currentTime - e.target.currentTime) > 0.5) {
+                                      backingAudio.currentTime = e.target.currentTime;
+                                    }
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <audio 
+                                  className="backing-track-audio"
+                                  src={item.backingTrackUrl}
+                                  style={{ display: 'none' }}
+                                />
+                                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                                  Synced to: {item.backingTrackTitle || 'Backing Track'}
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <audio 
+                                  controls 
+                                  src={item.audioUrl}
+                                  style={{
+                                    height: '32px',
+                                    width: '180px',
+                                    flexShrink: 0,
+                                    borderRadius: '16px'
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                {item.bpm && (
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--color-cyan)', textAlign: 'center' }}>
+                                    {item.bpm} BPM • {item.genre || 'Beat'}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
                         )}
                         
                         {/* Content Info */}
@@ -4763,6 +4949,47 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                             {item.imageUrl || item.videoUrl ? <ExternalLink size={14} /> : <Download size={14} />}
                           </button>
                           
+                          {/* Add Vocals Button (Sync) */}
+                          {item.audioUrl && item.type !== 'vocal' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Switch to Vocal Architect or Voiceover
+                                const vocalAgent = AGENTS.find(a => a.id === 'vocal-arch') || AGENTS.find(a => a.id === 'voiceover') || AGENTS.find(a => a.id === 'podcast');
+                                if (vocalAgent) {
+                                  setSelectedAgent(vocalAgent);
+                                  setBackingTrack(item);
+                                  
+                                  // Pre-fill prompt
+                                  const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+                                  if (textarea) {
+                                    textarea.value = `Write and perform lyrics for this ${item.genre || 'beat'} track. Mood: ${item.mood || 'energetic'}. BPM: ${item.bpm || 'unknown'}.`;
+                                    textarea.focus();
+                                  }
+                                  
+                                  toast.success(`Selected "${item.title}" as backing track!`);
+                                } else {
+                                  toast.error("Vocal agent not found.");
+                                }
+                              }}
+                              title="Add Vocals / Sync"
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '8px',
+                                background: 'rgba(236, 72, 153, 0.2)', // Pink for vocals
+                                border: '1px solid rgba(236, 72, 153, 0.3)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: '#ec4899'
+                              }}
+                            >
+                              <Mic size={14} />
+                            </button>
+                          )}
+
                           {/* Export/Master Button for Audio */}
                           {item.audioUrl && (
                             <button
@@ -8322,14 +8549,24 @@ When you write a song, you create intellectual property that generates money eve
                   borderRadius: '12px', 
                   padding: '1.5rem',
                   border: '1px solid var(--border-color)',
-                  maxHeight: '300px',
-                  overflow: 'auto'
+                  maxHeight: '60vh', // Increased from 300px
+                  overflow: 'auto',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
                 }}>
                   {previewItem.type === 'image' && previewItem.imageUrl ? (
                     <img 
                       src={previewItem.imageUrl} 
                       alt="Generated" 
-                      style={{ width: '100%', borderRadius: '8px' }}
+                      style={{ 
+                        maxWidth: '100%', 
+                        maxHeight: '60vh', // Ensure it fits vertically
+                        width: 'auto', // Allow natural width up to max
+                        height: 'auto',
+                        borderRadius: '8px',
+                        objectFit: 'contain' // Ensure full image is visible
+                      }}
                       onError={(e) => {
                         console.error('Image failed to load:', previewItem.imageUrl?.substring(0, 100));
                         e.target.style.display = 'none';

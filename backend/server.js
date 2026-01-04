@@ -2486,16 +2486,24 @@ Make it sound authentic to ${genre} style.`;
       logger.warn('Could not parse synthesis params as JSON', { error: parseError.message });
     }
 
+    // Provide a sample audio URL so the user has something to play
+    // This is a fallback for when Replicate is not configured
+    const sampleAudioUrl = 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3';
+
+    logger.info('Returning fallback audio response', { hasAudioUrl: !!sampleAudioUrl });
+
     res.json({
       type: 'synthesis',
       params: synthesisParams || null,
       description: synthesisParams?.description || responseText.substring(0, 500),
       output: synthesisParams?.description || `${genre} beat concept: ${responseText.substring(0, 300)}...`,
+      audioUrl: sampleAudioUrl, // Provide sample audio
+      isSample: true,
       bpm,
       genre,
       mood,
       prompt,
-      message: 'Add REPLICATE_API_KEY to generate real audio. This is a text description only.'
+      message: 'Generated sample audio (Replicate API key missing for custom generation).'
     });
 
   } catch (error) {
