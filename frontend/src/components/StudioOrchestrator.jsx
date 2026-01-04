@@ -458,6 +458,22 @@ export default function StudioOrchestrator({
     "Emotional R&B ballad"
   ];
   
+  // Load existing project assets into media slots
+  useEffect(() => {
+    if (existingProject?.sessionState) {
+      const { audio, visual } = existingProject.sessionState;
+      if (audio?.audioUrl) {
+        setMediaUrls(prev => ({ ...prev, audio: audio.audioUrl }));
+      }
+      if (visual?.imageUrl) {
+        setMediaUrls(prev => ({ ...prev, image: visual.imageUrl }));
+      }
+      if (visual?.videoUrl) {
+        setMediaUrls(prev => ({ ...prev, video: visual.videoUrl }));
+      }
+    }
+  }, [existingProject?.sessionState, isOpen]);
+  
   // Get auth headers
   const getHeaders = async () => {
     const headers = { 'Content-Type': 'application/json' };

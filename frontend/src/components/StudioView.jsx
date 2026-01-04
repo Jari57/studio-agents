@@ -9989,7 +9989,16 @@ When you write a song, you create intellectual property that generates money eve
           onClick={() => setShowPreview(null)} 
           style={{ 
             zIndex: 2000,
-            background: 'rgba(0,0,0,0.95)'
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.95)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
           }}
         >
           {/* Navigation Arrows */}
@@ -10085,15 +10094,16 @@ When you write a song, you create intellectual property that generates money eve
             className="modal-content" 
             onClick={e => e.stopPropagation()} 
             style={{ 
-              maxWidth: showPreview.type === 'image' ? '95vw' : '90vw', 
-              maxHeight: '95vh',
+              maxWidth: showPreview.type === 'image' ? '90vw' : '85vw', 
+              maxHeight: '85vh',
               width: showPreview.type === 'image' ? 'auto' : '100%',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              background: 'rgba(15,15,20,0.98)',
+              background: 'rgba(10,10,15,0.99)',
               borderRadius: '16px',
-              border: '1px solid rgba(255,255,255,0.1)'
+              border: '1px solid rgba(255,255,255,0.1)',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
             }}
           >
             {/* Header */}
@@ -10149,8 +10159,8 @@ When you write a song, you create intellectual property that generates money eve
                         });
                         setProjects(prev => prev.map(p => p.id === selectedProject.id ? {...p, sessionState: newSession} : p));
                         setShowPreview(null);
-                        setShowOrchestratorModal(true);
-                        toast?.success?.(`Added "${asset.title}" to Studio Orchestrator`) || alert(`Added "${asset.title}" to Studio Orchestrator`);
+                        setShowOrchestrator(true);
+                        toast.success(`✨ Added "${asset.title}" to Studio Orchestrator`);
                       }
                     }}
                     className="btn-pill primary"
