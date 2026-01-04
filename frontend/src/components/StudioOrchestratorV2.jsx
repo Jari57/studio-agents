@@ -1244,10 +1244,10 @@ export default function StudioOrchestratorV2({
           ))}
         </div>
 
-        {/* 4 Generator Cards Grid */}
+        {/* 4 Generator Cards Grid - 2x2 layout */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gridTemplateColumns: 'repeat(2, 1fr)',
           gap: '20px',
           marginBottom: '24px'
         }}>

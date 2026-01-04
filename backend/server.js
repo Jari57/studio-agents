@@ -358,7 +358,7 @@ const app = express();
 // Trust the first proxy (Railway load balancer)
 // Increased to 3 to handle potential multiple proxy layers in production
 app.set('trust proxy', 3); 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 //  SECURITY: Helmet.js - Set security headers
 app.use(helmet({
@@ -489,9 +489,24 @@ logger.info(`Static directory: ${staticDir}`);
 logger.info(`Dashboard path: ${dashboardPath}`);
 logger.info(`isDevelopment: ${isDevelopment}`);
 
-// In development, serve the backend dashboard at root to distinguish from frontend dev server
-if (isDevelopment && fs.existsSync(dashboardPath)) {app.use(morgan('dev'));
-
+// In development, only serve dashboard and API - frontend runs on Vite (port 5173)
+if (isDevelopment) {
+  app.use(morgan('dev'));
+  
+  // Root shows a simple API status page in dev mode
+  app.get('/', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      message: 'Studio Agents Backend API', 
+      mode: 'development',
+      endpoints: {
+        health: '/api/health',
+        dashboard: '/dashboard',
+        docs: '/api/docs'
+      },
+      frontend: 'http://localhost:5173'
+    });
+  });
 }
 
 // Always serve dashboard at /dashboard
@@ -501,15 +516,14 @@ if (fs.existsSync(dashboardPath)) {
   });
 }
 
-if (fs.existsSync(staticDir)) {
+// Only serve static files in production (Railway)
+if (!isDevelopment && fs.existsSync(staticDir)) {
   app.use(express.static(staticDir));
   
-  // In production, serve index.html at root (if not handled above)
-  if (!isDevelopment) {
-    app.get('/', (req, res) => {
-      res.sendFile(path.join(staticDir, 'index.html'));
-    });
-  }
+  // In production, serve index.html at root
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(staticDir, 'index.html'));
+  });
 }
 //  REQUEST LOGGING
 if (isDevelopment) {
