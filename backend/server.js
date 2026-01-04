@@ -2440,7 +2440,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
     
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
-    const replicateKey = process.env.REPLICATE_API_KEY;
+    const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     const geminiKey = process.env.GEMINI_API_KEY;
     
     logger.info('Generating music/beat', { prompt: prompt.substring(0, 50), bpm, genre, mood });
@@ -2459,7 +2459,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
         const startResponse = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
-            'Authorization': `Token ${replicateKey}`,
+            'Authorization': `Bearer ${replicateKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -2489,7 +2489,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
           await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds
           
           const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-            headers: { 'Authorization': `Token ${replicateKey}` }
+            headers: { 'Authorization': `Bearer ${replicateKey}` }
           });
           result = await pollResponse.json();
           logger.info('Polling Replicate...', { status: result.status, attempt: i + 1 });
