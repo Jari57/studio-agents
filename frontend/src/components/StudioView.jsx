@@ -4752,6 +4752,24 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                           {agentPreviews[selectedAgent.id].snippet}
                         </div>
                       )}
+                      
+                      <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                        <button 
+                          className="btn-pill primary" 
+                          style={{ flex: 1, fontSize: '0.75rem', justifyContent: 'center' }}
+                          onClick={() => {
+                            const asset = agentPreviews[selectedAgent.id];
+                            if (selectedProject) {
+                              handleSaveAssetToProject(selectedProject.id, asset);
+                              toast.success(`Saved to ${selectedProject.name}`);
+                            } else {
+                              handleCreateProjectWithAsset(`New ${selectedAgent.name} Project`, asset);
+                            }
+                          }}
+                        >
+                          <FolderPlus size={14} /> Save to Project
+                        </button>
+                      </div>
                     </div>
                   )}
                   
@@ -10691,6 +10709,30 @@ When you write a song, you create intellectual property that generates money eve
                           style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px', background: '#000' }}
                           controlsList="nodownload"
                         />
+                        <button 
+                          className="btn-pill primary" 
+                          style={{ width: '100%', marginTop: '8px', fontSize: '0.75rem', justifyContent: 'center' }}
+                          onClick={() => {
+                            const asset = {
+                              id: String(Date.now()),
+                              title: `${showAgentWhitePaper.title} Video`,
+                              type: 'Video',
+                              agent: showAgentWhitePaper.title,
+                              date: 'Just now',
+                              color: 'agent-pink',
+                              snippet: 'Generated Video',
+                              videoUrl: agentCreations[showAgentWhitePaper.key].video
+                            };
+                            if (selectedProject) {
+                              handleSaveAssetToProject(selectedProject.id, asset);
+                              toast.success(`Saved to ${selectedProject.name}`);
+                            } else {
+                              handleCreateProjectWithAsset(`New ${showAgentWhitePaper.title} Project`, asset);
+                            }
+                          }}
+                        >
+                          <FolderPlus size={14} /> Save
+                        </button>
                       </div>
                     )}
 
@@ -10703,6 +10745,31 @@ When you write a song, you create intellectual property that generates money eve
                           alt="Generated"
                           style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px' }}
                         />
+                        <button 
+                          className="btn-pill primary" 
+                          style={{ width: '100%', marginTop: '8px', fontSize: '0.75rem', justifyContent: 'center' }}
+                          onClick={() => {
+                            const imgUrl = agentCreations[showAgentWhitePaper.key].image.startsWith('data:') ? agentCreations[showAgentWhitePaper.key].image : `data:image/png;base64,${agentCreations[showAgentWhitePaper.key].image}`;
+                            const asset = {
+                              id: String(Date.now()),
+                              title: `${showAgentWhitePaper.title} Image`,
+                              type: 'Image',
+                              agent: showAgentWhitePaper.title,
+                              date: 'Just now',
+                              color: 'agent-purple',
+                              snippet: 'Generated Image',
+                              imageUrl: imgUrl
+                            };
+                            if (selectedProject) {
+                              handleSaveAssetToProject(selectedProject.id, asset);
+                              toast.success(`Saved to ${selectedProject.name}`);
+                            } else {
+                              handleCreateProjectWithAsset(`New ${showAgentWhitePaper.title} Project`, asset);
+                            }
+                          }}
+                        >
+                          <FolderPlus size={14} /> Save
+                        </button>
                       </div>
                     )}
 
@@ -10716,6 +10783,30 @@ When you write a song, you create intellectual property that generates money eve
                           style={{ width: '100%', height: '32px' }}
                           controlsList="nodownload"
                         />
+                        <button 
+                          className="btn-pill primary" 
+                          style={{ width: '100%', marginTop: '8px', fontSize: '0.75rem', justifyContent: 'center' }}
+                          onClick={() => {
+                            const asset = {
+                              id: String(Date.now()),
+                              title: `${showAgentWhitePaper.title} Audio`,
+                              type: 'Audio',
+                              agent: showAgentWhitePaper.title,
+                              date: 'Just now',
+                              color: 'agent-cyan',
+                              snippet: 'Generated Audio',
+                              audioUrl: agentCreations[showAgentWhitePaper.key].audio
+                            };
+                            if (selectedProject) {
+                              handleSaveAssetToProject(selectedProject.id, asset);
+                              toast.success(`Saved to ${selectedProject.name}`);
+                            } else {
+                              handleCreateProjectWithAsset(`New ${showAgentWhitePaper.title} Project`, asset);
+                            }
+                          }}
+                        >
+                          <FolderPlus size={14} /> Save
+                        </button>
                       </div>
                     )}
                   </div>
