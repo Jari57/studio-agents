@@ -10,6 +10,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const cookieParser = require('cookie-parser');
 const admin = require('firebase-admin');
+const Replicate = require('replicate');
 
 // Services
 const emailService = require('./services/emailService');
@@ -2515,112 +2516,160 @@ Make it sound authentic to ${genre} style.`;
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// VIDEO GENERATION ROUTE (Veo 3.1 Preview - Long Running Operation)
+// VIDEO GENERATION ROUTE (Multi-Model: Replicate -> Veo -> Fallback)
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
-
     logger.info('Starting video generation', { promptLength: prompt.length });
 
-    // Try Veo 2.0 as primary (more stable)
-    const modelId = "veo-2.0-generate-001";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateVideos?key=${apiKey}`;
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        prompt: prompt,
-        config: {
-          aspectRatio: "16:9",
-          durationSeconds: 5, // Shorter for faster generation
-          personGeneration: "dont_allow"
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      logger.error('Veo API error', { status: response.status, error: errorText });
-      
-      // If Veo 2.0 fails, try Veo 3.1 Preview as fallback
-      logger.info('Trying Veo 3.1 Preview as fallback...');
-      const veo3Url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:generateVideos?key=${apiKey}`;
-      const veo3Response = await fetch(veo3Url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: prompt,
-          config: {
-            aspectRatio: "16:9",
-            durationSeconds: 5,
-            personGeneration: "allow_all"
-          }
-        })
-      });
-      
-      if (!veo3Response.ok) {
-        const veo3Error = await veo3Response.text();
-        logger.error('Veo 3.1 fallback also failed', { error: veo3Error });
+    // 1. Try Replicate (Minimax) as Primary
+    if (process.env.REPLICATE_API_TOKEN) {
+      try {
+        logger.info('Trying Replicate (Minimax) as primary video generator...');
+        const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
         
-        // Fallback: Try Nano Banana (Gemini 2.5 Flash Image) to generate a visual concept
-        logger.info('Trying Nano Banana (Gemini 2.5 Flash Image) as fallback...');
-        try {
-             const nanoBananaModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
-             const result = await nanoBananaModel.generateContent({
-                contents: [{ role: 'user', parts: [{ text: prompt + " (Cinematic movie scene, high quality, 16:9)" }] }],
-                generationConfig: { responseModalities: ['IMAGE'] }
+        // Using Minimax Video-01 (High quality, 5s)
+        const output = await replicate.run(
+          "minimax/video-01",
+          {
+            input: {
+              prompt: prompt,
+              prompt_optimizer: true
+            }
+          }
+        );
+        
+        if (output) {
+             logger.info('Replicate (Minimax) generation successful');
+             // Replicate returns a URL string for this model
+             const videoUrl = String(output);
+             
+             return res.json({
+                output: videoUrl,
+                mimeType: 'video/mp4',
+                type: 'video',
+                source: 'replicate-minimax',
+                message: 'Video generated with Minimax (via Replicate)'
              });
-             const response = await result.response;
-             const parts = response.candidates?.[0]?.content?.parts || [];
-             for (const part of parts) {
-                if (part.inlineData?.mimeType?.startsWith('image/')) {
-                    logger.info('Nano Banana fallback successful');
-                    return res.json({
-                        output: part.inlineData.data,
-                        mimeType: part.inlineData.mimeType,
-                        type: 'image',
-                        source: 'nano-banana',
-                        message: 'Visual concept generated (Video unavailable)'
-                    });
-                }
-             }
-        } catch (nanoError) {
-             logger.warn('Nano Banana fallback failed', { error: nanoError.message });
         }
-
-        // Fallback: Generate a simple demo video from the prompt
-        logger.info('Generating demo video fallback...');
-        try {
-          const demoVideoUrl = generateDemoVideoUrl(prompt);
-          return res.json({ 
-            output: demoVideoUrl, 
-            mimeType: 'video/mp4', 
-            type: 'video',
-            source: 'demo',
-            message: 'Demo video preview - AI video generation requires extended API access'
-          });
-        } catch (fallbackErr) {
-          logger.error('Demo video generation also failed', { error: fallbackErr.message });
-          return res.status(503).json({ 
-            error: 'Video Generation Unavailable', 
-            details: 'Video generation models are not available. Feature coming soon.',
-            status: 503
-          });
-        }
+      } catch (repError) {
+        logger.error('Replicate generation failed, falling back to Veo', { error: repError.message });
       }
-      
-      const veo3Data = await veo3Response.json();
-      return handleVeoOperation(veo3Data, apiKey, res);
+    } else {
+        logger.info('REPLICATE_API_TOKEN not found, skipping Replicate');
     }
 
-    const operationData = await response.json();
-    return handleVeoOperation(operationData, apiKey, res);
+    // 2. Try Google Veo (Gemini) as Secondary
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+        // If both keys are missing, fail early
+        if (!process.env.REPLICATE_API_TOKEN) {
+            return res.status(500).json({ error: 'No video generation API keys found (Replicate or Gemini)' });
+        }
+    } else {
+        // Try Veo 2.0 as primary (more stable)
+        const modelId = "veo-2.0-generate-001";
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateVideos?key=${apiKey}`;
+        
+        try {
+            const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: prompt,
+                config: {
+                aspectRatio: "16:9",
+                durationSeconds: 5, // Shorter for faster generation
+                personGeneration: "dont_allow"
+                }
+            })
+            });
+
+            if (response.ok) {
+                const operationData = await response.json();
+                return handleVeoOperation(operationData, apiKey, res);
+            }
+            
+            const errorText = await response.text();
+            logger.error('Veo 2.0 API error', { status: response.status, error: errorText });
+            
+            // If Veo 2.0 fails, try Veo 3.1 Preview as fallback
+            logger.info('Trying Veo 3.1 Preview as fallback...');
+            const veo3Url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:generateVideos?key=${apiKey}`;
+            const veo3Response = await fetch(veo3Url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                prompt: prompt,
+                config: {
+                    aspectRatio: "16:9",
+                    durationSeconds: 5,
+                    personGeneration: "allow_all"
+                }
+                })
+            });
+            
+            if (veo3Response.ok) {
+                const veo3Data = await veo3Response.json();
+                return handleVeoOperation(veo3Data, apiKey, res);
+            }
+            
+            const veo3Error = await veo3Response.text();
+            logger.error('Veo 3.1 fallback also failed', { error: veo3Error });
+
+        } catch (veoError) {
+            logger.error('Veo generation error', { error: veoError.message });
+        }
+    }
+      
+    // 3. Fallback: Try Nano Banana (Gemini 2.5 Flash Image) to generate a visual concept
+    logger.info('Trying Nano Banana (Gemini 2.5 Flash Image) as fallback...');
+    try {
+            const nanoBananaModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+            const result = await nanoBananaModel.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt + " (Cinematic movie scene, high quality, 16:9)" }] }],
+            generationConfig: { responseModalities: ['IMAGE'] }
+            });
+            const response = await result.response;
+            const parts = response.candidates?.[0]?.content?.parts || [];
+            for (const part of parts) {
+            if (part.inlineData?.mimeType?.startsWith('image/')) {
+                logger.info('Nano Banana fallback successful');
+                return res.json({
+                    output: part.inlineData.data,
+                    mimeType: part.inlineData.mimeType,
+                    type: 'image',
+                    source: 'nano-banana',
+                    message: 'Visual concept generated (Video unavailable)'
+                });
+            }
+            }
+    } catch (nanoError) {
+            logger.warn('Nano Banana fallback failed', { error: nanoError.message });
+    }
+
+    // 4. Final Fallback: Generate a simple demo video from the prompt
+    logger.info('Generating demo video fallback...');
+    try {
+        const demoVideoUrl = generateDemoVideoUrl(prompt);
+        return res.json({ 
+        output: demoVideoUrl, 
+        mimeType: 'video/mp4', 
+        type: 'video',
+        source: 'demo',
+        message: 'Demo video preview - AI video generation requires extended API access'
+        });
+    } catch (fallbackErr) {
+        logger.error('Demo video generation also failed', { error: fallbackErr.message });
+        return res.status(503).json({ 
+        error: 'Video Generation Unavailable', 
+        details: 'Video generation models are not available. Feature coming soon.',
+        status: 503
+        });
+    }
 
   } catch (error) {
     logger.error('Video generation error', { error: error.message });
