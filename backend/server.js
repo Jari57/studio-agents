@@ -2443,7 +2443,14 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     const geminiKey = process.env.GEMINI_API_KEY;
     
-    logger.info('Generating music/beat', { prompt: prompt.substring(0, 50), bpm, genre, mood });
+    logger.info('Generating music/beat', { 
+      prompt: prompt.substring(0, 50), 
+      bpm, 
+      genre, 
+      mood,
+      hasReplicateKey: !!replicateKey,
+      replicateKeyPrefix: replicateKey ? replicateKey.substring(0, 8) : 'none'
+    });
 
     // ═══════════════════════════════════════════════════════════════════
     // OPTION 1: Replicate MusicGen (Real Audio Generation)
@@ -2476,15 +2483,25 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
 
         if (!startResponse.ok) {
           const errText = await startResponse.text();
-          throw new Error(`Replicate API error: ${errText}`);
+          logger.error('Replicate API returned error', { 
+            status: startResponse.status, 
+            statusText: startResponse.statusText,
+            error: errText.substring(0, 200)
+          });
+          
+          // Check for billing/credit issues
+          if (startResponse.status === 402) {
+            throw new Error('Replicate billing: Add credits at replicate.com/account/billing');
+          }
+          throw new Error(`Replicate API error: ${startResponse.status} - ${errText.substring(0, 100)}`);
         }
 
         const prediction = await startResponse.json();
         logger.info('Replicate prediction started', { id: prediction.id });
 
-        // Poll for completion (max 60 seconds)
+        // Poll for completion (max 3 minutes for cold starts)
         let result = prediction;
-        const maxAttempts = 30;
+        const maxAttempts = 90;
         for (let i = 0; i < maxAttempts && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
           await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds
           
@@ -2492,27 +2509,42 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
             headers: { 'Authorization': `Bearer ${replicateKey}` }
           });
           result = await pollResponse.json();
-          logger.info('Polling Replicate...', { status: result.status, attempt: i + 1 });
+          
+          // Only log every 5th attempt to reduce noise
+          if (i % 5 === 0) {
+            logger.info('Polling Replicate...', { status: result.status, attempt: i + 1 });
+          }
         }
 
         if (result.status === 'succeeded' && result.output) {
-          logger.info('MusicGen audio generated successfully');
+          logger.info('MusicGen audio generated successfully', { 
+            audioUrl: result.output.substring(0, 80),
+            duration: durationSeconds
+          });
           return res.json({
             audioUrl: result.output,
             mimeType: 'audio/mpeg',
             duration: durationSeconds,
             source: 'musicgen',
-            prompt: musicPrompt
+            prompt: musicPrompt,
+            isRealGeneration: true // Flag to distinguish from samples
           });
         } else if (result.status === 'failed') {
+          logger.error('MusicGen generation failed', { error: result.error, resultId: result.id });
           throw new Error(result.error || 'MusicGen generation failed');
         } else {
+          logger.error('MusicGen generation timed out', { status: result.status, resultId: result.id });
           throw new Error('MusicGen generation timed out');
         }
       } catch (replicateError) {
-        logger.warn('Replicate MusicGen failed, falling back', { error: replicateError.message });
+        logger.warn('Replicate MusicGen failed, falling back to samples', { 
+          error: replicateError.message,
+          stack: replicateError.stack?.substring(0, 200)
+        });
         // Fall through to Gemini fallback
       }
+    } else {
+      logger.warn('Replicate API key not configured, using sample fallback');
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -2559,24 +2591,37 @@ Make it sound authentic to ${genre} style.`;
       logger.warn('Could not parse synthesis params as JSON', { error: parseError.message });
     }
 
-    // Provide a sample audio URL so the user has something to play
-    // This is a fallback for when Replicate is not configured
-    const sampleAudioUrl = 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3';
+    // Generate unique mock audio URLs based on the prompt
+    // This provides variety while Replicate is not configured
+    const sampleAudios = [
+      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3',
+      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Shipping_Lanes.mp3',
+      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Komiku/Captain_Readme/Komiku_-_01_-_Ancient_Heavy_Tech_Donjon.mp3',
+      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/BoxCat_Games/Nameless_the_Hackers_RPG_Soundtrack/BoxCat_Games_-_10_-_Epic_Song.mp3',
+      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Scott_Holmes/Inspiring__Upbeat_Music/Scott_Holmes_-_Upbeat_Party.mp3',
+      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/Music_for_Video/Kevin_MacLeod/Jazz___Experimental/Kevin_MacLeod_-_Cipher.mp3'
+    ];
+    
+    // Select a sample based on prompt hash for consistency (same prompt = same sample)
+    const promptHash = prompt.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const sampleAudioUrl = sampleAudios[promptHash % sampleAudios.length];
 
-    logger.info('Returning fallback audio response', { hasAudioUrl: !!sampleAudioUrl });
+    logger.info('Returning fallback audio response', { hasAudioUrl: !!sampleAudioUrl, sample: promptHash % sampleAudios.length });
 
     res.json({
       type: 'synthesis',
       params: synthesisParams || null,
       description: synthesisParams?.description || responseText.substring(0, 500),
       output: synthesisParams?.description || `${genre} beat concept: ${responseText.substring(0, 300)}...`,
-      audioUrl: sampleAudioUrl, // Provide sample audio
+      audioUrl: sampleAudioUrl, // Provide varied sample audio
       isSample: true,
+      isRealGeneration: false,
       bpm,
       genre,
       mood,
       prompt,
-      message: 'Generated sample audio (Replicate API key missing for custom generation).'
+      message: '⚠️ Replicate credits needed. Add billing at replicate.com/account/billing to generate custom AI beats.',
+      billingUrl: 'https://replicate.com/account/billing#billing'
     });
 
   } catch (error) {

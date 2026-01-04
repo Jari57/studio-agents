@@ -843,15 +843,19 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     console.log('[CreateProject] Selected project set:', newProject.id);
     
     // Save to cloud if logged in
-    if (user && db) {
-      console.log('[CreateProject] Saving to cloud for user:', user.uid);
+    console.log('[CreateProject] Auth check - isLoggedIn:', isLoggedIn, 'user:', !!user, 'DB:', !!db);
+    if (isLoggedIn && user && db) {
+      console.log('[CreateProject] Saving to cloud for user:', user.uid, user.email);
       saveProjectToCloud(user.uid, newProject).then(success => {
         console.log('[CreateProject] Cloud save result:', success);
       }).catch(err => {
         console.error('[CreateProject] Cloud save error:', err);
       });
     } else {
-      console.log('[CreateProject] Not saving to cloud. User:', !!user, 'DB:', !!db);
+      console.warn('[CreateProject] NOT saving to cloud. isLoggedIn:', isLoggedIn, 'user:', !!user, 'user.uid:', user?.uid, 'DB:', !!db);
+      if (isLoggedIn && !user) {
+        console.error('[CreateProject] RACE CONDITION: isLoggedIn is true but user is null!');
+      }
     }
     
     toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
@@ -1047,9 +1051,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (auth) {
       const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         if (currentUser) {
-          setIsLoggedIn(true);
+          // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
+          // where isLoggedIn=true but user=null
           setUser(currentUser);
           localStorage.setItem('studio_user_id', currentUser.uid);
+          setIsLoggedIn(true); // Set this LAST after user is set
           
           // Get and store token
           try {
@@ -1098,11 +1104,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             }
           }
         } else {
-          setIsLoggedIn(false);
+          // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
           setUser(null);
           setUserToken(null);
           setUserCredits(3); // Reset to trial
           localStorage.removeItem('studio_user_id');
+          setIsLoggedIn(false); // Set this LAST after user is cleared
         }
       });
       return () => unsubscribe();
@@ -1262,8 +1269,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     if (auth) {
       await signOut(auth);
     }
-    setIsLoggedIn(false);
+    // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
+    setUser(null);
+    setUserToken(null);
+    setUserCredits(3);
     localStorage.removeItem('studio_user_id');
+    setIsLoggedIn(false); // Set this LAST
     setActiveTab('landing'); 
     onBack(); 
   };
@@ -2302,7 +2313,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           audioUrlPrefix: data.audioUrl?.substring(0, 50),
           hasAudio: !!data.audio, 
           mimeType: data.mimeType,
-          source: data.source
+          source: data.source,
+          isRealGeneration: data.isRealGeneration,
+          isSample: data.isSample
         });
         
         if (data.audioUrl) {
@@ -2317,14 +2330,36 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           }
           
           newItem.mimeType = data.mimeType || 'audio/wav';
-          newItem.snippet = `🎵 Generated audio for: "${prompt}"`;
+          
+          // Show appropriate message based on whether it's real AI generation or sample
+          if (data.isRealGeneration) {
+            newItem.snippet = `🎵 AI Generated Beat: "${prompt}"`;
+            toast.success('Beat generated with MusicGen AI!');
+          } else if (data.isSample) {
+            newItem.snippet = `🎵 Sample Beat (Preview)`;
+            newItem.billingMessage = data.message;
+            toast.info(data.message || 'Using sample - configure Replicate for custom beats', { 
+              duration: 5000,
+              icon: '⚠️'
+            });
+          } else {
+            newItem.snippet = `🎵 Generated audio for: "${prompt}"`;
+          }
+          
           newItem.type = 'audio';
+          newItem.isRealGeneration = data.isRealGeneration;
+          newItem.isSample = data.isSample;
           
           // Extract metadata if available
           newItem.bpm = data.bpm;
           newItem.genre = data.genre;
           
-          console.log('Audio item created:', { audioUrl: newItem.audioUrl.substring(0, 80), type: newItem.type });
+          console.log('Audio item created:', { 
+            audioUrl: newItem.audioUrl.substring(0, 80), 
+            type: newItem.type,
+            isReal: data.isRealGeneration,
+            isSample: data.isSample
+          });
 
           // SUNO-LIKE FEATURE: Auto-generate cover art for the beat
           if (selectedAgent.id === 'beat') {
