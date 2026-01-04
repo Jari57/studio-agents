@@ -2558,6 +2558,32 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
         const veo3Error = await veo3Response.text();
         logger.error('Veo 3.1 fallback also failed', { error: veo3Error });
         
+        // Fallback: Try Nano Banana (Gemini 2.5 Flash Image) to generate a visual concept
+        logger.info('Trying Nano Banana (Gemini 2.5 Flash Image) as fallback...');
+        try {
+             const nanoBananaModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+             const result = await nanoBananaModel.generateContent({
+                contents: [{ role: 'user', parts: [{ text: prompt + " (Cinematic movie scene, high quality, 16:9)" }] }],
+                generationConfig: { responseModalities: ['IMAGE'] }
+             });
+             const response = await result.response;
+             const parts = response.candidates?.[0]?.content?.parts || [];
+             for (const part of parts) {
+                if (part.inlineData?.mimeType?.startsWith('image/')) {
+                    logger.info('Nano Banana fallback successful');
+                    return res.json({
+                        output: part.inlineData.data,
+                        mimeType: part.inlineData.mimeType,
+                        type: 'image',
+                        source: 'nano-banana',
+                        message: 'Visual concept generated (Video unavailable)'
+                    });
+                }
+             }
+        } catch (nanoError) {
+             logger.warn('Nano Banana fallback failed', { error: nanoError.message });
+        }
+
         // Fallback: Generate a simple demo video from the prompt
         logger.info('Generating demo video fallback...');
         try {
@@ -2592,26 +2618,20 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
   }
 });
 
-// Demo video URL generator - creates a Data URL MP4 video preview
+// Demo video URL generator - returns a sample video URL for testing
 function generateDemoVideoUrl(prompt) {
-  // Create a simple MP4 video as a base64 data URL
-  // This is a minimal 1-frame MP4 file (~600 bytes) with the prompt as context
-  const minimalMp4 = Buffer.from([
-    0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0x00, 0x00, 0x02, 0x00,
-    0x69, 0x73, 0x6f, 0x6d, 0x69, 0x73, 0x6f, 0x32, 0x6d, 0x70, 0x34, 0x31, 0x6d, 0x70, 0x34, 0x32,
-    0x00, 0x00, 0x00, 0x08, 0x77, 0x69, 0x64, 0x65, 0x00, 0x00, 0x00, 0x00, 0x08, 0xae, 0x6d, 0x64,
-    0x61, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-  ]);
+  // Use a reliable public sample video (Big Buck Bunny or similar)
+  // This ensures the player controls (play, seek, fullscreen) work correctly
+  // instead of a 1-frame static blob.
+  const sampleVideos = [
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
+  ];
   
-  const base64 = minimalMp4.toString('base64');
-  const dataUrl = `data:video/mp4;base64,${base64}`;
-  
-  logger.debug('Generated demo video URL for prompt', { promptLength: prompt.length });
-  return dataUrl;
+  // Pick one based on prompt length to be deterministic but varied
+  const index = prompt.length % sampleVideos.length;
+  return sampleVideos[index];
 }
 
 // Helper function to handle Veo long-running operation polling

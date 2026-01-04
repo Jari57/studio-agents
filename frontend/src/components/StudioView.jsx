@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Maximize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3
 } from 'lucide-react';
 
 // Alias for clarity and to avoid potential minification issues
@@ -482,6 +482,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewItem, setPreviewItem] = useState(null);
   const [previewPrompt, setPreviewPrompt] = useState('');
+  const [agentPreviews, setAgentPreviews] = useState({}); // Cache last generation per agent
   
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -2129,12 +2130,20 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             newItem.snippet = `🎨 Generated artwork for: "${prompt}"`;
             newItem.type = 'image';
         }
-      } else if (selectedAgent.id === 'video-creator' && (data.predictions || data.video || (data.output && data.type === 'video'))) {
+      } else if (selectedAgent.id === 'video-creator' && (data.predictions || data.video || (data.output && (data.type === 'video' || data.type === 'image')))) {
         // Handle Video Response (Veo) - multiple response formats
         console.log('Video response received:', { hasOutput: !!data.output, type: data.type, hasPredictions: !!data.predictions });
         
+        // Handle Nano Banana Fallback (Image instead of Video)
+        if (data.type === 'image' && data.output) {
+           const base64Image = data.output;
+           const mimeType = data.mimeType || 'image/png';
+           newItem.imageUrl = base64Image.startsWith('data:') ? base64Image : `data:${mimeType};base64,${base64Image}`;
+           newItem.snippet = `🎨 Generated visual concept for: "${prompt}" (Video unavailable)`;
+           newItem.type = 'image';
+        }
         // Check for direct output URL first (most common from backend)
-        if (data.output && typeof data.output === 'string') {
+        else if (data.output && typeof data.output === 'string') {
           if (data.output.startsWith('data:')) {
             newItem.videoUrl = data.output;
           } else if (data.output.startsWith('http')) {
@@ -2244,6 +2253,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       // Show preview modal instead of auto-saving
       setPreviewItem(newItem);
       setPreviewPrompt(prompt);
+      setAgentPreviews(prev => ({ ...prev, [selectedAgent.id]: newItem }));
       toast.success(`Generation complete! Review your result.`, { id: toastId });
       
       // Track successful generation
@@ -2259,7 +2269,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   };
 
   // Save the previewed item to projects
-  const handleSavePreview = async () => {
+  const handleSavePreview = async (destination = 'hub') => {
     if (!previewItem) return;
     
     // Ensure agent field is set
@@ -2331,8 +2341,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     toast.success('Saved to your Hub!');
     setPreviewItem(null);
     setPreviewPrompt('');
-    setActiveTab('hub');
-    setSelectedAgent(null);
+    setActiveTab(destination);
+    if (destination === 'hub') {
+      setSelectedAgent(null);
+    }
   };
 
   // Discard the preview and go back to agent
@@ -4402,18 +4414,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   <div className="generation-actions">
                     <button 
                       className="cta-button-secondary"
-                      onClick={() => {
-                        // Simulate preview generation
-                        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-                        if (textarea && textarea.value) {
-                          // Just a visual feedback for now
-                          textarea.style.borderColor = 'var(--color-cyan)';
-                          setTimeout(() => textarea.style.borderColor = '', 500);
-                        } else {
-                          // Focus if empty
-                          if (textarea) textarea.focus();
-                        }
-                      }}
+                      onClick={handleGenerate}
+                      disabled={isGenerating}
+                      title="Generate a preview"
                     >
                       <Play size={16} />
                       Preview
@@ -4445,6 +4448,47 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       <span>Save to Cloud</span>
                     </button>
                   </div>
+
+                  {/* Inline Preview of Last Generation */}
+                  {agentPreviews[selectedAgent.id] && (
+                    <div className="agent-preview-mini animate-fadeIn" style={{ marginTop: '16px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600' }}>Last Generated</span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {/* TTS Button for Text/Lyrics */}
+                          {(!agentPreviews[selectedAgent.id].type || agentPreviews[selectedAgent.id].type === 'text') && (
+                             <button 
+                               onClick={() => handleTextToVoice(agentPreviews[selectedAgent.id].snippet)} 
+                               style={{ background: 'none', border: 'none', color: 'var(--color-purple)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                               title="Read out loud"
+                             >
+                               <Volume2 size={12} /> Listen
+                             </button>
+                          )}
+                          <button onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Maximize2 size={12} /> View Full
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {agentPreviews[selectedAgent.id].type === 'image' && agentPreviews[selectedAgent.id].imageUrl ? (
+                        <img src={agentPreviews[selectedAgent.id].imageUrl} alt="Preview" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} />
+                      ) : agentPreviews[selectedAgent.id].type === 'video' && agentPreviews[selectedAgent.id].videoUrl ? (
+                        <video src={agentPreviews[selectedAgent.id].videoUrl} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} />
+                      ) : agentPreviews[selectedAgent.id].type === 'audio' && agentPreviews[selectedAgent.id].audioUrl ? (
+                        <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '4px', padding: '8px' }}>
+                           <audio controls src={agentPreviews[selectedAgent.id].audioUrl} style={{ width: '100%', height: '32px', marginBottom: '4px' }} />
+                           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                             {agentPreviews[selectedAgent.id].snippet}
+                           </div>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', maxHeight: '80px', overflow: 'hidden' }}>
+                          {agentPreviews[selectedAgent.id].snippet}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   <p className="studio-disclaimer">
                     <Shield size={12} />
@@ -8322,8 +8366,30 @@ When you write a song, you create intellectual property that generates money eve
                       )}
                     </div>
                   ) : (
-                    <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--text-primary)' }}>
-                      {previewItem.snippet || previewItem.title || 'No content generated'}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <button 
+                          onClick={() => handleTextToVoice(previewItem.snippet || previewItem.title)} 
+                          style={{ 
+                            background: 'rgba(139, 92, 246, 0.1)', 
+                            border: '1px solid rgba(139, 92, 246, 0.2)', 
+                            color: 'var(--color-purple)', 
+                            fontSize: '0.8rem', 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '6px',
+                            padding: '6px 12px',
+                            borderRadius: '20px'
+                          }}
+                          title="Read out loud"
+                        >
+                          <Volume2 size={14} /> Listen to Text
+                        </button>
+                      </div>
+                      <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--text-primary)' }}>
+                        {previewItem.snippet || previewItem.title || 'No content generated'}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -8396,7 +8462,25 @@ When you write a song, you create intellectual property that generates money eve
                   {isGenerating ? 'Generating...' : 'Regenerate'}
                 </button>
                 <button 
-                  onClick={handleSavePreview}
+                  onClick={() => handleSavePreview('project_canvas')}
+                  style={{ 
+                    flex: 1, 
+                    padding: '0.75rem', 
+                    borderRadius: '8px', 
+                    border: '1px solid var(--border-color)',
+                    background: 'rgba(139, 92, 246, 0.1)',
+                    color: 'var(--color-purple)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <Edit3 size={16} /> Edit
+                </button>
+                <button 
+                  onClick={() => handleSavePreview('hub')}
                   className="cta-button-premium"
                   style={{ 
                     flex: 1.5, 
@@ -8407,7 +8491,7 @@ When you write a song, you create intellectual property that generates money eve
                     gap: '0.5rem'
                   }}
                 >
-                  <Save size={16} /> Save to Hub
+                  <Save size={16} /> {selectedProject ? 'Save to Project' : 'Save to Hub'}
                 </button>
               </div>
             </div>
@@ -10467,6 +10551,7 @@ When you write a song, you create intellectual property that generates money eve
                   src={showPreview.url}
                   controls
                   autoPlay
+                  playsInline
                   style={{ 
                     width: '100%', 
                     maxWidth: '100%', 
@@ -10474,7 +10559,6 @@ When you write a song, you create intellectual property that generates money eve
                     objectFit: 'contain',
                     borderRadius: '8px'
                   }}
-                  controlsList="nodownload"
                 />
               )}
             </div>
