@@ -781,13 +781,22 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const PROJECT_CREDIT_COST = 2;
 
   const handleCreateProject = () => {
-    if (!newProjectData.name || !newProjectData.category) return;
+    console.log('[CreateProject] Starting with data:', newProjectData);
+    console.log('[CreateProject] Current credits:', userCredits, 'Required:', PROJECT_CREDIT_COST);
+    console.log('[CreateProject] User:', user?.email, 'DB initialized:', !!db);
     
-    console.log('[CreateProject] Creating project with data:', newProjectData);
+    if (!newProjectData.name || !newProjectData.category) {
+      console.error('[CreateProject] Missing required fields:', { name: newProjectData.name, category: newProjectData.category });
+      toast.error('Please fill in project name and category');
+      return;
+    }
 
     // Check if user has enough credits
     const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
+    console.log('[CreateProject] Credit check - Current:', currentCredits, 'Cost:', PROJECT_CREDIT_COST);
+    
     if (currentCredits < PROJECT_CREDIT_COST) {
+      console.error('[CreateProject] Insufficient credits');
       toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
       setShowCreditsModal(true);
       return;
@@ -797,33 +806,55 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       id: String(Date.now()),
       name: newProjectData.name,
       category: newProjectData.category,
-      description: newProjectData.description,
-      language: newProjectData.language,
-      style: newProjectData.style,
-      model: newProjectData.model,
-      agents: newProjectData.selectedAgents,
+      description: newProjectData.description || '',
+      language: newProjectData.language || 'English',
+      style: newProjectData.style || 'Modern Hip-Hop',
+      model: newProjectData.model || 'Gemini 2.0 Flash',
+      agents: newProjectData.selectedAgents || [],
       workflow: newProjectData.workflow || 'custom',
-      socialHandle: newProjectData.socialHandle,
-      socialBio: newProjectData.socialBio,
-      socialPlatform: newProjectData.socialPlatform,
+      socialHandle: newProjectData.socialHandle || '',
+      socialBio: newProjectData.socialBio || '',
+      socialPlatform: newProjectData.socialPlatform || 'instagram',
       date: new Date().toLocaleDateString(),
       status: 'Active',
       progress: 0,
       assets: [], // Store generated content here
       context: {} // Shared context for MAS
     };
+    
+    console.log('[CreateProject] New project object created:', newProject);
 
     // Deduct credits
-    setUserCredits(prev => prev - PROJECT_CREDIT_COST);
-    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
-
-    setProjects(prev => [newProject, ...prev]);
+    console.log('[CreateProject] Deducting credits...');
+    setUserCredits(prev => {
+      const newCredits = prev - PROJECT_CREDIT_COST;
+      console.log('[CreateProject] Credits updated:', prev, '->', newCredits);
+      return newCredits;
+    });
+    
+    console.log('[CreateProject] Adding project to state...');
+    setProjects(prev => {
+      const newProjects = [newProject, ...prev];
+      console.log('[CreateProject] Projects updated. Total:', newProjects.length);
+      return newProjects;
+    });
+    
     setSelectedProject(newProject); // Auto-select the new project
+    console.log('[CreateProject] Selected project set:', newProject.id);
     
     // Save to cloud if logged in
     if (user && db) {
-      saveProjectToCloud(user.uid, newProject);
+      console.log('[CreateProject] Saving to cloud for user:', user.uid);
+      saveProjectToCloud(user.uid, newProject).then(success => {
+        console.log('[CreateProject] Cloud save result:', success);
+      }).catch(err => {
+        console.error('[CreateProject] Cloud save error:', err);
+      });
+    } else {
+      console.log('[CreateProject] Not saving to cloud. User:', !!user, 'DB:', !!db);
     }
+    
+    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
     setShowProjectWizard(false);
     setProjectWizardStep(1);
