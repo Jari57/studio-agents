@@ -2013,6 +2013,16 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       } else if (isVideoAgent) {
         endpoint = '/api/generate-video';
         body = { prompt, model: selectedModel };
+        
+        // Attach audio for music video generation
+        if (backingTrack) {
+           // Note: In a real app, we'd upload the file first. 
+           // Here we pass the URL if it's remote, or just metadata if local blob
+           if (!backingTrack.isUpload) {
+             body.audioUrl = backingTrack.audioUrl;
+           }
+           console.log('Attaching audio to video generation:', backingTrack.title);
+        }
       } else if (isAudioAgent) {
         endpoint = '/api/generate-audio';
         body = { 
@@ -2179,6 +2189,16 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             }
             newItem.snippet = `🎬 Generated video for: "${prompt}"`;
           }
+        }
+        
+        // Attach audio if this was a music video generation
+        if (backingTrack) {
+           newItem.audioUrl = backingTrack.audioUrl; // Attach audio to video item
+           newItem.audioTitle = backingTrack.title;
+           newItem.snippet = `🎬 Music Video for: "${backingTrack.title}"`;
+           
+           // Clear backing track state
+           setBackingTrack(null);
         }
       } else if ((isAudioAgent || isSpeechAgent) && (data.audioUrl || data.audio || data.type === 'synthesis' || data.description || data.message)) {
         // Handle Audio Response (Lyria/TTS/MusicGen)
@@ -4481,6 +4501,87 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                     </div>
                   </div>
 
+                  {/* Reference / Attachment Input for specific agents */}
+                  {(selectedAgent.id === 'beat' || selectedAgent.id === 'video-creator' || selectedAgent.id === 'video-scorer') && (
+                    <div className="reference-upload-card" style={{
+                      marginBottom: '12px',
+                      padding: '12px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '12px',
+                      border: '1px dashed rgba(255, 255, 255, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: 'rgba(6, 182, 212, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {selectedAgent.id === 'video-creator' ? <Music size={16} color="var(--color-cyan)" /> : <Upload size={16} color="var(--color-cyan)" />}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            {selectedAgent.id === 'video-creator' ? 'Attach Song (for Sync)' : 'Reference Track'}
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: 'white', fontWeight: '500' }}>
+                            {backingTrack ? backingTrack.title : 'Upload Audio...'}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {backingTrack && (
+                          <button 
+                            onClick={() => setBackingTrack(null)}
+                            style={{ padding: '6px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
+                        <label 
+                          style={{
+                            padding: '6px 12px',
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            borderRadius: '6px',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            color: 'white'
+                          }}
+                        >
+                          <input 
+                            type="file" 
+                            accept="audio/*" 
+                            style={{ display: 'none' }} 
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                // Create a mock backing track object from the file
+                                const url = URL.createObjectURL(file);
+                                setBackingTrack({
+                                  title: file.name,
+                                  audioUrl: url,
+                                  type: 'audio',
+                                  isUpload: true
+                                });
+                                toast.success(`Attached "${file.name}"`);
+                              }
+                            }}
+                          />
+                          Select File
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   <textarea 
                     ref={textareaRef}
                     placeholder={`Describe what you want ${selectedAgent.name} to create...`}
@@ -4550,7 +4651,14 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                       {agentPreviews[selectedAgent.id].type === 'image' && agentPreviews[selectedAgent.id].imageUrl ? (
                         <img src={agentPreviews[selectedAgent.id].imageUrl} alt="Preview" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} />
                       ) : agentPreviews[selectedAgent.id].type === 'video' && agentPreviews[selectedAgent.id].videoUrl ? (
-                        <video src={agentPreviews[selectedAgent.id].videoUrl} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} />
+                        <div style={{ position: 'relative' }}>
+                          <video src={agentPreviews[selectedAgent.id].videoUrl} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} />
+                          {agentPreviews[selectedAgent.id].audioUrl && (
+                            <div style={{ position: 'absolute', bottom: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Music size={10} /> Synced
+                            </div>
+                          )}
+                        </div>
                       ) : (agentPreviews[selectedAgent.id].type === 'audio' || agentPreviews[selectedAgent.id].type === 'vocal') && agentPreviews[selectedAgent.id].audioUrl ? (
                         <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '4px', padding: '8px', display: 'flex', gap: '12px', alignItems: 'center' }}>
                            {agentPreviews[selectedAgent.id].imageUrl && (
@@ -8589,13 +8697,46 @@ When you write a song, you create intellectual property that generates money eve
                     </div>
                   ) : previewItem.type === 'video' && previewItem.videoUrl ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <video 
-                        controls 
-                        src={previewItem.videoUrl} 
-                        style={{ width: '100%', borderRadius: '8px' }}
-                        onError={(e) => console.error('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100))}
-                        onCanPlay={() => console.log('Video ready to play')}
-                      />
+                      {previewItem.audioUrl ? (
+                        <>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-cyan)', marginBottom: '4px', fontWeight: 'bold' }}>
+                            🎵 Music Video Mode (Synced to: {previewItem.audioTitle || 'Audio'})
+                          </div>
+                          <video 
+                            controls 
+                            src={previewItem.videoUrl} 
+                            style={{ width: '100%', borderRadius: '8px' }}
+                            onPlay={(e) => {
+                              const container = e.target.parentElement;
+                              const audio = container.querySelector('.sync-audio');
+                              if (audio) {
+                                audio.currentTime = e.target.currentTime;
+                                audio.play();
+                              }
+                            }}
+                            onPause={(e) => {
+                              const container = e.target.parentElement;
+                              const audio = container.querySelector('.sync-audio');
+                              if (audio) audio.pause();
+                            }}
+                            onTimeUpdate={(e) => {
+                              const container = e.target.parentElement;
+                              const audio = container.querySelector('.sync-audio');
+                              if (audio && Math.abs(audio.currentTime - e.target.currentTime) > 0.5) {
+                                audio.currentTime = e.target.currentTime;
+                              }
+                            }}
+                          />
+                          <audio className="sync-audio" src={previewItem.audioUrl} style={{ display: 'none' }} />
+                        </>
+                      ) : (
+                        <video 
+                          controls 
+                          src={previewItem.videoUrl} 
+                          style={{ width: '100%', borderRadius: '8px' }}
+                          onError={(e) => console.error('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100))}
+                        />
+                      )}
                       {previewItem.videoUrl?.startsWith('http') && (
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                           🔗 External video URL
