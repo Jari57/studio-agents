@@ -1481,6 +1481,24 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   
   const recognitionRef = useRef(null);
   const textareaRef = useRef(null);
+  
+  // Pending prompt to apply when agent view renders (for re-run functionality)
+  const [pendingPrompt, setPendingPrompt] = useState(null);
+  
+  // Apply pending prompt when agent view becomes active
+  useEffect(() => {
+    if (pendingPrompt && selectedAgent && activeTab === 'agents') {
+      // Wait for textarea to render, then set value
+      setTimeout(() => {
+        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+        if (textarea) {
+          textarea.value = pendingPrompt;
+          textarea.focus();
+        }
+        setPendingPrompt(null);
+      }, 100);
+    }
+  }, [pendingPrompt, selectedAgent, activeTab]);
 
   const handleVoiceToText = () => {
     if (isListening) {
@@ -3016,7 +3034,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                                  const agent = AGENTS.find(a => a.name === asset.agent);
                                  if (agent) {
                                    setSelectedAgent(agent);
-                                   setPromptInput(asset.snippet || asset.title);
+                                   setPendingPrompt(asset.snippet || asset.title);
                                    setActiveTab('agents');
                                    toast.success(`Opened ${agent.name} - edit prompt and regenerate!`);
                                  }
@@ -10533,7 +10551,7 @@ When you write a song, you create intellectual property that generates money eve
                     const agent = AGENTS.find(a => a.name === showPreview.asset.agent);
                     if (agent) {
                       setSelectedAgent(agent);
-                      setPromptInput(showPreview.asset.snippet || showPreview.title || '');
+                      setPendingPrompt(showPreview.asset.snippet || showPreview.title || '');
                       setActiveTab('agents');
                       setShowPreview(null);
                       toast.success(`Opened ${agent.name} - edit prompt and regenerate!`);
