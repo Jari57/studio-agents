@@ -8664,22 +8664,40 @@ When you write a song, you create intellectual property that generates money eve
                   alignItems: 'center'
                 }}>
                   {previewItem.type === 'image' && previewItem.imageUrl ? (
-                    <img 
-                      src={previewItem.imageUrl} 
-                      alt="Generated" 
-                      style={{ 
-                        maxWidth: '100%', 
-                        maxHeight: '60vh', // Ensure it fits vertically
-                        width: 'auto', // Allow natural width up to max
-                        height: 'auto',
-                        borderRadius: '8px',
-                        objectFit: 'contain' // Ensure full image is visible
-                      }}
-                      onError={(e) => {
-                        console.error('Image failed to load:', previewItem.imageUrl?.substring(0, 100));
-                        e.target.style.display = 'none';
-                      }}
-                    />
+                    <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                      <img 
+                        src={previewItem.imageUrl} 
+                        alt="Generated" 
+                        onClick={(e) => {
+                          // Toggle full size on click
+                          if (e.target.style.maxHeight === '90vh') {
+                            e.target.style.maxHeight = '60vh';
+                            e.target.style.cursor = 'zoom-in';
+                          } else {
+                            e.target.style.maxHeight = '90vh';
+                            e.target.style.cursor = 'zoom-out';
+                          }
+                        }}
+                        style={{ 
+                          maxWidth: '100%', 
+                          maxHeight: '60vh', // Default constrained height
+                          width: 'auto', 
+                          height: 'auto',
+                          borderRadius: '8px',
+                          objectFit: 'contain',
+                          cursor: 'zoom-in',
+                          transition: 'max-height 0.3s ease'
+                        }}
+                        title="Click to expand"
+                        onError={(e) => {
+                          console.error('Image failed to load:', previewItem.imageUrl?.substring(0, 100));
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                      <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.6)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', pointerEvents: 'none' }}>
+                        Click to zoom
+                      </div>
+                    </div>
                   ) : previewItem.type === 'audio' && previewItem.audioUrl ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       <audio 
