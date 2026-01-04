@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
   Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Maximize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3
 } from 'lucide-react';
@@ -6,12 +6,37 @@ import {
 // Alias for clarity and to avoid potential minification issues
 const Users = UsersIcon;
 const Image = ImageIcon;
-import VideoPitchDemo from './VideoPitchDemo';
-import MultiAgentDemo from './MultiAgentDemo';
-import StudioOrchestrator from './StudioOrchestrator';
-import QuickWorkflow from './QuickWorkflow';
-import ProjectHub from './ProjectHub';
-import NewsHub from './NewsHub';
+
+// Lazy load heavy sub-components
+const VideoPitchDemo = lazy(() => import('./VideoPitchDemo'));
+const MultiAgentDemo = lazy(() => import('./MultiAgentDemo'));
+const StudioOrchestrator = lazy(() => import('./StudioOrchestrator'));
+const QuickWorkflow = lazy(() => import('./QuickWorkflow'));
+const ProjectHub = lazy(() => import('./ProjectHub'));
+const NewsHub = lazy(() => import('./NewsHub'));
+
+// Simple inline fallback for lazy components
+const LazyFallback = () => (
+  <div style={{ 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    padding: '40px',
+    color: 'var(--text-secondary)'
+  }}>
+    <div style={{
+      width: '24px',
+      height: '24px',
+      border: '2px solid rgba(168,85,247,0.2)',
+      borderTopColor: '#a855f7',
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite',
+      marginRight: '12px'
+    }} />
+    Loading...
+  </div>
+);
+
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
@@ -5496,18 +5521,20 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         );
       case 'hub':
         return (
-          <ProjectHub
-            projects={projects}
-            setProjects={setProjects}
-            onSelectProject={(project) => {
-              setSelectedProject(project);
-              setActiveTab('project_canvas');
-            }}
-            onCreateProject={() => setShowProjectChoiceModal(true)}
-            setActiveTab={setActiveTab}
-            setSelectedAgent={setSelectedAgent}
-            setQuickWorkflowAgent={setQuickWorkflowAgent}
-          />
+          <Suspense fallback={<LazyFallback />}>
+            <ProjectHub
+              projects={projects}
+              setProjects={setProjects}
+              onSelectProject={(project) => {
+                setSelectedProject(project);
+                setActiveTab('project_canvas');
+              }}
+              onCreateProject={() => setShowProjectChoiceModal(true)}
+              setActiveTab={setActiveTab}
+              setSelectedAgent={setSelectedAgent}
+              setQuickWorkflowAgent={setQuickWorkflowAgent}
+            />
+          </Suspense>
         );
       case 'project_canvas':
         if (!selectedProject) {
@@ -6180,12 +6207,14 @@ When you write a song, you create intellectual property that generates money eve
                   </h2>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Watch 4 AI agents work in parallel to create your release package.</p>
                 </div>
-                <MultiAgentDemo onCreateProject={(p) => {
-                  setProjects(prev => [p, ...prev]);
-                  setSelectedProject(p);
-                  setActiveTab('mystudio');
-                  toast.success("Project created from brainstorm!");
-                }} />
+                <Suspense fallback={<LazyFallback />}>
+                  <MultiAgentDemo onCreateProject={(p) => {
+                    setProjects(prev => [p, ...prev]);
+                    setSelectedProject(p);
+                    setActiveTab('mystudio');
+                    toast.success("Project created from brainstorm!");
+                  }} />
+                </Suspense>
               </div>
 
               <div className="resources-demo-section" style={{ padding: '24px', background: 'var(--color-bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
@@ -6196,12 +6225,14 @@ When you write a song, you create intellectual property that generates money eve
                   </h2>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Create a 7-second viral hook and convert it to a full project.</p>
                 </div>
-                <VideoPitchDemo onCreateProject={(p) => {
-                  setProjects(prev => [p, ...prev]);
-                  setSelectedProject(p);
-                  setActiveTab('mystudio');
-                  toast.success("Project created from pitch!");
-                }} />
+                <Suspense fallback={<LazyFallback />}>
+                  <VideoPitchDemo onCreateProject={(p) => {
+                    setProjects(prev => [p, ...prev]);
+                    setSelectedProject(p);
+                    setActiveTab('mystudio');
+                    toast.success("Project created from pitch!");
+                  }} />
+                </Suspense>
               </div>
             </div>
 
@@ -6676,15 +6707,17 @@ When you write a song, you create intellectual property that generates money eve
         );
       case 'news':
         return (
-          <NewsHub
-            newsItems={filteredNews}
-            newsSearch={newsSearch}
-            setNewsSearch={setNewsSearch}
-            isLoadingNews={isLoadingNews}
-            onRefresh={handleRefreshNews}
-            hasMoreNews={hasMoreNews}
-            onLoadMore={() => fetchNews(newsPage + 1)}
-          />
+          <Suspense fallback={<LazyFallback />}>
+            <NewsHub
+              newsItems={filteredNews}
+              newsSearch={newsSearch}
+              setNewsSearch={setNewsSearch}
+              isLoadingNews={isLoadingNews}
+              onRefresh={handleRefreshNews}
+              hasMoreNews={hasMoreNews}
+              onLoadMore={() => fetchNews(newsPage + 1)}
+            />
+          </Suspense>
         );
       case 'profile':
         return (
@@ -9001,25 +9034,27 @@ When you write a song, you create intellectual property that generates money eve
         )}
 
         {/* Studio Orchestrator (New Clean Interface) */}
-        <StudioOrchestrator
-          isOpen={showOrchestrator}
-          onClose={() => setShowOrchestrator(false)}
-          authToken={userToken}
-          existingProject={selectedProject}
-          onCreateProject={(project) => {
-            // Add to projects list
-            setProjects(prev => [project, ...prev]);
-            setSelectedProject(project);
-            setActiveTab('project_canvas');
-            toast.success(`Project "${project.name}" created!`);
-          }}
-          onUpdateCreations={(agentId, creations) => {
-            setAgentCreations(prev => ({
-              ...prev,
-              [agentId]: creations
-            }));
-          }}
-        />
+        <Suspense fallback={<LazyFallback />}>
+          <StudioOrchestrator
+            isOpen={showOrchestrator}
+            onClose={() => setShowOrchestrator(false)}
+            authToken={userToken}
+            existingProject={selectedProject}
+            onCreateProject={(project) => {
+              // Add to projects list
+              setProjects(prev => [project, ...prev]);
+              setSelectedProject(project);
+              setActiveTab('project_canvas');
+              toast.success(`Project "${project.name}" created!`);
+            }}
+            onUpdateCreations={(agentId, creations) => {
+              setAgentCreations(prev => ({
+                ...prev,
+                [agentId]: creations
+              }));
+            }}
+          />
+        </Suspense>
 
         {/* Login Modal */}
         {showLoginModal && (
@@ -11414,14 +11449,16 @@ When you write a song, you create intellectual property that generates money eve
 
       {/* Quick Workflow Modal - Streamlined agent interaction */}
       {quickWorkflowAgent && (
-        <QuickWorkflow
-          agent={quickWorkflowAgent}
-          onClose={() => setQuickWorkflowAgent(null)}
-          projects={projects}
-          onSaveToProject={handleSaveAssetToProject}
-          onCreateProject={handleCreateProjectWithAsset}
-          user={user}
-        />
+        <Suspense fallback={<LazyFallback />}>
+          <QuickWorkflow
+            agent={quickWorkflowAgent}
+            onClose={() => setQuickWorkflowAgent(null)}
+            projects={projects}
+            onSaveToProject={handleSaveAssetToProject}
+            onCreateProject={handleCreateProjectWithAsset}
+            user={user}
+          />
+        </Suspense>
       )}
 
       {/* Add Agent Modal - Uses same styling as Agents page */}

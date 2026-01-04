@@ -1,9 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import LandingPage from './components/LandingPage';
-import StudioView from './components/StudioView';
 import './App.css';
 import './mobile-fixes.css';
 import { suppressExtensionErrors } from './utils/suppressExtensionErrors';
+
+// Lazy load the heavy StudioView component
+const StudioView = lazy(() => import('./components/StudioView'));
+
+// Loading fallback component
+const StudioLoadingFallback = () => (
+  <div style={{
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'var(--color-bg-primary, #0a0a0f)',
+    color: 'white',
+    gap: '20px'
+  }}>
+    <div style={{
+      width: '60px',
+      height: '60px',
+      border: '3px solid rgba(168, 85, 247, 0.2)',
+      borderTopColor: '#a855f7',
+      borderRadius: '50%',
+      animation: 'spin 1s linear infinite'
+    }} />
+    <p style={{ fontSize: '1rem', opacity: 0.8 }}>Loading Studio...</p>
+  </div>
+);
 
 // Suppress harmless browser extension errors (MetaMask, etc.)
 suppressExtensionErrors();
@@ -72,12 +98,14 @@ function App() {
           onSubscribe={handleSubscribe}
         />
       ) : (
-        <StudioView 
-          onBack={handleBackToLanding} 
-          startWizard={startWizard} 
-          startTour={startTour}
-          initialPlan={initialPlan}
-        />
+        <Suspense fallback={<StudioLoadingFallback />}>
+          <StudioView 
+            onBack={handleBackToLanding} 
+            startWizard={startWizard} 
+            startTour={startTour}
+            initialPlan={initialPlan}
+          />
+        </Suspense>
       )}
     </div>
   );
