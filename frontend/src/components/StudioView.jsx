@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera
 } from 'lucide-react';
 
 // Alias for clarity and to avoid potential minification issues
 const Users = UsersIcon;
+const Image = ImageIcon;
 import VideoPitchDemo from './VideoPitchDemo';
 import MultiAgentDemo from './MultiAgentDemo';
 import StudioOrchestrator from './StudioOrchestrator';
@@ -579,8 +580,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     // Format: { agentId: { video: url, image: url, audio: url } }
   });
   
-  // Asset preview state
-  const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image', url, title }
+  // Asset preview state - enhanced with navigation
+  const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image', url, title, asset, assets, currentIndex }
 
   // Audio Export/Mastering State
   const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
@@ -2820,12 +2821,27 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                        <div 
                          key={idx} 
                          onClick={() => {
-                           // Show asset preview modal
+                           // Debug: Log asset details
+                           console.log('[AssetClick] Asset:', {
+                             title: asset.title,
+                             type: asset.type,
+                             audioUrl: asset.audioUrl ? asset.audioUrl.substring(0, 50) + '...' : null,
+                             imageUrl: asset.imageUrl ? asset.imageUrl.substring(0, 50) + '...' : null,
+                             videoUrl: asset.videoUrl ? asset.videoUrl.substring(0, 50) + '...' : null
+                           });
+                           // Show asset preview modal with navigation support
                            if (asset.audioUrl || asset.imageUrl || asset.videoUrl) {
+                             // Get all previewable assets
+                             const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
+                             const currentIndex = previewableAssets.findIndex(a => a.id === asset.id || (a.title === asset.title && a.type === asset.type));
+                             console.log('[AssetClick] Opening preview:', { type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image', totalAssets: previewableAssets.length, currentIndex });
                              setShowPreview({
                                type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
                                url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                               title: asset.title
+                               title: asset.title,
+                               asset: asset,
+                               assets: previewableAssets,
+                               currentIndex: currentIndex >= 0 ? currentIndex : 0
                              });
                            }
                          }}
@@ -6046,7 +6062,8 @@ When you write a song, you create intellectual property that generates money eve
                     value={userProfile.stageName} 
                     onChange={(e) => setUserProfile({...userProfile, stageName: e.target.value})}
                     placeholder={user?.displayName || "Enter stage name"}
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
+                    className="form-input"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }} 
                   />
                 </div>
                 <div className="form-group">
@@ -6054,7 +6071,8 @@ When you write a song, you create intellectual property that generates money eve
                   <select 
                     value={userProfile.genre}
                     onChange={(e) => setUserProfile({...userProfile, genre: e.target.value})}
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }}
+                    className="form-input"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }}
                   >
                     <option>Hip Hop / Rap</option>
                     <option>R&B</option>
@@ -6072,7 +6090,8 @@ When you write a song, you create intellectual property that generates money eve
                     value={userProfile.bio}
                     onChange={(e) => setUserProfile({...userProfile, bio: e.target.value})}
                     placeholder="Tell your story..." 
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white', resize: 'vertical' }}
+                    className="form-input"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', resize: 'vertical' }}
                   ></textarea>
                 </div>
                  <div className="form-group">
@@ -6082,7 +6101,8 @@ When you write a song, you create intellectual property that generates money eve
                     value={userProfile.location} 
                     onChange={(e) => setUserProfile({...userProfile, location: e.target.value})}
                     placeholder="City, Country"
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
+                    className="form-input"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }} 
                   />
                 </div>
                  <div className="form-group">
@@ -6092,7 +6112,8 @@ When you write a song, you create intellectual property that generates money eve
                     value={userProfile.website} 
                     onChange={(e) => setUserProfile({...userProfile, website: e.target.value})}
                     placeholder="https://"
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'white' }} 
+                    className="form-input"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }} 
                   />
                 </div>
               </div>
@@ -6726,15 +6747,16 @@ When you write a song, you create intellectual property that generates money eve
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#1a1a2e',
-            color: '#fff',
-            border: '1px solid rgba(139, 92, 246, 0.3)',
+            background: theme === 'light' ? '#ffffff' : '#1a1a2e',
+            color: theme === 'light' ? '#0f172a' : '#fff',
+            border: theme === 'light' ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(139, 92, 246, 0.3)',
+            boxShadow: theme === 'light' ? '0 4px 20px rgba(0,0,0,0.1)' : 'none',
           },
           success: {
-            iconTheme: { primary: '#10b981', secondary: '#fff' },
+            iconTheme: { primary: '#10b981', secondary: theme === 'light' ? '#fff' : '#fff' },
           },
           error: {
-            iconTheme: { primary: '#ef4444', secondary: '#fff' },
+            iconTheme: { primary: '#ef4444', secondary: theme === 'light' ? '#fff' : '#fff' },
           },
         }}
       />
@@ -9960,45 +9982,257 @@ When you write a song, you create intellectual property that generates money eve
         </div>
       )}
 
-      {/* Asset Preview Modal */}
+      {/* Asset Preview Modal - Enhanced with Navigation */}
       {showPreview && (
-        <div className="modal-overlay animate-fadeIn" onClick={() => setShowPreview(null)} style={{ zIndex: 2000 }}>
+        <div 
+          className="modal-overlay animate-fadeIn" 
+          onClick={() => setShowPreview(null)} 
+          style={{ 
+            zIndex: 2000,
+            background: 'rgba(0,0,0,0.95)'
+          }}
+        >
+          {/* Navigation Arrows */}
+          {showPreview.assets && showPreview.assets.length > 1 && (
+            <>
+              {/* Previous Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newIndex = showPreview.currentIndex > 0 
+                    ? showPreview.currentIndex - 1 
+                    : showPreview.assets.length - 1;
+                  const newAsset = showPreview.assets[newIndex];
+                  setShowPreview({
+                    type: newAsset.audioUrl ? 'audio' : newAsset.videoUrl ? 'video' : 'image',
+                    url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl,
+                    title: newAsset.title,
+                    asset: newAsset,
+                    assets: showPreview.assets,
+                    currentIndex: newIndex
+                  });
+                }}
+                style={{
+                  position: 'fixed',
+                  left: '20px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '50%',
+                  width: '50px',
+                  height: '50px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'white',
+                  backdropFilter: 'blur(8px)',
+                  zIndex: 2001,
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.4)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              >
+                <ChevronLeft size={24} />
+              </button>
+
+              {/* Next Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newIndex = showPreview.currentIndex < showPreview.assets.length - 1 
+                    ? showPreview.currentIndex + 1 
+                    : 0;
+                  const newAsset = showPreview.assets[newIndex];
+                  setShowPreview({
+                    type: newAsset.audioUrl ? 'audio' : newAsset.videoUrl ? 'video' : 'image',
+                    url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl,
+                    title: newAsset.title,
+                    asset: newAsset,
+                    assets: showPreview.assets,
+                    currentIndex: newIndex
+                  });
+                }}
+                style={{
+                  position: 'fixed',
+                  right: '20px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '50%',
+                  width: '50px',
+                  height: '50px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'white',
+                  backdropFilter: 'blur(8px)',
+                  zIndex: 2001,
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.4)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              >
+                <ChevronRight size={24} />
+              </button>
+            </>
+          )}
+
           <div 
             className="modal-content" 
             onClick={e => e.stopPropagation()} 
             style={{ 
-              maxWidth: '90vw', 
-              maxHeight: '90vh',
-              width: '100%',
+              maxWidth: showPreview.type === 'image' ? '95vw' : '90vw', 
+              maxHeight: '95vh',
+              width: showPreview.type === 'image' ? 'auto' : '100%',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              background: 'rgba(0,0,0,0.9)',
-              borderRadius: '12px'
+              background: 'rgba(15,15,20,0.98)',
+              borderRadius: '16px',
+              border: '1px solid rgba(255,255,255,0.1)'
             }}
           >
-            <div className="modal-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem', flexShrink: 0 }}>
-              <h2 style={{ fontSize: '1.1rem', margin: 0 }}>{showPreview.title}</h2>
-              <button className="modal-close" onClick={() => setShowPreview(null)} style={{ color: '#fff' }}>
-                <X size={24} />
-              </button>
+            {/* Header */}
+            <div className="modal-header" style={{ 
+              borderBottom: '1px solid rgba(255,255,255,0.1)', 
+              padding: '1rem 1.5rem', 
+              flexShrink: 0,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  background: showPreview.type === 'image' ? 'rgba(236, 72, 153, 0.2)' 
+                    : showPreview.type === 'video' ? 'rgba(6, 182, 212, 0.2)' 
+                    : 'rgba(168, 85, 247, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {showPreview.type === 'image' && <Image size={18} style={{ color: 'var(--color-pink)' }} />}
+                  {showPreview.type === 'video' && <Video size={18} style={{ color: 'var(--color-cyan)' }} />}
+                  {showPreview.type === 'audio' && <Music size={18} style={{ color: 'var(--color-purple)' }} />}
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '1rem', margin: 0, fontWeight: '600' }}>{showPreview.title}</h2>
+                  {showPreview.assets && showPreview.assets.length > 1 && (
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                      {showPreview.currentIndex + 1} of {showPreview.assets.length} assets
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Use in Orchestrator Button */}
+                {showPreview.asset && (
+                  <button
+                    onClick={() => {
+                      // Add asset to orchestrator session
+                      const asset = showPreview.asset;
+                      const slotType = asset.audioUrl ? 'audio' : asset.videoUrl ? 'visual' : asset.imageUrl ? 'visual' : null;
+                      if (slotType && selectedProject) {
+                        const newSession = {
+                          ...(selectedProject.sessionState || {}),
+                          [slotType]: asset
+                        };
+                        setSelectedProject({
+                          ...selectedProject,
+                          sessionState: newSession
+                        });
+                        setProjects(prev => prev.map(p => p.id === selectedProject.id ? {...p, sessionState: newSession} : p));
+                        setShowPreview(null);
+                        setShowOrchestratorModal(true);
+                        toast?.success?.(`Added "${asset.title}" to Studio Orchestrator`) || alert(`Added "${asset.title}" to Studio Orchestrator`);
+                      }
+                    }}
+                    className="btn-pill primary"
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '6px',
+                      fontSize: '0.85rem',
+                      padding: '8px 16px'
+                    }}
+                  >
+                    <Zap size={16} />
+                    Use in Orchestrator
+                  </button>
+                )}
+                <button className="modal-close" onClick={() => setShowPreview(null)} style={{ 
+                  color: '#fff',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px',
+                  cursor: 'pointer'
+                }}>
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
-            <div className="modal-body" style={{ padding: '1.5rem', flex: 1, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* Content */}
+            <div className="modal-body" style={{ 
+              padding: '1.5rem', 
+              flex: 1, 
+              overflow: 'auto', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              background: showPreview.type === 'image' ? 'transparent' : 'rgba(0,0,0,0.3)'
+            }}>
               {showPreview.type === 'audio' && (
-                <audio 
-                  src={showPreview.url}
-                  controls
-                  style={{ width: '100%', maxWidth: '400px' }}
-                  autoPlay
-                  controlsList="nodownload"
-                />
+                <div style={{ width: '100%', maxWidth: '500px', textAlign: 'center' }}>
+                  <div style={{
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 24px',
+                    boxShadow: '0 0 40px rgba(168, 85, 247, 0.4)'
+                  }}>
+                    <Music size={48} style={{ color: 'white' }} />
+                  </div>
+                  {/* Debug: Log audio URL */}
+                  {console.log('[AudioPreview] Playing:', showPreview.url?.substring(0, 100), '...')}
+                  <audio 
+                    src={showPreview.url}
+                    controls
+                    style={{ width: '100%' }}
+                    autoPlay
+                    controlsList="nodownload"
+                    onError={(e) => console.error('[AudioPreview] Error:', e.target.error?.message || 'Unknown error', 'URL:', showPreview.url?.substring(0, 50))}
+                    onCanPlay={() => console.log('[AudioPreview] Audio can play')}
+                    onLoadedData={() => console.log('[AudioPreview] Audio loaded')}
+                  />
+                  {/* Show URL type for debugging */}
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '12px', opacity: 0.6 }}>
+                    {showPreview.url?.startsWith('data:') ? 'Base64 Audio' : showPreview.url?.startsWith('http') ? 'Remote Audio' : 'Unknown Format'}
+                  </p>
+                </div>
               )}
               {showPreview.type === 'image' && (
                 <img 
                   src={showPreview.url}
                   alt={showPreview.title}
-                  style={{ width: '100%', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+                  style={{ 
+                    maxWidth: '100%', 
+                    maxHeight: '80vh', 
+                    objectFit: 'contain',
+                    borderRadius: '8px',
+                    boxShadow: '0 8px 40px rgba(0,0,0,0.5)'
+                  }}
                 />
               )}
               {showPreview.type === 'video' && (
@@ -10006,11 +10240,71 @@ When you write a song, you create intellectual property that generates money eve
                   src={showPreview.url}
                   controls
                   autoPlay
-                  style={{ width: '100%', maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+                  style={{ 
+                    width: '100%', 
+                    maxWidth: '100%', 
+                    maxHeight: '80vh', 
+                    objectFit: 'contain',
+                    borderRadius: '8px'
+                  }}
                   controlsList="nodownload"
                 />
               )}
             </div>
+
+            {/* Thumbnail Strip - for navigation between assets */}
+            {showPreview.assets && showPreview.assets.length > 1 && (
+              <div style={{
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                padding: '12px 16px',
+                display: 'flex',
+                gap: '8px',
+                overflowX: 'auto',
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.3)'
+              }}>
+                {showPreview.assets.map((asset, idx) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowPreview({
+                        type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
+                        url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
+                        title: asset.title,
+                        asset: asset,
+                        assets: showPreview.assets,
+                        currentIndex: idx
+                      });
+                    }}
+                    style={{
+                      width: '60px',
+                      height: '60px',
+                      borderRadius: '8px',
+                      border: idx === showPreview.currentIndex 
+                        ? '2px solid var(--color-purple)' 
+                        : '2px solid transparent',
+                      background: asset.imageUrl 
+                        ? `url(${asset.imageUrl}) center/cover`
+                        : 'rgba(255,255,255,0.1)',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: idx === showPreview.currentIndex ? 1 : 0.6,
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {!asset.imageUrl && (
+                      asset.videoUrl ? <Video size={20} style={{ color: 'var(--color-cyan)' }} /> 
+                      : asset.audioUrl ? <Music size={20} style={{ color: 'var(--color-purple)' }} />
+                      : <FileText size={20} style={{ color: 'var(--text-secondary)' }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
