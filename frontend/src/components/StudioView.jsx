@@ -2100,29 +2100,57 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           ? '🎨 Visual concept (image generation coming soon)'
           : '🎬 Video concept (video generation coming soon)';
       } else if (selectedAgent.id === 'album' && (data.predictions || data.images)) {
-        // Handle Image Response (Imagen)
-        // API might return predictions[0].bytesBase64Encoded OR images[0]
+        // Handle Image Response (Imagen / Nano Banana)
+        console.log('Image response received:', { hasPredictions: !!data.predictions, hasImages: !!data.images, mimeType: data.mimeType });
+        
         const base64Image = data.predictions?.[0]?.bytesBase64Encoded || data.images?.[0];
+        const mimeType = data.mimeType || 'image/png';
+        
         if (base64Image) {
-            newItem.imageUrl = base64Image.startsWith('data:') ? base64Image : `data:image/png;base64,${base64Image}`;
-            newItem.snippet = `Generated artwork for: "${prompt}"`;
-            newItem.type = 'image'; // Set type to image for proper display
+            newItem.imageUrl = base64Image.startsWith('data:') ? base64Image : `data:${mimeType};base64,${base64Image}`;
+            newItem.snippet = `🎨 Generated artwork for: "${prompt}"`;
+            newItem.type = 'image';
         }
-      } else if (selectedAgent.id === 'video-creator' && (data.predictions || data.video)) {
-        // Handle Video Response (Veo)
-        const videoData = data.predictions?.[0] || data.video;
-        if (videoData) {
+      } else if (selectedAgent.id === 'video-creator' && (data.predictions || data.video || (data.output && data.type === 'video'))) {
+        // Handle Video Response (Veo) - multiple response formats
+        console.log('Video response received:', { hasOutput: !!data.output, type: data.type, hasPredictions: !!data.predictions });
+        
+        // Check for direct output URL first (most common from backend)
+        if (data.output && typeof data.output === 'string') {
+          if (data.output.startsWith('data:')) {
+            newItem.videoUrl = data.output;
+          } else if (data.output.startsWith('http')) {
+            newItem.videoUrl = data.output;
+          } else {
+            // Assume base64
+            newItem.videoUrl = `data:video/mp4;base64,${data.output}`;
+          }
+          newItem.type = 'video';
+          newItem.snippet = `🎬 Generated video for: "${prompt}"`;
+        } else {
+          // Fallback: Handle legacy format (predictions array)
+          const videoData = data.predictions?.[0] || data.video;
+          if (videoData) {
             if (videoData.bytesBase64Encoded) {
-                 newItem.videoUrl = `data:video/mp4;base64,${videoData.bytesBase64Encoded}`;
-                 newItem.type = 'video'; // Set type to video for proper display
+              newItem.videoUrl = `data:video/mp4;base64,${videoData.bytesBase64Encoded}`;
+              newItem.type = 'video';
             } else if (videoData.videoUri) {
-                 newItem.videoUrl = videoData.videoUri;
-                 newItem.type = 'video'; // Set type to video for proper display
+              newItem.videoUrl = videoData.videoUri;
+              newItem.type = 'video';
             }
-            newItem.snippet = `Generated video for: "${prompt}"`;
+            newItem.snippet = `🎬 Generated video for: "${prompt}"`;
+          }
         }
       } else if ((isAudioAgent || isSpeechAgent) && (data.audioUrl || data.audio || data.type === 'synthesis' || data.description || data.message)) {
         // Handle Audio Response (Lyria/TTS/MusicGen)
+        console.log('Audio response received:', { 
+          hasAudioUrl: !!data.audioUrl, 
+          audioUrlPrefix: data.audioUrl?.substring(0, 50),
+          hasAudio: !!data.audio, 
+          mimeType: data.mimeType,
+          source: data.source
+        });
+        
         if (data.audioUrl) {
           // Check if it's a full URL or base64
           if (data.audioUrl.startsWith('http')) {
@@ -2137,6 +2165,15 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           newItem.mimeType = data.mimeType || 'audio/wav';
           newItem.snippet = `🎵 Generated audio for: "${prompt}"`;
           newItem.type = 'audio';
+          console.log('Audio item created:', { audioUrl: newItem.audioUrl.substring(0, 80), type: newItem.type });
+        } else if (data.audio) {
+          // Handle raw audio data (from TTS endpoint)
+          const mimeType = data.mimeType || 'audio/wav';
+          newItem.audioUrl = `data:${mimeType};base64,${data.audio}`;
+          newItem.mimeType = mimeType;
+          newItem.snippet = `🎵 Generated audio for: "${prompt}"`;
+          newItem.type = 'audio';
+          console.log('Audio (from data.audio) created:', { type: newItem.type });
         } else if (data.type === 'synthesis' && data.params) {
           // Synthesis parameters for client-side generation
           newItem.synthesisParams = data.params;
@@ -8098,12 +8135,42 @@ When you write a song, you create intellectual property that generates money eve
                     <img 
                       src={previewItem.imageUrl} 
                       alt="Generated" 
-                      style={{ width: '100%', borderRadius: '8px' }} 
+                      style={{ width: '100%', borderRadius: '8px' }}
+                      onError={(e) => {
+                        console.error('Image failed to load:', previewItem.imageUrl?.substring(0, 100));
+                        e.target.style.display = 'none';
+                      }}
                     />
                   ) : previewItem.type === 'audio' && previewItem.audioUrl ? (
-                    <audio controls src={previewItem.audioUrl} style={{ width: '100%' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <audio 
+                        controls 
+                        src={previewItem.audioUrl} 
+                        style={{ width: '100%' }}
+                        onError={(e) => console.error('Audio failed to load:', e.target.error?.message, previewItem.audioUrl?.substring(0, 100))}
+                        onCanPlay={() => console.log('Audio ready to play')}
+                      />
+                      {previewItem.audioUrl?.startsWith('http') && (
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          🔗 External audio URL
+                        </p>
+                      )}
+                    </div>
                   ) : previewItem.type === 'video' && previewItem.videoUrl ? (
-                    <video controls src={previewItem.videoUrl} style={{ width: '100%', borderRadius: '8px' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <video 
+                        controls 
+                        src={previewItem.videoUrl} 
+                        style={{ width: '100%', borderRadius: '8px' }}
+                        onError={(e) => console.error('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100))}
+                        onCanPlay={() => console.log('Video ready to play')}
+                      />
+                      {previewItem.videoUrl?.startsWith('http') && (
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          🔗 External video URL
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--text-primary)' }}>
                       {previewItem.snippet || previewItem.title || 'No content generated'}
