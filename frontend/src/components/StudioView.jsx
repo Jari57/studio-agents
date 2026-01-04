@@ -3091,8 +3091,34 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                          />
                        ) : asset.videoUrl ? (
-                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                           <Video size={32} style={{ color: 'var(--color-red)' }} />
+                         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                           <video 
+                             src={asset.videoUrl}
+                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                             muted
+                             preload="metadata"
+                             onLoadedData={(e) => {
+                               // Seek to 1 second for thumbnail frame
+                               if (e.target.currentTime === 0) e.target.currentTime = 1;
+                             }}
+                           />
+                           {/* Play icon overlay */}
+                           <div style={{
+                             position: 'absolute',
+                             top: '50%',
+                             left: '50%',
+                             transform: 'translate(-50%, -50%)',
+                             width: '44px',
+                             height: '44px',
+                             borderRadius: '50%',
+                             background: 'rgba(0,0,0,0.7)',
+                             display: 'flex',
+                             alignItems: 'center',
+                             justifyContent: 'center',
+                             backdropFilter: 'blur(4px)'
+                           }}>
+                             <Play size={22} style={{ color: 'white', marginLeft: '3px' }} />
+                           </div>
                          </div>
                        ) : asset.audioUrl ? (
                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
@@ -11010,32 +11036,118 @@ When you write a song, you create intellectual property that generates money eve
                 </div>
               )}
               {showPreview.type === 'image' && (
-                <img 
-                  src={showPreview.url}
-                  alt={showPreview.title}
-                  style={{ 
-                    maxWidth: '100%', 
-                    maxHeight: '80vh', 
-                    objectFit: 'contain',
-                    borderRadius: '8px',
-                    boxShadow: '0 8px 40px rgba(0,0,0,0.5)'
-                  }}
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {/* Loading state */}
+                  <div 
+                    className="image-loading-placeholder" 
+                    style={{ 
+                      position: 'absolute',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '12px',
+                      color: 'var(--text-secondary)'
+                    }}
+                  >
+                    <div className="spinner" style={{
+                      width: '40px',
+                      height: '40px',
+                      border: '3px solid rgba(255,255,255,0.1)',
+                      borderTopColor: 'var(--color-purple)',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    <span style={{ fontSize: '0.85rem' }}>Loading image...</span>
+                  </div>
+                  <img 
+                    src={showPreview.url}
+                    alt={showPreview.title}
+                    onLoad={(e) => {
+                      // Hide loading placeholder when loaded
+                      const placeholder = e.target.previousElementSibling;
+                      if (placeholder) placeholder.style.display = 'none';
+                      e.target.style.opacity = 1;
+                    }}
+                    onError={(e) => {
+                      console.error('[ImagePreview] Failed to load:', showPreview.url?.substring(0, 50));
+                      const placeholder = e.target.previousElementSibling;
+                      if (placeholder) {
+                        placeholder.innerHTML = '<div style="text-align:center;color:var(--color-red)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><p style="margin-top:8px">Failed to load image</p></div>';
+                      }
+                    }}
+                    style={{ 
+                      maxWidth: '100%', 
+                      maxHeight: '80vh', 
+                      objectFit: 'contain',
+                      borderRadius: '8px',
+                      boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
+                      opacity: 0,
+                      transition: 'opacity 0.3s ease'
+                    }}
+                  />
+                </div>
               )}
               {showPreview.type === 'video' && (
-                <video 
-                  src={showPreview.url}
-                  controls
-                  autoPlay
-                  playsInline
-                  style={{ 
-                    width: '100%', 
-                    maxWidth: '100%', 
-                    maxHeight: '80vh', 
-                    objectFit: 'contain',
-                    borderRadius: '8px'
-                  }}
-                />
+                <div style={{ position: 'relative', width: '100%', maxWidth: '100%' }}>
+                  {/* Loading state for video */}
+                  <div 
+                    className="video-loading-placeholder" 
+                    style={{ 
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '12px',
+                      color: 'var(--text-secondary)',
+                      background: 'rgba(0,0,0,0.5)',
+                      borderRadius: '8px',
+                      zIndex: 1
+                    }}
+                  >
+                    <div className="spinner" style={{
+                      width: '50px',
+                      height: '50px',
+                      border: '3px solid rgba(255,255,255,0.1)',
+                      borderTopColor: 'var(--color-cyan)',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    <span style={{ fontSize: '0.85rem' }}>Loading video...</span>
+                  </div>
+                  <video 
+                    src={showPreview.url}
+                    controls
+                    autoPlay
+                    playsInline
+                    loop
+                    onCanPlay={(e) => {
+                      // Hide loading placeholder when video can play
+                      const placeholder = e.target.previousElementSibling;
+                      if (placeholder) placeholder.style.display = 'none';
+                    }}
+                    onError={(e) => {
+                      console.error('[VideoPreview] Failed to load:', showPreview.url?.substring(0, 50));
+                      const placeholder = e.target.previousElementSibling;
+                      if (placeholder) {
+                        placeholder.innerHTML = '<div style="text-align:center;color:var(--color-red)"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><p style="margin-top:12px;font-size:0.9rem">Failed to load video</p><p style="font-size:0.75rem;opacity:0.7;margin-top:4px">Try downloading instead</p></div>';
+                      }
+                    }}
+                    style={{ 
+                      width: '100%', 
+                      maxWidth: '100%', 
+                      maxHeight: '80vh', 
+                      objectFit: 'contain',
+                      borderRadius: '8px',
+                      background: 'black'
+                    }}
+                  />
+                </div>
               )}
             </div>
 
@@ -11080,13 +11192,30 @@ When you write a song, you create intellectual property that generates money eve
                       alignItems: 'center',
                       justifyContent: 'center',
                       opacity: idx === showPreview.currentIndex ? 1 : 0.6,
-                      transition: 'all 0.2s ease'
+                      transition: 'all 0.2s ease',
+                      overflow: 'hidden',
+                      position: 'relative'
                     }}
                   >
-                    {!asset.imageUrl && (
-                      asset.videoUrl ? <Video size={20} style={{ color: 'var(--color-cyan)' }} /> 
-                      : asset.audioUrl ? <Music size={20} style={{ color: 'var(--color-purple)' }} />
-                      : <FileText size={20} style={{ color: 'var(--text-secondary)' }} />
+                    {/* Video thumbnail with frame */}
+                    {asset.videoUrl && !asset.imageUrl && (
+                      <video 
+                        src={asset.videoUrl}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        muted
+                        preload="metadata"
+                        onLoadedData={(e) => {
+                          if (e.target.currentTime === 0) e.target.currentTime = 1;
+                        }}
+                      />
+                    )}
+                    {/* Audio icon */}
+                    {asset.audioUrl && !asset.imageUrl && (
+                      <Music size={20} style={{ color: 'var(--color-purple)' }} />
+                    )}
+                    {/* Text file icon */}
+                    {!asset.imageUrl && !asset.videoUrl && !asset.audioUrl && (
+                      <FileText size={20} style={{ color: 'var(--text-secondary)' }} />
                     )}
                   </button>
                 ))}
