@@ -819,6 +819,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
     setProjects(prev => [newProject, ...prev]);
     setSelectedProject(newProject); // Auto-select the new project
+    
+    // Save to cloud if logged in
+    if (user && db) {
+      saveProjectToCloud(user.uid, newProject);
+    }
+
     setShowProjectWizard(false);
     setProjectWizardStep(1);
     
@@ -873,6 +879,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
     setProjects(prev => [newProject, ...prev]);
     setSelectedProject(newProject);
+    
+    // Save to cloud if logged in
+    if (user && db) {
+      saveProjectToCloud(user.uid, newProject);
+    }
+
     setShowProjectWizard(false);
     setProjectWizardStep(1);
     
@@ -903,16 +915,26 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   // QuickWorkflow handlers - centralized project save flow
   const handleSaveAssetToProject = (projectId, asset) => {
-    setProjects(prev => prev.map(p => {
-      if (p.id === projectId) {
-        return {
-          ...p,
-          assets: [...(p.assets || []), asset],
-          progress: Math.min(100, (p.progress || 0) + 10)
-        };
+    setProjects(prev => {
+      const newProjects = prev.map(p => {
+        if (p.id === projectId) {
+          return {
+            ...p,
+            assets: [...(p.assets || []), asset],
+            progress: Math.min(100, (p.progress || 0) + 10)
+          };
+        }
+        return p;
+      });
+
+      // Save to cloud if logged in
+      const updatedProject = newProjects.find(p => p.id === projectId);
+      if (updatedProject && user && db) {
+        saveProjectToCloud(user.uid, updatedProject);
       }
-      return p;
-    }));
+
+      return newProjects;
+    });
   };
 
   const handleCreateProjectWithAsset = (projectName, asset) => {
@@ -944,6 +966,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
     setProjects(prev => [newProject, ...prev]);
     setSelectedProject(newProject);
+
+    // Save to cloud if logged in
+    if (user && db) {
+      saveProjectToCloud(user.uid, newProject);
+    }
   };
 
   const handleAddAgent = (agent) => {
