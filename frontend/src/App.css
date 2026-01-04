@@ -9834,3 +9834,62 @@ img[loading="lazy"][src]:not([src=""]) {
   white-space: nowrap;
   border: 0;
 }
+
+/* === GLOBAL FIX: Ensure nav pegs to ceiling on all screen sizes === */
+html, body, #root {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.studio-container {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+.studio-main {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  overflow-y: auto !important; /* Ensure scrolling works */
+}
+
+.studio-header {
+  margin-top: 0 !important;
+  top: 0 !important;
+}
+
+/* Responsive: Remove any top spacing on narrower screens */
+@media (max-width: 1024px) {
+  .studio-container,
+  .studio-main,
+  .studio-header,
+  .studio-content {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  html, body, #root,
+  .app-container,
+  .studio-container,
+  .studio-main,
+  .studio-header,
+  .studio-content,
+  .studio-dashboard {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+  
+  /* Keep scrolling working - use flex layout instead of fixed */
+  .studio-container {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100dvh !important;
+  }
+  
+  .studio-main {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+}
