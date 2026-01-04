@@ -2167,18 +2167,68 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// IMAGE GENERATION ROUTE (Nano Banana / Imagen 4.0 fallback)
+// IMAGE GENERATION ROUTE (Multi-Model: Flux 1.1 Pro -> Nano Banana -> Imagen)
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
-    const { prompt, aspectRatio = '1:1', model = 'nano-banana' } = req.body;
+    const { prompt, aspectRatio = '1:1', model = 'flux' } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
+    // 1. Try Replicate (Flux 1.1 Pro) as Primary
+    if (process.env.REPLICATE_API_TOKEN && (model === 'flux' || model === 'default')) {
+      try {
+        logger.info('Generating image with Flux 1.1 Pro (via Replicate)', { prompt: prompt.substring(0, 50) });
+        const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
+        
+        // Map aspect ratio to Flux format
+        let fluxAspectRatio = "1:1";
+        if (aspectRatio === "16:9") fluxAspectRatio = "16:9";
+        if (aspectRatio === "9:16") fluxAspectRatio = "9:16";
+        if (aspectRatio === "4:3") fluxAspectRatio = "4:3";
+        if (aspectRatio === "3:4") fluxAspectRatio = "3:4";
+
+        const output = await replicate.run(
+          "black-forest-labs/flux-1.1-pro",
+          {
+            input: {
+              prompt: prompt,
+              aspect_ratio: fluxAspectRatio,
+              output_format: "jpg",
+              output_quality: 90,
+              safety_tolerance: 2
+            }
+          }
+        );
+
+        if (output) {
+             logger.info('Flux 1.1 Pro generation successful');
+             // Replicate returns a URL string (or stream)
+             const imageUrl = String(output);
+             
+             return res.json({
+                output: imageUrl,
+                mimeType: 'image/jpeg',
+                type: 'image',
+                source: 'replicate-flux',
+                message: 'Image generated with Flux 1.1 Pro'
+             });
+        }
+      } catch (repError) {
+        logger.error('Flux generation failed, falling back to Gemini', { error: repError.message });
+      }
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
+    if (!apiKey) {
+       if (!process.env.REPLICATE_API_TOKEN) {
+          return res.status(500).json({ error: 'No image generation API keys found' });
+       }
+       // If we had Replicate key but it failed, we already logged it.
+       return res.status(500).json({ error: 'Image generation failed' });
+    }
 
     // Try Nano Banana first (Gemini native image generation)
-    if (model === 'nano-banana' || model === 'gemini') {
+    if (model === 'nano-banana' || model === 'gemini' || true) { // Default fallback
       try {
         logger.info('Generating image with Nano Banana', { prompt: prompt.substring(0, 50) });
         

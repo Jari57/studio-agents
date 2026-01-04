@@ -2140,17 +2140,25 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         newItem.fallbackNote = data._fallbackType === 'image' 
           ? '🎨 Visual concept (image generation coming soon)'
           : '🎬 Video concept (video generation coming soon)';
-      } else if (selectedAgent.id === 'album' && (data.predictions || data.images)) {
-        // Handle Image Response (Imagen / Nano Banana)
-        console.log('Image response received:', { hasPredictions: !!data.predictions, hasImages: !!data.images, mimeType: data.mimeType });
+      } else if (selectedAgent.id === 'album' && (data.predictions || data.images || data.output)) {
+        // Handle Image Response (Flux / Imagen / Nano Banana)
+        console.log('Image response received:', { hasOutput: !!data.output, hasPredictions: !!data.predictions, hasImages: !!data.images });
         
-        const base64Image = data.predictions?.[0]?.bytesBase64Encoded || data.images?.[0];
-        const mimeType = data.mimeType || 'image/png';
-        
-        if (base64Image) {
-            newItem.imageUrl = base64Image.startsWith('data:') ? base64Image : `data:${mimeType};base64,${base64Image}`;
-            newItem.snippet = `🎨 Generated artwork for: "${prompt}"`;
-            newItem.type = 'image';
+        if (data.output && typeof data.output === 'string' && data.output.startsWith('http')) {
+           // Handle URL output (Flux/Replicate)
+           newItem.imageUrl = data.output;
+           newItem.snippet = `🎨 Generated artwork for: "${prompt}"`;
+           newItem.type = 'image';
+        } else {
+           // Handle Base64 output (Gemini/Imagen)
+           const base64Image = data.predictions?.[0]?.bytesBase64Encoded || data.images?.[0];
+           const mimeType = data.mimeType || 'image/png';
+           
+           if (base64Image) {
+               newItem.imageUrl = base64Image.startsWith('data:') ? base64Image : `data:${mimeType};base64,${base64Image}`;
+               newItem.snippet = `🎨 Generated artwork for: "${prompt}"`;
+               newItem.type = 'image';
+           }
         }
       } else if (selectedAgent.id === 'video-creator' && (data.predictions || data.video || (data.output && (data.type === 'video' || data.type === 'image')))) {
         // Handle Video Response (Veo) - multiple response formats
