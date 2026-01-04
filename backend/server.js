@@ -2175,10 +2175,10 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
     // 1. Try Replicate (Flux 1.1 Pro) as Primary
-    if (process.env.REPLICATE_API_TOKEN && (model === 'flux' || model === 'default')) {
+    const replicateKey = process.env.REPLICATE_API_TOKEN || process.env.REPLICATE_API_KEY;
+    if (replicateKey && (model === 'flux' || model === 'default')) {
       try {
         logger.info('Generating image with Flux 1.1 Pro (via Replicate)', { prompt: prompt.substring(0, 50) });
-        const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
         
         // Map aspect ratio to Flux format
         let fluxAspectRatio = "1:1";
@@ -2187,9 +2187,15 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
         if (aspectRatio === "4:3") fluxAspectRatio = "4:3";
         if (aspectRatio === "3:4") fluxAspectRatio = "3:4";
 
-        const output = await replicate.run(
-          "black-forest-labs/flux-1.1-pro",
-          {
+        const response = await fetch('https://api.replicate.com/v1/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${replicateKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'wait' // Wait for generation to complete
+          },
+          body: JSON.stringify({
+            version: "flux-1.1-pro", // Use latest Flux Pro
             input: {
               prompt: prompt,
               aspect_ratio: fluxAspectRatio,
@@ -2197,21 +2203,35 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
               output_quality: 90,
               safety_tolerance: 2
             }
-          }
-        );
+          })
+        });
 
-        if (output) {
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(`Replicate API error: ${errText}`);
+        }
+
+        const data = await response.json();
+        
+        // Replicate returns output as a URL string or array of strings
+        let imageUrl = null;
+        if (data.output) {
+          imageUrl = Array.isArray(data.output) ? data.output[0] : data.output;
+        }
+
+        if (imageUrl) {
              logger.info('Flux 1.1 Pro generation successful');
-             // Replicate returns a URL string (or stream)
-             const imageUrl = String(output);
-             
              return res.json({
                 output: imageUrl,
+                images: [imageUrl], // Frontend expects array
                 mimeType: 'image/jpeg',
                 type: 'image',
                 source: 'replicate-flux',
+                model: 'flux-1.1-pro',
                 message: 'Image generated with Flux 1.1 Pro'
              });
+        } else if (data.status === 'processing' || data.status === 'starting') {
+           logger.warn('Flux generation timed out (async), falling back');
         }
       } catch (repError) {
         logger.error('Flux generation failed, falling back to Gemini', { error: repError.message });
@@ -2220,7 +2240,7 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-       if (!process.env.REPLICATE_API_TOKEN) {
+       if (!replicateKey) {
           return res.status(500).json({ error: 'No image generation API keys found' });
        }
        // If we had Replicate key but it failed, we already logged it.
