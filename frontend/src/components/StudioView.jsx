@@ -10,7 +10,7 @@ const Image = ImageIcon;
 // Lazy load heavy sub-components
 const VideoPitchDemo = lazy(() => import('./VideoPitchDemo'));
 const MultiAgentDemo = lazy(() => import('./MultiAgentDemo'));
-const StudioOrchestrator = lazy(() => import('./StudioOrchestrator'));
+const StudioOrchestrator = lazy(() => import('./StudioOrchestratorV2'));
 const QuickWorkflow = lazy(() => import('./QuickWorkflow'));
 const ProjectHub = lazy(() => import('./ProjectHub'));
 const NewsHub = lazy(() => import('./NewsHub'));
