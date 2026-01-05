@@ -18,6 +18,7 @@ function ProjectHub({
   setProjects,
   onSelectProject,
   onCreateProject,
+  onDeleteProject,
   setActiveTab,
   setSelectedAgent,
   setQuickWorkflowAgent
@@ -91,9 +92,15 @@ function ProjectHub({
   // Project actions
   const handleDeleteProject = (projectId, e) => {
     e?.stopPropagation();
-    if (window.confirm('Delete this project? This cannot be undone.')) {
-      setProjects(prev => prev.filter(p => p.id !== projectId));
-      toast.success('Project deleted');
+    // Use the callback from StudioView which handles both local state and cloud deletion
+    if (onDeleteProject) {
+      onDeleteProject(projectId, e);
+    } else {
+      // Fallback: local-only delete if no callback provided
+      if (window.confirm('Delete this project? This cannot be undone.')) {
+        setProjects(prev => prev.filter(p => p.id !== projectId));
+        toast.success('Project deleted');
+      }
     }
     setShowProjectMenu(null);
   };

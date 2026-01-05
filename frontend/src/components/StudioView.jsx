@@ -2880,24 +2880,37 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   };
 
   const handleDeleteProject = async (projectId, e) => {
-    e.stopPropagation(); // Prevent triggering the card click
+    e?.stopPropagation(); // Prevent triggering the card click
     if (!window.confirm("Are you sure you want to delete this project?")) return;
 
-    // Optimistic UI update
+    // Optimistic UI update - remove from local state
     setProjects((projects || []).filter(p => p.id !== projectId));
-
-    if (isLoggedIn) {
-      const uid = localStorage.getItem('studio_user_id');
-      if (uid) {
-        try {
-          await fetch(`${BACKEND_URL}/api/projects/${projectId}?userId=${uid}`, {
-            method: 'DELETE'
-          });
-        } catch (err) {
-          console.error("Failed to delete from cloud", err);
-          toast.error('Cloud delete failed, removed locally');
-        }
+    
+    // Also update localStorage
+    try {
+      const saved = localStorage.getItem('studio_projects');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const filtered = parsed.filter(p => p.id !== projectId);
+        localStorage.setItem('studio_projects', JSON.stringify(filtered));
       }
+    } catch (err) {
+      console.warn('Failed to update localStorage:', err);
+    }
+
+    // Delete from Firestore if logged in
+    if (isLoggedIn && user && db) {
+      try {
+        const projectRef = doc(db, 'users', user.uid, 'projects', String(projectId));
+        await deleteDoc(projectRef);
+        console.log(`Deleted project ${projectId} from cloud`);
+        toast.success('Project deleted');
+      } catch (err) {
+        console.error("Failed to delete from cloud:", err);
+        toast.error('Cloud delete failed, removed locally');
+      }
+    } else {
+      toast.success('Project deleted');
     }
   };
 
@@ -5803,6 +5816,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 setActiveTab('project_canvas');
               }}
               onCreateProject={() => setShowProjectChoiceModal(true)}
+              onDeleteProject={handleDeleteProject}
               setActiveTab={setActiveTab}
               setSelectedAgent={setSelectedAgent}
               setQuickWorkflowAgent={setQuickWorkflowAgent}
