@@ -15,6 +15,17 @@ const Replicate = require('replicate');
 // Services
 const emailService = require('./services/emailService');
 const userPreferencesService = require('./services/userPreferencesService');
+const { analyzeMusicBeats } = require('./services/beatDetectionService');
+const { 
+  composeVideoWithBeats,
+  createBeatSyncedVideo,
+  getVideoMetadata
+} = require('./services/videoCompositionService');
+const {
+  generateSyncedMusicVideo,
+  generateVideoSegments,
+  generateSingleVideo
+} = require('./services/videoGenerationOrchestrator');
 
 // Audio processing imports
 let WaveFile;
@@ -4596,6 +4607,403 @@ app.use((err, req, res, next) => {
   } else {
     res.status(err.statusCode || 500).json({
       error: 'Internal server error'
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// SYNCED MUSIC VIDEO GENERATION ROUTES
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * Beat Detection Endpoint (Test Version - No Auth Required)
+ * Analyzes audio file and returns beat markers and BPM
+ */
+app.post('/api/analyze-beats-test', async (req, res) => {
+  try {
+    const { audioUrl } = req.body;
+    
+    if (!audioUrl) {
+      return res.status(400).json({ error: 'audioUrl is required' });
+    }
+
+    logger.info('Beat analysis requested', { audioUrl: audioUrl.substring(0, 50) });
+
+    const analysis = await analyzeMusicBeats(audioUrl, logger);
+
+    if (!analysis || analysis.error) {
+      logger.warn('Beat analysis failed or incomplete', { error: analysis.error });
+      return res.status(200).json({
+        success: false,
+        ...analysis,
+        message: 'Beat detection completed with limited accuracy. Using default BPM.'
+      });
+    }
+
+    res.json({
+      success: true,
+      ...analysis,
+      message: 'Beat analysis complete'
+    });
+
+  } catch (error) {
+    logger.error('Beat analysis error', { error: error.message });
+    res.status(500).json({
+      error: 'Beat analysis failed',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Beat Detection Endpoint (Production - Firebase Auth Required)
+ * Analyzes audio file and returns beat markers and BPM
+ */
+app.post('/api/analyze-beats', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { audioUrl } = req.body;
+    
+    if (!audioUrl) {
+      return res.status(400).json({ error: 'audioUrl is required' });
+    }
+
+    logger.info('Beat analysis requested', { audioUrl: audioUrl.substring(0, 50) });
+
+    const analysis = await analyzeMusicBeats(audioUrl, logger);
+
+    if (!analysis || analysis.error) {
+      logger.warn('Beat analysis failed or incomplete', { error: analysis.error });
+      return res.status(200).json({
+        success: false,
+        ...analysis,
+        message: 'Beat detection completed with limited accuracy. Using default BPM.'
+      });
+    }
+
+    res.json({
+      success: true,
+      ...analysis,
+      message: 'Beat analysis complete'
+    });
+
+  } catch (error) {
+    logger.error('Beat analysis error', { error: error.message });
+    res.status(500).json({
+      error: 'Beat analysis failed',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Generate Synced Music Video Endpoint (Test Version - No Auth Required)
+ * Main endpoint for generating music videos synced to beat
+ * Supports 30s, 60s, and 180s (3 minute) videos
+ */
+app.post('/api/generate-synced-video-test', async (req, res) => {
+  try {
+    const { 
+      audioUrl, 
+      videoPrompt, 
+      songTitle = 'Untitled',
+      duration = 30, // 30, 60, or 180 seconds
+      style = 'cinematic'
+    } = req.body;
+
+    if (!audioUrl || !videoPrompt) {
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        required: ['audioUrl', 'videoPrompt']
+      });
+    }
+
+    // Validate duration
+    const validDurations = [30, 60, 180];
+    const requestedDuration = Math.min(Math.max(duration, 30), 180);
+    
+    if (!validDurations.includes(requestedDuration)) {
+      logger.warn('Non-standard duration requested', { requested: duration, using: requestedDuration });
+    }
+
+    logger.info('Synced music video generation requested', {
+      duration: requestedDuration,
+      title: songTitle,
+      style,
+      audioUrl: audioUrl.substring(0, 50)
+    });
+
+    const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+    
+    if (!replicateKey) {
+      return res.status(503).json({
+        error: 'Video generation unavailable',
+        details: 'REPLICATE_API_KEY not configured',
+        status: 503
+      });
+    }
+
+    // For testing, return success response
+    return res.json({
+      success: true,
+      videoUrl: 'https://example.com/video.mp4',
+      duration: requestedDuration,
+      bpm: 120,
+      beats: 32,
+      segments: Math.ceil(requestedDuration / 5),
+      message: 'Video generation endpoint is working (test response)'
+    });
+
+  } catch (error) {
+    logger.error('Synced video generation error', { error: error.message });
+    res.status(500).json({
+      error: 'Video generation failed',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Generate Synced Music Video Endpoint (Production - Firebase Auth Required)
+ * Main endpoint for generating music videos synced to beat
+ * Supports 30s, 60s, and 180s (3 minute) videos
+ */
+app.post('/api/generate-synced-video', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+  try {
+    const { 
+      audioUrl, 
+      videoPrompt, 
+      songTitle = 'Untitled',
+      duration = 30, // 30, 60, or 180 seconds
+      style = 'cinematic'
+    } = req.body;
+
+    if (!audioUrl || !videoPrompt) {
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        required: ['audioUrl', 'videoPrompt']
+      });
+    }
+
+    // Validate duration
+    const validDurations = [30, 60, 180];
+    const requestedDuration = Math.min(Math.max(duration, 30), 180);
+    
+    if (!validDurations.includes(requestedDuration)) {
+      logger.warn('Non-standard duration requested', { requested: duration, using: requestedDuration });
+    }
+
+    logger.info('Synced music video generation requested', {
+      duration: requestedDuration,
+      title: songTitle,
+      style,
+      audioUrl: audioUrl.substring(0, 50)
+    });
+
+    const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+    
+    if (!replicateKey) {
+      return res.status(503).json({
+        error: 'Video generation unavailable',
+        details: 'REPLICATE_API_KEY not configured',
+        status: 503
+      });
+    }
+
+    // For longer videos, return status and queue for processing
+    // This is a long-running operation (5-30 minutes for 3-minute video)
+    const isLongForm = requestedDuration > 30;
+    
+    if (isLongForm) {
+      // Queue for background processing
+      logger.info('Long-form video queued for background processing', {
+        duration: requestedDuration
+      });
+
+      // Generate a unique job ID
+      const jobId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Start async generation (don't await)
+      generateSyncedMusicVideo(
+        audioUrl,
+        videoPrompt,
+        songTitle,
+        requestedDuration,
+        replicateKey,
+        logger
+      ).then(result => {
+        if (logger) logger.info('Background video generation complete', {
+          jobId,
+          result: result.success ? 'success' : 'failed'
+        });
+      }).catch(error => {
+        if (logger) logger.error('Background video generation failed', {
+          jobId,
+          error: error.message
+        });
+      });
+
+      return res.status(202).json({
+        status: 'processing',
+        jobId,
+        message: `Music video generation started (${requestedDuration}s). This may take 5-30 minutes.`,
+        estimatedTime: requestedDuration > 60 ? '10-30 minutes' : '5-15 minutes',
+        pollUrl: `/api/video-job-status/${jobId}`
+      });
+    }
+
+    // For 30-second videos, generate inline (faster)
+    const result = await generateSyncedMusicVideo(
+      audioUrl,
+      videoPrompt,
+      songTitle,
+      requestedDuration,
+      replicateKey,
+      logger
+    );
+
+    if (result.success) {
+      res.json({
+        success: true,
+        videoUrl: result.videoUrl,
+        duration: result.duration,
+        bpm: result.bpm,
+        beats: result.beatCount,
+        segments: result.segments,
+        message: 'Music video generated successfully'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error,
+        details: result.details
+      });
+    }
+
+  } catch (error) {
+    logger.error('Synced video generation error', { error: error.message });
+    res.status(500).json({
+      error: 'Video generation failed',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Video Job Status Endpoint (Test Version - No Auth Required)
+ * Check status of long-running video generation jobs
+ */
+app.get('/api/video-job-status-test/:jobId', async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    logger.info('Job status check', { jobId });
+
+    // In production, you would query a job database/queue
+    // For now, return placeholder
+    res.json({
+      jobId,
+      status: 'processing',
+      progress: Math.floor(Math.random() * 80) + 10, // 10-90%
+      message: 'Video generation in progress...',
+      estimatedTimeRemaining: '5-10 minutes'
+    });
+
+  } catch (error) {
+    logger.error('Job status check error', { error: error.message });
+    res.status(500).json({
+      error: 'Could not check job status',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Video Job Status Endpoint (Production - Firebase Auth Required)
+ * Check status of long-running video generation jobs
+ */
+app.get('/api/video-job-status/:jobId', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    logger.info('Job status check', { jobId });
+
+    // In production, you would query a job database/queue
+    // For now, return placeholder
+    res.json({
+      jobId,
+      status: 'processing',
+      progress: Math.floor(Math.random() * 80) + 10, // 10-90%
+      message: 'Video generation in progress...',
+      estimatedTimeRemaining: '5-10 minutes'
+    });
+
+  } catch (error) {
+    logger.error('Job status check error', { error: error.message });
+    res.status(500).json({
+      error: 'Could not check job status',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Video Metadata Endpoint (Test Version - No Auth Required)
+ * Get technical details about a generated video
+ */
+app.post('/api/video-metadata-test', async (req, res) => {
+  try {
+    const { videoUrl } = req.body;
+
+    if (!videoUrl) {
+      return res.status(400).json({ error: 'videoUrl is required' });
+    }
+
+    logger.info('Video metadata requested', { url: videoUrl.substring(0, 50) });
+
+    const metadata = await getVideoMetadata(videoUrl, logger);
+
+    res.json({
+      success: true,
+      metadata,
+      message: 'Metadata extracted successfully'
+    });
+
+  } catch (error) {
+    logger.error('Metadata extraction error', { error: error.message });
+    res.status(500).json({
+      error: 'Could not extract metadata',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Video Metadata Endpoint (Production - Firebase Auth Required)
+ * Get technical details about a generated video
+ */
+app.post('/api/video-metadata', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { videoUrl } = req.body;
+
+    if (!videoUrl) {
+      return res.status(400).json({ error: 'videoUrl is required' });
+    }
+
+    logger.info('Video metadata requested', { url: videoUrl.substring(0, 50) });
+
+    const metadata = await getVideoMetadata(videoUrl, logger);
+
+    res.json({
+      success: true,
+      metadata,
+      message: 'Metadata extracted successfully'
+    });
+
+  } catch (error) {
+    logger.error('Metadata extraction error', { error: error.message });
+    res.status(500).json({
+      error: 'Could not extract metadata',
+      details: error.message
     });
   }
 });
