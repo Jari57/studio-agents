@@ -7,6 +7,7 @@
 const Replicate = require('replicate');
 const path = require('path');
 const fs = require('fs');
+const { spawnSync } = require('child_process');
 const { analyzeMusicBeats } = require('./beatDetectionService');
 const { 
   composeVideoWithBeats, 
@@ -14,6 +15,37 @@ const {
   normalizeVideo,
   getVideoMetadata 
 } = require('./videoCompositionService');
+
+let ffmpegReadyCache = null;
+
+// Quick readiness probe to fail fast when ffmpeg is missing
+function ensureFfmpegAvailable(logger) {
+  if (ffmpegReadyCache !== null) {
+    return ffmpegReadyCache;
+  }
+
+  try {
+    const probe = spawnSync('ffmpeg', ['-version'], { encoding: 'utf-8' });
+
+    if (probe.error) {
+      throw probe.error;
+    }
+
+    if (probe.status !== 0) {
+      throw new Error(`ffmpeg exited with status ${probe.status}`);
+    }
+
+    ffmpegReadyCache = true;
+    if (logger) logger.info('FFmpeg detected for video orchestration');
+    return true;
+  } catch (error) {
+    ffmpegReadyCache = false;
+    if (logger) logger.error('FFmpeg missing for video orchestration', {
+      error: error.message
+    });
+    throw new Error('FFmpeg is required for video composition and beat sync. Install it and ensure it is on PATH (e.g., choco install ffmpeg)');
+  }
+}
 
 /**
  * Generate video segments using Replicate (Minimax or other models)
@@ -180,6 +212,8 @@ async function generateSyncedMusicVideo(
   });
 
   try {
+    ensureFfmpegAvailable(logger);
+
     if (logger) logger.info('Starting synced music video generation', {
       duration: requestedDuration,
       audioUrl: audioUrl.substring(0, 50),
