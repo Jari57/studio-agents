@@ -55,18 +55,21 @@ function GeneratorCard({
   };
 
   const agent = AGENTS.find(a => a.id === agentId);
+  
+  // Check if mobile
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
     <div className="generator-card" style={{
       background: 'rgba(0,0,0,0.4)',
-      borderRadius: '20px',
+      borderRadius: isMobile ? '14px' : '20px',
       border: `1px solid ${color}33`,
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',
       position: 'relative',
       transition: 'all 0.3s ease',
-      minHeight: '380px'
+      minHeight: isMobile ? '200px' : '380px'
     }}>
       {/* Glow effect */}
       <div style={{
@@ -81,18 +84,18 @@ function GeneratorCard({
 
       {/* Header - Agent style */}
       <div style={{
-        padding: '16px 20px',
+        padding: isMobile ? '10px 12px' : '16px 20px',
         borderBottom: `1px solid ${color}22`,
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
+        gap: isMobile ? '8px' : '12px',
         position: 'relative',
         zIndex: 1
       }}>
         <div style={{
-          width: '48px',
-          height: '48px',
-          borderRadius: '14px',
+          width: isMobile ? '36px' : '48px',
+          height: isMobile ? '36px' : '48px',
+          borderRadius: isMobile ? '10px' : '14px',
           background: `linear-gradient(135deg, ${color}30, ${color}10)`,
           border: `2px solid ${color}60`,
           display: 'flex',
@@ -100,12 +103,12 @@ function GeneratorCard({
           justifyContent: 'center',
           boxShadow: `0 4px 20px ${color}20`
         }}>
-          <Icon size={24} color={color} />
+          <Icon size={isMobile ? 18 : 24} color={color} />
         </div>
         <div style={{ flex: 1 }}>
           <h3 style={{ 
             margin: 0, 
-            fontSize: '1.1rem', 
+            fontSize: isMobile ? '0.9rem' : '1.1rem', 
             fontWeight: '700',
             color: 'white'
           }}>
@@ -139,10 +142,10 @@ function GeneratorCard({
       {/* Content Area */}
       <div style={{ 
         flex: 1, 
-        padding: '16px 20px',
+        padding: isMobile ? '10px 12px' : '16px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
+        gap: isMobile ? '8px' : '12px',
         position: 'relative',
         zIndex: 1
       }}>
@@ -156,12 +159,12 @@ function GeneratorCard({
                   onChange={(e) => setEditText(e.target.value)}
                   style={{
                     flex: 1,
-                    padding: '12px',
+                    padding: isMobile ? '8px' : '12px',
                     borderRadius: '10px',
                     background: 'rgba(0,0,0,0.3)',
                     border: `1px solid ${color}40`,
                     color: 'white',
-                    fontSize: '0.9rem',
+                    fontSize: isMobile ? '0.8rem' : '0.9rem',
                     lineHeight: '1.5',
                     resize: 'none',
                     outline: 'none',
@@ -208,18 +211,18 @@ function GeneratorCard({
                 onClick={() => setIsExpanded(!isExpanded)}
                 style={{
                   background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '12px',
-                  padding: '14px',
+                  borderRadius: isMobile ? '8px' : '12px',
+                  padding: isMobile ? '10px' : '14px',
                   flex: 1,
                   overflow: 'auto',
                   cursor: 'pointer',
-                  maxHeight: isExpanded ? '200px' : '100px',
+                  maxHeight: isExpanded ? (isMobile ? '150px' : '200px') : (isMobile ? '60px' : '100px'),
                   transition: 'max-height 0.3s ease'
                 }}
               >
                 <p style={{ 
-                  fontSize: '0.9rem', 
-                  lineHeight: '1.6', 
+                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
+                  lineHeight: isMobile ? '1.4' : '1.6', 
                   color: 'rgba(255,255,255,0.9)',
                   margin: 0,
                   whiteSpace: 'pre-wrap'
@@ -399,10 +402,10 @@ function GeneratorCard({
       {/* Action Bar */}
       {output && !isEditing && (
         <div style={{
-          padding: '12px 20px 16px',
+          padding: isMobile ? '8px 12px 10px' : '12px 20px 16px',
           borderTop: '1px solid rgba(255,255,255,0.05)',
           display: 'flex',
-          gap: '8px',
+          gap: isMobile ? '4px' : '8px',
           flexWrap: 'wrap',
           position: 'relative',
           zIndex: 1
@@ -412,21 +415,21 @@ function GeneratorCard({
             onClick={onSpeak}
             title={isSpeaking ? "Stop Speaking" : "Text to Speech"}
             style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
+              padding: isMobile ? '6px 8px' : '8px 12px',
+              borderRadius: isMobile ? '6px' : '8px',
               background: isSpeaking ? `${color}30` : 'rgba(255,255,255,0.05)',
               border: `1px solid ${isSpeaking ? color : 'rgba(255,255,255,0.1)'}`,
               color: isSpeaking ? color : 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.75rem',
+              gap: isMobile ? '4px' : '6px',
+              fontSize: isMobile ? '0.65rem' : '0.75rem',
               fontWeight: '500',
               transition: 'all 0.2s'
             }}
           >
-            {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            {isSpeaking ? <VolumeX size={isMobile ? 12 : 14} /> : <Volume2 size={isMobile ? 12 : 14} />}
             {isSpeaking ? 'Stop' : 'TTS'}
           </button>
 
@@ -435,16 +438,16 @@ function GeneratorCard({
             onClick={handleCopy}
             title="Copy to Clipboard"
             style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
+              padding: isMobile ? '6px 8px' : '8px 12px',
+              borderRadius: isMobile ? '6px' : '8px',
               background: 'rgba(255,255,255,0.05)',
               border: '1px solid rgba(255,255,255,0.1)',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.75rem',
+              gap: isMobile ? '4px' : '6px',
+              fontSize: isMobile ? '0.65rem' : '0.75rem',
               fontWeight: '500'
             }}
           >
@@ -457,22 +460,46 @@ function GeneratorCard({
             onClick={() => setIsEditing(true)}
             title="Edit Output"
             style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
+              padding: isMobile ? '6px 8px' : '8px 12px',
+              borderRadius: isMobile ? '6px' : '8px',
               background: 'rgba(255,255,255,0.05)',
               border: '1px solid rgba(255,255,255,0.1)',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.75rem',
+              gap: isMobile ? '4px' : '6px',
+              fontSize: isMobile ? '0.65rem' : '0.75rem',
               fontWeight: '500'
             }}
           >
-            <Edit3 size={14} />
+            <Edit3 size={isMobile ? 12 : 14} />
             Edit
           </button>
+
+          {/* Preview Button - now next to Edit */}
+          {(mediaUrl || (output && !mediaType)) && (
+            <button
+              onClick={() => setShowPreview(true)}
+              title="Preview"
+              style={{
+                padding: isMobile ? '6px 8px' : '8px 12px',
+                borderRadius: isMobile ? '6px' : '8px',
+                background: `${color}20`,
+                border: `1px solid ${color}40`,
+                color: color,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: isMobile ? '4px' : '6px',
+                fontSize: isMobile ? '0.65rem' : '0.75rem',
+                fontWeight: '600'
+              }}
+            >
+              <Eye size={isMobile ? 12 : 14} />
+              Preview
+            </button>
+          )}
 
           {/* Regenerate Button */}
           {onRegenerate && (
@@ -480,20 +507,20 @@ function GeneratorCard({
               onClick={onRegenerate}
               title="Regenerate"
               style={{
-                padding: '8px 12px',
-                borderRadius: '8px',
+                padding: isMobile ? '6px 8px' : '8px 12px',
+                borderRadius: isMobile ? '6px' : '8px',
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.1)',
                 color: 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.75rem',
+                gap: isMobile ? '4px' : '6px',
+                fontSize: isMobile ? '0.65rem' : '0.75rem',
                 fontWeight: '500'
               }}
             >
-              <RefreshCw size={14} />
+              <RefreshCw size={isMobile ? 12 : 14} />
               Redo
             </button>
           )}
@@ -501,50 +528,26 @@ function GeneratorCard({
           {/* Spacer */}
           <div style={{ flex: 1 }} />
 
-          {/* Preview Button - shows for media OR text content */}
-          {(mediaUrl || (output && !mediaType)) && (
-            <button
-              onClick={() => setShowPreview(true)}
-              title="Preview"
-              style={{
-                padding: '8px 12px',
-                borderRadius: '8px',
-                background: `${color}20`,
-                border: `1px solid ${color}40`,
-                color: color,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.75rem',
-                fontWeight: '600'
-              }}
-            >
-              <Eye size={14} />
-              Preview
-            </button>
-          )}
-
           {/* Download Button */}
           {(output || mediaUrl) && (
             <button
               onClick={onDownload}
               title="Download"
               style={{
-                padding: '8px 12px',
-                borderRadius: '8px',
+                padding: isMobile ? '6px 8px' : '8px 12px',
+                borderRadius: isMobile ? '6px' : '8px',
                 background: 'rgba(34, 197, 94, 0.15)',
                 border: '1px solid rgba(34, 197, 94, 0.3)',
                 color: '#22c55e',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.75rem',
+                gap: isMobile ? '4px' : '6px',
+                fontSize: isMobile ? '0.65rem' : '0.75rem',
                 fontWeight: '600'
               }}
             >
-              <Download size={14} />
+              <Download size={isMobile ? 12 : 14} />
             </button>
           )}
 
@@ -554,20 +557,20 @@ function GeneratorCard({
               onClick={onDelete}
               title="Delete"
               style={{
-                padding: '8px 12px',
-                borderRadius: '8px',
+                padding: isMobile ? '6px 8px' : '8px 12px',
+                borderRadius: isMobile ? '6px' : '8px',
                 background: 'rgba(239, 68, 68, 0.1)',
                 border: '1px solid rgba(239, 68, 68, 0.2)',
                 color: '#ef4444',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.75rem',
+                gap: isMobile ? '4px' : '6px',
+                fontSize: isMobile ? '0.65rem' : '0.75rem',
                 fontWeight: '500'
               }}
             >
-              <Trash2 size={14} />
+              <Trash2 size={isMobile ? 12 : 14} />
             </button>
           )}
         </div>
@@ -972,6 +975,10 @@ export default function StudioOrchestratorV2({
 
   // Create project
   const handleCreateProject = () => {
+    console.log('[Orchestrator] handleCreateProject called');
+    console.log('[Orchestrator] outputs:', outputs);
+    console.log('[Orchestrator] mediaUrls:', mediaUrls);
+    
     const assets = [];
     
     GENERATOR_SLOTS.forEach(slot => {
@@ -993,6 +1000,8 @@ export default function StudioOrchestratorV2({
       }
     });
     
+    console.log('[Orchestrator] assets created:', assets.length);
+    
     const project = {
       id: String(Date.now()),
       name: projectName || songIdea || 'Untitled Project',
@@ -1010,8 +1019,15 @@ export default function StudioOrchestratorV2({
       coverImage: mediaUrls.image ? `data:image/png;base64,${mediaUrls.image}` : null
     };
     
+    console.log('[Orchestrator] project created:', project.id, project.name);
+    
     if (onCreateProject) {
+      console.log('[Orchestrator] calling onCreateProject callback');
       onCreateProject(project);
+      toast.success(`Saved "${project.name}" with ${assets.length} assets!`);
+    } else {
+      console.warn('[Orchestrator] No onCreateProject callback provided!');
+      toast.error('Save failed - no handler');
     }
     
     setShowCreateProject(false);
