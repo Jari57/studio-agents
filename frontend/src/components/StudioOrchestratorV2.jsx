@@ -29,7 +29,8 @@ function GeneratorCard({
   onSaveToProject = null,
   onDownload = null,
   onSpeak = null,
-  isSpeaking = false
+  isSpeaking = false,
+  onMaximize = null
 }) {
   const [showPreview, setShowPreview] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -528,6 +529,29 @@ function GeneratorCard({
           {/* Spacer */}
           <div style={{ flex: 1 }} />
 
+          {/* Maximize Button */}
+          {output && onMaximize && (
+            <button
+              onClick={onMaximize}
+              title="Expand to Fullscreen"
+              style={{
+                padding: isMobile ? '6px 8px' : '8px 12px',
+                borderRadius: isMobile ? '6px' : '8px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: isMobile ? '4px' : '6px',
+                fontSize: isMobile ? '0.65rem' : '0.75rem',
+                fontWeight: '500'
+              }}
+            >
+              <Maximize2 size={isMobile ? 12 : 14} />
+            </button>
+          )}
+
           {/* Download Button */}
           {(output || mediaUrl) && (
             <button
@@ -642,6 +666,9 @@ export default function StudioOrchestratorV2({
   const [projectName, setProjectName] = useState('');
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [voiceStyle, setVoiceStyle] = useState('singer'); // For Ghostwriter vocal generation
+  const [generatingVocal, setGeneratingVocal] = useState(false);
+  const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
   
   const speechSynthRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -930,6 +957,60 @@ export default function StudioOrchestratorV2({
       toast.error('Video generation failed', { id: 'gen-video' });
     } finally {
       setGeneratingMedia(prev => ({ ...prev, video: false }));
+    }
+  };
+
+  // Ghostwriter vocal generation - Generate audio of lyrics being recited/sung
+  const handleGenerateLyricsVocal = async () => {
+    if (!outputs.lyrics) {
+      toast.error('Generate lyrics first');
+      return;
+    }
+    
+    setGeneratingVocal(true);
+    toast.loading('Creating vocal performance...', { id: 'gen-vocal' });
+    
+    try {
+      const headers = await getHeaders();
+      
+      // Use TTS with different voice styles
+      const voiceDescriptions = {
+        singer: 'smooth vocal delivery with musical phrasing, like a professional singer',
+        rapper: 'fast-paced rhythmic delivery with attitude and swagger, like a hip-hop artist',
+        narrator: 'clear spoken word delivery with good enunciation and presence',
+        whisper: 'intimate whispered vocal delivery',
+        spoken: 'natural conversational tone'
+      };
+      
+      const response = await fetch(`${BACKEND_URL}/api/generate-audio`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          prompt: `${voiceDescriptions[voiceStyle] || 'singing'}: "${outputs.lyrics.substring(0, 300)}"`,
+          voiceStyle: voiceStyle,
+          duration: 15,
+          type: 'vocal'
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.audioUrl) {
+          // Store as a separate vocal version under the lyrics
+          setMediaUrls(prev => ({ 
+            ...prev, 
+            lyricsVocal: data.audioUrl 
+          }));
+          toast.success(`${voiceStyle} vocal created!`, { id: 'gen-vocal' });
+        }
+      } else {
+        toast.error('Failed to generate vocal', { id: 'gen-vocal' });
+      }
+    } catch (err) {
+      console.error('Vocal generation error:', err);
+      toast.error('Vocal generation failed', { id: 'gen-vocal' });
+    } finally {
+      setGeneratingVocal(false);
     }
   };
 
@@ -1328,6 +1409,105 @@ export default function StudioOrchestratorV2({
           </div>
         </div>
 
+        {/* Ghostwriter Vocal Generation - appears when lyrics are ready */}
+        {outputs.lyrics && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%)',
+            borderRadius: '16px',
+            padding: '20px',
+            border: '1px solid rgba(139, 92, 246, 0.4)',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            justifyContent: 'space-between'
+          }}>
+            <div>
+              <h4 style={{ 
+                margin: '0 0 6px', 
+                fontSize: '1rem', 
+                fontWeight: '700',
+                color: '#8b5cf6'
+              }}>
+                🎤 Ghostwriter Vocal Performance
+              </h4>
+              <p style={{ 
+                margin: 0, 
+                fontSize: '0.85rem', 
+                color: 'var(--text-secondary)' 
+              }}>
+                Generate audio of the lyrics being recited or sung by different voice types
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <select
+                value={voiceStyle}
+                onChange={(e) => setVoiceStyle(e.target.value)}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(139, 92, 246, 0.5)',
+                  color: 'white',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  minWidth: '140px'
+                }}
+              >
+                <option value="singer">Singer</option>
+                <option value="rapper">Rapper</option>
+                <option value="narrator">Narrator</option>
+                <option value="whisper">Whisper</option>
+                <option value="spoken">Spoken Word</option>
+              </select>
+              
+              <button
+                onClick={handleGenerateLyricsVocal}
+                disabled={generatingVocal}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '10px',
+                  background: generatingVocal ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.4)',
+                  border: '1px solid rgba(139, 92, 246, 0.6)',
+                  color: '#8b5cf6',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                  cursor: generatingVocal ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {generatingVocal ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Speaker size={16} />
+                    Create Vocal
+                  </>
+                )}
+              </button>
+              
+              {mediaUrls.lyricsVocal && (
+                <audio 
+                  src={mediaUrls.lyricsVocal}
+                  controls
+                  style={{ 
+                    height: '32px',
+                    width: '200px'
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 4 Generator Cards Grid - 2x2 layout */}
         <div style={{
           display: 'grid',
@@ -1368,10 +1548,126 @@ export default function StudioOrchestratorV2({
               onDownload={() => handleDownload(slot.key)}
               onSpeak={() => speakText(outputs[slot.key], slot.key)}
               isSpeaking={speakingSlot === slot.key}
+              onMaximize={() => setMaximizedSlot(slot.key)}
             />
           ))}
         </div>
       </div>
+
+      {/* Maximized Card Modal */}
+      {maximizedSlot && GENERATOR_SLOTS.find(s => s.key === maximizedSlot) && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(10,10,20,0.98) 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2500,
+            padding: '20px',
+            overflowY: 'auto'
+          }}
+          onClick={() => setMaximizedSlot(null)}
+        >
+          <div 
+            style={{
+              background: 'rgba(0,0,0,0.4)',
+              borderRadius: '24px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              width: '100%',
+              maxWidth: '800px',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <div style={{
+              padding: '16px 24px',
+              borderBottom: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              position: 'sticky',
+              top: 0,
+              background: 'rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(10px)',
+              zIndex: 10
+            }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '700' }}>
+                {GENERATOR_SLOTS.find(s => s.key === maximizedSlot)?.title}
+              </h3>
+              <button
+                onClick={() => setMaximizedSlot(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: '12px',
+                  width: '40px',
+                  height: '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'white',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Maximized Card Content */}
+            <div style={{
+              padding: '24px',
+              flex: 1,
+              overflowY: 'auto'
+            }}>
+              {(() => {
+                const slot = GENERATOR_SLOTS.find(s => s.key === maximizedSlot);
+                return (
+                  <GeneratorCard
+                    key={`max-${slot.key}`}
+                    slot={slot.key}
+                    agentId={selectedAgents[slot.key]}
+                    icon={slot.icon}
+                    title={slot.title}
+                    subtitle={slot.subtitle}
+                    color={slot.color}
+                    output={outputs[slot.key]}
+                    isLoading={isGenerating && selectedAgents[slot.key]}
+                    mediaType={slot.mediaType}
+                    mediaUrl={
+                      slot.key === 'audio' ? mediaUrls.audio :
+                      slot.key === 'visual' ? mediaUrls.image :
+                      slot.key === 'video' ? mediaUrls.video : null
+                    }
+                    onGenerateMedia={
+                      slot.key === 'audio' ? handleGenerateAudio :
+                      slot.key === 'visual' ? handleGenerateImage :
+                      slot.key === 'video' ? handleGenerateVideo : null
+                    }
+                    isGeneratingMedia={
+                      slot.key === 'audio' ? generatingMedia.audio :
+                      slot.key === 'visual' ? generatingMedia.image :
+                      slot.key === 'video' ? generatingMedia.video : false
+                    }
+                    onRegenerate={() => handleRegenerate(slot.key)}
+                    onEdit={(text) => handleEdit(slot.key, text)}
+                    onDelete={() => handleDelete(slot.key)}
+                    onDownload={() => handleDownload(slot.key)}
+                    onSpeak={() => speakText(outputs[slot.key], slot.key)}
+                    isSpeaking={speakingSlot === slot.key}
+                  />
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer Actions */}
       {Object.values(outputs).some(Boolean) && (
