@@ -3061,9 +3061,11 @@ app.post('/api/master-audio', verifyFirebaseToken, async (req, res) => {
     const finalBitDepth = targetBitDepth || config.bitDepth;
 
     if (!WaveFile) {
-      return res.status(500).json({ 
-        error: 'Audio processing not available',
-        message: 'wavefile library not installed on server'
+      return res.status(503).json({ 
+        error: 'Audio mastering temporarily unavailable',
+        message: 'Advanced audio mastering is currently in development. Basic audio processing is not available on this server instance.',
+        comingSoon: true,
+        alternatives: 'For now, please use external mastering tools like Landr, CloudBounce, or eMastered.'
       });
     }
 
@@ -3737,7 +3739,8 @@ app.get('/api/trending-ai', async (req, res) => {
       items: projects,
       total_count: data.total_count,
       page: parseInt(page),
-      per_page: parseInt(per_page)
+      per_page: parseInt(per_page),
+      disclaimer: 'Data sourced from GitHub trending AI repositories'
     });
   } catch (err) {
     logger.error('❌ Failed to fetch trending AI projects', { error: err.message });
