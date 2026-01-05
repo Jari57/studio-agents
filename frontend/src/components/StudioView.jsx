@@ -5815,7 +5815,47 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                 setSelectedProject(project);
                 setActiveTab('project_canvas');
               }}
-              onCreateProject={() => setShowProjectChoiceModal(true)}
+              onCreateProject={(project) => {
+                console.log('[StudioView] Orchestrator project save:', project.id, project.name);
+                
+                // Check credits
+                const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
+                if (currentCredits < PROJECT_CREDIT_COST) {
+                  console.error('[StudioView] Insufficient credits for orchestrator save');
+                  toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to save.`);
+                  setShowCreditsModal(true);
+                  return;
+                }
+                
+                // Deduct credits
+                setUserCredits(prev => {
+                  const newCredits = prev - PROJECT_CREDIT_COST;
+                  console.log('[StudioView] Orchestrator: Credits deducted', prev, '->', newCredits);
+                  return newCredits;
+                });
+                
+                // Add to projects
+                setProjects(prev => {
+                  const newProjects = [project, ...prev];
+                  console.log('[StudioView] Orchestrator: Project added. Total:', newProjects.length);
+                  return newProjects;
+                });
+                
+                // Save to cloud if logged in
+                if (isLoggedIn && user && db) {
+                  console.log('[StudioView] Orchestrator: Saving to cloud for user:', user.uid);
+                  saveProjectToCloud(user.uid, project).then(success => {
+                    console.log('[StudioView] Orchestrator: Cloud save result:', success);
+                  }).catch(err => {
+                    console.error('[StudioView] Orchestrator: Cloud save error:', err);
+                  });
+                }
+                
+                // Select it and navigate to project canvas
+                setSelectedProject(project);
+                setActiveTab('project_canvas');
+                toast.success(`Saved "${project.name}" with ${project.assets?.length || 0} assets!`);
+              }}
               onDeleteProject={handleDeleteProject}
               setActiveTab={setActiveTab}
               setSelectedAgent={setSelectedAgent}
