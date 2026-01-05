@@ -758,11 +758,6 @@ export default function StudioOrchestratorV2({
       return;
     }
     
-    if (!authToken) {
-      toast.error('Please sign in to generate');
-      return;
-    }
-    
     setIsGenerating(true);
     const newOutputs = { lyrics: null, audio: null, visual: null, video: null };
     
