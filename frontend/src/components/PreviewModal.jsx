@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import { X, Download, Eye } from 'lucide-react';
+import { X, Download, Eye, Copy, Check } from 'lucide-react';
 
 /**
  * PreviewModal - Display full-size previews of generated assets
- * Supports images, videos, and audio
+ * Supports images, videos, audio, and text
  */
 export function PreviewModal({ 
   isOpen, 
   onClose, 
   mediaUrl, 
   mediaType, 
-  title = 'Asset Preview'
+  title = 'Asset Preview',
+  textContent = null
 }) {
-  if (!isOpen || !mediaUrl) return null;
+  const [copied, setCopied] = useState(false);
+  
+  if (!isOpen || (!mediaUrl && !textContent)) return null;
 
   const handleDownload = () => {
     if (mediaType === 'image') {
@@ -30,6 +33,21 @@ export function PreviewModal({
       link.href = mediaUrl;
       link.download = `${title}-${Date.now()}.mp3`;
       link.click();
+    } else if (mediaType === 'text' && textContent) {
+      const blob = new Blob([textContent], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${title}-${Date.now()}.txt`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (textContent) {
+      await navigator.clipboard.writeText(textContent);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -91,6 +109,28 @@ export function PreviewModal({
             {title} Preview
           </h2>
           <div style={{ display: 'flex', gap: '8px' }}>
+            {mediaType === 'text' && textContent && (
+              <button
+                onClick={handleCopy}
+                style={{
+                  background: copied ? 'rgba(34, 197, 94, 0.2)' : 'rgba(139, 92, 246, 0.2)',
+                  border: `1px solid ${copied ? 'rgba(34, 197, 94, 0.4)' : 'rgba(139, 92, 246, 0.4)'}`,
+                  color: copied ? '#22c55e' : '#8b5cf6',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            )}
             <button
               onClick={handleDownload}
               style={{
@@ -213,6 +253,35 @@ export function PreviewModal({
               >
                 Audio player ready
               </p>
+            </div>
+          )}
+          {mediaType === 'text' && textContent && (
+            <div
+              style={{
+                width: '100%',
+                maxWidth: '700px',
+                maxHeight: '70vh',
+                overflow: 'auto',
+                padding: '24px',
+                background: 'rgba(0, 0, 0, 0.3)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                animation: 'zoomIn 0.3s ease-out'
+              }}
+            >
+              <pre
+                style={{
+                  margin: 0,
+                  fontFamily: 'inherit',
+                  fontSize: '1rem',
+                  lineHeight: '1.8',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}
+              >
+                {textContent}
+              </pre>
             </div>
           )}
         </div>

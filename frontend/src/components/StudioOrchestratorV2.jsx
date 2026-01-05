@@ -501,8 +501,8 @@ function GeneratorCard({
           {/* Spacer */}
           <div style={{ flex: 1 }} />
 
-          {/* Preview Button */}
-          {mediaUrl && (
+          {/* Preview Button - shows for media OR text content */}
+          {(mediaUrl || (output && !mediaType)) && (
             <button
               onClick={() => setShowPreview(true)}
               title="Preview"
@@ -578,8 +578,9 @@ function GeneratorCard({
         isOpen={showPreview}
         onClose={() => setShowPreview(false)}
         mediaUrl={mediaUrl}
-        mediaType={mediaType}
+        mediaType={mediaType || 'text'}
         title={title}
+        textContent={!mediaType ? output : null}
       />
 
       <style>{`
