@@ -59,12 +59,12 @@ export function PreviewModal({
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0, 0, 0, 0.95)',
+        background: 'rgba(0, 0, 0, 0.98)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1000,
-        backdropFilter: 'blur(8px)',
+        zIndex: 9999,
+        backdropFilter: 'blur(12px)',
         animation: 'fadeIn 0.2s ease-out'
       }}
       onClick={onClose}
