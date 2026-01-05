@@ -669,6 +669,8 @@ export default function StudioOrchestratorV2({
   const [voiceStyle, setVoiceStyle] = useState('singer'); // For Ghostwriter vocal generation
   const [generatingVocal, setGeneratingVocal] = useState(false);
   const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
+  const [creatingFinalMix, setCreatingFinalMix] = useState(false);
+  const [finalMixPreview, setFinalMixPreview] = useState(null);
   
   const speechSynthRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -1011,6 +1013,59 @@ export default function StudioOrchestratorV2({
       toast.error('Vocal generation failed', { id: 'gen-vocal' });
     } finally {
       setGeneratingVocal(false);
+    }
+  };
+
+  // Create final mix - combines all outputs into a single product
+  const handleCreateFinalMix = async () => {
+    const hasAllOutputs = outputs.lyrics && outputs.audio && outputs.visual && outputs.video;
+    if (!hasAllOutputs) {
+      toast.error('Generate all 4 outputs first');
+      return;
+    }
+
+    setCreatingFinalMix(true);
+    toast.loading('Creating final mix...', { id: 'final-mix' });
+
+    try {
+      // Compile all outputs into a final product summary
+      const finalMix = {
+        id: `mix-${Date.now()}`,
+        title: `${songIdea} - Complete Mix`,
+        description: `Full production of "${songIdea}" with lyrics, beat, visual, and video`,
+        created: new Date().toISOString(),
+        components: {
+          lyrics: {
+            content: outputs.lyrics,
+            agent: AGENTS.find(a => a.id === selectedAgents.lyrics)?.name || 'Ghostwriter',
+            vocalUrl: mediaUrls.lyricsVocal || null
+          },
+          audio: {
+            content: outputs.audio,
+            agent: AGENTS.find(a => a.id === selectedAgents.audio)?.name || 'Beat Maker',
+            audioUrl: mediaUrls.audio || null
+          },
+          visual: {
+            content: outputs.visual,
+            agent: AGENTS.find(a => a.id === selectedAgents.visual)?.name || 'Designer',
+            imageUrl: mediaUrls.image || null
+          },
+          video: {
+            content: outputs.video,
+            agent: AGENTS.find(a => a.id === selectedAgents.video)?.name || 'Video Creator',
+            videoUrl: mediaUrls.video || null
+          }
+        },
+        settings: { language, style, model }
+      };
+
+      setFinalMixPreview(finalMix);
+      toast.success('Final mix ready!', { id: 'final-mix' });
+    } catch (err) {
+      console.error('Final mix error:', err);
+      toast.error('Failed to create final mix', { id: 'final-mix' });
+    } finally {
+      setCreatingFinalMix(false);
     }
   };
 
@@ -1414,33 +1469,186 @@ export default function StudioOrchestratorV2({
           <div style={{
             background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(139, 92, 246, 0.05) 100%)',
             borderRadius: '16px',
-            padding: '20px',
+            padding: '24px',
             border: '1px solid rgba(139, 92, 246, 0.4)',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-            justifyContent: 'space-between'
+            marginBottom: '24px'
           }}>
-            <div>
-              <h4 style={{ 
-                margin: '0 0 6px', 
-                fontSize: '1rem', 
-                fontWeight: '700',
-                color: '#8b5cf6'
-              }}>
-                🎤 Ghostwriter Vocal Performance
-              </h4>
-              <p style={{ 
-                margin: 0, 
-                fontSize: '0.85rem', 
-                color: 'var(--text-secondary)' 
-              }}>
-                Generate audio of the lyrics being recited or sung by different voice types
-              </p>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <div>
+                <h4 style={{ 
+                  margin: '0 0 6px', 
+                  fontSize: '1rem', 
+                  fontWeight: '700',
+                  color: '#8b5cf6'
+                }}>
+                  🎤 Ghostwriter Vocal Performance
+                </h4>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '0.85rem', 
+                  color: 'var(--text-secondary)' 
+                }}>
+                  Generate audio of the lyrics being recited or sung by different voice types
+                </p>
+              </div>
             </div>
-            
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+
+            {/* Preview Section with Tabs */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '16px',
+              marginBottom: '16px'
+            }}>
+              {/* Text Preview */}
+              <div style={{
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid rgba(139, 92, 246, 0.3)'
+              }}>
+                <div style={{
+                  fontSize: '0.7rem',
+                  color: '#8b5cf6',
+                  fontWeight: '600',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  marginBottom: '12px'
+                }}>
+                  📝 Lyrics Text
+                </div>
+                <div style={{
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  maxHeight: '150px',
+                  overflowY: 'auto',
+                  fontSize: '0.85rem',
+                  lineHeight: '1.6',
+                  color: 'rgba(255,255,255,0.85)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
+                }}>
+                  {outputs.lyrics}
+                </div>
+              </div>
+
+              {/* Audio Preview */}
+              <div style={{
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '12px',
+                padding: '16px',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <div style={{
+                  fontSize: '0.7rem',
+                  color: '#8b5cf6',
+                  fontWeight: '600',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  marginBottom: '12px'
+                }}>
+                  🎵 Vocal Audio
+                </div>
+                {mediaUrls.lyricsVocal ? (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    flex: 1
+                  }}>
+                    <audio 
+                      src={mediaUrls.lyricsVocal}
+                      controls
+                      style={{ 
+                        width: '100%',
+                        height: '38px',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const modal = document.createElement('div');
+                        modal.innerHTML = `
+                          <div style="
+                            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                            background: rgba(0,0,0,0.9); z-index: 9999;
+                            display: flex; align-items: center; justify-content: center;
+                            padding: 20px;
+                          " onclick="if(event.target === this) this.remove();">
+                            <div style="
+                              background: rgba(0,0,0,0.8); border-radius: 20px;
+                              padding: 24px; max-width: 500px; width: 100%;
+                              border: 1px solid rgba(139, 92, 246, 0.4);
+                            " onclick="event.stopPropagation();">
+                              <div style="
+                                font-weight: 700; margin-bottom: 16px; color: #8b5cf6;
+                              ">
+                                🎧 Vocal Audio Player
+                              </div>
+                              <audio 
+                                src="${mediaUrls.lyricsVocal}"
+                                controls
+                                autoplay
+                                style="width: 100%; height: 50px; border-radius: 10px;"
+                              />
+                              <div style="
+                                margin-top: 16px; font-size: 0.85rem;
+                                color: var(--text-secondary);
+                              ">
+                                Voice Style: <strong>${voiceStyle}</strong>
+                              </div>
+                            </div>
+                          </div>
+                        `;
+                        document.body.appendChild(modal);
+                        modal.onclick = (e) => e.target === modal && modal.remove();
+                      }}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        background: 'rgba(139, 92, 246, 0.3)',
+                        border: '1px solid rgba(139, 92, 246, 0.5)',
+                        color: '#8b5cf6',
+                        fontWeight: '600',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Eye size={14} />
+                      Fullscreen
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '80px',
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.85rem',
+                    textAlign: 'center'
+                  }}>
+                    No audio yet • Click "Create Vocal" below
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Controls */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
               <select
                 value={voiceStyle}
                 onChange={(e) => setVoiceStyle(e.target.value)}
@@ -1452,15 +1660,14 @@ export default function StudioOrchestratorV2({
                   color: 'white',
                   fontSize: '0.85rem',
                   cursor: 'pointer',
-                  outline: 'none',
-                  minWidth: '140px'
+                  outline: 'none'
                 }}
               >
-                <option value="singer">Singer</option>
-                <option value="rapper">Rapper</option>
-                <option value="narrator">Narrator</option>
-                <option value="whisper">Whisper</option>
-                <option value="spoken">Spoken Word</option>
+                <option value="singer">🎤 Singer</option>
+                <option value="rapper">🎙️ Rapper</option>
+                <option value="narrator">📢 Narrator</option>
+                <option value="whisper">🤫 Whisper</option>
+                <option value="spoken">🗣️ Spoken Word</option>
               </select>
               
               <button
@@ -1469,7 +1676,7 @@ export default function StudioOrchestratorV2({
                 style={{
                   padding: '10px 20px',
                   borderRadius: '10px',
-                  background: generatingVocal ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.4)',
+                  background: generatingVocal ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.5)',
                   border: '1px solid rgba(139, 92, 246, 0.6)',
                   color: '#8b5cf6',
                   fontWeight: '600',
@@ -1478,7 +1685,7 @@ export default function StudioOrchestratorV2({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  whiteSpace: 'nowrap'
+                  opacity: generatingVocal ? 0.7 : 1
                 }}
               >
                 {generatingVocal ? (
@@ -1493,16 +1700,250 @@ export default function StudioOrchestratorV2({
                   </>
                 )}
               </button>
-              
+
+              {/* Copy Lyrics Button */}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(outputs.lyrics);
+                  toast.success('Lyrics copied!');
+                }}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '10px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'var(--text-secondary)',
+                  fontWeight: '500',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Copy size={14} />
+                Copy Lyrics
+              </button>
+
               {mediaUrls.lyricsVocal && (
-                <audio 
-                  src={mediaUrls.lyricsVocal}
-                  controls
-                  style={{ 
-                    height: '32px',
-                    width: '200px'
+                <button
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = mediaUrls.lyricsVocal;
+                    a.download = `${songIdea || 'lyrics'}-${voiceStyle}.mp3`;
+                    a.click();
                   }}
-                />
+                  style={{
+                    padding: '10px 16px',
+                    borderRadius: '10px',
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    color: '#22c55e',
+                    fontWeight: '600',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Download size={14} />
+                  Download Audio
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Final Mix Section - appears when all 4 generators complete */}
+        {Object.values(outputs).every(Boolean) && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.05) 100%)',
+            borderRadius: '16px',
+            padding: '24px',
+            border: '1px solid rgba(34, 197, 94, 0.4)',
+            marginBottom: '24px'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <div>
+                <h4 style={{ 
+                  margin: '0 0 6px', 
+                  fontSize: '1.1rem', 
+                  fontWeight: '700',
+                  color: '#22c55e'
+                }}>
+                  ✨ Final Mix - Complete Product
+                </h4>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '0.85rem', 
+                  color: 'var(--text-secondary)' 
+                }}>
+                  All 4 generators complete • Combine into a single integrated product
+                </p>
+              </div>
+            </div>
+
+            {/* Components Summary */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+              gap: '12px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '10px',
+                padding: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '0.7rem', color: '#8b5cf6', fontWeight: '600', marginBottom: '4px' }}>📝 Lyrics</div>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)' }}>
+                  {outputs.lyrics.length} chars
+                </div>
+              </div>
+              
+              <div style={{
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '10px',
+                padding: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '0.7rem', color: '#06b6d4', fontWeight: '600', marginBottom: '4px' }}>🎵 Beat</div>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)' }}>
+                  {mediaUrls.audio ? '✓ Audio' : 'Ready'}
+                </div>
+              </div>
+              
+              <div style={{
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '10px',
+                padding: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '0.7rem', color: '#ec4899', fontWeight: '600', marginBottom: '4px' }}>🖼️ Visual</div>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)' }}>
+                  {mediaUrls.image ? '✓ Image' : 'Ready'}
+                </div>
+              </div>
+              
+              <div style={{
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '10px',
+                padding: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: '600', marginBottom: '4px' }}>🎬 Video</div>
+                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)' }}>
+                  {mediaUrls.video ? '✓ Video' : 'Ready'}
+                </div>
+              </div>
+            </div>
+
+            {/* Final Mix Preview */}
+            {finalMixPreview && (
+              <div style={{
+                background: 'rgba(0,0,0,0.2)',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '16px',
+                border: '1px solid rgba(34, 197, 94, 0.3)',
+                maxHeight: '300px',
+                overflowY: 'auto'
+              }}>
+                <div style={{
+                  fontSize: '0.75rem',
+                  color: '#22c55e',
+                  fontWeight: '600',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  marginBottom: '12px'
+                }}>
+                  📦 Final Product Preview
+                </div>
+                <div style={{
+                  fontSize: '0.9rem',
+                  color: 'rgba(255,255,255,0.8)',
+                  lineHeight: '1.6'
+                }}>
+                  <strong>{finalMixPreview.title}</strong>
+                  <div style={{ fontSize: '0.8rem', marginTop: '8px', color: 'var(--text-secondary)' }}>
+                    {finalMixPreview.description}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', marginTop: '12px', color: 'var(--text-secondary)' }}>
+                    Created: {new Date(finalMixPreview.created).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <button
+                onClick={handleCreateFinalMix}
+                disabled={creatingFinalMix}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '10px',
+                  background: creatingFinalMix ? 'rgba(34, 197, 94, 0.3)' : 'rgba(34, 197, 94, 0.5)',
+                  border: '1px solid rgba(34, 197, 94, 0.6)',
+                  color: '#22c55e',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                  cursor: creatingFinalMix ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                {creatingFinalMix ? (
+                  <>
+                    <Loader2 size={16} className="spin" />
+                    Mixing...
+                  </>
+                ) : (
+                  <>
+                    <Zap size={16} />
+                    Create Final Mix
+                  </>
+                )}
+              </button>
+
+              {finalMixPreview && (
+                <button
+                  onClick={() => {
+                    const exportData = JSON.stringify(finalMixPreview, null, 2);
+                    const blob = new Blob([exportData], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${songIdea || 'mix'}-final.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success('Final mix exported!');
+                  }}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'white',
+                    fontWeight: '600',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Download size={16} />
+                  Export Mix
+                </button>
               )}
             </div>
           </div>
