@@ -23,6 +23,19 @@ function ProjectHub({
   setSelectedAgent,
   setQuickWorkflowAgent
 }) {
+  // TRACE: Log what ProjectHub receives
+  React.useEffect(() => {
+    console.log('[TRACE:ProjectHub] Projects received:', {
+      count: projects.length,
+      projectSummary: projects.slice(0, 5).map(p => ({
+        id: p.id,
+        name: p.name,
+        assetCount: p.assets?.length || 0,
+        hasAssets: Array.isArray(p.assets) && p.assets.length > 0
+      }))
+    });
+  }, [projects]);
+
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');

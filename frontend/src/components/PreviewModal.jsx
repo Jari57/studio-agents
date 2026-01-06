@@ -19,8 +19,12 @@ export function PreviewModal({
 
   const handleDownload = () => {
     if (mediaType === 'image') {
+      // Handle URLs, data URLs, and base64
+      const imageSrc = mediaUrl.startsWith('http') || mediaUrl.startsWith('data:') 
+        ? mediaUrl 
+        : `data:image/png;base64,${mediaUrl}`;
       const link = document.createElement('a');
-      link.href = mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`;
+      link.href = imageSrc;
       link.download = `${title}-${Date.now()}.png`;
       link.click();
     } else if (mediaType === 'video') {
@@ -202,7 +206,7 @@ export function PreviewModal({
         >
           {mediaType === 'image' && (
             <img
-              src={mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
+              src={mediaUrl.startsWith('http') || mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
               alt={title}
               style={{
                 maxWidth: '100%',

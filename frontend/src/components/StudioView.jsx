@@ -246,8 +246,18 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   // Save a single project to Firestore
   const saveProjectToCloud = async (uid, project) => {
+    const traceId = `SAVE-${Date.now()}`;
+    console.log(`[TRACE:${traceId}] saveProjectToCloud START`, {
+      hasDb: !!db,
+      hasUid: !!uid,
+      projectId: project?.id,
+      projectName: project?.name,
+      assetCount: project?.assets?.length,
+      assetTypes: project?.assets?.map(a => ({ id: a.id, type: a.type, hasImage: !!a.imageUrl, hasAudio: !!a.audioUrl, hasVideo: !!a.videoUrl }))
+    });
+    
     if (!db || !uid || !project || !project.id) {
-      console.warn('saveProjectToCloud: Missing required data', { hasDb: !!db, hasUid: !!uid, hasProject: !!project });
+      console.warn(`[TRACE:${traceId}] saveProjectToCloud ABORT - Missing required data`, { hasDb: !!db, hasUid: !!uid, hasProject: !!project });
       return false;
     }
     
@@ -261,10 +271,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
             sanitizedProject[key] = JSON.parse(JSON.stringify(value));
           } catch (e) {
             // Skip values that can't be serialized
-            console.warn(`Skipping non-serializable field: ${key}`);
+            console.warn(`[TRACE:${traceId}] Skipping non-serializable field: ${key}`);
           }
         }
       }
+      
+      console.log(`[TRACE:${traceId}] Sanitized project assets:`, sanitizedProject.assets?.length, sanitizedProject.assets?.map(a => a.id));
       
       const projectRef = doc(db, 'users', uid, 'projects', String(project.id));
       await setDoc(projectRef, {
@@ -349,6 +361,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
   // Persist projects to localStorage
   useEffect(() => {
+    console.log('[TRACE:LocalStorage] Saving projects to localStorage:', {
+      count: projects.length,
+      projects: projects.slice(0, 3).map(p => ({ id: p.id, name: p.name, assetCount: p.assets?.length }))
+    });
     localStorage.setItem('studio_projects', JSON.stringify(projects));
   }, [projects]);
   
@@ -375,6 +391,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   
   // Load projects from Firestore
   const loadProjectsFromCloud = async (uid) => {
+    const traceId = `LOAD-${Date.now()}`;
+    console.log(`[TRACE:${traceId}] loadProjectsFromCloud START`, { hasDb: !!db, hasUid: !!uid });
+    
     if (!db || !uid) return [];
     try {
       const projectsRef = collection(db, 'users', uid, 'projects');
@@ -387,10 +406,20 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
         updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
       }));
-      console.log(`Loaded ${cloudProjects.length} projects from cloud`);
+      
+      console.log(`[TRACE:${traceId}] loadProjectsFromCloud COMPLETE`, {
+        count: cloudProjects.length,
+        projects: cloudProjects.map(p => ({
+          id: p.id,
+          name: p.name,
+          assetCount: p.assets?.length || 0,
+          assetTypes: p.assets?.map(a => a.type)
+        }))
+      });
+      
       return cloudProjects;
     } catch (err) {
-      console.error('Failed to load projects from cloud:', err);
+      console.error(`[TRACE:${traceId}] loadProjectsFromCloud ERROR:`, err);
       return [];
     }
   };
@@ -9385,50 +9414,83 @@ When you write a song, you create intellectual property that generates money eve
             authToken={userToken}
             existingProject={selectedProject}
             onCreateProject={(project) => {
-              // Check if updating existing project or creating new
-              setProjects(prev => {
-                const existingIndex = prev.findIndex(p => p.id === project.id);
-                
-                if (existingIndex >= 0) {
-                  // Update existing project - merge assets without duplicates
-                  console.log('[Orchestrator] Updating existing project:', project.id);
-                  const existingProject = prev[existingIndex];
-                  const existingAssetIds = new Set((existingProject.assets || []).map(a => a.id));
-                  const newAssets = (project.assets || []).filter(a => !existingAssetIds.has(a.id));
-                  
-                  const updatedProject = {
-                    ...existingProject,
-                    ...project,
-                    assets: [...(existingProject.assets || []), ...newAssets],
-                    updatedAt: new Date().toISOString()
-                  };
-                  
-                  const newProjects = [...prev];
-                  newProjects[existingIndex] = updatedProject;
-                  
-                  // Save updated project to cloud
-                  if (isLoggedIn && user && db) {
-                    saveProjectToCloud(user.uid, updatedProject);
-                  }
-                  
-                  setSelectedProject(updatedProject);
-                  return newProjects;
-                } else {
-                  // Create new project
-                  console.log('[Orchestrator] Creating new project:', project.id);
-                  
-                  // Save to cloud if user is logged in
-                  if (isLoggedIn && user && db) {
-                    saveProjectToCloud(user.uid, project);
-                  }
-                  
-                  setSelectedProject(project);
-                  return [project, ...prev];
-                }
+              const traceId = `CREATE-${Date.now()}`;
+              console.log(`[TRACE:${traceId}] onCreateProject RECEIVED`, {
+                projectId: project.id,
+                projectName: project.name,
+                assetCount: project.assets?.length,
+                assets: project.assets?.map(a => ({
+                  id: a.id,
+                  type: a.type,
+                  hasContent: !!a.content,
+                  hasImage: !!a.imageUrl,
+                  hasAudio: !!a.audioUrl,
+                  hasVideo: !!a.videoUrl
+                })),
+                coverImage: project.coverImage ? 'present' : 'missing'
               });
               
+              // Find if project already exists
+              const existingIndex = projects.findIndex(p => p.id === project.id);
+              console.log(`[TRACE:${traceId}] Existing project index:`, existingIndex, 'current projects count:', projects.length);
+              
+              let finalProject;
+              
+              if (existingIndex >= 0) {
+                // Update existing project - merge assets without duplicates
+                console.log(`[TRACE:${traceId}] Updating existing project:`, project.id);
+                const existingProject = projects[existingIndex];
+                console.log(`[TRACE:${traceId}] Existing project assets:`, existingProject.assets?.length);
+                
+                const existingAssetIds = new Set((existingProject.assets || []).map(a => a.id));
+                const newAssets = (project.assets || []).filter(a => !existingAssetIds.has(a.id));
+                console.log(`[TRACE:${traceId}] New assets to add:`, newAssets.length);
+                
+                finalProject = {
+                  ...existingProject,
+                  ...project,
+                  assets: [...(existingProject.assets || []), ...newAssets],
+                  updatedAt: new Date().toISOString()
+                };
+                
+                console.log(`[TRACE:${traceId}] Final merged asset count:`, finalProject.assets?.length);
+                
+                const newProjects = [...projects];
+                newProjects[existingIndex] = finalProject;
+                setProjects(newProjects);
+              } else {
+                // Create new project
+                console.log(`[TRACE:${traceId}] Creating new project:`, project.id);
+                finalProject = {
+                  ...project,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                };
+                console.log(`[TRACE:${traceId}] New project asset count:`, finalProject.assets?.length);
+                setProjects(prev => {
+                  console.log(`[TRACE:${traceId}] setProjects - previous count:`, prev.length);
+                  return [finalProject, ...prev];
+                });
+              }
+              
+              // Set selected project
+              setSelectedProject(finalProject);
+              console.log(`[TRACE:${traceId}] Selected project set:`, finalProject.id, 'assets:', finalProject.assets?.length);
+              
+              // Save to cloud if user is logged in
+              if (isLoggedIn && user && db) {
+                console.log(`[TRACE:${traceId}] Initiating cloud save for:`, finalProject.id);
+                saveProjectToCloud(user.uid, finalProject).then(success => {
+                  console.log(`[TRACE:${traceId}] Cloud save result:`, success);
+                }).catch(err => {
+                  console.error(`[TRACE:${traceId}] Cloud save error:`, err);
+                });
+              } else {
+                console.warn(`[TRACE:${traceId}] NOT saving to cloud - isLoggedIn:`, isLoggedIn, 'hasUser:', !!user, 'hasDb:', !!db);
+              }
+              
               setActiveTab('project_canvas');
-              toast.success(`Project "${project.name}" saved!`);
+              toast.success(`Project "${finalProject.name}" saved with ${finalProject.assets?.length || 0} assets!`);
             }}
             onUpdateCreations={(agentId, creations) => {
               setAgentCreations(prev => ({

@@ -319,7 +319,7 @@ function GeneratorCard({
                   {mediaType === 'image' && (
                     <div style={{ position: 'relative' }}>
                       <img 
-                        src={mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
+                        src={mediaUrl.startsWith('http') || mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
                         alt="Generated"
                         style={{ 
                           width: '100%', 
@@ -678,6 +678,18 @@ export default function StudioOrchestratorV2({
   const speechSynthRef = useRef(null);
   const recognitionRef = useRef(null);
   
+  // Helper to format image data for display
+  // Handles: URLs (http/https), data URLs, and raw base64
+  const formatImageSrc = (imageData) => {
+    if (!imageData) return null;
+    // Already a URL or data URL
+    if (imageData.startsWith('http') || imageData.startsWith('data:')) {
+      return imageData;
+    }
+    // Raw base64 - add data URL prefix
+    return `data:image/png;base64,${imageData}`;
+  };
+  
   const EXAMPLE_IDEAS = [
     "Summer love in Brooklyn",
     "Trap anthem about success", 
@@ -880,7 +892,7 @@ export default function StudioOrchestratorV2({
   const handleGenerateAudio = async () => {
     if (!outputs.audio) return;
     setGeneratingMedia(prev => ({ ...prev, audio: true }));
-    toast.loading('Generating audio...', { id: 'gen-audio' });
+    toast.loading('Generating audio beat...', { id: 'gen-audio' });
     
     try {
       const headers = await getHeaders();
@@ -889,22 +901,95 @@ export default function StudioOrchestratorV2({
         headers,
         body: JSON.stringify({
           prompt: `${style} instrumental beat: ${outputs.audio.substring(0, 200)}`,
-          duration: 8
+          genre: style || 'hip-hop',
+          mood: 'energetic',
+          bpm: 90,
+          durationSeconds: 15
         })
       });
       
       if (response.ok) {
         const data = await response.json();
+        console.log('[Orchestrator] Audio generation response:', { 
+          hasUrl: !!data.audioUrl, 
+          isReal: data.isRealGeneration,
+          source: data.source 
+        });
+        
         if (data.audioUrl) {
           setMediaUrls(prev => ({ ...prev, audio: data.audioUrl }));
-          toast.success('Audio created!', { id: 'gen-audio' });
+          
+          // Show different message if it's a sample vs real generation
+          if (data.isSample) {
+            toast.success('Sample beat loaded! (Add Replicate credits for custom AI beats)', { id: 'gen-audio', duration: 5000 });
+          } else {
+            toast.success('AI beat generated!', { id: 'gen-audio' });
+          }
+        } else {
+          toast.error('No audio returned', { id: 'gen-audio' });
         }
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        console.error('[Orchestrator] Audio generation failed:', errData);
+        toast.error(errData.details || errData.error || 'Audio generation failed', { id: 'gen-audio' });
       }
     } catch (err) {
+      console.error('[Orchestrator] Audio generation error:', err);
       toast.error('Audio generation failed', { id: 'gen-audio' });
     } finally {
       setGeneratingMedia(prev => ({ ...prev, audio: false }));
     }
+  };
+
+  // Extract frame from video as fallback for image
+  const extractFrameFromVideo = (videoUrl) => {
+    return new Promise((resolve, reject) => {
+      try {
+        const video = document.createElement('video');
+        video.crossOrigin = 'anonymous';
+        video.muted = true;
+        
+        video.onloadeddata = () => {
+          // Seek to 1 second or 10% of duration
+          video.currentTime = Math.min(1, video.duration * 0.1);
+        };
+        
+        video.onseeked = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 360;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Get as data URL
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            video.remove();
+            resolve(dataUrl);
+          } catch (e) {
+            reject(e);
+          }
+        };
+        
+        video.onerror = (e) => {
+          reject(new Error('Video load failed'));
+        };
+        
+        // Set source and load
+        video.src = videoUrl;
+        video.load();
+        
+        // Timeout after 10 seconds
+        setTimeout(() => {
+          video.remove();
+          reject(new Error('Frame extraction timeout'));
+        }, 10000);
+        
+      } catch (e) {
+        reject(e);
+      }
+    });
   };
 
   const handleGenerateImage = async () => {
@@ -924,15 +1009,99 @@ export default function StudioOrchestratorV2({
       
       if (response.ok) {
         const data = await response.json();
-        if (data.imageData) {
-          setMediaUrls(prev => ({ ...prev, image: data.imageData }));
-          toast.success('Image created!', { id: 'gen-image' });
+        console.log('[Orchestrator] Image generation response:', Object.keys(data));
+        
+        // Handle different response formats from backend:
+        // 1. Replicate/Flux returns: { output: "https://..." } (URL)
+        // 2. Gemini/Imagen returns: { images: ["base64data..."] } (base64 array)
+        // 3. Legacy format: { imageData: "base64data..." }
+        let imageData = null;
+        
+        if (data.output && typeof data.output === 'string') {
+          // URL from Replicate - use directly
+          imageData = data.output;
+          console.log('[Orchestrator] Got image URL from Replicate');
+        } else if (data.images && data.images.length > 0) {
+          // Base64 from Gemini/Imagen - store raw base64
+          imageData = data.images[0];
+          console.log('[Orchestrator] Got base64 image from Gemini/Imagen');
+        } else if (data.imageData) {
+          // Legacy format
+          imageData = data.imageData;
+          console.log('[Orchestrator] Got image from legacy format');
         }
+        
+        if (imageData) {
+          setMediaUrls(prev => ({ ...prev, image: imageData }));
+          toast.success('Image created!', { id: 'gen-image' });
+        } else {
+          console.error('[Orchestrator] No image data in response:', data);
+          // Try video frame fallback
+          await tryVideoFrameFallback();
+        }
+      } else {
+        const errText = await response.text();
+        console.error('[Orchestrator] Image generation failed:', response.status, errText);
+        // Try video frame fallback
+        await tryVideoFrameFallback();
       }
     } catch (err) {
-      toast.error('Image generation failed', { id: 'gen-image' });
+      console.error('[Orchestrator] Image generation error:', err);
+      // Try video frame fallback
+      await tryVideoFrameFallback();
     } finally {
       setGeneratingMedia(prev => ({ ...prev, image: false }));
+    }
+  };
+
+  // Fallback: Extract frame from existing video if image generation fails
+  const tryVideoFrameFallback = async () => {
+    const videoUrl = mediaUrls.video || musicVideoUrl;
+    if (!videoUrl) {
+      toast.error('No image or video available', { id: 'gen-image' });
+      return;
+    }
+    
+    toast.loading('Extracting frame from video...', { id: 'gen-image' });
+    
+    try {
+      // Try server-side extraction first
+      const headers = await getHeaders();
+      const response = await fetch(`${BACKEND_URL}/api/extract-video-frame`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ videoUrl, timestamp: 1 })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.extractClientSide) {
+          // Server says use client-side extraction
+          console.log('[Orchestrator] Using client-side frame extraction');
+          const frameDataUrl = await extractFrameFromVideo(videoUrl);
+          setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
+          toast.success('Frame extracted from video!', { id: 'gen-image' });
+          return;
+        }
+        
+        if (data.output || data.imageData) {
+          const imageData = data.output || `data:${data.mimeType || 'image/jpeg'};base64,${data.imageData}`;
+          setMediaUrls(prev => ({ ...prev, image: imageData }));
+          toast.success('Frame extracted from video!', { id: 'gen-image' });
+          return;
+        }
+      }
+      
+      // Fallback to client-side extraction
+      console.log('[Orchestrator] Server extraction failed, trying client-side');
+      const frameDataUrl = await extractFrameFromVideo(videoUrl);
+      setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
+      toast.success('Frame extracted from video!', { id: 'gen-image' });
+      
+    } catch (err) {
+      console.error('[Orchestrator] Frame extraction failed:', err);
+      toast.error('Could not extract frame from video', { id: 'gen-image' });
     }
   };
 
@@ -953,19 +1122,45 @@ export default function StudioOrchestratorV2({
       
       if (response.ok) {
         const data = await response.json();
-        if (data.videoUrl) {
-          setMediaUrls(prev => ({ ...prev, video: data.videoUrl }));
+        console.log('[Orchestrator] Video generation response:', Object.keys(data));
+        
+        // Handle different response formats
+        const videoUrl = data.videoUrl || data.output || data.video;
+        
+        if (videoUrl) {
+          setMediaUrls(prev => ({ ...prev, video: videoUrl }));
           toast.success('Video created!', { id: 'gen-video' });
+          
+          // Auto-extract frame if we don't have an image yet
+          if (!mediaUrls.image) {
+            toast.loading('Extracting cover frame...', { id: 'extract-frame' });
+            try {
+              const frameDataUrl = await extractFrameFromVideo(videoUrl);
+              setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
+              toast.success('Cover image extracted!', { id: 'extract-frame' });
+            } catch (e) {
+              console.log('[Orchestrator] Auto frame extraction failed (non-critical):', e);
+              toast.dismiss('extract-frame');
+            }
+          }
+        } else {
+          console.error('[Orchestrator] No video URL in response:', data);
+          toast.error(data.message || 'No video returned', { id: 'gen-video' });
         }
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        console.error('[Orchestrator] Video generation failed:', response.status, errData);
+        toast.error(errData.details || errData.error || 'Video generation failed', { id: 'gen-video' });
       }
     } catch (err) {
+      console.error('[Orchestrator] Video generation error:', err);
       toast.error('Video generation failed', { id: 'gen-video' });
     } finally {
       setGeneratingMedia(prev => ({ ...prev, video: false }));
     }
   };
 
-  // Ghostwriter vocal generation - Generate audio of lyrics being recited/sung
+  // Ghostwriter vocal generation - Generate audio of lyrics being recited/sung via Gemini TTS
   const handleGenerateLyricsVocal = async () => {
     if (!outputs.lyrics) {
       toast.error('Generate lyrics first');
@@ -978,23 +1173,28 @@ export default function StudioOrchestratorV2({
     try {
       const headers = await getHeaders();
       
-      // Use TTS with different voice styles
-      const voiceDescriptions = {
-        singer: 'smooth vocal delivery with musical phrasing, like a professional singer',
-        rapper: 'fast-paced rhythmic delivery with attitude and swagger, like a hip-hop artist',
-        narrator: 'clear spoken word delivery with good enunciation and presence',
-        whisper: 'intimate whispered vocal delivery',
-        spoken: 'natural conversational tone'
+      // Map voice style to Gemini TTS voice names
+      // Available voices: Aoede, Charon, Fenrir, Kore, Puck, Zephyr (English)
+      const voiceMapping = {
+        singer: 'Kore',     // Warm, melodic voice good for singing
+        rapper: 'Fenrir',   // Energetic, rhythmic voice
+        narrator: 'Charon', // Deep, clear voice for spoken word
+        whisper: 'Zephyr',  // Soft, breathy voice
+        spoken: 'Puck'      // Natural conversational voice
       };
       
-      const response = await fetch(`${BACKEND_URL}/api/generate-audio`, {
+      const selectedVoice = voiceMapping[voiceStyle] || 'Kore';
+      
+      // Prepare lyrics text with performance direction
+      const performanceText = `[${voiceStyle} style] ${outputs.lyrics.substring(0, 500)}`;
+      
+      const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: `${voiceDescriptions[voiceStyle] || 'singing'}: "${outputs.lyrics.substring(0, 300)}"`,
-          voiceStyle: voiceStyle,
-          duration: 15,
-          type: 'vocal'
+          prompt: performanceText,
+          voice: selectedVoice,
+          style: voiceStyle
         })
       });
       
@@ -1184,15 +1384,29 @@ export default function StudioOrchestratorV2({
   const handleCreateProject = () => {
     console.log('[Orchestrator] handleCreateProject called');
     console.log('[Orchestrator] existingProject:', existingProject?.id);
-    console.log('[Orchestrator] outputs:', outputs);
-    console.log('[Orchestrator] mediaUrls:', mediaUrls);
+    console.log('[Orchestrator] outputs:', JSON.stringify(outputs, null, 2));
+    console.log('[Orchestrator] mediaUrls:', JSON.stringify(mediaUrls, null, 2));
+    console.log('[Orchestrator] selectedAgents:', JSON.stringify(selectedAgents, null, 2));
+    console.log('[Orchestrator] songIdea:', songIdea);
+    console.log('[Orchestrator] projectName:', projectName);
+    
+    // Check if there's any content to save
+    const hasContent = Object.values(outputs).some(o => o !== null);
+    const hasMedia = Object.values(mediaUrls).some(m => m !== null);
+    console.log('[Orchestrator] hasContent:', hasContent, 'hasMedia:', hasMedia);
+    
+    if (!hasContent && !hasMedia) {
+      toast.error('No content to save! Generate some content first.');
+      return;
+    }
     
     const assets = [];
     
     GENERATOR_SLOTS.forEach(slot => {
+      console.log('[Orchestrator] Processing slot:', slot.key, 'output:', outputs[slot.key]?.substring?.(0, 50) || outputs[slot.key]);
       if (outputs[slot.key]) {
         const agent = AGENTS.find(a => a.id === selectedAgents[slot.key]);
-        assets.push({
+        const asset = {
           id: `${slot.key}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           title: slot.title,
           type: slot.key,
@@ -1200,16 +1414,18 @@ export default function StudioOrchestratorV2({
           content: outputs[slot.key],
           snippet: outputs[slot.key].substring(0, 100),
           audioUrl: slot.key === 'audio' ? mediaUrls.audio : null,
-          imageUrl: slot.key === 'visual' ? (mediaUrls.image ? `data:image/png;base64,${mediaUrls.image}` : null) : null,
+          imageUrl: slot.key === 'visual' ? formatImageSrc(mediaUrls.image) : null,
           videoUrl: slot.key === 'video' ? mediaUrls.video : null,
           date: new Date().toLocaleDateString(),
           createdAt: new Date().toISOString(),
           color: `agent-${slot.color.replace('#', '')}`
-        });
+        };
+        console.log('[Orchestrator] Created asset:', asset.id, asset.title);
+        assets.push(asset);
       }
     });
     
-    console.log('[Orchestrator] assets created:', assets.length);
+    console.log('[Orchestrator] Total assets created:', assets.length);
     
     // Use existing project ID if updating, otherwise create new
     const projectId = existingProject?.id || String(Date.now());
@@ -1229,14 +1445,25 @@ export default function StudioOrchestratorV2({
         return agent?.name || id;
       }),
       assets,
-      coverImage: mediaUrls.image ? `data:image/png;base64,${mediaUrls.image}` : (existingProject?.coverImage || null)
+      coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
     };
     
-    console.log('[Orchestrator] project prepared:', project.id, project.name, 'isUpdate:', !!existingProject);
+    console.log('[Orchestrator] Project object:', JSON.stringify({
+      id: project.id,
+      name: project.name,
+      assetCount: project.assets.length,
+      assetTypes: project.assets.map(a => a.type)
+    }, null, 2));
     
     if (onCreateProject) {
-      console.log('[Orchestrator] calling onCreateProject callback');
-      onCreateProject(project);
+      console.log('[Orchestrator] Calling onCreateProject callback with project');
+      try {
+        onCreateProject(project);
+        toast.success(`Saved ${project.assets.length} assets to "${project.name}"!`);
+      } catch (err) {
+        console.error('[Orchestrator] onCreateProject callback error:', err);
+        toast.error('Save failed - callback error');
+      }
     } else {
       console.warn('[Orchestrator] No onCreateProject callback provided!');
       toast.error('Save failed - no handler');
@@ -2694,7 +2921,7 @@ export default function StudioOrchestratorV2({
                     aspectRatio: '1'
                   }}>
                     <img
-                      src={mediaUrls.image}
+                      src={formatImageSrc(mediaUrls.image)}
                       alt="Cover Art"
                       style={{
                         width: '100%',

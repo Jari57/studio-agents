@@ -2192,6 +2192,111 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// VIDEO FRAME EXTRACTION (Fallback for image from video)
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/extract-video-frame', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { videoUrl, timestamp = 0 } = req.body;
+    
+    if (!videoUrl) {
+      return res.status(400).json({ error: 'Video URL is required' });
+    }
+    
+    logger.info('Extracting frame from video', { videoUrl: videoUrl.substring(0, 50), timestamp });
+    
+    // Check if ffmpeg is available
+    const { spawnSync } = require('child_process');
+    const probe = spawnSync('ffmpeg', ['-version'], { encoding: 'utf-8' });
+    
+    if (probe.error || probe.status !== 0) {
+      // Fallback: Use canvas-based extraction for browser-compatible URLs
+      // Return instruction for frontend to extract frame client-side
+      return res.json({
+        extractClientSide: true,
+        videoUrl: videoUrl,
+        timestamp: timestamp,
+        message: 'FFmpeg not available - use client-side extraction'
+      });
+    }
+    
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+    const https = require('https');
+    const http = require('http');
+    
+    // Create temp directory for processing
+    const tempDir = path.join(os.tmpdir(), 'frame-extract');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    
+    const tempVideo = path.join(tempDir, `input-${Date.now()}.mp4`);
+    const tempFrame = path.join(tempDir, `frame-${Date.now()}.jpg`);
+    
+    // Download video to temp file
+    const downloadVideo = () => new Promise((resolve, reject) => {
+      const protocol = videoUrl.startsWith('https') ? https : http;
+      const file = fs.createWriteStream(tempVideo);
+      protocol.get(videoUrl, (response) => {
+        response.pipe(file);
+        file.on('finish', () => {
+          file.close();
+          resolve();
+        });
+      }).on('error', (err) => {
+        fs.unlink(tempVideo, () => {});
+        reject(err);
+      });
+    });
+    
+    await downloadVideo();
+    
+    // Extract frame using ffmpeg
+    const ffmpegResult = spawnSync('ffmpeg', [
+      '-i', tempVideo,
+      '-ss', String(timestamp),
+      '-vframes', '1',
+      '-q:v', '2',
+      '-y',
+      tempFrame
+    ], { encoding: 'utf-8' });
+    
+    if (ffmpegResult.status !== 0 || !fs.existsSync(tempFrame)) {
+      // Cleanup
+      fs.unlinkSync(tempVideo);
+      throw new Error('FFmpeg frame extraction failed');
+    }
+    
+    // Read frame and convert to base64
+    const frameData = fs.readFileSync(tempFrame);
+    const base64Frame = frameData.toString('base64');
+    
+    // Cleanup temp files
+    fs.unlinkSync(tempVideo);
+    fs.unlinkSync(tempFrame);
+    
+    logger.info('Frame extracted successfully');
+    
+    res.json({
+      imageData: base64Frame,
+      mimeType: 'image/jpeg',
+      output: `data:image/jpeg;base64,${base64Frame}`,
+      source: 'video-frame',
+      timestamp: timestamp
+    });
+    
+  } catch (error) {
+    logger.error('Video frame extraction error', { error: error.message });
+    res.status(500).json({ 
+      error: 'Frame extraction failed', 
+      details: error.message,
+      extractClientSide: true // Fallback to client-side
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // IMAGE GENERATION ROUTE (Multi-Model: Flux 1.1 Pro -> Nano Banana -> Imagen)
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
