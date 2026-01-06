@@ -1183,6 +1183,7 @@ export default function StudioOrchestratorV2({
   // Create project
   const handleCreateProject = () => {
     console.log('[Orchestrator] handleCreateProject called');
+    console.log('[Orchestrator] existingProject:', existingProject?.id);
     console.log('[Orchestrator] outputs:', outputs);
     console.log('[Orchestrator] mediaUrls:', mediaUrls);
     
@@ -1192,7 +1193,7 @@ export default function StudioOrchestratorV2({
       if (outputs[slot.key]) {
         const agent = AGENTS.find(a => a.id === selectedAgents[slot.key]);
         assets.push({
-          id: String(Date.now() + Math.random()),
+          id: `${slot.key}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           title: slot.title,
           type: slot.key,
           agent: agent?.name || slot.subtitle,
@@ -1201,7 +1202,8 @@ export default function StudioOrchestratorV2({
           audioUrl: slot.key === 'audio' ? mediaUrls.audio : null,
           imageUrl: slot.key === 'visual' ? (mediaUrls.image ? `data:image/png;base64,${mediaUrls.image}` : null) : null,
           videoUrl: slot.key === 'video' ? mediaUrls.video : null,
-          date: 'Just now',
+          date: new Date().toLocaleDateString(),
+          createdAt: new Date().toISOString(),
           color: `agent-${slot.color.replace('#', '')}`
         });
       }
@@ -1209,29 +1211,32 @@ export default function StudioOrchestratorV2({
     
     console.log('[Orchestrator] assets created:', assets.length);
     
+    // Use existing project ID if updating, otherwise create new
+    const projectId = existingProject?.id || String(Date.now());
+    
     const project = {
-      id: String(Date.now()),
-      name: projectName || songIdea || 'Untitled Project',
+      id: projectId,
+      name: projectName || songIdea || existingProject?.name || 'Untitled Project',
       description: `Created with Studio Orchestrator: "${songIdea}"`,
-      category: 'Music',
+      category: existingProject?.category || 'Music',
       language,
       style,
       model,
-      date: new Date().toLocaleDateString(),
+      date: existingProject?.date || new Date().toLocaleDateString(),
+      updatedAt: new Date().toISOString(),
       agents: Object.values(selectedAgents).filter(Boolean).map(id => {
         const agent = AGENTS.find(a => a.id === id);
         return agent?.name || id;
       }),
       assets,
-      coverImage: mediaUrls.image ? `data:image/png;base64,${mediaUrls.image}` : null
+      coverImage: mediaUrls.image ? `data:image/png;base64,${mediaUrls.image}` : (existingProject?.coverImage || null)
     };
     
-    console.log('[Orchestrator] project created:', project.id, project.name);
+    console.log('[Orchestrator] project prepared:', project.id, project.name, 'isUpdate:', !!existingProject);
     
     if (onCreateProject) {
       console.log('[Orchestrator] calling onCreateProject callback');
       onCreateProject(project);
-      toast.success(`Saved "${project.name}" with ${assets.length} assets!`);
     } else {
       console.warn('[Orchestrator] No onCreateProject callback provided!');
       toast.error('Save failed - no handler');

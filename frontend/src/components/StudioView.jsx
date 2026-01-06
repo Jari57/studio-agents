@@ -953,10 +953,25 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     setProjects(prev => {
       const newProjects = prev.map(p => {
         if (p.id === projectId) {
+          const existingAssets = p.assets || [];
+          
+          // Check for duplicate asset by ID or by content hash
+          const isDuplicate = existingAssets.some(existing => 
+            existing.id === asset.id || 
+            (existing.content === asset.content && existing.type === asset.type && existing.agent === asset.agent)
+          );
+          
+          if (isDuplicate) {
+            console.log('[SaveAsset] Skipping duplicate asset:', asset.id);
+            return p; // Return unchanged project
+          }
+          
+          console.log('[SaveAsset] Adding new asset to project:', projectId, asset.id);
           return {
             ...p,
-            assets: [...(p.assets || []), asset],
-            progress: Math.min(100, (p.progress || 0) + 10)
+            assets: [...existingAssets, asset],
+            progress: Math.min(100, (p.progress || 0) + 10),
+            updatedAt: new Date().toISOString()
           };
         }
         return p;
@@ -970,6 +985,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
 
       return newProjects;
     });
+    
+    toast.success('Asset saved to project');
   };
 
   const handleCreateProjectWithAsset = (projectName, asset) => {
@@ -9368,29 +9385,50 @@ When you write a song, you create intellectual property that generates money eve
             authToken={userToken}
             existingProject={selectedProject}
             onCreateProject={(project) => {
-              // Add to projects list
-              setProjects(prev => [project, ...prev]);
-              setSelectedProject(project);
-              setActiveTab('project_canvas');
-              
-              // Save to cloud if user is logged in
-              if (isLoggedIn && user && db) {
-                console.log('[Orchestrator] Saving project to cloud:', project.id);
-                saveProjectToCloud(user.uid, project).then(success => {
-                  if (success) {
-                    console.log('[Orchestrator] Project saved to cloud successfully');
-                  } else {
-                    console.warn('[Orchestrator] Cloud save returned false');
+              // Check if updating existing project or creating new
+              setProjects(prev => {
+                const existingIndex = prev.findIndex(p => p.id === project.id);
+                
+                if (existingIndex >= 0) {
+                  // Update existing project - merge assets without duplicates
+                  console.log('[Orchestrator] Updating existing project:', project.id);
+                  const existingProject = prev[existingIndex];
+                  const existingAssetIds = new Set((existingProject.assets || []).map(a => a.id));
+                  const newAssets = (project.assets || []).filter(a => !existingAssetIds.has(a.id));
+                  
+                  const updatedProject = {
+                    ...existingProject,
+                    ...project,
+                    assets: [...(existingProject.assets || []), ...newAssets],
+                    updatedAt: new Date().toISOString()
+                  };
+                  
+                  const newProjects = [...prev];
+                  newProjects[existingIndex] = updatedProject;
+                  
+                  // Save updated project to cloud
+                  if (isLoggedIn && user && db) {
+                    saveProjectToCloud(user.uid, updatedProject);
                   }
-                }).catch(err => {
-                  console.error('[Orchestrator] Cloud save error:', err);
-                  toast.error('Failed to save project to cloud');
-                });
-              } else {
-                console.warn('[Orchestrator] Not saving to cloud - user not logged in');
-              }
+                  
+                  setSelectedProject(updatedProject);
+                  return newProjects;
+                } else {
+                  // Create new project
+                  console.log('[Orchestrator] Creating new project:', project.id);
+                  
+                  // Save to cloud if user is logged in
+                  if (isLoggedIn && user && db) {
+                    saveProjectToCloud(user.uid, project);
+                  }
+                  
+                  setSelectedProject(project);
+                  return [project, ...prev];
+                }
+              });
               
-              toast.success(`Project "${project.name}" created!`);
+              setActiveTab('project_canvas');
+              toast.success(`Project "${project.name}" saved!`);
             }}
             onUpdateCreations={(agentId, creations) => {
               setAgentCreations(prev => ({
@@ -10676,7 +10714,7 @@ When you write a song, you create intellectual property that generates money eve
                   className="cta-button-premium" 
                   disabled={
                     (projectWizardStep === 1 && (!newProjectData.name || !newProjectData.category)) ||
-                    (projectWizardStep === 2 && (!newProjectData.selectedAgents || newProjectData.selectedAgents.length === 0))
+                    (projectWizardStep === 2 && !newProjectData.workflow)
                   }
                   onClick={() => setProjectWizardStep(prev => prev + 1)}
                 >
