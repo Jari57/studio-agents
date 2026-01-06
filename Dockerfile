@@ -15,6 +15,7 @@ COPY --from=frontend-builder /app/frontend/dist ./public
 RUN npm prune --omit=dev
 
 FROM node:20-alpine
+RUN apk add --no-cache ffmpeg
 WORKDIR /app/backend
 COPY --from=backend-builder /app/backend ./
 ENV NODE_ENV=production
