@@ -1748,6 +1748,9 @@ export default function StudioOrchestratorV2({
         const data = await response.json();
         setOutputs(prev => ({ ...prev, [slot]: data.output }));
         toast.success(`${slotConfig.title} regenerated!`);
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        toast.error(errData.error || `Failed to regenerate ${slotConfig.title}`);
       }
     } catch {
       toast.error('Regeneration failed');
@@ -3562,7 +3565,7 @@ export default function StudioOrchestratorV2({
               }}>
                 <div>
                   <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '4px' }}>Lyrics</div>
-                  <div style={{ fontWeight: '600', color: '#a78bfa' }}>{outputs.lyrics.length} chars</div>
+                  <div style={{ fontWeight: '600', color: '#a78bfa' }}>{outputs.lyrics?.length || 0} chars</div>
                 </div>
                 <div>
                   <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '4px' }}>Audio</div>

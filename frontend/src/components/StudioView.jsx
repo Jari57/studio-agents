@@ -945,7 +945,9 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
     
     // Save to cloud if logged in
     if (user && db) {
-      saveProjectToCloud(user.uid, newProject);
+      saveProjectToCloud(user.uid, newProject).catch(err => {
+        console.error('Failed to save quick project to cloud:', err);
+      });
     }
 
     setShowProjectWizard(false);
@@ -1008,7 +1010,9 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       // Save to cloud if logged in
       const updatedProject = newProjects.find(p => p.id === projectId);
       if (updatedProject && user && db) {
-        saveProjectToCloud(user.uid, updatedProject);
+        saveProjectToCloud(user.uid, updatedProject).catch(err => {
+          console.error('Failed to save updated project to cloud:', err);
+        });
       }
 
       return newProjects;
@@ -1049,7 +1053,9 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
 
     // Save to cloud if logged in
     if (user && db) {
-      saveProjectToCloud(user.uid, newProject);
+      saveProjectToCloud(user.uid, newProject).catch(err => {
+        console.error('Failed to save new project with asset to cloud:', err);
+      });
     }
   };
 
@@ -2559,6 +2565,8 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
           method: 'POST',
           headers: saveHeaders,
           body: JSON.stringify({ userId: uid, project: itemToSave })
+        }).then(res => {
+          if (!res.ok) console.warn('Project save returned non-OK status:', res.status);
         }).catch(err => console.error("Failed to save to cloud", err));
         
         // Also log to generations history (for agent-based inventory)
@@ -2577,6 +2585,8 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
               videoUrl: itemToSave.videoUrl
             }
           })
+        }).then(res => {
+          if (!res.ok) console.warn('Generation log returned non-OK status:', res.status);
         }).catch(err => console.error("Failed to log generation", err));
       }
       setUserCredits(prev => Math.max(0, prev - 1));
@@ -2798,6 +2808,13 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
           }
           
           const res = await fetch(`${BACKEND_URL}/api/projects?userId=${uid}`, { headers });
+          
+          if (!res.ok) {
+            console.warn('Failed to fetch projects from server:', res.status);
+            setProjects(localProjects);
+            return;
+          }
+          
           const data = await res.json();
           
           if (data.projects) {

@@ -94,7 +94,7 @@ function ProjectHub({
     newProject.style = style;
     newProject.model = model;
     
-    setProjects(prev => [newProject, ...prev]);
+    setProjects?.(prev => [newProject, ...prev]);
     setShowTemplateModal(false);
     setSelectedTemplate(null);
     setNewProjectName('');
@@ -111,7 +111,7 @@ function ProjectHub({
     } else {
       // Fallback: local-only delete if no callback provided
       if (window.confirm('Delete this project? This cannot be undone.')) {
-        setProjects(prev => prev.filter(p => p.id !== projectId));
+        setProjects?.(prev => prev.filter(p => p.id !== projectId));
         toast.success('Project deleted');
       }
     }
@@ -127,7 +127,7 @@ function ProjectHub({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    setProjects(prev => [duplicate, ...prev]);
+    setProjects?.(prev => [duplicate, ...prev]);
     toast.success('Project duplicated');
     setShowProjectMenu(null);
   };
@@ -135,7 +135,7 @@ function ProjectHub({
   const handleArchiveProject = (project, e) => {
     e?.stopPropagation();
     const updated = { ...project, status: project.status === 'archived' ? 'active' : 'archived' };
-    setProjects(prev => prev.map(p => p.id === project.id ? updated : p));
+    setProjects?.(prev => prev.map(p => p.id === project.id ? updated : p));
     toast.success(updated.status === 'archived' ? 'Project archived' : 'Project restored');
     setShowProjectMenu(null);
   };
@@ -143,7 +143,7 @@ function ProjectHub({
   const handleStatusChange = (project, newStatus, e) => {
     e?.stopPropagation();
     const updated = { ...project, status: newStatus, updatedAt: new Date().toISOString() };
-    setProjects(prev => prev.map(p => p.id === project.id ? updated : p));
+    setProjects?.(prev => prev.map(p => p.id === project.id ? updated : p));
     toast.success(`Status: ${newStatus}`);
     setShowProjectMenu(null);
   };
