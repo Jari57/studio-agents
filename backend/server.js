@@ -2580,43 +2580,133 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// MUSIC/BEAT GENERATION ROUTE (Lyria RealTime - Simplified)
-// Note: Full Lyria uses WebSockets for streaming. This endpoint provides
-// a single-shot generation by collecting a short clip.
+// MUSIC/BEAT GENERATION ROUTE (Professional Quality Audio)
+// Priority: 1. Stability AI Stable Audio 2.5 (44.1kHz stereo, up to 3min)
+//          2. Replicate MusicGen (fallback)
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
     const { 
       prompt,           // e.g., "lo-fi hip hop beat with piano"
       bpm = 90,
-      durationSeconds = 15,
+      durationSeconds = 30,
       genre = 'hip-hop',
       mood = 'chill'
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
+    const stabilityKey = process.env.STABILITY_API_KEY;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
-    const geminiKey = process.env.GEMINI_API_KEY;
     
-    logger.info('Generating music/beat', { 
+    logger.info('Generating professional music/beat', { 
       prompt: prompt.substring(0, 50), 
       bpm, 
       genre, 
       mood,
-      hasReplicateKey: !!replicateKey,
-      replicateKeyPrefix: replicateKey ? replicateKey.substring(0, 8) : 'none'
+      durationSeconds,
+      hasStabilityKey: !!stabilityKey,
+      hasReplicateKey: !!replicateKey
     });
 
+    // Enhanced prompt for professional audio
+    const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. Professional studio production, broadcast quality, clear mix, punchy drums, warm bass.`;
+
     // ═══════════════════════════════════════════════════════════════════
-    // OPTION 1: Replicate MusicGen (Real Audio Generation)
+    // OPTION 1: Stability AI Stable Audio 2.5 (PRIMARY - Best Quality)
+    // 44.1kHz stereo, up to 190 seconds, trained on licensed AudioSparx
+    // ═══════════════════════════════════════════════════════════════════
+    if (stabilityKey) {
+      try {
+        logger.info('Using Stability AI Stable Audio 2.5 for professional audio generation');
+        
+        const stableAudioResponse = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${stabilityKey}`,
+            'Accept': 'application/json', // Get base64 JSON response
+            'Content-Type': 'multipart/form-data',
+            'stability-client-id': 'studio-agents'
+          },
+          body: new URLSearchParams({
+            prompt: musicPrompt,
+            duration: Math.min(durationSeconds, 190), // Max 190 seconds
+            model: 'stable-audio-2.5', // Latest model
+            output_format: 'mp3',
+            steps: 8, // Stable Audio 2.5 uses 4-8 steps (fast)
+          })
+        });
+
+        if (stableAudioResponse.ok) {
+          const contentType = stableAudioResponse.headers.get('content-type');
+          
+          if (contentType?.includes('audio')) {
+            // Direct audio bytes - convert to base64 data URL
+            const audioBuffer = await stableAudioResponse.arrayBuffer();
+            const base64Audio = Buffer.from(audioBuffer).toString('base64');
+            const audioDataUrl = `data:audio/mpeg;base64,${base64Audio}`;
+            
+            logger.info('Stable Audio 2.5 generated successfully (direct audio)', { 
+              durationSeconds,
+              sizeBytes: audioBuffer.byteLength
+            });
+            
+            return res.json({
+              audioUrl: audioDataUrl,
+              mimeType: 'audio/mpeg',
+              duration: durationSeconds,
+              source: 'stable-audio-2.5',
+              prompt: musicPrompt,
+              quality: 'broadcast',
+              sampleRate: '44.1kHz stereo',
+              isRealGeneration: true
+            });
+          } else {
+            // JSON response with base64
+            const jsonResponse = await stableAudioResponse.json();
+            if (jsonResponse.audio) {
+              const audioDataUrl = `data:audio/mpeg;base64,${jsonResponse.audio}`;
+              
+              logger.info('Stable Audio 2.5 generated successfully (base64 JSON)', { 
+                durationSeconds
+              });
+              
+              return res.json({
+                audioUrl: audioDataUrl,
+                mimeType: 'audio/mpeg',
+                duration: durationSeconds,
+                source: 'stable-audio-2.5',
+                prompt: musicPrompt,
+                quality: 'broadcast',
+                sampleRate: '44.1kHz stereo',
+                isRealGeneration: true
+              });
+            }
+          }
+        } else {
+          const errText = await stableAudioResponse.text();
+          logger.warn('Stability AI audio API error, falling back', { 
+            status: stableAudioResponse.status,
+            error: errText.substring(0, 200)
+          });
+          // Fall through to Replicate
+        }
+      } catch (stabilityError) {
+        logger.warn('Stability AI Stable Audio failed, trying Replicate', { 
+          error: stabilityError.message
+        });
+        // Fall through to Replicate
+      }
+    } else {
+      logger.info('No STABILITY_API_KEY configured - trying Replicate MusicGen');
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // OPTION 2: Replicate MusicGen (Fallback - Good Quality)
     // ═══════════════════════════════════════════════════════════════════
     if (replicateKey) {
       try {
         logger.info('Using Replicate MusicGen for audio generation');
-        
-        // Enhanced prompt for better results
-        const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. High quality, professional production.`;
         
         // Start the prediction
         const startResponse = await fetch('https://api.replicate.com/v1/predictions', {
@@ -2641,32 +2731,29 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
           const errText = await startResponse.text();
           logger.error('Replicate API returned error', { 
             status: startResponse.status, 
-            statusText: startResponse.statusText,
             error: errText.substring(0, 200)
           });
           
-          // Check for billing/credit issues
           if (startResponse.status === 402) {
             throw new Error('Replicate billing: Add credits at replicate.com/account/billing');
           }
-          throw new Error(`Replicate API error: ${startResponse.status} - ${errText.substring(0, 100)}`);
+          throw new Error(`Replicate API error: ${startResponse.status}`);
         }
 
         const prediction = await startResponse.json();
         logger.info('Replicate prediction started', { id: prediction.id });
 
-        // Poll for completion (max 3 minutes for cold starts)
+        // Poll for completion (max 3 minutes)
         let result = prediction;
         const maxAttempts = 90;
         for (let i = 0; i < maxAttempts && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
-          await new Promise(r => setTimeout(r, 2000)); // Wait 2 seconds
+          await new Promise(r => setTimeout(r, 2000));
           
           const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
             headers: { 'Authorization': `Bearer ${replicateKey}` }
           });
           result = await pollResponse.json();
           
-          // Only log every 5th attempt to reduce noise
           if (i % 5 === 0) {
             logger.info('Polling Replicate...', { status: result.status, attempt: i + 1 });
           }
@@ -2683,100 +2770,130 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
             duration: durationSeconds,
             source: 'musicgen',
             prompt: musicPrompt,
-            isRealGeneration: true // Flag to distinguish from samples
+            quality: 'professional',
+            isRealGeneration: true
           });
         } else if (result.status === 'failed') {
-          logger.error('MusicGen generation failed', { error: result.error, resultId: result.id });
           throw new Error(result.error || 'MusicGen generation failed');
         } else {
-          logger.error('MusicGen generation timed out', { status: result.status, resultId: result.id });
           throw new Error('MusicGen generation timed out');
         }
       } catch (replicateError) {
-        logger.warn('Replicate MusicGen failed, falling back to samples', { 
-          error: replicateError.message,
-          stack: replicateError.stack?.substring(0, 200)
+        logger.warn('Replicate MusicGen failed', { 
+          error: replicateError.message
         });
-        // Fall through to sample fallback
+        // Fall through to FAL.ai
       }
-    } else {
-      logger.warn('Replicate API key not configured - using sample beats');
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // FALLBACK: Return sample beats from free music libraries
-    // These are royalty-free loops that can be used for demos/previews
+    // OPTION 3: FAL.ai Beatoven (Professional Royalty-Free Music)
+    // Perfect for games, films, social content, podcasts
     // ═══════════════════════════════════════════════════════════════════
-    logger.info('Using sample beat fallback');
-    
-    // Curated list of royalty-free sample beats (from free music APIs/CDNs)
-    const sampleBeats = [
-      {
-        url: 'https://cdn.pixabay.com/audio/2024/02/28/audio_5c4e52abcf.mp3',
-        name: 'Lo-Fi Chill Beat',
-        genre: 'lo-fi',
-        bpm: 85
-      },
-      {
-        url: 'https://cdn.pixabay.com/audio/2024/03/18/audio_c0f9e8a5cb.mp3',
-        name: 'Hip-Hop Trap Beat',
-        genre: 'hip-hop',
-        bpm: 140
-      },
-      {
-        url: 'https://cdn.pixabay.com/audio/2023/10/24/audio_3f1a8c0deb.mp3',
-        name: 'R&B Smooth Beat',
-        genre: 'r&b',
-        bpm: 90
-      },
-      {
-        url: 'https://cdn.pixabay.com/audio/2024/01/08/audio_4a1b2c3d4e.mp3',
-        name: 'Electronic Dance Beat',
-        genre: 'electronic',
-        bpm: 128
-      },
-      {
-        url: 'https://cdn.pixabay.com/audio/2023/09/15/audio_1a2b3c4d5e.mp3',
-        name: 'Ambient Chill',
-        genre: 'ambient',
-        bpm: 70
+    const falKey = process.env.FAL_KEY || process.env.FAL_API_KEY;
+    if (falKey) {
+      try {
+        logger.info('Using FAL.ai Beatoven for professional music generation');
+        
+        const falResponse = await fetch('https://queue.fal.run/beatoven/music-generation', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Key ${falKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            prompt: musicPrompt,
+            duration: Math.min(durationSeconds, 180), // Up to 3 minutes
+            genre: genre,
+            mood: mood,
+            bpm: bpm
+          })
+        });
+
+        if (falResponse.ok) {
+          const falResult = await falResponse.json();
+          
+          // FAL returns request_id for async, poll for result
+          if (falResult.request_id) {
+            const statusUrl = `https://queue.fal.run/requests/${falResult.request_id}/status`;
+            let status = 'IN_QUEUE';
+            let audioResult = null;
+            
+            for (let i = 0; i < 60 && status !== 'COMPLETED'; i++) {
+              await new Promise(r => setTimeout(r, 2000));
+              const statusResponse = await fetch(statusUrl, {
+                headers: { 'Authorization': `Key ${falKey}` }
+              });
+              const statusData = await statusResponse.json();
+              status = statusData.status;
+              
+              if (status === 'COMPLETED') {
+                // Fetch the actual result
+                const resultResponse = await fetch(`https://queue.fal.run/requests/${falResult.request_id}`, {
+                  headers: { 'Authorization': `Key ${falKey}` }
+                });
+                audioResult = await resultResponse.json();
+                break;
+              }
+              
+              if (i % 5 === 0) {
+                logger.info('Polling FAL.ai...', { status, attempt: i + 1 });
+              }
+            }
+            
+            if (audioResult?.audio_url || audioResult?.audio) {
+              const audioUrl = audioResult.audio_url || audioResult.audio;
+              logger.info('FAL.ai Beatoven generated successfully', { audioUrl: audioUrl.substring(0, 80) });
+              
+              return res.json({
+                audioUrl: audioUrl,
+                mimeType: 'audio/mpeg',
+                duration: durationSeconds,
+                source: 'beatoven',
+                prompt: musicPrompt,
+                quality: 'broadcast-royalty-free',
+                isRealGeneration: true
+              });
+            }
+          } else if (falResult.audio_url || falResult.audio) {
+            // Sync result
+            const audioUrl = falResult.audio_url || falResult.audio;
+            logger.info('FAL.ai Beatoven generated successfully (sync)', { audioUrl: audioUrl.substring(0, 80) });
+            
+            return res.json({
+              audioUrl: audioUrl,
+              mimeType: 'audio/mpeg',
+              duration: durationSeconds,
+              source: 'beatoven',
+              prompt: musicPrompt,
+              quality: 'broadcast-royalty-free',
+              isRealGeneration: true
+            });
+          }
+        } else {
+          const errText = await falResponse.text();
+          logger.warn('FAL.ai Beatoven failed', { status: falResponse.status, error: errText.substring(0, 200) });
+        }
+      } catch (falError) {
+        logger.warn('FAL.ai Beatoven error', { error: falError.message });
       }
-    ];
-    
-    // Select a beat based on genre or random
-    let selectedBeat;
-    const genreLower = genre.toLowerCase();
-    
-    // Try to match genre
-    selectedBeat = sampleBeats.find(b => 
-      b.genre.includes(genreLower) || 
-      genreLower.includes(b.genre) ||
-      (genreLower.includes('trap') && b.genre === 'hip-hop') ||
-      (genreLower.includes('chill') && b.genre === 'lo-fi')
-    );
-    
-    // Fallback to random if no genre match
-    if (!selectedBeat) {
-      selectedBeat = sampleBeats[Math.floor(Math.random() * sampleBeats.length)];
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // NO AUDIO APIs CONFIGURED - Return helpful error
+    // ═══════════════════════════════════════════════════════════════════
+    logger.error('No audio generation APIs configured');
     
-    logger.info('Returning sample beat', { 
-      beatName: selectedBeat.name, 
-      genre: selectedBeat.genre,
-      requestedGenre: genre
-    });
-    
-    return res.json({
-      audioUrl: selectedBeat.url,
-      mimeType: 'audio/mpeg',
-      duration: durationSeconds,
-      source: 'sample',
-      genre: selectedBeat.genre,
-      bpm: selectedBeat.bpm,
-      beatName: selectedBeat.name,
-      isSample: true,
+    return res.status(503).json({ 
+      error: 'Audio Generation Not Configured',
+      details: 'Configure one of the following API keys for professional beat generation.',
+      setup: {
+        stability: 'STABILITY_API_KEY - https://platform.stability.ai/account/keys (Stable Audio 2.5, 44.1kHz stereo)',
+        replicate: 'REPLICATE_API_KEY - https://replicate.com/account/api-tokens (MusicGen Large)',
+        fal: 'FAL_KEY - https://fal.ai (Beatoven - royalty-free professional music)'
+      },
       isRealGeneration: false,
-      message: 'Using sample beat. Configure REPLICATE_API_KEY for AI-generated beats.'
+      status: 503
     });
 
   } catch (error) {
