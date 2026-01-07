@@ -2607,8 +2607,15 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       return;
     }
     setPreviewItem(null);
-    // Re-trigger generation with same prompt
-    handleGenerate(previewPrompt);
+    
+    // Set the textarea value to the saved prompt before triggering generation
+    const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+    if (textarea) {
+      textarea.value = previewPrompt;
+    }
+    
+    // Re-trigger generation (handleGenerate reads from textarea)
+    handleGenerate();
   };
 
   const fetchActivity = async (page = 1) => {
