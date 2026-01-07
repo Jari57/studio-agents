@@ -1127,6 +1127,265 @@ function FinalMixSection({
         )}
       </div>
 
+      {/* ═══════════════════════════════════════════════════════════════════
+          DOWNLOAD MEDIA FILES SECTION
+          ═══════════════════════════════════════════════════════════════════ */}
+      {(hasBeatAudio || hasImage || hasVideoMedia) && (
+        <div style={{
+          marginTop: '24px',
+          background: 'rgba(59, 130, 246, 0.1)',
+          borderRadius: '16px',
+          padding: '20px',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px'
+          }}>
+            <div>
+              <div style={{
+                fontSize: '0.7rem',
+                color: '#3b82f6',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: '4px'
+              }}>
+                📁 DOWNLOAD MEDIA FILES
+              </div>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Save your media files locally for social media, streaming platforms, or backup
+              </p>
+            </div>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '12px'
+          }}>
+            {/* Download Beat Audio */}
+            {hasBeatAudio && (
+              <button
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = mediaUrls.audio;
+                  a.download = `${songIdea || 'beat'}-audio.mp3`;
+                  a.click();
+                  toast.success('Beat audio downloading...');
+                }}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: 'rgba(6, 182, 212, 0.2)',
+                  border: '1px solid rgba(6, 182, 212, 0.4)',
+                  color: '#06b6d4',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🎵</span>
+                <span>Beat Audio</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>MP3 / WAV</span>
+              </button>
+            )}
+
+            {/* Download Cover Art */}
+            {hasImage && (
+              <button
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = mediaUrls.image;
+                  a.download = `${songIdea || 'cover'}-art.png`;
+                  a.click();
+                  toast.success('Cover art downloading...');
+                }}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: 'rgba(236, 72, 153, 0.2)',
+                  border: '1px solid rgba(236, 72, 153, 0.4)',
+                  color: '#ec4899',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🖼️</span>
+                <span>Cover Art</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>PNG / WebP</span>
+              </button>
+            )}
+
+            {/* Download Video */}
+            {hasVideoMedia && (
+              <button
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = mediaUrls.video;
+                  a.download = `${songIdea || 'video'}-clip.mp4`;
+                  a.click();
+                  toast.success('Video downloading...');
+                }}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: 'rgba(245, 158, 11, 0.2)',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  color: '#f59e0b',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🎬</span>
+                <span>Video Clip</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>MP4</span>
+              </button>
+            )}
+
+            {/* Download Music Video (if synced) */}
+            {musicVideoUrl && (
+              <button
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = musicVideoUrl;
+                  a.download = `${songIdea || 'music-video'}-synced.mp4`;
+                  a.click();
+                  toast.success('Music video downloading...');
+                }}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(16, 185, 129, 0.15))',
+                  border: '1px solid rgba(34, 197, 94, 0.4)',
+                  color: '#22c55e',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🎥</span>
+                <span>Music Video</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Beat-Synced MP4</span>
+              </button>
+            )}
+
+            {/* Download All Button */}
+            <button
+              onClick={() => {
+                // Download all available media
+                if (hasBeatAudio) {
+                  const a = document.createElement('a');
+                  a.href = mediaUrls.audio;
+                  a.download = `${songIdea || 'beat'}-audio.mp3`;
+                  a.click();
+                }
+                setTimeout(() => {
+                  if (hasImage) {
+                    const a = document.createElement('a');
+                    a.href = mediaUrls.image;
+                    a.download = `${songIdea || 'cover'}-art.png`;
+                    a.click();
+                  }
+                }, 500);
+                setTimeout(() => {
+                  if (hasVideoMedia) {
+                    const a = document.createElement('a');
+                    a.href = mediaUrls.video;
+                    a.download = `${songIdea || 'video'}-clip.mp4`;
+                    a.click();
+                  }
+                }, 1000);
+                if (musicVideoUrl) {
+                  setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = musicVideoUrl;
+                    a.download = `${songIdea || 'music-video'}-synced.mp4`;
+                    a.click();
+                  }, 1500);
+                }
+                toast.success('Downloading all media files...');
+              }}
+              style={{
+                padding: '14px 16px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(168, 85, 247, 0.2))',
+                border: '1px solid rgba(139, 92, 246, 0.5)',
+                color: '#a855f7',
+                fontWeight: '700',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span style={{ fontSize: '1.5rem' }}>📦</span>
+              <span>Download All</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>All Media Files</span>
+            </button>
+          </div>
+
+          {/* Info about streaming platforms */}
+          <div style={{
+            marginTop: '16px',
+            padding: '12px 14px',
+            background: 'rgba(59, 130, 246, 0.1)',
+            borderRadius: '10px',
+            border: '1px solid rgba(59, 130, 246, 0.2)'
+          }}>
+            <div style={{ 
+              fontSize: '0.75rem', 
+              color: 'var(--text-secondary)',
+              lineHeight: '1.5'
+            }}>
+              <strong style={{ color: '#3b82f6' }}>💡 For Streaming Platforms:</strong> Download your beat audio (MP3) and cover art (PNG) to upload to:
+              <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {['Spotify', 'Apple Music', 'SoundCloud', 'YouTube', 'TikTok', 'Instagram'].map(platform => (
+                  <span key={platform} style={{
+                    padding: '4px 10px',
+                    background: 'rgba(255,255,255,0.05)',
+                    borderRadius: '12px',
+                    fontSize: '0.7rem',
+                    color: 'rgba(255,255,255,0.7)'
+                  }}>
+                    {platform}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Locked state message */}
       {!allComplete && (
         <div style={{
