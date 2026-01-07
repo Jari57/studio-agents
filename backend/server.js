@@ -378,11 +378,32 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       connectSrc: [
         "'self'",
+        // Firebase Auth & Storage
         "https://identitytoolkit.googleapis.com",
         "https://securetoken.googleapis.com",
         "https://firebasestorage.googleapis.com",
         "https://www.googleapis.com",
-        "https://api.stripe.com"
+        "https://*.firebaseio.com",
+        // Stripe
+        "https://api.stripe.com",
+        // Railway backend (production)
+        "https://web-production-b5922.up.railway.app",
+        "https://*.up.railway.app",
+        // Vercel frontend (production)
+        "https://studioagentsai.com",
+        "https://www.studioagentsai.com",
+        "https://studio-agents.vercel.app",
+        "https://*.vercel.app",
+        // Replicate AI services
+        "https://api.replicate.com",
+        "https://replicate.com",
+        "https://*.replicate.delivery",
+        // Local development
+        "http://localhost:*",
+        "http://127.0.0.1:*",
+        // WebSocket support
+        "ws://localhost:*",
+        "wss://*.railway.app"
       ],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       scriptSrc: [
@@ -393,6 +414,7 @@ app.use(helmet({
         "https://js.stripe.com"
       ],
       imgSrc: ["'self'", "data:", "https:", "blob:"],
+      mediaSrc: ["'self'", "data:", "https:", "blob:"], // Allow audio/video media
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com", "https://*.firebaseapp.com"]
     },
@@ -486,7 +508,11 @@ app.use(cors({
     logger.warn('🚫 CORS blocked', { origin, allowedOrigins });
     callback(null, false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // Cache preflight for 24 hours
 }));
 
 app.use(express.json({ limit: '50mb' }));
