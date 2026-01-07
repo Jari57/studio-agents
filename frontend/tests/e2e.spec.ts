@@ -102,6 +102,9 @@ test.describe('Media Generation Flow', () => {
   });
 
   test('Audio generation endpoint exists', async ({ request }) => {
+    // Audio generation via Replicate MusicGen takes ~30-60 seconds
+    test.setTimeout(90000); // 90 seconds
+    
     const response = await request.post(`${BACKEND_URL}/api/generate-audio`, {
       data: { prompt: 'chill lofi beat' }
     });
