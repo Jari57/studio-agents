@@ -2700,84 +2700,26 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
         // Fall through to Gemini fallback
       }
     } else {
-      logger.warn('Replicate API key not configured, using sample fallback');
+      logger.error('Replicate API key not configured - cannot generate audio');
+      return res.status(503).json({ 
+        error: 'Audio Generation Not Configured', 
+        details: 'REPLICATE_API_KEY not found. Add your API key to backend/.env',
+        setup: 'Get your API key at https://replicate.com/account/api-tokens',
+        status: 503
+      });
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // FALLBACK: Gemini text description (no actual audio)
+    // NO DEMO FALLBACK - Real AI generation only
     // ═══════════════════════════════════════════════════════════════════
-    if (!geminiKey) {
-      return res.status(500).json({ error: 'No audio generation API configured. Add REPLICATE_API_KEY for real audio.' });
-    }
+    logger.error('Audio generation failed - no working API available');
     
-    logger.info('Using Gemini fallback for audio description');
-
-    // Fallback: Generate a detailed beat description using Gemini
-    const synthesisPrompt = `You are a music producer. Create detailed synthesis parameters for a ${genre} beat.
-    
-User request: "${prompt}"
-BPM: ${bpm}
-Mood: ${mood}
-Duration: ${durationSeconds} seconds
-
-Return a JSON object with:
-1. "description": Brief description of the beat
-2. "key": Musical key (e.g., "Am", "Cmaj")
-3. "scale": Scale type (e.g., "minor", "major", "pentatonic")
-4. "drums": Array of drum pattern objects with {instrument, pattern (array of 0/1 for 16 steps), velocity}
-5. "bass": Array of bass notes with {note, octave, startBeat, duration, velocity}
-6. "chords": Array of chord progressions with {chord, startBeat, duration}
-7. "melody": Array of melody notes (optional)
-8. "effects": Suggested effects like reverb, delay amounts
-
-Make it sound authentic to ${genre} style.`;
-
-    const genModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-    const result = await genModel.generateContent(synthesisPrompt);
-    const responseText = result.response.text();
-    
-    // Try to parse as JSON
-    let synthesisParams;
-    try {
-      const jsonMatch = responseText.match(/```json\n?([\s\S]*?)\n?```/) || responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        synthesisParams = JSON.parse(jsonMatch[1] || jsonMatch[0]);
-      }
-    } catch (parseError) {
-      logger.warn('Could not parse synthesis params as JSON', { error: parseError.message });
-    }
-
-    // Generate unique mock audio URLs based on the prompt
-    // This provides variety while Replicate is not configured
-    const sampleAudios = [
-      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3',
-      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Shipping_Lanes.mp3',
-      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Komiku/Captain_Readme/Komiku_-_01_-_Ancient_Heavy_Tech_Donjon.mp3',
-      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/BoxCat_Games/Nameless_the_Hackers_RPG_Soundtrack/BoxCat_Games_-_10_-_Epic_Song.mp3',
-      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Scott_Holmes/Inspiring__Upbeat_Music/Scott_Holmes_-_Upbeat_Party.mp3',
-      'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/Music_for_Video/Kevin_MacLeod/Jazz___Experimental/Kevin_MacLeod_-_Cipher.mp3'
-    ];
-    
-    // Select a sample based on prompt hash for consistency (same prompt = same sample)
-    const promptHash = prompt.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const sampleAudioUrl = sampleAudios[promptHash % sampleAudios.length];
-
-    logger.info('Returning fallback audio response', { hasAudioUrl: !!sampleAudioUrl, sample: promptHash % sampleAudios.length });
-
-    res.json({
-      type: 'synthesis',
-      params: synthesisParams || null,
-      description: synthesisParams?.description || responseText.substring(0, 500),
-      output: synthesisParams?.description || `${genre} beat concept: ${responseText.substring(0, 300)}...`,
-      audioUrl: sampleAudioUrl, // Provide varied sample audio
-      isSample: true,
+    return res.status(503).json({ 
+      error: 'Audio Generation Unavailable', 
+      details: 'MusicGen generation failed. Please check Replicate API credits at replicate.com/account/billing',
+      billingUrl: 'https://replicate.com/account/billing',
       isRealGeneration: false,
-      bpm,
-      genre,
-      mood,
-      prompt,
-      message: '⚠️ Replicate credits needed. Add billing at replicate.com/account/billing to generate custom AI beats.',
-      billingUrl: 'https://replicate.com/account/billing#billing'
+      status: 503
     });
 
   } catch (error) {
@@ -2897,51 +2839,22 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
         }
     }
       
-    // 3. Fallback: Try Nano Banana (Gemini 2.5 Flash Image) to generate a visual concept
-    logger.info('Trying Nano Banana (Gemini 2.5 Flash Image) as fallback...');
-    try {
-            const nanoBananaModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
-            const result = await nanoBananaModel.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt + " (Cinematic movie scene, high quality, 16:9)" }] }],
-            generationConfig: { responseModalities: ['IMAGE'] }
-            });
-            const response = await result.response;
-            const parts = response.candidates?.[0]?.content?.parts || [];
-            for (const part of parts) {
-            if (part.inlineData?.mimeType?.startsWith('image/')) {
-                logger.info('Nano Banana fallback successful');
-                return res.json({
-                    output: part.inlineData.data,
-                    mimeType: part.inlineData.mimeType,
-                    type: 'image',
-                    source: 'nano-banana',
-                    message: 'Visual concept generated (Video unavailable)'
-                });
-            }
-            }
-    } catch (nanoError) {
-            logger.warn('Nano Banana fallback failed', { error: nanoError.message });
-    }
-
-    // 4. Final Fallback: Generate a simple demo video from the prompt
-    logger.info('Generating demo video fallback...');
-    try {
-        const demoVideoUrl = generateDemoVideoUrl(prompt);
-        return res.json({ 
-        output: demoVideoUrl, 
-        mimeType: 'video/mp4', 
-        type: 'video',
-        source: 'demo',
-        message: 'Demo video preview - AI video generation requires extended API access'
-        });
-    } catch (fallbackErr) {
-        logger.error('Demo video generation also failed', { error: fallbackErr.message });
-        return res.status(503).json({ 
-        error: 'Video Generation Unavailable', 
-        details: 'Video generation models are not available. Feature coming soon.',
-        status: 503
-        });
-    }
+    // ═══════════════════════════════════════════════════════════════════
+    // NO DEMO FALLBACK - Real AI video generation only
+    // ═══════════════════════════════════════════════════════════════════
+    logger.error('Video generation failed - all API attempts exhausted');
+    
+    // Return helpful error with setup instructions
+    return res.status(503).json({ 
+      error: 'Video Generation Unavailable', 
+      details: 'Video generation requires API access. Check: 1) Replicate credits at replicate.com/account/billing, 2) Google Veo access at console.cloud.google.com',
+      setup: {
+        replicate: 'Add credits at https://replicate.com/account/billing',
+        veo: 'Enable Generative AI API at https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com',
+        veoModels: ['veo-2.0-generate-001', 'veo-3.1-generate-preview']
+      },
+      status: 503
+    });
 
   } catch (error) {
     logger.error('Video generation error', { error: error.message });

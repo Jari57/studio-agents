@@ -1718,20 +1718,26 @@ export default function StudioOrchestratorV2({
         
         if (data.audioUrl) {
           setMediaUrls(prev => ({ ...prev, audio: data.audioUrl }));
-          
-          // Show different message if it's a sample vs real generation
-          if (data.isSample) {
-            toast.success('Sample beat loaded! (Add Replicate credits for custom AI beats)', { id: 'gen-audio', duration: 5000 });
-          } else {
-            toast.success('AI beat generated!', { id: 'gen-audio' });
-          }
+          toast.success('AI beat generated!', { id: 'gen-audio' });
         } else {
           toast.error('No audio returned', { id: 'gen-audio' });
         }
       } else {
         const errData = await response.json().catch(() => ({}));
         console.error('[Orchestrator] Audio generation failed:', errData);
-        toast.error(errData.details || errData.error || 'Audio generation failed', { id: 'gen-audio' });
+        
+        // Show helpful setup message for 503 errors
+        if (response.status === 503 && errData.setup) {
+          toast.error(
+            <div>
+              <strong>Audio API Not Ready</strong>
+              <p style={{ fontSize: '12px', marginTop: '4px' }}>{errData.details}</p>
+            </div>, 
+            { id: 'gen-audio', duration: 8000 }
+          );
+        } else {
+          toast.error(errData.details || errData.error || 'Audio generation failed', { id: 'gen-audio' });
+        }
       }
     } catch (err) {
       console.error('[Orchestrator] Audio generation error:', err);
@@ -1922,35 +1928,67 @@ export default function StudioOrchestratorV2({
       
       if (response.ok) {
         const data = await response.json();
-        console.log('[Orchestrator] Video generation response:', Object.keys(data));
+        console.log('[Orchestrator] Video generation response:', { 
+          type: data.type, 
+          hasOutput: !!data.output,
+          hasVideoUrl: !!data.videoUrl,
+          mimeType: data.mimeType 
+        });
         
-        // Handle different response formats
-        const videoUrl = data.videoUrl || data.output || data.video;
-        
-        if (videoUrl) {
-          setMediaUrls(prev => ({ ...prev, video: videoUrl }));
-          toast.success('Video created!', { id: 'gen-video' });
-          
-          // Auto-extract frame if we don't have an image yet
-          if (!mediaUrls.image) {
-            toast.loading('Extracting cover frame...', { id: 'extract-frame' });
-            try {
-              const frameDataUrl = await extractFrameFromVideo(videoUrl);
-              setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
-              toast.success('Cover image extracted!', { id: 'extract-frame' });
-            } catch (e) {
-              console.log('[Orchestrator] Auto frame extraction failed (non-critical):', e);
-              toast.dismiss('extract-frame');
-            }
+        // Check if backend returned an image instead of video (fallback case)
+        if (data.type === 'image' || (data.mimeType && data.mimeType.startsWith('image/'))) {
+          // Handle image response - use as cover art instead
+          const imageData = data.output || data.imageUrl;
+          if (imageData) {
+            const imageSrc = imageData.startsWith('data:') || imageData.startsWith('http') 
+              ? imageData 
+              : `data:${data.mimeType || 'image/png'};base64,${imageData}`;
+            setMediaUrls(prev => ({ ...prev, image: imageSrc }));
+            toast.success('Cover image generated! (Video generation unavailable)', { id: 'gen-video', duration: 5000 });
+          } else {
+            toast.error('Video generation unavailable', { id: 'gen-video' });
           }
         } else {
-          console.error('[Orchestrator] No video URL in response:', data);
-          toast.error(data.message || 'No video returned', { id: 'gen-video' });
+          // Handle video response
+          const videoUrl = data.videoUrl || data.output || data.video;
+          
+          if (videoUrl && typeof videoUrl === 'string' && (videoUrl.startsWith('http') || videoUrl.startsWith('blob:'))) {
+            setMediaUrls(prev => ({ ...prev, video: videoUrl }));
+            toast.success(data.isDemo ? 'Demo video loaded!' : 'Video created!', { id: 'gen-video' });
+            
+            // Auto-extract frame if we don't have an image yet
+            if (!mediaUrls.image) {
+              toast.loading('Extracting cover frame...', { id: 'extract-frame' });
+              try {
+                const frameDataUrl = await extractFrameFromVideo(videoUrl);
+                setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
+                toast.success('Cover image extracted!', { id: 'extract-frame' });
+              } catch (e) {
+                console.log('[Orchestrator] Auto frame extraction failed (non-critical):', e);
+                toast.dismiss('extract-frame');
+              }
+            }
+          } else {
+            console.error('[Orchestrator] Invalid video URL in response:', data);
+            toast.error(data.message || 'Video generation unavailable', { id: 'gen-video' });
+          }
         }
       } else {
         const errData = await response.json().catch(() => ({}));
         console.error('[Orchestrator] Video generation failed:', response.status, errData);
-        toast.error(errData.details || errData.error || 'Video generation failed', { id: 'gen-video' });
+        
+        // Show helpful setup message for 503 errors
+        if (response.status === 503 && errData.setup) {
+          toast.error(
+            <div>
+              <strong>Video API Not Ready</strong>
+              <p style={{ fontSize: '12px', marginTop: '4px' }}>{errData.details}</p>
+            </div>, 
+            { id: 'gen-video', duration: 8000 }
+          );
+        } else {
+          toast.error(errData.details || errData.error || 'Video generation failed', { id: 'gen-video' });
+        }
       }
     } catch (err) {
       console.error('[Orchestrator] Video generation error:', err);
