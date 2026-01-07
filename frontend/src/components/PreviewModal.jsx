@@ -76,16 +76,18 @@ export function PreviewModal({
       <div
         style={{
           position: 'relative',
-          maxWidth: '90vw',
-          maxHeight: '90vh',
+          width: '95vw',
+          maxWidth: '1200px',
+          height: '90vh',
+          maxHeight: '900px',
           display: 'flex',
           flexDirection: 'column',
-          background: 'rgba(20, 20, 20, 0.8)',
+          background: 'rgba(20, 20, 20, 0.95)',
           borderRadius: '16px',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           overflow: 'hidden',
           backdropFilter: 'blur(16px)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -95,15 +97,16 @@ export function PreviewModal({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '16px 20px',
+            padding: '12px 16px',
             borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-            background: 'rgba(0, 0, 0, 0.3)'
+            background: 'rgba(0, 0, 0, 0.3)',
+            flexShrink: 0
           }}
         >
           <h2
             style={{
               margin: 0,
-              fontSize: '1rem',
+              fontSize: '0.9rem',
               fontWeight: '600',
               color: 'rgba(255, 255, 255, 0.9)',
               textTransform: 'uppercase',
@@ -112,7 +115,7 @@ export function PreviewModal({
           >
             {title} Preview
           </h2>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '6px' }}>
             {mediaType === 'text' && textContent && (
               <button
                 onClick={handleCopy}
@@ -120,19 +123,20 @@ export function PreviewModal({
                   background: copied ? 'rgba(34, 197, 94, 0.2)' : 'rgba(139, 92, 246, 0.2)',
                   border: `1px solid ${copied ? 'rgba(34, 197, 94, 0.4)' : 'rgba(139, 92, 246, 0.4)'}`,
                   color: copied ? '#22c55e' : '#8b5cf6',
-                  padding: '8px 12px',
+                  padding: '6px 10px',
                   borderRadius: '6px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  fontSize: '0.8rem',
+                  gap: '4px',
+                  fontSize: '0.75rem',
                   fontWeight: '600',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  touchAction: 'manipulation'
                 }}
               >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-                {copied ? 'Copied!' : 'Copy'}
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? 'Copied' : 'Copy'}
               </button>
             )}
             <button
@@ -141,27 +145,20 @@ export function PreviewModal({
                 background: 'rgba(59, 130, 246, 0.2)',
                 border: '1px solid rgba(59, 130, 246, 0.4)',
                 color: '#3b82f6',
-                padding: '8px 12px',
+                padding: '6px 10px',
                 borderRadius: '6px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.8rem',
+                gap: '4px',
+                fontSize: '0.75rem',
                 fontWeight: '600',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.background = 'rgba(59, 130, 246, 0.3)';
-                e.target.style.borderColor = 'rgba(59, 130, 246, 0.6)';
-              }}
-              onMouseOut={(e) => {
-                e.target.style.background = 'rgba(59, 130, 246, 0.2)';
-                e.target.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                transition: 'all 0.2s',
+                touchAction: 'manipulation'
               }}
             >
-              <Download size={14} />
-              Download
+              <Download size={12} />
+              Save
             </button>
             <button
               onClick={onClose}
@@ -169,25 +166,18 @@ export function PreviewModal({
                 background: 'rgba(255, 255, 255, 0.1)',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
                 color: 'rgba(255, 255, 255, 0.7)',
-                padding: '8px 12px',
+                padding: '6px 8px',
                 borderRadius: '6px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                fontSize: '0.8rem',
+                fontSize: '0.75rem',
                 fontWeight: '600',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.background = 'rgba(255, 255, 255, 0.15)';
-                e.target.style.color = 'rgba(255, 255, 255, 0.9)';
-              }}
-              onMouseOut={(e) => {
-                e.target.style.background = 'rgba(255, 255, 255, 0.1)';
-                e.target.style.color = 'rgba(255, 255, 255, 0.7)';
+                transition: 'all 0.2s',
+                touchAction: 'manipulation'
               }}
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
         </div>
@@ -199,9 +189,9 @@ export function PreviewModal({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '24px',
+            padding: '20px',
             overflow: 'auto',
-            minHeight: '400px'
+            minHeight: '300px'
           }}
         >
           {mediaType === 'image' && (
@@ -210,7 +200,7 @@ export function PreviewModal({
               alt={title}
               style={{
                 maxWidth: '100%',
-                maxHeight: '100%',
+                maxHeight: 'calc(90vh - 120px)',
                 borderRadius: '8px',
                 objectFit: 'contain',
                 animation: 'zoomIn 0.3s ease-out'
@@ -224,7 +214,7 @@ export function PreviewModal({
               autoPlay
               style={{
                 maxWidth: '100%',
-                maxHeight: '100%',
+                maxHeight: 'calc(90vh - 120px)',
                 borderRadius: '8px',
                 animation: 'zoomIn 0.3s ease-out'
               }}
@@ -236,7 +226,9 @@ export function PreviewModal({
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '20px'
+                gap: '20px',
+                width: '100%',
+                maxWidth: '600px'
               }}
             >
               <audio
@@ -244,14 +236,13 @@ export function PreviewModal({
                 controls
                 autoPlay
                 style={{
-                  width: '100%',
-                  maxWidth: '500px'
+                  width: '100%'
                 }}
               />
               <p
                 style={{
                   color: 'rgba(255, 255, 255, 0.6)',
-                  fontSize: '0.9rem',
+                  fontSize: '0.85rem',
                   textAlign: 'center'
                 }}
               >
@@ -263,10 +254,11 @@ export function PreviewModal({
             <div
               style={{
                 width: '100%',
-                maxWidth: '700px',
-                maxHeight: '70vh',
+                maxWidth: '900px',
+                height: '100%',
+                maxHeight: 'calc(90vh - 140px)',
                 overflow: 'auto',
-                padding: '24px',
+                padding: '20px',
                 background: 'rgba(0, 0, 0, 0.3)',
                 borderRadius: '12px',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -293,15 +285,16 @@ export function PreviewModal({
         {/* Footer */}
         <div
           style={{
-            padding: '12px 20px',
+            padding: '8px 16px',
             borderTop: '1px solid rgba(255, 255, 255, 0.05)',
             background: 'rgba(0, 0, 0, 0.3)',
-            fontSize: '0.75rem',
-            color: 'rgba(255, 255, 255, 0.5)',
-            textAlign: 'center'
+            fontSize: '0.7rem',
+            color: 'rgba(255, 255, 255, 0.4)',
+            textAlign: 'center',
+            flexShrink: 0
           }}
         >
-          Click outside or press Escape to close • Tip: Right-click to save
+          Tap outside to close
         </div>
       </div>
 
