@@ -69,8 +69,11 @@ function GeneratorCard({
       display: 'flex',
       flexDirection: 'column',
       position: 'relative',
-      transition: 'all 0.3s ease',
-      minHeight: isMobile ? '200px' : '380px'
+      transition: isMobile ? 'none' : 'transform 0.2s ease, box-shadow 0.2s ease',
+      minHeight: isMobile ? 'auto' : '380px',
+      touchAction: 'manipulation',
+      WebkitTapHighlightColor: 'transparent',
+      willChange: isMobile ? 'auto' : 'transform'
     }}>
       {/* Glow effect */}
       <div style={{
@@ -329,7 +332,8 @@ function GeneratorCard({
                           borderRadius: '8px'
                         }}
                       />
-                      <div style={{
+                      {/* Hover overlay - CSS only, no JS mouse events for mobile stability */}
+                      <div className="image-hover-overlay" style={{
                         position: 'absolute',
                         inset: 0,
                         background: 'rgba(0,0,0,0.4)',
@@ -337,12 +341,9 @@ function GeneratorCard({
                         alignItems: 'center',
                         justifyContent: 'center',
                         opacity: 0,
-                        transition: 'opacity 0.2s',
-                        borderRadius: '8px'
-                      }}
-                        onMouseEnter={(e) => e.currentTarget.style.opacity = 1}
-                        onMouseLeave={(e) => e.currentTarget.style.opacity = 0}
-                      >
+                        borderRadius: '8px',
+                        pointerEvents: 'none'
+                      }}>
                         <Eye size={24} color="white" />
                       </div>
                     </div>
@@ -404,35 +405,38 @@ function GeneratorCard({
       {/* Action Bar */}
       {output && !isEditing && (
         <div style={{
-          padding: isMobile ? '8px 12px 10px' : '12px 20px 16px',
+          padding: isMobile ? '8px 10px 10px' : '12px 20px 16px',
           borderTop: '1px solid rgba(255,255,255,0.05)',
           display: 'flex',
-          gap: isMobile ? '4px' : '8px',
+          gap: isMobile ? '6px' : '8px',
           flexWrap: 'wrap',
           position: 'relative',
-          zIndex: 1
+          zIndex: 1,
+          touchAction: 'manipulation'
         }}>
           {/* TTS Button */}
           <button
             onClick={onSpeak}
             title={isSpeaking ? "Stop Speaking" : "Text to Speech"}
             style={{
-              padding: isMobile ? '6px 8px' : '8px 12px',
-              borderRadius: isMobile ? '6px' : '8px',
+              padding: isMobile ? '8px 10px' : '8px 12px',
+              borderRadius: isMobile ? '8px' : '8px',
               background: isSpeaking ? `${color}30` : 'rgba(255,255,255,0.05)',
               border: `1px solid ${isSpeaking ? color : 'rgba(255,255,255,0.1)'}`,
               color: isSpeaking ? color : 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: isMobile ? '4px' : '6px',
-              fontSize: isMobile ? '0.65rem' : '0.75rem',
+              gap: '4px',
+              fontSize: isMobile ? '0.7rem' : '0.75rem',
               fontWeight: '500',
-              transition: 'all 0.2s'
+              minHeight: isMobile ? '36px' : 'auto',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent'
             }}
           >
-            {isSpeaking ? <VolumeX size={isMobile ? 12 : 14} /> : <Volume2 size={isMobile ? 12 : 14} />}
-            {isSpeaking ? 'Stop' : 'TTS'}
+            {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            {!isMobile && (isSpeaking ? 'Stop' : 'TTS')}
           </button>
 
           {/* Copy Button */}
@@ -440,21 +444,24 @@ function GeneratorCard({
             onClick={handleCopy}
             title="Copy to Clipboard"
             style={{
-              padding: isMobile ? '6px 8px' : '8px 12px',
-              borderRadius: isMobile ? '6px' : '8px',
+              padding: isMobile ? '8px 10px' : '8px 12px',
+              borderRadius: '8px',
               background: 'rgba(255,255,255,0.05)',
               border: '1px solid rgba(255,255,255,0.1)',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: isMobile ? '4px' : '6px',
-              fontSize: isMobile ? '0.65rem' : '0.75rem',
-              fontWeight: '500'
+              gap: '4px',
+              fontSize: isMobile ? '0.7rem' : '0.75rem',
+              fontWeight: '500',
+              minHeight: isMobile ? '36px' : 'auto',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent'
             }}
           >
             <Copy size={14} />
-            Copy
+            {!isMobile && 'Copy'}
           </button>
 
           {/* Edit Button */}
@@ -462,21 +469,24 @@ function GeneratorCard({
             onClick={() => setIsEditing(true)}
             title="Edit Output"
             style={{
-              padding: isMobile ? '6px 8px' : '8px 12px',
-              borderRadius: isMobile ? '6px' : '8px',
+              padding: isMobile ? '8px 10px' : '8px 12px',
+              borderRadius: '8px',
               background: 'rgba(255,255,255,0.05)',
               border: '1px solid rgba(255,255,255,0.1)',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: isMobile ? '4px' : '6px',
-              fontSize: isMobile ? '0.65rem' : '0.75rem',
-              fontWeight: '500'
+              gap: '4px',
+              fontSize: isMobile ? '0.7rem' : '0.75rem',
+              fontWeight: '500',
+              minHeight: isMobile ? '36px' : 'auto',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent'
             }}
           >
-            <Edit3 size={isMobile ? 12 : 14} />
-            Edit
+            <Edit3 size={14} />
+            {!isMobile && 'Edit'}
           </button>
 
           {/* Preview Button - now next to Edit */}
@@ -485,21 +495,24 @@ function GeneratorCard({
               onClick={() => setShowPreview(true)}
               title="Preview"
               style={{
-                padding: isMobile ? '6px 8px' : '8px 12px',
-                borderRadius: isMobile ? '6px' : '8px',
+                padding: isMobile ? '8px 10px' : '8px 12px',
+                borderRadius: '8px',
                 background: `${color}20`,
                 border: `1px solid ${color}40`,
                 color: color,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: isMobile ? '4px' : '6px',
-                fontSize: isMobile ? '0.65rem' : '0.75rem',
-                fontWeight: '600'
+                gap: '4px',
+                fontSize: isMobile ? '0.7rem' : '0.75rem',
+                fontWeight: '600',
+                minHeight: isMobile ? '36px' : 'auto',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent'
               }}
             >
-              <Eye size={isMobile ? 12 : 14} />
-              Preview
+              <Eye size={14} />
+              {!isMobile && 'Preview'}
             </button>
           )}
 
@@ -509,26 +522,29 @@ function GeneratorCard({
               onClick={onRegenerate}
               title="Regenerate"
               style={{
-                padding: isMobile ? '6px 8px' : '8px 12px',
-                borderRadius: isMobile ? '6px' : '8px',
+                padding: isMobile ? '8px 10px' : '8px 12px',
+                borderRadius: '8px',
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.1)',
                 color: 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: isMobile ? '4px' : '6px',
-                fontSize: isMobile ? '0.65rem' : '0.75rem',
-                fontWeight: '500'
+                gap: '4px',
+                fontSize: isMobile ? '0.7rem' : '0.75rem',
+                fontWeight: '500',
+                minHeight: isMobile ? '36px' : 'auto',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent'
               }}
             >
-              <RefreshCw size={isMobile ? 12 : 14} />
-              Redo
+              <RefreshCw size={14} />
+              {!isMobile && 'Redo'}
             </button>
           )}
 
-          {/* Spacer */}
-          <div style={{ flex: 1 }} />
+          {/* Spacer - hide on mobile to allow wrap */}
+          {!isMobile && <div style={{ flex: 1 }} />}
 
           {/* Maximize Button */}
           {output && onMaximize && (
@@ -536,20 +552,23 @@ function GeneratorCard({
               onClick={onMaximize}
               title="Expand to Fullscreen"
               style={{
-                padding: isMobile ? '6px 8px' : '8px 12px',
-                borderRadius: isMobile ? '6px' : '8px',
+                padding: isMobile ? '8px 10px' : '8px 12px',
+                borderRadius: '8px',
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.1)',
                 color: 'var(--text-secondary)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: isMobile ? '4px' : '6px',
-                fontSize: isMobile ? '0.65rem' : '0.75rem',
-                fontWeight: '500'
+                gap: '4px',
+                fontSize: isMobile ? '0.7rem' : '0.75rem',
+                fontWeight: '500',
+                minHeight: isMobile ? '36px' : 'auto',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent'
               }}
             >
-              <Maximize2 size={isMobile ? 12 : 14} />
+              <Maximize2 size={14} />
             </button>
           )}
 
@@ -559,20 +578,23 @@ function GeneratorCard({
               onClick={onDownload}
               title="Download"
               style={{
-                padding: isMobile ? '6px 8px' : '8px 12px',
-                borderRadius: isMobile ? '6px' : '8px',
+                padding: isMobile ? '8px 10px' : '8px 12px',
+                borderRadius: '8px',
                 background: 'rgba(34, 197, 94, 0.15)',
                 border: '1px solid rgba(34, 197, 94, 0.3)',
                 color: '#22c55e',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: isMobile ? '4px' : '6px',
-                fontSize: isMobile ? '0.65rem' : '0.75rem',
-                fontWeight: '600'
+                gap: '4px',
+                fontSize: isMobile ? '0.7rem' : '0.75rem',
+                fontWeight: '600',
+                minHeight: isMobile ? '36px' : 'auto',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent'
               }}
             >
-              <Download size={isMobile ? 12 : 14} />
+              <Download size={14} />
             </button>
           )}
 
@@ -582,20 +604,23 @@ function GeneratorCard({
               onClick={onDelete}
               title="Delete"
               style={{
-                padding: isMobile ? '6px 8px' : '8px 12px',
-                borderRadius: isMobile ? '6px' : '8px',
+                padding: isMobile ? '8px 10px' : '8px 12px',
+                borderRadius: '8px',
                 background: 'rgba(239, 68, 68, 0.1)',
                 border: '1px solid rgba(239, 68, 68, 0.2)',
                 color: '#ef4444',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: isMobile ? '4px' : '6px',
-                fontSize: isMobile ? '0.65rem' : '0.75rem',
-                fontWeight: '500'
+                gap: '4px',
+                fontSize: isMobile ? '0.7rem' : '0.75rem',
+                fontWeight: '500',
+                minHeight: isMobile ? '36px' : 'auto',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent'
               }}
             >
-              <Trash2 size={isMobile ? 12 : 14} />
+              <Trash2 size={14} />
             </button>
           )}
         </div>
@@ -612,9 +637,27 @@ function GeneratorCard({
       />
 
       <style>{`
-        .generator-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        /* Desktop-only hover effects */
+        @media (hover: hover) and (pointer: fine) {
+          .generator-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+          }
+          .image-hover-overlay {
+            transition: opacity 0.2s ease;
+          }
+          .generator-card:hover .image-hover-overlay {
+            opacity: 1 !important;
+          }
+        }
+        /* Mobile touch optimization */
+        @media (hover: none) {
+          .generator-card {
+            transform: none !important;
+          }
+          .generator-card:active {
+            opacity: 0.9;
+          }
         }
       `}</style>
     </div>
@@ -1424,6 +1467,9 @@ export default function StudioOrchestratorV2({
   existingProject = null
   // onUpdateCreations - reserved for future use
 }) {
+  // Check if mobile for responsive adjustments
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  
   const [songIdea, setSongIdea] = useState(existingProject?.name || '');
   const [language, setLanguage] = useState('English');
   const [style, setStyle] = useState('Modern Hip-Hop');
@@ -2950,8 +2996,9 @@ export default function StudioOrchestratorV2({
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: '20px',
-          marginBottom: '24px'
+          gap: isMobile ? '12px' : '20px',
+          marginBottom: '24px',
+          touchAction: 'pan-y'
         }}>
           {GENERATOR_SLOTS.map(slot => (
             <GeneratorCard

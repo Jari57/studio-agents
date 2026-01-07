@@ -554,3 +554,53 @@ button, .nav-link, .agent-card-premium {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════════
+   GENERATOR CARD MOBILE FIXES - Prevent flickering and touch issues
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Prevent hover effects from triggering on touch */
+  .generator-card {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transform: none !important;
+    will-change: auto;
+  }
+  
+  /* Disable hover transforms completely on mobile */
+  .generator-card:hover {
+    transform: none !important;
+    box-shadow: none;
+  }
+  
+  /* Simple active state for touch feedback */
+  .generator-card:active {
+    opacity: 0.95;
+  }
+  
+  /* Fix action buttons in generator cards */
+  .generator-card button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 36px;
+    min-width: 36px;
+  }
+  
+  /* Prevent video/audio controls from interfering */
+  .generator-card video,
+  .generator-card audio {
+    touch-action: manipulation;
+  }
+  
+  /* Fix images in generator cards */
+  .generator-card img {
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  
+  /* Parent container for generator cards - allow click through */
+  .generator-card img + div[style*="position: absolute"] {
+    pointer-events: none;
+  }
+}
+
