@@ -88,7 +88,7 @@ export function captureException(error, context = {}) {
   // Store in localStorage for persistence
   try {
     localStorage.setItem('error_log', JSON.stringify(errorQueue.slice(-20)));
-  } catch (e) {
+  } catch {
     // localStorage full or disabled
   }
 }
@@ -178,7 +178,7 @@ export function clearErrorLog() {
   errorQueue.length = 0;
   try {
     localStorage.removeItem('error_log');
-  } catch (e) {
+  } catch {
     // Ignore
   }
 }

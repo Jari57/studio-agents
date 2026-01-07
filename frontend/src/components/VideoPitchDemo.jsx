@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RefreshCw, Sparkles, Video, Share2, Music, FolderPlus, Languages, Settings, Cpu } from 'lucide-react';
+import { Play, Pause, RefreshCw, Sparkles, Video, Share2, Music, FolderPlus } from 'lucide-react';
 import { BACKEND_URL } from '../constants';
 
 export default function VideoPitchDemo({ initialTopic = "My new summer anthem", onCreateProject = null }) {
@@ -11,7 +11,7 @@ export default function VideoPitchDemo({ initialTopic = "My new summer anthem", 
   const [script, setScript] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const videoRef = useRef(null);
+  const _videoRef = useRef(null); // reserved for future video preview feature
 
   const handleCreateProject = () => {
     if (!onCreateProject || !topic) return;

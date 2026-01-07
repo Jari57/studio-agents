@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, PlayCircle, Target, Rocket, Shield, Folder, Book, X, Play, Plus, LayoutGrid, TrendingUp, Clock, DollarSign, Mic, Headphones, Star, ChevronRight, Building, Layers, BarChart3, Briefcase, Award, ExternalLink, Share2, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock, Mail } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock } from 'lucide-react';
 import { AGENTS } from '../constants';
 import { auth, GoogleAuthProvider, signInWithPopup } from '../firebase';
 import MultiAgentDemo from './MultiAgentDemo';
@@ -369,7 +369,7 @@ const DEFAULT_WHITEPAPER = {
   successMetrics: 'High user satisfaction'
 };
 
-export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
+export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStartTour }) {
   console.log("LandingPage: Rendering...");
   const [scrolled, setScrolled] = useState(false);
   const [showCookieConsent, setShowCookieConsent] = useState(false);
@@ -1766,7 +1766,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                 </h3>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {AGENTS.filter(a => a.tier === 'free').map((agent, i) => {
+                  {AGENTS.filter(a => a.tier === 'free').map((agent) => {
                     const Icon = agent.icon;
                     return (
                       <div key={agent.id} style={{
@@ -2426,7 +2426,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
                             {group.label.toUpperCase()}
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                            {categoryAgents.map((agent, j) => (
+                            {categoryAgents.map((agent) => (
                               <div key={agent.id} style={{ 
                                 fontSize: '0.85rem', 
                                 color: agent.tier === 'free' ? 'white' : 'var(--text-secondary)',

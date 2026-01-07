@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, FolderPlus } from 'lucide-react';
+import { Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, FolderPlus } from 'lucide-react';
 import { BACKEND_URL } from '../constants';
 import { useLazyLoadImages } from '../hooks/useLazyLoadImages';
 import { auth } from '../firebase';
@@ -166,7 +166,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
     pitch: null
   });
   const [masterOutput, setMasterOutput] = useState(null);
-  const [showSaveOptions, setShowSaveOptions] = useState(false);
+  // const [showSaveOptions, setShowSaveOptions] = useState(false); - reserved for future save feature
   
   const inputRef = useRef(null);
 

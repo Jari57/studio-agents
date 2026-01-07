@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Filter, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize, Maximize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Award, Settings, Languages, CreditCard, HardDrive, Database, BarChart3, PieChart, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Flame, Image as ImageIcon, Info, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload
 } from 'lucide-react';
 
 // Alias for clarity and to avoid potential minification issues
@@ -52,14 +52,11 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
-  increment,
   collection,
   getDocs,
   query,
   orderBy,
-  deleteDoc,
-  writeBatch
+  deleteDoc
 } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
 import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
@@ -179,7 +176,7 @@ const getTimeSince = (date) => {
   return `${Math.floor(seconds / 2592000)}mo ago`;
 };
 
-function StudioView({ onBack, startWizard, startTour, initialPlan }) {
+function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan }) {
   // Helper to get tab from hash
   const getTabFromHash = () => {
     const hash = window.location.hash;
@@ -228,20 +225,20 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [newsSearch, setNewsSearch] = useState('');
-  const [isRefreshingNews, setIsRefreshingNews] = useState(false);
+  // Reserved for future use: const [isRefreshingNews, setIsRefreshingNews] = useState(false);
   const [projects, setProjects] = useState(() => {
     try {
       const saved = localStorage.getItem('studio_projects');
       if (saved) return JSON.parse(saved);
       return [];
-    } catch (e) {
+    } catch (_e) {
       return [];
     }
   });
   
   // Cloud sync state
-  const [projectsSyncing, setProjectsSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [_projectsSyncing, setProjectsSyncing] = useState(false);
+  const [_lastSyncTime, setLastSyncTime] = useState(null);
   const syncTimeoutRef = useRef(null);
 
   // Save a single project to Firestore via backend API
@@ -268,7 +265,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
           // Deep clone to avoid circular reference issues
           try {
             sanitizedProject[key] = JSON.parse(JSON.stringify(value));
-          } catch (e) {
+          } catch (_e) {
             // Skip values that can't be serialized
             console.warn(`[TRACE:${traceId}] Skipping non-serializable field: ${key}`);
           }
@@ -524,11 +521,11 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [expandedHelp, setExpandedHelp] = useState(null);
   const [helpSearch, setHelpSearch] = useState('');
   const [showNudge, setShowNudge] = useState(true);
-  const [hubFilter, setHubFilter] = useState('All');
+  // Reserved for future use: const [hubFilter, setHubFilter] = useState('All');
   const [playingItem, setPlayingItem] = useState(null);
   
   // Preview Modal State (for reviewing AI generations before saving)
-  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  // Reserved for future use: const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewItem, setPreviewItem] = useState(null);
   const [previewPrompt, setPreviewPrompt] = useState('');
   const [agentPreviews, setAgentPreviews] = useState({}); // Cache last generation per agent
@@ -611,7 +608,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
   const [showAddAgentModal, setShowAddAgentModal] = useState(false);
   const [quickWorkflowAgent, setQuickWorkflowAgent] = useState(null); // Streamlined agent workflow modal
-  const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
+  // Reserved for future use: const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
   const [autoStartVoice, setAutoStartVoice] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
 
@@ -620,7 +617,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [showProjectChoiceModal, setShowProjectChoiceModal] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [selectedPath, setSelectedPath] = useState(null);
-  const [showHelpPanel, setShowHelpPanel] = useState(false);
+  // Reserved for future use: const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
   const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
   const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
@@ -1301,11 +1298,12 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
   };
 
-  // Legacy handler for compatibility
-  const handleLogin = handleGoogleLogin;
+  // Reserved for future use: Legacy handler for compatibility
+  // const handleLogin = handleGoogleLogin;
 
   // --- LOGOUT HANDLER ---
-  const handleLogout = async () => {
+  // Reserved for future use:
+  const _handleLogout = async () => {
     if (auth) {
       await signOut(auth);
     }
@@ -1407,7 +1405,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         location: 'Los Angeles, CA',
         website: ''
       };
-    } catch (e) {
+    } catch (_e) {
       return {
         stageName: '',
         genre: 'Hip Hop / Rap',
@@ -1442,7 +1440,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         twitter: false,
         spotify: false
       };
-    } catch (e) {
+    } catch (_e) {
       return {
         instagram: false,
         tiktok: false,
@@ -1462,7 +1460,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         oneDrive: false,
         localDevice: true
       };
-    } catch (e) {
+    } catch (_e) {
       return {
         googleDrive: false,
         dropbox: false,
@@ -1479,7 +1477,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
         { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
       ];
-    } catch (e) {
+    } catch (_e) {
       return [
         { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
         { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
@@ -1493,7 +1491,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       return saved ? JSON.parse(saved) : [
         { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
       ];
-    } catch (e) {
+    } catch (_e) {
       return [
         { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
       ];
@@ -1510,7 +1508,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     { id: 2, title: 'Pro Tip', message: 'Try the Ghostwriter agent for lyrics.', time: '2m ago', read: false }
   ]);
 
-  const addNotification = (title, message) => {
+  // Reserved for future use:
+  const _addNotification = (title, message) => {
     const newNotif = {
       id: Date.now(),
       title,
@@ -1934,7 +1933,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     }
   };
 
-  const handleEditPayment = (item, type) => {
+  // Reserved for future use:
+  const _handleEditPayment = (item, type) => {
     setEditingPayment({ item, type });
     setPaymentType(type);
     setShowAddPaymentModal(true);
@@ -1993,7 +1993,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     setEditingPayment(null);
   };
 
-  const handleProviderClick = (provider) => {
+  // Reserved for future use:
+  const _handleProviderClick = (provider) => {
     const confirm = window.confirm(`Connect your ${provider} account?`);
     if (confirm) {
       handleTextToVoice(`Connecting to ${provider}...`);
@@ -2867,7 +2868,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   };
 
   // Share to Twitter/X
-  const handleShareToTwitter = (item) => {
+  // Reserved for future use:
+  const _handleShareToTwitter = (item) => {
     if (!item) return;
     
     // Create tweet text with snippet preview
@@ -2904,7 +2906,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         } else {
            window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
         }
-      } catch (e) {
+      } catch (_e) {
         toast.error('Could not connect to backend server');
       }
       return;
@@ -2967,7 +2969,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     fetchNews(1);
   };
 
-  const toggleNewsExpansion = (id) => {
+  // Reserved for future use:
+  const _toggleNewsExpansion = (id) => {
     const newExpanded = new Set(expandedNews);
     if (newExpanded.has(id)) {
       newExpanded.delete(id);
@@ -2977,7 +2980,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     setExpandedNews(newExpanded);
   };
 
-  const toggleAllNews = () => {
+  // Reserved for future use:
+  const _toggleAllNews = () => {
     if (allNewsExpanded) {
       setExpandedNews(new Set());
     } else {
@@ -3891,7 +3895,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                             day: 'numeric',
                             year: createdDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
                           });
-                          const timeSince = getTimeSince(createdDate);
+                          const _timeSince = getTimeSince(createdDate);
                           
                           return (
                             <div 
@@ -4722,7 +4726,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                               {voiceSettings.voiceName?.startsWith('clone') && (
                                 <div style={{ marginTop: '8px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px' }}>
                                   <div style={{ fontSize: '0.75rem', color: 'var(--color-cyan)', marginBottom: '4px' }}>Voice Cloning Beta</div>
-                                  <input type="file" accept="audio/*" style={{ fontSize: '0.7rem', width: '100%' }} onChange={(e) => toast.success("Voice sample uploaded! (Simulation)")} />
+                                  <input type="file" accept="audio/*" style={{ fontSize: '0.7rem', width: '100%' }} onChange={() => toast.success("Voice sample uploaded! (Simulation)")} />
                                 </div>
                               )}
                             </div>
@@ -5740,7 +5744,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
                   gap: '12px'
                 }}>
-                  {lockedAgents.map((agent, i) => {
+                  {lockedAgents.map((agent) => {
                     const Icon = agent.icon;
                     const tierLabel = agent.tier === 'monthly' ? 'Monthly' : 'Pro';
                     const tierColor = agent.tier === 'monthly' ? 'var(--color-cyan)' : 'var(--color-purple)';
@@ -8577,7 +8581,7 @@ When you write a song, you create intellectual property that generates money eve
                         </div>
                       ) : (
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          {['Yeah!', 'Uh', 'Let\'s go', 'Woo!', 'Ayy'].map((adlib, i) => (
+                          {['Yeah!', 'Uh', 'Let\'s go', 'Woo!', 'Ayy'].map((adlib) => (
                             <div key={adlib} style={{ 
                               background: 'rgba(168, 85, 247, 0.2)', 
                               border: '1px solid var(--color-purple)',
@@ -10192,7 +10196,7 @@ When you write a song, you create intellectual property that generates money eve
                     { action: 'Text Generation', cost: 5, icon: FileText },
                     { action: 'Image Generation', cost: 15, icon: Image },
                     { action: 'Audio Processing', cost: 25, icon: Music }
-                  ].map(({ action, cost, icon: Icon }) => (
+                  ].map(({ action, cost, icon: ActionIcon }) => (
                     <div 
                       key={action}
                       style={{
@@ -10206,7 +10210,7 @@ When you write a song, you create intellectual property that generates money eve
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <Icon size={16} style={{ color: 'var(--text-secondary)' }} />
+                        <ActionIcon size={16} style={{ color: 'var(--text-secondary)' }} />
                         <span style={{ fontSize: '0.9rem' }}>{action}</span>
                       </div>
                       <span style={{ fontWeight: '600', color: '#facc15', fontSize: '0.9rem' }}>{cost} credits</span>

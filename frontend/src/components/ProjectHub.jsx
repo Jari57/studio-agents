@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Search, Filter, Plus, LayoutGrid, List, ChevronDown, MoreVertical,
-  Eye, Download, Upload, Share2, Trash2, Edit3, Copy, Twitter, Instagram,
-  Play, Pause, Clock, CheckCircle, Circle, Archive, Sparkles, Folder,
-  Music, Video, Image, FileText, Disc, Film, Palette, X, ChevronRight
+  Search, Plus, LayoutGrid, List, MoreVertical,
+  Eye, Share2, Trash2, Edit3, Copy, Twitter, Instagram,
+  Clock, CheckCircle, Circle, Archive, Sparkles, Folder,
+  Music, Video, Image, Disc, Film, Palette, X, ChevronRight
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, PROJECT_STATUSES, createProjectFromTemplate } from '../data/projectTemplates';
-import { AGENTS } from '../constants';
+// import { AGENTS } from '../constants'; - unused
 
 /**
  * ProjectHub - Comprehensive project management view
@@ -17,11 +17,11 @@ function ProjectHub({
   projects = [], 
   setProjects,
   onSelectProject,
-  onCreateProject,
+  // onCreateProject, - reserved for future use
   onDeleteProject,
-  setActiveTab,
-  setSelectedAgent,
-  setQuickWorkflowAgent
+  setActiveTab
+  // setSelectedAgent, - reserved for future use
+  // setQuickWorkflowAgent - reserved for future use
 }) {
   // TRACE: Log what ProjectHub receives
   React.useEffect(() => {
@@ -46,7 +46,7 @@ function ProjectHub({
   const [style, setStyle] = useState('Modern Hip-Hop');
   const [model, setModel] = useState('Gemini 2.0 Flash');
   const [showProjectMenu, setShowProjectMenu] = useState(null);
-  const [editingProject, setEditingProject] = useState(null);
+  // const [editingProject, setEditingProject] = useState(null); - reserved for future edit feature
 
   // Filter and search projects
   const filteredProjects = useMemo(() => {
@@ -397,10 +397,10 @@ function ProjectHub({
                         zIndex: 100
                       }}
                     >
-                      <button onClick={(e) => { onSelectProject?.(project); setShowProjectMenu(null); }} className="dropdown-item">
+                      <button onClick={() => { onSelectProject?.(project); setShowProjectMenu(null); }} className="dropdown-item">
                         <Eye size={16} /> View Project
                       </button>
-                      <button onClick={(e) => setEditingProject(project)} className="dropdown-item">
+                      <button onClick={() => console.log('Edit project:', project.id)} className="dropdown-item">
                         <Edit3 size={16} /> Edit Details
                       </button>
                       <button onClick={(e) => handleDuplicateProject(project, e)} className="dropdown-item">

@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Sparkles, Mic, MicOff, FileText, Video, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, Save, FolderPlus, Volume2, VolumeX, X,
-  Check, Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, ChevronDown,
-  Speaker, Hash
+  Check, Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, ChevronDown
+  // Speaker, Hash - removed (unused)
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS } from '../constants';
 import toast from 'react-hot-toast';
@@ -11,9 +11,9 @@ import PreviewModal from './PreviewModal';
 
 // Generator Card Component - Agent-page style with full actions
 function GeneratorCard({ 
-  slot,
+  // slot, - destructured but unused
   agentId,
-  icon: Icon, 
+  icon, 
   title, 
   subtitle,
   color, 
@@ -26,7 +26,7 @@ function GeneratorCard({
   onRegenerate = null,
   onEdit = null,
   onDelete = null,
-  onSaveToProject = null,
+  // onSaveToProject = null, - unused
   onDownload = null,
   onSpeak = null,
   isSpeaking = false,
@@ -104,7 +104,8 @@ function GeneratorCard({
           justifyContent: 'center',
           boxShadow: `0 4px 20px ${color}20`
         }}>
-          <Icon size={isMobile ? 18 : 24} color={color} />
+          {/* Render icon component */}
+          {React.createElement(icon, { size: isMobile ? 18 : 24, color: color })}
         </div>
         <div style={{ flex: 1 }}>
           <h3 style={{ 
@@ -263,7 +264,7 @@ function GeneratorCard({
             textAlign: 'center',
             padding: '20px'
           }}>
-            <Icon size={32} style={{ opacity: 0.3 }} />
+            {React.createElement(icon, { size: 32, style: { opacity: 0.3 } })}
             <span style={{ fontSize: '0.85rem', opacity: 0.5 }}>
               Click "Generate All" to create content
             </span>
@@ -626,24 +627,18 @@ function GeneratorCard({
 function FinalMixSection({
   outputs,
   mediaUrls,
-  selectedAgents,
+  // Props received but unused (kept in signature for future use):
+  // selectedAgents, projectName, language, style, model,
+  // setFinalMixPreview, setCreatingFinalMix, setMusicVideoUrl, authToken
   songIdea,
-  projectName,
-  language,
-  style,
-  model,
   finalMixPreview,
-  setFinalMixPreview,
   creatingFinalMix,
-  setCreatingFinalMix,
   musicVideoUrl,
-  setMusicVideoUrl,
   generatingMusicVideo,
   handleGenerateProfessionalMusicVideo,
   handleCreateFinalMix,
   handleCreateProject,
-  setShowPreviewModal,
-  authToken
+  setShowPreviewModal
 }) {
   // Check completion status
   const completedCount = Object.values(outputs).filter(Boolean).length;
@@ -1426,8 +1421,8 @@ export default function StudioOrchestratorV2({
   onClose, 
   onCreateProject,
   authToken = null,
-  existingProject = null,
-  onUpdateCreations = null
+  existingProject = null
+  // onUpdateCreations - reserved for future use
 }) {
   const [songIdea, setSongIdea] = useState(existingProject?.name || '');
   const [language, setLanguage] = useState('English');
@@ -1475,7 +1470,7 @@ export default function StudioOrchestratorV2({
   const [musicVideoUrl, setMusicVideoUrl] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
   
-  const speechSynthRef = useRef(null);
+  // const speechSynthRef = useRef(null); - removed (unused)
   const recognitionRef = useRef(null);
   
   // Helper to format image data for display
@@ -1599,7 +1594,7 @@ export default function StudioOrchestratorV2({
       return;
     }
     
-    const activeSlots = Object.entries(selectedAgents).filter(([_, v]) => v);
+    const activeSlots = Object.entries(selectedAgents).filter(([, v]) => v);
     if (activeSlots.length === 0) {
       toast.error('Please select at least one agent');
       return;
@@ -1691,7 +1686,7 @@ export default function StudioOrchestratorV2({
         setOutputs(prev => ({ ...prev, [slot]: data.output }));
         toast.success(`${slotConfig.title} regenerated!`);
       }
-    } catch (err) {
+    } catch {
       toast.error('Regeneration failed');
     }
   };
@@ -1786,7 +1781,7 @@ export default function StudioOrchestratorV2({
           }
         };
         
-        video.onerror = (e) => {
+        video.onerror = () => {
           reject(new Error('Video load failed'));
         };
         
@@ -2985,24 +2980,15 @@ export default function StudioOrchestratorV2({
         <FinalMixSection
           outputs={outputs}
           mediaUrls={mediaUrls}
-          selectedAgents={selectedAgents}
           songIdea={songIdea}
-          projectName={projectName}
-          language={language}
-          style={style}
-          model={model}
           finalMixPreview={finalMixPreview}
-          setFinalMixPreview={setFinalMixPreview}
           creatingFinalMix={creatingFinalMix}
-          setCreatingFinalMix={setCreatingFinalMix}
           musicVideoUrl={musicVideoUrl}
-          setMusicVideoUrl={setMusicVideoUrl}
           generatingMusicVideo={generatingMusicVideo}
           handleGenerateProfessionalMusicVideo={handleGenerateProfessionalMusicVideo}
           handleCreateFinalMix={handleCreateFinalMix}
           handleCreateProject={handleCreateProject}
           setShowPreviewModal={setShowPreviewModal}
-          authToken={authToken}
         />
       </div>
 

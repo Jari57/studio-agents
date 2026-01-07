@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Sparkles, Save, FolderPlus, ChevronRight, Mic, Copy, Check, Loader, Volume2, VolumeX } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BACKEND_URL } from '../constants';
@@ -37,7 +37,7 @@ function QuickWorkflow({
     toggleListening, 
     speak, 
     stopSpeaking,
-    isVoiceSupported,
+    // isVoiceSupported - reserved for future voice feature toggle
     isSpeechSupported 
   } = useVoice({ language: 'en-US' });
 
@@ -46,8 +46,8 @@ function QuickWorkflow({
     if (user) {
       try {
         return await user.getIdToken();
-      } catch (e) {
-        console.error('Failed to get auth token:', e);
+      } catch {
+        console.error('Failed to get auth token');
       }
     }
     return null;

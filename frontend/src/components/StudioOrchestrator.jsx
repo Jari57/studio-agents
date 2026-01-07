@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Play, Pause, Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, 
-  Music, Image as ImageIcon, Download, Save, FolderPlus, Volume2, X,
-  Check, Loader2, Maximize2, Users, Eye
+  Play, Pause, Sparkles, Mic2, FileText, Video, RefreshCw, Zap, 
+  Music, Image as ImageIcon, Download, FolderPlus, X,
+  Loader2, Maximize2, Users, Eye
 } from 'lucide-react';
 import { Plyr } from 'plyr-react';
 import 'plyr-react/plyr.css';
@@ -115,7 +115,8 @@ function useTypewriter(text, speed = 15, trigger = false) {
 }
 
 // Agent Output Card with Generate Real Asset button
-function AgentOutputCard({ 
+// NOTE: This component is defined but not currently used - keeping for potential future use
+function _AgentOutputCard({ 
   icon: Icon, 
   title, 
   color, 
@@ -447,7 +448,7 @@ export default function StudioOrchestrator({
   
   // Unified canvas state
   const [activeTrack, setActiveTrack] = useState('hook'); // which track is in focus
-  const [playbackTime, setPlaybackTime] = useState(0); // timeline position
+  // const [playbackTime, setPlaybackTime] = useState(0); - reserved for timeline feature
   const [canvasMode, setCanvasMode] = useState('timeline'); // 'timeline', 'composition', or 'gallery'
   
   const inputRef = useRef(null);
