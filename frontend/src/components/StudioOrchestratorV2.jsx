@@ -1589,22 +1589,30 @@ export default function StudioOrchestratorV2({
 
   // Main generation function
   const handleGenerate = async () => {
+    console.log('[handleGenerate] Button clicked, songIdea:', songIdea);
+    console.log('[handleGenerate] selectedAgents:', selectedAgents);
+    console.log('[handleGenerate] BACKEND_URL:', BACKEND_URL);
+    
     if (!songIdea.trim()) {
       toast.error('Please enter a song idea');
       return;
     }
     
     const activeSlots = Object.entries(selectedAgents).filter(([, v]) => v);
+    console.log('[handleGenerate] activeSlots:', activeSlots);
+    
     if (activeSlots.length === 0) {
       toast.error('Please select at least one agent');
       return;
     }
     
     setIsGenerating(true);
+    toast.loading('Generating content...', { id: 'gen-all' });
     const newOutputs = { lyrics: null, audio: null, visual: null, video: null };
     
     try {
       const headers = await getHeaders();
+      console.log('[handleGenerate] headers:', headers);
       
       // Generate for each active slot
       for (const [slot, agentId] of activeSlots) {
@@ -1613,13 +1621,15 @@ export default function StudioOrchestratorV2({
         
         const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
         
-        const systemPrompt = `You are ${agent.name}, a professional ${agent.role}. 
+        const systemPrompt = `You are ${agent.name}, a professional ${agent.category} specialist. 
         Create content for a ${style} song about: "${songIdea}" in ${language}.
         Be creative, professional, and match the genre's style.
         ${slot === 'lyrics' ? 'Write a catchy hook and verse lyrics.' : ''}
         ${slot === 'audio' ? 'Describe a detailed beat/instrumental concept with BPM, key, and production elements.' : ''}
         ${slot === 'visual' ? 'Describe a striking album cover or visual concept in detail for image generation.' : ''}
         ${slot === 'video' ? 'Write a creative music video concept/storyboard with scene descriptions.' : ''}`;
+        
+        console.log(`[handleGenerate] Generating ${slot} with agent:`, agent.name);
         
         try {
           const response = await fetch(`${BACKEND_URL}/api/generate`, {
@@ -1631,9 +1641,15 @@ export default function StudioOrchestratorV2({
             })
           });
           
+          console.log(`[handleGenerate] ${slot} response status:`, response.status);
+          
           if (response.ok) {
             const data = await response.json();
             newOutputs[slot] = data.output;
+            console.log(`[handleGenerate] ${slot} generated successfully`);
+          } else {
+            const errorText = await response.text();
+            console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
           }
         } catch (err) {
           console.error(`Error generating ${slot}:`, err);
@@ -1641,6 +1657,7 @@ export default function StudioOrchestratorV2({
       }
       
       setOutputs(newOutputs);
+      toast.dismiss('gen-all');
       toast.success('Generation complete!');
       
     } catch (err) {
