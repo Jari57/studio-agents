@@ -2784,55 +2784,58 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
             return res.status(500).json({ error: 'No video generation API keys found (Replicate or Gemini)' });
         }
     } else {
-        // Try Veo 2.0 as primary (more stable)
+        // Try Veo 2.0 as primary (most stable)
         const modelId = "veo-2.0-generate-001";
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateVideos?key=${apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:predictLongRunning?key=${apiKey}`;
         
         try {
+            logger.info('Trying Veo 2.0 for video generation...');
             const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                prompt: prompt,
-                config: {
-                aspectRatio: "16:9",
-                durationSeconds: 5, // Shorter for faster generation
-                personGeneration: "dont_allow"
+                instances: [{ prompt: prompt }],
+                parameters: {
+                  aspectRatio: "16:9",
+                  durationSeconds: 5,
+                  sampleCount: 1
                 }
             })
             });
 
             if (response.ok) {
                 const operationData = await response.json();
+                logger.info('Veo 2.0 operation started', { name: operationData.name });
                 return handleVeoOperation(operationData, apiKey, res);
             }
             
             const errorText = await response.text();
             logger.error('Veo 2.0 API error', { status: response.status, error: errorText });
             
-            // If Veo 2.0 fails, try Veo 3.1 Preview as fallback
-            logger.info('Trying Veo 3.1 Preview as fallback...');
-            const veo3Url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:generateVideos?key=${apiKey}`;
+            // If Veo 2.0 fails, try Veo 3.0 as fallback
+            logger.info('Trying Veo 3.0 as fallback...');
+            const veo3Url = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-001:predictLongRunning?key=${apiKey}`;
             const veo3Response = await fetch(veo3Url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                prompt: prompt,
-                config: {
+                  instances: [{ prompt: prompt }],
+                  parameters: {
                     aspectRatio: "16:9",
                     durationSeconds: 5,
-                    personGeneration: "allow_all"
-                }
+                    sampleCount: 1
+                  }
                 })
             });
             
             if (veo3Response.ok) {
                 const veo3Data = await veo3Response.json();
+                logger.info('Veo 3.0 operation started', { name: veo3Data.name });
                 return handleVeoOperation(veo3Data, apiKey, res);
             }
             
             const veo3Error = await veo3Response.text();
-            logger.error('Veo 3.1 fallback also failed', { error: veo3Error });
+            logger.error('Veo 3.0 fallback also failed', { error: veo3Error });
 
         } catch (veoError) {
             logger.error('Veo generation error', { error: veoError.message });
