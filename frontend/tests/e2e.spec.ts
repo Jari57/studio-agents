@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
  */
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 
 // ============================================================================
 // GENERATION FLOW (TEXT MODE)
@@ -276,6 +276,46 @@ test.describe('Full E2E Scenario', () => {
     expect(investorResponse.status()).toBe(200);
     
     console.log('✅ Full E2E flow completed successfully');
+  });
+
+});
+
+// ============================================================================
+// PROJECT SAVE/LOAD CYCLE
+// ============================================================================
+
+test.describe('Project Save/Load Cycle', () => {
+
+  test('Project save endpoint requires auth', async ({ request }) => {
+    const response = await request.post(`${BACKEND_URL}/api/user/projects`, {
+      data: {
+        name: 'Test Project',
+        type: 'orchestrator',
+        outputs: { lyrics: 'test lyrics' }
+      }
+    });
+    // Should require authentication
+    expect(response.status()).toBe(401);
+  });
+
+  test('Project list endpoint requires auth', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/user/projects`);
+    expect(response.status()).toBe(401);
+  });
+
+  test('Project update endpoint requires auth', async ({ request }) => {
+    const response = await request.put(`${BACKEND_URL}/api/user/projects/test-project-id`, {
+      data: {
+        name: 'Updated Project',
+        outputs: { lyrics: 'updated lyrics' }
+      }
+    });
+    expect(response.status()).toBe(401);
+  });
+
+  test('Project delete endpoint requires auth', async ({ request }) => {
+    const response = await request.delete(`${BACKEND_URL}/api/user/projects/test-project-id`);
+    expect(response.status()).toBe(401);
   });
 
 });

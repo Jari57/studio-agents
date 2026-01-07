@@ -1650,7 +1650,15 @@ export default function StudioOrchestratorV2({
       
     } catch (err) {
       console.error('Generation error:', err);
-      toast.error('Generation failed');
+      toast.error(
+        <div>
+          <strong>Generation failed</strong>
+          <p style={{ fontSize: '12px', marginTop: '4px' }}>
+            {err.message || 'Check your connection and try again'}
+          </p>
+        </div>,
+        { duration: 5000 }
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -1692,7 +1700,7 @@ export default function StudioOrchestratorV2({
   const handleGenerateAudio = async () => {
     if (!outputs.audio) return;
     setGeneratingMedia(prev => ({ ...prev, audio: true }));
-    toast.loading('Generating audio beat...', { id: 'gen-audio' });
+    toast.loading('Generating AI beat (~30 seconds)...', { id: 'gen-audio' });
     
     try {
       const headers = await getHeaders();
@@ -1801,7 +1809,7 @@ export default function StudioOrchestratorV2({
   const handleGenerateImage = async () => {
     if (!outputs.visual) return;
     setGeneratingMedia(prev => ({ ...prev, image: true }));
-    toast.loading('Generating image...', { id: 'gen-image' });
+    toast.loading('Generating image (~10 seconds)...', { id: 'gen-image' });
     
     try {
       const headers = await getHeaders();
@@ -2006,7 +2014,7 @@ export default function StudioOrchestratorV2({
     }
     
     setGeneratingVocal(true);
-    toast.loading('Creating vocal performance...', { id: 'gen-vocal' });
+    toast.loading('Creating vocal performance (~20 seconds)...', { id: 'gen-vocal' });
     
     try {
       const headers = await getHeaders();
@@ -2066,7 +2074,7 @@ export default function StudioOrchestratorV2({
     }
 
     setCreatingFinalMix(true);
-    toast.loading('Creating final mix...', { id: 'final-mix' });
+    toast.loading('Creating final mix (~15 seconds)...', { id: 'final-mix' });
 
     try {
       // Compile all outputs into a final product summary
@@ -2118,7 +2126,7 @@ export default function StudioOrchestratorV2({
     }
 
     setGeneratingMusicVideo(true);
-    toast.loading('🎬 Syncing audio with video beats...', { id: 'prof-video' });
+    toast.loading('🎬 Syncing audio with video beats (~2-3 min)...', { id: 'prof-video' });
 
     try {
       const headers = await getHeaders();

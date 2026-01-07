@@ -18,7 +18,7 @@ import { test, expect } from '@playwright/test';
  * Run with: TEST_FIREBASE_TOKEN=your_token npx playwright test auth.spec.ts
  */
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 const TEST_TOKEN = process.env.TEST_FIREBASE_TOKEN || '';
 
 // Skip all tests if no token is provided

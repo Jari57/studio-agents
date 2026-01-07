@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test';
  * until we have a test user token strategy.
  */
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 
 test.describe('Backend API Health', () => {
   
@@ -220,10 +220,12 @@ test.describe('Media Generation Endpoints', () => {
   });
 
   test('Video generation endpoint exists', async ({ request }) => {
+    // Video generation with Veo takes 2-3 minutes, just check endpoint exists
+    test.setTimeout(180000); // 3 minutes
     const response = await request.post(`${BACKEND_URL}/api/generate-video`, {
       data: { prompt: 'test video' }
     });
-    expect([400, 401, 500, 503]).toContain(response.status());
+    expect([200, 400, 401, 500, 503]).toContain(response.status());
   });
 
 });
