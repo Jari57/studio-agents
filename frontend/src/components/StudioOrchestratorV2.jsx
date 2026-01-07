@@ -2382,17 +2382,23 @@ export default function StudioOrchestratorV2({
       </div>
 
       {/* Main Content */}
-      <div style={{ flex: 1, padding: '24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+      <div style={{ flex: 1, padding: '16px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
         
         {/* Input Section */}
         <div style={{ 
           background: 'rgba(255,255,255,0.03)',
-          borderRadius: '20px',
-          padding: '24px',
-          marginBottom: '24px',
+          borderRadius: '16px',
+          padding: '16px',
+          marginBottom: '20px',
           border: '1px solid rgba(255,255,255,0.06)'
         }}>
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+          {/* Song Idea Input - Stacks on mobile */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: '12px', 
+            marginBottom: '16px' 
+          }}>
             <input
               type="text"
               value={songIdea}
@@ -2400,84 +2406,102 @@ export default function StudioOrchestratorV2({
               onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
               placeholder="Describe your song idea, vibe, or concept..."
               style={{
-                flex: 1,
-                padding: '18px 24px',
-                borderRadius: '16px',
+                width: '100%',
+                padding: '16px 20px',
+                borderRadius: '12px',
                 background: 'rgba(0,0,0,0.5)',
                 border: '1px solid rgba(255,255,255,0.15)',
                 color: 'white',
-                fontSize: '1.1rem',
-                outline: 'none'
+                fontSize: '1rem',
+                outline: 'none',
+                minHeight: '56px'
               }}
             />
             
-            {/* STT Button */}
-            <button
-              onClick={isListening ? stopListening : startListening}
-              style={{
-                padding: '18px',
-                borderRadius: '16px',
-                background: isListening ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${isListening ? '#ef4444' : 'rgba(255,255,255,0.15)'}`,
-                color: isListening ? '#ef4444' : 'white',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              title={isListening ? "Stop Listening" : "Voice Input"}
-            >
-              {isListening ? <MicOff size={22} /> : <Mic size={22} />}
-            </button>
-            
-            <button
-              onClick={handleGenerate}
-              disabled={isGenerating || !songIdea.trim()}
-              style={{
-                padding: '18px 32px',
-                borderRadius: '16px',
-                background: isGenerating ? 'rgba(139, 92, 246, 0.3)' : 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-                border: 'none',
-                color: 'white',
-                fontWeight: '700',
-                fontSize: '1.05rem',
-                cursor: isGenerating || !songIdea.trim() ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                opacity: !songIdea.trim() ? 0.5 : 1,
-                boxShadow: isGenerating ? 'none' : '0 4px 20px rgba(139, 92, 246, 0.4)'
-              }}
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 size={22} className="spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles size={22} />
-                  Generate All
-                </>
-              )}
-            </button>
+            {/* Action Buttons Row */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {/* STT Button */}
+              <button
+                onClick={isListening ? stopListening : startListening}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: isListening ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${isListening ? '#ef4444' : 'rgba(255,255,255,0.15)'}`,
+                  color: isListening ? '#ef4444' : 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: '52px',
+                  minHeight: '52px'
+                }}
+                title={isListening ? "Stop Listening" : "Voice Input"}
+              >
+                {isListening ? <MicOff size={22} /> : <Mic size={22} />}
+              </button>
+              
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating || !songIdea.trim()}
+                style={{
+                  flex: 1,
+                  padding: '14px 24px',
+                  borderRadius: '12px',
+                  background: isGenerating ? 'rgba(139, 92, 246, 0.3)' : 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  cursor: isGenerating || !songIdea.trim() ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  opacity: !songIdea.trim() ? 0.5 : 1,
+                  boxShadow: isGenerating ? 'none' : '0 4px 20px rgba(139, 92, 246, 0.4)',
+                  minHeight: '52px'
+                }}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 size={20} className="spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={20} />
+                    Generate All
+                  </>
+                )}
+              </button>
+            </div>
           </div>
           
-          {/* Quick Examples */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Try:</span>
+          {/* Quick Examples - scrollable on mobile */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px', 
+            flexWrap: 'wrap', 
+            alignItems: 'center',
+            overflowX: 'auto',
+            paddingBottom: '4px'
+          }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Try:</span>
             {EXAMPLE_IDEAS.map((idea, i) => (
               <button
                 key={i}
                 onClick={() => setSongIdea(idea)}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 16px',
                   borderRadius: '20px',
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
                   color: 'var(--text-secondary)',
                   fontSize: '0.85rem',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  minHeight: '40px'
                 }}
               >
                 {idea}
@@ -2489,9 +2513,9 @@ export default function StudioOrchestratorV2({
         {/* Configuration Row */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          gap: '12px',
-          marginBottom: '24px'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+          gap: '10px',
+          marginBottom: '20px'
         }}>
           {[
             { label: 'Language', value: language, setter: setLanguage, options: ['English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese'] },
@@ -2515,14 +2539,20 @@ export default function StudioOrchestratorV2({
                 onChange={(e) => config.setter(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '10px 14px',
+                  padding: '12px 14px',
                   borderRadius: '10px',
                   background: 'rgba(0,0,0,0.4)',
                   border: '1px solid rgba(255,255,255,0.1)',
                   color: 'white',
-                  fontSize: '0.85rem',
+                  fontSize: '0.9rem',
                   cursor: 'pointer',
-                  outline: 'none'
+                  outline: 'none',
+                  minHeight: '48px',
+                  WebkitAppearance: 'none',
+                  appearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 12px center'
                 }}
               >
                 {config.options.map(opt => (
