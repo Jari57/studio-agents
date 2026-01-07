@@ -2886,7 +2886,7 @@ export default function StudioOrchestratorV2({
                   </>
                 ) : (
                   <>
-                    <Speaker size={16} />
+                    <Volume2 size={16} />
                     Create Vocal
                   </>
                 )}

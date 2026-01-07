@@ -670,6 +670,14 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
     return goal?.agents || [];
   };
 
+  // Get primary recommendation (first agent for selected path)
+  const getRecommendation = () => {
+    if (!selectedPath) return null;
+    const goal = goalOptions.find(g => g.id === selectedPath);
+    if (!goal || !goal.agents || goal.agents.length === 0) return null;
+    return goal.agents[0]; // Primary recommendation
+  };
+
   // Check for first visit
   useEffect(() => {
     const hasSeenOnboarding = localStorage.getItem('studio_onboarding_v3');
@@ -2063,18 +2071,15 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       const toastId = toast.loading(`${selectedAgent.name} is working... (Demo Mode)`);
       try {
         const mockOutput = await getMockResponse(selectedAgent.id, textarea.value);
-        const newItem = {
-          id: String(Date.now()),
-          title: `${selectedAgent.name} Result`,
-          type: selectedAgent.category,
-          agent: selectedAgent.name,
-          date: 'Just now',
-          color: selectedAgent.colorClass,
-          snippet: mockOutput,
-          isDemo: true
-        };
-        setLatestResult(newItem);
-        setWorkHistory(prev => [newItem, ...prev]);
+        // Store demo result in agent previews cache
+        setAgentPreviews(prev => ({
+          ...prev,
+          [selectedAgent.id]: {
+            output: mockOutput,
+            timestamp: Date.now(),
+            isDemo: true
+          }
+        }));
         setActiveTab('result');
         toast.success('Demo response generated!', { id: toastId });
       } catch (err) {
@@ -9678,11 +9683,11 @@ When you write a song, you create intellectual property that generates money eve
 
               <div className="modal-body" style={{ padding: '1.5rem', overflow: 'visible', flex: 1 }}>
                 {/* Existing Cards Section */}
-                {!editingPayment && savedPaymentMethods.length > 0 && (
+                {!editingPayment && paymentMethods.length > 0 && (
                   <div style={{ marginBottom: '1.5rem' }}>
                     <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Saved Cards</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      {savedPaymentMethods.map((card, idx) => (
+                      {paymentMethods.map((card, idx) => (
                         <div 
                           key={card.id || idx}
                           style={{
@@ -9739,7 +9744,7 @@ When you write a song, you create intellectual property that generates money eve
                             </button>
                             <button 
                               onClick={() => {
-                                setSavedPaymentMethods(prev => prev.filter(c => c.id !== card.id));
+                                setPaymentMethods(prev => prev.filter(c => c.id !== card.id));
                                 toast.success('Card removed');
                               }}
                               style={{
@@ -9765,11 +9770,11 @@ When you write a song, you create intellectual property that generates money eve
                 )}
 
                 {/* Existing Bank Accounts Section */}
-                {!editingPayment && savedBankAccounts.length > 0 && (
+                {!editingPayment && bankAccounts.length > 0 && (
                   <div style={{ marginBottom: '1.5rem' }}>
                     <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bank Accounts</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      {savedBankAccounts.map((bank, idx) => (
+                      {bankAccounts.map((bank, idx) => (
                         <div 
                           key={bank.id || idx}
                           style={{
@@ -9821,7 +9826,7 @@ When you write a song, you create intellectual property that generates money eve
                             </button>
                             <button 
                               onClick={() => {
-                                setSavedBankAccounts(prev => prev.filter(b => b.id !== bank.id));
+                                setBankAccounts(prev => prev.filter(b => b.id !== bank.id));
                                 toast.success('Bank account removed');
                               }}
                               style={{
