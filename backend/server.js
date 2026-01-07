@@ -2738,69 +2738,25 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
 
     logger.info('Starting video generation', { promptLength: prompt.length });
 
-    // 1. Try Replicate (Minimax) as Primary
-    const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
-    if (replicateKey) {
-      try {
-        logger.info('Trying Replicate (Minimax) as primary video generator...');
-        const replicate = new Replicate({ auth: replicateKey });
-        
-        // Using Minimax Video-01 (High quality, 5s)
-        const output = await replicate.run(
-          "minimax/video-01",
-          {
-            input: {
-              prompt: prompt,
-              prompt_optimizer: true
-            }
-          }
-        );
-        
-        if (output) {
-             logger.info('Replicate (Minimax) generation successful');
-             // Replicate returns a URL string for this model
-             const videoUrl = String(output);
-             
-             return res.json({
-                output: videoUrl,
-                mimeType: 'video/mp4',
-                type: 'video',
-                source: 'replicate-minimax',
-                message: 'Video generated with Minimax (via Replicate)'
-             });
-        }
-      } catch (repError) {
-        logger.error('Replicate generation failed, falling back to Veo', { error: repError.message });
-      }
-    } else {
-        logger.info('REPLICATE_API_KEY not found, skipping Replicate');
-    }
-
-    // 2. Try Google Veo (Gemini) as Secondary
+    // 1. Try Google Veo 3.0 Fast as PRIMARY (best quality, approved)
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        // If both keys are missing, fail early
-        if (!replicateKey) {
-            return res.status(500).json({ error: 'No video generation API keys found (Replicate or Gemini)' });
-        }
-    } else {
-        // Try Veo 3.0 Fast as primary (fastest generation)
+    if (apiKey) {
         const modelId = "veo-3.0-fast-generate-001";
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:predictLongRunning?key=${apiKey}`;
         
         try {
-            logger.info('Trying Veo 3.0 Fast for video generation...');
+            logger.info('Trying Veo 3.0 Fast as primary video generator...');
             const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
                 instances: [{ prompt: prompt }],
                 parameters: {
                   aspectRatio: "16:9",
                   durationSeconds: 5,
                   sampleCount: 1
                 }
-            })
+              })
             });
 
             if (response.ok) {
@@ -2812,7 +2768,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
             const errorText = await response.text();
             logger.error('Veo 3.0 Fast API error', { status: response.status, error: errorText });
             
-            // If Veo 3.0 Fast fails, try Veo 2.0 as fallback (most stable)
+            // If Veo 3.0 Fast fails, try Veo 2.0 as fallback
             logger.info('Trying Veo 2.0 as fallback...');
             const veo2Url = `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning?key=${apiKey}`;
             const veo2Response = await fetch(veo2Url, {
@@ -2838,8 +2794,47 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLim
             logger.error('Veo 2.0 fallback also failed', { error: veo2Error });
 
         } catch (veoError) {
-            logger.error('Veo generation error', { error: veoError.message });
+            logger.error('Veo generation error, falling back to Replicate', { error: veoError.message });
         }
+    } else {
+        logger.info('GEMINI_API_KEY not found, skipping Veo');
+    }
+
+    // 2. Try Replicate (Minimax) as FALLBACK
+    const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+    if (replicateKey) {
+      try {
+        logger.info('Trying Replicate (Minimax) as fallback video generator...');
+        const replicate = new Replicate({ auth: replicateKey });
+        
+        // Using Minimax Video-01 (High quality, 5s)
+        const output = await replicate.run(
+          "minimax/video-01",
+          {
+            input: {
+              prompt: prompt,
+              prompt_optimizer: true
+            }
+          }
+        );
+        
+        if (output) {
+             logger.info('Replicate (Minimax) fallback generation successful');
+             const videoUrl = String(output);
+             
+             return res.json({
+                output: videoUrl,
+                mimeType: 'video/mp4',
+                type: 'video',
+                source: 'replicate-minimax',
+                message: 'Video generated with Minimax (via Replicate)'
+             });
+        }
+      } catch (repError) {
+        logger.error('Replicate fallback generation also failed', { error: repError.message });
+      }
+    } else {
+        logger.info('REPLICATE_API_KEY not found, skipping Replicate fallback');
     }
       
     // ═══════════════════════════════════════════════════════════════════
