@@ -620,6 +620,547 @@ function GeneratorCard({
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// FINAL MIX SECTION - Pinned to bottom of orchestrator
+// ═══════════════════════════════════════════════════════════════════════════════
+function FinalMixSection({
+  outputs,
+  mediaUrls,
+  selectedAgents,
+  songIdea,
+  projectName,
+  language,
+  style,
+  model,
+  finalMixPreview,
+  setFinalMixPreview,
+  creatingFinalMix,
+  setCreatingFinalMix,
+  musicVideoUrl,
+  setMusicVideoUrl,
+  generatingMusicVideo,
+  handleGenerateProfessionalMusicVideo,
+  handleCreateFinalMix,
+  handleCreateProject,
+  setShowPreviewModal,
+  authToken
+}) {
+  // Check completion status
+  const completedCount = Object.values(outputs).filter(Boolean).length;
+  const totalSlots = 4;
+  const allComplete = completedCount === totalSlots;
+  const hasAnyOutput = completedCount > 0;
+  const progressPercent = (completedCount / totalSlots) * 100;
+  
+  // Check media availability
+  const hasLyrics = !!outputs.lyrics;
+  const hasAudio = !!outputs.audio;
+  const hasVisual = !!outputs.visual;
+  const hasVideo = !!outputs.video;
+  const hasBeatAudio = !!mediaUrls.audio;
+  const hasImage = !!mediaUrls.image;
+  const hasVideoMedia = !!mediaUrls.video;
+
+  return (
+    <div style={{
+      background: allComplete 
+        ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.1) 50%, rgba(34, 197, 94, 0.05) 100%)'
+        : 'linear-gradient(135deg, rgba(100, 100, 120, 0.15) 0%, rgba(80, 80, 100, 0.08) 100%)',
+      borderRadius: '20px',
+      padding: '28px',
+      border: allComplete 
+        ? '2px solid rgba(34, 197, 94, 0.5)' 
+        : '2px dashed rgba(150, 150, 170, 0.3)',
+      marginTop: '32px',
+      position: 'relative',
+      overflow: 'hidden',
+      transition: 'all 0.4s ease'
+    }}>
+      {/* Background glow when complete */}
+      {allComplete && (
+        <div style={{
+          position: 'absolute',
+          top: '-50%',
+          left: '-50%',
+          width: '200%',
+          height: '200%',
+          background: 'radial-gradient(circle at center, rgba(34, 197, 94, 0.1) 0%, transparent 50%)',
+          pointerEvents: 'none',
+          animation: 'pulse 3s ease-in-out infinite'
+        }} />
+      )}
+
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '20px',
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '8px'
+          }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '14px',
+              background: allComplete 
+                ? 'linear-gradient(135deg, #22c55e, #10b981)' 
+                : 'linear-gradient(135deg, #6b7280, #4b5563)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              boxShadow: allComplete ? '0 8px 32px rgba(34, 197, 94, 0.4)' : 'none'
+            }}>
+              {allComplete ? '✨' : '🎛️'}
+            </div>
+            <div>
+              <h3 style={{
+                margin: 0,
+                fontSize: '1.4rem',
+                fontWeight: '800',
+                color: allComplete ? '#22c55e' : 'rgba(255,255,255,0.6)',
+                letterSpacing: '-0.02em'
+              }}>
+                Final Mix
+              </h3>
+              <p style={{
+                margin: '2px 0 0',
+                fontSize: '0.85rem',
+                color: 'var(--text-secondary)'
+              }}>
+                {allComplete 
+                  ? 'All components ready • Create your complete product'
+                  : `${completedCount}/${totalSlots} components complete`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress indicator */}
+        <div style={{
+          textAlign: 'right',
+          minWidth: '100px'
+        }}>
+          <div style={{
+            fontSize: '2rem',
+            fontWeight: '800',
+            color: allComplete ? '#22c55e' : 'rgba(255,255,255,0.4)',
+            lineHeight: 1
+          }}>
+            {completedCount}/{totalSlots}
+          </div>
+          <div style={{
+            width: '100px',
+            height: '6px',
+            background: 'rgba(255,255,255,0.1)',
+            borderRadius: '3px',
+            marginTop: '8px',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              width: `${progressPercent}%`,
+              height: '100%',
+              background: allComplete 
+                ? 'linear-gradient(90deg, #22c55e, #10b981)' 
+                : 'linear-gradient(90deg, #f59e0b, #d97706)',
+              borderRadius: '3px',
+              transition: 'width 0.5s ease'
+            }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Component checklist */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: '12px',
+        marginBottom: '24px',
+        position: 'relative',
+        zIndex: 1
+      }}>
+        {[
+          { key: 'lyrics', label: 'Lyrics', icon: '📝', done: hasLyrics, color: '#a855f7' },
+          { key: 'audio', label: 'Beat', icon: '🎵', done: hasAudio, hasMedia: hasBeatAudio, color: '#3b82f6' },
+          { key: 'visual', label: 'Cover Art', icon: '🎨', done: hasVisual, hasMedia: hasImage, color: '#f59e0b' },
+          { key: 'video', label: 'Video', icon: '🎬', done: hasVideo, hasMedia: hasVideoMedia, color: '#ef4444' }
+        ].map(item => (
+          <div key={item.key} style={{
+            background: item.done 
+              ? `linear-gradient(135deg, ${item.color}20, ${item.color}10)` 
+              : 'rgba(255,255,255,0.03)',
+            borderRadius: '12px',
+            padding: '14px',
+            border: item.done 
+              ? `1px solid ${item.color}50` 
+              : '1px solid rgba(255,255,255,0.08)',
+            textAlign: 'center',
+            transition: 'all 0.3s ease'
+          }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '6px' }}>
+              {item.done ? '✓' : item.icon}
+            </div>
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              color: item.done ? item.color : 'rgba(255,255,255,0.4)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em'
+            }}>
+              {item.label}
+            </div>
+            {item.hasMedia && (
+              <div style={{
+                fontSize: '0.65rem',
+                color: '#22c55e',
+                marginTop: '4px'
+              }}>
+                + Media
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Final Mix Preview (when created) */}
+      {finalMixPreview && (
+        <div style={{
+          background: 'rgba(0,0,0,0.3)',
+          borderRadius: '16px',
+          padding: '20px',
+          marginBottom: '20px',
+          border: '1px solid rgba(34, 197, 94, 0.3)',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: '16px'
+          }}>
+            <div>
+              <div style={{
+                fontSize: '0.7rem',
+                color: '#22c55e',
+                fontWeight: '700',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: '6px'
+              }}>
+                📦 Complete Product
+              </div>
+              <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700' }}>
+                {finalMixPreview.title}
+              </h4>
+              <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                {finalMixPreview.description}
+              </p>
+            </div>
+            <div style={{
+              background: 'rgba(34, 197, 94, 0.2)',
+              padding: '8px 14px',
+              borderRadius: '20px',
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              color: '#22c55e'
+            }}>
+              Ready to Export
+            </div>
+          </div>
+
+          {/* Music Video Section */}
+          {hasBeatAudio && hasVideo && (
+            <div style={{
+              background: 'rgba(245, 158, 11, 0.1)',
+              borderRadius: '12px',
+              padding: '16px',
+              border: '1px solid rgba(245, 158, 11, 0.3)',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '12px'
+              }}>
+                <div>
+                  <div style={{
+                    fontSize: '0.7rem',
+                    color: '#f59e0b',
+                    fontWeight: '700',
+                    marginBottom: '4px'
+                  }}>
+                    🎬 PROFESSIONAL MUSIC VIDEO
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Sync beat with video for a beat-matched music video
+                  </p>
+                </div>
+                {finalMixPreview?.bpm && (
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.2)',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    color: '#f59e0b'
+                  }}>
+                    ♪ {finalMixPreview.bpm} BPM
+                  </div>
+                )}
+              </div>
+
+              {musicVideoUrl && (
+                <div style={{
+                  background: 'rgba(0,0,0,0.4)',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  marginBottom: '12px'
+                }}>
+                  <video
+                    src={musicVideoUrl}
+                    controls
+                    style={{
+                      width: '100%',
+                      maxHeight: '280px',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <div style={{
+                    marginTop: '10px',
+                    fontSize: '0.8rem',
+                    color: '#10b981',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    ✓ Beat-synced music video ready
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={handleGenerateProfessionalMusicVideo}
+                  disabled={generatingMusicVideo}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    borderRadius: '10px',
+                    background: generatingMusicVideo ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.4)',
+                    border: '1px solid rgba(245, 158, 11, 0.6)',
+                    color: '#f59e0b',
+                    fontWeight: '600',
+                    fontSize: '0.85rem',
+                    cursor: generatingMusicVideo ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {generatingMusicVideo ? (
+                    <>⏳ Syncing...</>
+                  ) : musicVideoUrl ? (
+                    <>🔄 Regenerate Video</>
+                  ) : (
+                    <>🎬 Generate Music Video</>
+                  )}
+                </button>
+
+                {musicVideoUrl && (
+                  <button
+                    onClick={() => {
+                      const a = document.createElement('a');
+                      a.href = musicVideoUrl;
+                      a.download = `${songIdea || 'music-video'}.mp4`;
+                      a.click();
+                    }}
+                    style={{
+                      padding: '12px 20px',
+                      borderRadius: '10px',
+                      background: 'rgba(59, 130, 246, 0.3)',
+                      border: '1px solid rgba(59, 130, 246, 0.5)',
+                      color: '#3b82f6',
+                      fontWeight: '600',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    ⬇️ Download
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        flexWrap: 'wrap',
+        position: 'relative',
+        zIndex: 1
+      }}>
+        {/* Preview All Button */}
+        <button
+          onClick={() => setShowPreviewModal(true)}
+          disabled={!hasAnyOutput}
+          style={{
+            padding: '14px 24px',
+            borderRadius: '12px',
+            background: hasAnyOutput ? 'rgba(59, 130, 246, 0.2)' : 'rgba(100,100,100,0.1)',
+            border: `1px solid ${hasAnyOutput ? 'rgba(59, 130, 246, 0.5)' : 'rgba(100,100,100,0.2)'}`,
+            color: hasAnyOutput ? '#3b82f6' : 'rgba(255,255,255,0.3)',
+            fontWeight: '600',
+            fontSize: '0.9rem',
+            cursor: hasAnyOutput ? 'pointer' : 'not-allowed',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          👁️ Preview All
+        </button>
+
+        {/* Create Final Mix Button */}
+        <button
+          onClick={handleCreateFinalMix}
+          disabled={!allComplete || creatingFinalMix}
+          style={{
+            padding: '14px 28px',
+            borderRadius: '12px',
+            background: allComplete 
+              ? creatingFinalMix 
+                ? 'rgba(34, 197, 94, 0.3)' 
+                : 'linear-gradient(135deg, rgba(34, 197, 94, 0.6), rgba(16, 185, 129, 0.5))'
+              : 'rgba(100,100,100,0.1)',
+            border: `1px solid ${allComplete ? 'rgba(34, 197, 94, 0.6)' : 'rgba(100,100,100,0.2)'}`,
+            color: allComplete ? '#22c55e' : 'rgba(255,255,255,0.3)',
+            fontWeight: '700',
+            fontSize: '0.95rem',
+            cursor: allComplete && !creatingFinalMix ? 'pointer' : 'not-allowed',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s ease',
+            boxShadow: allComplete && !creatingFinalMix ? '0 4px 20px rgba(34, 197, 94, 0.3)' : 'none'
+          }}
+        >
+          {creatingFinalMix ? (
+            <>⏳ Creating Mix...</>
+          ) : (
+            <>⚡ Create Final Mix</>
+          )}
+        </button>
+
+        {/* Save to Project Button */}
+        <button
+          onClick={handleCreateProject}
+          disabled={!hasAnyOutput}
+          style={{
+            padding: '14px 28px',
+            borderRadius: '12px',
+            background: hasAnyOutput 
+              ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.5), rgba(139, 92, 246, 0.4))' 
+              : 'rgba(100,100,100,0.1)',
+            border: `1px solid ${hasAnyOutput ? 'rgba(168, 85, 247, 0.6)' : 'rgba(100,100,100,0.2)'}`,
+            color: hasAnyOutput ? '#a855f7' : 'rgba(255,255,255,0.3)',
+            fontWeight: '700',
+            fontSize: '0.95rem',
+            cursor: hasAnyOutput ? 'pointer' : 'not-allowed',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s ease',
+            boxShadow: hasAnyOutput ? '0 4px 20px rgba(168, 85, 247, 0.2)' : 'none'
+          }}
+        >
+          💾 Save to Project
+        </button>
+
+        {/* Export Mix (when final mix exists) */}
+        {finalMixPreview && (
+          <button
+            onClick={() => {
+              const exportData = JSON.stringify(finalMixPreview, null, 2);
+              const blob = new Blob([exportData], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${songIdea || 'mix'}-final.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast.success('Final mix exported!');
+            }}
+            style={{
+              padding: '14px 24px',
+              borderRadius: '12px',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '0.9rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            📥 Export JSON
+          </button>
+        )}
+      </div>
+
+      {/* Locked state message */}
+      {!allComplete && (
+        <div style={{
+          marginTop: '20px',
+          padding: '14px 18px',
+          background: 'rgba(245, 158, 11, 0.1)',
+          borderRadius: '10px',
+          border: '1px solid rgba(245, 158, 11, 0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          <span style={{ fontSize: '1.2rem' }}>🔒</span>
+          <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: '600', color: '#f59e0b' }}>
+              Complete all 4 generators to unlock Final Mix
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              Missing: {[
+                !hasLyrics && 'Lyrics',
+                !hasAudio && 'Beat',
+                !hasVisual && 'Cover Art',
+                !hasVideo && 'Video'
+              ].filter(Boolean).join(', ')}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Main Orchestrator Component
 export default function StudioOrchestratorV2({ 
   isOpen, 
@@ -2058,409 +2599,6 @@ export default function StudioOrchestratorV2({
           </div>
         )}
 
-        {/* Final Mix Section - appears when all 4 generators complete */}
-        {Object.values(outputs).every(Boolean) && (
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.05) 100%)',
-            borderRadius: '16px',
-            padding: '24px',
-            border: '1px solid rgba(34, 197, 94, 0.4)',
-            marginBottom: '24px'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '16px'
-            }}>
-              <div>
-                <h4 style={{ 
-                  margin: '0 0 6px', 
-                  fontSize: '1.1rem', 
-                  fontWeight: '700',
-                  color: '#22c55e'
-                }}>
-                  ✨ Final Mix - Complete Product
-                </h4>
-                <p style={{ 
-                  margin: 0, 
-                  fontSize: '0.85rem', 
-                  color: 'var(--text-secondary)' 
-                }}>
-                  All 4 generators complete • Combine into a single integrated product
-                </p>
-              </div>
-            </div>
-
-            {/* Components Summary */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: '12px',
-              marginBottom: '16px'
-            }}>
-              <div style={{
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '10px',
-                padding: '12px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '0.7rem', color: '#8b5cf6', fontWeight: '600', marginBottom: '4px' }}>📝 Lyrics</div>
-                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)' }}>
-                  {outputs.lyrics.length} chars
-                </div>
-              </div>
-              
-              <div style={{
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '10px',
-                padding: '12px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '0.7rem', color: '#06b6d4', fontWeight: '600', marginBottom: '4px' }}>🎵 Beat</div>
-                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)' }}>
-                  {mediaUrls.audio ? '✓ Audio' : 'Ready'}
-                </div>
-              </div>
-              
-              <div style={{
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '10px',
-                padding: '12px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '0.7rem', color: '#ec4899', fontWeight: '600', marginBottom: '4px' }}>🖼️ Visual</div>
-                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)' }}>
-                  {mediaUrls.image ? '✓ Image' : 'Ready'}
-                </div>
-              </div>
-              
-              <div style={{
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '10px',
-                padding: '12px',
-                textAlign: 'center'
-              }}>
-                <div style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: '600', marginBottom: '4px' }}>🎬 Video</div>
-                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)' }}>
-                  {mediaUrls.video ? '✓ Video' : 'Ready'}
-                </div>
-              </div>
-            </div>
-
-            {/* Final Mix Preview */}
-            {finalMixPreview && (
-              <div style={{
-                background: 'rgba(0,0,0,0.2)',
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: '16px',
-                border: '1px solid rgba(34, 197, 94, 0.3)',
-                maxHeight: '300px',
-                overflowY: 'auto'
-              }}>
-                <div style={{
-                  fontSize: '0.75rem',
-                  color: '#22c55e',
-                  fontWeight: '600',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  marginBottom: '12px'
-                }}>
-                  📦 Final Product Preview
-                </div>
-                <div style={{
-                  fontSize: '0.9rem',
-                  color: 'rgba(255,255,255,0.8)',
-                  lineHeight: '1.6'
-                }}>
-                  <strong>{finalMixPreview.title}</strong>
-                  <div style={{ fontSize: '0.8rem', marginTop: '8px', color: 'var(--text-secondary)' }}>
-                    {finalMixPreview.description}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', marginTop: '12px', color: 'var(--text-secondary)' }}>
-                    Created: {new Date(finalMixPreview.created).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Professional Music Video Section */}
-            {finalMixPreview && mediaUrls.audio && outputs.video && (
-              <div style={{
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05))',
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: '16px',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
-                backdropFilter: 'blur(8px)'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  marginBottom: '12px'
-                }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontSize: '0.7rem',
-                      color: '#f59e0b',
-                      fontWeight: '700',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.08em',
-                      marginBottom: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}>
-                      <span>🎬</span> Professional Music Video Sync
-                    </div>
-                    <p style={{ 
-                      margin: 0, 
-                      fontSize: '0.85rem', 
-                      color: 'var(--text-secondary)',
-                      lineHeight: '1.4'
-                    }}>
-                      Automatically sync beat audio with video storyboard for a professional music video
-                    </p>
-                  </div>
-                  {finalMixPreview?.beatCount && (
-                    <div style={{
-                      background: 'rgba(245, 158, 11, 0.2)',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: '600',
-                      color: '#f59e0b',
-                      whiteSpace: 'nowrap',
-                      marginLeft: '12px'
-                    }}>
-                      ♪ {finalMixPreview.bpm || 120} BPM • {finalMixPreview.beatCount || 0} beats
-                    </div>
-                  )}
-                </div>
-
-                {musicVideoUrl && (
-                  <div style={{
-                    background: 'rgba(0, 0, 0, 0.4)',
-                    borderRadius: '10px',
-                    padding: '12px',
-                    marginBottom: '12px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{
-                      position: 'relative',
-                      background: 'rgba(0, 0, 0, 0.6)',
-                      borderRadius: '8px',
-                      overflow: 'hidden'
-                    }}>
-                      <video 
-                        src={musicVideoUrl}
-                        controls
-                        controlsList="nodownload"
-                        style={{ 
-                          width: '100%',
-                          maxHeight: '320px',
-                          borderRadius: '8px',
-                          display: 'block'
-                        }}
-                      />
-                    </div>
-                    <div style={{
-                      marginTop: '12px',
-                      fontSize: '0.8rem',
-                      color: '#10b981',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontWeight: '500'
-                    }}>
-                      <span>✓</span> 
-                      Music video synced with beat markers
-                    </div>
-                  </div>
-                )}
-
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '10px',
-                  marginBottom: '12px'
-                }}>
-                  <button
-                    onClick={handleGenerateProfessionalMusicVideo}
-                    disabled={generatingMusicVideo}
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: '10px',
-                      background: generatingMusicVideo 
-                        ? 'rgba(245, 158, 11, 0.2)' 
-                        : 'rgba(245, 158, 11, 0.6)',
-                      border: '1px solid rgba(245, 158, 11, 0.7)',
-                      color: '#f59e0b',
-                      fontWeight: '600',
-                      fontSize: '0.9rem',
-                      cursor: generatingMusicVideo ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      transition: 'all 0.2s ease',
-                      opacity: generatingMusicVideo ? 0.6 : 1
-                    }}
-                    title={musicVideoUrl ? 'Generate a new synced video' : 'Create beat-synced music video'}
-                  >
-                    {generatingMusicVideo ? (
-                      <>
-                        <Loader2 size={16} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
-                        <span>Syncing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Video size={16} />
-                        <span>{musicVideoUrl ? '🔄 Regenerate' : '🎬 Generate'}</span>
-                      </>
-                    )}
-                  </button>
-
-                  {musicVideoUrl && (
-                    <button
-                      onClick={() => {
-                        const a = document.createElement('a');
-                        a.href = musicVideoUrl;
-                        a.download = `${songIdea || 'music-video'}-synced.mp4`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                      }}
-                      style={{
-                        padding: '12px 16px',
-                        borderRadius: '10px',
-                        background: 'rgba(59, 130, 246, 0.3)',
-                        border: '1px solid rgba(59, 130, 246, 0.5)',
-                        color: '#3b82f6',
-                        fontWeight: '600',
-                        fontSize: '0.9rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        transition: 'all 0.2s ease'
-                      }}
-                      title="Download music video"
-                    >
-                      <Download size={16} />
-                      <span>Download</span>
-                    </button>
-                  )}
-                </div>
-
-                <div style={{
-                  background: 'rgba(245, 158, 11, 0.1)',
-                  borderRadius: '8px',
-                  padding: '10px 12px',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-secondary)',
-                  display: 'flex',
-                  gap: '8px',
-                  alignItems: 'flex-start'
-                }}>
-                  <span style={{ color: '#f59e0b', fontWeight: '700', marginTop: '2px' }}>ℹ</span>
-                  <span>
-                    Beat sync analyzes your audio to find rhythm patterns and aligns video keyframes with beat markers. Result is a 30-second video to start.
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setShowPreviewModal(true)}
-                style={{
-                  padding: '12px 24px',
-                  borderRadius: '10px',
-                  background: 'rgba(59, 130, 246, 0.3)',
-                  border: '1px solid rgba(59, 130, 246, 0.6)',
-                  color: '#3b82f6',
-                  fontWeight: '600',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <Eye size={16} />
-                Preview All
-              </button>
-
-              <button
-                onClick={handleCreateFinalMix}
-                disabled={creatingFinalMix}
-                style={{
-                  padding: '12px 24px',
-                  borderRadius: '10px',
-                  background: creatingFinalMix ? 'rgba(34, 197, 94, 0.3)' : 'rgba(34, 197, 94, 0.5)',
-                  border: '1px solid rgba(34, 197, 94, 0.6)',
-                  color: '#22c55e',
-                  fontWeight: '600',
-                  fontSize: '0.9rem',
-                  cursor: creatingFinalMix ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                {creatingFinalMix ? (
-                  <>
-                    <Loader2 size={16} className="spin" />
-                    Mixing...
-                  </>
-                ) : (
-                  <>
-                    <Zap size={16} />
-                    Create Final Mix
-                  </>
-                )}
-              </button>
-
-              {finalMixPreview && (
-                <button
-                  onClick={() => {
-                    const exportData = JSON.stringify(finalMixPreview, null, 2);
-                    const blob = new Blob([exportData], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `${songIdea || 'mix'}-final.json`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    toast.success('Final mix exported!');
-                  }}
-                  style={{
-                    padding: '12px 24px',
-                    borderRadius: '10px',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'white',
-                    fontWeight: '600',
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <Download size={16} />
-                  Export Mix
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {/* 4 Generator Cards Grid - 2x2 layout */}
         <div style={{
           display: 'grid',
@@ -2505,6 +2643,32 @@ export default function StudioOrchestratorV2({
             />
           ))}
         </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            FINAL MIX SECTION - Always visible at bottom
+            ═══════════════════════════════════════════════════════════════════ */}
+        <FinalMixSection
+          outputs={outputs}
+          mediaUrls={mediaUrls}
+          selectedAgents={selectedAgents}
+          songIdea={songIdea}
+          projectName={projectName}
+          language={language}
+          style={style}
+          model={model}
+          finalMixPreview={finalMixPreview}
+          setFinalMixPreview={setFinalMixPreview}
+          creatingFinalMix={creatingFinalMix}
+          setCreatingFinalMix={setCreatingFinalMix}
+          musicVideoUrl={musicVideoUrl}
+          setMusicVideoUrl={setMusicVideoUrl}
+          generatingMusicVideo={generatingMusicVideo}
+          handleGenerateProfessionalMusicVideo={handleGenerateProfessionalMusicVideo}
+          handleCreateFinalMix={handleCreateFinalMix}
+          handleCreateProject={handleCreateProject}
+          setShowPreviewModal={setShowPreviewModal}
+          authToken={authToken}
+        />
       </div>
 
       {/* Maximized Card Modal */}

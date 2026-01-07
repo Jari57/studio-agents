@@ -244,11 +244,10 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const syncTimeoutRef = useRef(null);
 
-  // Save a single project to Firestore
+  // Save a single project to Firestore via backend API
   const saveProjectToCloud = async (uid, project) => {
     const traceId = `SAVE-${Date.now()}`;
     console.log(`[TRACE:${traceId}] saveProjectToCloud START`, {
-      hasDb: !!db,
       hasUid: !!uid,
       projectId: project?.id,
       projectName: project?.name,
@@ -256,8 +255,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       assetTypes: project?.assets?.map(a => ({ id: a.id, type: a.type, hasImage: !!a.imageUrl, hasAudio: !!a.audioUrl, hasVideo: !!a.videoUrl }))
     });
     
-    if (!db || !uid || !project || !project.id) {
-      console.warn(`[TRACE:${traceId}] saveProjectToCloud ABORT - Missing required data`, { hasDb: !!db, hasUid: !!uid, hasProject: !!project });
+    if (!uid || !project || !project.id) {
+      console.warn(`[TRACE:${traceId}] saveProjectToCloud ABORT - Missing required data`, { hasUid: !!uid, hasProject: !!project });
       return false;
     }
     
@@ -278,68 +277,60 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       
       console.log(`[TRACE:${traceId}] Sanitized project assets:`, sanitizedProject.assets?.length, sanitizedProject.assets?.map(a => a.id));
       
-      const projectRef = doc(db, 'users', uid, 'projects', String(project.id));
-      await setDoc(projectRef, {
-        ...sanitizedProject,
-        id: String(project.id), // Ensure ID is string in document
-        updatedAt: new Date().toISOString(),
-        syncedAt: new Date().toISOString()
-      }, { merge: true });
+      // Get auth token for backend API
+      let authToken = null;
+      if (auth?.currentUser) {
+        try {
+          authToken = await auth.currentUser.getIdToken(true);
+        } catch (tokenErr) {
+          console.warn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
+        }
+      }
       
-      console.log(`Saved project ${project.id} to cloud`);
+      // Use backend API to save (uses Admin SDK, bypasses security rules)
+      const response = await fetch(`${BACKEND_URL}/api/projects`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify({
+          userId: uid,
+          project: {
+            ...sanitizedProject,
+            id: String(project.id),
+            updatedAt: new Date().toISOString(),
+            syncedAt: new Date().toISOString()
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log(`[TRACE:${traceId}] Project saved via API:`, project.id, result);
       return true;
     } catch (err) {
-      console.error('Failed to save project to cloud:', err.message || err);
+      console.error(`[TRACE:${traceId}] Failed to save project to cloud:`, err.message || err);
+      toast.error(`Save failed: ${err.message || 'Network error'}`);
       return false;
     }
   };
   
-  // Sync all projects to Firestore (with fallback to individual saves)
+  // Sync all projects to cloud via backend API (individual saves)
   const syncProjectsToCloud = async (uid, projectsToSync) => {
-    if (!db || !uid || !Array.isArray(projectsToSync) || projectsToSync.length === 0) return;
+    if (!uid || !Array.isArray(projectsToSync) || projectsToSync.length === 0) return;
     setProjectsSyncing(true);
     
     try {
-      // Try batch write first (more efficient)
-      const batch = writeBatch(db);
-      let validProjects = 0;
-      
+      // Save projects individually via backend API
+      let successCount = 0;
       for (const project of projectsToSync) {
         if (!project || !project.id) continue;
         
-        // Sanitize project data - remove undefined values and functions
-        const sanitizedProject = {};
-        for (const [key, value] of Object.entries(project)) {
-          if (value !== undefined && typeof value !== 'function') {
-            try {
-              sanitizedProject[key] = JSON.parse(JSON.stringify(value));
-            } catch (e) {
-              // Skip non-serializable
-            }
-          }
-        }
-        
-        const projectRef = doc(db, 'users', uid, 'projects', String(project.id));
-        batch.set(projectRef, {
-          ...sanitizedProject,
-          id: String(project.id), // Ensure ID is string
-          updatedAt: sanitizedProject.updatedAt || new Date().toISOString(),
-          syncedAt: new Date().toISOString()
-        }, { merge: true });
-        validProjects++;
-      }
-      
-      if (validProjects > 0) {
-        await batch.commit();
-        setLastSyncTime(new Date());
-        console.log(`Synced ${validProjects} projects to cloud`);
-      }
-    } catch (err) {
-      console.error('Batch sync failed, trying individual saves:', err);
-      
-      // Fallback: Try saving projects individually
-      let successCount = 0;
-      for (const project of projectsToSync) {
         try {
           const success = await saveProjectToCloud(uid, project);
           if (success) successCount++;
@@ -350,10 +341,13 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
       
       if (successCount > 0) {
         setLastSyncTime(new Date());
-        console.log(`Saved ${successCount}/${projectsToSync.length} projects individually`);
-      } else {
+        console.log(`Synced ${successCount}/${projectsToSync.length} projects to cloud via API`);
+      } else if (projectsToSync.length > 0) {
         toast.error('Failed to sync projects - check your connection');
       }
+    } catch (err) {
+      console.error('Sync failed:', err);
+      toast.error('Failed to sync projects');
     } finally {
       setProjectsSyncing(false);
     }
@@ -871,9 +865,9 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
     setSelectedProject(newProject); // Auto-select the new project
     console.log('[CreateProject] Selected project set:', newProject.id);
     
-    // Save to cloud if logged in
-    console.log('[CreateProject] Auth check - isLoggedIn:', isLoggedIn, 'user:', !!user, 'DB:', !!db);
-    if (isLoggedIn && user && db) {
+    // Save to cloud if logged in (uses backend API now)
+    console.log('[CreateProject] Auth check - isLoggedIn:', isLoggedIn, 'user:', !!user);
+    if (isLoggedIn && user) {
       console.log('[CreateProject] Saving to cloud for user:', user.uid, user.email);
       saveProjectToCloud(user.uid, newProject).then(success => {
         console.log('[CreateProject] Cloud save result:', success);
@@ -881,7 +875,7 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
         console.error('[CreateProject] Cloud save error:', err);
       });
     } else {
-      console.warn('[CreateProject] NOT saving to cloud. isLoggedIn:', isLoggedIn, 'user:', !!user, 'user.uid:', user?.uid, 'DB:', !!db);
+      console.warn('[CreateProject] NOT saving to cloud. isLoggedIn:', isLoggedIn, 'user:', !!user);
       if (isLoggedIn && !user) {
         console.error('[CreateProject] RACE CONDITION: isLoggedIn is true but user is null!');
       }
@@ -5887,8 +5881,8 @@ function StudioView({ onBack, startWizard, startTour, initialPlan }) {
                   return newProjects;
                 });
                 
-                // Save to cloud if logged in
-                if (isLoggedIn && user && db) {
+                // Save to cloud if logged in (uses backend API now)
+                if (isLoggedIn && user) {
                   console.log('[StudioView] Orchestrator: Saving to cloud for user:', user.uid);
                   saveProjectToCloud(user.uid, project).then(success => {
                     console.log('[StudioView] Orchestrator: Cloud save result:', success);
@@ -9477,8 +9471,8 @@ When you write a song, you create intellectual property that generates money eve
               setSelectedProject(finalProject);
               console.log(`[TRACE:${traceId}] Selected project set:`, finalProject.id, 'assets:', finalProject.assets?.length);
               
-              // Save to cloud if user is logged in
-              if (isLoggedIn && user && db) {
+              // Save to cloud if user is logged in (uses backend API now)
+              if (isLoggedIn && user) {
                 console.log(`[TRACE:${traceId}] Initiating cloud save for:`, finalProject.id);
                 saveProjectToCloud(user.uid, finalProject).then(success => {
                   console.log(`[TRACE:${traceId}] Cloud save result:`, success);
@@ -9486,7 +9480,7 @@ When you write a song, you create intellectual property that generates money eve
                   console.error(`[TRACE:${traceId}] Cloud save error:`, err);
                 });
               } else {
-                console.warn(`[TRACE:${traceId}] NOT saving to cloud - isLoggedIn:`, isLoggedIn, 'hasUser:', !!user, 'hasDb:', !!db);
+                console.warn(`[TRACE:${traceId}] NOT saving to cloud - isLoggedIn:`, isLoggedIn, 'hasUser:', !!user);
               }
               
               setActiveTab('project_canvas');
