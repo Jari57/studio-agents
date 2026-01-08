@@ -1692,8 +1692,9 @@ export default function StudioOrchestratorV2({
           
           if (response.ok) {
             const data = await response.json();
+            console.log(`[handleGenerate] ${slot} response data:`, { output: !!data.output, error: data.error, keys: Object.keys(data) });
             newOutputs[slot] = data.output;
-            console.log(`[handleGenerate] ${slot} generated successfully`);
+            console.log(`[handleGenerate] ${slot} generated successfully, length:`, data.output?.length);
           } else {
             const errorText = await response.text();
             console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
@@ -1703,6 +1704,12 @@ export default function StudioOrchestratorV2({
         }
       }
       
+      console.log('[handleGenerate] Final outputs:', { 
+        lyrics: !!newOutputs.lyrics, 
+        audio: !!newOutputs.audio,
+        visual: !!newOutputs.visual,
+        video: !!newOutputs.video 
+      });
       setOutputs(newOutputs);
       toast.dismiss('gen-all');
       toast.success('Generation complete!');
@@ -1760,8 +1767,13 @@ export default function StudioOrchestratorV2({
 
   // Media generation functions
   const handleGenerateAudio = async () => {
-    if (!outputs.audio) return;
+    console.log('[handleGenerateAudio] Called, outputs.audio:', !!outputs.audio);
+    if (!outputs.audio) {
+      toast.error('Generate beat description first');
+      return;
+    }
     setGeneratingMedia(prev => ({ ...prev, audio: true }));
+    console.log('[handleGenerateAudio] Starting audio generation with style:', style);
     toast.loading('Generating AI beat (~30 seconds)...', { id: 'gen-audio' });
     
     try {
@@ -2070,12 +2082,14 @@ export default function StudioOrchestratorV2({
 
   // Ghostwriter vocal generation - Generate audio of lyrics being recited/sung via Gemini TTS
   const handleGenerateLyricsVocal = async () => {
+    console.log('[handleGenerateLyricsVocal] Called, outputs.lyrics:', !!outputs.lyrics);
     if (!outputs.lyrics) {
       toast.error('Generate lyrics first');
       return;
     }
     
     setGeneratingVocal(true);
+    console.log('[handleGenerateLyricsVocal] Starting vocal generation with:', { voiceStyle, rapStyle });
     toast.loading('Creating vocal performance (~20 seconds)...', { id: 'gen-vocal' });
     
     try {
@@ -2113,6 +2127,7 @@ export default function StudioOrchestratorV2({
         ? `[${rapStyle} rap style - ${styleDirection}] ${outputs.lyrics.substring(0, 500)}`
         : `[${voiceStyle} style] ${outputs.lyrics.substring(0, 500)}`;
       
+      console.log('[handleGenerateLyricsVocal] Making API call to:', `${BACKEND_URL}/api/generate-speech`);
       const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
         method: 'POST',
         headers,
@@ -2124,9 +2139,16 @@ export default function StudioOrchestratorV2({
         })
       });
       
+      console.log('[handleGenerateLyricsVocal] Response status:', response.status, response.ok);
+      
       if (response.ok) {
         const data = await response.json();
-        if (data.audioUrl && data.audioUrl.startsWith('data:audio')) {
+        console.log('[handleGenerateLyricsVocal] Response data keys:', Object.keys(data));
+        console.log('[handleGenerateLyricsVocal] audioUrl type:', typeof data.audioUrl);
+        console.log('[handleGenerateLyricsVocal] audioUrl starts with data:audio:', data.audioUrl?.startsWith?.('data:audio'));
+        
+        // Accept both data: URLs and https: URLs
+        if (data.audioUrl && (data.audioUrl.startsWith('data:audio') || data.audioUrl.startsWith('http'))) {
           // Store as a separate vocal version under the lyrics
           setMediaUrls(prev => ({ 
             ...prev, 
@@ -2581,6 +2603,48 @@ export default function StudioOrchestratorV2({
                   </>
                 )}
               </button>
+              
+              {/* DEBUG: Quick test button */}
+              <button
+                onClick={async () => {
+                  console.log('[DEBUG] Test button clicked');
+                  toast.loading('Testing API...', { id: 'test' });
+                  try {
+                    const res = await fetch(`${BACKEND_URL}/api/generate`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        prompt: 'Write a short 2 line hook about summer',
+                        systemInstruction: 'You are Ghostwriter'
+                      })
+                    });
+                    console.log('[DEBUG] Response status:', res.status);
+                    const data = await res.json();
+                    console.log('[DEBUG] Response data:', data);
+                    if (data.output) {
+                      setOutputs(prev => ({ ...prev, lyrics: data.output }));
+                      toast.success('Test successful! Lyrics set.', { id: 'test' });
+                    } else {
+                      toast.error('No output returned', { id: 'test' });
+                    }
+                  } catch (e) {
+                    console.error('[DEBUG] Error:', e);
+                    toast.error('Test failed: ' + e.message, { id: 'test' });
+                  }
+                }}
+                style={{
+                  padding: '14px 20px',
+                  borderRadius: '12px',
+                  background: '#ef4444',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                🔧 Test API
+              </button>
             </div>
           </div>
           
@@ -2818,6 +2882,18 @@ export default function StudioOrchestratorV2({
               </div>
             ))}
           </div>
+        </div>
+
+        {/* DEBUG: Show lyrics status */}
+        <div style={{ 
+          padding: '8px', 
+          background: outputs.lyrics ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', 
+          borderRadius: '8px', 
+          marginBottom: '12px',
+          fontSize: '0.75rem',
+          color: outputs.lyrics ? '#10b981' : '#ef4444'
+        }}>
+          {outputs.lyrics ? '✅ Lyrics ready - Create Vocal button should appear below' : '⚠️ No lyrics yet - Click Generate above first'}
         </div>
 
         {/* Ghostwriter Vocal Generation - appears when lyrics are ready */}
@@ -3063,7 +3139,10 @@ export default function StudioOrchestratorV2({
               )}
               
               <button
-                onClick={handleGenerateLyricsVocal}
+                onClick={() => {
+                  console.log('[Create Vocal Button] CLICKED!');
+                  handleGenerateLyricsVocal();
+                }}
                 disabled={generatingVocal}
                 style={{
                   padding: '10px 20px',
