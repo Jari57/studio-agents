@@ -727,6 +727,8 @@ app.get('/api/debug-env', (req, res) => {
 // MODELS ROUTE - returns available models that support generateContent
 // ==================== DIAGNOSTIC: Check which APIs are configured ====================
 app.get('/api/status/apis', (req, res) => {
+  // List ALL env keys for debugging
+  const allKeys = Object.keys(process.env).sort();
   const status = {
     gemini: !!process.env.GEMINI_API_KEY,
     uberduck: !!process.env.UBERDUCK_API_KEY,
@@ -736,7 +738,8 @@ app.get('/api/status/apis', (req, res) => {
     stability: !!process.env.STABILITY_API_KEY,
     fal: !!process.env.FAL_KEY || !!process.env.FAL_API_KEY,
     firebaseAdmin: firebaseInitialized,
-    allEnvKeys: Object.keys(process.env).filter(k => k.includes('UBERDUCK') || k.includes('REPLICATE')),
+    totalEnvVars: allKeys.length,
+    envKeysWithAPI: allKeys.filter(k => k.includes('API') || k.includes('KEY') || k.includes('TOKEN') || k.includes('UBER') || k.includes('DUCK')),
     message: 'Audio generation requires uberduck, replicate, stability, or fal API key.'
   };
   res.json(status);
