@@ -51,12 +51,8 @@ import {
   sendPasswordResetEmail,
   doc,
   getDoc,
-  setDoc,
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  deleteDoc
+  setDoc
+  // Note: collection, getDocs, query, orderBy, deleteDoc moved to backend API
 } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
 import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
@@ -380,22 +376,44 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
     };
   }, [projects, user?.uid]);
   
-  // Load projects from Firestore
+  // Load projects from cloud via backend API
   const loadProjectsFromCloud = async (uid) => {
     const traceId = `LOAD-${Date.now()}`;
-    console.log(`[TRACE:${traceId}] loadProjectsFromCloud START`, { hasDb: !!db, hasUid: !!uid });
+    console.log(`[TRACE:${traceId}] loadProjectsFromCloud START`, { hasUid: !!uid });
     
-    if (!db || !uid) return [];
+    if (!uid) return [];
     try {
-      const projectsRef = collection(db, 'users', uid, 'projects');
-      const q = query(projectsRef, orderBy('updatedAt', 'desc'));
-      const snapshot = await getDocs(q);
-      const cloudProjects = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id,
-        // Convert Firestore timestamps to ISO strings
-        createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || doc.data().createdAt,
-        updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || doc.data().updatedAt
+      // Get auth token
+      let authToken = null;
+      if (auth?.currentUser) {
+        try {
+          authToken = await auth.currentUser.getIdToken(true);
+        } catch (tokenErr) {
+          console.warn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
+        }
+      }
+      
+      // Use backend API to load projects
+      const response = await fetch(`${BACKEND_URL}/api/projects?userId=${encodeURIComponent(uid)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const cloudProjects = (data.projects || []).map(p => ({
+        ...p,
+        id: p.id || String(Date.now()),
+        // Normalize timestamps
+        createdAt: p.createdAt || new Date().toISOString(),
+        updatedAt: p.updatedAt || new Date().toISOString()
       }));
       
       console.log(`[TRACE:${traceId}] loadProjectsFromCloud COMPLETE`, {
@@ -2954,6 +2972,10 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
     e?.stopPropagation(); // Prevent triggering the card click
     if (!window.confirm("Are you sure you want to delete this project?")) return;
 
+    // Find the project name before deleting for notification
+    const projectToDelete = (projects || []).find(p => p.id === projectId);
+    const projectName = projectToDelete?.name || 'Unknown';
+
     // Optimistic UI update - remove from local state
     setProjects((projects || []).filter(p => p.id !== projectId));
     
@@ -2969,13 +2991,33 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       console.warn('Failed to update localStorage:', err);
     }
 
-    // Delete from Firestore if logged in
-    if (isLoggedIn && user && db) {
+    // Delete from cloud via backend API (uses Admin SDK, bypasses security rules)
+    if (isLoggedIn && user) {
       try {
-        const projectRef = doc(db, 'users', user.uid, 'projects', String(projectId));
-        await deleteDoc(projectRef);
-        console.log(`Deleted project ${projectId} from cloud`);
-        toast.success('Project deleted');
+        let authToken = null;
+        if (auth?.currentUser) {
+          try {
+            authToken = await auth.currentUser.getIdToken(true);
+          } catch (tokenErr) {
+            console.warn('Failed to get auth token for delete:', tokenErr.message);
+          }
+        }
+        
+        const response = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(String(projectId))}?userId=${encodeURIComponent(user.uid)}&projectName=${encodeURIComponent(projectName)}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+          }
+        });
+        
+        if (response.ok) {
+          console.log(`Deleted project ${projectId} from cloud via API`);
+          toast.success('Project deleted');
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
       } catch (err) {
         console.error("Failed to delete from cloud:", err);
         toast.error('Cloud delete failed, removed locally');

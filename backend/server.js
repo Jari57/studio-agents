@@ -765,6 +765,70 @@ app.get('/api/models', async (req, res) => {
   }
 });
 
+// ==================== UBERDUCK VOICES API ====================
+// List available Uberduck voices for rap/speech generation
+app.get('/api/uberduck/voices', async (req, res) => {
+  try {
+    const uberduckKey = process.env.UBERDUCK_API_KEY;
+    
+    if (!uberduckKey) {
+      return res.status(503).json({ 
+        error: 'Uberduck not configured',
+        details: 'Add UBERDUCK_API_KEY to backend/.env'
+      });
+    }
+    
+    const category = req.query.category || 'all'; // all, rap, music, character
+    
+    // Fetch available voices from Uberduck
+    const response = await fetch('https://api.uberduck.ai/v1/voices?language=english&limit=100', {
+      headers: { 'Authorization': `Bearer ${uberduckKey}` }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      const allVoices = data.voices || data || [];
+      
+      // Filter based on category
+      let filtered = allVoices;
+      if (category === 'rap') {
+        filtered = allVoices.filter(v => {
+          const tags = (v.tags || []).join(' ').toLowerCase();
+          const name = (v.name || '').toLowerCase();
+          return tags.includes('rap') || name.includes('rap') || 
+                 tags.includes('hip') || name.includes('hip');
+        });
+      } else if (category === 'music') {
+        filtered = allVoices.filter(v => {
+          const tags = (v.tags || []).join(' ').toLowerCase();
+          return tags.includes('music') || tags.includes('sing');
+        });
+      }
+      
+      res.json({ 
+        total: filtered.length,
+        allAvailable: allVoices.length,
+        voices: filtered.slice(0, 50).map(v => ({
+          id: v.id || v.voice_id || v.name,
+          name: v.name,
+          gender: v.gender,
+          category: v.category,
+          tags: v.tags,
+          model: v.model
+        }))
+      });
+    } else {
+      const errText = await response.text();
+      res.status(response.status).json({ 
+        error: 'Failed to fetch Uberduck voices',
+        details: errText.substring(0, 200)
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Uberduck API error', details: err.message });
+  }
+});
+
 // ==================== INVESTOR ACCESS API ====================
 // Approved investor emails (add to .env: APPROVED_INVESTOR_EMAILS=email1@vc.com,email2@fund.com)
 const APPROVED_INVESTOR_EMAILS = (process.env.APPROVED_INVESTOR_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
@@ -2493,89 +2557,279 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
 // ═══════════════════════════════════════════════════════════════════
 // SPEECH/AUDIO GENERATION ROUTE (Gemini TTS)
 // ═══════════════════════════════════════════════════════════════════
+// PROFESSIONAL VOCAL GENERATION 
+// Priority: 1. Uberduck (rap/speech) 2. Suno/Bark (singing) 3. Gemini TTS (fallback)
+// ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
     const { 
       prompt, 
-      voice = 'Kore', 
-      style = 'natural',
-      speakers = null  // For multi-speaker: [{ name: 'Joe', voice: 'Kore' }, { name: 'Jane', voice: 'Puck' }]
+      voice = 'rapper-male-1', 
+      style = 'rapper',  // rapper, rapper-female, singer, narrator, spoken
+      rapStyle = 'aggressive' // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return res.status(500).json({ error: 'API Key missing' });
+    logger.info('Generating vocal', { textLength: prompt.length, voice, style, rapStyle });
 
-    logger.info('Generating speech with Gemini TTS', { 
-      textLength: prompt.length, 
-      voice, 
-      multiSpeaker: !!speakers 
-    });
+    let audioUrl = null;
+    let provider = null;
 
-    // Build speech config based on single or multi-speaker
-    let speechConfig;
-    if (speakers && Array.isArray(speakers) && speakers.length > 0) {
-      // Multi-speaker mode
-      speechConfig = {
-        multiSpeakerVoiceConfig: {
-          speakerVoiceConfigs: speakers.map(s => ({
-            speaker: s.name,
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: s.voice || 'Kore' }
-            }
-          }))
-        }
-      };
-    } else {
-      // Single speaker mode
-      speechConfig = {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: voice }
-        }
-      };
-    }
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+    // ═══════════════════════════════════════════════════════════════
+    // PRIORITY 1: Uberduck API (Best for rap and spoken word)
+    // ═══════════════════════════════════════════════════════════════
+    const uberduckKey = process.env.UBERDUCK_API_KEY;
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseModalities: ['AUDIO'],
-          speechConfig: speechConfig
+    if (uberduckKey && (style === 'rapper' || style === 'rapper-female' || style === 'spoken' || style === 'narrator')) {
+      try {
+        logger.info('Trying Uberduck for vocal generation', { rapStyle });
+        
+        // Uberduck rapper voice presets - actual voice IDs from their API
+        const uberduckVoices = {
+          'rapper-male-1': 'zwf-rapping',        // ZWF Rapping - Male rapper
+          'rapper-male-2': 'zwf-rapping',        // Same voice (add more when available)
+          'rapper-female-1': 'zwf-rapping',      // Will use same until female found
+          'narrator': 'zwf-rapping',             // Use rapping for now
+          'spoken': 'zwf-rapping'                // Use rapping for now
+        };
+        
+        // Map style to voice
+        let selectedVoice;
+        if (style === 'rapper-female') {
+          selectedVoice = uberduckVoices['rapper-female-1'];
+        } else if (style === 'rapper') {
+          selectedVoice = uberduckVoices[voice] || uberduckVoices['rapper-male-1'];
+        } else {
+          selectedVoice = uberduckVoices[voice] || uberduckVoices['spoken'];
         }
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      logger.error('TTS API Error', { status: response.status, error: errorText });
-      throw new Error(`TTS API Error: ${response.status} ${errorText}`);
+        
+        // Uberduck v1 API - Bearer token auth
+        const response = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${uberduckKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: prompt.substring(0, 1000),
+            voice: selectedVoice,
+            model: 'uberduck'  // Their main TTS model
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Check if we got an audio URL directly or need to poll
+          if (data.audio_url) {
+            // Download and convert to base64
+            const audioResponse = await fetch(data.audio_url);
+            if (audioResponse.ok) {
+              const audioBuffer = await audioResponse.arrayBuffer();
+              const base64Audio = Buffer.from(audioBuffer).toString('base64');
+              audioUrl = `data:audio/mp3;base64,${base64Audio}`;
+              provider = 'uberduck';
+              logger.info('Uberduck vocal generated successfully');
+            }
+          } else if (data.uuid || data.job_id) {
+            // Need to poll for completion
+            const jobId = data.uuid || data.job_id;
+            let attempts = 0;
+            
+            while (attempts < 30) {
+              await new Promise(r => setTimeout(r, 1000));
+              
+              const statusResponse = await fetch(`https://api.uberduck.ai/v1/text-to-speech/${jobId}`, {
+                headers: { 'Authorization': `Bearer ${uberduckKey}` }
+              });
+              
+              if (statusResponse.ok) {
+                const statusData = await statusResponse.json();
+                
+                if (statusData.audio_url || statusData.path) {
+                  const audioUrl2 = statusData.audio_url || statusData.path;
+                  const audioResponse = await fetch(audioUrl2);
+                  if (audioResponse.ok) {
+                    const audioBuffer = await audioResponse.arrayBuffer();
+                    const base64Audio = Buffer.from(audioBuffer).toString('base64');
+                    audioUrl = `data:audio/mp3;base64,${base64Audio}`;
+                    provider = 'uberduck';
+                    logger.info('Uberduck vocal generated (polled)');
+                    break;
+                  }
+                } else if (statusData.status === 'failed' || statusData.failed_at) {
+                  logger.warn('Uberduck generation failed');
+                  break;
+                }
+              }
+              attempts++;
+            }
+          }
+        } else {
+          const errText = await response.text();
+          logger.warn('Uberduck request failed', { status: response.status, error: errText.substring(0, 300) });
+        }
+      } catch (uberduckError) {
+        logger.warn('Uberduck error', { error: uberduckError.message });
+      }
     }
 
-    const data = await response.json();
-    logger.info('TTS response received', { hasAudio: !!data.candidates?.[0]?.content?.parts?.[0]?.inlineData });
+    // ═══════════════════════════════════════════════════════════════
+    // PRIORITY 2: Bark/Suno via Replicate (Best for singing)
+    // ═══════════════════════════════════════════════════════════════
+    const replicateKey = process.env.REPLICATE_API_KEY;
+    
+    if (!audioUrl && replicateKey && style === 'singer') {
+      try {
+        logger.info('Trying Bark for singing vocal');
+        
+        // Use Bark model on Replicate (Suno's open-source singing model)
+        const response = await fetch('https://api.replicate.com/v1/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${replicateKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
+            input: {
+              prompt: `♪ ${prompt.substring(0, 500)} ♪`,
+              text_temp: 0.7,
+              waveform_temp: 0.7
+            }
+          })
+        });
+        
+        if (response.ok) {
+          const prediction = await response.json();
+          
+          // Poll for completion (max 60 seconds)
+          let attempts = 0;
+          while (attempts < 30) {
+            await new Promise(r => setTimeout(r, 2000));
+            
+            const statusResponse = await fetch(prediction.urls.get, {
+              headers: { 'Authorization': `Bearer ${replicateKey}` }
+            });
+            
+            if (statusResponse.ok) {
+              const status = await statusResponse.json();
+              
+              if (status.status === 'succeeded' && status.output?.audio_out) {
+                const audioResponse = await fetch(status.output.audio_out);
+                if (audioResponse.ok) {
+                  const audioBuffer = await audioResponse.arrayBuffer();
+                  const base64Audio = Buffer.from(audioBuffer).toString('base64');
+                  audioUrl = `data:audio/wav;base64,${base64Audio}`;
+                  provider = 'bark';
+                  logger.info('Bark singing vocal generated');
+                  break;
+                }
+              } else if (status.status === 'failed') {
+                logger.warn('Bark generation failed', { error: status.error });
+                break;
+              }
+            }
+            attempts++;
+          }
+        }
+      } catch (barkError) {
+        logger.warn('Bark error', { error: barkError.message });
+      }
+    }
 
-    // Extract audio data
-    const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    const mimeType = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/wav';
+    // ═══════════════════════════════════════════════════════════════
+    // FALLBACK: Gemini TTS (Basic but reliable)
+    // ═══════════════════════════════════════════════════════════════
+    if (!audioUrl) {
+      const geminiKey = process.env.GEMINI_API_KEY;
+      
+      if (geminiKey) {
+        try {
+          logger.info('Falling back to Gemini TTS');
+          
+          const geminiVoices = {
+            'rapper': 'Fenrir',
+            'singer': 'Kore',
+            'narrator': 'Charon',
+            'whisper': 'Zephyr',
+            'spoken': 'Puck'
+          };
+          
+          const selectedVoice = geminiVoices[style] || 'Kore';
+          
+          const speechConfig = {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName: selectedVoice }
+            }
+          };
 
-    if (audioData) {
+          const ttsModels = ['gemini-2.5-flash-preview-tts', 'gemini-2.0-flash-preview-tts'];
+          
+          for (const model of ttsModels) {
+            try {
+              const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
+              
+              const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: prompt }] }],
+                  generationConfig: {
+                    responseModalities: ['AUDIO'],
+                    speechConfig: speechConfig
+                  }
+                })
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                const mimeType = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/wav';
+                
+                if (audioData) {
+                  audioUrl = `data:${mimeType};base64,${audioData}`;
+                  provider = 'gemini';
+                  logger.info(`Gemini TTS success with ${model}`);
+                  break;
+                }
+              }
+            } catch (modelError) {
+              logger.warn(`Gemini ${model} failed`, { error: modelError.message });
+            }
+          }
+        } catch (geminiError) {
+          logger.warn('Gemini TTS error', { error: geminiError.message });
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Return result
+    // ═══════════════════════════════════════════════════════════════
+    if (audioUrl) {
       res.json({
-        audio: audioData,
-        mimeType: mimeType,
-        audioUrl: `data:${mimeType};base64,${audioData}`
+        audioUrl,
+        provider,
+        style,
+        message: `Vocal generated via ${provider}`
       });
     } else {
-      throw new Error('No audio data in response');
+      logger.error('All vocal generation methods failed');
+      res.status(503).json({ 
+        error: 'Vocal generation unavailable',
+        details: 'Configure UBERDUCK_API_KEY + UBERDUCK_API_SECRET for rap, or REPLICATE_API_KEY for singing.',
+        setupGuide: {
+          uberduck: 'Get API keys at https://uberduck.ai/account/manage-api',
+          replicate: 'Get API key at https://replicate.com/account/api-tokens'
+        }
+      });
     }
 
   } catch (error) {
-    logger.error('Speech generation error', { error: error.message });
-    res.status(500).json({ error: 'Speech generation failed', details: error.message });
+    logger.error('Vocal generation error', { error: error.message });
+    res.status(500).json({ error: 'Vocal generation failed', details: error.message });
   }
 });
 

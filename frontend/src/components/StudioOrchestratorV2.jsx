@@ -1507,7 +1507,8 @@ export default function StudioOrchestratorV2({
   const [projectName, setProjectName] = useState('');
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [voiceStyle, setVoiceStyle] = useState('singer'); // For Ghostwriter vocal generation
+  const [voiceStyle, setVoiceStyle] = useState('rapper'); // For Ghostwriter vocal generation
+  const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
   const [generatingVocal, setGeneratingVocal] = useState(false);
   const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
   const [creatingFinalMix, setCreatingFinalMix] = useState(false);
@@ -2080,20 +2081,37 @@ export default function StudioOrchestratorV2({
     try {
       const headers = await getHeaders();
       
-      // Map voice style to Gemini TTS voice names
-      // Available voices: Aoede, Charon, Fenrir, Kore, Puck, Zephyr (English)
+      // Map voice style to API voice parameter
+      // Uberduck handles: rapper, rapper-female
+      // Bark/Suno handles: singer
+      // Gemini handles: narrator, whisper, spoken
       const voiceMapping = {
-        singer: 'Kore',     // Warm, melodic voice good for singing
-        rapper: 'Fenrir',   // Energetic, rhythmic voice
-        narrator: 'Charon', // Deep, clear voice for spoken word
-        whisper: 'Zephyr',  // Soft, breathy voice
-        spoken: 'Puck'      // Natural conversational voice
+        'rapper': 'rapper-male-1',
+        'rapper-female': 'rapper-female-1',
+        'singer': 'singer',
+        'narrator': 'narrator',
+        'whisper': 'whisper',
+        'spoken': 'spoken'
       };
       
-      const selectedVoice = voiceMapping[voiceStyle] || 'Kore';
+      const selectedVoice = voiceMapping[voiceStyle] || 'rapper-male-1';
       
-      // Prepare lyrics text with performance direction
-      const performanceText = `[${voiceStyle} style] ${outputs.lyrics.substring(0, 500)}`;
+      // Prepare lyrics text with performance direction based on rap style
+      const styleDirections = {
+        aggressive: 'Deliver with intense energy, hard-hitting bars, powerful emphasis',
+        chill: 'Relaxed, smooth flow, laid-back delivery, casual vibe',
+        melodic: 'Melodic flow with singing elements, auto-tune style, wavy',
+        fast: 'Rapid-fire delivery, quick syllables, machine gun flow',
+        trap: 'Trap style with ad-libs, hi-hat flow, modern ATL sound',
+        oldschool: 'Classic 90s boom-bap style, clear enunciation, storytelling',
+        storytelling: 'Narrative delivery, emotional, paint pictures with words',
+        hype: 'Maximum energy, crowd-moving, anthem style, powerful'
+      };
+      
+      const styleDirection = styleDirections[rapStyle] || styleDirections.aggressive;
+      const performanceText = (voiceStyle === 'rapper' || voiceStyle === 'rapper-female') 
+        ? `[${rapStyle} rap style - ${styleDirection}] ${outputs.lyrics.substring(0, 500)}`
+        : `[${voiceStyle} style] ${outputs.lyrics.substring(0, 500)}`;
       
       const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
         method: 'POST',
@@ -2101,22 +2119,31 @@ export default function StudioOrchestratorV2({
         body: JSON.stringify({
           prompt: performanceText,
           voice: selectedVoice,
-          style: voiceStyle
+          style: voiceStyle,
+          rapStyle: rapStyle // Send rap style to backend
         })
       });
       
       if (response.ok) {
         const data = await response.json();
-        if (data.audioUrl) {
+        if (data.audioUrl && data.audioUrl.startsWith('data:audio')) {
           // Store as a separate vocal version under the lyrics
           setMediaUrls(prev => ({ 
             ...prev, 
             lyricsVocal: data.audioUrl 
           }));
-          toast.success(`${voiceStyle} vocal created!`, { id: 'gen-vocal' });
+          toast.success(`${rapStyle} ${voiceStyle} vocal created!`, { id: 'gen-vocal' });
+        } else if (data.error) {
+          console.error('Vocal API error:', data.error);
+          toast.error(data.error || 'Vocal generation failed', { id: 'gen-vocal' });
+        } else {
+          console.error('No valid audio in response:', data);
+          toast.error('No audio generated - try again', { id: 'gen-vocal' });
         }
       } else {
-        toast.error('Failed to generate vocal', { id: 'gen-vocal' });
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Vocal API error:', response.status, errorData);
+        toast.error(errorData.error || 'Failed to generate vocal', { id: 'gen-vocal' });
       }
     } catch (err) {
       console.error('Vocal generation error:', err);
@@ -2128,9 +2155,14 @@ export default function StudioOrchestratorV2({
 
   // Create final mix - combines all outputs into a single product
   const handleCreateFinalMix = async () => {
-    const hasAllOutputs = outputs.lyrics && outputs.audio && outputs.visual && outputs.video;
-    if (!hasAllOutputs) {
-      toast.error('Generate all 4 outputs first');
+    // Check if at least one output exists
+    const activeOutputs = Object.entries(selectedAgents)
+      .filter(([, agent]) => agent !== null)
+      .map(([key]) => key);
+    
+    const hasActiveOutputs = activeOutputs.some(key => outputs[key]);
+    if (!hasActiveOutputs) {
+      toast.error('Generate at least one output first');
       return;
     }
 
@@ -2310,22 +2342,25 @@ export default function StudioOrchestratorV2({
     const assets = [];
     
     GENERATOR_SLOTS.forEach(slot => {
-      console.log('[Orchestrator] Processing slot:', slot.key, 'output:', outputs[slot.key]?.substring?.(0, 50) || outputs[slot.key]);
-      if (outputs[slot.key]) {
+      const outputContent = outputs[slot.key];
+      console.log('[Orchestrator] Processing slot:', slot.key, 'output:', typeof outputContent === 'string' ? outputContent.substring(0, 50) : outputContent);
+      if (outputContent) {
         const agent = AGENTS.find(a => a.id === selectedAgents[slot.key]);
+        // Safely get content as string
+        const contentStr = typeof outputContent === 'string' ? outputContent : JSON.stringify(outputContent);
         const asset = {
           id: `${slot.key}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           title: slot.title,
           type: slot.key,
           agent: agent?.name || slot.subtitle,
-          content: outputs[slot.key],
-          snippet: outputs[slot.key].substring(0, 100),
-          audioUrl: slot.key === 'audio' ? mediaUrls.audio : null,
-          imageUrl: slot.key === 'visual' ? formatImageSrc(mediaUrls.image) : null,
-          videoUrl: slot.key === 'video' ? mediaUrls.video : null,
+          content: contentStr,
+          snippet: contentStr.substring(0, 100),
+          audioUrl: slot.key === 'audio' ? (mediaUrls.audio || null) : null,
+          imageUrl: slot.key === 'visual' ? (formatImageSrc(mediaUrls.image) || null) : null,
+          videoUrl: slot.key === 'video' ? (mediaUrls.video || null) : null,
           date: new Date().toLocaleDateString(),
           createdAt: new Date().toISOString(),
-          color: `agent-${slot.color.replace('#', '')}`
+          color: `agent-${(slot.color || '').replace('#', '')}`
         };
         console.log('[Orchestrator] Created asset:', asset.id, asset.title);
         assets.push(asset);
@@ -2512,7 +2547,7 @@ export default function StudioOrchestratorV2({
               
               <button
                 onClick={handleGenerate}
-                disabled={isGenerating || !songIdea.trim()}
+                disabled={isGenerating || !songIdea.trim() || Object.values(selectedAgents).filter(Boolean).length === 0}
                 style={{
                   flex: 1,
                   padding: '14px 24px',
@@ -2522,12 +2557,12 @@ export default function StudioOrchestratorV2({
                   color: 'white',
                   fontWeight: '700',
                   fontSize: '1rem',
-                  cursor: isGenerating || !songIdea.trim() ? 'not-allowed' : 'pointer',
+                  cursor: isGenerating || !songIdea.trim() || Object.values(selectedAgents).filter(Boolean).length === 0 ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '10px',
-                  opacity: !songIdea.trim() ? 0.5 : 1,
+                  opacity: !songIdea.trim() || Object.values(selectedAgents).filter(Boolean).length === 0 ? 0.5 : 1,
                   boxShadow: isGenerating ? 'none' : '0 4px 20px rgba(139, 92, 246, 0.4)',
                   minHeight: '52px'
                 }}
@@ -2540,7 +2575,9 @@ export default function StudioOrchestratorV2({
                 ) : (
                   <>
                     <Sparkles size={20} />
-                    Generate All
+                    Generate {Object.values(selectedAgents).filter(Boolean).length === 4 
+                      ? 'All' 
+                      : `${Object.values(selectedAgents).filter(Boolean).length} Output${Object.values(selectedAgents).filter(Boolean).length !== 1 ? 's' : ''}`}
                   </>
                 )}
               </button>
@@ -2643,19 +2680,98 @@ export default function StudioOrchestratorV2({
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
+            justifyContent: 'space-between',
             gap: '8px', 
-            marginBottom: '16px' 
+            marginBottom: '16px',
+            flexWrap: 'wrap'
           }}>
-            <Users size={16} color="var(--text-secondary)" />
-            <span style={{ 
-              fontSize: '0.8rem', 
-              color: 'var(--text-secondary)', 
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em'
-            }}>
-              Assign Agents to Each Generator
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Users size={16} color="var(--text-secondary)" />
+              <span style={{ 
+                fontSize: '0.8rem', 
+                color: 'var(--text-secondary)', 
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                Choose Your Generators
+              </span>
+              <span style={{
+                padding: '2px 8px',
+                borderRadius: '10px',
+                background: 'rgba(139, 92, 246, 0.3)',
+                color: '#a78bfa',
+                fontSize: '0.7rem',
+                fontWeight: '600'
+              }}>
+                {Object.values(selectedAgents).filter(Boolean).length} / 4 active
+              </span>
+            </div>
+            
+            {/* Quick Presets */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setSelectedAgents({ lyrics: 'vibe-architect', audio: null, visual: null, video: null })}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                  background: 'rgba(139, 92, 246, 0.15)',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  color: '#a78bfa',
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                📝 Lyrics Only
+              </button>
+              <button
+                onClick={() => setSelectedAgents({ lyrics: 'vibe-architect', audio: 'vibe-architect', visual: null, video: null })}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                  background: 'rgba(6, 182, 212, 0.15)',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  color: '#22d3ee',
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                🎵 Lyrics + Beat
+              </button>
+              <button
+                onClick={() => setSelectedAgents({ lyrics: 'vibe-architect', audio: 'vibe-architect', visual: 'vibe-architect', video: null })}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                  background: 'rgba(236, 72, 153, 0.15)',
+                  border: '1px solid rgba(236, 72, 153, 0.3)',
+                  color: '#f472b6',
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                🖼️ + Cover Art
+              </button>
+              <button
+                onClick={() => setSelectedAgents({ lyrics: 'vibe-architect', audio: 'vibe-architect', visual: 'vibe-architect', video: 'vibe-architect' })}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '8px',
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.2))',
+                  border: '1px solid rgba(168, 85, 247, 0.4)',
+                  color: '#e879f9',
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                🚀 Full Package
+              </button>
+            </div>
           </div>
           
           <div style={{ 
@@ -2903,12 +3019,48 @@ export default function StudioOrchestratorV2({
                   outline: 'none'
                 }}
               >
-                <option value="singer">🎤 Singer</option>
-                <option value="rapper">🎙️ Rapper</option>
-                <option value="narrator">📢 Narrator</option>
-                <option value="whisper">🤫 Whisper</option>
-                <option value="spoken">🗣️ Spoken Word</option>
+                <optgroup label="🎙️ Rap Voices (Uberduck)">
+                  <option value="rapper">🔥 Rapper (Male)</option>
+                  <option value="rapper-female">💜 Rapper (Female)</option>
+                </optgroup>
+                <optgroup label="🎤 Singing (Bark/Suno)">
+                  <option value="singer">🎵 Singer</option>
+                </optgroup>
+                <optgroup label="🗣️ Speech (Gemini)">
+                  <option value="narrator">📢 Narrator</option>
+                  <option value="whisper">🤫 Whisper</option>
+                  <option value="spoken">💬 Spoken Word</option>
+                </optgroup>
               </select>
+              
+              {/* Rap Style Selector - only show for rap voices */}
+              {(voiceStyle === 'rapper' || voiceStyle === 'rapper-female') && (
+                <select
+                  value={rapStyle}
+                  onChange={(e) => setRapStyle(e.target.value)}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(236, 72, 153, 0.5)',
+                    color: 'white',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <optgroup label="🔥 Delivery Style">
+                    <option value="aggressive">💥 Aggressive</option>
+                    <option value="chill">😎 Chill / Laid-back</option>
+                    <option value="melodic">🎵 Melodic</option>
+                    <option value="fast">⚡ Fast Flow</option>
+                    <option value="trap">🎤 Trap</option>
+                    <option value="oldschool">📻 Old School</option>
+                    <option value="storytelling">📖 Storytelling</option>
+                    <option value="hype">🔊 Hype / Energy</option>
+                  </optgroup>
+                </select>
+              )}
               
               <button
                 onClick={handleGenerateLyricsVocal}
@@ -2965,12 +3117,14 @@ export default function StudioOrchestratorV2({
                 Copy Lyrics
               </button>
 
-              {mediaUrls.lyricsVocal && (
+              {mediaUrls.lyricsVocal && mediaUrls.lyricsVocal.startsWith('data:audio') && (
                 <button
                   onClick={() => {
                     const a = document.createElement('a');
                     a.href = mediaUrls.lyricsVocal;
-                    a.download = `${songIdea || 'lyrics'}-${voiceStyle}.mp3`;
+                    // Determine extension from mime type
+                    const ext = mediaUrls.lyricsVocal.includes('audio/wav') ? 'wav' : 'mp3';
+                    a.download = `${songIdea || 'lyrics'}-${voiceStyle}.${ext}`;
                     a.click();
                   }}
                   style={{
