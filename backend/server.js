@@ -729,10 +729,13 @@ app.get('/api/debug-env', (req, res) => {
 app.get('/api/status/apis', (req, res) => {
   const status = {
     gemini: !!process.env.GEMINI_API_KEY,
+    uberduck: !!process.env.UBERDUCK_API_KEY,
+    uberduckKeyLength: process.env.UBERDUCK_API_KEY?.length || 0,
     replicate: !!process.env.REPLICATE_API_KEY,
+    stability: !!process.env.STABILITY_API_KEY,
+    fal: !!process.env.FAL_KEY || !!process.env.FAL_API_KEY,
     firebaseAdmin: firebaseInitialized,
-    googleCloudProject: !!process.env.GOOGLE_CLOUD_PROJECT || !!process.env.GCP_PROJECT_ID,
-    message: 'If replicate is false, audio will fall back to text descriptions instead of actual audio generation.'
+    message: 'Audio generation requires uberduck, replicate, stability, or fal API key.'
   };
   res.json(status);
 });
