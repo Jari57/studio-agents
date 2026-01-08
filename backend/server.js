@@ -2580,6 +2580,11 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
     // PRIORITY 1: UBERDUCK API (Premium Vocals - Rap, Singing, Speech)
     // ═══════════════════════════════════════════════════════════════
     const uberduckKey = process.env.UBERDUCK_API_KEY;
+    const uberduckSecret = process.env.UBERDUCK_API_SECRET;
+    // Build auth header: if secret provided use Basic auth, otherwise try Bearer
+    const uberduckAuth = uberduckSecret 
+      ? `Basic ${Buffer.from(`${uberduckKey}:${uberduckSecret}`).toString('base64')}`
+      : (uberduckKey?.includes(':') ? `Basic ${Buffer.from(uberduckKey).toString('base64')}` : `Bearer ${uberduckKey}`);
     
     if (uberduckKey) {
       try {
@@ -2593,7 +2598,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
           const lyriaResponse = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${uberduckKey}`,
+              'Authorization': uberduckAuth,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -2629,7 +2634,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
           
           // First, get available voices to find rap voices
           const voicesResponse = await fetch('https://api.uberduck.ai/v1/voices?limit=100', {
-            headers: { 'Authorization': `Bearer ${uberduckKey}` }
+            headers: { 'Authorization': uberduckAuth }
           });
           
           let selectedVoice = 'polly_matthew'; // Default fallback
@@ -2667,7 +2672,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
           const response = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${uberduckKey}`,
+              'Authorization': uberduckAuth,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
@@ -2914,6 +2919,12 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
     // OPTION 1: Uberduck Stable Audio (PRIMARY - You're paying for this!)
     // Uses Stability AI's model through Uberduck's API
     // ═══════════════════════════════════════════════════════════════════
+    const uberduckSecret = process.env.UBERDUCK_API_SECRET;
+    // Build auth header: if secret provided use Basic auth, otherwise try Bearer
+    const uberduckAuth = uberduckSecret 
+      ? `Basic ${Buffer.from(`${uberduckKey}:${uberduckSecret}`).toString('base64')}`
+      : (uberduckKey?.includes(':') ? `Basic ${Buffer.from(uberduckKey).toString('base64')}` : `Bearer ${uberduckKey}`);
+    
     if (uberduckKey) {
       try {
         logger.info('🎵 Using Uberduck stable_audio for instrumental generation');
@@ -2921,7 +2932,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
         const uberduckResponse = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${uberduckKey}`,
+            'Authorization': uberduckAuth,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
