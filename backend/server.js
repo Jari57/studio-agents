@@ -731,10 +731,12 @@ app.get('/api/status/apis', (req, res) => {
     gemini: !!process.env.GEMINI_API_KEY,
     uberduck: !!process.env.UBERDUCK_API_KEY,
     uberduckKeyLength: process.env.UBERDUCK_API_KEY?.length || 0,
-    replicate: !!process.env.REPLICATE_API_KEY,
+    replicate: !!(process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN),
+    replicateKeyLength: (process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN)?.length || 0,
     stability: !!process.env.STABILITY_API_KEY,
     fal: !!process.env.FAL_KEY || !!process.env.FAL_API_KEY,
     firebaseAdmin: firebaseInitialized,
+    allEnvKeys: Object.keys(process.env).filter(k => k.includes('UBERDUCK') || k.includes('REPLICATE')),
     message: 'Audio generation requires uberduck, replicate, stability, or fal API key.'
   };
   res.json(status);
