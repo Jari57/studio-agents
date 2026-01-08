@@ -2555,10 +2555,10 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// SPEECH/AUDIO GENERATION ROUTE (Gemini TTS)
+// PROFESSIONAL VOCAL GENERATION (State-of-the-Art Music Platform)
 // ═══════════════════════════════════════════════════════════════════
-// PROFESSIONAL VOCAL GENERATION 
-// Priority: 1. Uberduck (rap/speech) 2. Suno/Bark (singing) 3. Gemini TTS (fallback)
+// PRIORITY 1: Uberduck (Premium rap/spoken word - PAID)
+// PRIORITY 2: Replicate/MiniMax HD (Long-form vocals, up to 10 min)
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
   try {
@@ -2571,237 +2571,274 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
 
-    logger.info('Generating vocal', { textLength: prompt.length, voice, style, rapStyle });
+    logger.info('🎤 Generating professional vocal', { textLength: prompt.length, voice, style, rapStyle });
 
     let audioUrl = null;
     let provider = null;
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 1: Uberduck API (Best for rap and spoken word)
+    // PRIORITY 1: UBERDUCK API (Premium Vocals - Rap, Singing, Speech)
     // ═══════════════════════════════════════════════════════════════
     const uberduckKey = process.env.UBERDUCK_API_KEY;
     
-    if (uberduckKey && (style === 'rapper' || style === 'rapper-female' || style === 'spoken' || style === 'narrator')) {
+    if (uberduckKey) {
       try {
-        logger.info('Trying Uberduck for vocal generation', { rapStyle });
+        // Use google_lyria for singing, otherwise use TTS voices
+        const isSinging = style === 'singer';
         
-        // Uberduck rapper voice presets - actual voice IDs from their API
-        const uberduckVoices = {
-          'rapper-male-1': 'zwf-rapping',        // ZWF Rapping - Male rapper
-          'rapper-male-2': 'zwf-rapping',        // Same voice (add more when available)
-          'rapper-female-1': 'zwf-rapping',      // Will use same until female found
-          'narrator': 'zwf-rapping',             // Use rapping for now
-          'spoken': 'zwf-rapping'                // Use rapping for now
-        };
-        
-        // Map style to voice
-        let selectedVoice;
-        if (style === 'rapper-female') {
-          selectedVoice = uberduckVoices['rapper-female-1'];
-        } else if (style === 'rapper') {
-          selectedVoice = uberduckVoices[voice] || uberduckVoices['rapper-male-1'];
-        } else {
-          selectedVoice = uberduckVoices[voice] || uberduckVoices['spoken'];
+        if (isSinging) {
+          // Use Google Lyria for high-quality singing voice synthesis
+          logger.info('🎤 Using Uberduck google_lyria for singing vocal generation');
+          
+          const lyriaResponse = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${uberduckKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              text: prompt.substring(0, 2000),
+              model: 'google_lyria'
+            })
+          });
+          
+          if (lyriaResponse.ok) {
+            const data = await lyriaResponse.json();
+            logger.info('Uberduck google_lyria response', { hasAudioUrl: !!data.audio_url, keys: Object.keys(data) });
+            
+            if (data.audio_url) {
+              const audioResponse = await fetch(data.audio_url);
+              if (audioResponse.ok) {
+                const audioBuffer = await audioResponse.arrayBuffer();
+                const base64Audio = Buffer.from(audioBuffer).toString('base64');
+                const contentType = audioResponse.headers.get('content-type') || 'audio/mp3';
+                audioUrl = `data:${contentType};base64,${base64Audio}`;
+                provider = 'uberduck-lyria';
+                logger.info('✅ Uberduck singing vocal generated via google_lyria');
+              }
+            }
+          } else {
+            const errText = await lyriaResponse.text();
+            logger.warn('Uberduck google_lyria error', { status: lyriaResponse.status, error: errText.substring(0, 200) });
+          }
         }
         
-        // Uberduck v1 API - Bearer token auth
-        const response = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${uberduckKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            text: prompt.substring(0, 1000),
-            voice: selectedVoice,
-            model: 'uberduck'  // Their main TTS model
-          })
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
+        // For rap/speech, use TTS voices
+        if (!audioUrl) {
+          logger.info('🎤 Using Uberduck for professional vocal generation', { style, rapStyle });
           
-          // Check if we got an audio URL directly or need to poll
-          if (data.audio_url) {
-            // Download and convert to base64
-            const audioResponse = await fetch(data.audio_url);
-            if (audioResponse.ok) {
-              const audioBuffer = await audioResponse.arrayBuffer();
-              const base64Audio = Buffer.from(audioBuffer).toString('base64');
-              audioUrl = `data:audio/mp3;base64,${base64Audio}`;
-              provider = 'uberduck';
-              logger.info('Uberduck vocal generated successfully');
-            }
-          } else if (data.uuid || data.job_id) {
-            // Need to poll for completion
-            const jobId = data.uuid || data.job_id;
-            let attempts = 0;
+          // First, get available voices to find rap voices
+          const voicesResponse = await fetch('https://api.uberduck.ai/v1/voices?limit=100', {
+            headers: { 'Authorization': `Bearer ${uberduckKey}` }
+          });
+          
+          let selectedVoice = 'polly_matthew'; // Default fallback
+          let selectedModel = 'polly_neural';
+          
+          if (voicesResponse.ok) {
+            const voicesData = await voicesResponse.json();
+            const voices = voicesData.voices || voicesData || [];
             
-            while (attempts < 30) {
-              await new Promise(r => setTimeout(r, 1000));
-              
-              const statusResponse = await fetch(`https://api.uberduck.ai/v1/text-to-speech/${jobId}`, {
-                headers: { 'Authorization': `Bearer ${uberduckKey}` }
-              });
-              
-              if (statusResponse.ok) {
-                const statusData = await statusResponse.json();
-                
-                if (statusData.audio_url || statusData.path) {
-                  const audioUrl2 = statusData.audio_url || statusData.path;
-                  const audioResponse = await fetch(audioUrl2);
-                  if (audioResponse.ok) {
-                    const audioBuffer = await audioResponse.arrayBuffer();
-                    const base64Audio = Buffer.from(audioBuffer).toString('base64');
-                    audioUrl = `data:audio/mp3;base64,${base64Audio}`;
-                    provider = 'uberduck';
-                    logger.info('Uberduck vocal generated (polled)');
-                    break;
-                  }
-                } else if (statusData.status === 'failed' || statusData.failed_at) {
-                  logger.warn('Uberduck generation failed');
-                  break;
-                }
+            // Try to find a rap-specific voice
+            const rapVoice = voices.find(v => {
+              const tags = (v.tags || []).join(' ').toLowerCase();
+              const name = (v.name || '').toLowerCase();
+              return tags.includes('rap') || name.includes('rap') || 
+                     tags.includes('hip') || name.includes('hip');
+            });
+            
+            if (rapVoice) {
+              selectedVoice = rapVoice.id || rapVoice.voice_id || rapVoice.name;
+              selectedModel = rapVoice.model || 'uberduck';
+              logger.info('Found rap voice', { voice: selectedVoice, model: selectedModel });
+            } else {
+              // Use a deep male voice for rap-like delivery
+              const maleVoice = voices.find(v => v.gender === 'male' && v.model?.includes('neural'));
+              if (maleVoice) {
+                selectedVoice = maleVoice.id || maleVoice.voice_id || maleVoice.name;
+                selectedModel = maleVoice.model || 'polly_neural';
               }
-              attempts++;
             }
           }
-        } else {
-          const errText = await response.text();
-          logger.warn('Uberduck request failed', { status: response.status, error: errText.substring(0, 300) });
-        }
+        
+          logger.info('Calling Uberduck TTS', { voice: selectedVoice, model: selectedModel, textLen: prompt.length });
+          
+          // Call Uberduck v1 TTS API
+          const response = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${uberduckKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              text: prompt.substring(0, 2000),
+              voice: selectedVoice,
+              model: selectedModel
+            })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            logger.info('Uberduck response', { hasAudioUrl: !!data.audio_url, keys: Object.keys(data) });
+            
+            if (data.audio_url) {
+              // Download and convert to base64
+              const audioResponse = await fetch(data.audio_url);
+              if (audioResponse.ok) {
+                const audioBuffer = await audioResponse.arrayBuffer();
+                const base64Audio = Buffer.from(audioBuffer).toString('base64');
+                const contentType = audioResponse.headers.get('content-type') || 'audio/mp3';
+                audioUrl = `data:${contentType};base64,${base64Audio}`;
+                provider = 'uberduck';
+                logger.info('✅ Uberduck vocal generated successfully');
+              }
+            } else if (data.uuid || data.job_id) {
+              // Need to poll for completion
+              const jobId = data.uuid || data.job_id;
+              logger.info('Uberduck job started, polling...', { jobId });
+              
+              let attempts = 0;
+              while (attempts < 60) {
+                await new Promise(r => setTimeout(r, 1000));
+                
+                const statusResponse = await fetch(`https://api.uberduck.ai/v1/text-to-speech/${jobId}`, {
+                  headers: { 'Authorization': `Bearer ${uberduckKey}` }
+                });
+                
+                if (statusResponse.ok) {
+                  const statusData = await statusResponse.json();
+                  
+                  if (statusData.audio_url || statusData.path) {
+                    const audioFileUrl = statusData.audio_url || statusData.path;
+                    const audioResponse = await fetch(audioFileUrl);
+                    if (audioResponse.ok) {
+                      const audioBuffer = await audioResponse.arrayBuffer();
+                      const base64Audio = Buffer.from(audioBuffer).toString('base64');
+                      audioUrl = `data:audio/mp3;base64,${base64Audio}`;
+                      provider = 'uberduck';
+                      logger.info('✅ Uberduck vocal generated (polled)');
+                      break;
+                    }
+                  } else if (statusData.failed_at || statusData.status === 'failed') {
+                    logger.warn('Uberduck generation failed', { error: statusData.detail });
+                    break;
+                  }
+                }
+                attempts++;
+              }
+            }
+          }
+        } // End of if (!audioUrl) for rap/speech TTS
       } catch (uberduckError) {
-        logger.warn('Uberduck error', { error: uberduckError.message });
+        logger.error('Uberduck error', { error: uberduckError.message, stack: uberduckError.stack });
       }
+    } else {
+      logger.warn('⚠️ UBERDUCK_API_KEY not configured');
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 2: Bark/Suno via Replicate (Best for singing)
+    // PRIORITY 2: Replicate MiniMax Speech-02-HD (Long-form, Professional)
+    // Supports up to 10,000 characters (~10 minutes of audio)
     // ═══════════════════════════════════════════════════════════════
     const replicateKey = process.env.REPLICATE_API_KEY;
     
-    if (!audioUrl && replicateKey && style === 'singer') {
+    if (!audioUrl && replicateKey) {
       try {
-        logger.info('Trying Bark for singing vocal');
+        logger.info('🎵 Using Replicate/MiniMax HD for long-form vocal generation');
         
-        // Use Bark model on Replicate (Suno's open-source singing model)
+        // Map style to voice_id for MiniMax (using expressive English voices)
+        // Good for rap: ManWithDeepVoice, PassionateWarrior, Debator, Strong-WilledBoy
+        // Good for female rap: ConfidentWoman, AssertiveQueen, StrongGirl
+        let voiceId = 'English_ManWithDeepVoice'; // Default: deep male voice for rap
+        let emotion = 'auto';
+        
+        if (style === 'rapper-female' || voice.includes('female')) {
+          voiceId = 'English_ConfidentWoman';
+        } else if (style === 'singer') {
+          voiceId = 'English_CaptivatingStoryteller';
+          emotion = 'calm';
+        } else if (style === 'narrator') {
+          voiceId = 'English_WiseScholar';
+        } else if (rapStyle === 'aggressive' || rapStyle === 'hype') {
+          voiceId = 'English_PassionateWarrior';
+          emotion = 'angry';
+        } else if (rapStyle === 'chill' || rapStyle === 'melodic') {
+          voiceId = 'English_Deep-VoicedGentleman';
+          emotion = 'calm';
+        } else if (rapStyle === 'fast' || rapStyle === 'trap') {
+          voiceId = 'English_Debator';
+        }
+        
+        // Use MiniMax Speech-02-HD - long-form, high-fidelity (up to 10K chars)
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${replicateKey}`,
+            'Authorization': `Token ${replicateKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
+            version: 'fdd081f807e655246ef42adbcb3ee9334e7fdc710428684771f90d69992cabb3',
             input: {
-              prompt: `♪ ${prompt.substring(0, 500)} ♪`,
-              text_temp: 0.7,
-              waveform_temp: 0.7
+              text: prompt.substring(0, 10000), // HD supports up to 10K chars
+              voice_id: voiceId,
+              emotion: emotion,
+              speed: rapStyle === 'fast' ? 1.3 : (rapStyle === 'chill' ? 0.9 : 1.0),
+              audio_format: 'mp3',
+              sample_rate: 44100,
+              bitrate: 256000
             }
           })
         });
         
         if (response.ok) {
           const prediction = await response.json();
+          logger.info('Replicate MiniMax HD prediction started', { id: prediction.id, voiceId, emotion });
           
-          // Poll for completion (max 60 seconds)
+          // Poll for completion (longer timeout for long audio - up to 3 minutes)
           let attempts = 0;
-          while (attempts < 30) {
+          while (attempts < 90) {
             await new Promise(r => setTimeout(r, 2000));
             
-            const statusResponse = await fetch(prediction.urls.get, {
-              headers: { 'Authorization': `Bearer ${replicateKey}` }
+            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+              headers: { 'Authorization': `Token ${replicateKey}` }
             });
             
             if (statusResponse.ok) {
               const status = await statusResponse.json();
+              if (attempts % 5 === 0) { // Log every 10 seconds
+                logger.info('Replicate poll', { attempt: attempts, status: status.status });
+              }
               
-              if (status.status === 'succeeded' && status.output?.audio_out) {
-                const audioResponse = await fetch(status.output.audio_out);
-                if (audioResponse.ok) {
-                  const audioBuffer = await audioResponse.arrayBuffer();
-                  const base64Audio = Buffer.from(audioBuffer).toString('base64');
-                  audioUrl = `data:audio/wav;base64,${base64Audio}`;
-                  provider = 'bark';
-                  logger.info('Bark singing vocal generated');
-                  break;
+              if (status.status === 'succeeded') {
+                // MiniMax outputs MP3 URL directly
+                const outputUrl = status.output;
+                if (outputUrl) {
+                  const audioResponse = await fetch(outputUrl);
+                  if (audioResponse.ok) {
+                    const audioBuffer = await audioResponse.arrayBuffer();
+                    const base64Audio = Buffer.from(audioBuffer).toString('base64');
+                    audioUrl = `data:audio/mp3;base64,${base64Audio}`;
+                    provider = 'minimax-hd';
+                    logger.info('✅ MiniMax HD vocal generated successfully', { 
+                      audioBytes: audioBuffer.byteLength,
+                      textLength: prompt.length
+                    });
+                    break;
+                  }
                 }
               } else if (status.status === 'failed') {
-                logger.warn('Bark generation failed', { error: status.error });
+                logger.warn('MiniMax HD generation failed', { error: status.error });
                 break;
               }
             }
             attempts++;
           }
+        } else {
+          const errText = await response.text();
+          logger.warn('Replicate API request failed', { status: response.status, error: errText.substring(0, 300) });
         }
-      } catch (barkError) {
-        logger.warn('Bark error', { error: barkError.message });
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // FALLBACK: Gemini TTS (Basic but reliable)
-    // ═══════════════════════════════════════════════════════════════
-    if (!audioUrl) {
-      const geminiKey = process.env.GEMINI_API_KEY;
-      
-      if (geminiKey) {
-        try {
-          logger.info('Falling back to Gemini TTS');
-          
-          const geminiVoices = {
-            'rapper': 'Fenrir',
-            'singer': 'Kore',
-            'narrator': 'Charon',
-            'whisper': 'Zephyr',
-            'spoken': 'Puck'
-          };
-          
-          const selectedVoice = geminiVoices[style] || 'Kore';
-          
-          const speechConfig = {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: selectedVoice }
-            }
-          };
-
-          const ttsModels = ['gemini-2.5-flash-preview-tts', 'gemini-2.0-flash-preview-tts'];
-          
-          for (const model of ttsModels) {
-            try {
-              const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`;
-              
-              const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents: [{ parts: [{ text: prompt }] }],
-                  generationConfig: {
-                    responseModalities: ['AUDIO'],
-                    speechConfig: speechConfig
-                  }
-                })
-              });
-
-              if (response.ok) {
-                const data = await response.json();
-                const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-                const mimeType = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/wav';
-                
-                if (audioData) {
-                  audioUrl = `data:${mimeType};base64,${audioData}`;
-                  provider = 'gemini';
-                  logger.info(`Gemini TTS success with ${model}`);
-                  break;
-                }
-              }
-            } catch (modelError) {
-              logger.warn(`Gemini ${model} failed`, { error: modelError.message });
-            }
-          }
-        } catch (geminiError) {
-          logger.warn('Gemini TTS error', { error: geminiError.message });
-        }
+      } catch (replicateError) {
+        logger.error('Replicate/MiniMax error', { error: replicateError.message });
       }
     }
 
@@ -2809,26 +2846,31 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
     // Return result
     // ═══════════════════════════════════════════════════════════════
     if (audioUrl) {
+      logger.info('🎤 Vocal generation successful', { provider, style });
       res.json({
         audioUrl,
         provider,
         style,
-        message: `Vocal generated via ${provider}`
+        message: `Professional vocal generated via ${provider}`
       });
     } else {
-      logger.error('All vocal generation methods failed');
+      logger.error('❌ All vocal generation methods failed');
       res.status(503).json({ 
-        error: 'Vocal generation unavailable',
-        details: 'Configure UBERDUCK_API_KEY + UBERDUCK_API_SECRET for rap, or REPLICATE_API_KEY for singing.',
+        error: 'Vocal generation failed',
+        details: 'Check API key configuration in backend/.env',
+        requiredKeys: {
+          UBERDUCK_API_KEY: !!uberduckKey,
+          REPLICATE_API_KEY: !!replicateKey
+        },
         setupGuide: {
-          uberduck: 'Get API keys at https://uberduck.ai/account/manage-api',
-          replicate: 'Get API key at https://replicate.com/account/api-tokens'
+          uberduck: 'Get API key at https://uberduck.ai/account/manage-api',
+          replicate: 'Get token at https://replicate.com/account/api-tokens'
         }
       });
     }
 
   } catch (error) {
-    logger.error('Vocal generation error', { error: error.message });
+    logger.error('Vocal generation error', { error: error.message, stack: error.stack });
     res.status(500).json({ error: 'Vocal generation failed', details: error.message });
   }
 });
@@ -2850,6 +2892,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
     
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
+    const uberduckKey = process.env.UBERDUCK_API_KEY;
     const stabilityKey = process.env.STABILITY_API_KEY;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     
@@ -2859,6 +2902,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
       genre, 
       mood,
       durationSeconds,
+      hasUberduckKey: !!uberduckKey,
       hasStabilityKey: !!stabilityKey,
       hasReplicateKey: !!replicateKey
     });
@@ -2867,7 +2911,69 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
     const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. Professional studio production, broadcast quality, clear mix, punchy drums, warm bass.`;
 
     // ═══════════════════════════════════════════════════════════════════
-    // OPTION 1: Stability AI Stable Audio 2.5 (PRIMARY - Best Quality)
+    // OPTION 1: Uberduck Stable Audio (PRIMARY - You're paying for this!)
+    // Uses Stability AI's model through Uberduck's API
+    // ═══════════════════════════════════════════════════════════════════
+    if (uberduckKey) {
+      try {
+        logger.info('🎵 Using Uberduck stable_audio for instrumental generation');
+        
+        const uberduckResponse = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${uberduckKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: musicPrompt,
+            model: 'stable_audio'
+          })
+        });
+        
+        if (uberduckResponse.ok) {
+          const data = await uberduckResponse.json();
+          logger.info('Uberduck stable_audio response', { hasAudioUrl: !!data.audio_url, keys: Object.keys(data) });
+          
+          if (data.audio_url) {
+            // Download and convert to base64
+            const audioResponse = await fetch(data.audio_url);
+            if (audioResponse.ok) {
+              const audioBuffer = await audioResponse.arrayBuffer();
+              const base64Audio = Buffer.from(audioBuffer).toString('base64');
+              const contentType = audioResponse.headers.get('content-type') || 'audio/mp3';
+              const audioDataUrl = `data:${contentType};base64,${base64Audio}`;
+              
+              logger.info('✅ Uberduck instrumental generated successfully', { 
+                sizeBytes: audioBuffer.byteLength
+              });
+              
+              return res.json({
+                audioUrl: audioDataUrl,
+                mimeType: contentType,
+                duration: durationSeconds,
+                source: 'uberduck-stable-audio',
+                prompt: musicPrompt,
+                quality: 'professional',
+                isRealGeneration: true
+              });
+            }
+          }
+        } else {
+          const errText = await uberduckResponse.text();
+          logger.warn('Uberduck stable_audio API error, falling back', { 
+            status: uberduckResponse.status,
+            error: errText.substring(0, 200)
+          });
+        }
+      } catch (uberduckError) {
+        logger.warn('Uberduck stable_audio failed, trying Stability AI', { 
+          error: uberduckError.message
+        });
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // OPTION 2: Stability AI Stable Audio 2.5 (Fallback - Best Quality)
     // 44.1kHz stereo, up to 190 seconds, trained on licensed AudioSparx
     // ═══════════════════════════════════════════════════════════════════
     if (stabilityKey) {
@@ -4099,8 +4205,34 @@ app.get('/api/news', async (req, res) => {
       return true;
     });
     
-    // Sort by date (newest first)
+    // Sort by date (newest first) as base
     allArticles.sort((a, b) => b.timestamp - a.timestamp);
+    
+    // Mix sources to avoid any single source dominating
+    // Group articles by source, then interleave them
+    const bySource = {};
+    allArticles.forEach(article => {
+      const src = article.source || 'UNKNOWN';
+      if (!bySource[src]) bySource[src] = [];
+      bySource[src].push(article);
+    });
+    
+    // Interleave articles from different sources
+    const sourceQueues = Object.values(bySource);
+    const mixedArticles = [];
+    let maxLen = Math.max(...sourceQueues.map(q => q.length));
+    
+    for (let i = 0; i < maxLen; i++) {
+      // Shuffle source order each round for variety
+      const shuffledQueues = [...sourceQueues].sort(() => Math.random() - 0.5);
+      for (const queue of shuffledQueues) {
+        if (queue[i]) {
+          mixedArticles.push(queue[i]);
+        }
+      }
+    }
+    
+    allArticles = mixedArticles;
     
     // Update cache
     if (allArticles.length > 0) {
@@ -4153,68 +4285,307 @@ app.get('/api/news', async (req, res) => {
   }
 });
 
-// ==================== TRENDING AI PROJECTS API ====================
-// Fetches real AI projects from GitHub Search API for inspiration
+// ==================== MUSIC HUB API ====================
+// Comprehensive music content: Reddit communities, YouTube trending, Release calendar
 
-app.get('/api/trending-ai', async (req, res) => {
+// Reddit Music Subreddits to fetch from
+const REDDIT_MUSIC_SUBS = [
+  { name: 'hiphopheads', category: 'Hip-Hop', color: 'agent-purple' },
+  { name: 'WeAreTheMusicMakers', category: 'Production', color: 'agent-cyan' },
+  { name: 'makinghiphop', category: 'Hip-Hop Production', color: 'agent-orange' },
+  { name: 'musicproduction', category: 'Production', color: 'agent-emerald' },
+  { name: 'rnb', category: 'R&B', color: 'agent-pink' },
+  { name: 'indieheads', category: 'Indie', color: 'agent-blue' },
+  { name: 'electronicmusic', category: 'Electronic', color: 'agent-cyan' },
+  { name: 'listentothis', category: 'Discovery', color: 'agent-gold' },
+  { name: 'Music', category: 'General', color: 'agent-purple' },
+  { name: 'hiphop101', category: 'Hip-Hop', color: 'agent-red' }
+];
+
+// Cache for music hub data
+let musicHubCache = { reddit: [], youtube: [], releases: [], timestamp: 0 };
+const MUSIC_HUB_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Fetch Reddit posts
+const fetchRedditMusic = async () => {
   try {
-    const { page = 1, per_page = 20 } = req.query;
-    
-    // Search for AI-related repositories with high stars
-    const keywords = ['artificial-intelligence', 'machine-learning', 'generative-ai', 'llm', 'stable-diffusion', 'music-ai'];
-    const q = keywords.join(' OR ');
-    const apiUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc&page=${page}&per_page=${per_page}`;
-    
-    logger.info('Fetching trending AI projects from GitHub', { page, per_page });
-    
-    const response = await fetch(apiUrl, {
-      headers: {
-        'User-Agent': 'Studio-Agents-AI-App',
-        'Accept': 'application/vnd.github.v3+json'
+    const results = await Promise.all(REDDIT_MUSIC_SUBS.map(async (sub) => {
+      try {
+        const response = await fetch(`https://www.reddit.com/r/${sub.name}/hot.json?limit=10`, {
+          headers: { 'User-Agent': 'StudioAgents/1.0' }
+        });
+        if (!response.ok) return [];
+        const data = await response.json();
+        
+        return (data.data?.children || []).map(post => {
+          const p = post.data;
+          const hoursAgo = Math.floor((Date.now() / 1000 - p.created_utc) / 3600);
+          
+          return {
+            id: p.id,
+            type: 'reddit',
+            source: `r/${sub.name}`,
+            category: sub.category,
+            color: sub.color,
+            title: p.title,
+            snippet: p.selftext?.slice(0, 200) || '',
+            author: p.author,
+            url: `https://reddit.com${p.permalink}`,
+            likes: p.ups,
+            comments: p.num_comments,
+            time: hoursAgo < 1 ? 'Just now' : hoursAgo < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo / 24)}d ago`,
+            timestamp: p.created_utc * 1000,
+            imageUrl: p.thumbnail && p.thumbnail.startsWith('http') ? p.thumbnail : null,
+            isVideo: p.is_video,
+            videoUrl: p.is_video ? p.media?.reddit_video?.fallback_url : null,
+            flair: p.link_flair_text
+          };
+        });
+      } catch (e) {
+        logger.warn(`Failed to fetch r/${sub.name}`, { error: e.message });
+        return [];
       }
-    });
+    }));
     
-    if (!response.ok) {
-      const errorData = await response.json();
-      logger.error('GitHub API error', { status: response.status, error: errorData });
-      throw new Error(`GitHub API error: ${response.status}`);
-    }
+    return results.flat();
+  } catch (e) {
+    logger.error('Reddit fetch failed', { error: e.message });
+    return [];
+  }
+};
+
+// Fetch YouTube trending music (using RSS feed - no API key needed)
+const fetchYouTubeTrending = async () => {
+  try {
+    // YouTube Music trending RSS feeds
+    const feeds = [
+      { url: 'https://www.youtube.com/feeds/videos.xml?playlist_id=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf', name: 'Trending Music' },
+      { url: 'https://www.youtube.com/feeds/videos.xml?playlist_id=PL4fGSI1pDJn5rWitrRWFKdm-ulaFiIyoK', name: 'New Music' }
+    ];
     
+    const results = await Promise.all(feeds.map(async (feed) => {
+      try {
+        const response = await fetch(feed.url, {
+          headers: { 'User-Agent': 'StudioAgents/1.0' }
+        });
+        if (!response.ok) return [];
+        const xmlText = await response.text();
+        
+        const entries = xmlText.match(/<entry>[\s\S]*?<\/entry>/g) || [];
+        
+        return entries.slice(0, 15).map(entry => {
+          const getTag = (tag) => {
+            const match = entry.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));
+            return match ? match[1].trim() : '';
+          };
+          const getAttr = (tag, attr) => {
+            const match = entry.match(new RegExp(`<${tag}[^>]*${attr}="([^"]*)"`));
+            return match ? match[1] : '';
+          };
+          
+          const videoId = getTag('yt:videoId');
+          const title = getTag('title');
+          const author = getTag('name');
+          const published = getTag('published');
+          const views = entry.match(/views="(\d+)"/)?.[1] || '0';
+          
+          const pubDate = new Date(published);
+          const hoursAgo = Math.floor((Date.now() - pubDate) / (1000 * 60 * 60));
+          
+          return {
+            id: videoId,
+            type: 'youtube',
+            source: 'YouTube',
+            category: feed.name,
+            color: 'agent-red',
+            title: title,
+            snippet: `By ${author}`,
+            author: author,
+            url: `https://www.youtube.com/watch?v=${videoId}`,
+            likes: parseInt(views) || 0,
+            views: parseInt(views) || 0,
+            time: hoursAgo < 1 ? 'Just now' : hoursAgo < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo / 24)}d ago`,
+            timestamp: pubDate.getTime(),
+            imageUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+            videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+            isVideo: true
+          };
+        });
+      } catch (e) {
+        logger.warn(`Failed to fetch YouTube feed: ${feed.name}`, { error: e.message });
+        return [];
+      }
+    }));
+    
+    return results.flat();
+  } catch (e) {
+    logger.error('YouTube fetch failed', { error: e.message });
+    return [];
+  }
+};
+
+// Fetch upcoming music releases from MusicBrainz
+const fetchMusicReleases = async () => {
+  try {
+    // Get releases from last week and next 2 weeks
+    const today = new Date();
+    const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const nextTwoWeeks = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
+    
+    const fromDate = lastWeek.toISOString().split('T')[0];
+    const toDate = nextTwoWeeks.toISOString().split('T')[0];
+    
+    const response = await fetch(
+      `https://musicbrainz.org/ws/2/release?query=date:[${fromDate} TO ${toDate}] AND status:official AND type:album&fmt=json&limit=50`,
+      { headers: { 'User-Agent': 'StudioAgents/1.0 (studio-agents.com)' } }
+    );
+    
+    if (!response.ok) return [];
     const data = await response.json();
     
-    // Transform GitHub repos into our "Activity Wall" format
-    const projects = (data.items || []).map(repo => {
-      const agents = ['Ghostwriter', 'Beat Lab', 'Album Artist', 'Trend Hunter', 'Collab Connect', 'Social Pilot', 'Instrumentalist', 'Beat Architect'];
-      const colors = ['agent-purple', 'agent-cyan', 'agent-orange', 'agent-emerald', 'agent-indigo', 'agent-pink', 'agent-blue', 'agent-green'];
-      const randomIndex = Math.floor(Math.random() * agents.length);
+    return (data.releases || []).map(release => {
+      const releaseDate = new Date(release.date || today);
+      const isPast = releaseDate < today;
+      const daysUntil = Math.ceil((releaseDate - today) / (1000 * 60 * 60 * 24));
+      
+      let timeLabel;
+      if (daysUntil === 0) timeLabel = 'TODAY';
+      else if (daysUntil === 1) timeLabel = 'Tomorrow';
+      else if (daysUntil > 0) timeLabel = `In ${daysUntil} days`;
+      else if (daysUntil === -1) timeLabel = 'Yesterday';
+      else timeLabel = `${Math.abs(daysUntil)} days ago`;
+      
+      // Determine color based on release timing
+      let color = 'agent-purple';
+      if (daysUntil === 0) color = 'agent-emerald';
+      else if (daysUntil > 0) color = 'agent-cyan';
+      else color = 'agent-orange';
       
       return {
-        id: repo.id,
-        user: repo.owner.login,
-        agent: agents[randomIndex],
-        title: repo.name,
-        snippet: repo.description || 'No description available.',
-        time: new Date(repo.updated_at).toLocaleDateString(),
-        likes: repo.stargazers_count,
-        remixes: repo.forks_count,
-        color: colors[randomIndex],
-        url: repo.html_url,
-        type: repo.id % 2 === 0 ? 'image' : 'text',
-        imageUrl: repo.id % 2 === 0 ? `https://opengraph.githubassets.com/1/${repo.full_name}` : null,
-        videoUrl: null
+        id: release.id,
+        type: 'release',
+        source: 'New Release',
+        category: isPast ? 'Just Dropped' : daysUntil === 0 ? 'OUT NOW' : 'Coming Soon',
+        color: color,
+        title: release.title,
+        snippet: release['artist-credit']?.map(a => a.name || a.artist?.name).join(', ') || 'Various Artists',
+        author: release['artist-credit']?.[0]?.name || release['artist-credit']?.[0]?.artist?.name || 'Unknown',
+        url: `https://musicbrainz.org/release/${release.id}`,
+        releaseDate: release.date,
+        time: timeLabel,
+        timestamp: releaseDate.getTime(),
+        daysUntil: daysUntil,
+        isPast: isPast,
+        country: release.country,
+        label: release['label-info']?.[0]?.label?.name,
+        imageUrl: null // MusicBrainz doesn't provide cover art in search
       };
-    });
+    }).sort((a, b) => a.daysUntil - b.daysUntil);
+  } catch (e) {
+    logger.error('MusicBrainz fetch failed', { error: e.message });
+    return [];
+  }
+};
+
+// Main Music Hub endpoint
+app.get('/api/music-hub', async (req, res) => {
+  try {
+    const { section = 'all', page = 1, per_page = 20 } = req.query;
+    const now = Date.now();
+    
+    // Check cache
+    const cacheValid = musicHubCache.timestamp > 0 && (now - musicHubCache.timestamp) < MUSIC_HUB_CACHE_DURATION;
+    
+    if (!cacheValid) {
+      logger.info('Fetching fresh Music Hub data...');
+      
+      // Fetch all sources in parallel
+      const [reddit, youtube, releases] = await Promise.all([
+        fetchRedditMusic(),
+        fetchYouTubeTrending(),
+        fetchMusicReleases()
+      ]);
+      
+      musicHubCache = { reddit, youtube, releases, timestamp: now };
+      logger.info('Music Hub cache updated', { 
+        reddit: reddit.length, 
+        youtube: youtube.length, 
+        releases: releases.length 
+      });
+    }
+    
+    let items = [];
+    
+    if (section === 'reddit' || section === 'all') {
+      items = [...items, ...musicHubCache.reddit];
+    }
+    if (section === 'youtube' || section === 'all') {
+      items = [...items, ...musicHubCache.youtube];
+    }
+    if (section === 'releases' || section === 'all') {
+      items = [...items, ...musicHubCache.releases];
+    }
+    
+    // Sort by timestamp (newest first) but keep releases sorted by date
+    if (section === 'all') {
+      // Interleave different types for variety
+      const byType = { reddit: [], youtube: [], release: [] };
+      items.forEach(item => {
+        if (byType[item.type]) byType[item.type].push(item);
+      });
+      
+      // Sort each type
+      byType.reddit.sort((a, b) => b.timestamp - a.timestamp);
+      byType.youtube.sort((a, b) => b.timestamp - a.timestamp);
+      byType.release.sort((a, b) => a.daysUntil - b.daysUntil);
+      
+      // Interleave
+      const mixed = [];
+      const maxLen = Math.max(byType.reddit.length, byType.youtube.length, byType.release.length);
+      for (let i = 0; i < maxLen; i++) {
+        if (byType.release[i]) mixed.push(byType.release[i]);
+        if (byType.youtube[i]) mixed.push(byType.youtube[i]);
+        if (byType.reddit[i]) mixed.push(byType.reddit[i]);
+      }
+      items = mixed;
+    } else {
+      items.sort((a, b) => section === 'releases' ? (a.daysUntil - b.daysUntil) : (b.timestamp - a.timestamp));
+    }
+    
+    // Paginate
+    const start = (parseInt(page) - 1) * parseInt(per_page);
+    const end = start + parseInt(per_page);
+    const paginated = items.slice(start, end);
     
     res.json({
-      items: projects,
-      total_count: data.total_count,
+      items: paginated,
+      total: items.length,
       page: parseInt(page),
       per_page: parseInt(per_page),
-      disclaimer: 'Data sourced from GitHub trending AI repositories'
+      section,
+      cached: cacheValid,
+      sources: {
+        reddit: musicHubCache.reddit.length,
+        youtube: musicHubCache.youtube.length,
+        releases: musicHubCache.releases.length
+      }
     });
   } catch (err) {
-    logger.error('❌ Failed to fetch trending AI projects', { error: err.message });
-    res.status(500).json({ error: 'Failed to fetch trending AI projects' });
+    logger.error('Music Hub API error', { error: err.message });
+    res.status(500).json({ error: 'Failed to fetch Music Hub data' });
+  }
+});
+
+// Keep the old endpoint for backwards compatibility
+app.get('/api/trending-ai', async (req, res) => {
+  // Redirect to music-hub
+  const { page = 1, per_page = 20 } = req.query;
+  try {
+    const response = await fetch(`http://localhost:${PORT}/api/music-hub?section=all&page=${page}&per_page=${per_page}`);
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch activity data' });
   }
 });
 

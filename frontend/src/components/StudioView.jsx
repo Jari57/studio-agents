@@ -1415,6 +1415,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
   const [isLoadingActivity, setIsLoadingActivity] = useState(false);
   const [hasMoreActivity, setHasMoreActivity] = useState(true);
   const [activityFeed, setActivityFeed] = useState([]);
+  const [activitySection, setActivitySection] = useState(() => localStorage.getItem('musicHubSection') || 'all');
 
   // News Pagination State
   const [newsPage, setNewsPage] = useState(1);
@@ -2646,26 +2647,35 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
     handleGenerate();
   };
 
-  const fetchActivity = async (page = 1) => {
+  const fetchActivity = async (page = 1, section = null) => {
     if (isLoadingActivity || (!hasMoreActivity && page !== 1)) return;
+    
+    const currentSection = section || activitySection || 'all';
+    if (section) {
+      setActivitySection(section);
+      localStorage.setItem('musicHubSection', section);
+    }
     
     setIsLoadingActivity(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/api/trending-ai?page=${page}&per_page=20`);
+      const response = await fetch(`${BACKEND_URL}/api/music-hub?section=${currentSection}&page=${page}&per_page=20`);
       const data = await response.json();
       
       if (data.items && data.items.length > 0) {
         setActivityFeed(prev => page === 1 ? data.items : [...prev, ...data.items]);
         setActivityPage(page);
-        // Cap at 202 items as requested
-        if (data.items.length < 20 || (page * 20) >= 202) {
+        // Cap at 200 items
+        if (data.items.length < 20 || (page * 20) >= 200) {
           setHasMoreActivity(false);
+        } else {
+          setHasMoreActivity(true);
         }
       } else {
+        if (page === 1) setActivityFeed([]);
         setHasMoreActivity(false);
       }
     } catch (err) {
-      console.error('Failed to fetch activity', err);
+      console.error('Failed to fetch Music Hub data', err);
     } finally {
       setIsLoadingActivity(false);
     }
@@ -3063,7 +3073,14 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
 
   const renderContent = () => {
     if (activeTab === 'project_canvas' && !selectedAgent) {
-      if (!selectedProject) return <div className="p-8 text-center">No project selected</div>;
+      if (!selectedProject) {
+        // Show loading state - project might still be setting from async state update
+        return (
+          <div className="p-8 text-center animate-fadeIn">
+            <div style={{ opacity: 0.6 }}>Loading project...</div>
+          </div>
+        );
+      }
       
       // Auto-select first asset if none selected
       if (!canvasPreviewAsset && selectedProject.assets && selectedProject.assets.length > 0) {
@@ -3154,6 +3171,81 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                          controls 
                          style={{ width: '100%', maxWidth: '600px' }} 
                        />
+                     </div>
+                   )}
+                   
+                   {/* Text Content Viewer - for lyrics, scripts, text generations */}
+                   {(canvasPreviewAsset.type === 'Text' || canvasPreviewAsset.type === 'Lyrics' || canvasPreviewAsset.type === 'Script' || 
+                     (!canvasPreviewAsset.videoUrl && !canvasPreviewAsset.audioUrl && !canvasPreviewAsset.imageUrl && canvasPreviewAsset.content)) && (
+                     <div style={{ 
+                       width: '100%', 
+                       height: '100%',
+                       minHeight: '360px',
+                       padding: '32px', 
+                       display: 'flex', 
+                       flexDirection: 'column',
+                       background: 'linear-gradient(180deg, rgba(6, 182, 212, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)'
+                     }}>
+                       <div style={{ 
+                         display: 'flex', 
+                         alignItems: 'center', 
+                         gap: '12px', 
+                         marginBottom: '20px',
+                         paddingBottom: '16px',
+                         borderBottom: '1px solid rgba(255,255,255,0.1)'
+                       }}>
+                         <div style={{ 
+                           width: '48px', 
+                           height: '48px', 
+                           borderRadius: '12px', 
+                           background: 'linear-gradient(135deg, var(--color-cyan), var(--color-purple))',
+                           display: 'flex', 
+                           alignItems: 'center', 
+                           justifyContent: 'center',
+                           boxShadow: '0 0 20px rgba(6, 182, 212, 0.3)'
+                         }}>
+                           <FileText size={24} color="white" />
+                         </div>
+                         <div>
+                           <h4 style={{ margin: 0, color: 'white', fontSize: '1.1rem' }}>{canvasPreviewAsset.title}</h4>
+                           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                             {canvasPreviewAsset.agent} • {canvasPreviewAsset.date}
+                           </span>
+                         </div>
+                         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+                           <button
+                             onClick={() => {
+                               navigator.clipboard.writeText(canvasPreviewAsset.content || '');
+                               // Could add a toast notification here
+                             }}
+                             className="btn-icon-circle glass"
+                             title="Copy to clipboard"
+                             style={{ background: 'rgba(255,255,255,0.1)' }}
+                           >
+                             <Copy size={16} />
+                           </button>
+                         </div>
+                       </div>
+                       <div style={{ 
+                         flex: 1,
+                         overflowY: 'auto',
+                         padding: '20px',
+                         background: 'rgba(0,0,0,0.3)',
+                         borderRadius: '12px',
+                         border: '1px solid rgba(255,255,255,0.05)'
+                       }}>
+                         <pre style={{ 
+                           margin: 0,
+                           fontFamily: "'SF Mono', 'Fira Code', monospace",
+                           fontSize: '0.95rem',
+                           lineHeight: '1.8',
+                           color: 'rgba(255,255,255,0.9)',
+                           whiteSpace: 'pre-wrap',
+                           wordWrap: 'break-word'
+                         }}>
+                           {canvasPreviewAsset.content || canvasPreviewAsset.snippet || 'No text content available'}
+                         </pre>
+                       </div>
                      </div>
                    )}
                    
@@ -3424,6 +3516,11 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                      {/* Media Preview */}
                      <div 
                        onClick={() => {
+                         // For text-only assets, just select for preview in Studio Monitor
+                         if (!asset.audioUrl && !asset.imageUrl && !asset.videoUrl) {
+                           setCanvasPreviewAsset(asset);
+                           return;
+                         }
                          // Open fullscreen preview (auto-plays audio/video)
                          const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
                          const currentIndex = previewableAssets.findIndex(a => a.id === asset.id);
@@ -3442,7 +3539,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                          background: 'rgba(0,0,0,0.3)', 
                          borderRadius: '12px', 
                          overflow: 'hidden', 
-                         cursor: asset.audioUrl || asset.imageUrl || asset.videoUrl ? 'pointer' : 'default',
+                         cursor: 'pointer',
                          position: 'relative',
                          display: 'flex',
                          alignItems: 'center',
@@ -3494,8 +3591,32 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                            </div>
                          </div>
                        ) : (
-                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                           <FileText size={32} style={{ color: 'var(--color-cyan)' }} />
+                         <div style={{ 
+                           display: 'flex', 
+                           flexDirection: 'column', 
+                           alignItems: 'center', 
+                           justifyContent: 'center', 
+                           gap: '8px',
+                           width: '100%',
+                           height: '100%',
+                           padding: '12px'
+                         }}>
+                           <FileText size={28} style={{ color: 'var(--color-cyan)', flexShrink: 0 }} />
+                           {(asset.content || asset.snippet) && (
+                             <div style={{ 
+                               fontSize: '0.7rem', 
+                               color: 'var(--text-secondary)', 
+                               textAlign: 'center',
+                               overflow: 'hidden',
+                               display: '-webkit-box',
+                               WebkitLineClamp: 3,
+                               WebkitBoxOrient: 'vertical',
+                               lineHeight: '1.4',
+                               maxWidth: '90%'
+                             }}>
+                               {(asset.content || asset.snippet).substring(0, 100)}...
+                             </div>
+                           )}
                          </div>
                        )}
                        
@@ -3517,6 +3638,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                          {asset.type === 'Video' && <Video size={10} />}
                          {asset.type === 'Audio' && <Music size={10} />}
                          {asset.type === 'Image' && <Image size={10} />}
+                         {(asset.type === 'Text' || asset.type === 'Lyrics' || asset.type === 'Script') && <FileText size={10} />}
                          {asset.type}
                        </div>
                      </div>
@@ -5927,8 +6049,10 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
               projects={projects}
               setProjects={setProjects}
               onSelectProject={(project) => {
+                console.log('[StudioView] Selecting project:', project?.id, project?.name);
                 setSelectedProject(project);
-                setActiveTab('project_canvas');
+                // Use setTimeout to ensure selectedProject is set before tab change
+                setTimeout(() => setActiveTab('project_canvas'), 0);
               }}
               onCreateProject={(project) => {
                 console.log('[StudioView] Orchestrator project save:', project.id, project.name);
@@ -5968,7 +6092,8 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                 
                 // Select it and navigate to project canvas
                 setSelectedProject(project);
-                setActiveTab('project_canvas');
+                // Use setTimeout to ensure selectedProject is set before tab change
+                setTimeout(() => setActiveTab('project_canvas'), 0);
                 toast.success(`Saved "${project.name}" with ${project.assets?.length || 0} assets!`);
               }}
               onDeleteProject={handleDeleteProject}
@@ -5980,9 +6105,12 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
         );
       case 'project_canvas':
         if (!selectedProject) {
-          // Fallback if no project selected
-          setTimeout(() => setActiveTab('hub'), 0);
-          return null;
+          // Show loading state briefly - project might still be setting
+          return (
+            <div className="p-8 text-center animate-fadeIn">
+              <div style={{ opacity: 0.6 }}>Loading project...</div>
+            </div>
+          );
         }
         
         return (
@@ -6830,7 +6958,7 @@ When you write a song, you create intellectual property that generates money eve
                   <div className="sitemap-column">
                     <h4>Community</h4>
                     <ul>
-                      <li onClick={() => setActiveTab('activity')}>Activity Wall</li>
+                      <li onClick={() => setActiveTab('activity')}>Music Hub</li>
                       <li onClick={() => setActiveTab('news')}>Industry Pulse</li>
                     </ul>
                   </div>
@@ -7026,123 +7154,348 @@ When you write a song, you create intellectual property that generates money eve
         );
       case 'activity':
         return (
-          <div className="activity-wall-view animate-fadeInUp">
-            <div className="activity-header">
-              <div className="header-left">
-                <h1>Activity Wall</h1>
-                <p>Trending AI projects and community creations for inspiration.</p>
-              </div>
-              <div className="header-right-actions">
-                <button className="cta-button-premium haptic-press" onClick={() => fetchActivity(1)}>
-                  <Zap size={18} />
-                  Refresh Feed
-                </button>
+          <div className="music-hub-view animate-fadeInUp" style={{ paddingBottom: '100px' }}>
+            {/* Music Hub Header - Studio Orchestrator Style */}
+            <div className="orchestrator-header" style={{
+              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(6, 182, 212, 0.15) 50%, rgba(236, 72, 153, 0.15) 100%)',
+              borderRadius: '24px',
+              padding: '32px',
+              marginBottom: '24px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'radial-gradient(circle at 20% 50%, rgba(168, 85, 247, 0.2) 0%, transparent 50%)', pointerEvents: 'none' }} />
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+                  <div style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 32px rgba(168, 85, 247, 0.4)'
+                  }}>
+                    <Music size={28} color="white" />
+                  </div>
+                  <div>
+                    <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '700', background: 'linear-gradient(90deg, white, rgba(255,255,255,0.8))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                      Music Hub
+                    </h1>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+                      Reddit • YouTube • New Releases — All things music in one place
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Section Tabs */}
+                <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'all', label: 'All', icon: Zap },
+                    { id: 'reddit', label: 'Reddit', icon: MessageSquare },
+                    { id: 'youtube', label: 'YouTube', icon: PlayCircle },
+                    { id: 'releases', label: 'New Releases', icon: Calendar }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActivitySection?.(tab.id) || localStorage.setItem('musicHubSection', tab.id);
+                        fetchActivity(1, tab.id);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px 20px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        background: (activitySection || localStorage.getItem('musicHubSection') || 'all') === tab.id 
+                          ? 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))'
+                          : 'rgba(255,255,255,0.08)',
+                        color: 'white',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <tab.icon size={16} />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="activity-feed">
+            {/* Music Hub Content Grid */}
+            <div className="music-hub-grid" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+              gap: '20px'
+            }}>
               {activityFeed.map((item, idx) => (
-                <div key={`${item.id}-${idx}`} className="activity-card">
-                  <div className="activity-card-header">
-                    <div className="user-meta">
-                      <div className="user-avatar-small"></div>
-                      <div className="user-details">
-                        <span className="user-handle">@{item.user}</span>
-                        <span className="activity-time">{item.time}</span>
+                <div 
+                  key={`${item.id}-${idx}`} 
+                  className="music-hub-card"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    overflow: 'hidden',
+                    transition: 'all 0.3s ease',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => window.open(item.url, '_blank')}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                    e.currentTarget.style.borderColor = 'var(--color-purple)';
+                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(168, 85, 247, 0.2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  {/* Card Media */}
+                  {item.imageUrl && (
+                    <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
+                      <img 
+                        src={item.imageUrl} 
+                        alt={item.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        loading="lazy"
+                      />
+                      {item.isVideo && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: '56px',
+                          height: '56px',
+                          borderRadius: '50%',
+                          background: 'rgba(0,0,0,0.7)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backdropFilter: 'blur(4px)'
+                        }}>
+                          <PlayCircle size={28} color="white" />
+                        </div>
+                      )}
+                      {/* Type Badge */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        left: '12px',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: item.type === 'youtube' ? 'rgba(255, 0, 0, 0.9)' : 
+                                   item.type === 'reddit' ? 'rgba(255, 69, 0, 0.9)' : 
+                                   'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                        color: 'white',
+                        fontSize: '0.7rem',
+                        fontWeight: '700',
+                        textTransform: 'uppercase',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        {item.type === 'youtube' && <PlayCircle size={12} />}
+                        {item.type === 'reddit' && <MessageSquare size={12} />}
+                        {item.type === 'release' && <Calendar size={12} />}
+                        {item.source}
                       </div>
                     </div>
-                    <div className={`agent-tag ${item.color}`}>
-                      {item.agent}
-                    </div>
-                  </div>
+                  )}
                   
-                  <div className="activity-card-body">
-                    <h3>{item.title}</h3>
-                    <p className="activity-snippet">"{item.snippet}"</p>
-                    
-                    {item.type === 'video' && item.videoUrl && (
-                      <div className="activity-media-preview video">
-                        <video src={item.videoUrl} muted loop onMouseEnter={e => e.target.play()} onMouseLeave={e => e.target.pause()} />
-                        <div className="media-overlay"><PlayCircle size={32} /></div>
-                      </div>
-                    )}
-
-                    {item.type === 'image' && item.imageUrl && (
-                      <div className="activity-media-preview image">
-                        <img src={item.imageUrl} alt={item.title} loading="lazy" />
-                      </div>
-                    )}
-
-                    {(item.audioUrl || item.videoUrl) && (
-                      <button 
-                        className="play-preview-btn"
-                        onClick={() => setPlayingItem(item)}
-                      >
-                        <PlayCircle size={20} />
-                        <span>Play Preview</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="activity-card-footer">
-                    <div className="activity-actions">
-                      <button className="activity-btn">
-                        <Zap size={16} />
-                        <span>{item.likes}</span>
-                      </button>
-                      <button className="activity-btn">
-                        <Rocket size={16} />
-                        <span>{item.remixes}</span>
-                      </button>
-                      <button className="activity-btn" onClick={() => window.open(item.url, '_blank')}>
-                        <Share2 size={16} />
-                        <span>Share</span>
-                      </button>
-                      <button 
-                        className="activity-btn" 
-                        onClick={() => setAddToProjectAsset({
-                          id: String(Date.now()),
-                          title: item.title,
-                          snippet: item.snippet,
-                          agent: item.agent,
-                          type: item.type || 'text',
-                          audioUrl: item.audioUrl,
-                          videoUrl: item.videoUrl,
-                          imageUrl: item.imageUrl,
-                          date: 'Just now'
-                        })}
-                        title="Add to Project"
-                      >
-                        <FolderPlus size={16} />
-                        <span>Save</span>
-                      </button>
+                  {/* Card Content */}
+                  <div style={{ padding: '16px' }}>
+                    {/* Category Tag */}
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: `var(--${item.color?.replace('agent-', 'color-') || 'color-purple'})`,
+                      opacity: 0.8,
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      marginBottom: '10px',
+                      textTransform: 'uppercase'
+                    }}>
+                      {item.category}
                     </div>
-                    <button className="remix-cta" onClick={() => window.open(item.url, '_blank')}>
-                      View Project
-                    </button>
+                    
+                    {/* Title */}
+                    <h3 style={{
+                      margin: '0 0 8px 0',
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: 'white',
+                      lineHeight: '1.4',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    }}>
+                      {item.title}
+                    </h3>
+                    
+                    {/* Snippet/Author */}
+                    <p style={{
+                      margin: '0 0 12px 0',
+                      fontSize: '0.85rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: '1.5',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden'
+                    }}>
+                      {item.snippet || item.author}
+                    </p>
+                    
+                    {/* Footer Meta */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingTop: '12px',
+                      borderTop: '1px solid rgba(255,255,255,0.05)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        {item.likes !== undefined && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            <Zap size={14} style={{ color: 'var(--color-purple)' }} />
+                            {item.likes > 1000 ? `${(item.likes / 1000).toFixed(1)}k` : item.likes}
+                          </span>
+                        )}
+                        {item.comments !== undefined && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            <MessageSquare size={14} />
+                            {item.comments}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        {item.time}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
+            {/* No Image Cards (for releases without images) */}
+            {activityFeed.filter(item => !item.imageUrl).length > 0 && (
+              <div style={{ marginTop: '32px' }}>
+                <h3 style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  Upcoming & Recent Releases
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {activityFeed.filter(item => !item.imageUrl && item.type === 'release').slice(0, 10).map((item, idx) => (
+                    <div
+                      key={`release-${item.id}-${idx}`}
+                      onClick={() => window.open(item.url, '_blank')}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '16px',
+                        padding: '16px',
+                        background: 'rgba(255,255,255,0.03)',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    >
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '12px',
+                        background: item.daysUntil === 0 ? 'linear-gradient(135deg, var(--color-emerald), var(--color-cyan))' :
+                                   item.daysUntil > 0 ? 'linear-gradient(135deg, var(--color-purple), var(--color-pink))' :
+                                   'rgba(255,255,255,0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <Calendar size={22} color="white" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: '600', color: 'white', marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.title}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                          {item.snippet}
+                        </div>
+                      </div>
+                      <div style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        background: item.daysUntil === 0 ? 'var(--color-emerald)' :
+                                   item.daysUntil > 0 ? 'rgba(168, 85, 247, 0.2)' :
+                                   'rgba(255,255,255,0.1)',
+                        color: item.daysUntil === 0 ? 'black' : 'white',
+                        fontSize: '0.75rem',
+                        fontWeight: '700',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {item.time}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {isLoadingActivity && (
-              <div className="loading-trigger">
-                <div className="spinner"></div>
-                <span>Loading more inspiration...</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '40px', color: 'var(--text-secondary)' }}>
+                <div className="spinner" style={{ width: '24px', height: '24px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--color-purple)', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                <span>Loading music content...</span>
               </div>
             )}
 
             {!isLoadingActivity && hasMoreActivity && (
-              <div className="load-more-trigger">
-                <button className="cta-button-secondary haptic-press" onClick={() => fetchActivity(activityPage + 1)}>
-                  Load More Projects
+              <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '32px' }}>
+                <button 
+                  onClick={() => fetchActivity(activityPage + 1)}
+                  style={{
+                    padding: '14px 32px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--color-purple)',
+                    background: 'transparent',
+                    color: 'var(--color-purple)',
+                    fontSize: '0.95rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--color-purple)';
+                    e.currentTarget.style.color = 'white';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'var(--color-purple)';
+                  }}
+                >
+                  Load More
                 </button>
               </div>
             )}
 
             {!hasMoreActivity && activityFeed.length > 0 && (
-              <div className="end-of-feed">
-                <p>You've reached the end of the inspiration wall. Check back later!</p>
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                <p>🎵 You've explored all the latest music content. Check back soon!</p>
               </div>
             )}
           </div>
@@ -7427,7 +7780,7 @@ When you write a song, you create intellectual property that generates money eve
           { keywords: ['profile', 'account', 'user', 'avatar', 'login', 'logout', 'email'], label: 'User Profile', action: () => { setActiveTab('mystudio'); setDashboardTab('overview'); } },
           { keywords: ['news', 'feed', 'updates', 'industry', 'trends', 'pulse'], label: 'Industry Pulse', action: () => setActiveTab('news') },
           { keywords: ['hub', 'projects', 'files', 'saved', 'library', 'creations'], label: 'Project Hub', action: () => setActiveTab('hub') },
-          { keywords: ['activity', 'wall', 'community', 'social', 'share', 'feed'], label: 'Activity Wall', action: () => setActiveTab('activity') },
+          { keywords: ['activity', 'wall', 'community', 'social', 'share', 'feed', 'music', 'hub', 'reddit', 'youtube', 'releases'], label: 'Music Hub', action: () => setActiveTab('activity') },
           { keywords: ['agents', 'tools', 'create', 'make', 'generate'], label: 'Agent Studio', action: () => setActiveTab('agents') }
         ];
 
@@ -7625,7 +7978,7 @@ When you write a song, you create intellectual property that generates money eve
       case 'more':
         // Mobile "More" menu with all navigation options
         const moreMenuItems = [
-          { id: 'activity', icon: MessageSquare, label: 'Activity Wall', desc: 'Community feed & updates', color: 'var(--color-purple)' },
+          { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Reddit, YouTube & Releases', color: 'var(--color-purple)' },
           { id: 'news', icon: Globe, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
           { id: 'resources', icon: Book, label: 'Resources', desc: 'Guides & tutorials', color: 'var(--color-orange)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-pink)' },
@@ -7946,7 +8299,7 @@ When you write a song, you create intellectual property that generates money eve
             onClick={() => { setActiveTab('activity'); setSelectedAgent(null); }}
           >
             <MessageSquare size={20} />
-            <span>Activity Wall</span>
+            <span>Music Hub</span>
           </button>
           <button 
             className={`nav-link ${activeTab === 'resources' ? 'active' : ''}`}
