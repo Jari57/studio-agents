@@ -163,21 +163,26 @@ export function PreviewModal({
             <button
               onClick={onClose}
               style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                color: 'rgba(255, 255, 255, 0.7)',
-                padding: '6px 8px',
-                borderRadius: '6px',
+                background: 'rgba(239, 68, 68, 0.2)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                color: '#ef4444',
+                padding: '8px 12px',
+                borderRadius: '8px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                fontSize: '0.75rem',
+                gap: '6px',
+                fontSize: '0.8rem',
                 fontWeight: '600',
                 transition: 'all 0.2s',
-                touchAction: 'manipulation'
+                touchAction: 'manipulation',
+                minWidth: '44px',
+                minHeight: '44px',
+                justifyContent: 'center'
               }}
             >
-              <X size={14} />
+              <X size={18} />
+              Close
             </button>
           </div>
         </div>
@@ -304,7 +309,7 @@ export function PreviewModal({
             flexShrink: 0
           }}
         >
-          Tap outside to close
+          Click &quot;Close&quot; or tap outside to dismiss
         </div>
       </div>
 
