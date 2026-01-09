@@ -3709,12 +3709,13 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                            return;
                          }
                          // Open fullscreen preview (auto-plays audio/video)
-                         const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
-                         const currentIndex = previewableAssets.findIndex(a => a.id === asset.id);
+                         const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                         const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
+                         const currentIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
                          setShowPreview({
                            type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
                            url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                           title: asset.title,
+                           title: asset.title || 'Untitled',
                            asset: asset,
                            assets: previewableAssets,
                            currentIndex: currentIndex >= 0 ? currentIndex : 0
@@ -3862,12 +3863,13 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                          <button
                            onClick={(e) => {
                              e.stopPropagation();
-                             const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
-                             const currentIndex = previewableAssets.findIndex(a => a.id === asset.id);
+                             const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                             const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
+                             const currentIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
                              setShowPreview({
                                type: asset.audioUrl ? 'audio' : 'video',
                                url: asset.audioUrl || asset.videoUrl,
-                               title: asset.title,
+                               title: asset.title || 'Untitled',
                                asset: asset,
                                assets: previewableAssets,
                                currentIndex: currentIndex >= 0 ? currentIndex : 0
@@ -3902,12 +3904,13 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                        <button
                          onClick={(e) => {
                            e.stopPropagation();
-                           const previewableAssets = selectedProject.assets.filter(a => a.audioUrl || a.imageUrl || a.videoUrl);
-                           const currentIndex = previewableAssets.findIndex(a => a.id === asset.id);
+                           const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                           const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
+                           const currentIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
                            setShowPreview({
                              type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
                              url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                             title: asset.title,
+                             title: asset.title || 'Untitled',
                              asset: asset,
                              assets: previewableAssets,
                              currentIndex: currentIndex >= 0 ? currentIndex : 0
@@ -6267,7 +6270,9 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
               projects={projects}
               setProjects={setProjects}
               onSelectProject={(project) => {
-                console.log('[StudioView] Selecting project:', project?.id, project?.name);
+                console.log('[StudioView] Selecting project:', project?.id, project?.name, 'assets:', project?.assets?.length);
+                // Reset canvas preview asset to avoid stale references
+                setCanvasPreviewAsset(null);
                 setSelectedProject(project);
                 // Use setTimeout to ensure selectedProject is set before tab change
                 setTimeout(() => setActiveTab('project_canvas'), 0);
@@ -6309,6 +6314,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                 }
                 
                 // Select it and navigate to project canvas
+                setCanvasPreviewAsset(null); // Reset canvas preview to avoid stale references
                 setSelectedProject(project);
                 // Use setTimeout to ensure selectedProject is set before tab change
                 setTimeout(() => setActiveTab('project_canvas'), 0);
@@ -12294,10 +12300,11 @@ When you write a song, you create intellectual property that generates money eve
                     ? showPreview.currentIndex - 1 
                     : showPreview.assets.length - 1;
                   const newAsset = showPreview.assets[newIndex];
+                  if (!newAsset) return; // Safety check
                   setShowPreview({
                     type: newAsset.audioUrl ? 'audio' : newAsset.videoUrl ? 'video' : 'image',
                     url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl,
-                    title: newAsset.title,
+                    title: newAsset.title || 'Untitled',
                     asset: newAsset,
                     assets: showPreview.assets,
                     currentIndex: newIndex
@@ -12336,10 +12343,11 @@ When you write a song, you create intellectual property that generates money eve
                     ? showPreview.currentIndex + 1 
                     : 0;
                   const newAsset = showPreview.assets[newIndex];
+                  if (!newAsset) return; // Safety check
                   setShowPreview({
                     type: newAsset.audioUrl ? 'audio' : newAsset.videoUrl ? 'video' : 'image',
                     url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl,
-                    title: newAsset.title,
+                    title: newAsset.title || 'Untitled',
                     asset: newAsset,
                     assets: showPreview.assets,
                     currentIndex: newIndex
@@ -12641,15 +12649,17 @@ When you write a song, you create intellectual property that generates money eve
                 justifyContent: 'center',
                 background: 'rgba(0,0,0,0.3)'
               }}>
-                {showPreview.assets.map((asset, idx) => (
+                {showPreview.assets.map((asset, idx) => {
+                  if (!asset) return null; // Safety check
+                  return (
                   <button
-                    key={idx}
+                    key={asset?.id || idx}
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowPreview({
                         type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
                         url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                        title: asset.title,
+                        title: asset.title || 'Untitled',
                         asset: asset,
                         assets: showPreview.assets,
                         currentIndex: idx
@@ -12697,7 +12707,8 @@ When you write a song, you create intellectual property that generates money eve
                       <FileText size={20} style={{ color: 'var(--text-secondary)' }} />
                     )}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
 
