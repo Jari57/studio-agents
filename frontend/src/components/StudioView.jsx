@@ -559,9 +559,12 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [lastVoiceCommand, setLastVoiceCommand] = useState(null);
   const [voiceSettings, setVoiceSettings] = useState({
-    gender: 'female',
+    gender: 'male',
     region: 'US',
-    language: 'English'
+    language: 'English',
+    style: 'rapper',           // rapper, rapper-female, singer, narrator, spoken
+    rapStyle: 'aggressive',    // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
+    voiceName: 'rapper-male-1'
   });
   
   // Voice Command Definitions for Whisperer-style UI
@@ -1081,9 +1084,9 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
   };
 
   const handleAddAgent = (agent) => {
-    if (!selectedProject) return;
+    if (!selectedProject || !agent) return;
     
-    const currentAgents = selectedProject.agents || [];
+    const currentAgents = Array.isArray(selectedProject.agents) ? selectedProject.agents : [];
 
     // Enforce Plan Limits (admins have no limit)
     let limit = isAdmin ? 999 : 3; // Free default
@@ -1983,18 +1986,19 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
         }
       }
 
-      // Trim text to reasonable length for TTS (500 chars max to avoid timeouts)
-      const textToSpeak = textContent.substring(0, 500);
+      // Trim text to reasonable length for vocals (2000 chars for Uberduck/MiniMax)
+      const textToSpeak = textContent.substring(0, 2000);
 
-      console.log('[handleCreateAIVocal] Generating vocal for:', textToSpeak.substring(0, 50) + '...');
+      console.log('[handleCreateAIVocal] Generating rapper vocal via Uberduck/Replicate for:', textToSpeak.substring(0, 50) + '...');
 
       const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           prompt: textToSpeak,
-          voice: voiceSettings.voiceName || 'en-US-GuyNeural',
-          style: 'natural'
+          voice: voiceSettings.voiceName || 'rapper-male-1',
+          style: voiceSettings.style || 'rapper',  // Use rapper voice from Uberduck/Replicate
+          rapStyle: voiceSettings.rapStyle || 'aggressive'  // aggressive, chill, melodic, fast, trap, oldschool
         })
       });
 
@@ -2172,6 +2176,12 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async () => {
+    // Guard: Ensure agent is selected
+    if (!selectedAgent) {
+      toast.error("Please select an agent first.");
+      return;
+    }
+    
     const textarea = textareaRef.current || document.querySelector('.studio-textarea');
     if (!textarea || !textarea.value) {
       toast.error("Please enter a prompt first.");
@@ -2262,18 +2272,19 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       let endpoint = '/api/generate';
       let body = {
         prompt: prompt,
-        systemInstruction: `You are ${selectedAgent.name}, a professional AI agent in a high-end music studio. 
-          Category: ${selectedAgent.category}. 
-          Capabilities: ${selectedAgent.capabilities.join(', ')}.
-          ${selectedAgent.explanation}`,
+        systemInstruction: `You are ${selectedAgent?.name || 'AI Assistant'}, a professional AI agent in a high-end music studio. 
+          Category: ${selectedAgent?.category || 'General'}. 
+          Capabilities: ${(selectedAgent?.capabilities || []).join(', ')}.
+          ${selectedAgent?.explanation || ''}`,
         model: selectedModel // Pass selected model to backend
       };
 
       // Route to specific endpoints for Image/Video/Audio agents
-      const isImageAgent = selectedAgent.id === 'album';
-      const isVideoAgent = selectedAgent.id === 'video-creator';
-      const isAudioAgent = selectedAgent.id === 'beat' || selectedAgent.id === 'sample';
-      const isSpeechAgent = selectedAgent.id === 'podcast' || selectedAgent.id === 'voiceover' || selectedAgent.id === 'vocal-arch';
+      const agentId = selectedAgent?.id || '';
+      const isImageAgent = agentId === 'album';
+      const isVideoAgent = agentId === 'video-creator';
+      const isAudioAgent = agentId === 'beat' || agentId === 'sample';
+      const isSpeechAgent = agentId === 'podcast' || agentId === 'voiceover' || agentId === 'vocal-arch';
       
       if (isImageAgent) {
         endpoint = '/api/generate-image';
@@ -2296,7 +2307,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
         body = { 
           prompt, 
           bpm: 90, // Could add UI controls for this
-          genre: selectedAgent.id === 'beat' ? 'hip-hop' : 'sample',
+          genre: agentId === 'beat' ? 'hip-hop' : 'sample',
           mood: 'creative',
           durationSeconds: 15
         };
@@ -2376,7 +2387,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
         console.warn('Audio generation failed, falling back to text description', data.error);
         
         const fallbackBody = {
-          prompt: `Describe in vivid detail what a ${selectedAgent.id === 'beat' ? 'beat/instrumental' : 'audio sample'} would sound like for: "${prompt}". Include instruments, rhythm, tempo, mood, and production style.`,
+          prompt: `Describe in vivid detail what a ${agentId === 'beat' ? 'beat/instrumental' : 'audio sample'} would sound like for: "${prompt}". Include instruments, rhythm, tempo, mood, and production style.`,
           systemInstruction: `You are a music producer providing detailed audio descriptions.`
         };
         
@@ -2393,11 +2404,11 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       // Handle different response types
       let newItem = {
         id: String(Date.now()),
-        title: `${selectedAgent.name} Result`,
-        type: selectedAgent.category,
-        agent: selectedAgent.name,
+        title: `${selectedAgent?.name || 'AI'} Result`,
+        type: selectedAgent?.category || 'text',
+        agent: selectedAgent?.name || 'Unknown Agent',
         date: 'Just now',
-        color: selectedAgent.colorClass,
+        color: selectedAgent?.colorClass || '',
         snippet: prompt // Default snippet is the prompt
       };
 
@@ -2408,7 +2419,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
         newItem.fallbackNote = data._fallbackType === 'image' 
           ? '🎨 Visual concept (image generation coming soon)'
           : '🎬 Video concept (video generation coming soon)';
-      } else if (selectedAgent.id === 'album' && (data.predictions || data.images || data.output)) {
+      } else if (agentId === 'album' && (data.predictions || data.images || data.output)) {
         // Handle Image Response (Flux / Imagen / Nano Banana)
         console.log('Image response received:', { hasOutput: !!data.output, hasPredictions: !!data.predictions, hasImages: !!data.images });
         
@@ -2428,7 +2439,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                newItem.type = 'image';
            }
         }
-      } else if (selectedAgent.id === 'video-creator' && (data.predictions || data.video || (data.output && (data.type === 'video' || data.type === 'image')))) {
+      } else if (agentId === 'video-creator' && (data.predictions || data.video || (data.output && (data.type === 'video' || data.type === 'image')))) {
         // Handle Video Response (Veo) - multiple response formats
         console.log('Video response received:', { hasOutput: !!data.output, type: data.type, hasPredictions: !!data.predictions });
         
@@ -2532,7 +2543,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
           });
 
           // SUNO-LIKE FEATURE: Auto-generate cover art for the beat
-          if (selectedAgent.id === 'beat') {
+          if (agentId === 'beat') {
              try {
                console.log('Generating cover art for beat...');
                const coverRes = await fetch(`${BACKEND_URL}/api/generate-image`, {
@@ -2662,16 +2673,20 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       };
       
       // Update local state immediately
-      setProjects([itemToSave, ...projects]);
+      setProjects(prev => Array.isArray(prev) ? [itemToSave, ...prev] : [itemToSave]);
 
       // If we are working inside a project context, add this artifact to the project assets
       if (selectedProject) {
+        const safeAssets = Array.isArray(selectedProject.assets) ? selectedProject.assets : [];
         const updatedProject = {
           ...selectedProject,
-          assets: [itemToSave, ...(selectedProject.assets || [])]
+          assets: [itemToSave, ...safeAssets]
         };
         setSelectedProject(updatedProject);
-        setProjects(prev => [itemToSave, ...prev.map(p => p.id === updatedProject.id ? updatedProject : p)]);
+        setProjects(prev => {
+          const safePrev = Array.isArray(prev) ? prev : [];
+          return [itemToSave, ...safePrev.map(p => p?.id === updatedProject.id ? updatedProject : p)];
+        });
       } else {
         // No project selected - show "Add to Project" modal
         setAddToProjectAsset(itemToSave);
@@ -3553,11 +3568,12 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Book size={18} className="text-cyan" /> Narrative & Vision</h3>
               <div className="narrative-editor">
                 <textarea 
-                  value={selectedProject.description}
+                  value={selectedProject?.description || ''}
                   onChange={(e) => {
+                    if (!selectedProject) return;
                     const updated = { ...selectedProject, description: e.target.value };
                     setSelectedProject(updated);
-                    setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                    setProjects(prev => Array.isArray(prev) ? prev.map(p => p?.id === updated.id ? updated : p) : []);
                   }}
                   className="narrative-textarea"
                   placeholder="Describe your project vision here..."
@@ -5108,31 +5124,47 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                         {showVoiceSettings && (
                           <div className="voice-settings-dropdown animate-fadeInUp">
                             <div className="settings-group">
-                              <label>Voice Model</label>
+                              <label>Voice Style (Uberduck/Replicate)</label>
                               <select 
-                                value={voiceSettings.voiceName || 'Kore'}
-                                onChange={(e) => setVoiceSettings({...voiceSettings, voiceName: e.target.value})}
+                                value={voiceSettings.style || 'rapper'}
+                                onChange={(e) => setVoiceSettings({...voiceSettings, style: e.target.value})}
                                 className="settings-select"
                               >
-                                <optgroup label="Standard Voices">
-                                  <option value="Kore">Kore (Female, Balanced)</option>
-                                  <option value="Puck">Puck (Male, Energetic)</option>
-                                  <option value="Fenrir">Fenrir (Male, Deep)</option>
-                                  <option value="Aoede">Aoede (Female, Soft)</option>
-                                  <option value="Charon">Charon (Male, Authoritative)</option>
+                                <optgroup label="🎙️ Rap Voices (Uberduck)">
+                                  <option value="rapper">🔥 Rapper (Male)</option>
+                                  <option value="rapper-female">💜 Rapper (Female)</option>
                                 </optgroup>
-                                <optgroup label="Experimental (Cloning)">
-                                  <option value="clone_1">Custom Voice 1 (Upload)</option>
-                                  <option value="clone_2">Custom Voice 2 (Upload)</option>
+                                <optgroup label="🎤 Singing">
+                                  <option value="singer">🎵 Singer</option>
+                                </optgroup>
+                                <optgroup label="🗣️ Speech">
+                                  <option value="narrator">📢 Narrator</option>
+                                  <option value="spoken">💬 Spoken Word</option>
                                 </optgroup>
                               </select>
-                              {voiceSettings.voiceName?.startsWith('clone') && (
-                                <div style={{ marginTop: '8px', padding: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px' }}>
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--color-cyan)', marginBottom: '4px' }}>Voice Cloning Beta</div>
-                                  <input type="file" accept="audio/*" style={{ fontSize: '0.7rem', width: '100%' }} onChange={() => toast.success("Voice sample uploaded! (Simulation)")} />
-                                </div>
-                              )}
                             </div>
+                            
+                            {/* Rap Style - only show for rapper voices */}
+                            {(voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female') && (
+                              <div className="settings-group">
+                                <label>Rap Delivery Style</label>
+                                <select 
+                                  value={voiceSettings.rapStyle || 'aggressive'}
+                                  onChange={(e) => setVoiceSettings({...voiceSettings, rapStyle: e.target.value})}
+                                  className="settings-select"
+                                >
+                                  <option value="aggressive">💥 Aggressive</option>
+                                  <option value="chill">😎 Chill / Laid-back</option>
+                                  <option value="melodic">🎵 Melodic</option>
+                                  <option value="fast">⚡ Fast Flow</option>
+                                  <option value="trap">🎤 Trap</option>
+                                  <option value="oldschool">📻 Old School</option>
+                                  <option value="storytelling">📖 Storytelling</option>
+                                  <option value="hype">🔊 Hype / Energy</option>
+                                </select>
+                              </div>
+                            )}
+                            
                             <div className="settings-group">
                               <label>Voice Gender</label>
                               <div className="settings-toggle">
@@ -5181,7 +5213,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                                 </select>
                               </div>
                             </div>
-                            <p className="settings-info">AI will automatically translate prompts to {voiceSettings.language}.</p>
+                            <p className="settings-info">Uses Uberduck/Replicate for rapper voices. {voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female' ? `Style: ${voiceSettings.rapStyle}` : ''}</p>
                           </div>
                         )}
                       </div>
@@ -5255,7 +5287,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                   </div>
 
                   {/* Reference / Attachment Input for specific agents */}
-                  {(selectedAgent.id === 'beat' || selectedAgent.id === 'video-creator' || selectedAgent.id === 'video-scorer') && (
+                  {(selectedAgent?.id === 'beat' || selectedAgent?.id === 'video-creator' || selectedAgent?.id === 'video-scorer') && (
                     <div className="reference-upload-card" style={{
                       marginBottom: '12px',
                       padding: '12px',
@@ -5276,11 +5308,11 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          {selectedAgent.id === 'video-creator' ? <Music size={16} color="var(--color-cyan)" /> : <Upload size={16} color="var(--color-cyan)" />}
+                          {selectedAgent?.id === 'video-creator' ? <Music size={16} color="var(--color-cyan)" /> : <Upload size={16} color="var(--color-cyan)" />}
                         </div>
                         <div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {selectedAgent.id === 'video-creator' ? 'Attach Song (for Sync)' : 'Reference Track'}
+                            {selectedAgent?.id === 'video-creator' ? 'Attach Song (for Sync)' : 'Reference Track'}
                           </div>
                           <div style={{ fontSize: '0.85rem', color: 'white', fontWeight: '500' }}>
                             {backingTrack ? backingTrack.title : 'Upload Audio...'}
@@ -5380,67 +5412,50 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                   </div>
 
                   {/* Inline Preview of Last Generation */}
-                  {agentPreviews[selectedAgent.id] && (
+                  {(() => {
+                    const currentPreview = selectedAgent?.id ? agentPreviews[selectedAgent.id] : null;
+                    if (!currentPreview) return null;
+                    
+                    return (
                     <div className="agent-preview-mini animate-fadeIn" style={{ marginTop: '16px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600' }}>Last Generated</span>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          {/* AI Vocal Button for Text/Lyrics - Uses Uberduck API */}
-                          {(!agentPreviews[selectedAgent.id].type || agentPreviews[selectedAgent.id].type === 'text') && (
-                             <button 
-                               onClick={() => handleCreateAIVocal(agentPreviews[selectedAgent.id].snippet, selectedAgent?.name || 'Ghostwriter')}
-                               disabled={isCreatingVocal}
-                               style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', color: 'white', fontSize: '0.75rem', cursor: isCreatingVocal ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '12px', opacity: isCreatingVocal ? 0.7 : 1 }}
-                               title="Create AI vocal from lyrics (uses 2 credits)"
-                             >
-                               <Mic size={12} /> {isCreatingVocal ? 'Creating...' : 'Create Vocal'}
-                             </button>
-                          )}
-                          {/* Quick browser TTS for preview */}
-                          {(!agentPreviews[selectedAgent.id].type || agentPreviews[selectedAgent.id].type === 'text') && (
-                             <button 
-                               onClick={() => handleTextToVoice(agentPreviews[selectedAgent.id].snippet)} 
-                               style={{ background: 'none', border: 'none', color: 'var(--color-purple)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                               title="Quick preview (browser TTS)"
-                             >
-                               <Volume2 size={12} /> Preview
-                             </button>
-                          )}
-                          <button onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <button onClick={() => setPreviewItem(currentPreview)} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Maximize2 size={12} /> View Full
                           </button>
                         </div>
                       </div>
                       
-                      {agentPreviews[selectedAgent.id].type === 'image' && agentPreviews[selectedAgent.id].imageUrl ? (
-                        <img src={agentPreviews[selectedAgent.id].imageUrl} alt="Preview" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} />
-                      ) : agentPreviews[selectedAgent.id].type === 'video' && agentPreviews[selectedAgent.id].videoUrl ? (
+                      {currentPreview.type === 'image' && currentPreview.imageUrl ? (
+                        <img src={currentPreview.imageUrl} alt="Preview" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(currentPreview)} />
+                      ) : currentPreview.type === 'video' && currentPreview.videoUrl ? (
                         <div style={{ position: 'relative' }}>
-                          <video src={agentPreviews[selectedAgent.id].videoUrl} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} />
-                          {agentPreviews[selectedAgent.id].audioUrl && (
+                          <video src={currentPreview.videoUrl} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(currentPreview)} />
+                          {currentPreview.audioUrl && (
                             <div style={{ position: 'absolute', bottom: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <Music size={10} /> Synced
                             </div>
                           )}
                         </div>
-                      ) : (agentPreviews[selectedAgent.id].type === 'audio' || agentPreviews[selectedAgent.id].type === 'vocal') && agentPreviews[selectedAgent.id].audioUrl ? (
+                      ) : (currentPreview.type === 'audio' || currentPreview.type === 'vocal') && currentPreview.audioUrl ? (
                         <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '4px', padding: '8px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                           {agentPreviews[selectedAgent.id].imageUrl && (
+                           {currentPreview.imageUrl && (
                              <div style={{
                                width: '48px',
                                height: '48px',
                                borderRadius: '6px',
-                               background: `url(${agentPreviews[selectedAgent.id].imageUrl}) center/cover`,
+                               background: `url(${currentPreview.imageUrl}) center/cover`,
                                flexShrink: 0
                              }} />
                            )}
                            <div style={{ flex: 1, minWidth: 0 }}>
-                             {agentPreviews[selectedAgent.id].backingTrackUrl ? (
+                             {currentPreview.backingTrackUrl ? (
                                <>
                                  <div style={{ fontSize: '0.65rem', color: 'var(--color-pink)', marginBottom: '2px', fontWeight: 'bold' }}>Synced Vocals</div>
                                  <audio 
                                    controls 
-                                   src={agentPreviews[selectedAgent.id].audioUrl} 
+                                   src={currentPreview.audioUrl} 
                                    style={{ width: '100%', height: '32px', marginBottom: '4px' }}
                                    onPlay={(e) => {
                                       const container = e.target.parentElement;
@@ -5463,19 +5478,19 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                                       }
                                    }}
                                  />
-                                 <audio className="preview-backing-audio" src={agentPreviews[selectedAgent.id].backingTrackUrl} style={{ display: 'none' }} />
+                                 <audio className="preview-backing-audio" src={currentPreview.backingTrackUrl} style={{ display: 'none' }} />
                                </>
                              ) : (
-                               <audio controls src={agentPreviews[selectedAgent.id].audioUrl} style={{ width: '100%', height: '32px', marginBottom: '4px' }} />
+                               <audio controls src={currentPreview.audioUrl} style={{ width: '100%', height: '32px', marginBottom: '4px' }} />
                              )}
                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                               {agentPreviews[selectedAgent.id].snippet}
+                               {currentPreview.snippet}
                              </div>
                            </div>
                         </div>
                       ) : (
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', maxHeight: '80px', overflow: 'hidden' }}>
-                          {agentPreviews[selectedAgent.id].snippet}
+                          {currentPreview.snippet}
                         </div>
                       )}
                       
@@ -5484,20 +5499,39 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                           className="btn-pill primary" 
                           style={{ flex: 1, fontSize: '0.75rem', justifyContent: 'center' }}
                           onClick={() => {
-                            const asset = agentPreviews[selectedAgent.id];
                             if (selectedProject) {
-                              handleSaveAssetToProject(selectedProject.id, asset);
+                              handleSaveAssetToProject(selectedProject.id, currentPreview);
                               toast.success(`Saved to ${selectedProject.name}`);
                             } else {
-                              handleCreateProjectWithAsset(`New ${selectedAgent.name} Project`, asset);
+                              handleCreateProjectWithAsset(`New ${selectedAgent?.name || 'AI'} Project`, currentPreview);
                             }
                           }}
                         >
                           <FolderPlus size={14} /> Save to Project
                         </button>
+                        {/* TTS Preview - Read text aloud (not for vocal creation) */}
+                        {currentPreview.snippet && !currentPreview.audioUrl && (
+                          <button 
+                            className="btn-pill secondary" 
+                            style={{ fontSize: '0.75rem' }}
+                            onClick={() => {
+                              const text = currentPreview.snippet || currentPreview.content || '';
+                              if (window.speechSynthesis.speaking) {
+                                window.speechSynthesis.cancel();
+                              } else {
+                                const utterance = new SpeechSynthesisUtterance(text);
+                                window.speechSynthesis.speak(utterance);
+                              }
+                            }}
+                            title="Read text aloud using browser TTS"
+                          >
+                            <Volume2 size={14} /> Read Aloud
+                          </button>
+                        )}
                       </div>
                     </div>
-                  )}
+                    );
+                  })()}
                   
                   <p className="studio-disclaimer">
                     <Shield size={12} />
@@ -5717,7 +5751,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
 
                 
                 {/* Prompt History Quick Access */}
-                {projects.filter(p => p.agent === selectedAgent.name).length > 0 && (
+                {selectedAgent && (projects || []).filter(p => p.agent === selectedAgent.name).length > 0 && (
                   <div style={{ 
                     marginTop: '16px',
                     padding: '14px 16px',
@@ -5744,8 +5778,8 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                       </span>
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {projects
-                        .filter(p => p.agent === selectedAgent.name && p.snippet)
+                      {(projects || [])
+                        .filter(p => p.agent === selectedAgent?.name && p.snippet)
                         .slice(0, 5)
                         .map((item, i) => (
                           <button
@@ -5826,7 +5860,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                       <MessageSquare size={16} />
                       <span>{socialConnections.twitter ? (twitterUsername ? `@${twitterUsername}` : 'X/Twitter Linked') : 'Link X/Twitter'}</span>
                     </button>
-                    {(selectedAgent.id === 'collab' || selectedAgent.id === 'release') && (
+                    {(selectedAgent?.id === 'collab' || selectedAgent?.id === 'release') && (
                       <button 
                         className={`social-connect-btn ${socialConnections.spotify ? 'connected' : ''}`}
                         onClick={() => handleConnectSocial('spotify')}
@@ -5843,7 +5877,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
               <div className="side-info-card">
                 <h3>Capabilities</h3>
                 <ul className="capability-list">
-                  {selectedAgent.capabilities.map((cap, i) => (
+                  {(selectedAgent?.capabilities || []).map((cap, i) => (
                     <li key={i}><Sparkles size={14} /> {cap}</li>
                   ))}
                 </ul>
@@ -5851,7 +5885,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
 
               <div className="side-info-card">
                 <h3>How to Use</h3>
-                <p className="help-text">{selectedAgent.howToUse}</p>
+                <p className="help-text">{selectedAgent?.howToUse || 'Enter your prompt and generate content.'}</p>
               </div>
 
               <div className="side-info-card agent-intelligence-card">
@@ -5862,11 +5896,11 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                 <div className="intelligence-content">
                   <div className="intel-section">
                     <h4>The "How"</h4>
-                    <p className="help-text small">{selectedAgent.explanation}</p>
+                    <p className="help-text small">{selectedAgent?.explanation || ''}</p>
                   </div>
                   <div className="intel-section">
                     <h4>Pro Tips</h4>
-                    <p className="help-text small">{selectedAgent.helpTips}</p>
+                    <p className="help-text small">{selectedAgent?.helpTips || ''}</p>
                   </div>
                 </div>
               </div>
@@ -5874,7 +5908,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
               <div className="side-info-card">
                 <h3>Examples</h3>
                 <div className="example-chips">
-                  {selectedAgent.examples.map((ex, i) => (
+                  {(selectedAgent?.examples || []).map((ex, i) => (
                     <div 
                       key={i} 
                       className="example-chip" 
@@ -9095,15 +9129,16 @@ When you write a song, you create intellectual property that generates money eve
                         style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
                         value={sessionTracks.audio?.id || ''}
                         onChange={(e) => {
-                          const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
+                          const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                          const asset = assets.find(a => a?.id?.toString() === e.target.value);
                           updateSessionWithHistory(prev => ({ ...prev, audio: asset || null }));
                         }}
                       >
                         <option value="">Select Audio Asset...</option>
-                        {selectedProject?.assets.filter(a => a.audioUrl || a.type === 'audio' || a.agent?.includes('Beat') || a.agent?.includes('Sound')).map(a => (
+                        {(selectedProject?.assets || []).filter(a => a?.audioUrl || a?.type === 'audio' || a?.agent?.includes('Beat') || a?.agent?.includes('Sound')).map(a => (
                           <option key={a.id} value={a.id}>🎵 {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
-                        {selectedProject?.assets.filter(a => !a.audioUrl && a.type !== 'audio').map(a => (
+                        {(selectedProject?.assets || []).filter(a => !a?.audioUrl && a?.type !== 'audio').map(a => (
                           <option key={a.id} value={a.id}>📄 {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
                       </select>
@@ -9206,15 +9241,16 @@ When you write a song, you create intellectual property that generates money eve
                         style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
                         value={sessionTracks.vocal?.id || ''}
                         onChange={(e) => {
-                          const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
+                          const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                          const asset = assets.find(a => a?.id?.toString() === e.target.value);
                           updateSessionWithHistory(prev => ({ ...prev, vocal: asset || null }));
                         }}
                       >
                         <option value="">Select Vocal/Lyrics Asset...</option>
-                        {selectedProject?.assets.filter(a => a.agent?.includes('Ghost') || a.agent?.includes('Vocal') || a.type === 'lyrics').map(a => (
+                        {(selectedProject?.assets || []).filter(a => a?.agent?.includes('Ghost') || a?.agent?.includes('Vocal') || a?.type === 'lyrics').map(a => (
                           <option key={a.id} value={a.id}>🎤 {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
-                        {selectedProject?.assets.filter(a => !a.agent?.includes('Ghost') && !a.agent?.includes('Vocal') && a.type !== 'lyrics').map(a => (
+                        {(selectedProject?.assets || []).filter(a => !a?.agent?.includes('Ghost') && !a?.agent?.includes('Vocal') && a?.type !== 'lyrics').map(a => (
                           <option key={a.id} value={a.id}>📄 {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
                       </select>
@@ -9308,15 +9344,16 @@ When you write a song, you create intellectual property that generates money eve
                         style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
                         value={sessionTracks.visual?.id || ''}
                         onChange={(e) => {
-                          const asset = selectedProject.assets.find(a => a.id.toString() === e.target.value);
+                          const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                          const asset = assets.find(a => a?.id?.toString() === e.target.value);
                           updateSessionWithHistory(prev => ({ ...prev, visual: asset || null }));
                         }}
                       >
                         <option value="">Select Visual Asset...</option>
-                        {selectedProject?.assets.filter(a => a.imageUrl || a.videoUrl || a.type === 'image' || a.type === 'video').map(a => (
+                        {(selectedProject?.assets || []).filter(a => a?.imageUrl || a?.videoUrl || a?.type === 'image' || a?.type === 'video').map(a => (
                           <option key={a.id} value={a.id}>{a.videoUrl ? '🎬' : '🖼️'} {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
-                        {selectedProject?.assets.filter(a => !a.imageUrl && !a.videoUrl && a.type !== 'image' && a.type !== 'video').map(a => (
+                        {(selectedProject?.assets || []).filter(a => !a?.imageUrl && !a?.videoUrl && a?.type !== 'image' && a?.type !== 'video').map(a => (
                           <option key={a.id} value={a.id}>📄 {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
                       </select>
@@ -10110,52 +10147,6 @@ When you write a song, you create intellectual property that generates money eve
                         </div>
                       )}
                       
-                      {/* Show Create AI Vocal button only if no audio exists yet */}
-                      {!previewItem.audioUrl && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                          {/* Create AI Vocal Button - Uses Uberduck API with LYRICS (not prompt) */}
-                          <button 
-                            onClick={() => handleCreateAIVocal(previewItem.snippet || previewItem.title, previewItem.agent || 'Ghostwriter')}
-                            disabled={isCreatingVocal}
-                            style={{ 
-                              background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', 
-                              border: 'none', 
-                              color: 'white', 
-                              fontSize: '0.8rem', 
-                              cursor: isCreatingVocal ? 'wait' : 'pointer', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '6px',
-                              padding: '6px 12px',
-                              borderRadius: '20px',
-                              opacity: isCreatingVocal ? 0.7 : 1
-                            }}
-                            title="Create AI vocal from lyrics (uses 2 credits)"
-                          >
-                            <Mic size={14} /> {isCreatingVocal ? 'Creating...' : 'Create AI Vocal'}
-                          </button>
-                          {/* Quick browser TTS preview */}
-                          <button 
-                            onClick={() => handleTextToVoice(previewItem.snippet || previewItem.title)} 
-                            style={{ 
-                              background: 'rgba(139, 92, 246, 0.1)', 
-                              border: '1px solid rgba(139, 92, 246, 0.2)', 
-                              color: 'var(--color-purple)', 
-                              fontSize: '0.8rem', 
-                              cursor: 'pointer', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '6px',
-                              padding: '6px 12px',
-                              borderRadius: '20px'
-                            }}
-                            title="Quick preview (browser TTS)"
-                          >
-                            <Volume2 size={14} /> Preview
-                          </button>
-                        </div>
-                      )}
-                      
                       {/* Toggle between Lyrics and Prompt */}
                       {previewPrompt && (
                         <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '4px' }}>
@@ -10236,8 +10227,71 @@ When you write a song, you create intellectual property that generates money eve
                 gap: '0.75rem', 
                 padding: '1rem 1.5rem',
                 borderTop: '1px solid var(--border-color)',
-                flexShrink: 0
+                flexShrink: 0,
+                flexWrap: 'wrap'
               }}>
+                {/* TTS Read Aloud for text content (not for audio/image/video) */}
+                {!previewItem.audioUrl && !previewItem.imageUrl && !previewItem.videoUrl && (previewItem.snippet || previewItem.content) && (
+                  <button 
+                    onClick={() => {
+                      const text = previewView === 'lyrics' 
+                        ? (previewItem.snippet || previewItem.content || '')
+                        : (previewPrompt || '');
+                      if (window.speechSynthesis.speaking) {
+                        window.speechSynthesis.cancel();
+                      } else {
+                        const utterance = new SpeechSynthesisUtterance(text);
+                        window.speechSynthesis.speak(utterance);
+                      }
+                    }}
+                    title="Read text aloud using browser TTS"
+                    style={{ 
+                      flex: 1, 
+                      padding: '0.75rem', 
+                      borderRadius: '8px', 
+                      border: '1px solid rgba(34, 211, 238, 0.3)',
+                      background: 'rgba(34, 211, 238, 0.1)',
+                      color: 'var(--color-cyan)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <Volume2 size={16} /> Read Aloud
+                  </button>
+                )}
+                
+                {/* Create AI Vocal - Uses Uberduck/Replicate rapper voices (not browser TTS) */}
+                {!previewItem.audioUrl && !previewItem.imageUrl && !previewItem.videoUrl && (previewItem.snippet || previewItem.content) && (
+                  <button 
+                    onClick={() => {
+                      const text = previewItem.snippet || previewItem.content || '';
+                      handleCreateAIVocal(text, selectedAgent?.name || 'Ghostwriter');
+                    }}
+                    disabled={isCreatingVocal}
+                    title="Create AI vocal using rapper voices (Uberduck/Replicate)"
+                    style={{ 
+                      flex: 1, 
+                      padding: '0.75rem', 
+                      borderRadius: '8px', 
+                      border: '1px solid rgba(236, 72, 153, 0.3)',
+                      background: isCreatingVocal ? 'rgba(236, 72, 153, 0.3)' : 'rgba(236, 72, 153, 0.1)',
+                      color: 'var(--color-pink)',
+                      cursor: isCreatingVocal ? 'not-allowed' : 'pointer',
+                      opacity: isCreatingVocal ? 0.7 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <Mic size={16} className={isCreatingVocal ? 'animate-pulse' : ''} /> 
+                    {isCreatingVocal ? 'Creating...' : 'Create Vocal'}
+                  </button>
+                )}
+                
                 <button 
                   onClick={handleDiscardPreview}
                   disabled={isSaving}
