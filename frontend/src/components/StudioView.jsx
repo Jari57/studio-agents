@@ -2623,6 +2623,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       // Show preview modal instead of auto-saving
       setPreviewItem(newItem);
       setPreviewPrompt(prompt);
+      setPreviewView('lyrics'); // Reset to lyrics view for new generations
       setAgentPreviews(prev => ({ ...prev, [selectedAgent.id]: newItem }));
       toast.success(`Generation complete! Review your result.`, { id: toastId });
       
