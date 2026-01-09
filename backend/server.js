@@ -226,6 +226,109 @@ try {
   logger.error('❌ Firebase Admin initialization failed:', error.message);
 }
 
+// =============================================================================
+// FIREBASE STORAGE INITIALIZATION
+// =============================================================================
+const FIREBASE_STORAGE_BUCKET = 'studioagents-app.firebasestorage.app';
+let storageBucket = null;
+
+function getStorageBucket() {
+  if (!firebaseInitialized) return null;
+  if (!storageBucket) {
+    storageBucket = admin.storage().bucket(FIREBASE_STORAGE_BUCKET);
+    logger.info(`📦 Firebase Storage connected to bucket: ${FIREBASE_STORAGE_BUCKET}`);
+  }
+  return storageBucket;
+}
+
+/**
+ * Upload a file to Firebase Storage and return a permanent public URL
+ * @param {Buffer|string} fileData - File buffer or base64 string
+ * @param {string} userId - User ID for organizing files
+ * @param {string} fileName - Desired file name
+ * @param {string} mimeType - MIME type (e.g., 'audio/mpeg', 'audio/wav')
+ * @returns {Promise<{url: string, path: string}>} - Permanent download URL and storage path
+ */
+async function uploadToStorage(fileData, userId, fileName, mimeType = 'audio/mpeg') {
+  const bucket = getStorageBucket();
+  if (!bucket) {
+    throw new Error('Firebase Storage not initialized');
+  }
+
+  // Convert base64 to buffer if needed
+  let buffer = fileData;
+  if (typeof fileData === 'string') {
+    // Handle data URLs (data:audio/mpeg;base64,...)
+    if (fileData.startsWith('data:')) {
+      const base64Data = fileData.split(',')[1];
+      buffer = Buffer.from(base64Data, 'base64');
+    } else {
+      buffer = Buffer.from(fileData, 'base64');
+    }
+  }
+
+  // Create a unique file path: users/{userId}/assets/{timestamp}_{fileName}
+  const timestamp = Date.now();
+  const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const storagePath = `users/${userId}/assets/${timestamp}_${safeName}`;
+
+  const file = bucket.file(storagePath);
+  
+  await file.save(buffer, {
+    metadata: {
+      contentType: mimeType,
+      metadata: {
+        userId: userId,
+        uploadedAt: new Date().toISOString()
+      }
+    }
+  });
+
+  // Make the file publicly accessible
+  await file.makePublic();
+
+  // Get the public URL
+  const publicUrl = `https://storage.googleapis.com/${FIREBASE_STORAGE_BUCKET}/${storagePath}`;
+  
+  logger.info('📤 File uploaded to Firebase Storage', { 
+    path: storagePath, 
+    size: buffer.length,
+    mimeType 
+  });
+
+  return {
+    url: publicUrl,
+    path: storagePath,
+    size: buffer.length,
+    mimeType
+  };
+}
+
+/**
+ * Download a file from a URL and upload to Firebase Storage
+ * @param {string} sourceUrl - URL to download from (temporary Replicate/Uberduck URL)
+ * @param {string} userId - User ID
+ * @param {string} fileName - Desired file name
+ * @returns {Promise<{url: string, path: string}>}
+ */
+async function downloadAndUploadToStorage(sourceUrl, userId, fileName) {
+  const bucket = getStorageBucket();
+  if (!bucket) {
+    throw new Error('Firebase Storage not initialized');
+  }
+
+  // Download the file
+  const response = await fetch(sourceUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to download file: ${response.status}`);
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const contentType = response.headers.get('content-type') || 'audio/mpeg';
+
+  return uploadToStorage(buffer, userId, fileName, contentType);
+}
+
 // Firestore database helper - uses named database 'studio-agents-db'
 const FIRESTORE_DATABASE_ID = 'studio-agents-db';
 let firestoreDb = null;
@@ -1805,6 +1908,249 @@ app.get('/api/user/credits/history', verifyFirebaseToken, async (req, res) => {
 });
 
 // ============================================================================
+// ASSET UPLOAD & STORAGE ENDPOINTS
+// ============================================================================
+
+// POST /api/upload-asset - Upload an asset to Firebase Storage for permanent storage
+app.post('/api/upload-asset', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const bucket = getStorageBucket();
+  if (!bucket) {
+    return res.status(503).json({ error: 'Cloud storage not available' });
+  }
+
+  try {
+    const { 
+      data,          // base64 encoded file data or data URL
+      fileName,      // desired file name
+      mimeType,      // e.g., 'audio/mpeg', 'audio/wav', 'image/png'
+      assetType,     // 'audio', 'image', 'video', 'document'
+      projectId,     // optional: link to a project
+      metadata       // optional: additional metadata
+    } = req.body;
+
+    if (!data) {
+      return res.status(400).json({ error: 'File data required' });
+    }
+
+    if (!fileName) {
+      return res.status(400).json({ error: 'File name required' });
+    }
+
+    // Upload to Firebase Storage
+    const result = await uploadToStorage(
+      data, 
+      req.user.uid, 
+      fileName, 
+      mimeType || 'application/octet-stream'
+    );
+
+    // Save asset metadata to Firestore
+    const db = getFirestoreDb();
+    if (db) {
+      const assetDoc = {
+        url: result.url,
+        storagePath: result.path,
+        fileName: fileName,
+        mimeType: result.mimeType,
+        size: result.size,
+        assetType: assetType || 'audio',
+        projectId: projectId || null,
+        metadata: metadata || {},
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        userId: req.user.uid
+      };
+
+      const docRef = await db.collection('users').doc(req.user.uid)
+        .collection('assets').add(assetDoc);
+      
+      logger.info('📁 Asset saved', { userId: req.user.uid, assetId: docRef.id, fileName });
+      
+      res.json({ 
+        success: true, 
+        assetId: docRef.id,
+        url: result.url,
+        storagePath: result.path,
+        size: result.size
+      });
+    } else {
+      // Storage worked but Firestore didn't - still return the URL
+      res.json({ 
+        success: true, 
+        url: result.url,
+        storagePath: result.path,
+        size: result.size,
+        warning: 'Asset uploaded but metadata not saved to database'
+      });
+    }
+  } catch (err) {
+    logger.error('Upload asset error:', err);
+    res.status(500).json({ error: 'Failed to upload asset', details: err.message });
+  }
+});
+
+// POST /api/upload-from-url - Download a file from URL and save to Firebase Storage
+// Useful for saving temporary Replicate/Uberduck URLs as permanent files
+app.post('/api/upload-from-url', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const bucket = getStorageBucket();
+  if (!bucket) {
+    return res.status(503).json({ error: 'Cloud storage not available' });
+  }
+
+  try {
+    const { 
+      sourceUrl,     // URL to download from (temporary URL)
+      fileName,      // desired file name
+      assetType,     // 'audio', 'image', 'video'
+      projectId,     // optional: link to a project
+      metadata       // optional: additional metadata
+    } = req.body;
+
+    if (!sourceUrl) {
+      return res.status(400).json({ error: 'Source URL required' });
+    }
+
+    const safeName = fileName || `asset_${Date.now()}.mp3`;
+
+    // Download and upload to Firebase Storage
+    const result = await downloadAndUploadToStorage(sourceUrl, req.user.uid, safeName);
+
+    // Save asset metadata to Firestore
+    const db = getFirestoreDb();
+    if (db) {
+      const assetDoc = {
+        url: result.url,
+        storagePath: result.path,
+        originalUrl: sourceUrl,
+        fileName: safeName,
+        mimeType: result.mimeType,
+        size: result.size,
+        assetType: assetType || 'audio',
+        projectId: projectId || null,
+        metadata: metadata || {},
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        userId: req.user.uid
+      };
+
+      const docRef = await db.collection('users').doc(req.user.uid)
+        .collection('assets').add(assetDoc);
+      
+      logger.info('📁 Asset saved from URL', { userId: req.user.uid, assetId: docRef.id, fileName: safeName });
+      
+      res.json({ 
+        success: true, 
+        assetId: docRef.id,
+        url: result.url,
+        storagePath: result.path,
+        size: result.size
+      });
+    } else {
+      res.json({ 
+        success: true, 
+        url: result.url,
+        storagePath: result.path,
+        size: result.size,
+        warning: 'Asset uploaded but metadata not saved to database'
+      });
+    }
+  } catch (err) {
+    logger.error('Upload from URL error:', err);
+    res.status(500).json({ error: 'Failed to save asset from URL', details: err.message });
+  }
+});
+
+// GET /api/user/assets - Get all user assets
+app.get('/api/user/assets', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+
+  try {
+    const { assetType, projectId, limit: queryLimit } = req.query;
+    
+    let query = db.collection('users').doc(req.user.uid).collection('assets');
+    
+    if (assetType) {
+      query = query.where('assetType', '==', assetType);
+    }
+    if (projectId) {
+      query = query.where('projectId', '==', projectId);
+    }
+    
+    const snapshot = await query
+      .orderBy('createdAt', 'desc')
+      .limit(parseInt(queryLimit) || 100)
+      .get();
+    
+    const assets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    res.json(assets);
+  } catch (err) {
+    logger.error('Get assets error:', err);
+    res.status(500).json({ error: 'Failed to get assets', details: err.message });
+  }
+});
+
+// DELETE /api/user/assets/:id - Delete an asset
+app.delete('/api/user/assets/:id', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const assetId = req.params.id;
+  const db = getFirestoreDb();
+  const bucket = getStorageBucket();
+
+  if (!db) {
+    return res.status(503).json({ error: 'Database unavailable' });
+  }
+
+  try {
+    // Get the asset to find storage path
+    const assetDoc = await db.collection('users').doc(req.user.uid)
+      .collection('assets').doc(assetId).get();
+    
+    if (!assetDoc.exists) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    const assetData = assetDoc.data();
+
+    // Delete from Firebase Storage if path exists
+    if (bucket && assetData.storagePath) {
+      try {
+        await bucket.file(assetData.storagePath).delete();
+        logger.info('🗑️ File deleted from storage', { path: assetData.storagePath });
+      } catch (storageErr) {
+        logger.warn('Could not delete file from storage', { error: storageErr.message });
+      }
+    }
+
+    // Delete from Firestore
+    await db.collection('users').doc(req.user.uid)
+      .collection('assets').doc(assetId).delete();
+    
+    logger.info('🗑️ Asset deleted', { userId: req.user.uid, assetId });
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('Delete asset error:', err);
+    res.status(500).json({ error: 'Failed to delete asset', details: err.message });
+  }
+});
+
+// ============================================================================
 // SAVED PROJECTS ENDPOINTS
 // ============================================================================
 
@@ -2835,14 +3181,54 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // Return result
+    // Return result - optionally save to Firebase Storage for permanence
     // ═══════════════════════════════════════════════════════════════
     if (audioUrl) {
       logger.info('🎤 Vocal generation successful', { provider, style });
+      
+      let permanentUrl = null;
+      let storagePath = null;
+      
+      // If user is authenticated and saveToCloud is requested, persist to Firebase Storage
+      if (req.user && req.body.saveToCloud !== false) {
+        const bucket = getStorageBucket();
+        if (bucket) {
+          try {
+            const fileName = `vocal_${style}_${Date.now()}.mp3`;
+            const result = await uploadToStorage(audioUrl, req.user.uid, fileName, 'audio/mpeg');
+            permanentUrl = result.url;
+            storagePath = result.path;
+            logger.info('📤 Vocal saved to cloud storage', { path: storagePath });
+            
+            // Also save metadata to Firestore
+            const db = getFirestoreDb();
+            if (db) {
+              await db.collection('users').doc(req.user.uid).collection('assets').add({
+                url: permanentUrl,
+                storagePath: storagePath,
+                fileName: fileName,
+                mimeType: 'audio/mpeg',
+                assetType: 'vocal',
+                provider: provider,
+                style: style,
+                promptPreview: prompt.substring(0, 100),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                userId: req.user.uid
+              });
+            }
+          } catch (uploadErr) {
+            logger.warn('Could not save vocal to cloud storage', { error: uploadErr.message });
+          }
+        }
+      }
+      
       res.json({
-        audioUrl,
+        audioUrl: permanentUrl || audioUrl,
+        temporaryUrl: permanentUrl ? audioUrl : null,
+        storagePath,
         provider,
         style,
+        isPermanent: !!permanentUrl,
         message: `Professional vocal generated via ${provider}`
       });
     } else {
@@ -3122,13 +3508,56 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
             audioUrl: result.output.substring(0, 80),
             duration: durationSeconds
           });
+          
+          // Save to Firebase Storage for permanent URL if user is authenticated
+          let permanentUrl = null;
+          let storagePath = null;
+          
+          if (req.user && req.body.saveToCloud !== false) {
+            const bucket = getStorageBucket();
+            if (bucket) {
+              try {
+                const fileName = `beat_${genre || 'instrumental'}_${Date.now()}.mp3`;
+                const uploadResult = await downloadAndUploadToStorage(result.output, req.user.uid, fileName);
+                permanentUrl = uploadResult.url;
+                storagePath = uploadResult.path;
+                logger.info('📤 Beat saved to cloud storage', { path: storagePath });
+                
+                // Also save metadata to Firestore
+                const db = getFirestoreDb();
+                if (db) {
+                  await db.collection('users').doc(req.user.uid).collection('assets').add({
+                    url: permanentUrl,
+                    storagePath: storagePath,
+                    fileName: fileName,
+                    mimeType: 'audio/mpeg',
+                    assetType: 'beat',
+                    source: 'musicgen',
+                    genre: genre,
+                    bpm: bpm,
+                    mood: mood,
+                    promptPreview: musicPrompt.substring(0, 100),
+                    duration: durationSeconds,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    userId: req.user.uid
+                  });
+                }
+              } catch (uploadErr) {
+                logger.warn('Could not save beat to cloud storage', { error: uploadErr.message });
+              }
+            }
+          }
+          
           return res.json({
-            audioUrl: result.output,
+            audioUrl: permanentUrl || result.output,
+            temporaryUrl: permanentUrl ? result.output : null,
+            storagePath,
             mimeType: 'audio/mpeg',
             duration: durationSeconds,
             source: 'musicgen',
             prompt: musicPrompt,
             quality: 'professional',
+            isPermanent: !!permanentUrl,
             isRealGeneration: true
           });
         } else if (result.status === 'failed') {
