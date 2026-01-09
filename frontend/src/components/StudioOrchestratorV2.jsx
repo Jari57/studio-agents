@@ -3341,20 +3341,25 @@ export default function StudioOrchestratorV2({
               <button
                 onClick={() => setMaximizedSlot(null)}
                 style={{
-                  background: 'rgba(255,255,255,0.1)',
-                  border: 'none',
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  border: '1px solid rgba(239, 68, 68, 0.4)',
                   borderRadius: '12px',
-                  width: '40px',
-                  height: '40px',
+                  padding: '10px 16px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  gap: '8px',
                   cursor: 'pointer',
-                  color: 'white',
-                  transition: 'all 0.2s'
+                  color: '#ef4444',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                  transition: 'all 0.2s',
+                  minWidth: '44px',
+                  minHeight: '44px'
                 }}
               >
-                <X size={20} />
+                <X size={18} />
+                Close
               </button>
             </div>
 
@@ -3402,6 +3407,38 @@ export default function StudioOrchestratorV2({
                   />
                 );
               })()}
+            </div>
+
+            {/* Bottom Close Button - More Visible */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex',
+              justifyContent: 'center',
+              background: 'rgba(0,0,0,0.3)'
+            }}>
+              <button
+                onClick={() => setMaximizedSlot(null)}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.2))',
+                  border: '1px solid rgba(239, 68, 68, 0.5)',
+                  borderRadius: '12px',
+                  padding: '14px 32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  color: '#ef4444',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 20px rgba(239, 68, 68, 0.2)'
+                }}
+              >
+                <X size={20} />
+                Close Preview
+              </button>
             </div>
           </div>
         </div>
