@@ -423,10 +423,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   
   // Skip auth and continue as guest
   const handleContinueAsGuest = () => {
+    console.log('[LandingPage] Continue as guest clicked, pendingAction:', pendingAction);
     setShowAuthModal(false);
     if (pendingAction === 'start') {
+      console.log('[LandingPage] Calling onEnter(true)');
       onEnter(true);
     } else {
+      console.log('[LandingPage] Calling onEnter(false)');
       onEnter(false);
     }
   };

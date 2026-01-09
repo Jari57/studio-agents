@@ -59,9 +59,11 @@ function App() {
   }, []);
 
   const handleEnterStudio = (shouldStartWizard = false) => {
+    console.log('[App] handleEnterStudio called, shouldStartWizard:', shouldStartWizard);
     setStartWizard(shouldStartWizard);
     setStartTour(false);
     setInitialPlan(null);
+    console.log('[App] Setting hash to #/studio');
     window.location.hash = '#/studio';
   };
 
