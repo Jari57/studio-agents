@@ -2603,48 +2603,6 @@ export default function StudioOrchestratorV2({
                   </>
                 )}
               </button>
-              
-              {/* DEBUG: Quick test button */}
-              <button
-                onClick={async () => {
-                  console.log('[DEBUG] Test button clicked');
-                  toast.loading('Testing API...', { id: 'test' });
-                  try {
-                    const res = await fetch(`${BACKEND_URL}/api/generate`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        prompt: 'Write a short 2 line hook about summer',
-                        systemInstruction: 'You are Ghostwriter'
-                      })
-                    });
-                    console.log('[DEBUG] Response status:', res.status);
-                    const data = await res.json();
-                    console.log('[DEBUG] Response data:', data);
-                    if (data.output) {
-                      setOutputs(prev => ({ ...prev, lyrics: data.output }));
-                      toast.success('Test successful! Lyrics set.', { id: 'test' });
-                    } else {
-                      toast.error('No output returned', { id: 'test' });
-                    }
-                  } catch (e) {
-                    console.error('[DEBUG] Error:', e);
-                    toast.error('Test failed: ' + e.message, { id: 'test' });
-                  }
-                }}
-                style={{
-                  padding: '14px 20px',
-                  borderRadius: '12px',
-                  background: '#ef4444',
-                  border: 'none',
-                  color: 'white',
-                  fontWeight: '700',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer'
-                }}
-              >
-                🔧 Test API
-              </button>
             </div>
           </div>
           
