@@ -3334,6 +3334,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                          <Music size={48} color="white" />
                        </div>
                        <audio 
+                         key={canvasPreviewAsset.id || canvasPreviewAsset.audioUrl}
                          src={canvasPreviewAsset.audioUrl} 
                          controls 
                          style={{ width: '100%', maxWidth: '600px' }}
@@ -3341,6 +3342,10 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                            console.warn('[AssetViewer] Audio failed to load:', canvasPreviewAsset.audioUrl);
                            toast.error('Audio file could not be loaded');
                          }}
+                         onPlay={() => console.log('[AssetViewer] Audio started playing')}
+                         onPause={(e) => console.log('[AssetViewer] Audio paused at', e.target.currentTime, 'ended:', e.target.ended)}
+                         onEnded={() => console.log('[AssetViewer] Audio ended')}
+                         onLoadedData={() => console.log('[AssetViewer] Audio loaded, duration:', document.querySelector('audio')?.duration)}
                        />
                      </div>
                    )}
@@ -12558,9 +12563,8 @@ When you write a song, you create intellectual property that generates money eve
                   }}>
                     <Music size={48} style={{ color: 'white' }} />
                   </div>
-                  {/* Debug: Log audio URL */}
-                  {console.log('[AudioPreview] Playing:', showPreview.url?.substring(0, 100), '...')}
                   <audio 
+                    key={showPreview.asset?.id || showPreview.url}
                     src={showPreview.url}
                     controls
                     style={{ width: '100%' }}
@@ -12568,7 +12572,12 @@ When you write a song, you create intellectual property that generates money eve
                     controlsList="nodownload"
                     onError={(e) => console.error('[AudioPreview] Error:', e.target.error?.message || 'Unknown error', 'URL:', showPreview.url?.substring(0, 50))}
                     onCanPlay={() => console.log('[AudioPreview] Audio can play')}
-                    onLoadedData={() => console.log('[AudioPreview] Audio loaded')}
+                    onLoadedData={() => console.log('[AudioPreview] Audio loaded, duration:', document.querySelector('audio')?.duration)}
+                    onPlay={() => console.log('[AudioPreview] Audio started playing')}
+                    onPause={(e) => console.log('[AudioPreview] Audio paused at', e.target.currentTime, 'seconds, ended:', e.target.ended)}
+                    onEnded={() => console.log('[AudioPreview] Audio ended naturally')}
+                    onStalled={() => console.log('[AudioPreview] Audio stalled - network issue')}
+                    onWaiting={() => console.log('[AudioPreview] Audio waiting for data')}
                   />
                   {/* Show URL type for debugging */}
                   <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '12px', opacity: 0.6 }}>
