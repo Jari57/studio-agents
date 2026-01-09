@@ -9808,8 +9808,17 @@ When you write a song, you create intellectual property that generates money eve
         {/* Preview Modal - Review AI Generation Before Saving */}
         {previewItem && (
           <div className="modal-overlay" onClick={handleDiscardPreview}>
-            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <button className="modal-close" onClick={handleDiscardPreview}><X size={20} /></button>
+            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+              <button 
+                className="modal-close" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDiscardPreview();
+                }}
+                style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 9999 }}
+              >
+                <X size={20} />
+              </button>
               <div className="modal-header" style={{ flexShrink: 0 }}>
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem', background: 'linear-gradient(135deg, #10b981, #059669)' }}>
                   <Eye size={24} color="white" />

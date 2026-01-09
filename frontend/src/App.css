@@ -10009,9 +10009,16 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   }
 }
 
-/* Prevent fixed position issues */
-.modal-overlay * {
+/* Prevent fixed position issues - but exclude modal-close which needs absolute */
+.modal-overlay *:not(.modal-close) {
   position: relative;
+}
+
+/* Ensure modal-close is always clickable and properly positioned */
+.modal-close {
+  position: absolute !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
 }
 
 /* Ensure modal content doesn't overflow */
