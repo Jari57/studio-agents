@@ -1349,7 +1349,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
     localStorage.removeItem('studio_user_id');
     setIsLoggedIn(false); // Set this LAST
     setActiveTab('landing'); 
-    onBack(); 
+    onBack?.(); 
   };
 
   // Dashboard State
@@ -3323,7 +3323,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                          style={{ width: '100%', maxWidth: '600px' }}
                          onError={(e) => {
                            console.warn('[AssetViewer] Audio failed to load:', canvasPreviewAsset.audioUrl);
-                           toast?.error?.('Audio file could not be loaded');
+                           toast.error('Audio file could not be loaded');
                          }}
                        />
                      </div>
@@ -8517,7 +8517,7 @@ When you write a song, you create intellectual property that generates money eve
         }}
       />
       <aside className="studio-nav">
-        <div className="studio-nav-logo" onClick={onBack}>
+        <div className="studio-nav-logo" onClick={() => onBack?.()}>
           <div className="logo-box studio-logo">
             <Sparkles size={20} color="white" />
           </div>
@@ -8622,7 +8622,7 @@ When you write a song, you create intellectual property that generates money eve
           <div className="studio-header-actions">
             <button 
               className="action-button secondary haptic-press"
-              onClick={onBack}
+              onClick={() => onBack?.()}
               title="Back to Landing Page"
             >
               <Home size={18} />
