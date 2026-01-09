@@ -129,6 +129,62 @@ const DEMO_ACCOUNTS = {
   'jari@studioagents.ai': { credits: 9999, tier: 'lifetime', displayName: 'Jari (Admin)' }
 };
 
+// =============================================================================
+// CREDIT COSTS PER FEATURE - Configurable pricing for high margins
+// =============================================================================
+const CREDIT_COSTS = {
+  // Text generation (very cheap API costs ~$0.001)
+  'text': 1,
+  'lyrics': 1,
+  'generate': 1,
+  
+  // Vocals (Uberduck ~$0.03-0.05)
+  'vocal': 2,
+  'speech': 2,
+  'voice': 2,
+  
+  // Beats/Music (Replicate MusicGen ~$0.07 for 30s)
+  'beat': 5,
+  'audio': 5,
+  'music': 5,
+  
+  // Extended beats (60+ seconds)
+  'beat-extended': 10,
+  'audio-extended': 10,
+  
+  // Images (varies by provider ~$0.02-0.05)
+  'image': 3,
+  
+  // Video (expensive ~$0.10-0.20)
+  'video': 15,
+  'video-synced': 20,
+  
+  // Orchestration/Multi-step workflows
+  'orchestrate': 8,
+  
+  // Translation (cheap)
+  'translate': 1,
+  
+  // Mix/Master (combines multiple operations)
+  'mix': 10,
+  'master': 15,
+  
+  // Default fallback
+  'default': 1
+};
+
+// Helper to get credit cost for a feature
+function getCreditCost(featureType, options = {}) {
+  // Check for extended duration
+  if (options.duration && options.duration > 30) {
+    const extendedKey = `${featureType}-extended`;
+    if (CREDIT_COSTS[extendedKey]) {
+      return CREDIT_COSTS[extendedKey];
+    }
+  }
+  return CREDIT_COSTS[featureType] || CREDIT_COSTS['default'];
+}
+
 // Hardcoded Firebase config (Railway env vars not working)
 // The private key is split to avoid GitHub secret scanning
 const FIREBASE_CONFIG = {
@@ -404,69 +460,106 @@ const checkAdmin = (req, res, next) => {
   next();
 };
 
-// Credit Check Middleware
-const checkCredits = async (req, res, next) => {
-  if (!firebaseInitialized) {
-    logger.warn('⚠️ Firebase not initialized - skipping credit check');
-    return next();
-  }
-  
-  if (!req.user) {
-    return next(); 
-  }
+// =============================================================================
+// VARIABLE CREDIT CHECK MIDDLEWARE
+// Charges different amounts based on feature type for optimal profit margins
+// =============================================================================
 
-  // Skip credit check for admin users
-  if (ADMIN_EMAILS.includes(req.user.email)) {
-    logger.info(`✅ Admin user ${req.user.email} - skipping credit check`);
-    return next();
-  }
-
-  const db = getFirestoreDb();
-  if (!db) return next();
-  
-  const userRef = db.collection('users').doc(req.user.uid);
-
-  try {
-    await db.runTransaction(async (t) => {
-      const doc = await t.get(userRef);
-      
-      if (!doc.exists) {
-        // Initialize new user with 3 trial credits, deduct 1 immediately -> 2
-        t.set(userRef, { 
-          email: req.user.email,
-          credits: 2, 
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          tier: 'free'
-        });
-        logger.info(`✨ New user initialized with trial credits: ${req.user.uid}`);
-        return;
-      }
-
-      const userData = doc.data();
-      const credits = userData.credits !== undefined ? userData.credits : 0;
-
-      if (credits <= 0) {
-        throw new Error('INSUFFICIENT_CREDITS');
-      }
-
-      t.update(userRef, { credits: credits - 1 });
-    });
-
-    logger.info(`💰 Credit deducted for user ${req.user.uid}`);
-    next();
-  } catch (error) {
-    if (error.message === 'INSUFFICIENT_CREDITS') {
-      logger.warn(`🚫 Insufficient credits for user ${req.user.uid}`);
-      return res.status(403).json({ 
-        error: 'Insufficient Credits', 
-        details: 'You have run out of generation credits. Please upgrade your plan.' 
-      });
+// Factory function to create credit check middleware with specific cost
+const checkCreditsFor = (featureType) => {
+  return async (req, res, next) => {
+    if (!firebaseInitialized) {
+      logger.warn('⚠️ Firebase not initialized - skipping credit check');
+      return next();
     }
     
-    logger.error('🔥 Credit check transaction failed:', error);
-    return res.status(500).json({ error: 'Transaction Failed', details: 'Could not verify credit balance.' });
-  }
+    if (!req.user) {
+      return next(); 
+    }
+
+    // Skip credit check for admin users
+    if (ADMIN_EMAILS.includes(req.user.email)) {
+      logger.info(`✅ Admin user ${req.user.email} - skipping credit check`);
+      return next();
+    }
+
+    // Calculate credit cost based on feature and request options
+    const options = {
+      duration: req.body?.duration || req.body?.durationSeconds || 30
+    };
+    const creditCost = getCreditCost(featureType, options);
+
+    const db = getFirestoreDb();
+    if (!db) return next();
+    
+    const userRef = db.collection('users').doc(req.user.uid);
+
+    try {
+      await db.runTransaction(async (t) => {
+        const doc = await t.get(userRef);
+        
+        if (!doc.exists) {
+          // Initialize new user with 10 trial credits (new users get more to try features)
+          const initialCredits = 10;
+          if (creditCost > initialCredits) {
+            throw new Error('INSUFFICIENT_CREDITS');
+          }
+          t.set(userRef, { 
+            email: req.user.email,
+            credits: initialCredits - creditCost, 
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            tier: 'free'
+          });
+          logger.info(`✨ New user initialized with ${initialCredits} trial credits, charged ${creditCost}: ${req.user.uid}`);
+          return;
+        }
+
+        const userData = doc.data();
+        const credits = userData.credits !== undefined ? userData.credits : 0;
+
+        if (credits < creditCost) {
+          throw new Error('INSUFFICIENT_CREDITS');
+        }
+
+        t.update(userRef, { credits: credits - creditCost });
+        
+        // Log credit transaction
+        t.create(db.collection('users').doc(req.user.uid).collection('credit_history').doc(), {
+          type: 'deduct',
+          amount: creditCost,
+          feature: featureType,
+          reason: `${featureType} generation`,
+          balanceBefore: credits,
+          balanceAfter: credits - creditCost,
+          timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+      });
+
+      // Store credit info on request for response
+      req.creditCharged = creditCost;
+      req.featureType = featureType;
+      
+      logger.info(`💰 ${creditCost} credits charged for ${featureType} (user: ${req.user.uid})`);
+      next();
+    } catch (error) {
+      if (error.message === 'INSUFFICIENT_CREDITS') {
+        logger.warn(`🚫 Insufficient credits for ${featureType} (cost: ${creditCost}) user ${req.user.uid}`);
+        return res.status(403).json({ 
+          error: 'Insufficient Credits', 
+          details: `This action requires ${creditCost} credits. Please upgrade your plan or purchase more credits.`,
+          required: creditCost,
+          feature: featureType
+        });
+      }
+      
+      logger.error('🔥 Credit check transaction failed:', error);
+      return res.status(500).json({ error: 'Transaction Failed', details: 'Could not verify credit balance.' });
+    }
+  };
 };
+
+// Legacy middleware for backwards compatibility (1 credit)
+const checkCredits = checkCreditsFor('default');
 
 const app = express();
 // Trust the first proxy (Railway load balancer)
@@ -1769,6 +1862,50 @@ app.get('/api/user/credits', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// GET /api/credit-costs - Get credit costs for all features (public endpoint for UI)
+app.get('/api/credit-costs', (req, res) => {
+  res.json({
+    costs: CREDIT_COSTS,
+    tiers: {
+      starter: {
+        name: 'Starter',
+        price: 12.99,
+        credits: 100,
+        features: ['100 credits/month', 'All agents', 'Standard quality']
+      },
+      creator: {
+        name: 'Creator',
+        price: 29.99,
+        credits: 400,
+        popular: true,
+        features: ['400 credits/month', 'All agents', 'HD export', 'Priority support']
+      },
+      pro: {
+        name: 'Pro',
+        price: 79.99,
+        credits: 1500,
+        features: ['1,500 credits/month', 'All agents', 'HD export', 'Commercial license', 'Priority queue']
+      },
+      lifetime: {
+        name: 'Lifetime',
+        price: 299,
+        credits: 5000,
+        oneTime: true,
+        features: ['5,000 credits (one-time)', 'Never pay again', 'All Pro features', 'Founding member badge']
+      }
+    },
+    examples: {
+      text: { cost: 1, description: 'Lyrics, hooks, verses' },
+      vocal: { cost: 2, description: 'AI voice generation' },
+      image: { cost: 3, description: 'Cover art, visuals' },
+      beat: { cost: 5, description: '30-second beat' },
+      'beat-extended': { cost: 10, description: '60+ second beat' },
+      video: { cost: 15, description: '5-second video clip' },
+      'video-synced': { cost: 20, description: 'Music video sync' }
+    }
+  });
+});
+
 // POST /api/user/credits - Add credits to user account (admin/purchase)
 app.post('/api/user/credits', verifyFirebaseToken, async (req, res) => {
   if (!req.user) {
@@ -2275,8 +2412,8 @@ app.delete('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
   }
 });
 
-// GENERATION ROUTE (with optional Firebase auth)
-app.post('/api/generate', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+// GENERATION ROUTE (with optional Firebase auth) - 1 credit for text/lyrics
+app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generationLimiter, async (req, res) => {
   try {
     let { prompt, systemInstruction, model: requestedModel } = req.body;
     
@@ -2432,7 +2569,8 @@ app.post('/api/generate', verifyFirebaseToken, checkCredits, generationLimiter, 
 // ═══════════════════════════════════════════════════════════════════
 // AGENT MODEL ORCHESTRATOR (AMO) - Combine up to 4 agent outputs
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/orchestrate', verifyFirebaseToken, checkCredits, async (req, res) => {
+// Orchestration charges 8 credits (multi-step workflow)
+app.post('/api/orchestrate', verifyFirebaseToken, checkCreditsFor('orchestrate'), async (req, res) => {
   try {
     const { agentOutputs, projectName, projectDescription } = req.body;
     
@@ -2745,7 +2883,8 @@ app.post('/api/extract-video-frame', verifyFirebaseToken, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════
 // IMAGE GENERATION ROUTE (Multi-Model: Flux 1.1 Pro -> Nano Banana -> Imagen)
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+// Image generation charges 3 credits
+app.post('/api/generate-image', verifyFirebaseToken, checkCreditsFor('image'), generationLimiter, async (req, res) => {
   try {
     const { prompt, aspectRatio = '1:1', model = 'flux' } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
@@ -2916,7 +3055,8 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCredits, generationLim
 // PRIORITY 1: Uberduck (Premium rap/spoken word - PAID)
 // PRIORITY 2: Replicate/MiniMax HD (Long-form vocals, up to 10 min)
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+// Vocal/speech generation charges 2 credits
+app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), generationLimiter, async (req, res) => {
   try {
     const { 
       prompt, 
@@ -3258,7 +3398,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
 // Priority: 1. Stability AI Stable Audio 2.5 (44.1kHz stereo, up to 3min)
 //          2. Replicate MusicGen (fallback)
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+// Beat/music generation charges 5 credits (or 10 for extended duration)
+app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), generationLimiter, async (req, res) => {
   try {
     const { 
       prompt,           // e.g., "lo-fi hip hop beat with piano"
@@ -3692,7 +3833,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCredits, generationLim
 // ═══════════════════════════════════════════════════════════════════
 // VIDEO GENERATION ROUTE (Multi-Model: Replicate -> Veo -> Fallback)
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/generate-video', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+// Video generation charges 15 credits (expensive)
+app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), generationLimiter, async (req, res) => {
   try {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
@@ -4166,7 +4308,8 @@ app.post('/api/master-audio', verifyFirebaseToken, async (req, res) => {
 // TRANSLATION API - Professional Grade Translation via Gemini
 // ═══════════════════════════════════════════════════════════════════
 
-app.post('/api/translate', verifyFirebaseToken, checkCredits, apiLimiter, async (req, res) => {
+// Translation charges 1 credit
+app.post('/api/translate', verifyFirebaseToken, checkCreditsFor('translate'), apiLimiter, async (req, res) => {
   try {
     const { text, targetLanguage, sourceLanguage = 'auto' } = req.body;
 
@@ -6038,7 +6181,8 @@ app.post('/api/generate-synced-video-test', async (req, res) => {
  * Main endpoint for generating music videos synced to beat
  * Supports 30s, 60s, and 180s (3 minute) videos
  */
-app.post('/api/generate-synced-video', verifyFirebaseToken, checkCredits, generationLimiter, async (req, res) => {
+// Synced video charges 20 credits (complex operation)
+app.post('/api/generate-synced-video', verifyFirebaseToken, checkCreditsFor('video-synced'), generationLimiter, async (req, res) => {
   try {
     const { 
       audioUrl, 
