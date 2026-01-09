@@ -2642,43 +2642,21 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
         if (!audioUrl) {
           logger.info('🎤 Using Uberduck for professional vocal generation', { style, rapStyle });
           
-          // First, get available voices to find rap voices
-          const voicesResponse = await fetch('https://api.uberduck.ai/v1/voices?limit=100', {
-            headers: { 'Authorization': uberduckAuth }
-          });
+          // Use a known working English voice - skip voice lookup to avoid issues
+          let selectedVoice = 'azure_en-US-GuyNeural'; // Good male voice for rap-style delivery
           
-          let selectedVoice = 'polly_matthew'; // Default fallback
-          let selectedModel = 'polly_neural';
-          
-          if (voicesResponse.ok) {
-            const voicesData = await voicesResponse.json();
-            const voices = voicesData.voices || voicesData || [];
-            
-            // Try to find a rap-specific voice
-            const rapVoice = voices.find(v => {
-              const tags = (v.tags || []).join(' ').toLowerCase();
-              const name = (v.name || '').toLowerCase();
-              return tags.includes('rap') || name.includes('rap') || 
-                     tags.includes('hip') || name.includes('hip');
-            });
-            
-            if (rapVoice) {
-              selectedVoice = rapVoice.id || rapVoice.voice_id || rapVoice.name;
-              selectedModel = rapVoice.model || 'uberduck';
-              logger.info('Found rap voice', { voice: selectedVoice, model: selectedModel });
-            } else {
-              // Use a deep male voice for rap-like delivery
-              const maleVoice = voices.find(v => v.gender === 'male' && v.model?.includes('neural'));
-              if (maleVoice) {
-                selectedVoice = maleVoice.id || maleVoice.voice_id || maleVoice.name;
-                selectedModel = maleVoice.model || 'polly_neural';
-              }
-            }
+          // Select voice based on style
+          if (style === 'rapper-female' || (voice && voice.includes('female'))) {
+            selectedVoice = 'azure_en-US-JennyNeural';
+          } else if (style === 'singer') {
+            selectedVoice = 'azure_en-US-AriaNeural';
+          } else if (style === 'narrator') {
+            selectedVoice = 'azure_en-GB-RyanNeural';
           }
         
-          logger.info('Calling Uberduck TTS', { voice: selectedVoice, model: selectedModel, textLen: prompt.length });
+          logger.info('Calling Uberduck TTS', { voice: selectedVoice, textLen: prompt.length });
           
-          // Call Uberduck v1 TTS API
+          // Call Uberduck v1 TTS API - just pass voice, not model
           const response = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
             method: 'POST',
             headers: {
@@ -2687,8 +2665,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCredits, generationLi
             },
             body: JSON.stringify({
               text: prompt.substring(0, 2000),
-              voice: selectedVoice,
-              model: selectedModel
+              voice: selectedVoice
             })
           });
           
