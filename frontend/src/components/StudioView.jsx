@@ -546,6 +546,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
   // Reserved for future use: const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewItem, setPreviewItem] = useState(null);
   const [previewPrompt, setPreviewPrompt] = useState('');
+  const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt' toggle
   const [agentPreviews, setAgentPreviews] = useState({}); // Cache last generation per agent
   
   const [isListening, setIsListening] = useState(false);
@@ -1998,28 +1999,45 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       const data = await response.json();
 
       if (data.audioUrl) {
-        // Create a new vocal asset
-        const vocalItem = {
-          id: String(Date.now()),
-          title: `AI Vocal - ${sourceAgent}`,
-          agent: sourceAgent,
-          type: 'vocal',
-          audioUrl: data.audioUrl,
-          mimeType: data.mimeType || 'audio/wav',
-          snippet: `🎤 AI Vocal: "${textToSpeak.substring(0, 50)}..."`,
-          createdAt: new Date().toISOString()
-        };
+        // Instead of creating a NEW item, ADD the audio to the EXISTING preview item
+        // This consolidates lyrics + vocal into ONE card
+        if (previewItem) {
+          const consolidatedItem = {
+            ...previewItem,
+            audioUrl: data.audioUrl,
+            mimeType: data.mimeType || 'audio/wav',
+            type: 'vocal', // Upgrade type to vocal (has both text + audio)
+            vocalSnippet: `🎤 AI Vocal created from lyrics`,
+            updatedAt: new Date().toISOString()
+          };
 
-        // Store as preview for the current agent (or ghostwriter if applicable)
-        if (selectedAgent?.id === 'ghostwriter') {
-          setAgentPreviews(prev => ({ ...prev, 'ghostwriter-vocal': vocalItem }));
+          // Update the preview with consolidated item
+          setPreviewItem(consolidatedItem);
+          
+          // Also update agent previews cache
+          if (selectedAgent?.id) {
+            setAgentPreviews(prev => ({ ...prev, [selectedAgent.id]: consolidatedItem }));
+          }
+          
+          toast.success('AI vocal added to your creation!', { id: toastId });
+          return consolidatedItem;
+        } else {
+          // Fallback: Create standalone vocal item if no preview exists
+          const vocalItem = {
+            id: String(Date.now()),
+            title: `AI Vocal - ${sourceAgent}`,
+            agent: sourceAgent,
+            type: 'vocal',
+            audioUrl: data.audioUrl,
+            mimeType: data.mimeType || 'audio/wav',
+            snippet: `🎤 AI Vocal: "${textToSpeak.substring(0, 50)}..."`,
+            createdAt: new Date().toISOString()
+          };
+
+          setPreviewItem(vocalItem);
+          toast.success('AI vocal created!', { id: toastId });
+          return vocalItem;
         }
-
-        // Show the vocal in preview modal
-        setPreviewItem(vocalItem);
-        toast.success('AI vocal created!', { id: toastId });
-
-        return vocalItem;
       } else if (data.error) {
         throw new Error(data.error);
       } else {
@@ -9787,73 +9805,140 @@ When you write a song, you create intellectual property that generates money eve
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                        {/* Create AI Vocal Button - Uses Uberduck API with LYRICS (not prompt) */}
-                        <button 
-                          onClick={() => handleCreateAIVocal(previewItem.snippet || previewItem.title, previewItem.agent || 'Ghostwriter')}
-                          disabled={isCreatingVocal}
-                          style={{ 
-                            background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', 
-                            border: 'none', 
-                            color: 'white', 
-                            fontSize: '0.8rem', 
-                            cursor: isCreatingVocal ? 'wait' : 'pointer', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '6px',
-                            padding: '6px 12px',
-                            borderRadius: '20px',
-                            opacity: isCreatingVocal ? 0.7 : 1
-                          }}
-                          title="Create AI vocal from lyrics (uses 2 credits)"
-                        >
-                          <Mic size={14} /> {isCreatingVocal ? 'Creating...' : 'Create AI Vocal'}
-                        </button>
-                        {/* Quick browser TTS preview */}
-                        <button 
-                          onClick={() => handleTextToVoice(previewItem.snippet || previewItem.title)} 
-                          style={{ 
-                            background: 'rgba(139, 92, 246, 0.1)', 
-                            border: '1px solid rgba(139, 92, 246, 0.2)', 
-                            color: 'var(--color-purple)', 
-                            fontSize: '0.8rem', 
-                            cursor: 'pointer', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '6px',
-                            padding: '6px 12px',
-                            borderRadius: '20px'
-                          }}
-                          title="Quick preview (browser TTS)"
-                        >
-                          <Volume2 size={14} /> Preview
-                        </button>
-                      </div>
-                      <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--text-primary)' }}>
-                        {previewItem.snippet || previewItem.title || 'No content generated'}
+                      {/* Show audio player if vocal has been created (consolidated view) */}
+                      {previewItem.audioUrl && (
+                        <div style={{ 
+                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1))', 
+                          borderRadius: '12px', 
+                          padding: '12px',
+                          border: '1px solid rgba(139, 92, 246, 0.2)'
+                        }}>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-pink)', marginBottom: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Mic size={14} /> AI Vocal Created
+                          </div>
+                          <audio 
+                            controls 
+                            src={previewItem.audioUrl} 
+                            style={{ width: '100%', height: '40px' }}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Show Create AI Vocal button only if no audio exists yet */}
+                      {!previewItem.audioUrl && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                          {/* Create AI Vocal Button - Uses Uberduck API with LYRICS (not prompt) */}
+                          <button 
+                            onClick={() => handleCreateAIVocal(previewItem.snippet || previewItem.title, previewItem.agent || 'Ghostwriter')}
+                            disabled={isCreatingVocal}
+                            style={{ 
+                              background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', 
+                              border: 'none', 
+                              color: 'white', 
+                              fontSize: '0.8rem', 
+                              cursor: isCreatingVocal ? 'wait' : 'pointer', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px',
+                              padding: '6px 12px',
+                              borderRadius: '20px',
+                              opacity: isCreatingVocal ? 0.7 : 1
+                            }}
+                            title="Create AI vocal from lyrics (uses 2 credits)"
+                          >
+                            <Mic size={14} /> {isCreatingVocal ? 'Creating...' : 'Create AI Vocal'}
+                          </button>
+                          {/* Quick browser TTS preview */}
+                          <button 
+                            onClick={() => handleTextToVoice(previewItem.snippet || previewItem.title)} 
+                            style={{ 
+                              background: 'rgba(139, 92, 246, 0.1)', 
+                              border: '1px solid rgba(139, 92, 246, 0.2)', 
+                              color: 'var(--color-purple)', 
+                              fontSize: '0.8rem', 
+                              cursor: 'pointer', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px',
+                              padding: '6px 12px',
+                              borderRadius: '20px'
+                            }}
+                            title="Quick preview (browser TTS)"
+                          >
+                            <Volume2 size={14} /> Preview
+                          </button>
+                        </div>
+                      )}
+                      
+                      {/* Toggle between Lyrics and Prompt */}
+                      {previewPrompt && (
+                        <div style={{ display: 'flex', gap: '4px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '4px' }}>
+                          <button
+                            onClick={() => setPreviewView('lyrics')}
+                            style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: previewView === 'lyrics' ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 'transparent',
+                              color: previewView === 'lyrics' ? 'white' : 'var(--text-secondary)',
+                              fontSize: '0.8rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <FileText size={14} /> Lyrics
+                          </button>
+                          <button
+                            onClick={() => setPreviewView('prompt')}
+                            style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: previewView === 'prompt' ? 'linear-gradient(135deg, #3b82f6, #2563eb)' : 'transparent',
+                              color: previewView === 'prompt' ? 'white' : 'var(--text-secondary)',
+                              fontSize: '0.8rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <Edit3 size={14} /> Prompt
+                          </button>
+                        </div>
+                      )}
+                      
+                      {/* Content based on toggle */}
+                      <div style={{ 
+                        whiteSpace: 'pre-wrap', 
+                        lineHeight: '1.6', 
+                        color: 'var(--text-primary)',
+                        background: previewView === 'lyrics' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                        border: previewView === 'lyrics' ? '1px solid rgba(139, 92, 246, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        maxHeight: '300px',
+                        overflow: 'auto',
+                        transition: 'all 0.2s'
+                      }}>
+                        {previewView === 'lyrics' 
+                          ? (previewItem.snippet || previewItem.title || 'No content generated')
+                          : (previewPrompt || 'No prompt recorded')
+                        }
                       </div>
                     </div>
                   )}
                 </div>
-
-                {/* Prompt Used */}
-                {previewPrompt && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                      Prompt used:
-                    </p>
-                    <div style={{ 
-                      background: 'var(--bg-tertiary)', 
-                      padding: '0.75rem', 
-                      borderRadius: '8px', 
-                      fontSize: '0.875rem',
-                      color: 'var(--text-secondary)',
-                      fontStyle: 'italic'
-                    }}>
-                      "{previewPrompt.length > 150 ? previewPrompt.substring(0, 150) + '...' : previewPrompt}"
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Action Buttons */}
