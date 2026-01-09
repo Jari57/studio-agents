@@ -61,19 +61,10 @@ function GeneratorCard({
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
-    <div className="generator-card" style={{
-      background: 'rgba(0,0,0,0.4)',
-      borderRadius: isMobile ? '14px' : '20px',
-      border: `1px solid ${color}33`,
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      position: 'relative',
-      transition: isMobile ? 'none' : 'transform 0.2s ease, box-shadow 0.2s ease',
+    <div className="generator-card-unified" style={{
       minHeight: isMobile ? 'auto' : '380px',
       touchAction: 'manipulation',
-      WebkitTapHighlightColor: 'transparent',
-      willChange: isMobile ? 'auto' : 'transform'
+      WebkitTapHighlightColor: 'transparent'
     }}>
       {/* Glow effect */}
       <div style={{
@@ -87,33 +78,22 @@ function GeneratorCard({
       }} />
 
       {/* Header - Agent style */}
-      <div style={{
-        padding: isMobile ? '10px 12px' : '16px 20px',
-        borderBottom: `1px solid ${color}22`,
+      <div className="generator-card-header" style={{
+        padding: isMobile ? '12px' : '1.25rem',
         display: 'flex',
         alignItems: 'center',
-        gap: isMobile ? '8px' : '12px',
+        gap: isMobile ? '10px' : '12px',
         position: 'relative',
         zIndex: 1
       }}>
-        <div style={{
-          width: isMobile ? '36px' : '48px',
-          height: isMobile ? '36px' : '48px',
-          borderRadius: isMobile ? '10px' : '14px',
-          background: `linear-gradient(135deg, ${color}30, ${color}10)`,
-          border: `2px solid ${color}60`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: `0 4px 20px ${color}20`
-        }}>
+        <div className="generator-icon-box">
           {/* Render icon component */}
-          {React.createElement(icon, { size: isMobile ? 18 : 24, color: color })}
+          {React.createElement(icon, { size: isMobile ? 20 : 24 })}
         </div>
         <div style={{ flex: 1 }}>
           <h3 style={{ 
             margin: 0, 
-            fontSize: isMobile ? '0.9rem' : '1.1rem', 
+            fontSize: isMobile ? '0.95rem' : '1.125rem', 
             fontWeight: '700',
             color: 'white'
           }}>
@@ -214,25 +194,33 @@ function GeneratorCard({
             ) : (
               <div 
                 onClick={() => setIsExpanded(!isExpanded)}
+                className="lyrics-stanza-view"
                 style={{
                   background: 'rgba(0,0,0,0.3)',
                   borderRadius: isMobile ? '8px' : '12px',
-                  padding: isMobile ? '10px' : '14px',
+                  padding: isMobile ? '10px' : '16px',
                   flex: 1,
                   overflow: 'auto',
                   cursor: 'pointer',
-                  maxHeight: isExpanded ? (isMobile ? '150px' : '200px') : (isMobile ? '60px' : '100px'),
+                  maxHeight: isExpanded ? (isMobile ? '200px' : '400px') : (isMobile ? '80px' : '280px'),
                   transition: 'max-height 0.3s ease'
                 }}
               >
                 <p style={{ 
-                  fontSize: isMobile ? '0.8rem' : '0.9rem', 
-                  lineHeight: isMobile ? '1.4' : '1.6', 
-                  color: 'rgba(255,255,255,0.9)',
+                  fontSize: isMobile ? '0.85rem' : '1rem', 
+                  lineHeight: isMobile ? '1.5' : '1.8', 
+                  color: 'rgba(255,255,255,0.95)',
                   margin: 0,
-                  whiteSpace: 'pre-wrap'
+                  whiteSpace: 'pre-wrap',
+                  fontFamily: "'Georgia', 'Times New Roman', serif",
+                  letterSpacing: '0.01em'
                 }}>
-                  {output}
+                  {/* Format output as stanzas - add extra line breaks between sections */}
+                  {output?.split(/\n\n+/).map((stanza, i) => (
+                    <span key={i} style={{ display: 'block', marginBottom: i < output.split(/\n\n+/).length - 1 ? '1em' : 0 }}>
+                      {stanza}
+                    </span>
+                  ))}
                 </p>
               </div>
             )}
@@ -3187,11 +3175,9 @@ export default function StudioOrchestratorV2({
         )}
 
         {/* 4 Generator Cards Grid - 2x2 layout */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
-          gap: isMobile ? '12px' : '20px',
-          marginBottom: '24px',
+        {/* 4 Generator Cards Grid - 2x2 layout - uses unified CSS */}
+        <div className="generator-grid-unified" style={{
+          gap: isMobile ? '0.75rem' : '1rem',
           touchAction: 'pan-y'
         }}>
           {GENERATOR_SLOTS.map(slot => (

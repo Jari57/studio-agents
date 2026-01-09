@@ -3714,18 +3714,29 @@ select optgroup {
   overflow-y: visible;
 }
 
-/* Agents Grid in Studio */
+/* Agents Grid in Studio - UNIFIED for LandingPage, StudioView, and Orchestrator */
 .agents-studio-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  max-width: 700px;
+  gap: 1rem;
+  max-width: 600px;
   margin: 0 auto;
 }
 
-.agent-studio-card {
+/* Generator Grid for StudioOrchestratorV2 - matches agents-studio-grid */
+.generator-grid-unified {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  max-width: 600px;
+  margin: 0 auto 24px;
+}
+
+/* Unified Card Style - used by both agent-studio-card and generator-card */
+.agent-studio-card,
+.generator-card-unified {
   background: var(--color-bg-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 1.25rem;
   display: flex;
@@ -3736,7 +3747,8 @@ select optgroup {
   overflow: hidden;
 }
 
-.agent-studio-card::before {
+.agent-studio-card::before,
+.generator-card-unified::before {
   content: '';
   position: absolute;
   top: 0;
@@ -3748,17 +3760,21 @@ select optgroup {
   transition: opacity 0.3s;
 }
 
-.agent-studio-card:hover::before {
+.agent-studio-card:hover::before,
+.generator-card-unified:hover::before {
   opacity: 1;
 }
 
-.agent-studio-card:hover {
+.agent-studio-card:hover,
+.generator-card-unified:hover {
   border-color: rgba(139, 92, 246, 0.3);
   transform: translateY(-2px);
   box-shadow: 0 12px 24px -8px rgba(139, 92, 246, 0.2);
 }
 
-.agent-studio-icon {
+/* Unified Icon Box - used by both agent cards and generator cards */
+.agent-studio-icon,
+.generator-icon-box {
   width: 44px;
   height: 44px;
   border-radius: 12px;
@@ -3766,38 +3782,75 @@ select optgroup {
   align-items: center;
   justify-content: center;
   color: var(--color-purple);
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(6, 182, 212, 0.1));
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15));
   transition: all 0.3s ease;
 }
 
-.agent-studio-card:hover .agent-studio-icon {
+.agent-studio-card:hover .agent-studio-icon,
+.generator-card-unified:hover .generator-icon-box {
   background: var(--gradient-vibrant);
   color: white;
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
-.agent-studio-info h3 {
+.agent-studio-info h3,
+.generator-card-unified h3 {
   font-size: 1.125rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
   color: white !important;
 }
 
-.agent-studio-info p {
+.agent-studio-info p,
+.generator-card-unified p {
   color: rgba(255, 255, 255, 0.7) !important;
   font-size: 0.85rem;
 }
 
-.agent-studio-card:hover .agent-launch-btn {
+.agent-studio-card:hover .agent-launch-btn,
+.generator-card-unified:hover .agent-launch-btn {
   background: var(--color-purple);
   color: white;
   box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
   border-color: var(--color-purple);
 }
 
+/* Generator Card Content Area */
+.generator-card-content {
+  flex: 1;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Lyrics Stanza View - Enhanced readability for lyrics/hooks */
+.lyrics-stanza-view {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+}
+
+.lyrics-stanza-view::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lyrics-stanza-view::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lyrics-stanza-view::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 3px;
+}
+
+.lyrics-stanza-view::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}
+
 /* Agent Studio Colors - Unified Design */
 /* All agents use the same clean look with subtle category accents */
-.agent-studio-icon { 
+.agent-studio-icon,
+.generator-icon-box { 
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15)); 
   color: var(--color-purple); 
 }
@@ -4085,11 +4138,16 @@ select optgroup {
     padding: 0;
   }
 
-  .agents-studio-grid {
+  .agents-studio-grid,
+  .generator-grid-unified {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
     padding-bottom: 40px; /* Extra padding for the grid specifically */
     max-width: 100%;
+  }
+
+  .generator-card-unified {
+    min-height: auto;
   }
 
   .studio-header {

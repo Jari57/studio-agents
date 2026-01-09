@@ -238,31 +238,88 @@ export function PreviewModal({
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '20px',
+                gap: '24px',
                 width: '100%',
-                maxWidth: '600px'
+                maxWidth: '600px',
+                padding: '40px 20px'
               }}
             >
+              {/* Audio Visualizer Icon */}
+              <div style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 8px 32px rgba(59, 130, 246, 0.3)',
+                animation: 'pulse 2s infinite'
+              }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <path d="M9 18V5l12-2v13" />
+                  <circle cx="6" cy="18" r="3" />
+                  <circle cx="18" cy="16" r="3" />
+                </svg>
+              </div>
+
+              <h3 style={{
+                color: 'white',
+                fontSize: '1.2rem',
+                fontWeight: '700',
+                margin: 0
+              }}>
+                Beat Lab Preview
+              </h3>
+
               <audio
                 src={mediaUrl}
                 controls
                 autoPlay
                 style={{
-                  width: '100%'
+                  width: '100%',
+                  borderRadius: '8px'
                 }}
                 onError={(e) => {
                   console.warn('[PreviewModal] Audio failed to load');
                 }}
               />
+              
               <p
                 style={{
-                  color: 'rgba(255, 255, 255, 0.6)',
+                  color: 'rgba(255, 255, 255, 0.5)',
                   fontSize: '0.85rem',
                   textAlign: 'center'
                 }}
               >
-                Audio player ready
+                Use controls above to play, pause, or adjust volume
               </p>
+
+              {/* Prominent Close Button for Audio */}
+              <button
+                onClick={onClose}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.2))',
+                  border: '1px solid rgba(239, 68, 68, 0.5)',
+                  borderRadius: '12px',
+                  padding: '14px 32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  color: '#ef4444',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 20px rgba(239, 68, 68, 0.2)',
+                  marginTop: '16px',
+                  touchAction: 'manipulation'
+                }}
+              >
+                <X size={20} />
+                Close Preview
+              </button>
             </div>
           )}
           {mediaType === 'text' && textContent && (
@@ -330,6 +387,16 @@ export function PreviewModal({
           to {
             opacity: 1;
             transform: scale(1);
+          }
+        }
+        @keyframes pulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
+          }
+          50% {
+            transform: scale(1.05);
+            box-shadow: 0 12px 40px rgba(59, 130, 246, 0.5);
           }
         }
       `}</style>
