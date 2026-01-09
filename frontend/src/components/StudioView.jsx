@@ -1955,6 +1955,85 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
     }
   };
 
+  // State for AI vocal generation
+  const [isCreatingVocal, setIsCreatingVocal] = useState(false);
+
+  // Create AI Vocal from text using Uberduck TTS API (NOT browser TTS)
+  const handleCreateAIVocal = async (textContent, sourceAgent = 'Ghostwriter') => {
+    if (!textContent || textContent.trim().length === 0) {
+      toast.error('No text content to vocalize');
+      return;
+    }
+
+    setIsCreatingVocal(true);
+    const toastId = toast.loading('Creating AI vocal...');
+
+    try {
+      // Build headers with auth token if logged in
+      const headers = { 'Content-Type': 'application/json' };
+      if (isLoggedIn && auth?.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          headers['Authorization'] = `Bearer ${token}`;
+        } catch (err) {
+          console.warn('Could not get auth token:', err);
+        }
+      }
+
+      // Trim text to reasonable length for TTS (500 chars max to avoid timeouts)
+      const textToSpeak = textContent.substring(0, 500);
+
+      console.log('[handleCreateAIVocal] Generating vocal for:', textToSpeak.substring(0, 50) + '...');
+
+      const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          prompt: textToSpeak,
+          voice: voiceSettings.voiceName || 'en-US-GuyNeural',
+          style: 'natural'
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.audioUrl) {
+        // Create a new vocal asset
+        const vocalItem = {
+          id: String(Date.now()),
+          title: `AI Vocal - ${sourceAgent}`,
+          agent: sourceAgent,
+          type: 'vocal',
+          audioUrl: data.audioUrl,
+          mimeType: data.mimeType || 'audio/wav',
+          snippet: `🎤 AI Vocal: "${textToSpeak.substring(0, 50)}..."`,
+          createdAt: new Date().toISOString()
+        };
+
+        // Store as preview for the current agent (or ghostwriter if applicable)
+        if (selectedAgent?.id === 'ghostwriter') {
+          setAgentPreviews(prev => ({ ...prev, 'ghostwriter-vocal': vocalItem }));
+        }
+
+        // Show the vocal in preview modal
+        setPreviewItem(vocalItem);
+        toast.success('AI vocal created!', { id: toastId });
+
+        return vocalItem;
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        throw new Error('No audio URL returned');
+      }
+    } catch (error) {
+      console.error('[handleCreateAIVocal] Error:', error);
+      toast.error(error.message || 'Failed to create AI vocal', { id: toastId });
+      return null;
+    } finally {
+      setIsCreatingVocal(false);
+    }
+  };
+
   const handleDeletePayment = (id, type) => {
     if (window.confirm('Are you sure you want to remove this payment method?')) {
       if (type === 'card') {
@@ -5175,14 +5254,25 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600' }}>Last Generated</span>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          {/* TTS Button for Text/Lyrics */}
+                          {/* AI Vocal Button for Text/Lyrics - Uses Uberduck API */}
+                          {(!agentPreviews[selectedAgent.id].type || agentPreviews[selectedAgent.id].type === 'text') && (
+                             <button 
+                               onClick={() => handleCreateAIVocal(agentPreviews[selectedAgent.id].snippet, selectedAgent?.name || 'Ghostwriter')}
+                               disabled={isCreatingVocal}
+                               style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', border: 'none', color: 'white', fontSize: '0.75rem', cursor: isCreatingVocal ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '12px', opacity: isCreatingVocal ? 0.7 : 1 }}
+                               title="Create AI vocal from lyrics (uses 2 credits)"
+                             >
+                               <Mic size={12} /> {isCreatingVocal ? 'Creating...' : 'Create Vocal'}
+                             </button>
+                          )}
+                          {/* Quick browser TTS for preview */}
                           {(!agentPreviews[selectedAgent.id].type || agentPreviews[selectedAgent.id].type === 'text') && (
                              <button 
                                onClick={() => handleTextToVoice(agentPreviews[selectedAgent.id].snippet)} 
                                style={{ background: 'none', border: 'none', color: 'var(--color-purple)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                               title="Read out loud"
+                               title="Quick preview (browser TTS)"
                              >
-                               <Volume2 size={12} /> Listen
+                               <Volume2 size={12} /> Preview
                              </button>
                           )}
                           <button onClick={() => setPreviewItem(agentPreviews[selectedAgent.id])} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -9697,7 +9787,29 @@ When you write a song, you create intellectual property that generates money eve
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        {/* Create AI Vocal Button - Uses Uberduck API with LYRICS (not prompt) */}
+                        <button 
+                          onClick={() => handleCreateAIVocal(previewItem.snippet || previewItem.title, previewItem.agent || 'Ghostwriter')}
+                          disabled={isCreatingVocal}
+                          style={{ 
+                            background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', 
+                            border: 'none', 
+                            color: 'white', 
+                            fontSize: '0.8rem', 
+                            cursor: isCreatingVocal ? 'wait' : 'pointer', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '6px',
+                            padding: '6px 12px',
+                            borderRadius: '20px',
+                            opacity: isCreatingVocal ? 0.7 : 1
+                          }}
+                          title="Create AI vocal from lyrics (uses 2 credits)"
+                        >
+                          <Mic size={14} /> {isCreatingVocal ? 'Creating...' : 'Create AI Vocal'}
+                        </button>
+                        {/* Quick browser TTS preview */}
                         <button 
                           onClick={() => handleTextToVoice(previewItem.snippet || previewItem.title)} 
                           style={{ 
@@ -9712,9 +9824,9 @@ When you write a song, you create intellectual property that generates money eve
                             padding: '6px 12px',
                             borderRadius: '20px'
                           }}
-                          title="Read out loud"
+                          title="Quick preview (browser TTS)"
                         >
-                          <Volume2 size={14} /> Listen to Text
+                          <Volume2 size={14} /> Preview
                         </button>
                       </div>
                       <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6', color: 'var(--text-primary)' }}>
