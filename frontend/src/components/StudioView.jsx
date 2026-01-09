@@ -9978,11 +9978,11 @@ When you write a song, you create intellectual property that generates money eve
                   borderRadius: '12px', 
                   padding: '1.5rem',
                   border: '1px solid var(--border-color)',
-                  maxHeight: '60vh', // Increased from 300px
+                  maxHeight: '65vh',
                   overflow: 'auto',
                   display: 'flex',
                   justifyContent: 'center',
-                  alignItems: 'center'
+                  alignItems: 'flex-start'
                 }}>
                   {previewItem.type === 'image' && previewItem.imageUrl ? (
                     <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
@@ -10200,15 +10200,18 @@ When you write a song, you create intellectual property that generates money eve
                       {/* Content based on toggle */}
                       <div style={{ 
                         whiteSpace: 'pre-wrap', 
-                        lineHeight: '1.6', 
+                        lineHeight: '1.8', 
                         color: 'var(--text-primary)',
                         background: previewView === 'lyrics' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(59, 130, 246, 0.1)',
                         border: previewView === 'lyrics' ? '1px solid rgba(139, 92, 246, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)',
-                        padding: '12px',
-                        borderRadius: '8px',
-                        maxHeight: '300px',
+                        padding: '1.25rem',
+                        borderRadius: '12px',
+                        maxHeight: '50vh',
+                        minHeight: '200px',
                         overflow: 'auto',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        fontSize: '1rem',
+                        fontFamily: 'inherit'
                       }}>
                         {previewView === 'lyrics' 
                           ? (previewItem.snippet || previewItem.title || 'No content generated')
