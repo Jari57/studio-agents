@@ -9808,7 +9808,7 @@ When you write a song, you create intellectual property that generates money eve
         {/* Preview Modal - Review AI Generation Before Saving */}
         {previewItem && (
           <div className="modal-overlay" onClick={handleDiscardPreview}>
-            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
               <button 
                 className="modal-close" 
                 onClick={(e) => {
@@ -9819,7 +9819,7 @@ When you write a song, you create intellectual property that generates money eve
               >
                 <X size={20} />
               </button>
-              <div className="modal-header" style={{ flexShrink: 0 }}>
+              <div className="modal-header" style={{ flexShrink: 0, paddingBottom: '0.5rem' }}>
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem', background: 'linear-gradient(135deg, #10b981, #059669)' }}>
                   <Eye size={24} color="white" />
                 </div>
@@ -9829,8 +9829,19 @@ When you write a song, you create intellectual property that generates money eve
                 </p>
               </div>
               <div className="modal-body" style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
-                {/* Content Type Badge */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                {/* Metadata Bar - More info displayed */}
+                <div style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap',
+                  alignItems: 'center', 
+                  gap: '0.5rem', 
+                  marginBottom: '1rem',
+                  padding: '0.75rem',
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  {/* Type Badge */}
                   <span style={{ 
                     background: previewItem.type === 'image' ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 
                                 previewItem.type === 'audio' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
@@ -9845,10 +9856,121 @@ When you write a song, you create intellectual property that generates money eve
                   }}>
                     {previewItem.type || 'Text'}
                   </span>
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                  
+                  {/* Agent Name */}
+                  <span style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '4px',
+                    padding: '0.25rem 0.75rem',
+                    background: 'rgba(139, 92, 246, 0.15)',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    color: 'var(--color-purple)'
+                  }}>
+                    <Sparkles size={12} />
                     {previewItem.agent || 'AI Generated'}
                   </span>
+                  
+                  {/* Model Used */}
+                  {(previewItem.model || selectedModel) && (
+                    <span style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '4px',
+                      padding: '0.25rem 0.75rem',
+                      background: 'rgba(6, 182, 212, 0.15)',
+                      borderRadius: '9999px',
+                      fontSize: '0.75rem',
+                      color: 'var(--color-cyan)'
+                    }}>
+                      <Cpu size={12} />
+                      {previewItem.model || selectedModel}
+                    </span>
+                  )}
+                  
+                  {/* Creation Time */}
+                  <span style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '4px',
+                    padding: '0.25rem 0.75rem',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-secondary)'
+                  }}>
+                    <Clock size={12} />
+                    {previewItem.createdAt 
+                      ? new Date(previewItem.createdAt).toLocaleString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })
+                      : 'Just now'
+                    }
+                  </span>
+                  
+                  {/* Text Stats (for text content) */}
+                  {previewItem.snippet && (
+                    <>
+                      <span style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px',
+                        padding: '0.25rem 0.75rem',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        color: 'var(--color-emerald)'
+                      }}>
+                        <FileText size={12} />
+                        {previewItem.snippet.split(/\s+/).filter(w => w).length} words
+                      </span>
+                      <span style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px',
+                        padding: '0.25rem 0.75rem',
+                        background: 'rgba(249, 115, 22, 0.15)',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        color: 'var(--color-orange)'
+                      }}>
+                        {previewItem.snippet.length} chars
+                      </span>
+                      <span style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px',
+                        padding: '0.25rem 0.75rem',
+                        background: 'rgba(236, 72, 153, 0.15)',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        color: 'var(--color-pink)'
+                      }}>
+                        {previewItem.snippet.split('\n').filter(l => l.trim()).length} lines
+                      </span>
+                    </>
+                  )}
                 </div>
+
+                {/* Title if available */}
+                {previewItem.title && (
+                  <div style={{ 
+                    marginBottom: '1rem',
+                    padding: '0.5rem 0.75rem',
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: '8px',
+                    borderLeft: '3px solid var(--color-purple)'
+                  }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Title</span>
+                    <div style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+                      {previewItem.title}
+                    </div>
+                  </div>
+                )}
 
                 {/* Preview Content */}
                 <div style={{ 
