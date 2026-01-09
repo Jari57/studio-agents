@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar
 } from 'lucide-react';
 
 // Alias for clarity and to avoid potential minification issues
@@ -224,8 +224,16 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
   // Reserved for future use: const [isRefreshingNews, setIsRefreshingNews] = useState(false);
   const [projects, setProjects] = useState(() => {
     try {
-      const saved = localStorage.getItem('studio_projects');
-      if (saved) return JSON.parse(saved);
+      const saved = localStorage.getItem('studio_agents_projects');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Sort by updatedAt/createdAt descending (newest first)
+        return parsed.sort((a, b) => {
+          const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+          return bTime - aTime;
+        });
+      }
       return [];
     } catch (_e) {
       return [];
@@ -346,14 +354,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
     }
   };
 
-  // Persist projects to localStorage
-  useEffect(() => {
-    console.log('[TRACE:LocalStorage] Saving projects to localStorage:', {
-      count: projects.length,
-      projects: projects.slice(0, 3).map(p => ({ id: p.id, name: p.name, assetCount: p.assets?.length }))
-    });
-    localStorage.setItem('studio_projects', JSON.stringify(projects));
-  }, [projects]);
+  // Note: localStorage save is handled by the useEffect with quota handling below
   
   // Debounced cloud sync when projects change (only if logged in)
   useEffect(() => {
@@ -547,6 +548,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
   const [previewItem, setPreviewItem] = useState(null);
   const [previewPrompt, setPreviewPrompt] = useState('');
   const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt' toggle
+  const [isSaving, setIsSaving] = useState(false); // Saving/syncing state with animated loader
   const [agentPreviews, setAgentPreviews] = useState({}); // Cache last generation per agent
   
   const [isListening, setIsListening] = useState(false);
@@ -2636,86 +2638,132 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
     }
   };
 
-  // Save the previewed item to projects
+  // Save the previewed item to projects with timeout and loading feedback
   const handleSavePreview = async (destination = 'hub') => {
     if (!previewItem) return;
+    if (isSaving) return; // Prevent double-save
     
-    // Ensure agent field is set
-    const itemToSave = {
-      ...previewItem,
-      agent: previewItem.agent || selectedAgent?.name || 'Unknown Agent',
-      savedAt: new Date().toISOString()
-    };
+    setIsSaving(true);
+    const toastId = toast.loading('Syncing to cloud...', { icon: '☁️' });
     
-    setProjects([itemToSave, ...projects]);
-
-    // If we are working inside a project context, add this artifact to the project assets
-    if (selectedProject) {
-      const updatedProject = {
-        ...selectedProject,
-        assets: [itemToSave, ...(selectedProject.assets || [])]
+    // 3-minute timeout
+    const SAVE_TIMEOUT = 180000; // 3 minutes in ms
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Save timed out after 3 minutes')), SAVE_TIMEOUT)
+    );
+    
+    try {
+      // Ensure agent field is set
+      const itemToSave = {
+        ...previewItem,
+        agent: previewItem.agent || selectedAgent?.name || 'Unknown Agent',
+        savedAt: new Date().toISOString()
       };
-      setSelectedProject(updatedProject);
-      setProjects(prev => [itemToSave, ...prev.map(p => p.id === updatedProject.id ? updatedProject : p)]);
-    } else {
-      // No project selected - show "Add to Project" modal
-      setAddToProjectAsset(itemToSave);
-    }
+      
+      // Update local state immediately
+      setProjects([itemToSave, ...projects]);
 
-    // Save to Backend if logged in
-    if (isLoggedIn) {
-      const uid = localStorage.getItem('studio_user_id');
-      if (uid) {
-        const saveHeaders = { 'Content-Type': 'application/json' };
-        if (auth?.currentUser) {
-          try {
-            const token = await auth.currentUser.getIdToken();
-            saveHeaders['Authorization'] = `Bearer ${token}`;
-          } catch (tokenErr) {
-            console.warn('Could not get auth token for save:', tokenErr);
-          }
-        }
-        
-        // Save to projects collection
-        fetch(`${BACKEND_URL}/api/projects`, {
-          method: 'POST',
-          headers: saveHeaders,
-          body: JSON.stringify({ userId: uid, project: itemToSave })
-        }).then(res => {
-          if (!res.ok) console.warn('Project save returned non-OK status:', res.status);
-        }).catch(err => console.error("Failed to save to cloud", err));
-        
-        // Also log to generations history (for agent-based inventory)
-        fetch(`${BACKEND_URL}/api/user/generations`, {
-          method: 'POST',
-          headers: saveHeaders,
-          body: JSON.stringify({
-            type: itemToSave.type || 'text',
-            agent: itemToSave.agent,
-            prompt: previewPrompt || itemToSave.snippet,
-            output: itemToSave.content || itemToSave.snippet,
-            metadata: {
-              projectId: itemToSave.id,
-              imageUrl: itemToSave.imageUrl,
-              audioUrl: itemToSave.audioUrl,
-              videoUrl: itemToSave.videoUrl
-            }
-          })
-        }).then(res => {
-          if (!res.ok) console.warn('Generation log returned non-OK status:', res.status);
-        }).catch(err => console.error("Failed to log generation", err));
+      // If we are working inside a project context, add this artifact to the project assets
+      if (selectedProject) {
+        const updatedProject = {
+          ...selectedProject,
+          assets: [itemToSave, ...(selectedProject.assets || [])]
+        };
+        setSelectedProject(updatedProject);
+        setProjects(prev => [itemToSave, ...prev.map(p => p.id === updatedProject.id ? updatedProject : p)]);
+      } else {
+        // No project selected - show "Add to Project" modal
+        setAddToProjectAsset(itemToSave);
       }
-      setUserCredits(prev => Math.max(0, prev - 1));
-    } else {
-      setFreeGenerationsUsed(prev => prev + 1);
-    }
 
-    toast.success('Saved to your Hub!');
-    setPreviewItem(null);
-    setPreviewPrompt('');
-    setActiveTab(destination);
-    if (destination === 'hub') {
-      setSelectedAgent(null);
+      // Save to Backend if logged in
+      if (isLoggedIn) {
+        const uid = localStorage.getItem('studio_user_id');
+        if (uid) {
+          const saveHeaders = { 'Content-Type': 'application/json' };
+          if (auth?.currentUser) {
+            try {
+              const token = await auth.currentUser.getIdToken();
+              saveHeaders['Authorization'] = `Bearer ${token}`;
+            } catch (tokenErr) {
+              console.warn('Could not get auth token for save:', tokenErr);
+            }
+          }
+          
+          // Create save promises with proper error handling
+          const savePromises = [];
+          
+          // Save to projects collection
+          savePromises.push(
+            fetch(`${BACKEND_URL}/api/projects`, {
+              method: 'POST',
+              headers: saveHeaders,
+              body: JSON.stringify({ userId: uid, project: itemToSave })
+            }).then(res => {
+              if (!res.ok) throw new Error(`Project save failed: ${res.status}`);
+              return res.json();
+            })
+          );
+          
+          // Also log to generations history
+          savePromises.push(
+            fetch(`${BACKEND_URL}/api/user/generations`, {
+              method: 'POST',
+              headers: saveHeaders,
+              body: JSON.stringify({
+                type: itemToSave.type || 'text',
+                agent: itemToSave.agent,
+                prompt: previewPrompt || itemToSave.snippet,
+                output: itemToSave.content || itemToSave.snippet,
+                metadata: {
+                  projectId: itemToSave.id,
+                  imageUrl: itemToSave.imageUrl,
+                  audioUrl: itemToSave.audioUrl,
+                  videoUrl: itemToSave.videoUrl
+                }
+              })
+            }).then(res => {
+              if (!res.ok) console.warn('Generation log returned non-OK status:', res.status);
+              return res.json().catch(() => ({}));
+            })
+          );
+          
+          // Race against timeout
+          await Promise.race([
+            Promise.all(savePromises),
+            timeoutPromise
+          ]);
+          
+          setUserCredits(prev => Math.max(0, prev - 1));
+          toast.success('✅ Saved & synced to cloud!', { id: toastId });
+        } else {
+          toast.success('Saved locally!', { id: toastId });
+        }
+      } else {
+        setFreeGenerationsUsed(prev => prev + 1);
+        toast.success('Saved to your Hub!', { id: toastId });
+      }
+
+      // Clear preview and navigate
+      setPreviewItem(null);
+      setPreviewPrompt('');
+      setPreviewView('lyrics');
+      setActiveTab(destination);
+      if (destination === 'hub') {
+        setSelectedAgent(null);
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      if (error.message.includes('timed out')) {
+        toast.error('Save timed out. Your work is saved locally.', { id: toastId });
+      } else {
+        toast.error(`Save failed: ${error.message}`, { id: toastId });
+      }
+      // Still close the modal - local save succeeded
+      setPreviewItem(null);
+      setPreviewPrompt('');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -2946,7 +2994,12 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
             // Merge local and remote
             const allProjects = [...data.projects, ...localProjects];
             const uniqueProjects = Array.from(new Map(allProjects.map(item => [item.id, item])).values());
-            uniqueProjects.sort((a, b) => b.id - a.id);
+            // Sort by updatedAt/createdAt descending (newest first)
+            uniqueProjects.sort((a, b) => {
+              const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+              const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+              return bTime - aTime;
+            });
             setProjects(uniqueProjects);
           } else {
             setProjects(localProjects);
@@ -3084,19 +3137,8 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
     const projectName = projectToDelete?.name || 'Unknown';
 
     // Optimistic UI update - remove from local state
+    // The useEffect for projects will automatically update localStorage (studio_agents_projects)
     setProjects((projects || []).filter(p => p.id !== projectId));
-    
-    // Also update localStorage
-    try {
-      const saved = localStorage.getItem('studio_projects');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const filtered = parsed.filter(p => p.id !== projectId);
-        localStorage.setItem('studio_projects', JSON.stringify(filtered));
-      }
-    } catch (err) {
-      console.warn('Failed to update localStorage:', err);
-    }
 
     // Delete from cloud via backend API (uses Admin SDK, bypasses security rules)
     if (isLoggedIn && user) {
@@ -3179,10 +3221,13 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
         );
       }
       
+      // Ensure assets is always an array (defensive)
+      const safeAssets = Array.isArray(selectedProject.assets) ? selectedProject.assets : [];
+      
       // Auto-select first asset if none selected
-      if (!canvasPreviewAsset && selectedProject.assets && selectedProject.assets.length > 0) {
+      if (!canvasPreviewAsset && safeAssets.length > 0) {
         // Use timeout to avoid render loop
-        setTimeout(() => setCanvasPreviewAsset(selectedProject.assets[0]), 0);
+        setTimeout(() => setCanvasPreviewAsset(safeAssets[0]), 0);
       }
 
       return (
@@ -3239,14 +3284,23 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                      <video 
                        src={canvasPreviewAsset.videoUrl} 
                        controls 
-                       style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }} 
+                       style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }}
+                       onError={(e) => {
+                         console.warn('[AssetViewer] Video failed to load:', canvasPreviewAsset.videoUrl);
+                         e.target.style.display = 'none';
+                         e.target.parentElement?.querySelector('.media-error-fallback')?.style?.setProperty('display', 'flex');
+                       }}
                      />
                    )}
                    {canvasPreviewAsset.type === 'Image' && canvasPreviewAsset.imageUrl && (
                      <img 
                        src={canvasPreviewAsset.imageUrl} 
-                       alt={canvasPreviewAsset.title}
-                       style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }} 
+                       alt={canvasPreviewAsset.title || 'Asset'}
+                       style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }}
+                       onError={(e) => {
+                         console.warn('[AssetViewer] Image failed to load:', canvasPreviewAsset.imageUrl);
+                         e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"%3E%3Crect fill="%231a1a2e" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23666" font-family="sans-serif"%3EImage unavailable%3C/text%3E%3C/svg%3E';
+                       }}
                      />
                    )}
                    {canvasPreviewAsset.type === 'Audio' && canvasPreviewAsset.audioUrl && (
@@ -3266,7 +3320,11 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                        <audio 
                          src={canvasPreviewAsset.audioUrl} 
                          controls 
-                         style={{ width: '100%', maxWidth: '600px' }} 
+                         style={{ width: '100%', maxWidth: '600px' }}
+                         onError={(e) => {
+                           console.warn('[AssetViewer] Audio failed to load:', canvasPreviewAsset.audioUrl);
+                           toast?.error?.('Audio file could not be loaded');
+                         }}
                        />
                      </div>
                    )}
@@ -3350,12 +3408,37 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                    <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '8px' }}>
                      <button 
                        onClick={() => {
-                         const link = document.createElement('a');
-                         link.href = canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl;
-                         link.download = canvasPreviewAsset.title;
-                         document.body.appendChild(link);
-                         link.click();
-                         document.body.removeChild(link);
+                         try {
+                           const mediaUrl = canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl;
+                           if (!mediaUrl) {
+                             // For text content, download as text file
+                             if (canvasPreviewAsset.content || canvasPreviewAsset.snippet) {
+                               const blob = new Blob([canvasPreviewAsset.content || canvasPreviewAsset.snippet], { type: 'text/plain' });
+                               const url = URL.createObjectURL(blob);
+                               const link = document.createElement('a');
+                               link.href = url;
+                               link.download = `${canvasPreviewAsset.title || 'asset'}.txt`;
+                               document.body.appendChild(link);
+                               link.click();
+                               document.body.removeChild(link);
+                               URL.revokeObjectURL(url);
+                               toast.success('Text file downloaded');
+                             } else {
+                               toast.error('No downloadable content available');
+                             }
+                             return;
+                           }
+                           const link = document.createElement('a');
+                           link.href = mediaUrl;
+                           link.download = canvasPreviewAsset.title || 'download';
+                           document.body.appendChild(link);
+                           link.click();
+                           document.body.removeChild(link);
+                           toast.success('Download started');
+                         } catch (err) {
+                           console.error('[AssetDownload] Error:', err);
+                           toast.error('Download failed');
+                         }
                        }}
                        className="btn-icon-circle glass"
                        title="Download"
@@ -3364,14 +3447,20 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                      </button>
                      <button 
                        onClick={() => {
-                         setShowPreview({
-                           type: canvasPreviewAsset.type.toLowerCase(),
-                           url: canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl,
-                           title: canvasPreviewAsset.title,
-                           asset: canvasPreviewAsset,
-                           assets: selectedProject.assets,
-                           currentIndex: selectedProject.assets.findIndex(a => a.id === canvasPreviewAsset.id)
-                         });
+                         try {
+                           const assetsList = selectedProject?.assets || [];
+                           setShowPreview({
+                             type: (canvasPreviewAsset.type || 'text').toLowerCase(),
+                             url: canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl || null,
+                             title: canvasPreviewAsset.title || 'Untitled',
+                             asset: canvasPreviewAsset,
+                             assets: assetsList,
+                             currentIndex: Math.max(0, assetsList.findIndex(a => a.id === canvasPreviewAsset.id))
+                           });
+                         } catch (err) {
+                           console.error('[AssetPreview] Error opening fullscreen:', err);
+                           toast.error('Could not open preview');
+                         }
                        }}
                        className="btn-icon-circle glass"
                        title="Fullscreen"
@@ -3647,8 +3736,12 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                        {asset.imageUrl ? (
                          <img 
                            src={asset.imageUrl}
-                           alt={asset.title}
+                           alt={asset.title || 'Asset image'}
                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                           onError={(e) => {
+                             console.warn('[AssetCard] Image failed to load:', asset.imageUrl?.substring(0, 50));
+                             e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="150" viewBox="0 0 200 150"%3E%3Crect fill="%231a1a2e" width="200" height="150"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23666" font-size="12" font-family="sans-serif"%3EImage unavailable%3C/text%3E%3C/svg%3E';
+                           }}
                          />
                        ) : asset.videoUrl ? (
                          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -3660,6 +3753,10 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                              onLoadedData={(e) => {
                                // Seek to 1 second for thumbnail frame
                                if (e.target.currentTime === 0) e.target.currentTime = 1;
+                             }}
+                             onError={(e) => {
+                               console.warn('[AssetCard] Video failed to load:', asset.videoUrl?.substring(0, 50));
+                               e.target.style.display = 'none';
                              }}
                            />
                            {/* Play icon overlay */}
@@ -3686,6 +3783,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                            <div style={{ width: '60%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
                               <div style={{ width: '40%', height: '100%', background: 'var(--color-purple)', borderRadius: '2px' }}></div>
                            </div>
+                           <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Click to play</span>
                          </div>
                        ) : (
                          <div style={{ 
@@ -3706,14 +3804,15 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                                textAlign: 'center',
                                overflow: 'hidden',
                                display: '-webkit-box',
-                               WebkitLineClamp: 3,
+                               WebkitLineClamp: 2,
                                WebkitBoxOrient: 'vertical',
                                lineHeight: '1.4',
                                maxWidth: '90%'
                              }}>
-                               {(asset.content || asset.snippet).substring(0, 100)}...
+                               {(asset.content || asset.snippet).substring(0, 80)}...
                              </div>
                            )}
+                           <span style={{ fontSize: '0.65rem', color: 'var(--color-cyan)', marginTop: '4px' }}>Click to view</span>
                          </div>
                        )}
                        
@@ -3823,12 +3922,22 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                        <button
                          onClick={(e) => {
                            e.stopPropagation();
-                           if (confirm(`Delete "${asset.title}"?`)) {
-                             const updatedAssets = selectedProject.assets.filter((_, i) => i !== idx);
-                             const updated = { ...selectedProject, assets: updatedAssets };
-                             setSelectedProject(updated);
-                             setProjects(projects.map(p => p.id === updated.id ? updated : p));
-                             toast.success('Asset deleted');
+                           try {
+                             if (confirm(`Delete "${asset.title || 'this asset'}"?`)) {
+                               const currentAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                               const updatedAssets = currentAssets.filter((_, i) => i !== idx);
+                               const updated = { ...selectedProject, assets: updatedAssets, updatedAt: new Date().toISOString() };
+                               setSelectedProject(updated);
+                               setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                               // Clear preview if we deleted the currently previewed asset
+                               if (canvasPreviewAsset?.id === asset.id) {
+                                 setCanvasPreviewAsset(updatedAssets[0] || null);
+                               }
+                               toast.success('Asset deleted');
+                             }
+                           } catch (err) {
+                             console.error('[AssetDelete] Error:', err);
+                             toast.error('Could not delete asset');
                            }
                          }}
                          className="btn-icon-sm"
@@ -7572,7 +7681,46 @@ When you write a song, you create intellectual property that generates money eve
               </div>
             )}
 
-            {!isLoadingActivity && hasMoreActivity && (
+            {/* Empty state when no content and not loading */}
+            {!isLoadingActivity && activityFeed.length === 0 && (
+              <div style={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                padding: '60px 24px', 
+                textAlign: 'center',
+                background: 'rgba(255,255,255,0.02)',
+                borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.05)'
+              }}>
+                <Music size={48} style={{ color: 'var(--color-purple)', marginBottom: '16px', opacity: 0.6 }} />
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', color: 'var(--text-primary)' }}>No Music Content Available</h3>
+                <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', maxWidth: '400px' }}>
+                  Unable to load music content from Reddit, YouTube, or new releases. Make sure the backend server is running.
+                </p>
+                <button 
+                  onClick={() => fetchActivity(1)}
+                  style={{
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                    color: 'white',
+                    fontSize: '0.95rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <RefreshCw size={16} /> Try Again
+                </button>
+              </div>
+            )}
+
+            {!isLoadingActivity && hasMoreActivity && activityFeed.length > 0 && (
               <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '32px' }}>
                 <button 
                   onClick={() => fetchActivity(activityPage + 1)}
@@ -9951,6 +10099,7 @@ When you write a song, you create intellectual property that generates money eve
               }}>
                 <button 
                   onClick={handleDiscardPreview}
+                  disabled={isSaving}
                   style={{ 
                     flex: 1, 
                     padding: '0.75rem', 
@@ -9958,7 +10107,8 @@ When you write a song, you create intellectual property that generates money eve
                     border: '1px solid var(--border-color)',
                     background: 'transparent',
                     color: 'var(--text-secondary)',
-                    cursor: 'pointer',
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    opacity: isSaving ? 0.5 : 1,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -9969,7 +10119,7 @@ When you write a song, you create intellectual property that generates money eve
                 </button>
                 <button 
                   onClick={handleRegeneratePreview}
-                  disabled={isGenerating}
+                  disabled={isGenerating || isSaving}
                   style={{ 
                     flex: 1, 
                     padding: '0.75rem', 
@@ -9977,8 +10127,8 @@ When you write a song, you create intellectual property that generates money eve
                     border: '1px solid var(--border-color)',
                     background: 'transparent',
                     color: 'var(--text-primary)',
-                    cursor: isGenerating ? 'not-allowed' : 'pointer',
-                    opacity: isGenerating ? 0.5 : 1,
+                    cursor: (isGenerating || isSaving) ? 'not-allowed' : 'pointer',
+                    opacity: (isGenerating || isSaving) ? 0.5 : 1,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -9990,24 +10140,35 @@ When you write a song, you create intellectual property that generates money eve
                 </button>
                 <button 
                   onClick={() => handleSavePreview('project_canvas')}
+                  disabled={isSaving}
                   style={{ 
                     flex: 1, 
                     padding: '0.75rem', 
                     borderRadius: '8px', 
                     border: '1px solid var(--border-color)',
-                    background: 'rgba(139, 92, 246, 0.1)',
+                    background: isSaving ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)',
                     color: 'var(--color-purple)',
-                    cursor: 'pointer',
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    opacity: isSaving ? 0.7 : 1,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '0.5rem'
                   }}
                 >
-                  <Edit3 size={16} /> Edit
+                  {isSaving ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" /> Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <Edit3 size={16} /> Edit
+                    </>
+                  )}
                 </button>
                 <button 
                   onClick={() => handleSavePreview('hub')}
+                  disabled={isSaving}
                   className="cta-button-premium"
                   style={{ 
                     flex: 1.5, 
@@ -10015,10 +10176,21 @@ When you write a song, you create intellectual property that generates money eve
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '0.5rem'
+                    gap: '0.5rem',
+                    opacity: isSaving ? 0.8 : 1,
+                    cursor: isSaving ? 'wait' : 'pointer'
                   }}
                 >
-                  <Save size={16} /> {selectedProject ? 'Save to Project' : 'Save to Hub'}
+                  {isSaving ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" /> 
+                      <span>Syncing to Cloud...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={16} /> {selectedProject ? 'Save to Project' : 'Save to Hub'}
+                    </>
+                  )}
                 </button>
               </div>
             </div>

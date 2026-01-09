@@ -197,13 +197,17 @@ export function PreviewModal({
           {mediaType === 'image' && (
             <img
               src={mediaUrl.startsWith('http') || mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
-              alt={title}
+              alt={title || 'Preview'}
               style={{
                 maxWidth: '100%',
                 maxHeight: 'calc(90vh - 120px)',
                 borderRadius: '8px',
                 objectFit: 'contain',
                 animation: 'zoomIn 0.3s ease-out'
+              }}
+              onError={(e) => {
+                console.warn('[PreviewModal] Image failed to load');
+                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%231a1a2e" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23666" font-size="16" font-family="sans-serif"%3EImage could not be loaded%3C/text%3E%3C/svg%3E';
               }}
             />
           )}
@@ -217,6 +221,9 @@ export function PreviewModal({
                 maxHeight: 'calc(90vh - 120px)',
                 borderRadius: '8px',
                 animation: 'zoomIn 0.3s ease-out'
+              }}
+              onError={(e) => {
+                console.warn('[PreviewModal] Video failed to load');
               }}
             />
           )}
@@ -237,6 +244,9 @@ export function PreviewModal({
                 autoPlay
                 style={{
                   width: '100%'
+                }}
+                onError={(e) => {
+                  console.warn('[PreviewModal] Audio failed to load');
                 }}
               />
               <p
