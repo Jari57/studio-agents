@@ -384,22 +384,31 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [pendingAction, setPendingAction] = useState(null); // Store what to do after auth
+  const [isTransitioning, setIsTransitioning] = useState(false); // Guard against race conditions
   
-  // Handle Google Sign In
+  // Handle Google Sign In - with transition guard
   const handleGoogleSignIn = async () => {
+    if (isTransitioning || authLoading) return;
+    
     setAuthLoading(true);
     setAuthError('');
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       await signInWithPopup(auth, provider);
+      
+      setIsTransitioning(true);
       setShowAuthModal(false);
-      // Continue with the pending action (enter studio)
-      if (pendingAction === 'start') {
-        onEnter(true);
-      } else {
-        onEnter(false);
-      }
+      
+      // Small delay to let modal close
+      setTimeout(() => {
+        if (pendingAction === 'start') {
+          onEnter(true);
+        } else {
+          onEnter(false);
+        }
+        setIsTransitioning(false);
+      }, 100);
     } catch (error) {
       console.error('Google sign in error:', error);
       if (error.code === 'auth/popup-closed-by-user') {
@@ -414,24 +423,38 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     }
   };
   
-  // Handle CTA button clicks - show auth modal
+  // Handle CTA button clicks - show auth modal (with guard)
   const handleCtaClick = (action = 'start') => {
+    if (isTransitioning) return; // Prevent clicks during transition
     setPendingAction(action);
     setShowAuthModal(true);
     setAuthError('');
   };
   
-  // Skip auth and continue as guest
+  // Skip auth and continue as guest - with transition guard
   const handleContinueAsGuest = () => {
-    console.log('[LandingPage] Continue as guest clicked, pendingAction:', pendingAction);
-    setShowAuthModal(false);
-    if (pendingAction === 'start') {
-      console.log('[LandingPage] Calling onEnter(true)');
-      onEnter(true);
-    } else {
-      console.log('[LandingPage] Calling onEnter(false)');
-      onEnter(false);
+    // Guard: prevent double-clicks and race conditions
+    if (isTransitioning || authLoading) {
+      console.log('[LandingPage] Blocked - already transitioning');
+      return;
     }
+    
+    console.log('[LandingPage] Continue as guest clicked, pendingAction:', pendingAction);
+    setIsTransitioning(true);
+    setShowAuthModal(false);
+    
+    // Small delay to let modal close animation complete before navigation
+    setTimeout(() => {
+      if (pendingAction === 'start') {
+        console.log('[LandingPage] Calling onEnter(true)');
+        onEnter(true);
+      } else {
+        console.log('[LandingPage] Calling onEnter(false)');
+        onEnter(false);
+      }
+      // Reset after navigation (in case user comes back)
+      setIsTransitioning(false);
+    }, 100);
   };
   const [pitchTab, setPitchTab] = useState('vision');
   const [showAgentWhitepaper, setShowAgentWhitepaper] = useState(false);

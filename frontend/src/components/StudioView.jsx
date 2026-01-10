@@ -654,6 +654,13 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
   // Asset preview state - enhanced with navigation
   const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image', url, title, asset, assets, currentIndex }
   const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
+  
+  // Audio refs to prevent re-render interruption
+  const previewAudioRef = useRef(null);
+  const canvasAudioRef = useRef(null);
+  
+  // Transition guard ref (doesn't cause re-render)
+  const isModalTransitioning = useRef(false);
 
   // Audio Export/Mastering State
   const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
@@ -3334,6 +3341,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                          <Music size={48} color="white" />
                        </div>
                        <audio 
+                         ref={canvasAudioRef}
                          key={canvasPreviewAsset.id || canvasPreviewAsset.audioUrl}
                          src={canvasPreviewAsset.audioUrl} 
                          controls 
@@ -3345,7 +3353,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                          onPlay={() => console.log('[AssetViewer] Audio started playing')}
                          onPause={(e) => console.log('[AssetViewer] Audio paused at', e.target.currentTime, 'ended:', e.target.ended)}
                          onEnded={() => console.log('[AssetViewer] Audio ended')}
-                         onLoadedData={() => console.log('[AssetViewer] Audio loaded, duration:', document.querySelector('audio')?.duration)}
+                         onLoadedData={() => console.log('[AssetViewer] Audio loaded, duration:', canvasAudioRef.current?.duration)}
                        />
                      </div>
                    )}
@@ -3724,11 +3732,17 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                      {/* Media Preview */}
                      <div 
                        onClick={() => {
+                         // Guard: prevent rapid clicks
+                         if (isModalTransitioning.current) return;
+                         
                          // For text-only assets, just select for preview in Studio Monitor
                          if (!asset.audioUrl && !asset.imageUrl && !asset.videoUrl) {
                            setCanvasPreviewAsset(asset);
                            return;
                          }
+                         
+                         isModalTransitioning.current = true;
+                         
                          // Open fullscreen preview (auto-plays audio/video)
                          const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
                          const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
@@ -3741,6 +3755,9 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                            assets: previewableAssets,
                            currentIndex: currentIndex >= 0 ? currentIndex : 0
                          });
+                         
+                         // Reset guard after modal opens
+                         setTimeout(() => { isModalTransitioning.current = false; }, 300);
                        }}
                        style={{ 
                          width: '100%',
@@ -12564,6 +12581,7 @@ When you write a song, you create intellectual property that generates money eve
                     <Music size={48} style={{ color: 'white' }} />
                   </div>
                   <audio 
+                    ref={previewAudioRef}
                     key={showPreview.asset?.id || showPreview.url}
                     src={showPreview.url}
                     controls
@@ -12572,7 +12590,7 @@ When you write a song, you create intellectual property that generates money eve
                     controlsList="nodownload"
                     onError={(e) => console.error('[AudioPreview] Error:', e.target.error?.message || 'Unknown error', 'URL:', showPreview.url?.substring(0, 50))}
                     onCanPlay={() => console.log('[AudioPreview] Audio can play')}
-                    onLoadedData={() => console.log('[AudioPreview] Audio loaded, duration:', document.querySelector('audio')?.duration)}
+                    onLoadedData={() => console.log('[AudioPreview] Audio loaded, duration:', previewAudioRef.current?.duration)}
                     onPlay={() => console.log('[AudioPreview] Audio started playing')}
                     onPause={(e) => console.log('[AudioPreview] Audio paused at', e.target.currentTime, 'seconds, ended:', e.target.ended)}
                     onEnded={() => console.log('[AudioPreview] Audio ended naturally')}
