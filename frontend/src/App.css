@@ -3742,9 +3742,13 @@ select optgroup {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  /* Simplified transition - no transform to prevent flickering */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   position: relative;
   overflow: hidden;
+  /* Prevent layout shift and flickering */
+  will-change: box-shadow;
+  backface-visibility: hidden;
 }
 
 .agent-studio-card::before,
@@ -3757,7 +3761,7 @@ select optgroup {
   height: 2px;
   background: var(--gradient-vibrant);
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.2s ease;
 }
 
 .agent-studio-card:hover::before,
@@ -3768,8 +3772,7 @@ select optgroup {
 .agent-studio-card:hover,
 .generator-card-unified:hover {
   border-color: rgba(139, 92, 246, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 12px 24px -8px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 8px 20px -6px rgba(139, 92, 246, 0.25);
 }
 
 /* Unified Icon Box - used by both agent cards and generator cards */
@@ -3783,14 +3786,14 @@ select optgroup {
   justify-content: center;
   color: var(--color-purple);
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15));
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  /* Simplified - only color transition, no box-shadow flicker */
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .agent-studio-card:hover .agent-studio-icon,
 .generator-card-unified:hover .generator-icon-box {
   background: var(--gradient-vibrant);
   color: white;
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
 .agent-studio-info h3,
