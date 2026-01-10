@@ -10794,22 +10794,23 @@ html, body, #root {
   margin: 0;
 }
 
-/* Mobile Responsive - Horizontal icon bar at top */
+/* Mobile Responsive - Vertical icon rail on left */
 @media (max-width: 900px) {
   .agents-split-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-    height: auto;
-    min-height: auto;
+    grid-template-columns: 56px 1fr;
+    grid-template-rows: 1fr;
+    height: calc(100vh - 140px);
+    min-height: 400px;
   }
   
   .agents-sidebar {
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    flex-direction: row;
-    height: 64px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
+    flex-direction: column;
+    height: 100%;
+    width: 56px;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   
   .agents-sidebar-header {
@@ -10817,79 +10818,97 @@ html, body, #root {
   }
   
   .agents-sidebar-list {
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: nowrap;
-    padding: 8px 12px;
-    gap: 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    padding: 8px 6px;
+    gap: 4px;
+    overflow-x: hidden;
+    overflow-y: auto;
     align-items: center;
     justify-content: flex-start;
   }
   
   .agents-sidebar-list::-webkit-scrollbar {
-    height: 2px;
-    width: auto;
+    width: 2px;
+    height: auto;
   }
   
   .agent-sidebar-item {
-    width: 44px;
-    height: 44px;
+    width: 42px;
+    height: 42px;
     flex-shrink: 0;
   }
   
   .agent-sidebar-icon {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
   }
   
-  /* Tooltip appears below on mobile */
+  .agent-sidebar-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  /* Tooltip appears to the right on mobile */
   .agent-sidebar-info {
-    left: 50%;
-    top: calc(100% + 8px);
-    transform: translateX(-50%);
+    left: calc(100% + 8px);
+    top: 50%;
+    transform: translateY(-50%);
   }
   
   .agent-sidebar-info::before {
-    left: 50%;
-    top: -6px;
-    transform: translateX(-50%);
+    left: -6px;
+    top: 50%;
+    transform: translateY(-50%);
     border: 6px solid transparent;
-    border-bottom-color: rgba(139, 92, 246, 0.3);
-    border-right-color: transparent;
+    border-right-color: rgba(139, 92, 246, 0.3);
+    border-bottom-color: transparent;
   }
   
   .agents-sidebar-section {
-    display: none;
+    display: flex;
+    padding: 4px 0;
+    margin-top: 4px;
   }
   
   .agent-sidebar-badge {
     top: 0;
     right: 0;
-    font-size: 0.45rem;
-    padding: 1px 3px;
+    font-size: 0.4rem;
+    padding: 1px 2px;
   }
   
   .agents-main-panel {
     padding: 16px;
     padding-bottom: 80px;
+    overflow-y: auto;
   }
   
   .agents-welcome-state {
-    min-height: 400px;
-    padding: 24px;
+    min-height: 300px;
+    padding: 20px;
   }
   
   .agents-welcome-icon {
-    width: 60px;
-    height: 60px;
+    width: 56px;
+    height: 56px;
   }
   
   .agents-welcome-state h2 {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
   }
   
   .agents-welcome-state p {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    max-width: 280px;
+  }
+  
+  .agents-welcome-grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+  
+  .agents-welcome-card {
+    padding: 14px;
   }
 }
