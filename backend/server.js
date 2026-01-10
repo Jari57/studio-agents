@@ -3077,134 +3077,26 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 1: SUNO AI via Replicate - REAL music with vocals
-    // This generates actual music with singing/rapping, NOT robotic TTS
-    // Cost: ~$0.05-0.15 per generation (30-60 seconds)
+    // PRIORITY 1: BARK - Expressive speech/vocals via Replicate (suno-ai/bark)
+    // Generates expressive speech with emotion, great for rap delivery
+    // Cost: ~$0.01-0.03 per generation, takes 30-120 seconds on cold start
     // ═══════════════════════════════════════════════════════════════
     if (replicateKey && !audioUrl) {
-      try {
-        // Build a music-appropriate prompt for Suno
-        let musicGenre = genre;
-        let vocalStyle = '';
-        
-        // Style-specific prompts for better results
-        if (style === 'rapper' || style === 'rapper-male') {
-          vocalStyle = 'male rapper, confident aggressive delivery';
-          musicGenre = genre === 'hip-hop' ? 'trap hip-hop' : genre;
-        } else if (style === 'rapper-female') {
-          vocalStyle = 'female rapper, powerful confident flow';
-          musicGenre = genre === 'hip-hop' ? 'trap hip-hop' : genre;
-        } else if (style === 'singer' || style === 'singer-male') {
-          vocalStyle = 'male singer, soulful R&B vocals';
-          musicGenre = genre === 'hip-hop' ? 'r&b soul' : genre;
-        } else if (style === 'singer-female') {
-          vocalStyle = 'female singer, powerful emotional vocals';
-          musicGenre = genre === 'hip-hop' ? 'r&b pop' : genre;
-        }
-        
-        // Rap style modifiers
-        if (rapStyle === 'aggressive' || rapStyle === 'hype') {
-          vocalStyle += ', intense energetic';
-        } else if (rapStyle === 'melodic') {
-          vocalStyle += ', melodic singing flow';
-        } else if (rapStyle === 'trap') {
-          vocalStyle += ', triplet flow, ad-libs';
-          musicGenre = 'trap';
-        } else if (rapStyle === 'drill') {
-          vocalStyle += ', UK drill flow, aggressive';
-          musicGenre = 'drill';
-        } else if (rapStyle === 'boom-bap' || rapStyle === 'oldschool') {
-          vocalStyle += ', classic boom-bap flow';
-          musicGenre = 'boom-bap hip-hop';
-        }
-
-        logger.info('🎵 Using Suno AI for REAL vocal generation', { musicGenre, vocalStyle });
-        
-        // Suno chirp-v3.5 model on Replicate - generates actual music with vocals
-        const response = await fetch('https://api.replicate.com/v1/predictions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Token ${replicateKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            // Suno Chirp v3.5 - best for rap and singing
-            version: 'c7f85c6ab8a1e7f5d77c11d8f5a5e1c2d4e8f6a3b9c2d4e7f1a3b5c7d9e1f3a5',
-            input: {
-              prompt: `[${musicGenre}] [${vocalStyle}]\n\nLyrics:\n${prompt.substring(0, 1500)}`,
-              make_instrumental: instrumental,
-              wait_audio: true
-            }
-          })
-        });
-        
-        if (response.ok) {
-          const prediction = await response.json();
-          logger.info('Suno prediction started', { id: prediction.id });
-          
-          // Poll for completion (Suno can take 30-90 seconds)
-          let attempts = 0;
-          while (attempts < 60) {
-            await new Promise(r => setTimeout(r, 2000));
-            
-            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-              headers: { 'Authorization': `Token ${replicateKey}` }
-            });
-            
-            if (statusResponse.ok) {
-              const status = await statusResponse.json();
-              if (attempts % 5 === 0) {
-                logger.info('Suno poll', { attempt: attempts, status: status.status });
-              }
-              
-              if (status.status === 'succeeded') {
-                // Suno outputs audio URL
-                const outputUrl = Array.isArray(status.output) ? status.output[0] : status.output;
-                if (outputUrl) {
-                  const audioResponse = await fetch(outputUrl);
-                  if (audioResponse.ok) {
-                    const audioBuffer = await audioResponse.arrayBuffer();
-                    const base64Audio = Buffer.from(audioBuffer).toString('base64');
-                    audioUrl = `data:audio/mp3;base64,${base64Audio}`;
-                    provider = 'suno-ai';
-                    logger.info('✅ Suno AI real vocals generated!', { bytes: audioBuffer.byteLength });
-                    break;
-                  }
-                }
-              } else if (status.status === 'failed') {
-                logger.warn('Suno generation failed', { error: status.error });
-                break;
-              }
-            }
-            attempts++;
-          }
-        } else {
-          const errText = await response.text();
-          logger.warn('Suno API error, trying Bark', { status: response.status, error: errText.substring(0, 200) });
-        }
-      } catch (sunoError) {
-        logger.warn('Suno error, falling back', { error: sunoError.message });
-      }
-    }
-
-    // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 2: Bark - Expressive speech with emotion, laughter, music
-    // Great for rap delivery with ad-libs and expression
-    // ═══════════════════════════════════════════════════════════════
-    if (!audioUrl && replicateKey) {
       try {
         logger.info('🎤 Using Bark for expressive vocal generation');
         
         // Bark speaker presets for different styles
-        // Format: v2/[lang]_speaker_[0-9] - e.g., v2/en_speaker_6 (deep male), v2/en_speaker_9 (female)
-        let speakerHistory = 'v2/en_speaker_6'; // Default: expressive male
+        // Valid options: announcer, de_speaker_0-9, en_speaker_0-9, es_speaker_0-9, fr_speaker_0-9
+        // hi_speaker_0-9, it_speaker_0-9, ja_speaker_0-9, ko_speaker_0-9, pl_speaker_0-9
+        // pt_speaker_0-9, ru_speaker_0-9, tr_speaker_0-9, zh_speaker_0-9
+        let speakerHistory = 'en_speaker_6'; // Default: expressive male
         
         if (style === 'rapper-female' || style === 'singer-female') {
-          speakerHistory = 'v2/en_speaker_9'; // Expressive female
+          speakerHistory = 'en_speaker_9'; // Expressive female
         } else if (rapStyle === 'aggressive' || rapStyle === 'hype') {
-          speakerHistory = 'v2/en_speaker_3'; // Intense male
+          speakerHistory = 'en_speaker_3'; // Intense male
         } else if (rapStyle === 'chill' || rapStyle === 'melodic') {
-          speakerHistory = 'v2/en_speaker_6'; // Smooth male
+          speakerHistory = 'en_speaker_6'; // Smooth male
         }
         
         // Add Bark-specific markers for expression
@@ -3222,7 +3114,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            // Bark - expressive TTS with emotion
+            // Bark - expressive TTS with emotion (suno-ai/bark model)
             version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
             input: {
               prompt: barkPrompt.substring(0, 1000),
@@ -3269,6 +3161,9 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             }
             attempts++;
           }
+        } else {
+          const errText = await response.text();
+          logger.warn('Bark API error, trying next fallback', { status: response.status, error: errText.substring(0, 200) });
         }
       } catch (barkError) {
         logger.warn('Bark error, trying TTS fallback', { error: barkError.message });
@@ -3278,7 +3173,10 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     // ═══════════════════════════════════════════════════════════════
     // PRIORITY 3: XTTS v2 - Fast high-quality voice cloning TTS
     // Good for narration and spoken word
+    // NOTE: XTTS v2 disabled - requires valid speaker URL for voice cloning
+    // The Replicate delivery URLs expire, so we skip this fallback
     // ═══════════════════════════════════════════════════════════════
+    /* XTTS DISABLED - speaker URL expired
     if (!audioUrl && replicateKey) {
       try {
         logger.info('🎤 Using XTTS v2 for voice synthesis');
@@ -3295,8 +3193,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             input: {
               text: prompt.substring(0, 2000),
               language: 'en',
-              speaker_wav: null, // Could clone from uploaded audio
-              cleanup_voice: true
+              speaker: 'https://replicate.delivery/pbxt/HN48RVB1mXdZY3K2eSLvGXGkZCz57NzDJYXCCz01DJZEZOfe/output.wav' // Default XTTS voice
             }
           })
         });
@@ -3336,11 +3233,15 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             }
             attempts++;
           }
+        } else {
+          const errText = await response.text();
+          logger.warn('XTTS API error, trying next fallback', { status: response.status, error: errText.substring(0, 200) });
         }
       } catch (xttsError) {
         logger.warn('XTTS error', { error: xttsError.message });
       }
     }
+    XTTS DISABLED */
 
     // ═══════════════════════════════════════════════════════════════
     // FALLBACK: Uberduck TTS (basic, but always works)
