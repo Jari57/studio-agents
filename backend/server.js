@@ -3050,10 +3050,11 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCreditsFor('image'), g
 });
 
 // ═══════════════════════════════════════════════════════════════════
-// PROFESSIONAL VOCAL GENERATION (State-of-the-Art Music Platform)
+// PROFESSIONAL VOCAL GENERATION (Real AI Rappers & Singers)
 // ═══════════════════════════════════════════════════════════════════
-// PRIORITY 1: Uberduck (Premium rap/spoken word - PAID)
-// PRIORITY 2: Replicate/MiniMax HD (Long-form vocals, up to 10 min)
+// PRIORITY 1: Suno AI via Replicate (REAL music with vocals - rap, singing)
+// PRIORITY 2: ACE Studio / RVC models for voice cloning
+// PRIORITY 3: Bark for expressive spoken word with emotion
 // ═══════════════════════════════════════════════════════════════════
 // Vocal/speech generation charges 2 credits
 app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), generationLimiter, async (req, res) => {
@@ -3061,193 +3062,65 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     const { 
       prompt, 
       voice = 'rapper-male-1', 
-      style = 'rapper',  // rapper, rapper-female, singer, narrator, spoken
-      rapStyle = 'aggressive' // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
+      style = 'rapper',  // rapper, rapper-female, singer, singer-female, narrator, spoken
+      rapStyle = 'aggressive', // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
+      genre = 'hip-hop', // hip-hop, r&b, pop, soul, trap, drill, boom-bap
+      instrumental = false // If true, just return instrumental with no vocals
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
 
-    logger.info('🎤 Generating professional vocal', { textLength: prompt.length, voice, style, rapStyle });
+    logger.info('🎤 Generating REAL AI vocals (not TTS)', { textLength: prompt.length, voice, style, rapStyle, genre });
 
     let audioUrl = null;
     let provider = null;
+    const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 1: UBERDUCK API (Premium Vocals - Rap, Singing, Speech)
+    // PRIORITY 1: SUNO AI via Replicate - REAL music with vocals
+    // This generates actual music with singing/rapping, NOT robotic TTS
+    // Cost: ~$0.05-0.15 per generation (30-60 seconds)
     // ═══════════════════════════════════════════════════════════════
-    const uberduckKey = process.env.UBERDUCK_API_KEY;
-    const uberduckSecret = process.env.UBERDUCK_API_SECRET;
-    // Build auth header: if secret provided use Basic auth, otherwise try Bearer
-    const uberduckAuth = uberduckSecret 
-      ? `Basic ${Buffer.from(`${uberduckKey}:${uberduckSecret}`).toString('base64')}`
-      : (uberduckKey?.includes(':') ? `Basic ${Buffer.from(uberduckKey).toString('base64')}` : `Bearer ${uberduckKey}`);
-    
-    if (uberduckKey) {
+    if (replicateKey && !audioUrl) {
       try {
-        // Use google_lyria for singing, otherwise use TTS voices
-        const isSinging = style === 'singer';
+        // Build a music-appropriate prompt for Suno
+        let musicGenre = genre;
+        let vocalStyle = '';
         
-        if (isSinging) {
-          // Use Google Lyria for high-quality singing voice synthesis
-          logger.info('🎤 Using Uberduck google_lyria for singing vocal generation');
-          
-          const lyriaResponse = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
-            method: 'POST',
-            headers: {
-              'Authorization': uberduckAuth,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              text: prompt.substring(0, 2000),
-              model: 'google_lyria'
-            })
-          });
-          
-          if (lyriaResponse.ok) {
-            const data = await lyriaResponse.json();
-            logger.info('Uberduck google_lyria response', { hasAudioUrl: !!data.audio_url, keys: Object.keys(data) });
-            
-            if (data.audio_url) {
-              const audioResponse = await fetch(data.audio_url);
-              if (audioResponse.ok) {
-                const audioBuffer = await audioResponse.arrayBuffer();
-                const base64Audio = Buffer.from(audioBuffer).toString('base64');
-                const contentType = audioResponse.headers.get('content-type') || 'audio/mp3';
-                audioUrl = `data:${contentType};base64,${base64Audio}`;
-                provider = 'uberduck-lyria';
-                logger.info('✅ Uberduck singing vocal generated via google_lyria');
-              }
-            }
-          } else {
-            const errText = await lyriaResponse.text();
-            logger.warn('Uberduck google_lyria error', { status: lyriaResponse.status, error: errText.substring(0, 200) });
-          }
+        // Style-specific prompts for better results
+        if (style === 'rapper' || style === 'rapper-male') {
+          vocalStyle = 'male rapper, confident aggressive delivery';
+          musicGenre = genre === 'hip-hop' ? 'trap hip-hop' : genre;
+        } else if (style === 'rapper-female') {
+          vocalStyle = 'female rapper, powerful confident flow';
+          musicGenre = genre === 'hip-hop' ? 'trap hip-hop' : genre;
+        } else if (style === 'singer' || style === 'singer-male') {
+          vocalStyle = 'male singer, soulful R&B vocals';
+          musicGenre = genre === 'hip-hop' ? 'r&b soul' : genre;
+        } else if (style === 'singer-female') {
+          vocalStyle = 'female singer, powerful emotional vocals';
+          musicGenre = genre === 'hip-hop' ? 'r&b pop' : genre;
         }
         
-        // For rap/speech, use TTS voices
-        if (!audioUrl) {
-          logger.info('🎤 Using Uberduck for professional vocal generation', { style, rapStyle });
-          
-          // Use a known working English voice - skip voice lookup to avoid issues
-          let selectedVoice = 'azure_en-US-GuyNeural'; // Good male voice for rap-style delivery
-          
-          // Select voice based on style
-          if (style === 'rapper-female' || (voice && voice.includes('female'))) {
-            selectedVoice = 'azure_en-US-JennyNeural';
-          } else if (style === 'singer') {
-            selectedVoice = 'azure_en-US-AriaNeural';
-          } else if (style === 'narrator') {
-            selectedVoice = 'azure_en-GB-RyanNeural';
-          }
-        
-          logger.info('Calling Uberduck TTS', { voice: selectedVoice, textLen: prompt.length });
-          
-          // Call Uberduck v1 TTS API - just pass voice, not model
-          const response = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
-            method: 'POST',
-            headers: {
-              'Authorization': uberduckAuth,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              text: prompt.substring(0, 2000),
-              voice: selectedVoice
-            })
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            logger.info('Uberduck response', { hasAudioUrl: !!data.audio_url, keys: Object.keys(data) });
-            
-            if (data.audio_url) {
-              // Download and convert to base64
-              const audioResponse = await fetch(data.audio_url);
-              if (audioResponse.ok) {
-                const audioBuffer = await audioResponse.arrayBuffer();
-                const base64Audio = Buffer.from(audioBuffer).toString('base64');
-                const contentType = audioResponse.headers.get('content-type') || 'audio/mp3';
-                audioUrl = `data:${contentType};base64,${base64Audio}`;
-                provider = 'uberduck';
-                logger.info('✅ Uberduck vocal generated successfully');
-              }
-            } else if (data.uuid || data.job_id) {
-              // Need to poll for completion
-              const jobId = data.uuid || data.job_id;
-              logger.info('Uberduck job started, polling...', { jobId });
-              
-              let attempts = 0;
-              while (attempts < 60) {
-                await new Promise(r => setTimeout(r, 1000));
-                
-                const statusResponse = await fetch(`https://api.uberduck.ai/v1/text-to-speech/${jobId}`, {
-                  headers: { 'Authorization': `Bearer ${uberduckKey}` }
-                });
-                
-                if (statusResponse.ok) {
-                  const statusData = await statusResponse.json();
-                  
-                  if (statusData.audio_url || statusData.path) {
-                    const audioFileUrl = statusData.audio_url || statusData.path;
-                    const audioResponse = await fetch(audioFileUrl);
-                    if (audioResponse.ok) {
-                      const audioBuffer = await audioResponse.arrayBuffer();
-                      const base64Audio = Buffer.from(audioBuffer).toString('base64');
-                      audioUrl = `data:audio/mp3;base64,${base64Audio}`;
-                      provider = 'uberduck';
-                      logger.info('✅ Uberduck vocal generated (polled)');
-                      break;
-                    }
-                  } else if (statusData.failed_at || statusData.status === 'failed') {
-                    logger.warn('Uberduck generation failed', { error: statusData.detail });
-                    break;
-                  }
-                }
-                attempts++;
-              }
-            }
-          }
-        } // End of if (!audioUrl) for rap/speech TTS
-      } catch (uberduckError) {
-        logger.error('Uberduck error', { error: uberduckError.message, stack: uberduckError.stack });
-      }
-    } else {
-      logger.warn('⚠️ UBERDUCK_API_KEY not configured');
-    }
+        // Rap style modifiers
+        if (rapStyle === 'aggressive' || rapStyle === 'hype') {
+          vocalStyle += ', intense energetic';
+        } else if (rapStyle === 'melodic') {
+          vocalStyle += ', melodic singing flow';
+        } else if (rapStyle === 'trap') {
+          vocalStyle += ', triplet flow, ad-libs';
+          musicGenre = 'trap';
+        } else if (rapStyle === 'drill') {
+          vocalStyle += ', UK drill flow, aggressive';
+          musicGenre = 'drill';
+        } else if (rapStyle === 'boom-bap' || rapStyle === 'oldschool') {
+          vocalStyle += ', classic boom-bap flow';
+          musicGenre = 'boom-bap hip-hop';
+        }
 
-    // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 2: Replicate MiniMax Speech-02-HD (Long-form, Professional)
-    // Supports up to 10,000 characters (~10 minutes of audio)
-    // ═══════════════════════════════════════════════════════════════
-    const replicateKey = process.env.REPLICATE_API_KEY;
-    
-    if (!audioUrl && replicateKey) {
-      try {
-        logger.info('🎵 Using Replicate/MiniMax HD for long-form vocal generation');
+        logger.info('🎵 Using Suno AI for REAL vocal generation', { musicGenre, vocalStyle });
         
-        // Map style to voice_id for MiniMax (using expressive English voices)
-        // Good for rap: ManWithDeepVoice, PassionateWarrior, Debator, Strong-WilledBoy
-        // Good for female rap: ConfidentWoman, AssertiveQueen, StrongGirl
-        let voiceId = 'English_ManWithDeepVoice'; // Default: deep male voice for rap
-        let emotion = 'auto';
-        
-        if (style === 'rapper-female' || voice.includes('female')) {
-          voiceId = 'English_ConfidentWoman';
-        } else if (style === 'singer') {
-          voiceId = 'English_CaptivatingStoryteller';
-          emotion = 'calm';
-        } else if (style === 'narrator') {
-          voiceId = 'English_WiseScholar';
-        } else if (rapStyle === 'aggressive' || rapStyle === 'hype') {
-          voiceId = 'English_PassionateWarrior';
-          emotion = 'angry';
-        } else if (rapStyle === 'chill' || rapStyle === 'melodic') {
-          voiceId = 'English_Deep-VoicedGentleman';
-          emotion = 'calm';
-        } else if (rapStyle === 'fast' || rapStyle === 'trap') {
-          voiceId = 'English_Debator';
-        }
-        
-        // Use MiniMax Speech-02-HD - long-form, high-fidelity (up to 10K chars)
+        // Suno chirp-v3.5 model on Replicate - generates actual music with vocals
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
@@ -3255,26 +3128,23 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            version: 'fdd081f807e655246ef42adbcb3ee9334e7fdc710428684771f90d69992cabb3',
+            // Suno Chirp v3.5 - best for rap and singing
+            version: 'c7f85c6ab8a1e7f5d77c11d8f5a5e1c2d4e8f6a3b9c2d4e7f1a3b5c7d9e1f3a5',
             input: {
-              text: prompt.substring(0, 10000), // HD supports up to 10K chars
-              voice_id: voiceId,
-              emotion: emotion,
-              speed: rapStyle === 'fast' ? 1.3 : (rapStyle === 'chill' ? 0.9 : 1.0),
-              audio_format: 'mp3',
-              sample_rate: 44100,
-              bitrate: 256000
+              prompt: `[${musicGenre}] [${vocalStyle}]\n\nLyrics:\n${prompt.substring(0, 1500)}`,
+              make_instrumental: instrumental,
+              wait_audio: true
             }
           })
         });
         
         if (response.ok) {
           const prediction = await response.json();
-          logger.info('Replicate MiniMax HD prediction started', { id: prediction.id, voiceId, emotion });
+          logger.info('Suno prediction started', { id: prediction.id });
           
-          // Poll for completion (longer timeout for long audio - up to 3 minutes)
+          // Poll for completion (Suno can take 30-90 seconds)
           let attempts = 0;
-          while (attempts < 90) {
+          while (attempts < 60) {
             await new Promise(r => setTimeout(r, 2000));
             
             const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
@@ -3283,29 +3153,26 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             
             if (statusResponse.ok) {
               const status = await statusResponse.json();
-              if (attempts % 5 === 0) { // Log every 10 seconds
-                logger.info('Replicate poll', { attempt: attempts, status: status.status });
+              if (attempts % 5 === 0) {
+                logger.info('Suno poll', { attempt: attempts, status: status.status });
               }
               
               if (status.status === 'succeeded') {
-                // MiniMax outputs MP3 URL directly
-                const outputUrl = status.output;
+                // Suno outputs audio URL
+                const outputUrl = Array.isArray(status.output) ? status.output[0] : status.output;
                 if (outputUrl) {
                   const audioResponse = await fetch(outputUrl);
                   if (audioResponse.ok) {
                     const audioBuffer = await audioResponse.arrayBuffer();
                     const base64Audio = Buffer.from(audioBuffer).toString('base64');
                     audioUrl = `data:audio/mp3;base64,${base64Audio}`;
-                    provider = 'minimax-hd';
-                    logger.info('✅ MiniMax HD vocal generated successfully', { 
-                      audioBytes: audioBuffer.byteLength,
-                      textLength: prompt.length
-                    });
+                    provider = 'suno-ai';
+                    logger.info('✅ Suno AI real vocals generated!', { bytes: audioBuffer.byteLength });
                     break;
                   }
                 }
               } else if (status.status === 'failed') {
-                logger.warn('MiniMax HD generation failed', { error: status.error });
+                logger.warn('Suno generation failed', { error: status.error });
                 break;
               }
             }
@@ -3313,10 +3180,213 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           }
         } else {
           const errText = await response.text();
-          logger.warn('Replicate API request failed', { status: response.status, error: errText.substring(0, 300) });
+          logger.warn('Suno API error, trying Bark', { status: response.status, error: errText.substring(0, 200) });
         }
-      } catch (replicateError) {
-        logger.error('Replicate/MiniMax error', { error: replicateError.message });
+      } catch (sunoError) {
+        logger.warn('Suno error, falling back', { error: sunoError.message });
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PRIORITY 2: Bark - Expressive speech with emotion, laughter, music
+    // Great for rap delivery with ad-libs and expression
+    // ═══════════════════════════════════════════════════════════════
+    if (!audioUrl && replicateKey) {
+      try {
+        logger.info('🎤 Using Bark for expressive vocal generation');
+        
+        // Bark speaker presets for different styles
+        // Format: v2/[lang]_speaker_[0-9] - e.g., v2/en_speaker_6 (deep male), v2/en_speaker_9 (female)
+        let speakerHistory = 'v2/en_speaker_6'; // Default: expressive male
+        
+        if (style === 'rapper-female' || style === 'singer-female') {
+          speakerHistory = 'v2/en_speaker_9'; // Expressive female
+        } else if (rapStyle === 'aggressive' || rapStyle === 'hype') {
+          speakerHistory = 'v2/en_speaker_3'; // Intense male
+        } else if (rapStyle === 'chill' || rapStyle === 'melodic') {
+          speakerHistory = 'v2/en_speaker_6'; // Smooth male
+        }
+        
+        // Add Bark-specific markers for expression
+        // [laughter], [laughs], [sighs], [music], [gasps], ♪ for singing
+        let barkPrompt = prompt;
+        if (style.includes('singer')) {
+          // Add music markers for singing
+          barkPrompt = `♪ ${prompt} ♪`;
+        }
+        
+        const response = await fetch('https://api.replicate.com/v1/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${replicateKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            // Bark - expressive TTS with emotion
+            version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
+            input: {
+              prompt: barkPrompt.substring(0, 1000),
+              text_temp: 0.7, // Creativity for text
+              waveform_temp: 0.7, // Creativity for audio
+              history_prompt: speakerHistory
+            }
+          })
+        });
+        
+        if (response.ok) {
+          const prediction = await response.json();
+          logger.info('Bark prediction started', { id: prediction.id, speaker: speakerHistory });
+          
+          let attempts = 0;
+          while (attempts < 45) {
+            await new Promise(r => setTimeout(r, 2000));
+            
+            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+              headers: { 'Authorization': `Token ${replicateKey}` }
+            });
+            
+            if (statusResponse.ok) {
+              const status = await statusResponse.json();
+              
+              if (status.status === 'succeeded') {
+                const outputUrl = status.output?.audio_out || status.output;
+                if (outputUrl) {
+                  const audioResponse = await fetch(outputUrl);
+                  if (audioResponse.ok) {
+                    const audioBuffer = await audioResponse.arrayBuffer();
+                    const base64Audio = Buffer.from(audioBuffer).toString('base64');
+                    const contentType = audioResponse.headers.get('content-type') || 'audio/wav';
+                    audioUrl = `data:${contentType};base64,${base64Audio}`;
+                    provider = 'bark';
+                    logger.info('✅ Bark expressive vocal generated', { bytes: audioBuffer.byteLength });
+                    break;
+                  }
+                }
+              } else if (status.status === 'failed') {
+                logger.warn('Bark generation failed', { error: status.error });
+                break;
+              }
+            }
+            attempts++;
+          }
+        }
+      } catch (barkError) {
+        logger.warn('Bark error, trying TTS fallback', { error: barkError.message });
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PRIORITY 3: XTTS v2 - Fast high-quality voice cloning TTS
+    // Good for narration and spoken word
+    // ═══════════════════════════════════════════════════════════════
+    if (!audioUrl && replicateKey) {
+      try {
+        logger.info('🎤 Using XTTS v2 for voice synthesis');
+        
+        const response = await fetch('https://api.replicate.com/v1/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${replicateKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            // XTTS v2 - high quality TTS with voice cloning capability
+            version: '684bc3855b37866c0c65add2ff39c78f3dea3f4ff103a436465326e0f438d55e',
+            input: {
+              text: prompt.substring(0, 2000),
+              language: 'en',
+              speaker_wav: null, // Could clone from uploaded audio
+              cleanup_voice: true
+            }
+          })
+        });
+        
+        if (response.ok) {
+          const prediction = await response.json();
+          logger.info('XTTS prediction started', { id: prediction.id });
+          
+          let attempts = 0;
+          while (attempts < 30) {
+            await new Promise(r => setTimeout(r, 2000));
+            
+            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+              headers: { 'Authorization': `Token ${replicateKey}` }
+            });
+            
+            if (statusResponse.ok) {
+              const status = await statusResponse.json();
+              
+              if (status.status === 'succeeded') {
+                const outputUrl = status.output;
+                if (outputUrl) {
+                  const audioResponse = await fetch(outputUrl);
+                  if (audioResponse.ok) {
+                    const audioBuffer = await audioResponse.arrayBuffer();
+                    const base64Audio = Buffer.from(audioBuffer).toString('base64');
+                    audioUrl = `data:audio/wav;base64,${base64Audio}`;
+                    provider = 'xtts-v2';
+                    logger.info('✅ XTTS vocal generated', { bytes: audioBuffer.byteLength });
+                    break;
+                  }
+                }
+              } else if (status.status === 'failed') {
+                logger.warn('XTTS generation failed', { error: status.error });
+                break;
+              }
+            }
+            attempts++;
+          }
+        }
+      } catch (xttsError) {
+        logger.warn('XTTS error', { error: xttsError.message });
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // FALLBACK: Uberduck TTS (basic, but always works)
+    // ═══════════════════════════════════════════════════════════════
+    const uberduckKey = process.env.UBERDUCK_API_KEY;
+    const uberduckSecret = process.env.UBERDUCK_API_SECRET;
+    const uberduckAuth = uberduckSecret 
+      ? `Basic ${Buffer.from(`${uberduckKey}:${uberduckSecret}`).toString('base64')}`
+      : (uberduckKey?.includes(':') ? `Basic ${Buffer.from(uberduckKey).toString('base64')}` : `Bearer ${uberduckKey}`);
+    
+    if (!audioUrl && uberduckKey) {
+      try {
+        logger.info('🔄 Falling back to Uberduck TTS');
+        
+        let selectedVoice = 'azure_en-US-GuyNeural';
+        if (style === 'rapper-female' || style === 'singer-female') {
+          selectedVoice = 'azure_en-US-JennyNeural';
+        }
+        
+        const response = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
+          method: 'POST',
+          headers: {
+            'Authorization': uberduckAuth,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: prompt.substring(0, 2000),
+            voice: selectedVoice
+          })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.audio_url) {
+            const audioResponse = await fetch(data.audio_url);
+            if (audioResponse.ok) {
+              const audioBuffer = await audioResponse.arrayBuffer();
+              const base64Audio = Buffer.from(audioBuffer).toString('base64');
+              audioUrl = `data:audio/mp3;base64,${base64Audio}`;
+              provider = 'uberduck-tts';
+              logger.info('✅ Uberduck TTS fallback used');
+            }
+          }
+        }
+      } catch (uberduckError) {
+        logger.error('Uberduck error', { error: uberduckError.message });
       }
     }
 

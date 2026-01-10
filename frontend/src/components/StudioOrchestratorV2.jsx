@@ -1495,8 +1495,9 @@ export default function StudioOrchestratorV2({
   const [projectName, setProjectName] = useState('');
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [voiceStyle, setVoiceStyle] = useState('rapper'); // For Ghostwriter vocal generation
+  const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
   const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
+  const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
   const [generatingVocal, setGeneratingVocal] = useState(false);
   const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
   const [creatingFinalMix, setCreatingFinalMix] = useState(false);
@@ -2123,7 +2124,8 @@ export default function StudioOrchestratorV2({
           prompt: performanceText,
           voice: selectedVoice,
           style: voiceStyle,
-          rapStyle: rapStyle // Send rap style to backend
+          rapStyle: rapStyle, // Send rap style to backend
+          genre: genre // Send genre for singers (r&b, pop, soul, etc)
         })
       });
       
@@ -3041,16 +3043,16 @@ export default function StudioOrchestratorV2({
                   outline: 'none'
                 }}
               >
-                <optgroup label="🎙️ Rap Voices (Uberduck)">
-                  <option value="rapper">🔥 Rapper (Male)</option>
-                  <option value="rapper-female">💜 Rapper (Female)</option>
+                <optgroup label="🔥 AI Rappers (Suno/Bark)">
+                  <option value="rapper">🎤 Male Rapper</option>
+                  <option value="rapper-female">💜 Female Rapper</option>
                 </optgroup>
-                <optgroup label="🎤 Singing (Bark/Suno)">
-                  <option value="singer">🎵 Singer</option>
+                <optgroup label="🎵 AI Singers">
+                  <option value="singer">🎤 Male Singer (R&B/Soul)</option>
+                  <option value="singer-female">💫 Female Singer (Pop/R&B)</option>
                 </optgroup>
-                <optgroup label="🗣️ Speech (Gemini)">
-                  <option value="narrator">📢 Narrator</option>
-                  <option value="whisper">🤫 Whisper</option>
+                <optgroup label="🗣️ Narration">
+                  <option value="narrator">📢 Narrator (Deep Voice)</option>
                   <option value="spoken">💬 Spoken Word</option>
                 </optgroup>
               </select>
@@ -3071,15 +3073,40 @@ export default function StudioOrchestratorV2({
                     outline: 'none'
                   }}
                 >
-                  <optgroup label="🔥 Delivery Style">
+                  <optgroup label="🔥 Rap Flow">
                     <option value="aggressive">💥 Aggressive</option>
-                    <option value="chill">😎 Chill / Laid-back</option>
                     <option value="melodic">🎵 Melodic</option>
+                    <option value="trap">🔥 Trap (Triplets)</option>
+                    <option value="drill">🇬🇧 Drill (UK)</option>
+                    <option value="boom-bap">📻 Boom-Bap</option>
                     <option value="fast">⚡ Fast Flow</option>
-                    <option value="trap">🎤 Trap</option>
-                    <option value="oldschool">📻 Old School</option>
-                    <option value="storytelling">📖 Storytelling</option>
-                    <option value="hype">🔊 Hype / Energy</option>
+                    <option value="chill">😎 Chill</option>
+                    <option value="hype">🔊 Hype</option>
+                  </optgroup>
+                </select>
+              )}
+              
+              {/* Genre Selector - only show for singers */}
+              {(voiceStyle === 'singer' || voiceStyle === 'singer-female') && (
+                <select
+                  value={genre}
+                  onChange={(e) => setGenre(e.target.value)}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(0,0,0,0.3)',
+                    border: '1px solid rgba(139, 92, 246, 0.5)',
+                    color: 'white',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <optgroup label="🎶 Genre">
+                    <option value="r&b">💜 R&B / Soul</option>
+                    <option value="pop">🌟 Pop</option>
+                    <option value="hip-hop">🔥 Hip-Hop</option>
+                    <option value="soul">🎷 Gospel/Soul</option>
                   </optgroup>
                 </select>
               )}

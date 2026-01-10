@@ -1993,10 +1993,10 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
         }
       }
 
-      // Trim text to reasonable length for vocals (2000 chars for Uberduck/MiniMax)
-      const textToSpeak = textContent.substring(0, 2000);
+      // Trim text to reasonable length for vocals (1500 chars for Suno, 2000 for fallback)
+      const textToSpeak = textContent.substring(0, 1500);
 
-      console.log('[handleCreateAIVocal] Generating rapper vocal via Uberduck/Replicate for:', textToSpeak.substring(0, 50) + '...');
+      console.log('[handleCreateAIVocal] Generating REAL AI vocal via Suno/Bark for:', textToSpeak.substring(0, 50) + '...');
 
       const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
         method: 'POST',
@@ -2004,8 +2004,9 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
         body: JSON.stringify({
           prompt: textToSpeak,
           voice: voiceSettings.voiceName || 'rapper-male-1',
-          style: voiceSettings.style || 'rapper',  // Use rapper voice from Uberduck/Replicate
-          rapStyle: voiceSettings.rapStyle || 'aggressive'  // aggressive, chill, melodic, fast, trap, oldschool
+          style: voiceSettings.style || 'rapper',  // rapper, rapper-female, singer, singer-female
+          rapStyle: voiceSettings.rapStyle || 'aggressive',  // aggressive, melodic, trap, drill, boom-bap, fast, chill, hype
+          genre: voiceSettings.genre || 'hip-hop'  // hip-hop, r&b, pop, soul, trap, drill
         })
       });
 
@@ -5146,21 +5147,22 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                         {showVoiceSettings && (
                           <div className="voice-settings-dropdown animate-fadeInUp">
                             <div className="settings-group">
-                              <label>Voice Style (Uberduck/Replicate)</label>
+                              <label>🎤 AI Voice Type (Real Vocals, Not TTS)</label>
                               <select 
                                 value={voiceSettings.style || 'rapper'}
                                 onChange={(e) => setVoiceSettings({...voiceSettings, style: e.target.value})}
                                 className="settings-select"
                               >
-                                <optgroup label="🎙️ Rap Voices (Uberduck)">
-                                  <option value="rapper">🔥 Rapper (Male)</option>
-                                  <option value="rapper-female">💜 Rapper (Female)</option>
+                                <optgroup label="🔥 AI Rappers (Suno/Bark)">
+                                  <option value="rapper">🎤 Male Rapper</option>
+                                  <option value="rapper-female">💜 Female Rapper</option>
                                 </optgroup>
-                                <optgroup label="🎤 Singing">
-                                  <option value="singer">🎵 Singer</option>
+                                <optgroup label="🎵 AI Singers">
+                                  <option value="singer">🎤 Male Singer (R&B/Soul)</option>
+                                  <option value="singer-female">💫 Female Singer (Pop/R&B)</option>
                                 </optgroup>
-                                <optgroup label="🗣️ Speech">
-                                  <option value="narrator">📢 Narrator</option>
+                                <optgroup label="🗣️ Speech/Narration">
+                                  <option value="narrator">📢 Narrator (Deep Voice)</option>
                                   <option value="spoken">💬 Spoken Word</option>
                                 </optgroup>
                               </select>
@@ -5169,73 +5171,46 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                             {/* Rap Style - only show for rapper voices */}
                             {(voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female') && (
                               <div className="settings-group">
-                                <label>Rap Delivery Style</label>
+                                <label>🎯 Rap Flow & Delivery</label>
                                 <select 
                                   value={voiceSettings.rapStyle || 'aggressive'}
                                   onChange={(e) => setVoiceSettings({...voiceSettings, rapStyle: e.target.value})}
                                   className="settings-select"
                                 >
-                                  <option value="aggressive">💥 Aggressive</option>
-                                  <option value="chill">😎 Chill / Laid-back</option>
-                                  <option value="melodic">🎵 Melodic</option>
-                                  <option value="fast">⚡ Fast Flow</option>
-                                  <option value="trap">🎤 Trap</option>
-                                  <option value="oldschool">📻 Old School</option>
-                                  <option value="storytelling">📖 Storytelling</option>
-                                  <option value="hype">🔊 Hype / Energy</option>
+                                  <option value="aggressive">💥 Aggressive (Hard-hitting)</option>
+                                  <option value="melodic">🎵 Melodic (Singing flow)</option>
+                                  <option value="trap">🔥 Trap (Triplets + Ad-libs)</option>
+                                  <option value="drill">🇬🇧 Drill (UK style)</option>
+                                  <option value="boom-bap">📻 Boom-Bap (Classic hip-hop)</option>
+                                  <option value="fast">⚡ Fast Flow (Technical)</option>
+                                  <option value="chill">😎 Chill (Laid-back)</option>
+                                  <option value="hype">🔊 Hype (High energy)</option>
                                 </select>
                               </div>
                             )}
                             
-                            <div className="settings-group">
-                              <label>Voice Gender</label>
-                              <div className="settings-toggle">
-                                <button 
-                                  className={voiceSettings.gender === 'male' ? 'active' : ''}
-                                  onClick={() => setVoiceSettings({...voiceSettings, gender: 'male'})}
-                                >
-                                  Male
-                                </button>
-                                <button 
-                                  className={voiceSettings.gender === 'female' ? 'active' : ''}
-                                  onClick={() => setVoiceSettings({...voiceSettings, gender: 'female'})}
-                                >
-                                  Female
-                                </button>
-                              </div>
-                            </div>
-                            <div className="settings-group">
-                              <label>Region / Accent</label>
-                              <select 
-                                value={voiceSettings.region}
-                                onChange={(e) => setVoiceSettings({...voiceSettings, region: e.target.value})}
-                                className="settings-select"
-                              >
-                                <option value="US">United States</option>
-                                <option value="UK">United Kingdom</option>
-                                <option value="AU">Australia</option>
-                                <option value="IN">India</option>
-                              </select>
-                            </div>
-                            <div className="settings-group">
-                              <label>Preferred Language</label>
-                              <div className="language-search">
-                                <Languages size={14} />
+                            {/* Genre - for singers */}
+                            {(voiceSettings.style === 'singer' || voiceSettings.style === 'singer-female') && (
+                              <div className="settings-group">
+                                <label>🎶 Music Genre</label>
                                 <select 
-                                  value={voiceSettings.language}
-                                  onChange={(e) => setVoiceSettings({...voiceSettings, language: e.target.value})}
+                                  value={voiceSettings.genre || 'r&b'}
+                                  onChange={(e) => setVoiceSettings({...voiceSettings, genre: e.target.value})}
                                   className="settings-select"
                                 >
-                                  <option value="English">English</option>
-                                  <option value="Spanish">Spanish</option>
-                                  <option value="French">French</option>
-                                  <option value="German">German</option>
-                                  <option value="Japanese">Japanese</option>
-                                  <option value="Chinese">Chinese</option>
+                                  <option value="r&b">💜 R&B / Soul</option>
+                                  <option value="pop">🌟 Pop</option>
+                                  <option value="hip-hop">🔥 Hip-Hop</option>
+                                  <option value="soul">🎷 Soul / Gospel</option>
                                 </select>
                               </div>
-                            </div>
-                            <p className="settings-info">Uses Uberduck/Replicate for rapper voices. {voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female' ? `Style: ${voiceSettings.rapStyle}` : ''}</p>
+                            )}
+                            
+                            <p className="settings-info" style={{ marginTop: '8px', opacity: 0.8 }}>
+                              🚀 <strong>Real AI Vocals</strong> powered by Suno AI & Bark. 
+                              {(voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female') && ` Flow: ${voiceSettings.rapStyle || 'aggressive'}`}
+                              {(voiceSettings.style === 'singer' || voiceSettings.style === 'singer-female') && ` Genre: ${voiceSettings.genre || 'r&b'}`}
+                            </p>
                           </div>
                         )}
                       </div>
