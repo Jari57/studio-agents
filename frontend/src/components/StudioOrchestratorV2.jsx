@@ -2100,21 +2100,10 @@ export default function StudioOrchestratorV2({
       const selectedVoice = voiceMapping[voiceStyle] || 'rapper-male-1';
       
       // Prepare lyrics text with performance direction based on rap style
-      const styleDirections = {
-        aggressive: 'Deliver with intense energy, hard-hitting bars, powerful emphasis',
-        chill: 'Relaxed, smooth flow, laid-back delivery, casual vibe',
-        melodic: 'Melodic flow with singing elements, auto-tune style, wavy',
-        fast: 'Rapid-fire delivery, quick syllables, machine gun flow',
-        trap: 'Trap style with ad-libs, hi-hat flow, modern ATL sound',
-        oldschool: 'Classic 90s boom-bap style, clear enunciation, storytelling',
-        storytelling: 'Narrative delivery, emotional, paint pictures with words',
-        hype: 'Maximum energy, crowd-moving, anthem style, powerful'
-      };
-      
-      const styleDirection = styleDirections[rapStyle] || styleDirections.aggressive;
-      const performanceText = (voiceStyle === 'rapper' || voiceStyle === 'rapper-female') 
-        ? `[${rapStyle} rap style - ${styleDirection}] ${outputs.lyrics.substring(0, 500)}`
-        : `[${voiceStyle} style] ${outputs.lyrics.substring(0, 500)}`;
+      // Send ONLY the clean lyrics text - no style directions!
+      // Style info is sent as separate API parameters (voice, style, rapStyle, genre)
+      // The backend handles applying the style to the voice, not by reading style text aloud
+      const performanceText = outputs.lyrics.substring(0, 500);
       
       console.log('[handleGenerateLyricsVocal] Making API call to:', `${BACKEND_URL}/api/generate-speech`);
       const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {

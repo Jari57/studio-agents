@@ -3099,12 +3099,19 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           speakerHistory = 'en_speaker_6'; // Smooth male
         }
         
+        // Clean the prompt text - remove any style direction markers that may have been included
+        // These markers like [aggressive rap style - ...] should NOT be read aloud
+        let cleanPrompt = prompt
+          .replace(/\[.*?style.*?\]\s*/gi, '') // Remove [any style...] markers
+          .replace(/^\[.*?\]\s*/g, '')         // Remove any leading brackets
+          .trim();
+        
         // Add Bark-specific markers for expression
         // [laughter], [laughs], [sighs], [music], [gasps], ♪ for singing
-        let barkPrompt = prompt;
+        let barkPrompt = cleanPrompt;
         if (style.includes('singer')) {
           // Add music markers for singing
-          barkPrompt = `♪ ${prompt} ♪`;
+          barkPrompt = `♪ ${cleanPrompt} ♪`;
         }
         
         const response = await fetch('https://api.replicate.com/v1/predictions', {
@@ -3127,10 +3134,12 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         
         if (response.ok) {
           const prediction = await response.json();
-          logger.info('Bark prediction started', { id: prediction.id, speaker: speakerHistory });
+          logger.info('🎤 Bark prediction started - waiting for AI voice generation', { id: prediction.id, speaker: speakerHistory });
           
+          // Bark cold start can take 2-3 minutes, so we poll for up to 4 minutes
           let attempts = 0;
-          while (attempts < 45) {
+          const maxAttempts = 120; // 120 × 2 seconds = 4 minutes max wait
+          while (attempts < maxAttempts) {
             await new Promise(r => setTimeout(r, 2000));
             
             const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
@@ -3139,6 +3148,16 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             
             if (statusResponse.ok) {
               const status = await statusResponse.json();
+              
+              // Log progress every 10 attempts (20 seconds)
+              if (attempts % 10 === 0) {
+                logger.info('⏳ Bark generation in progress', { 
+                  attempt: attempts, 
+                  maxAttempts,
+                  status: status.status,
+                  elapsed: `${attempts * 2}s`
+                });
+              }
               
               if (status.status === 'succeeded') {
                 const outputUrl = status.output?.audio_out || status.output;
@@ -3150,16 +3169,23 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
                     const contentType = audioResponse.headers.get('content-type') || 'audio/wav';
                     audioUrl = `data:${contentType};base64,${base64Audio}`;
                     provider = 'bark';
-                    logger.info('✅ Bark expressive vocal generated', { bytes: audioBuffer.byteLength });
+                    logger.info('✅ Bark AI voice generated successfully!', { 
+                      bytes: audioBuffer.byteLength,
+                      elapsed: `${attempts * 2}s`
+                    });
                     break;
                   }
                 }
               } else if (status.status === 'failed') {
-                logger.warn('Bark generation failed', { error: status.error });
+                logger.warn('❌ Bark generation failed', { error: status.error });
                 break;
               }
             }
             attempts++;
+          }
+          
+          if (attempts >= maxAttempts && !audioUrl) {
+            logger.warn('⏰ Bark timeout after 4 minutes - falling back to TTS');
           }
         } else {
           const errText = await response.text();

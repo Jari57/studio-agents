@@ -5003,7 +5003,9 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       );
     }
 
-    if (selectedAgent) {
+    // Show agent workspace for non-agents tabs (e.g., coming from project_canvas)
+    // The agents tab now has its own split layout handling
+    if (selectedAgent && activeTab !== 'agents') {
       const Icon = selectedAgent.icon;
       return (
         <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative', paddingBottom: '80px' }}>
@@ -5949,360 +5951,380 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       case 'agents': {
         const availableAgents = getAvailableAgents();
         const lockedAgents = getLockedAgents();
+        const allAgents = [...availableAgents, ...lockedAgents];
         
-        return (
-          <div className="agents-view">
-            {/* Free generation counter */}
-            {!isLoggedIn && (
-              <div className="free-generation-banner" style={{
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
-                border: '1px solid rgba(139, 92, 246, 0.2)',
-                borderRadius: '12px',
-                padding: '16px 20px',
-                marginBottom: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '12px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '10px',
-                    background: 'rgba(139, 92, 246, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <Sparkles size={20} className="text-purple" />
+        // Render the agent workspace content (used in main panel when agent is selected)
+        const renderAgentWorkspace = () => {
+          if (!selectedAgent) return null;
+          const Icon = selectedAgent.icon;
+          
+          return (
+            <div className="agent-workspace-content">
+              {/* Onboarding Nudge */}
+              {showNudge && selectedAgent.onboarding && (
+                <div className="agent-nudge-overlay animate-fadeInDown" style={{ marginBottom: '24px' }}>
+                  <div className="nudge-header">
+                    <h4><Sparkles size={16} /> Quick Start Guide</h4>
+                    <button className="nudge-close" onClick={() => setShowNudge(false)}>
+                      <X size={16} />
+                    </button>
                   </div>
-                  <div>
-                    <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>
-                      {getRemainingFreeGenerations()} of {FREE_GENERATION_LIMIT} Free Generations Left
+                  <div className="nudge-steps">
+                    {selectedAgent.onboarding.map((step, idx) => (
+                      <div key={idx} className="nudge-step">
+                        <span className="step-num">{idx + 1}</span>
+                        <p>{step}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="nudge-footer">
+                    <button className="nudge-cta" onClick={() => setShowNudge(false)}>
+                      Got it, let's go!
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="agent-detail-layout" style={{ gridTemplateColumns: '1fr 300px' }}>
+                <div className="agent-main-panel">
+                  <div className="agent-hero-card">
+                    <div className={`agent-icon-large ${selectedAgent.colorClass}`}>
+                      <Icon size={40} />
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Sign in to unlock more generations
+                    <div className="agent-hero-info">
+                      <span className="agent-badge">{selectedAgent.category}</span>
+                      <h2>{selectedAgent.name}</h2>
+                      <p>{selectedAgent.description || selectedAgent.desc}</p>
+                    </div>
+                  </div>
+
+                  <div className="agent-utility-box">
+                    <div className="utility-controls">
+                      <div className="control-group">
+                        <label>Genre / Style</label>
+                        <select className="studio-select">
+                          <option>Hip Hop / Rap</option>
+                          <option>Pop / Modern</option>
+                          <option>R&B / Soul</option>
+                          <option>Electronic / Dance</option>
+                          <option>Rock / Alternative</option>
+                          <option>Lo-Fi / Chill</option>
+                        </select>
+                      </div>
+                      <div className="control-group">
+                        <label>Intensity / Mood</label>
+                        <input type="range" className="studio-slider" min="1" max="10" defaultValue="5" />
+                      </div>
+                    </div>
+
+                    <div className="prompt-area">
+                      <div className="prompt-header">
+                        <label>Creative Prompt</label>
+                        <div className="voice-controls">
+                          <button 
+                            className={`btn-pill ${isListening ? 'primary' : 'glass'}`} 
+                            onClick={handleVoiceToText}
+                            title="Voice to Text"
+                          >
+                            <Mic size={16} />
+                          </button>
+                          <button 
+                            className={`btn-pill ${isSpeaking ? 'primary' : 'glass'}`} 
+                            onClick={handleTextToVoice}
+                            title="Text to Voice"
+                          >
+                            <Volume2 size={16} />
+                          </button>
+                          <button 
+                            className={`btn-pill ${showVoiceSettings ? 'primary' : 'glass'}`}
+                            onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                            title="Voice Settings"
+                          >
+                            <Settings size={16} />
+                          </button>
+                        </div>
+                      </div>
+                      <textarea 
+                        ref={textareaRef}
+                        placeholder={`Describe what you want ${selectedAgent.name} to create...`}
+                        className="studio-textarea"
+                      ></textarea>
+                      
+                      <div className="generation-actions" style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                        <button 
+                          className="btn-pill glass"
+                          onClick={() => setQuickWorkflowAgent(selectedAgent)}
+                        >
+                          <Zap size={16} />
+                          Quick Generate
+                        </button>
+                        <button 
+                          className={`btn-pill primary ${isGenerating ? 'loading' : ''}`} 
+                          style={{ flex: 1 }}
+                          onClick={handleGenerate}
+                          disabled={isGenerating}
+                        >
+                          {isGenerating ? (
+                            <>
+                              <div className="spinner-mini"></div>
+                              <span>Processing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap size={18} />
+                              <span>Generate</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recent Creations */}
+                  <div className="side-info-card" style={{ marginTop: '16px' }}>
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={16} className="text-purple" />
+                      Recent Creations
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                      {(() => {
+                        const agentProjects = (projects || []).filter(p => p.agent === selectedAgent.name).slice(0, 3);
+                        if (agentProjects.length > 0) {
+                          return agentProjects.map((item, i) => (
+                            <div
+                              key={item.id || i}
+                              onClick={() => setPreviewItem(item)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                padding: '10px 12px',
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <div style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '8px',
+                                background: item.imageUrl ? `url(${item.imageUrl}) center/cover` : 'rgba(139, 92, 246, 0.2)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                              }}>
+                                {!item.imageUrl && <FileText size={14} style={{ opacity: 0.5 }} />}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {item.title || item.snippet?.substring(0, 30) || 'Untitled'}
+                                </div>
+                                <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                                  {item.date || 'Recent'}
+                                </div>
+                              </div>
+                              <Eye size={14} style={{ opacity: 0.5 }} />
+                            </div>
+                          ));
+                        }
+                        return (
+                          <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                            No creations yet. Start generating!
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
-                <button 
-                  className="btn-pill primary"
-                  onClick={() => setShowLoginModal(true)}
-                  style={{ padding: '10px 20px' }}
-                >
-                  Sign In Free
-                </button>
+
+                {/* Right info panel */}
+                <div className="agent-side-panel">
+                  <div className="side-info-card">
+                    <h3>Capabilities</h3>
+                    <ul className="capability-list">
+                      {(selectedAgent?.capabilities || []).map((cap, i) => (
+                        <li key={i}><Sparkles size={14} /> {cap}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="side-info-card">
+                    <h3>How to Use</h3>
+                    <p className="help-text">{selectedAgent?.howToUse || 'Enter your prompt and generate content.'}</p>
+                  </div>
+
+                  <div className="side-info-card">
+                    <h3>Examples</h3>
+                    <div className="example-chips">
+                      {(selectedAgent?.examples || []).slice(0, 3).map((ex, i) => (
+                        <div 
+                          key={i} 
+                          className="example-chip" 
+                          onClick={() => {
+                            const textarea = textareaRef.current;
+                            if (textarea) {
+                              textarea.value = ex;
+                              textarea.focus();
+                            }
+                          }}
+                        >
+                          "{ex.length > 50 ? ex.substring(0, 50) + '...' : ex}"
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-            
-            {/* Available Agents Grid */}
-            <div className="agents-section-header" style={{ marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }}>
-                Your Agents ({availableAgents.length})
-              </h3>
             </div>
-            
-            <div className="agents-studio-grid">
-              {availableAgents.map((agent, i) => {
-                const Icon = agent.icon;
-                return (
-                  <div 
-                    key={agent.id} 
-                    className={`agent-studio-card ${agent.colorClass} animate-fadeInUp`}
-                    style={{ animationDelay: `${i * 0.1}s`, position: 'relative' }}
-                  >
-                    {/* Whitepaper Gear Button */}
+          );
+        };
+        
+        return (
+          <div className="agents-split-layout">
+            {/* Left Sidebar - Agent List */}
+            <div className="agents-sidebar">
+              <div className="agents-sidebar-header">
+                <h3><Sparkles size={18} className="text-purple" /> Agents</h3>
+                <p>{availableAgents.length} available</p>
+              </div>
+              
+              <div className="agents-sidebar-list">
+                {/* Available Agents */}
+                {availableAgents.map((agent) => {
+                  const Icon = agent.icon;
+                  const isActive = selectedAgent?.id === agent.id;
+                  return (
                     <button
-                      onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
-                      title="View Agent Whitepaper"
-                      style={{
-                        position: 'absolute',
-                        top: '10px',
-                        left: '10px',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '8px',
-                        background: 'rgba(139, 92, 246, 0.2)',
-                        border: '1px solid rgba(139, 92, 246, 0.4)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        zIndex: 10,
-                        transition: 'all 0.2s ease'
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.background = 'rgba(139, 92, 246, 0.5)';
-                        e.currentTarget.style.transform = 'rotate(45deg) scale(1.1)';
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
-                        e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
-                      }}
-                    >
-                      <Settings size={14} style={{ color: 'var(--color-purple)' }} />
-                    </button>
-                    
-                    {agent.isBeta && (
-                      <div className="beta-badge-mini" style={{ 
-                        position: 'absolute', 
-                        top: '12px', 
-                        right: '12px', 
-                        background: 'rgba(255, 165, 0, 0.2)', 
-                        color: 'orange', 
-                        padding: '2px 6px', 
-                        borderRadius: '4px', 
-                        fontSize: '10px', 
-                        fontWeight: 'bold',
-                        border: '1px solid rgba(255, 165, 0, 0.4)'
-                      }}>
-                        BETA
-                      </div>
-                    )}
-                    <div className="agent-studio-icon">
-                      <Icon size={24} />
-                    </div>
-                    <div className="agent-studio-info">
-                      <h3>{agent.name}</h3>
-                      <p>{agent.category}</p>
-                    </div>
-                    <button 
-                      className="agent-launch-btn"
+                      key={agent.id}
+                      className={`agent-sidebar-item ${isActive ? 'active' : ''}`}
                       onClick={() => {
                         setSelectedAgent(agent);
                         Analytics.agentUsed(agent.id);
                       }}
                     >
-                      Launch Agent
+                      <div className={`agent-sidebar-icon ${agent.colorClass}`}>
+                        <Icon size={18} />
+                      </div>
+                      <div className="agent-sidebar-info">
+                        <h4>{agent.name}</h4>
+                        <span>{agent.category}</span>
+                      </div>
+                      {agent.isBeta && (
+                        <span className="agent-sidebar-badge beta">BETA</span>
+                      )}
                     </button>
-                    
-                    {/* Quick Actions for Grid */}
-                    <div className="agent-grid-quick-actions" style={{ 
-                      display: 'flex', 
-                      gap: '8px', 
-                      marginTop: '12px', 
-                      justifyContent: 'center',
-                      borderTop: '1px solid rgba(255,255,255,0.06)',
-                      paddingTop: '12px'
-                    }}>
-                      <button 
-                        className="quick-action-icon-btn"
-                        title="Quick Generate"
-                        style={{
-                          flex: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          padding: '8px 12px',
-                          background: 'rgba(139, 92, 246, 0.08)',
-                          border: '1px solid rgba(139, 92, 246, 0.15)',
-                          borderRadius: '8px',
-                          color: 'var(--color-purple)',
-                          fontSize: '0.75rem',
-                          fontWeight: '500',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setQuickWorkflowAgent(agent);
-                        }}
-                      >
-                        <Zap size={14} />
-                        <span>Quick</span>
-                      </button>
-                      <button 
-                        className="quick-action-icon-btn"
-                        title="How to Use"
-                        style={{
-                          flex: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          padding: '8px 12px',
-                          background: 'rgba(6, 182, 212, 0.08)',
-                          border: '1px solid rgba(6, 182, 212, 0.15)',
-                          borderRadius: '8px',
-                          color: 'var(--color-cyan)',
-                          fontSize: '0.75rem',
-                          fontWeight: '500',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowAgentHelpModal(agent);
-                        }}
-                      >
-                        <CircleHelp size={14} />
-                        <span>Guide</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            
-            {/* Teaser Section: What Else We Can Do */}
-            {lockedAgents.length > 0 && (
-              <div className="locked-agents-teaser" style={{ marginTop: '48px' }}>
-                <div className="teaser-header" style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '20px',
-                  flexWrap: 'wrap',
-                  gap: '12px'
-                }}>
-                  <div>
-                    <h3 style={{ 
-                      fontSize: '1.25rem', 
-                      fontWeight: '700', 
-                      margin: '0 0 4px 0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      <Lock size={18} className="text-purple" />
-                      What Else We Can Do
-                    </h3>
-                    <p style={{ 
-                      margin: 0, 
-                      color: 'var(--text-secondary)', 
-                      fontSize: '0.9rem' 
-                    }}>
-                      Unlock {lockedAgents.length} more powerful agents with a subscription
-                    </p>
-                  </div>
-                  <button 
-                    className="btn-pill primary"
-                    onClick={() => {
-                      if (!isLoggedIn) {
-                        setShowLoginModal(true);
-                      } else {
-                        setDashboardTab('subscription');
-                        setActiveTab('mystudio');
-                      }
-                    }}
-                    style={{ padding: '10px 20px' }}
-                  >
-                    <Crown size={16} />
-                    Upgrade Now
-                  </button>
-                </div>
+                  );
+                })}
                 
-                <div className="locked-agents-grid" style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                  gap: '12px'
-                }}>
-                  {lockedAgents.map((agent) => {
-                    const Icon = agent.icon;
-                    const tierLabel = agent.tier === 'monthly' ? 'Monthly' : 'Pro';
-                    const tierColor = agent.tier === 'monthly' ? 'var(--color-cyan)' : 'var(--color-purple)';
-                    
-                    return (
-                      <div 
-                        key={agent.id}
-                        className="locked-agent-card"
-                        style={{
-                          background: 'rgba(255, 255, 255, 0.02)',
-                          border: '1px solid rgba(255, 255, 255, 0.06)',
-                          borderRadius: '12px',
-                          padding: '16px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                          position: 'relative',
-                          opacity: 0.7,
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                        onClick={() => {
-                          if (!isLoggedIn) {
-                            setShowLoginModal(true);
-                          } else {
-                            setDashboardTab('subscription');
-                            setActiveTab('mystudio');
-                          }
-                        }}
-                      >
-                        {/* Whitepaper Gear - available for all agents */}
+                {/* Locked Agents Section */}
+                {lockedAgents.length > 0 && (
+                  <>
+                    <div className="agents-sidebar-section">
+                      <h5><Lock size={10} /> Premium</h5>
+                    </div>
+                    {lockedAgents.map((agent) => {
+                      const Icon = agent.icon;
+                      return (
                         <button
-                          onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
-                          title="View Agent Whitepaper"
-                          style={{
-                            position: 'absolute',
-                            top: '6px',
-                            right: '6px',
-                            width: '22px',
-                            height: '22px',
-                            borderRadius: '6px',
-                            background: 'rgba(139, 92, 246, 0.2)',
-                            border: '1px solid rgba(139, 92, 246, 0.3)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            zIndex: 10,
-                            transition: 'all 0.2s ease',
-                            opacity: 1
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.5)';
-                            e.currentTarget.style.transform = 'rotate(45deg) scale(1.1)';
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
-                            e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
+                          key={agent.id}
+                          className="agent-sidebar-item locked"
+                          onClick={() => {
+                            if (!isLoggedIn) {
+                              setShowLoginModal(true);
+                            } else {
+                              setDashboardTab('subscription');
+                              setActiveTab('mystudio');
+                            }
                           }}
                         >
-                          <Settings size={11} style={{ color: 'var(--color-purple)' }} />
+                          <div className="agent-sidebar-icon" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                            <Icon size={18} style={{ opacity: 0.5 }} />
+                          </div>
+                          <div className="agent-sidebar-info">
+                            <h4>{agent.name}</h4>
+                            <span>{agent.tier === 'monthly' ? 'Monthly' : 'Pro'}</span>
+                          </div>
+                          <Lock size={12} style={{ opacity: 0.5 }} />
                         </button>
-                        
-                        <div style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '8px',
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0
-                        }}>
-                          <Icon size={18} style={{ opacity: 0.5 }} />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ 
-                            fontWeight: '600', 
-                            fontSize: '0.85rem',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}>
-                            {agent.name}
-                          </div>
-                          <div style={{ 
-                            fontSize: '0.7rem', 
-                            color: tierColor,
-                            fontWeight: '600',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px'
-                          }}>
-                            {tierLabel}
-                          </div>
-                        </div>
-                        <Lock size={14} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </>
+                )}
               </div>
-            )}
+            </div>
+            
+            {/* Main Panel - Welcome or Agent Workspace */}
+            <div className="agents-main-panel">
+              {selectedAgent ? (
+                renderAgentWorkspace()
+              ) : (
+                /* Welcome State */
+                <div className="agents-welcome-state">
+                  <div className="agents-welcome-icon">
+                    <Sparkles size={36} className="text-purple" />
+                  </div>
+                  <h2>Select an Agent</h2>
+                  <p>Choose an AI agent from the sidebar to start creating. Each agent specializes in different creative tasks.</p>
+                  
+                  {/* Free generation banner */}
+                  {!isLoggedIn && (
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                      border: '1px solid rgba(139, 92, 246, 0.2)',
+                      borderRadius: '12px',
+                      padding: '16px 20px',
+                      marginBottom: '24px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      maxWidth: '400px'
+                    }}>
+                      <Zap size={20} className="text-purple" />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>
+                          {getRemainingFreeGenerations()} free generations left
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          Sign in to unlock more
+                        </div>
+                      </div>
+                      <button 
+                        className="btn-pill primary"
+                        onClick={() => setShowLoginModal(true)}
+                        style={{ padding: '8px 16px', fontSize: '0.8rem' }}
+                      >
+                        Sign In
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Quick picks */}
+                  <div className="agents-welcome-grid">
+                    {availableAgents.slice(0, 4).map((agent) => {
+                      const Icon = agent.icon;
+                      return (
+                        <div
+                          key={agent.id}
+                          className="agents-welcome-card"
+                          onClick={() => {
+                            setSelectedAgent(agent);
+                            Analytics.agentUsed(agent.id);
+                          }}
+                        >
+                          <h4>
+                            <Icon size={16} className="text-purple" />
+                            {agent.name}
+                          </h4>
+                          <p>{agent.category}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         );
       }
