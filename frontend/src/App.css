@@ -3719,7 +3719,7 @@ select optgroup {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
-  max-width: 780px;
+  max-width: 975px;
   margin: 0 auto;
 }
 
@@ -3728,7 +3728,7 @@ select optgroup {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
-  max-width: 780px;
+  max-width: 975px;
   margin: 0 auto 24px;
 }
 
