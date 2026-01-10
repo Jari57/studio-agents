@@ -661,6 +661,7 @@ select optgroup {
 .light-theme .studio-nav-logo .studio-name {
   background: linear-gradient(to right, #0f172a, var(--color-purple), #0f172a);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -1263,6 +1264,7 @@ select optgroup {
   background: linear-gradient(to right, #fff, var(--color-purple), #fff);
   background-size: 200% auto;
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: shine-text 4s linear infinite;
 }
@@ -1477,6 +1479,7 @@ select optgroup {
   background: var(--gradient-vibrant);
   background-size: 200% auto;
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: shimmer 5s linear infinite;
 }
@@ -2306,6 +2309,7 @@ select optgroup {
   margin-bottom: 0.5rem;
   background: linear-gradient(to right, #fff, #9ca3af);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -2755,6 +2759,7 @@ select optgroup {
   font-weight: 800;
   background: var(--gradient-vibrant);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin: 0;
 }
@@ -2812,6 +2817,7 @@ select optgroup {
   margin-bottom: 0.5rem;
   background: var(--gradient-vibrant);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -4672,9 +4678,6 @@ select optgroup {
   transition: all 0.3s;
 }
 
-.hub-card:hover .hub-card-preview {
-}
-
 .hub-card:hover .preview-overlay {
   opacity: 1 !important;
 }
@@ -6310,12 +6313,6 @@ select optgroup {
   transition: all 0.3s ease;
 }
 
-@media (max-width: 768px) {
-  .native-header {
-    /* display: block; */
-  }
-}
-
 .native-header.scrolled {
   background: rgba(10, 10, 15, 0.8);
   backdrop-filter: blur(12px);
@@ -7425,6 +7422,7 @@ select optgroup {
   margin-bottom: 0.5rem;
   background: var(--gradient-vibrant);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -8579,172 +8577,7 @@ html, body {
   margin-bottom: 8px;
   background: var(--gradient-vibrant);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.welcome-features {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  text-align: left;
-}
-
-.welcome-feature-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: transform 0.2s;
-}
-
-.welcome-feature-item:hover {
-  transform: translateX(4px);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.feature-icon-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.feature-icon-box.cyan { background: rgba(6, 182, 212, 0.1); color: var(--color-cyan); }
-.feature-icon-box.purple { background: rgba(168, 85, 247, 0.1); color: var(--color-purple); }
-.feature-icon-box.orange { background: rgba(249, 115, 22, 0.1); color: var(--color-orange); }
-
-.feature-text h3 {
-  font-size: 1rem;
-  margin-bottom: 4px;
-  color: var(--text-primary);
-}
-
-.feature-text p {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
-
-/* Welcome Modal Styles */
-.welcome-modal {
-  max-width: 480px !important;
-  text-align: center;
-  padding: 40px !important;
-  background: linear-gradient(145deg, #1a1a22 0%, #0a0a0c 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.welcome-header {
-  margin-bottom: 32px;
-}
-
-.welcome-icon-glow {
-  width: 80px;
-  height: 80px;
-  background: rgba(168, 85, 247, 0.1);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 20px;
-  box-shadow: 0 0 30px rgba(168, 85, 247, 0.2);
-}
-
-.welcome-header h2 {
-  font-size: 1.8rem;
-  margin-bottom: 8px;
-  background: var(--gradient-vibrant);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.welcome-features {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  text-align: left;
-}
-
-.welcome-feature-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: transform 0.2s;
-}
-
-.welcome-feature-item:hover {
-  transform: translateX(4px);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.feature-icon-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.feature-icon-box.cyan { background: rgba(6, 182, 212, 0.1); color: var(--color-cyan); }
-.feature-icon-box.purple { background: rgba(168, 85, 247, 0.1); color: var(--color-purple); }
-.feature-icon-box.orange { background: rgba(249, 115, 22, 0.1); color: var(--color-orange); }
-
-.feature-text h3 {
-  font-size: 1rem;
-  margin-bottom: 4px;
-  color: var(--text-primary);
-}
-
-.feature-text p {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
-
-/* Welcome Modal Styles */
-.welcome-modal {
-  max-width: 480px !important;
-  text-align: center;
-  padding: 40px !important;
-  background: linear-gradient(145deg, #1a1a22 0%, #0a0a0c 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.welcome-header {
-  margin-bottom: 32px;
-}
-
-.welcome-icon-glow {
-  width: 80px;
-  height: 80px;
-  background: rgba(168, 85, 247, 0.1);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 20px;
-  box-shadow: 0 0 30px rgba(168, 85, 247, 0.2);
-}
-
-.welcome-header h2 {
-  font-size: 1.8rem;
-  margin-bottom: 8px;
-  background: var(--gradient-vibrant);
-  -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -9101,6 +8934,7 @@ html, body {
   font-weight: 800;
   background: var(--gradient-vibrant);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   margin-bottom: 0.5rem;
 }
