@@ -635,6 +635,17 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
   // Reserved for future use: const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
   const [autoStartVoice, setAutoStartVoice] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [pendingProjectNav, setPendingProjectNav] = useState(false); // Flag to safely navigate after project selection
+
+  // Effect to safely navigate to project_canvas after selectedProject is set
+  // This prevents race conditions where tab changes before state update completes
+  useEffect(() => {
+    if (pendingProjectNav && selectedProject) {
+      console.log('[StudioView] Safe navigation: project ready, switching to project_canvas');
+      setActiveTab('project_canvas');
+      setPendingProjectNav(false);
+    }
+  }, [pendingProjectNav, selectedProject]);
 
   // Onboarding & Help State
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -5935,7 +5946,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
 
     switch (activeTab) {
 
-      case 'agents':
+      case 'agents': {
         const availableAgents = getAvailableAgents();
         const lockedAgents = getLockedAgents();
         
@@ -6294,6 +6305,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
             )}
           </div>
         );
+      }
       case 'hub':
         return (
           <Suspense fallback={<LazyFallback />}>
@@ -6305,8 +6317,8 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                 // Reset canvas preview asset to avoid stale references
                 setCanvasPreviewAsset(null);
                 setSelectedProject(project);
-                // Use setTimeout to ensure selectedProject is set before tab change
-                setTimeout(() => setActiveTab('project_canvas'), 0);
+                // Use pendingProjectNav flag for safe navigation (prevents race condition)
+                setPendingProjectNav(true);
               }}
               onCreateProject={(project) => {
                 console.log('[StudioView] Orchestrator project save:', project.id, project.name);
@@ -6347,8 +6359,8 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                 // Select it and navigate to project canvas
                 setCanvasPreviewAsset(null); // Reset canvas preview to avoid stale references
                 setSelectedProject(project);
-                // Use setTimeout to ensure selectedProject is set before tab change
-                setTimeout(() => setActiveTab('project_canvas'), 0);
+                // Use pendingProjectNav flag for safe navigation (prevents race condition)
+                setPendingProjectNav(true);
                 toast.success(`Saved "${project.name}" with ${project.assets?.length || 0} assets!`);
               }}
               onDeleteProject={handleDeleteProject}
@@ -6690,7 +6702,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
           </div>
         );
 
-      case 'resources':
+      case 'resources': {
         const LEGAL_RESOURCES = [
           { 
             title: 'Music Copyright 101', 
@@ -7229,7 +7241,7 @@ When you write a song, you create intellectual property that generates money eve
             </div>
           </div>
         );
-
+      }
       case 'marketing':
         return (
           <div className="marketing-view animate-fadeInUp" style={{ paddingBottom: '80px' }}>
@@ -7992,7 +8004,7 @@ When you write a song, you create intellectual property that generates money eve
           </div>
         );
 
-      case 'support':
+      case 'support': {
         const HELP_ITEMS = [
           { 
             icon: Book, 
@@ -8268,8 +8280,8 @@ When you write a song, you create intellectual property that generates money eve
             </div>
           </div>
         );
-
-      case 'more':
+      }
+      case 'more': {
         // Mobile "More" menu with all navigation options
         const moreMenuItems = [
           { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Reddit, YouTube & Releases', color: 'var(--color-purple)' },
@@ -8447,7 +8459,7 @@ When you write a song, you create intellectual property that generates money eve
             </div>
           </div>
         );
-
+      }
       default:
         return null;
     }
@@ -10472,7 +10484,8 @@ When you write a song, you create intellectual property that generates money eve
                 console.warn(`[TRACE:${traceId}] NOT saving to cloud - isLoggedIn:`, isLoggedIn, 'hasUser:', !!user);
               }
               
-              setActiveTab('project_canvas');
+              // Use pendingProjectNav flag for safe navigation (prevents race condition)
+              setPendingProjectNav(true);
               toast.success(`Project "${finalProject.name}" saved with ${finalProject.assets?.length || 0} assets!`);
             }}
             onUpdateCreations={(agentId, creations) => {
