@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award
 } from 'lucide-react';
 
 // Alias for clarity and to avoid potential minification issues
@@ -6191,17 +6191,30 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
               </div>
               
               <div className="agents-sidebar-list">
-                {/* Available Agents */}
-                {availableAgents.map((agent) => {
+                {/* FREE TIER Agents */}
+                <div className="agents-sidebar-section">
+                  <h5><Sparkles size={10} /> Free</h5>
+                </div>
+                {AGENTS.filter(a => a.tier === 'free').map((agent) => {
                   const Icon = agent.icon;
                   const isActive = selectedAgent?.id === agent.id;
+                  const isLocked = !availableAgents.find(a => a.id === agent.id);
                   return (
                     <button
                       key={agent.id}
-                      className={`agent-sidebar-item ${isActive ? 'active' : ''}`}
+                      className={`agent-sidebar-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
                       onClick={() => {
-                        setSelectedAgent(agent);
-                        Analytics.agentUsed(agent.id);
+                        if (isLocked) {
+                          if (!isLoggedIn) {
+                            setShowLoginModal(true);
+                          } else {
+                            setDashboardTab('subscription');
+                            setActiveTab('mystudio');
+                          }
+                        } else {
+                          setSelectedAgent(agent);
+                          Analytics.agentUsed(agent.id);
+                        }
                       }}
                     >
                       <div className={`agent-sidebar-icon ${agent.colorClass}`}>
@@ -6209,7 +6222,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                       </div>
                       <div className="agent-sidebar-info">
                         <h4>{agent.name}</h4>
-                        <span>{agent.category}</span>
+                        <span>Free</span>
                       </div>
                       {agent.isBeta && (
                         <span className="agent-sidebar-badge beta">BETA</span>
@@ -6217,41 +6230,88 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                     </button>
                   );
                 })}
-                
-                {/* Locked Agents Section */}
-                {lockedAgents.length > 0 && (
-                  <>
-                    <div className="agents-sidebar-section">
-                      <h5><Lock size={10} /> Premium</h5>
-                    </div>
-                    {lockedAgents.map((agent) => {
-                      const Icon = agent.icon;
-                      return (
-                        <button
-                          key={agent.id}
-                          className="agent-sidebar-item locked"
-                          onClick={() => {
-                            if (!isLoggedIn) {
-                              setShowLoginModal(true);
-                            } else {
-                              setDashboardTab('subscription');
-                              setActiveTab('mystudio');
-                            }
-                          }}
-                        >
-                          <div className="agent-sidebar-icon" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                            <Icon size={18} style={{ opacity: 0.5 }} />
-                          </div>
-                          <div className="agent-sidebar-info">
-                            <h4>{agent.name}</h4>
-                            <span>{agent.tier === 'monthly' ? 'Monthly' : 'Pro'}</span>
-                          </div>
-                          <Lock size={12} style={{ opacity: 0.5 }} />
-                        </button>
-                      );
-                    })}
-                  </>
-                )}
+
+                {/* MONTHLY TIER Agents */}
+                <div className="agents-sidebar-section">
+                  <h5><Zap size={10} /> Monthly</h5>
+                </div>
+                {AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
+                  const Icon = agent.icon;
+                  const isActive = selectedAgent?.id === agent.id;
+                  const isLocked = !availableAgents.find(a => a.id === agent.id);
+                  return (
+                    <button
+                      key={agent.id}
+                      className={`agent-sidebar-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                      onClick={() => {
+                        if (isLocked) {
+                          if (!isLoggedIn) {
+                            setShowLoginModal(true);
+                          } else {
+                            setDashboardTab('subscription');
+                            setActiveTab('mystudio');
+                          }
+                        } else {
+                          setSelectedAgent(agent);
+                          Analytics.agentUsed(agent.id);
+                        }
+                      }}
+                    >
+                      <div className={`agent-sidebar-icon ${agent.colorClass}`} style={isLocked ? { background: 'rgba(255,255,255,0.05)' } : {}}>
+                        <Icon size={18} style={isLocked ? { opacity: 0.5 } : {}} />
+                      </div>
+                      <div className="agent-sidebar-info">
+                        <h4>{agent.name}</h4>
+                        <span>Monthly</span>
+                      </div>
+                      {isLocked && <Lock size={12} style={{ opacity: 0.5 }} />}
+                      {agent.isBeta && !isLocked && (
+                        <span className="agent-sidebar-badge beta">BETA</span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* PRO TIER Agents */}
+                <div className="agents-sidebar-section">
+                  <h5><Award size={10} /> Pro</h5>
+                </div>
+                {AGENTS.filter(a => a.tier === 'pro').map((agent) => {
+                  const Icon = agent.icon;
+                  const isActive = selectedAgent?.id === agent.id;
+                  const isLocked = !availableAgents.find(a => a.id === agent.id);
+                  return (
+                    <button
+                      key={agent.id}
+                      className={`agent-sidebar-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                      onClick={() => {
+                        if (isLocked) {
+                          if (!isLoggedIn) {
+                            setShowLoginModal(true);
+                          } else {
+                            setDashboardTab('subscription');
+                            setActiveTab('mystudio');
+                          }
+                        } else {
+                          setSelectedAgent(agent);
+                          Analytics.agentUsed(agent.id);
+                        }
+                      }}
+                    >
+                      <div className={`agent-sidebar-icon ${agent.colorClass}`} style={isLocked ? { background: 'rgba(255,255,255,0.05)' } : {}}>
+                        <Icon size={18} style={isLocked ? { opacity: 0.5 } : {}} />
+                      </div>
+                      <div className="agent-sidebar-info">
+                        <h4>{agent.name}</h4>
+                        <span>Pro</span>
+                      </div>
+                      {isLocked && <Lock size={12} style={{ opacity: 0.5 }} />}
+                      {agent.isBeta && !isLocked && (
+                        <span className="agent-sidebar-badge beta">BETA</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             
