@@ -6183,7 +6183,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
         
         return (
           <div className="agents-split-layout">
-            {/* Left Sidebar - Agent List */}
+            {/* Left Sidebar - Agent Icon Rail grouped by tier */}
             <div className="agents-sidebar">
               <div className="agents-sidebar-header">
                 <h3><Sparkles size={18} className="text-purple" /> Agents</h3>
@@ -6191,17 +6191,30 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
               </div>
               
               <div className="agents-sidebar-list">
-                {/* Available Agents */}
-                {availableAgents.map((agent) => {
+                {/* FREE TIER Agents */}
+                <div className="agents-sidebar-section">
+                  <h5><Sparkles size={10} /> Free</h5>
+                </div>
+                {AGENTS.filter(a => a.tier === 'free').map((agent) => {
                   const Icon = agent.icon;
                   const isActive = selectedAgent?.id === agent.id;
+                  const isLocked = !availableAgents.find(a => a.id === agent.id);
                   return (
                     <button
                       key={agent.id}
-                      className={`agent-sidebar-item ${isActive ? 'active' : ''}`}
+                      className={`agent-sidebar-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
                       onClick={() => {
-                        setSelectedAgent(agent);
-                        Analytics.agentUsed(agent.id);
+                        if (isLocked) {
+                          if (!isLoggedIn) {
+                            setShowLoginModal(true);
+                          } else {
+                            setDashboardTab('subscription');
+                            setActiveTab('mystudio');
+                          }
+                        } else {
+                          setSelectedAgent(agent);
+                          Analytics.agentUsed(agent.id);
+                        }
                       }}
                     >
                       <div className={`agent-sidebar-icon ${agent.colorClass}`}>
@@ -6209,7 +6222,7 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                       </div>
                       <div className="agent-sidebar-info">
                         <h4>{agent.name}</h4>
-                        <span>{agent.category}</span>
+                        <span>Free</span>
                       </div>
                       {agent.isBeta && (
                         <span className="agent-sidebar-badge beta">BETA</span>
@@ -6218,109 +6231,239 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
                   );
                 })}
                 
-                {/* Locked Agents Section */}
-                {lockedAgents.length > 0 && (
-                  <>
-                    <div className="agents-sidebar-section">
-                      <h5><Lock size={10} /> Premium</h5>
-                    </div>
-                    {lockedAgents.map((agent) => {
-                      const Icon = agent.icon;
-                      return (
-                        <button
-                          key={agent.id}
-                          className="agent-sidebar-item locked"
-                          onClick={() => {
-                            if (!isLoggedIn) {
-                              setShowLoginModal(true);
-                            } else {
-                              setDashboardTab('subscription');
-                              setActiveTab('mystudio');
-                            }
-                          }}
-                        >
-                          <div className="agent-sidebar-icon" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                            <Icon size={18} style={{ opacity: 0.5 }} />
-                          </div>
-                          <div className="agent-sidebar-info">
-                            <h4>{agent.name}</h4>
-                            <span>{agent.tier === 'monthly' ? 'Monthly' : 'Pro'}</span>
-                          </div>
-                          <Lock size={12} style={{ opacity: 0.5 }} />
-                        </button>
-                      );
-                    })}
-                  </>
-                )}
+                {/* MONTHLY TIER Agents */}
+                <div className="agents-sidebar-section">
+                  <h5><Zap size={10} /> Monthly</h5>
+                </div>
+                {AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
+                  const Icon = agent.icon;
+                  const isActive = selectedAgent?.id === agent.id;
+                  const isLocked = !availableAgents.find(a => a.id === agent.id);
+                  return (
+                    <button
+                      key={agent.id}
+                      className={`agent-sidebar-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                      onClick={() => {
+                        if (isLocked) {
+                          if (!isLoggedIn) {
+                            setShowLoginModal(true);
+                          } else {
+                            setDashboardTab('subscription');
+                            setActiveTab('mystudio');
+                          }
+                        } else {
+                          setSelectedAgent(agent);
+                          Analytics.agentUsed(agent.id);
+                        }
+                      }}
+                    >
+                      <div className={`agent-sidebar-icon ${agent.colorClass}`} style={isLocked ? { background: 'rgba(255,255,255,0.05)' } : {}}>
+                        <Icon size={18} style={isLocked ? { opacity: 0.5 } : {}} />
+                      </div>
+                      <div className="agent-sidebar-info">
+                        <h4>{agent.name}</h4>
+                        <span>Monthly</span>
+                      </div>
+                      {isLocked && <Lock size={12} style={{ opacity: 0.5 }} />}
+                      {agent.isBeta && !isLocked && (
+                        <span className="agent-sidebar-badge beta">BETA</span>
+                      )}
+                    </button>
+                  );
+                })}
+                
+                {/* PRO TIER Agents */}
+                <div className="agents-sidebar-section">
+                  <h5><Award size={10} /> Pro</h5>
+                </div>
+                {AGENTS.filter(a => a.tier === 'pro').map((agent) => {
+                  const Icon = agent.icon;
+                  const isActive = selectedAgent?.id === agent.id;
+                  const isLocked = !availableAgents.find(a => a.id === agent.id);
+                  return (
+                    <button
+                      key={agent.id}
+                      className={`agent-sidebar-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                      onClick={() => {
+                        if (isLocked) {
+                          if (!isLoggedIn) {
+                            setShowLoginModal(true);
+                          } else {
+                            setDashboardTab('subscription');
+                            setActiveTab('mystudio');
+                          }
+                        } else {
+                          setSelectedAgent(agent);
+                          Analytics.agentUsed(agent.id);
+                        }
+                      }}
+                    >
+                      <div className={`agent-sidebar-icon ${agent.colorClass}`} style={isLocked ? { background: 'rgba(255,255,255,0.05)' } : {}}>
+                        <Icon size={18} style={isLocked ? { opacity: 0.5 } : {}} />
+                      </div>
+                      <div className="agent-sidebar-info">
+                        <h4>{agent.name}</h4>
+                        <span>Pro</span>
+                      </div>
+                      {isLocked && <Lock size={12} style={{ opacity: 0.5 }} />}
+                      {agent.isBeta && !isLocked && (
+                        <span className="agent-sidebar-badge beta">BETA</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
             
-            {/* Main Panel - Welcome or Agent Workspace */}
+            {/* Main Panel - All agents grid or Agent Workspace */}
             <div className="agents-main-panel">
               {selectedAgent ? (
                 renderAgentWorkspace()
               ) : (
-                /* Welcome State */
-                <div className="agents-welcome-state">
-                  <div className="agents-welcome-icon">
-                    <Sparkles size={36} className="text-purple" />
-                  </div>
-                  <h2>Select an Agent</h2>
-                  <p>Choose an AI agent from the sidebar to start creating. Each agent specializes in different creative tasks.</p>
-                  
-                  {/* Free generation banner */}
-                  {!isLoggedIn && (
-                    <div style={{
-                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
-                      border: '1px solid rgba(139, 92, 246, 0.2)',
-                      borderRadius: '12px',
-                      padding: '16px 20px',
-                      marginBottom: '24px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      maxWidth: '400px'
-                    }}>
-                      <Zap size={20} className="text-purple" />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>
-                          {getRemainingFreeGenerations()} free generations left
+                /* All Agents Grid (like whip-montez) */
+                <div className="agents-all-grid-container">
+                  <div className="agents-grid-header">
+                    <h2><Sparkles size={24} className="text-purple" /> AI Agents</h2>
+                    <p>Select an agent to start creating. Grouped by subscription tier.</p>
+                    
+                    {/* Free generation banner */}
+                    {!isLoggedIn && (
+                      <div style={{
+                        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                        border: '1px solid rgba(139, 92, 246, 0.2)',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        marginTop: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <Zap size={18} className="text-purple" />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: '600', fontSize: '0.85rem' }}>
+                            {getRemainingFreeGenerations()} free generations left
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                            Sign in to unlock more
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          Sign in to unlock more
-                        </div>
-                      </div>
-                      <button 
-                        className="btn-pill primary"
-                        onClick={() => setShowLoginModal(true)}
-                        style={{ padding: '8px 16px', fontSize: '0.8rem' }}
-                      >
-                        Sign In
-                      </button>
-                    </div>
-                  )}
-                  
-                  {/* Quick picks */}
-                  <div className="agents-welcome-grid">
-                    {availableAgents.slice(0, 4).map((agent) => {
-                      const Icon = agent.icon;
-                      return (
-                        <div
-                          key={agent.id}
-                          className="agents-welcome-card"
-                          onClick={() => {
-                            setSelectedAgent(agent);
-                            Analytics.agentUsed(agent.id);
-                          }}
+                        <button 
+                          className="btn-pill primary"
+                          onClick={() => setShowLoginModal(true)}
+                          style={{ padding: '6px 14px', fontSize: '0.75rem' }}
                         >
-                          <h4>
-                            <Icon size={16} className="text-purple" />
-                            {agent.name}
-                          </h4>
-                          <p>{agent.category}</p>
-                        </div>
-                      );
-                    })}
+                          Sign In
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* FREE TIER Section */}
+                  <div className="agents-tier-section">
+                    <h3 className="agents-tier-title"><Sparkles size={16} /> Free Agents</h3>
+                    <div className="agents-grid">
+                      {AGENTS.filter(a => a.tier === 'free').map((agent) => {
+                        const Icon = agent.icon;
+                        const isLocked = !availableAgents.find(a => a.id === agent.id);
+                        return (
+                          <div
+                            key={agent.id}
+                            className={`agent-grid-card ${isLocked ? 'locked' : ''}`}
+                            onClick={() => {
+                              if (isLocked) {
+                                if (!isLoggedIn) setShowLoginModal(true);
+                                else { setDashboardTab('subscription'); setActiveTab('mystudio'); }
+                              } else {
+                                setSelectedAgent(agent);
+                                Analytics.agentUsed(agent.id);
+                              }
+                            }}
+                          >
+                            <div className={`agent-grid-icon ${agent.colorClass}`}>
+                              <Icon size={24} />
+                            </div>
+                            <div className="agent-grid-info">
+                              <h4>{agent.name}</h4>
+                              <p>{agent.description}</p>
+                            </div>
+                            {agent.isBeta && <span className="agent-grid-badge beta">BETA</span>}
+                            {agent.comingSoon && <span className="agent-grid-badge coming">SOON</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {/* MONTHLY TIER Section */}
+                  <div className="agents-tier-section">
+                    <h3 className="agents-tier-title"><Zap size={16} /> Monthly Agents</h3>
+                    <div className="agents-grid">
+                      {AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
+                        const Icon = agent.icon;
+                        const isLocked = !availableAgents.find(a => a.id === agent.id);
+                        return (
+                          <div
+                            key={agent.id}
+                            className={`agent-grid-card ${isLocked ? 'locked' : ''}`}
+                            onClick={() => {
+                              if (isLocked) {
+                                if (!isLoggedIn) setShowLoginModal(true);
+                                else { setDashboardTab('subscription'); setActiveTab('mystudio'); }
+                              } else {
+                                setSelectedAgent(agent);
+                                Analytics.agentUsed(agent.id);
+                              }
+                            }}
+                          >
+                            <div className={`agent-grid-icon ${agent.colorClass}`} style={isLocked ? { opacity: 0.5 } : {}}>
+                              <Icon size={24} />
+                            </div>
+                            <div className="agent-grid-info">
+                              <h4>{agent.name} {isLocked && <Lock size={12} />}</h4>
+                              <p>{agent.description}</p>
+                            </div>
+                            {agent.isBeta && <span className="agent-grid-badge beta">BETA</span>}
+                            {agent.comingSoon && <span className="agent-grid-badge coming">SOON</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {/* PRO TIER Section */}
+                  <div className="agents-tier-section">
+                    <h3 className="agents-tier-title"><Award size={16} /> Pro Agents</h3>
+                    <div className="agents-grid">
+                      {AGENTS.filter(a => a.tier === 'pro').map((agent) => {
+                        const Icon = agent.icon;
+                        const isLocked = !availableAgents.find(a => a.id === agent.id);
+                        return (
+                          <div
+                            key={agent.id}
+                            className={`agent-grid-card ${isLocked ? 'locked' : ''}`}
+                            onClick={() => {
+                              if (isLocked) {
+                                if (!isLoggedIn) setShowLoginModal(true);
+                                else { setDashboardTab('subscription'); setActiveTab('mystudio'); }
+                              } else {
+                                setSelectedAgent(agent);
+                                Analytics.agentUsed(agent.id);
+                              }
+                            }}
+                          >
+                            <div className={`agent-grid-icon ${agent.colorClass}`} style={isLocked ? { opacity: 0.5 } : {}}>
+                              <Icon size={24} />
+                            </div>
+                            <div className="agent-grid-info">
+                              <h4>{agent.name} {isLocked && <Lock size={12} />}</h4>
+                              <p>{agent.description}</p>
+                            </div>
+                            {agent.isBeta && <span className="agent-grid-badge beta">BETA</span>}
+                            {agent.comingSoon && <span className="agent-grid-badge coming">SOON</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               )}
