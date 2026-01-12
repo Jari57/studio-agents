@@ -9351,21 +9351,57 @@ html, body {
   }
 }
 
+/* Project Wizard Modal - Prevent overflow truncation */
+.project-wizard-modal {
+  max-width: 650px !important;
+  width: 100% !important;
+  max-height: none !important;
+  overflow: visible !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-wizard-modal .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 60vh;
+  padding: 24px;
+}
+
+.project-wizard-modal .modal-footer {
+  flex-shrink: 0;
+  padding: 16px 24px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-bg-secondary);
+  margin-top: auto;
+}
+
 /* Mobile Modal Fixes */
 @media (max-width: 768px) {
   .desktop-only {
     display: none !important;
   }
   .modal-content {
-    max-height: 85vh;
+    max-height: 90vh;
     overflow-y: auto;
     width: 95%;
     margin: 0 auto;
   }
   
   .project-wizard-modal {
-    max-height: 85vh;
+    max-height: 92vh !important;
+    overflow: hidden !important;
+    margin: 8px !important;
+  }
+  
+  .project-wizard-modal .modal-body {
+    max-height: calc(92vh - 180px);
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .project-wizard-modal .modal-footer {
+    padding: 12px 16px 16px;
   }
 }
 
