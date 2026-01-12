@@ -8617,6 +8617,7 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: visible;
+  margin-left: -25px; /* Shift slightly left for better visual center on desktop */
 }
 
 .agent-help-modal .modal-header {
@@ -9369,8 +9370,8 @@ html, body {
 .project-wizard-modal {
   max-width: 650px !important;
   width: 100% !important;
-  max-height: none !important;
-  overflow: visible !important;
+  max-height: 88vh !important;
+  overflow: hidden !important;
   display: flex;
   flex-direction: column;
 }
@@ -9378,16 +9379,19 @@ html, body {
 .project-wizard-modal .modal-body {
   flex: 1;
   overflow-y: auto;
-  max-height: 60vh;
+  max-height: calc(88vh - 160px);
   padding: 24px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .project-wizard-modal .modal-footer {
   flex-shrink: 0;
-  padding: 16px 24px 24px;
+  padding: 20px 24px 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   background: var(--color-bg-secondary);
   margin-top: auto;
+  position: sticky;
+  bottom: 0;
 }
 
 /* Mobile Modal Fixes */
