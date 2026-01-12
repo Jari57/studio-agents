@@ -8791,7 +8791,7 @@ When you write a song, you create intellectual property that generates money eve
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <button
                   onClick={() => setShowProjectWizard(true)}
-                  style={{{
+                  style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
