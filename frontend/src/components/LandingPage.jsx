@@ -728,58 +728,361 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Investor Pitch Deck</span>
             </button>
 
-            {/* Studio Workflow Card - Go to Agents Page */}
-            <button 
+            {/* ═══════════════════════════════════════════════════════════════
+                STUDIO WORKFLOW CARD - Premium Design with 3-Step Process
+                ═══════════════════════════════════════════════════════════════ */}
+            <div 
               className="haptic-press" 
               style={{ 
                 width: '100%', 
-                justifyContent: 'center', 
-                padding: '24px', 
-                height: 'auto',
-                background: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
-                boxShadow: '0 10px 30px rgba(139, 92, 246, 0.3)',
+                padding: '0',
+                background: 'linear-gradient(145deg, #8b5cf6 0%, #7c3aed 50%, #06b6d4 100%)',
+                boxShadow: '0 20px 60px rgba(139, 92, 246, 0.4), 0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
                 border: 'none',
-                borderRadius: '16px',
-                cursor: 'pointer'
+                borderRadius: '28px',
+                cursor: 'pointer',
+                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                overflow: 'hidden',
+                position: 'relative'
               }}
               onClick={() => onEnter(false, false)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 32px 80px rgba(139, 92, 246, 0.5), 0 12px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.boxShadow = '0 20px 60px rgba(139, 92, 246, 0.4), 0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)';
+              }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '50%' }}>
-                  <LayoutGrid size={28} color="white" />
+              {/* Decorative gradient overlay */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '100%',
+                background: 'radial-gradient(ellipse at top right, rgba(255,255,255,0.15) 0%, transparent 50%)',
+                pointerEvents: 'none'
+              }} />
+              
+              {/* Header Section */}
+              <div style={{ padding: '32px 32px 24px', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <div style={{ 
+                    background: 'rgba(255,255,255,0.2)', 
+                    backdropFilter: 'blur(10px)',
+                    padding: '14px', 
+                    borderRadius: '16px',
+                    border: '1px solid rgba(255,255,255,0.1)'
+                  }}>
+                    <LayoutGrid size={28} color="white" />
+                  </div>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.15)',
+                    backdropFilter: 'blur(10px)',
+                    padding: '6px 14px',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    color: 'white',
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase'
+                  }}>
+                    Manual Control
+                  </div>
                 </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: '900', fontSize: '1.2rem', color: 'white', letterSpacing: '0.5px' }}>STUDIO WORKFLOW</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: '500', color: 'white' }}>Pick your agents and create manually</div>
+                
+                <h3 style={{ 
+                  fontWeight: '900', 
+                  fontSize: '1.5rem', 
+                  color: 'white', 
+                  letterSpacing: '-0.5px', 
+                  marginBottom: '10px',
+                  textShadow: '0 2px 10px rgba(0,0,0,0.2)'
+                }}>
+                  Studio Workflow
+                </h3>
+                <p style={{ 
+                  fontSize: '0.95rem', 
+                  opacity: 0.9, 
+                  fontWeight: '500', 
+                  color: 'white', 
+                  lineHeight: '1.6',
+                  maxWidth: '320px'
+                }}>
+                  Full creative control. Hand-pick your agents and craft your vision step by step.
+                </p>
+              </div>
+              
+              {/* Steps Section */}
+              <div style={{ 
+                background: 'rgba(0,0,0,0.2)', 
+                backdropFilter: 'blur(20px)',
+                padding: '24px 32px 28px',
+                borderTop: '1px solid rgba(255,255,255,0.1)'
+              }}>
+                {/* Step 1 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '18px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '800',
+                    fontSize: '0.9rem',
+                    color: 'white',
+                    flexShrink: 0
+                  }}>1</div>
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'white', marginBottom: '4px' }}>Define Your Vision</div>
+                    <div style={{ fontSize: '0.85rem', opacity: 0.8, color: 'white', lineHeight: '1.5' }}>
+                      Use the Project Wizard to name your masterpiece and select your studio vibe.
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Step 2 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '18px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '800',
+                    fontSize: '0.9rem',
+                    color: 'white',
+                    flexShrink: 0
+                  }}>2</div>
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'white', marginBottom: '4px' }}>Assemble Your Team</div>
+                    <div style={{ fontSize: '0.85rem', opacity: 0.8, color: 'white', lineHeight: '1.5' }}>
+                      Choose from 16 specialized AI agents for lyrics, beats, and production.
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Step 3 */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '800',
+                    fontSize: '0.9rem',
+                    color: 'white',
+                    flexShrink: 0
+                  }}>3</div>
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'white', marginBottom: '4px' }}>Launch & Amplify</div>
+                    <div style={{ fontSize: '0.85rem', opacity: 0.8, color: 'white', lineHeight: '1.5' }}>
+                      Use Marketing agents to build your rollout plan and sync socials.
+                    </div>
+                  </div>
                 </div>
               </div>
-            </button>
+              
+              {/* CTA Footer */}
+              <div style={{ 
+                padding: '20px 32px',
+                background: 'rgba(255,255,255,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'white' }}>Enter Studio</span>
+                <div style={{
+                  background: 'white',
+                  borderRadius: '50%',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <ArrowRight size={18} color="#8b5cf6" />
+                </div>
+              </div>
+            </div>
 
-            {/* AI Production Pipeline Card - Go to Orchestrator */}
-            <button 
+            {/* ═══════════════════════════════════════════════════════════════
+                AI PRODUCTION PIPELINE CARD - Premium Glassmorphism Design
+                ═══════════════════════════════════════════════════════════════ */}
+            <div 
               className="haptic-press" 
               style={{ 
                 width: '100%', 
-                justifyContent: 'center', 
-                padding: '24px', 
-                height: 'auto', 
-                background: 'rgba(255,255,255,0.05)', 
-                border: '1px solid rgba(255,255,255,0.15)',
-                borderRadius: '16px',
-                cursor: 'pointer'
+                padding: '0',
+                background: 'linear-gradient(145deg, rgba(6, 182, 212, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%)', 
+                border: '1px solid rgba(6, 182, 212, 0.25)',
+                borderRadius: '28px',
+                cursor: 'pointer',
+                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                overflow: 'hidden',
+                position: 'relative',
+                backdropFilter: 'blur(20px)'
               }}
               onClick={() => onEnter(false, true)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
+                e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.6)';
+                e.currentTarget.style.boxShadow = '0 32px 80px rgba(6, 182, 212, 0.25), 0 0 60px rgba(6, 182, 212, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.25)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '50%' }}>
-                  <Zap size={28} color="white" />
+              {/* Animated gradient background */}
+              <div style={{
+                position: 'absolute',
+                top: '-50%',
+                left: '-50%',
+                width: '200%',
+                height: '200%',
+                background: 'conic-gradient(from 180deg, transparent, rgba(6, 182, 212, 0.1), transparent 30%)',
+                animation: 'spin 8s linear infinite',
+                pointerEvents: 'none',
+                opacity: 0.5
+              }} />
+              
+              {/* Header Section */}
+              <div style={{ padding: '32px 32px 24px', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                  <div style={{ 
+                    background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(139, 92, 246, 0.3))', 
+                    backdropFilter: 'blur(10px)',
+                    padding: '14px', 
+                    borderRadius: '16px',
+                    border: '1px solid rgba(6, 182, 212, 0.2)'
+                  }}>
+                    <Zap size={28} color="#06b6d4" />
+                  </div>
+                  <div style={{
+                    background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2))',
+                    backdropFilter: 'blur(10px)',
+                    padding: '6px 14px',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    color: '#06b6d4',
+                    letterSpacing: '1px',
+                    textTransform: 'uppercase',
+                    border: '1px solid rgba(6, 182, 212, 0.2)'
+                  }}>
+                    Automated
+                  </div>
                 </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontWeight: '900', fontSize: '1.2rem', color: 'white', letterSpacing: '0.5px' }}>AI PRODUCTION PIPELINE</div>
-                  <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: '500', color: 'white' }}>One idea → Full automated production</div>
+                
+                <h3 style={{ 
+                  fontWeight: '900', 
+                  fontSize: '1.5rem', 
+                  color: 'white', 
+                  letterSpacing: '-0.5px', 
+                  marginBottom: '10px'
+                }}>
+                  AI Production Pipeline
+                </h3>
+                <p style={{ 
+                  fontSize: '0.95rem', 
+                  opacity: 0.75, 
+                  fontWeight: '500', 
+                  color: 'white', 
+                  lineHeight: '1.6',
+                  maxWidth: '340px'
+                }}>
+                  Transform a single idea into a complete release package. Our multi-agent orchestrator handles lyrics, beats, visuals, and marketing in one automated flow.
+                </p>
+              </div>
+              
+              {/* Stats Section */}
+              <div style={{ 
+                padding: '24px 32px',
+                background: 'rgba(6, 182, 212, 0.05)',
+                borderTop: '1px solid rgba(6, 182, 212, 0.15)',
+                borderBottom: '1px solid rgba(6, 182, 212, 0.15)',
+                display: 'flex',
+                gap: '24px'
+              }}>
+                {/* Stat 1 */}
+                <div style={{ flex: 1, textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    marginBottom: '4px'
+                  }}>4</div>
+                  <div style={{
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    color: 'rgba(255,255,255,0.6)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px'
+                  }}>Agents</div>
+                </div>
+                
+                {/* Divider */}
+                <div style={{
+                  width: '1px',
+                  background: 'linear-gradient(to bottom, transparent, rgba(6, 182, 212, 0.3), transparent)'
+                }} />
+                
+                {/* Stat 2 */}
+                <div style={{ flex: 1, textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: '900',
+                    background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    marginBottom: '4px'
+                  }}>1-Click</div>
+                  <div style={{
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    color: 'rgba(255,255,255,0.6)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px'
+                  }}>Workflow</div>
                 </div>
               </div>
-            </button>
+              
+              {/* CTA Footer */}
+              <div style={{ 
+                padding: '20px 32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                position: 'relative'
+              }}>
+                <span style={{ fontWeight: '700', fontSize: '0.95rem', color: '#06b6d4' }}>Launch Pipeline</span>
+                <div style={{
+                  background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
+                  borderRadius: '50%',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)'
+                }}>
+                  <Rocket size={18} color="white" />
+                </div>
+              </div>
+            </div>
 
           </div>
 
