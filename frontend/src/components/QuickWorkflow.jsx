@@ -177,30 +177,39 @@ function QuickWorkflow({
       <div 
         className="modal-content quick-workflow-modal" 
         onClick={e => e.stopPropagation()}
-        style={{ maxWidth: '600px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+        style={{ 
+          maxWidth: '420px', 
+          width: 'calc(100% - 32px)',
+          maxHeight: '85vh', 
+          height: 'auto',
+          overflow: 'hidden', 
+          display: 'flex', 
+          flexDirection: 'column',
+          margin: '16px'
+        }}
       >
         {/* Header */}
         <div className="modal-header" style={{ 
           borderBottom: '1px solid var(--border-color)', 
-          padding: '16px 24px',
+          padding: '12px 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '12px'
+          gap: '10px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
             <div style={{ 
-              width: '40px', height: '40px', borderRadius: '10px',
+              width: '36px', height: '36px', borderRadius: '8px',
               background: `${agent.color || 'var(--color-purple)'}20`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: agent.color || 'var(--color-purple)',
               flexShrink: 0
             }}>
-              <agent.icon size={20} />
+              <agent.icon size={18} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</h3>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.role || agent.category}</p>
+              <h3 style={{ margin: 0, fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</h3>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.role || agent.category}</p>
             </div>
           </div>
           <button 
@@ -213,13 +222,14 @@ function QuickWorkflow({
         </div>
 
         {/* Body - scrollable */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
           
           {/* Configuration Bar */}
           <div style={{ 
             display: 'flex', 
-            gap: '12px', 
-            marginBottom: '20px'
+            gap: '8px', 
+            marginBottom: '16px',
+            flexWrap: 'wrap'
           }}>
             <div style={{ flex: 1 }}>
               <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Language</label>

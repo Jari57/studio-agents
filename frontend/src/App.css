@@ -310,7 +310,7 @@ select optgroup {
 /* --- Mobile & Pop Enhancements --- */
 @media (max-width: 768px) {
   .studio-container {
-    padding-bottom: 80px; /* Space for bottom nav */
+    padding-bottom: 56px; /* Space for bottom nav */
   }
   
   .dashboard-card, .agent-card, .connection-item {
@@ -4023,6 +4023,22 @@ select optgroup {
   font-size: 0.85rem;
 }
 
+/* Agent Cards in Teams Page - Equal sizing */
+.agent-card-large {
+  min-height: 160px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.agent-card-large:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
 .agent-studio-card:hover .agent-launch-btn,
 .generator-card-unified:hover .agent-launch-btn {
   background: var(--color-purple);
@@ -4316,7 +4332,7 @@ select optgroup {
     min-height: 100dvh;
     overflow-x: hidden;
     overflow-y: auto;
-    padding-bottom: 80px; /* Space for bottom nav */
+    padding-bottom: 56px; /* Space for bottom nav */
   }
 
   .studio-nav {
@@ -4329,7 +4345,7 @@ select optgroup {
 
   .studio-main {
     flex: 1;
-    padding-bottom: 100px;
+    padding-bottom: 56px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -4347,7 +4363,7 @@ select optgroup {
   .generator-grid-unified {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
-    padding-bottom: 40px; /* Extra padding for the grid specifically */
+    padding-bottom: 16px;
     max-width: 100%;
   }
 
@@ -4759,7 +4775,7 @@ select optgroup {
   .agent-detail-layout {
     grid-template-columns: 1fr;
     gap: 1.5rem;
-    padding-bottom: 100px;
+    padding-bottom: 56px;
   }
   
   .agent-main-panel {
@@ -6661,7 +6677,7 @@ select optgroup {
     grid-template-columns: repeat(2, 1fr); /* 2 columns side-by-side */
     gap: 10px; /* Tighter gap for compact look */
     width: 100%;
-    padding-bottom: 80px; /* Extra padding for bottom CTA */
+    padding-bottom: 56px; /* Space for bottom nav */
     overflow: hidden;
     box-sizing: border-box;
   }
@@ -7357,7 +7373,7 @@ select optgroup {
   }
   
   .studio-main {
-    padding-bottom: 80px; /* Account for bottom nav (70px) */
+    padding-bottom: 56px; /* Space for bottom nav */
   }
 }
 
@@ -8260,7 +8276,7 @@ input:checked + .slider:before {
 @media (max-width: 768px) {
   /* Ensure footer links are visible above the sticky CTA */
   .main-footer {
-    padding-bottom: 120px !important;
+    padding-bottom: 60px !important;
   }
 
   /* Ensure Hero Section is properly centered on mobile */
@@ -8324,7 +8340,7 @@ input:checked + .slider:before {
 .hub-view {
   min-height: auto;
   overflow: visible;
-  padding-bottom: 120px;
+  padding-bottom: 56px;
 }
 
 /* --- Mobile De-cluttering & Optimization --- */
@@ -9169,7 +9185,7 @@ html, body {
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding-bottom: 100px;
+  padding-bottom: 60px;
 }
 
 .resources-header {
@@ -9405,7 +9421,7 @@ html, body {
 @media (max-width: 768px) {
   .resources-view {
     padding: 1rem;
-    padding-bottom: 120px;
+    padding-bottom: 60px;
   }
   
   .resources-header h1 {
@@ -9708,7 +9724,7 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
     padding: 16px;
     height: auto;
     overflow-y: visible;
-    padding-bottom: 100px; /* Space for bottom nav */
+    padding-bottom: 56px; /* Space for bottom nav */
   }
 
   .canvas-header {
@@ -9755,14 +9771,14 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   margin: 0 auto;
   width: 100%;
   min-height: 100vh;
-  padding-bottom: 120px; /* Ensure bottom content is accessible */
+  padding-bottom: 60px; /* Space for bottom nav */
   box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
   .agent-active-view {
     padding: 1rem;
-    padding-bottom: 150px; /* Extra padding for mobile browsers */
+    padding-bottom: 60px; /* Space for bottom nav */
   }
 
   .agent-utility-box {
@@ -9816,7 +9832,7 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   padding: 2rem;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 100px; /* Space for mobile nav */
+  padding-bottom: 56px; /* Space for bottom nav */
 }
 
 /* Mobile: Stack layout, horizontal tab nav */
@@ -9839,7 +9855,7 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   
   .dashboard-main-content {
     padding: 1rem;
-    padding-bottom: 120px; /* Extra for bottom nav */
+    padding-bottom: 56px; /* Space for bottom nav */
   }
 }
 
@@ -11000,7 +11016,7 @@ html, body, #root {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0;
-  padding-bottom: 100px;
+  padding-bottom: 56px;
   min-width: 0;
 }
 
@@ -11156,7 +11172,7 @@ html, body, #root {
   
   .agents-main-panel {
     padding: 16px;
-    padding-bottom: 80px;
+    padding-bottom: 56px;
     overflow-y: auto;
   }
   

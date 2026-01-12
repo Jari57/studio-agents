@@ -6438,22 +6438,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     </div>
                   )}
                   
-                  {/* Agent Cards Grid - 2 columns */}
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: '16px'
-                  }}>
-                    {/* FREE TIER */}
+                  {/* Agent Cards - Separate grids per tier for equal sizing */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* FREE TIER Header */}
                     <div style={{ 
-                      gridColumn: '1 / -1', 
                       display: 'flex', 
                       alignItems: 'center', 
                       gap: '12px',
                       padding: '12px 16px',
                       background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%)',
-                      borderRadius: '12px',
-                      marginTop: '8px'
+                      borderRadius: '12px'
                     }}>
                       <Sparkles size={16} style={{ color: '#22c55e' }} />
                       <span style={{ fontWeight: '700', color: '#22c55e', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -6463,6 +6457,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         — {AGENTS.filter(a => a.tier === 'free').length} agents included
                       </span>
                     </div>
+                    {/* FREE TIER Grid */}
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '12px'
+                    }}>
                     {AGENTS.filter(a => a.tier === 'free').map((agent) => {
                       const Icon = agent.icon;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
@@ -6480,59 +6480,52 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             }
                           }}
                           style={{
-                            padding: '20px',
+                            padding: '16px',
                             background: isLocked ? 'rgba(255,255,255,0.02)' : 'linear-gradient(145deg, rgba(34, 197, 94, 0.08) 0%, rgba(255,255,255,0.03) 100%)',
                             border: '1px solid rgba(34, 197, 94, 0.2)',
                             borderRadius: '16px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            gap: '12px',
                             position: 'relative',
                             opacity: isLocked ? 0.6 : 1
                           }}
                         >
                           {isLocked && <Lock size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
                           <div style={{
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '14px',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '12px',
                             background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1))',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            marginBottom: '10px'
                           }}>
-                            <Icon size={24} style={{ color: '#22c55e' }} />
+                            <Icon size={20} style={{ color: '#22c55e' }} />
                           </div>
-                          <div>
-                            <h4 style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '4px' }}>{agent.name}</h4>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>{agent.category}</p>
-                          </div>
+                          <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
+                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '8px' }}>{agent.category}</p>
                           <span style={{ 
-                            padding: '3px 8px', 
+                            padding: '2px 6px', 
                             background: 'rgba(34, 197, 94, 0.15)', 
                             color: '#22c55e', 
-                            borderRadius: '8px', 
-                            fontSize: '0.65rem', 
+                            borderRadius: '6px', 
+                            fontSize: '0.6rem', 
                             fontWeight: '600' 
                           }}>FREE</span>
                         </div>
                       );
                     })}
+                    </div>
 
-                    {/* MONTHLY TIER */}
+                    {/* MONTHLY TIER Header */}
                     <div style={{ 
-                      gridColumn: '1 / -1', 
                       display: 'flex', 
                       alignItems: 'center', 
                       gap: '12px',
                       padding: '12px 16px',
                       background: 'linear-gradient(90deg, rgba(251, 191, 36, 0.1) 0%, transparent 100%)',
-                      borderRadius: '12px',
-                      marginTop: '16px'
+                      borderRadius: '12px'
                     }}>
                       <Zap size={16} style={{ color: '#fbbf24' }} />
                       <span style={{ fontWeight: '700', color: '#fbbf24', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -6542,6 +6535,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         — {AGENTS.filter(a => a.tier === 'monthly').length} agents
                       </span>
                     </div>
+                    {/* MONTHLY TIER Grid */}
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '12px'
+                    }}>
                     {AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
                       const Icon = agent.icon;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
@@ -6559,59 +6558,53 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             }
                           }}
                           style={{
-                            padding: '20px',
+                            padding: '16px',
                             background: isLocked ? 'rgba(255,255,255,0.02)' : 'linear-gradient(145deg, rgba(251, 191, 36, 0.08) 0%, rgba(255,255,255,0.03) 100%)',
                             border: '1px solid rgba(251, 191, 36, 0.2)',
                             borderRadius: '16px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            gap: '12px',
                             position: 'relative',
                             opacity: isLocked ? 0.6 : 1
                           }}
                         >
                           {isLocked && <Lock size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
                           <div style={{
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '14px',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '12px',
                             background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.1))',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            marginBottom: '10px'
                           }}>
-                            <Icon size={24} style={{ color: '#fbbf24' }} />
+                            <Icon size={20} style={{ color: '#fbbf24' }} />
                           </div>
-                          <div>
-                            <h4 style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '4px' }}>{agent.name}</h4>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>{agent.category}</p>
-                          </div>
+                          <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
+                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '8px' }}>{agent.category}</p>
                           <span style={{ 
-                            padding: '3px 8px', 
+                            padding: '2px 6px', 
                             background: 'rgba(251, 191, 36, 0.15)', 
                             color: '#fbbf24', 
-                            borderRadius: '8px', 
-                            fontSize: '0.65rem', 
+                            borderRadius: '6px', 
+                            fontSize: '0.6rem', 
                             fontWeight: '600' 
                           }}>MONTHLY</span>
                         </div>
                       );
                     })}
+                    </div>
 
                     {/* PRO TIER */}
+                    {/* PRO TIER Header */}
                     <div style={{ 
-                      gridColumn: '1 / -1', 
                       display: 'flex', 
                       alignItems: 'center', 
                       gap: '12px',
                       padding: '12px 16px',
                       background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.1) 0%, transparent 100%)',
-                      borderRadius: '12px',
-                      marginTop: '16px'
+                      borderRadius: '12px'
                     }}>
                       <Award size={16} style={{ color: '#a855f7' }} />
                       <span style={{ fontWeight: '700', color: '#a855f7', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -6621,6 +6614,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         — {AGENTS.filter(a => a.tier === 'pro').length} agents
                       </span>
                     </div>
+                    {/* PRO TIER Grid */}
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '12px'
+                    }}>
                     {AGENTS.filter(a => a.tier === 'pro').map((agent) => {
                       const Icon = agent.icon;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
@@ -6638,48 +6637,43 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             }
                           }}
                           style={{
-                            padding: '20px',
+                            padding: '16px',
                             background: isLocked ? 'rgba(255,255,255,0.02)' : 'linear-gradient(145deg, rgba(168, 85, 247, 0.08) 0%, rgba(255,255,255,0.03) 100%)',
                             border: '1px solid rgba(168, 85, 247, 0.2)',
                             borderRadius: '16px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            textAlign: 'center',
-                            gap: '12px',
                             position: 'relative',
                             opacity: isLocked ? 0.6 : 1
                           }}
                         >
                           {isLocked && <Lock size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
                           <div style={{
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '14px',
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '12px',
                             background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(168, 85, 247, 0.1))',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            marginBottom: '10px'
                           }}>
-                            <Icon size={24} style={{ color: '#a855f7' }} />
+                            <Icon size={20} style={{ color: '#a855f7' }} />
                           </div>
-                          <div>
-                            <h4 style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '4px' }}>{agent.name}</h4>
-                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>{agent.category}</p>
-                          </div>
+                          <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
+                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '8px' }}>{agent.category}</p>
                           <span style={{ 
-                            padding: '3px 8px', 
+                            padding: '2px 6px', 
                             background: 'rgba(168, 85, 247, 0.15)', 
                             color: '#a855f7', 
-                            borderRadius: '8px', 
-                            fontSize: '0.65rem', 
+                            borderRadius: '6px', 
+                            fontSize: '0.6rem', 
                             fontWeight: '600' 
                           }}>PRO</span>
                         </div>
                       );
                     })}
+                    </div>
                   </div>
                 </div>
               )}
