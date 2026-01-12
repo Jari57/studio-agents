@@ -10705,9 +10705,10 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-width: 60px;
+  min-width: 56px;
   max-width: 15%;
   height: 100%;
+  box-sizing: border-box;
 }
 
 .agents-sidebar-header {
@@ -10773,15 +10774,18 @@ html, body, #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  max-width: 42px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   padding: 0;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 /* Name tooltip on hover */
@@ -10833,18 +10837,20 @@ html, body, #root {
 }
 
 .agent-sidebar-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .agent-sidebar-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 /* Hide sidebar text info - icon only */
