@@ -11458,72 +11458,7 @@ When you write a song, you create intellectual property that generates money eve
         </div>
       )}
 
-      {/* Project Choice Modal */}
-      {showProjectChoiceModal && (
-        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectChoiceModal(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', width: '100%', textAlign: 'center', margin: '0 12px', boxSizing: 'border-box', maxHeight: 'none', overflow: 'visible' }}>
-            <div className="modal-header" style={{ justifyContent: 'center', flexDirection: 'column', gap: '12px', borderBottom: 'none', paddingBottom: 0 }}>
-              <div className="agent-mini-icon bg-purple" style={{ width: '60px', height: '60px', margin: '0 auto' }}>
-                <Rocket size={32} />
-              </div>
-              <h2 style={{ fontSize: '1.8rem' }}>How would you like to start?</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>Choose the best way to launch your new project.</p>
-            </div>
-            
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '32px 0' }}>
-              <button 
-                className="cta-button-premium" 
-                style={{ 
-                  width: '100%', 
-                  justifyContent: 'center', 
-                  padding: '24px', 
-                  height: 'auto',
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
-                  boxShadow: '0 10px 30px rgba(139, 92, 246, 0.3)',
-                  border: 'none'
-                }}
-                onClick={() => {
-                  setShowProjectChoiceModal(false);
-                  handleManualCreate();
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '50%' }}>
-                    <LayoutGrid size={28} color="white" />
-                  </div>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: '900', fontSize: '1.2rem', color: 'white', letterSpacing: '0.5px' }}>STUDIO WORKFLOW</div>
-                    <div style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: '500', color: 'white' }}>Pick your agents and create manually</div>
-                  </div>
-                </div>
-              </button>
-
-              <button 
-                className="cta-button-secondary" 
-                style={{ width: '100%', justifyContent: 'center', padding: '24px', height: 'auto', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)' }}
-                onClick={() => {
-                  setShowProjectChoiceModal(false);
-                  setShowOrchestrator(true);
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '50%' }}>
-                    <Zap size={28} />
-                  </div>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: '900', fontSize: '1.2rem', letterSpacing: '0.5px' }}>AI PRODUCTION PIPELINE</div>
-                    <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: '500' }}>One idea → Full automated production</div>
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            <button className="modal-close" onClick={() => setShowProjectChoiceModal(false)} style={{ top: '20px', right: '20px' }}>
-              <X size={24} />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Project Choice Modal - Removed, now on Landing Page */}
 
       {/* Project Wizard Modal */}
       {showProjectWizard && (

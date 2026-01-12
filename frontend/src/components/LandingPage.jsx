@@ -728,46 +728,57 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Investor Pitch Deck</span>
             </button>
 
-            {/* Studio Workflow - Go to Agents Page */}
-            <button
-              onClick={() => onEnter(false, false)}
-              className="glass-button haptic-press"
+            {/* Studio Workflow Card - Go to Agents Page */}
+            <button 
+              className="haptic-press" 
               style={{ 
                 width: '100%', 
                 justifyContent: 'center', 
-                padding: '14px 24px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(6, 182, 212, 0.3) 100%)',
-                border: '1px solid rgba(139, 92, 246, 0.5)',
+                padding: '24px', 
+                height: 'auto',
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)',
+                boxShadow: '0 10px 30px rgba(139, 92, 246, 0.3)',
+                border: 'none',
                 borderRadius: '16px',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
+                cursor: 'pointer'
               }}
+              onClick={() => onEnter(false, false)}
             >
-              <LayoutGrid size={16} />
-              <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Studio Workflow</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '50%' }}>
+                  <LayoutGrid size={28} color="white" />
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: '900', fontSize: '1.2rem', color: 'white', letterSpacing: '0.5px' }}>STUDIO WORKFLOW</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: '500', color: 'white' }}>Pick your agents and create manually</div>
+                </div>
+              </div>
             </button>
 
-            {/* AI Production Pipeline - Go to Orchestrator */}
-            <button
-              onClick={() => onEnter(false, true)}
-              className="glass-button haptic-press"
+            {/* AI Production Pipeline Card - Go to Orchestrator */}
+            <button 
+              className="haptic-press" 
               style={{ 
                 width: '100%', 
                 justifyContent: 'center', 
-                padding: '14px 24px',
-                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
-                border: '1px solid rgba(6, 182, 212, 0.4)',
+                padding: '24px', 
+                height: 'auto', 
+                background: 'rgba(255,255,255,0.05)', 
+                border: '1px solid rgba(255,255,255,0.15)',
                 borderRadius: '16px',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
+                cursor: 'pointer'
               }}
+              onClick={() => onEnter(false, true)}
             >
-              <Zap size={16} />
-              <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>AI Production Pipeline</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '50%' }}>
+                  <Zap size={28} color="white" />
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: '900', fontSize: '1.2rem', color: 'white', letterSpacing: '0.5px' }}>AI PRODUCTION PIPELINE</div>
+                  <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: '500', color: 'white' }}>One idea → Full automated production</div>
+                </div>
+              </div>
             </button>
 
           </div>
