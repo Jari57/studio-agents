@@ -1934,12 +1934,15 @@ select optgroup {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 24px;
   padding: 2rem;
-  min-height: 260px;
+  min-height: 240px;
+  height: 100%;
   overflow: hidden;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   color: var(--text-primary);
   backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
 }
 
 /* Shimmer effect on card */
@@ -3840,7 +3843,7 @@ select optgroup {
 }
 
 .studio-header {
-  padding: 1.5rem 2.5rem;
+  padding: 0.5rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3848,8 +3851,9 @@ select optgroup {
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border-color);
   z-index: 10;
-  min-height: 64px;
+  min-height: 48px;
   flex-shrink: 0;
+  gap: 8px;
 }
 
 .studio-title {
@@ -4352,11 +4356,12 @@ select optgroup {
   }
 
   .studio-header {
-    padding: 0.75rem 1rem;
+    padding: 0.4rem 0.5rem;
     position: sticky;
     top: 0;
     z-index: 100;
-    gap: 8px;
+    gap: 4px;
+    min-height: 44px;
   }
 
   .studio-title {
@@ -4373,14 +4378,20 @@ select optgroup {
   }
 
   .studio-header-actions .action-button {
-    padding: 0.5rem;
-    min-width: 36px;
-    min-height: 36px;
+    padding: 0.35rem;
+    min-width: 32px;
+    min-height: 32px;
     justify-content: center;
+    font-size: 0;
+  }
+
+  .studio-header-actions .action-button svg {
+    width: 16px;
+    height: 16px;
   }
 
   .studio-header-actions .action-button.secondary {
-    padding: 0.5rem;
+    padding: 0.35rem;
   }
 
   .dashboard-welcome-banner {
@@ -8390,15 +8401,17 @@ html, body {
     width: 100% !important;
   }
   
-  /* Force 2-column grid layout */
+  /* Force 2-column grid layout with equal height rows */
   .agents-scroll-container .agents-grid,
   .agents-grid {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 12px !important;
+    grid-auto-rows: 1fr !important;
+    gap: 10px !important;
     width: 100% !important;
     overflow: visible !important;
     padding: 0 !important;
+    align-items: stretch !important;
   }
   
   .section-header {
@@ -8410,15 +8423,19 @@ html, body {
     font-size: 1.4rem !important;
   }
 
-  /* Agent cards fill grid cells */
+  /* Agent cards fill grid cells - EQUAL sizing */
   .agents-scroll-container .agent-card-premium,
   .agent-card-premium {
     width: 100% !important;
     min-width: 0 !important;
+    min-height: 180px !important;
+    height: 100% !important;
     padding: 1rem !important;
     margin: 0 !important;
     box-sizing: border-box !important;
     border-radius: 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .agent-card-premium .agent-icon-box {
