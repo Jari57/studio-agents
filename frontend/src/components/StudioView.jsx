@@ -1004,8 +1004,8 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
   };
 
   const handleManualCreate = () => {
-    handleSkipWizard();
-    // Go straight to studio - user already saw onboarding if they were a new user
+    handleSkipWizard('agents');
+    // Go straight to agents page - user can pick any agent to start creating
   };
 
   // Open agent whitepaper modal for any agent
@@ -11477,54 +11477,35 @@ When you write a song, you create intellectual property that generates money eve
                 }}
                 onClick={() => {
                   setShowProjectChoiceModal(false);
-                  setShowOrchestrator(true);
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '50%' }}>
-                    <Zap size={28} color="white" />
-                  </div>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: '900', fontSize: '1.2rem', color: 'white', letterSpacing: '0.5px' }}>AI STUDIO ORCHESTRATOR</div>
-                    <div style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: '500', color: 'white' }}>One idea → Full production pipeline</div>
-                  </div>
-                </div>
-              </button>
-
-              <button 
-                className="cta-button-secondary" 
-                style={{ width: '100%', justifyContent: 'center', padding: '20px', height: 'auto', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)' }}
-                onClick={() => {
-                  setShowProjectChoiceModal(false);
-                  setShowProjectWizard(true);
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '50%' }}>
-                    <Sparkles size={24} />
-                  </div>
-                  <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Guided Project Wizard</div>
-                    <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: 'normal' }}>Step-by-step manual setup</div>
-                  </div>
-                </div>
-              </button>
-
-              <button 
-                className="cta-button-secondary" 
-                style={{ width: '100%', justifyContent: 'center', padding: '20px', height: 'auto', background: 'transparent', border: '1px solid var(--border-color)' }}
-                onClick={() => {
-                  setShowProjectChoiceModal(false);
                   handleManualCreate();
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '50%' }}>
-                    <PenTool size={24} />
+                  <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '50%' }}>
+                    <LayoutGrid size={28} color="white" />
                   </div>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Quick Manual Start</div>
-                    <div style={{ fontSize: '0.9rem', opacity: 0.6, fontWeight: 'normal' }}>Skip setup and go straight to studio</div>
+                    <div style={{ fontWeight: '900', fontSize: '1.2rem', color: 'white', letterSpacing: '0.5px' }}>STUDIO WORKFLOW</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.9, fontWeight: '500', color: 'white' }}>Pick your agents and create manually</div>
+                  </div>
+                </div>
+              </button>
+
+              <button 
+                className="cta-button-secondary" 
+                style={{ width: '100%', justifyContent: 'center', padding: '24px', height: 'auto', background: 'var(--color-bg-tertiary)', border: '1px solid var(--border-color)' }}
+                onClick={() => {
+                  setShowProjectChoiceModal(false);
+                  setShowOrchestrator(true);
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '50%' }}>
+                    <Zap size={28} />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: '900', fontSize: '1.2rem', letterSpacing: '0.5px' }}>AI PRODUCTION PIPELINE</div>
+                    <div style={{ fontSize: '0.9rem', opacity: 0.7, fontWeight: '500' }}>One idea → Full automated production</div>
                   </div>
                 </div>
               </button>

@@ -1,7 +1,7 @@
-# 🚀 Next Steps: Web & UX/UI Improvements
+# 🚀 Next Steps: Studio Agents - Web & UX/UI Improvements
 
 ## Status: Enterprise Production Ready ✅
-**Last Updated:** December 13, 2025
+**Last Updated:** January 11, 2026
 
 ---
 
@@ -18,7 +18,7 @@
 
 ### Mobile Optimizations
 - ✅ Global tap-highlight removal (iOS blue flash fix)
-- ✅ Touch-action: manipulation on all interactive elements
+- ✅ Touch-action: manipulation on all interactive elements (via `.touch-feedback` class)
 - ✅ User-select: none on buttons/links
 - ✅ Viewport meta tags optimized
 - ✅ Landing page touch handlers (100%)
@@ -29,6 +29,8 @@
 - ✅ Touch-friendly Modals (Login, Payment, Save)
 - ✅ Mobile Layout Fixes (Studio View, Bottom Nav)
 - ✅ Login Process Accessibility (Header/Sidebar Buttons)
+- ✅ Media Player overlay with touch close handlers
+- ✅ Project cards using `touch-feedback` class
 
 ### Design & UI
 - ✅ Glossy landing page with power button
@@ -36,60 +38,38 @@
 - ✅ Disclaimer modal
 - ✅ CRT overlay effects (pointer-events: none)
 - ✅ Z-index hierarchy fixed
-- ✅ Memory Lane gallery (24 slots, merch styling)
+- ✅ Music Hub (Reddit, YouTube, Releases integration)
+- ✅ Project Hub with templates and CRUD operations
+- ✅ Studio Orchestrator V2 workflow
+- ✅ News Hub (Industry Pulse)
+- ✅ Multi-agent demos
 
 ---
 
 ## 🔧 Outstanding Issues (Non-Critical)
 
-### 1. Merch Store Touch Handlers ⚠️ MEDIUM PRIORITY
-**Issue:** Multiple cart interactions missing touch support
+### 1. Music Hub Card Touch Handlers ⚠️ LOW PRIORITY
+**Issue:** Music Hub content cards only use onClick, but CSS handles touch via touch-feedback class
+
+**Current State:**
+- Cards have hover effects but no explicit onTouchEnd
+- The `touch-feedback` class in mobile-fixes.css handles touch-action:manipulation
+- Cards are links that open external URLs (Reddit, YouTube)
+
+**Recommendation:** Low priority since external link navigation works on mobile
+**Estimated Time:** 10 minutes (if needed)
+
+---
+
+### 2. Project Hub Dropdown Menus ⚠️ LOW PRIORITY
+**Issue:** Project action dropdown menus might need touch improvements
 
 **Affected Elements:**
-- Shopping cart icon (line ~2216)
-- Category filter buttons - desktop (lines ~2234)
-- Category filter buttons - mobile (lines ~2310)
-- Add to Cart button - mobile (line ~2349)
-- Add to Cart button - desktop (line ~2358)
-- Cart close button (line ~2391)
-- Remove from cart buttons (line ~2401)
+- More options (...) button on project cards
+- Dropdown menu items (View, Edit, Delete, Share)
 
-**Fix Pattern:**
-```jsx
-onClick={action}
-onTouchEnd={(e) => { e.preventDefault(); action(); }}
-className="...existing... touch-manipulation"
-```
-
-**Impact:** Shopping functionality broken on mobile
-**Estimated Time:** 15 minutes
-
----
-
-### 3. Community Hub Touch Handlers ⚠️ MEDIUM PRIORITY
-**Issue:** Social interactions not working on touch devices
-
-**Affected:**
-- Like buttons (line ~2848)
-- Reply buttons (line ~2855)
-- Post button (line ~2793)
-
-**Fix:** Same touch handler pattern as above
-**Impact:** Users can't interact with posts on mobile
-**Estimated Time:** 5 minutes
-
----
-
-### 4. Track Selection Touch Handlers ⚠️ LOW PRIORITY
-**Issue:** Clicking tracks in music library doesn't work on mobile
-
-**Affected:**
-- Desktop track rows (lines 1716, 1719, 1726)
-- Mobile track cards (lines 1740, 1763)
-
-**Fix:** Add `onTouchEnd` to clickable track elements
-**Impact:** Can't select songs on mobile (player controls work separately)
-**Estimated Time:** 10 minutes
+**Current State:** Uses onClick but has good CSS touch support
+**Estimated Time:** 10 minutes (if needed)
 
 ---
 
@@ -344,19 +324,19 @@ const handleAgentClick = (agentId) => {
 ### CRITICAL (Before Public Launch) 🔴
 1. ✅ Security hardening - DONE
 2. ✅ Mobile touch issues (landing page) - DONE
-3. ⚠️ Music player touch handlers - TODO
-4. ⚠️ Merch store touch handlers - TODO
-5. ⚠️ Community hub touch handlers - TODO
+3. ✅ Music player touch handlers - DONE
+4. ✅ Project Hub touch support (via CSS) - DONE
+5. ✅ Music Hub card navigation - DONE
 
-**Total Estimated Time:** ~25 minutes
+**Status: ALL CRITICAL ITEMS COMPLETE ✅**
 
 ### HIGH PRIORITY (Week 1) 🟡
-6. Error boundaries (prevent crashes)
+6. ✅ Error boundaries (ErrorBoundary.jsx exists)
 7. Loading states (better UX feedback)
-8. Toast notifications (replace alerts)
+8. Toast notifications (react-hot-toast already integrated)
 9. Form validation (data quality)
 
-**Total Estimated Time:** ~2.5 hours
+**Total Estimated Time:** ~1.5 hours
 
 ### MEDIUM PRIORITY (Week 2-3) 🟢
 10. Keyboard navigation (accessibility)
@@ -367,7 +347,7 @@ const handleAgentClick = (agentId) => {
 **Total Estimated Time:** ~4 hours
 
 ### NICE TO HAVE (Future Sprints) 🔵
-14. PWA conversion (offline support)
+14. PWA conversion (offline support) - manifest.json already exists
 15. Analytics integration (data tracking)
 16. Advanced animations (micro-interactions)
 17. Internationalization (multi-language)
@@ -419,13 +399,7 @@ const handleAgentClick = (agentId) => {
 
 ---
 
-## 🛠️ Quick Fix Commands
-
-### Fix All Remaining Touch Issues (25 min)
-```bash
-# Apply all touch handler fixes in one session
-# Edit App.jsx and add onTouchEnd to lines: 1814, 1820, 1829, 1835, 2216, 2234, 2310, 2349, 2358, 2391, 2401, 2793, 2848, 2855
-```
+## 🛠️ Quick Commands
 
 ### Test Mobile Locally
 ```bash
@@ -443,10 +417,27 @@ npm run build
 npm run preview  # Test production build locally
 ```
 
+### Start Backend Server
+```bash
+cd backend
+npm ci
+npm start
+# Server runs on http://localhost:3001
+```
+
+### Run Full Stack Locally
+```powershell
+# Terminal 1 - Backend
+cd backend; npm start
+
+# Terminal 2 - Frontend
+cd frontend; npm run dev
+```
+
 ### Deploy to Railway
 ```bash
 git add -A
-git commit -m "fix: complete mobile touch optimization"
+git commit -m "chore: update and maintenance"
 git push origin main
 # Railway auto-deploys
 ```
@@ -463,6 +454,6 @@ git push origin main
 
 ---
 
-**Next Review Date:** December 20, 2025  
-**Version:** 2.0.0  
-**Status:** 🟢 Production Ready (with minor touch handler updates recommended)
+**Next Review Date:** January 25, 2026  
+**Version:** 2.1.0  
+**Status:** 🟢 Production Ready
