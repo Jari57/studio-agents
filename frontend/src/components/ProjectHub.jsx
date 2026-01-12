@@ -532,14 +532,22 @@ function ProjectHub({
                 </div>
 
                 {/* Card Actions */}
-                <div className="project-card-actions" onClick={(e) => e.stopPropagation()}>
+                <div 
+                  className="project-card-actions" 
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ position: 'relative', zIndex: 50, pointerEvents: 'auto' }}
+                >
                   <button 
                     className="project-card-action-btn"
+                    style={{ pointerEvents: 'auto', zIndex: 51, minHeight: '44px' }}
                     onClick={(e) => { 
                       e.stopPropagation(); 
                       e.preventDefault();
                       console.log('[ProjectHub] View button clicked for project:', project.id, project.name);
                       onSelectProject?.(project); 
+                    }}
+                    onTouchStart={(e) => {
+                      console.log('[ProjectHub] View button touchstart');
                     }}
                     onTouchEnd={(e) => {
                       e.stopPropagation();
@@ -552,6 +560,7 @@ function ProjectHub({
                   </button>
                   <button 
                     className="project-card-action-btn"
+                    style={{ pointerEvents: 'auto', zIndex: 51, minHeight: '44px' }}
                     onClick={(e) => { e.stopPropagation(); handleShareToTwitter(project, e); }}
                     onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); handleShareToTwitter(project, e); }}
                   >
@@ -559,6 +568,7 @@ function ProjectHub({
                   </button>
                   <button 
                     className="project-card-action-btn danger"
+                    style={{ pointerEvents: 'auto', zIndex: 51, minHeight: '44px' }}
                     onClick={(e) => handleDeleteProject(project.id, e)}
                     onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); handleDeleteProject(project.id, e); }}
                   >
