@@ -310,7 +310,7 @@ select optgroup {
 /* --- Mobile & Pop Enhancements --- */
 @media (max-width: 768px) {
   .studio-container {
-    padding-bottom: 56px; /* Space for bottom nav */
+    padding-bottom: 8px;
   }
   
   .dashboard-card, .agent-card, .connection-item {
@@ -4332,7 +4332,7 @@ select optgroup {
     min-height: 100dvh;
     overflow-x: hidden;
     overflow-y: auto;
-    padding-bottom: 56px; /* Space for bottom nav */
+    padding-bottom: 8px;
   }
 
   .studio-nav {
@@ -4345,7 +4345,7 @@ select optgroup {
 
   .studio-main {
     flex: 1;
-    padding-bottom: 56px;
+    padding-bottom: 8px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -4775,7 +4775,7 @@ select optgroup {
   .agent-detail-layout {
     grid-template-columns: 1fr;
     gap: 1.5rem;
-    padding-bottom: 56px;
+    padding-bottom: 8px;
   }
   
   .agent-main-panel {
@@ -6677,7 +6677,7 @@ select optgroup {
     grid-template-columns: repeat(2, 1fr); /* 2 columns side-by-side */
     gap: 10px; /* Tighter gap for compact look */
     width: 100%;
-    padding-bottom: 56px; /* Space for bottom nav */
+    padding-bottom: 8px;
     overflow: hidden;
     box-sizing: border-box;
   }
@@ -7373,7 +7373,7 @@ select optgroup {
   }
   
   .studio-main {
-    padding-bottom: 56px; /* Space for bottom nav */
+    padding-bottom: 8px;
   }
 }
 
@@ -8276,7 +8276,7 @@ input:checked + .slider:before {
 @media (max-width: 768px) {
   /* Ensure footer links are visible above the sticky CTA */
   .main-footer {
-    padding-bottom: 60px !important;
+    padding-bottom: 8px !important;
   }
 
   /* Ensure Hero Section is properly centered on mobile */
@@ -8340,7 +8340,7 @@ input:checked + .slider:before {
 .hub-view {
   min-height: auto;
   overflow: visible;
-  padding-bottom: 56px;
+  padding-bottom: 8px;
 }
 
 /* --- Mobile De-cluttering & Optimization --- */
@@ -9185,7 +9185,7 @@ html, body {
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
-  padding-bottom: 60px;
+  padding-bottom: 8px;
 }
 
 .resources-header {
@@ -9421,7 +9421,7 @@ html, body {
 @media (max-width: 768px) {
   .resources-view {
     padding: 1rem;
-    padding-bottom: 60px;
+    padding-bottom: 8px;
   }
   
   .resources-header h1 {
@@ -9724,7 +9724,7 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
     padding: 16px;
     height: auto;
     overflow-y: visible;
-    padding-bottom: 56px; /* Space for bottom nav */
+    padding-bottom: 8px;
   }
 
   .canvas-header {
@@ -9771,14 +9771,14 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   margin: 0 auto;
   width: 100%;
   min-height: 100vh;
-  padding-bottom: 60px; /* Space for bottom nav */
+  padding-bottom: 8px;
   box-sizing: border-box;
 }
 
 @media (max-width: 768px) {
   .agent-active-view {
     padding: 1rem;
-    padding-bottom: 60px; /* Space for bottom nav */
+    padding-bottom: 8px;
   }
 
   .agent-utility-box {
@@ -9832,7 +9832,7 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   padding: 2rem;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 56px; /* Space for bottom nav */
+  padding-bottom: 8px;
 }
 
 /* Mobile: Stack layout, horizontal tab nav */
@@ -9855,7 +9855,7 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   
   .dashboard-main-content {
     padding: 1rem;
-    padding-bottom: 56px; /* Space for bottom nav */
+    padding-bottom: 8px;
   }
 }
 
@@ -11016,7 +11016,7 @@ html, body, #root {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0;
-  padding-bottom: 56px;
+  padding-bottom: 8px;
   min-width: 0;
 }
 
@@ -11172,7 +11172,7 @@ html, body, #root {
   
   .agents-main-panel {
     padding: 16px;
-    padding-bottom: 56px;
+    padding-bottom: 8px;
     overflow-y: auto;
   }
   
