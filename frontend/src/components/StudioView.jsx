@@ -172,7 +172,7 @@ const getTimeSince = (date) => {
   return `${Math.floor(seconds / 2592000)}mo ago`;
 };
 
-function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan }) {
+function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan }) {
   // Helper to get tab from hash
   const getTabFromHash = () => {
     const hash = window.location.hash;
@@ -789,6 +789,13 @@ function StudioView({ onBack, startWizard, startTour: _startTour, initialPlan })
       setShowProjectChoiceModal(true);
     }
   }, [startWizard]);
+
+  // If startOrchestrator prop is true, open the AI orchestrator directly
+  useEffect(() => {
+    if (startOrchestrator) {
+      setShowOrchestrator(true);
+    }
+  }, [startOrchestrator]);
   const [systemStatus, setSystemStatus] = useState({ status: 'healthy', message: 'All Systems Operational' });
   
   // System Health Check

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock, LayoutGrid } from 'lucide-react';
 import { AGENTS } from '../constants';
 import { auth, GoogleAuthProvider, signInWithPopup } from '../firebase';
 import MultiAgentDemo from './MultiAgentDemo';
@@ -726,6 +726,48 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             >
               <Briefcase size={16} />
               <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Investor Pitch Deck</span>
+            </button>
+
+            {/* Studio Workflow - Go to Agents Page */}
+            <button
+              onClick={() => onEnter(false, false)}
+              className="glass-button haptic-press"
+              style={{ 
+                width: '100%', 
+                justifyContent: 'center', 
+                padding: '14px 24px',
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(6, 182, 212, 0.3) 100%)',
+                border: '1px solid rgba(139, 92, 246, 0.5)',
+                borderRadius: '16px',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <LayoutGrid size={16} />
+              <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Studio Workflow</span>
+            </button>
+
+            {/* AI Production Pipeline - Go to Orchestrator */}
+            <button
+              onClick={() => onEnter(false, true)}
+              className="glass-button haptic-press"
+              style={{ 
+                width: '100%', 
+                justifyContent: 'center', 
+                padding: '14px 24px',
+                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)',
+                border: '1px solid rgba(6, 182, 212, 0.4)',
+                borderRadius: '16px',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <Zap size={16} />
+              <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>AI Production Pipeline</span>
             </button>
 
           </div>

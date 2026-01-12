@@ -40,6 +40,7 @@ function App() {
   // Hash-based routing state
   const [currentHash, setCurrentHash] = useState(window.location.hash || '#/');
   const [startWizard, setStartWizard] = useState(false);
+  const [startOrchestrator, setStartOrchestrator] = useState(false);
   const [startTour, setStartTour] = useState(false);
   const [initialPlan, setInitialPlan] = useState(null);
 
@@ -58,9 +59,10 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const handleEnterStudio = (shouldStartWizard = false) => {
-    console.log('[App] handleEnterStudio called, shouldStartWizard:', shouldStartWizard);
+  const handleEnterStudio = (shouldStartWizard = false, startOrchestrator = false) => {
+    console.log('[App] handleEnterStudio called, shouldStartWizard:', shouldStartWizard, 'startOrchestrator:', startOrchestrator);
     setStartWizard(shouldStartWizard);
+    setStartOrchestrator(startOrchestrator);
     setStartTour(false);
     setInitialPlan(null);
     console.log('[App] Setting hash to #/studio');
@@ -69,6 +71,7 @@ function App() {
 
   const handleStartTour = () => {
     setStartWizard(false);
+    setStartOrchestrator(false);
     setStartTour(true);
     setInitialPlan(null);
     window.location.hash = '#/studio';
@@ -77,12 +80,14 @@ function App() {
   const handleSubscribe = (plan) => {
     setInitialPlan(plan);
     setStartWizard(false);
+    setStartOrchestrator(false);
     setStartTour(false);
     window.location.hash = '#/studio';
   };
 
   const handleBackToLanding = () => {
     setStartWizard(false);
+    setStartOrchestrator(false);
     setStartTour(false);
     setInitialPlan(null);
     window.location.hash = '#/';
@@ -104,6 +109,7 @@ function App() {
           <StudioView 
             onBack={handleBackToLanding} 
             startWizard={startWizard} 
+            startOrchestrator={startOrchestrator}
             startTour={startTour}
             initialPlan={initialPlan}
           />
