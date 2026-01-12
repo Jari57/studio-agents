@@ -8437,11 +8437,12 @@ html, body {
 
 /* Agent Help Modal Styles */
 .agent-help-modal {
-  max-width: 600px !important;
+  max-width: 500px !important;
   width: 90%;
-  max-height: 85vh;
+  max-height: 70vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .modal-title-group {
@@ -8453,6 +8454,8 @@ html, body {
 .help-modal-body {
   overflow-y: auto;
   padding-right: 8px;
+  max-height: calc(70vh - 140px);
+  -webkit-overflow-scrolling: touch;
 }
 
 .help-section {
@@ -10514,13 +10517,13 @@ html, body, #root {
 
 .agents-split-layout {
   display: grid;
-  grid-template-columns: 72px 1fr;
+  grid-template-columns: minmax(180px, 14%) 1fr;
   gap: 0;
   height: calc(100vh - 180px);
   min-height: 600px;
 }
 
-/* Left Sidebar - Icon Rail */
+/* Left Sidebar */
 .agents-sidebar {
   background: var(--color-bg-secondary);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
@@ -10530,38 +10533,39 @@ html, body, #root {
 }
 
 .agents-sidebar-header {
-  padding: 12px 8px;
+  padding: 16px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .agents-sidebar-header h3 {
-  font-size: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
   margin: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  color: var(--text-primary);
 }
 
 .agents-sidebar-header h3 svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
 }
 
 .agents-sidebar-header p {
-  display: none;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 4px 0 0 0;
 }
 
 .agents-sidebar-list {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 4px;
 }
 
@@ -10574,20 +10578,20 @@ html, body, #root {
   border-radius: 2px;
 }
 
-/* Icon-only sidebar item with tooltip */
+/* Sidebar item - full width with text */
 .agent-sidebar-item {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0;
-  width: 48px;
-  height: 48px;
+  gap: 10px;
+  padding: 8px 10px;
+  width: 100%;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
+  text-align: left;
 }
 
 .agent-sidebar-item:hover {
@@ -10610,72 +10614,45 @@ html, body, #root {
 }
 
 .agent-sidebar-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-/* Hidden by default - shown on hover via tooltip */
+/* Sidebar info - inline text */
 .agent-sidebar-info {
-  position: absolute;
-  left: calc(100% + 12px);
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(20, 20, 30, 0.98);
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  border-radius: 8px;
-  padding: 8px 12px;
-  white-space: nowrap;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: all 0.2s ease;
-  z-index: 1000;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-}
-
-.agent-sidebar-item:hover .agent-sidebar-info {
-  opacity: 1;
-  visibility: visible;
-}
-
-.agent-sidebar-info::before {
-  content: '';
-  position: absolute;
-  left: -6px;
-  top: 50%;
-  transform: translateY(-50%);
-  border: 6px solid transparent;
-  border-right-color: rgba(139, 92, 246, 0.3);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .agent-sidebar-info h4 {
   font-size: 0.8rem;
   font-weight: 600;
-  margin: 0 0 2px 0;
-  color: #fff;
+  margin: 0;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .agent-sidebar-info span {
   font-size: 0.65rem;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: capitalize;
 }
 
 .agent-sidebar-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  padding: 1px 4px;
+  padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.5rem;
+  font-size: 0.55rem;
   font-weight: 700;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .agent-sidebar-badge.beta {
@@ -10690,26 +10667,29 @@ html, body, #root {
 
 /* Sidebar Section Dividers */
 .agents-sidebar-section {
-  padding: 6px 0;
-  margin-top: 8px;
-  margin-bottom: 4px;
   width: 100%;
-  display: flex;
-  justify-content: center;
 }
 
 .agents-sidebar-section h5 {
-  font-size: 0;
+  font-size: 0.7rem;
   margin: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .agents-sidebar-section h5 svg {
-  width: 14px;
-  height: 14px;
-  opacity: 0.5;
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.agents-sidebar-section h5 span {
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  border-radius: 8px;
 }
 
 /* Right Main Panel - 90% */
@@ -10793,21 +10773,21 @@ html, body, #root {
   margin: 0;
 }
 
-/* Mobile Responsive - Vertical icon rail on left */
+/* Mobile Responsive */
 @media (max-width: 900px) {
   .agents-split-layout {
-    grid-template-columns: 56px 1fr;
-    grid-template-rows: 1fr;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
     height: calc(100vh - 140px);
     min-height: 400px;
   }
   
   .agents-sidebar {
-    border-right: 1px solid rgba(255, 255, 255, 0.08);
-    border-bottom: none;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     flex-direction: column;
-    height: 100%;
-    width: 56px;
+    height: auto;
+    max-height: 200px;
     overflow-x: hidden;
     overflow-y: auto;
   }
@@ -10817,64 +10797,49 @@ html, body, #root {
   }
   
   .agents-sidebar-list {
-    flex-direction: column;
-    flex-wrap: nowrap;
-    padding: 8px 6px;
-    gap: 4px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    align-items: center;
-    justify-content: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 8px;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
   
   .agents-sidebar-list::-webkit-scrollbar {
-    width: 2px;
-    height: auto;
+    height: 3px;
   }
   
   .agent-sidebar-item {
-    width: 42px;
-    height: 42px;
+    width: auto;
+    padding: 6px 10px;
     flex-shrink: 0;
   }
   
   .agent-sidebar-icon {
-    width: 30px;
-    height: 30px;
+    width: 24px;
+    height: 24px;
   }
   
   .agent-sidebar-icon svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
   }
   
-  /* Tooltip appears to the right on mobile */
-  .agent-sidebar-info {
-    left: calc(100% + 8px);
-    top: 50%;
-    transform: translateY(-50%);
+  .agent-sidebar-info h4 {
+    font-size: 0.7rem;
   }
   
-  .agent-sidebar-info::before {
-    left: -6px;
-    top: 50%;
-    transform: translateY(-50%);
-    border: 6px solid transparent;
-    border-right-color: rgba(139, 92, 246, 0.3);
-    border-bottom-color: transparent;
+  .agent-sidebar-info span {
+    display: none;
   }
   
   .agents-sidebar-section {
-    display: flex;
-    padding: 4px 0;
-    margin-top: 4px;
+    display: none;
   }
   
   .agent-sidebar-badge {
-    top: 0;
-    right: 0;
-    font-size: 0.4rem;
-    padding: 1px 2px;
+    font-size: 0.5rem;
+    padding: 1px 4px;
   }
   
   .agents-main-panel {
