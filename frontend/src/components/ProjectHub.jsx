@@ -314,7 +314,17 @@ function ProjectHub({
               <div 
                 key={project.id}
                 className="project-card-v2 touch-feedback"
-                onClick={() => onSelectProject?.(project)}
+                onClick={() => {
+                  console.log('[ProjectHub] Card clicked for project:', project.id, project.name);
+                  onSelectProject?.(project);
+                }}
+                onTouchEnd={(e) => {
+                  // Only handle touch on card itself, not on child elements
+                  if (e.target === e.currentTarget) {
+                    console.log('[ProjectHub] Card touched for project:', project.id, project.name);
+                    onSelectProject?.(project);
+                  }
+                }}
               >
                 {/* Card Header */}
                 <div className="project-card-thumb" style={{
@@ -522,22 +532,35 @@ function ProjectHub({
                 </div>
 
                 {/* Card Actions */}
-                <div className="project-card-actions">
+                <div className="project-card-actions" onClick={(e) => e.stopPropagation()}>
                   <button 
                     className="project-card-action-btn"
-                    onClick={(e) => { e.stopPropagation(); onSelectProject?.(project); }}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      e.preventDefault();
+                      console.log('[ProjectHub] View button clicked for project:', project.id, project.name);
+                      onSelectProject?.(project); 
+                    }}
+                    onTouchEnd={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      console.log('[ProjectHub] View button touched for project:', project.id, project.name);
+                      onSelectProject?.(project);
+                    }}
                   >
                     <Eye size={16} /> View
                   </button>
                   <button 
                     className="project-card-action-btn"
                     onClick={(e) => { e.stopPropagation(); handleShareToTwitter(project, e); }}
+                    onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); handleShareToTwitter(project, e); }}
                   >
                     <Share2 size={16} /> Share
                   </button>
                   <button 
                     className="project-card-action-btn danger"
                     onClick={(e) => handleDeleteProject(project.id, e)}
+                    onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); handleDeleteProject(project.id, e); }}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -555,8 +578,16 @@ function ProjectHub({
               <div
                 key={project.id}
                 className="project-list-item touch-feedback"
-                onClick={() => onSelectProject?.(project)}
-                style={{ borderBottom: idx < filteredProjects.length - 1 ? '1px solid var(--border-color)' : 'none' }}
+                onClick={() => {
+                  console.log('[ProjectHub] List item clicked for project:', project.id, project.name);
+                  onSelectProject?.(project);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  console.log('[ProjectHub] List item touched for project:', project.id, project.name);
+                  onSelectProject?.(project);
+                }}
+                style={{ borderBottom: idx < filteredProjects.length - 1 ? '1px solid var(--border-color)' : 'none', cursor: 'pointer' }}
               >
                 <div className="project-list-thumb" style={{
                   background: `linear-gradient(135deg, ${getStatusColor(project.status)}30 0%, var(--color-bg-tertiary) 100%)`,

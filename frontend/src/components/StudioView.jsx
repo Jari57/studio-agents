@@ -785,10 +785,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showProjectWizard, setShowProjectWizard] = useState(false);
   const [projectWizardStep, setProjectWizardStep] = useState(1);
   
-  // If startWizard prop is true, open the project choice modal on mount
+  // If startWizard prop is true, open the project wizard on mount
   useEffect(() => {
     if (startWizard) {
-      setShowProjectChoiceModal(true);
+      setShowProjectWizard(true);
     }
   }, [startWizard]);
 
@@ -4313,7 +4313,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       ))}
                     </div>
                     <div className="workflow-actions" style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
-                      <button className="btn-pill primary" onClick={() => setShowProjectChoiceModal(true)}>
+                      <button className="btn-pill primary" onClick={() => setShowProjectWizard(true)}>
                         <Plus size={14} /> New Project
                       </button>
                       <button className="btn-pill glass" onClick={() => setActiveTab('hub')}>
@@ -4350,7 +4350,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                           Start your first project and track your creative journey.
                         </p>
-                        <button className="btn-pill primary" onClick={() => setShowProjectChoiceModal(true)}>
+                        <button className="btn-pill primary" onClick={() => setShowProjectWizard(true)}>
                           <Plus size={14} /> Create First Project
                         </button>
                       </div>
@@ -7848,7 +7848,7 @@ When you write a song, you create intellectual property that generates money eve
               <button 
                 className="cta-button-primary haptic-press" 
                 style={{ width: '100%', padding: '16px', fontSize: '1.1rem' }}
-                onClick={() => setShowProjectChoiceModal(true)}
+                onClick={() => setShowProjectWizard(true)}
               >
                 Create New Project <ArrowRight size={20} style={{ marginLeft: '8px' }} />
               </button>
@@ -8790,8 +8790,8 @@ When you write a song, you create intellectual property that generates money eve
               <h3 style={{ marginBottom: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Quick Actions</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <button
-                  onClick={() => setShowProjectChoiceModal(true)}
-                  style={{
+                  onClick={() => setShowProjectWizard(true)}
+                  style={{{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
@@ -9315,7 +9315,7 @@ When you write a song, you create intellectual property that generates money eve
               <div className="user-projects-dropdown">
                 <button 
                   className="action-button primary haptic-press"
-                  onClick={() => setShowProjectChoiceModal(true)}
+                  onClick={() => setShowProjectWizard(true)}
                 >
                   New Project ({projects?.length || 0})
                 </button>
@@ -11751,7 +11751,7 @@ When you write a song, you create intellectual property that generates money eve
           {/* Global Create Button */}
           <div 
             className="bottom-nav-item create-btn" 
-            onClick={() => setShowProjectChoiceModal(true)}
+            onClick={() => setShowProjectWizard(true)}
             role="button"
             tabIndex={0}
           >
@@ -11970,7 +11970,7 @@ When you write a song, you create intellectual property that generates money eve
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 onClick={() => {
                   setShowCreditsModal(false);
-                  setShowProjectChoiceModal(true);
+                  setShowProjectWizard(true);
                 }}
               >
                 <Rocket size={18} style={{ marginRight: '6px' }} /> Create Project
