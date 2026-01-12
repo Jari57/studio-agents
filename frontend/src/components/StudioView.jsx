@@ -221,6 +221,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showWhitepapersModal, setShowWhitepapersModal] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState(false);
   const [newsSearch, setNewsSearch] = useState('');
   // Reserved for future use: const [isRefreshingNews, setIsRefreshingNews] = useState(false);
   const [projects, setProjects] = useState(() => {
@@ -6205,8 +6207,19 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               
               <div className="agents-sidebar-list">
                 {/* FREE TIER Agents */}
-                <div className="agents-sidebar-section">
-                  <h5><Sparkles size={10} /> Free</h5>
+                <div className="agents-sidebar-section" style={{
+                  background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%)',
+                  padding: '8px 12px',
+                  marginBottom: '4px',
+                  borderRadius: '8px',
+                  borderLeft: '3px solid rgba(34, 197, 94, 0.6)'
+                }}>
+                  <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#22c55e', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    <Sparkles size={12} /> Free Tier
+                    <span style={{ marginLeft: 'auto', background: 'rgba(34, 197, 94, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
+                      {AGENTS.filter(a => a.tier === 'free').length} agents
+                    </span>
+                  </h5>
                 </div>
                 {AGENTS.filter(a => a.tier === 'free').map((agent) => {
                   const Icon = agent.icon;
@@ -6245,8 +6258,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 })}
 
                 {/* MONTHLY TIER Agents */}
-                <div className="agents-sidebar-section">
-                  <h5><Zap size={10} /> Monthly</h5>
+                <div className="agents-sidebar-section" style={{
+                  background: 'linear-gradient(90deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%)',
+                  padding: '8px 12px',
+                  marginBottom: '4px',
+                  marginTop: '12px',
+                  borderRadius: '8px',
+                  borderLeft: '3px solid rgba(139, 92, 246, 0.6)'
+                }}>
+                  <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a855f7', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    <Zap size={12} /> Monthly — $4.99/mo
+                    <span style={{ marginLeft: 'auto', background: 'rgba(139, 92, 246, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
+                      {AGENTS.filter(a => a.tier === 'monthly').length} agents
+                    </span>
+                  </h5>
                 </div>
                 {AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
                   const Icon = agent.icon;
@@ -6286,8 +6311,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 })}
 
                 {/* PRO TIER Agents */}
-                <div className="agents-sidebar-section">
-                  <h5><Award size={10} /> Pro</h5>
+                <div className="agents-sidebar-section" style={{
+                  background: 'linear-gradient(90deg, rgba(234, 179, 8, 0.1) 0%, transparent 100%)',
+                  padding: '8px 12px',
+                  marginBottom: '4px',
+                  marginTop: '12px',
+                  borderRadius: '8px',
+                  borderLeft: '3px solid rgba(234, 179, 8, 0.6)'
+                }}>
+                  <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#eab308', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    <Award size={12} /> Pro — $9.99/mo
+                    <span style={{ marginLeft: 'auto', background: 'rgba(234, 179, 8, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
+                      {AGENTS.filter(a => a.tier === 'pro').length} agents
+                    </span>
+                  </h5>
                 </div>
                 {AGENTS.filter(a => a.tier === 'pro').map((agent) => {
                   const Icon = agent.icon;
@@ -6333,14 +6370,62 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               {selectedAgent ? (
                 renderAgentWorkspace()
               ) : (
-                /* Welcome State */
-                <div className="agents-welcome-state">
-                  <div className="agents-welcome-icon">
-                    <Sparkles size={36} className="text-purple" />
+                /* Agent Cards Grid with Whitepapers & Legal */
+                <div className="agents-cards-view" style={{ padding: '24px', overflowY: 'auto' }}>
+                  {/* Header with Action Buttons */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    marginBottom: '24px',
+                    flexWrap: 'wrap',
+                    gap: '16px'
+                  }}>
+                    <div>
+                      <h2 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <Sparkles size={24} className="text-purple" />
+                        AI Agents Studio
+                      </h2>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                        {allAgents.length} specialized agents • Click any card to start creating
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button
+                        onClick={() => setShowWhitepapersModal(true)}
+                        className="btn-pill glass haptic-press"
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px',
+                          padding: '10px 20px',
+                          background: 'rgba(6, 182, 212, 0.1)',
+                          border: '1px solid rgba(6, 182, 212, 0.3)',
+                          color: '#06b6d4'
+                        }}
+                      >
+                        <FileText size={16} />
+                        Whitepapers
+                      </button>
+                      <button
+                        onClick={() => setShowLegalModal(true)}
+                        className="btn-pill glass haptic-press"
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px',
+                          padding: '10px 20px',
+                          background: 'rgba(139, 92, 246, 0.1)',
+                          border: '1px solid rgba(139, 92, 246, 0.3)',
+                          color: '#a855f7'
+                        }}
+                      >
+                        <Shield size={16} />
+                        Legal
+                      </button>
+                    </div>
                   </div>
-                  <h2>Select an Agent</h2>
-                  <p>Choose an AI agent from the sidebar to start creating. Each agent specializes in different creative tasks.</p>
-                  
+
                   {/* Free generation banner */}
                   {!isLoggedIn && (
                     <div style={{
@@ -6373,24 +6458,245 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     </div>
                   )}
                   
-                  {/* Quick picks */}
-                  <div className="agents-welcome-grid">
-                    {availableAgents.slice(0, 4).map((agent) => {
+                  {/* Agent Cards Grid - 2 columns */}
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '16px'
+                  }}>
+                    {/* FREE TIER */}
+                    <div style={{ 
+                      gridColumn: '1 / -1', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '12px',
+                      padding: '12px 16px',
+                      background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%)',
+                      borderRadius: '12px',
+                      marginTop: '8px'
+                    }}>
+                      <Sparkles size={16} style={{ color: '#22c55e' }} />
+                      <span style={{ fontWeight: '700', color: '#22c55e', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        Free Tier
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        — {AGENTS.filter(a => a.tier === 'free').length} agents included
+                      </span>
+                    </div>
+                    {AGENTS.filter(a => a.tier === 'free').map((agent) => {
                       const Icon = agent.icon;
+                      const isLocked = !availableAgents.find(a => a.id === agent.id);
                       return (
                         <div
                           key={agent.id}
-                          className="agents-welcome-card"
+                          className="agent-card-large haptic-press"
                           onClick={() => {
-                            setSelectedAgent(agent);
-                            Analytics.agentUsed(agent.id);
+                            if (isLocked) {
+                              if (!isLoggedIn) setShowLoginModal(true);
+                              else { setDashboardTab('subscription'); setActiveTab('mystudio'); }
+                            } else {
+                              setSelectedAgent(agent);
+                              Analytics.agentUsed(agent.id);
+                            }
+                          }}
+                          style={{
+                            padding: '20px',
+                            background: isLocked ? 'rgba(255,255,255,0.02)' : 'linear-gradient(145deg, rgba(34, 197, 94, 0.08) 0%, rgba(255,255,255,0.03) 100%)',
+                            border: '1px solid rgba(34, 197, 94, 0.2)',
+                            borderRadius: '16px',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            gap: '12px',
+                            position: 'relative',
+                            opacity: isLocked ? 0.6 : 1
                           }}
                         >
-                          <h4>
-                            <Icon size={16} className="text-purple" />
-                            {agent.name}
-                          </h4>
-                          <p>{agent.category}</p>
+                          {isLocked && <Lock size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '14px',
+                            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1))',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Icon size={24} style={{ color: '#22c55e' }} />
+                          </div>
+                          <div>
+                            <h4 style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '4px' }}>{agent.name}</h4>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>{agent.category}</p>
+                          </div>
+                          <span style={{ 
+                            padding: '3px 8px', 
+                            background: 'rgba(34, 197, 94, 0.15)', 
+                            color: '#22c55e', 
+                            borderRadius: '8px', 
+                            fontSize: '0.65rem', 
+                            fontWeight: '600' 
+                          }}>FREE</span>
+                        </div>
+                      );
+                    })}
+
+                    {/* MONTHLY TIER */}
+                    <div style={{ 
+                      gridColumn: '1 / -1', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '12px',
+                      padding: '12px 16px',
+                      background: 'linear-gradient(90deg, rgba(251, 191, 36, 0.1) 0%, transparent 100%)',
+                      borderRadius: '12px',
+                      marginTop: '16px'
+                    }}>
+                      <Zap size={16} style={{ color: '#fbbf24' }} />
+                      <span style={{ fontWeight: '700', color: '#fbbf24', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        Monthly — $4.99/mo
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        — {AGENTS.filter(a => a.tier === 'monthly').length} agents
+                      </span>
+                    </div>
+                    {AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
+                      const Icon = agent.icon;
+                      const isLocked = !availableAgents.find(a => a.id === agent.id);
+                      return (
+                        <div
+                          key={agent.id}
+                          className="agent-card-large haptic-press"
+                          onClick={() => {
+                            if (isLocked) {
+                              if (!isLoggedIn) setShowLoginModal(true);
+                              else { setDashboardTab('subscription'); setActiveTab('mystudio'); }
+                            } else {
+                              setSelectedAgent(agent);
+                              Analytics.agentUsed(agent.id);
+                            }
+                          }}
+                          style={{
+                            padding: '20px',
+                            background: isLocked ? 'rgba(255,255,255,0.02)' : 'linear-gradient(145deg, rgba(251, 191, 36, 0.08) 0%, rgba(255,255,255,0.03) 100%)',
+                            border: '1px solid rgba(251, 191, 36, 0.2)',
+                            borderRadius: '16px',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            gap: '12px',
+                            position: 'relative',
+                            opacity: isLocked ? 0.6 : 1
+                          }}
+                        >
+                          {isLocked && <Lock size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '14px',
+                            background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(251, 191, 36, 0.1))',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Icon size={24} style={{ color: '#fbbf24' }} />
+                          </div>
+                          <div>
+                            <h4 style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '4px' }}>{agent.name}</h4>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>{agent.category}</p>
+                          </div>
+                          <span style={{ 
+                            padding: '3px 8px', 
+                            background: 'rgba(251, 191, 36, 0.15)', 
+                            color: '#fbbf24', 
+                            borderRadius: '8px', 
+                            fontSize: '0.65rem', 
+                            fontWeight: '600' 
+                          }}>MONTHLY</span>
+                        </div>
+                      );
+                    })}
+
+                    {/* PRO TIER */}
+                    <div style={{ 
+                      gridColumn: '1 / -1', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '12px',
+                      padding: '12px 16px',
+                      background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.1) 0%, transparent 100%)',
+                      borderRadius: '12px',
+                      marginTop: '16px'
+                    }}>
+                      <Award size={16} style={{ color: '#a855f7' }} />
+                      <span style={{ fontWeight: '700', color: '#a855f7', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                        Pro — $9.99/mo
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        — {AGENTS.filter(a => a.tier === 'pro').length} agents
+                      </span>
+                    </div>
+                    {AGENTS.filter(a => a.tier === 'pro').map((agent) => {
+                      const Icon = agent.icon;
+                      const isLocked = !availableAgents.find(a => a.id === agent.id);
+                      return (
+                        <div
+                          key={agent.id}
+                          className="agent-card-large haptic-press"
+                          onClick={() => {
+                            if (isLocked) {
+                              if (!isLoggedIn) setShowLoginModal(true);
+                              else { setDashboardTab('subscription'); setActiveTab('mystudio'); }
+                            } else {
+                              setSelectedAgent(agent);
+                              Analytics.agentUsed(agent.id);
+                            }
+                          }}
+                          style={{
+                            padding: '20px',
+                            background: isLocked ? 'rgba(255,255,255,0.02)' : 'linear-gradient(145deg, rgba(168, 85, 247, 0.08) 0%, rgba(255,255,255,0.03) 100%)',
+                            border: '1px solid rgba(168, 85, 247, 0.2)',
+                            borderRadius: '16px',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            gap: '12px',
+                            position: 'relative',
+                            opacity: isLocked ? 0.6 : 1
+                          }}
+                        >
+                          {isLocked && <Lock size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
+                          <div style={{
+                            width: '48px',
+                            height: '48px',
+                            borderRadius: '14px',
+                            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(168, 85, 247, 0.1))',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Icon size={24} style={{ color: '#a855f7' }} />
+                          </div>
+                          <div>
+                            <h4 style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '4px' }}>{agent.name}</h4>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>{agent.category}</p>
+                          </div>
+                          <span style={{ 
+                            padding: '3px 8px', 
+                            background: 'rgba(168, 85, 247, 0.15)', 
+                            color: '#a855f7', 
+                            borderRadius: '8px', 
+                            fontSize: '0.65rem', 
+                            fontWeight: '600' 
+                          }}>PRO</span>
                         </div>
                       );
                     })}
@@ -10848,6 +11154,180 @@ When you write a song, you create intellectual property that generates money eve
               </div>
               <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>By continuing, you agree to our Terms of Service.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Whitepapers Modal */}
+        {showWhitepapersModal && (
+          <div className="modal-overlay" onClick={() => setShowWhitepapersModal(false)}>
+            <div 
+              className="modal-content animate-fadeInUp" 
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: '900px', width: '95%', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+            >
+              <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)', padding: '12px', borderRadius: '12px' }}>
+                    <FileText size={24} color="white" />
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Agent Whitepapers</h2>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Technical documentation for each AI agent</p>
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setShowWhitepapersModal(false)}><X size={20} /></button>
+              </div>
+              <div className="modal-body" style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
+                  {AGENTS.map((agent) => {
+                    const Icon = agent.icon;
+                    const tierColor = agent.tier === 'free' ? '#22c55e' : agent.tier === 'monthly' ? '#fbbf24' : '#a855f7';
+                    return (
+                      <div 
+                        key={agent.id}
+                        className="resource-card whitepaper haptic-press"
+                        style={{ 
+                          padding: '20px',
+                          background: 'var(--color-bg-tertiary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '16px',
+                          cursor: 'pointer',
+                          position: 'relative'
+                        }}
+                        onClick={() => {
+                          setShowWhitepapersModal(false);
+                          openAgentWhitepaper(agent);
+                        }}
+                      >
+                        <div style={{
+                          position: 'absolute',
+                          top: '12px',
+                          right: '12px',
+                          padding: '3px 8px',
+                          background: `${tierColor}20`,
+                          color: tierColor,
+                          borderRadius: '6px',
+                          fontSize: '0.65rem',
+                          fontWeight: '700',
+                          textTransform: 'uppercase'
+                        }}>
+                          {agent.tier}
+                        </div>
+                        <div style={{ 
+                          width: '48px', 
+                          height: '48px', 
+                          borderRadius: '12px', 
+                          background: `${tierColor}20`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginBottom: '12px'
+                        }}>
+                          <Icon size={24} style={{ color: tierColor }} />
+                        </div>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '6px' }}>{agent.name}</h3>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '12px' }}>
+                          {agent.description || agent.desc}
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#06b6d4', fontSize: '0.8rem', fontWeight: '600' }}>
+                          <FileText size={14} />
+                          View Whitepaper
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Legal Resources Modal */}
+        {showLegalModal && (
+          <div className="modal-overlay" onClick={() => setShowLegalModal(false)}>
+            <div 
+              className="modal-content animate-fadeInUp" 
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: '900px', width: '95%', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+            >
+              <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', padding: '12px', borderRadius: '12px' }}>
+                    <Shield size={24} color="white" />
+                  </div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Legal & Business</h2>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Protect your art. Understand your rights.</p>
+                  </div>
+                </div>
+                <button className="modal-close" onClick={() => setShowLegalModal(false)}><X size={20} /></button>
+              </div>
+              <div className="modal-body" style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                  {[
+                    { title: 'Music Copyright 101', desc: 'Understanding your rights as a creator - ownership, registration, and protection.', icon: Shield, type: 'Guide' },
+                    { title: 'Split Sheet Template', desc: 'Standard agreement for co-writing sessions. Define ownership before you create.', icon: FileText, type: 'Template' },
+                    { title: 'Sync Licensing Guide', desc: 'Step-by-step guide to getting your music placed in TV, Film & Ads.', icon: Tv, type: 'Guide' },
+                    { title: 'AI & IP Rights', desc: 'Navigating the legal landscape of AI-assisted music creation.', icon: Lock, type: 'Whitepaper' },
+                    { title: 'Label Deal Breakdown', desc: 'Understanding record deals, advances, recoupment, and points.', icon: FileText, type: 'Guide' },
+                    { title: 'Publishing 101', desc: 'PROs, mechanical royalties, sync fees, and how to collect what you are owed.', icon: CreditCard, type: 'Guide' }
+                  ].map((item, i) => (
+                    <div 
+                      key={i}
+                      className="resource-card legal haptic-press"
+                      style={{ 
+                        padding: '20px',
+                        background: 'var(--color-bg-tertiary)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '16px',
+                        cursor: 'pointer',
+                        position: 'relative'
+                      }}
+                      onClick={() => {
+                        setShowLegalModal(false);
+                        setActiveTab('resources');
+                        toast.success(`Opening ${item.title}...`);
+                      }}
+                    >
+                      <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        padding: '3px 8px',
+                        background: item.type === 'Whitepaper' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(6, 182, 212, 0.2)',
+                        color: item.type === 'Whitepaper' ? '#a855f7' : '#06b6d4',
+                        borderRadius: '6px',
+                        fontSize: '0.65rem',
+                        fontWeight: '700',
+                        textTransform: 'uppercase'
+                      }}>
+                        {item.type}
+                      </div>
+                      <div style={{ 
+                        width: '48px', 
+                        height: '48px', 
+                        borderRadius: '12px', 
+                        background: 'rgba(139, 92, 246, 0.15)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '12px'
+                      }}>
+                        <item.icon size={24} style={{ color: '#a855f7' }} />
+                      </div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '6px' }}>{item.title}</h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '12px' }}>
+                        {item.desc}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#a855f7', fontSize: '0.8rem', fontWeight: '600' }}>
+                        <Shield size={14} />
+                        Read {item.type}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
