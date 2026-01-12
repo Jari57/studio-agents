@@ -8611,12 +8611,25 @@ html, body {
 
 /* Agent Help Modal Styles */
 .agent-help-modal {
-  max-width: 500px !important;
-  width: 90%;
-  max-height: 70vh;
+  max-width: 560px !important;
+  width: 92%;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.agent-help-modal .modal-header {
+  flex-shrink: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.agent-help-modal .modal-footer {
+  flex-shrink: 0;
+  padding-top: 20px;
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .modal-title-group {
@@ -8626,9 +8639,10 @@ html, body {
 }
 
 .help-modal-body {
+  flex: 1;
   overflow-y: auto;
-  padding-right: 8px;
-  max-height: calc(70vh - 140px);
+  padding: 20px 8px 20px 0;
+  max-height: calc(85vh - 200px);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -10067,12 +10081,30 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
 /* Legal modal and whitepaper modal mobile fixes */
 @media (max-width: 640px) {
   .legal-modal,
-  .whitepaper-modal,
-  .agent-help-modal {
+  .whitepaper-modal {
     max-height: calc(100vh - 2rem) !important;
     max-width: 100% !important;
     margin: 0.5rem !important;
     border-radius: 16px !important;
+  }
+  
+  .agent-help-modal {
+    max-height: 90vh !important;
+    max-width: 95% !important;
+    margin: 12px !important;
+    border-radius: 20px !important;
+    overflow: visible !important;
+  }
+  
+  .agent-help-modal .help-modal-body {
+    max-height: calc(90vh - 220px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 16px 8px 16px 0 !important;
+  }
+  
+  .agent-help-modal .modal-footer {
+    padding: 16px 0 8px !important;
   }
   
   .legal-modal .modal-body,
