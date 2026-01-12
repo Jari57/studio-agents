@@ -53,12 +53,28 @@
   --color-bg-secondary: #121216;
   --color-bg-tertiary: #1a1a22;
   
+  /* === AGENT BRAND COLORS (Single Source of Truth) === */
   --color-purple: #a855f7;
   --color-cyan: #06b6d4;
   --color-pink: #ec4899;
   --color-orange: #f97316;
   --color-emerald: #10b981;
   --color-indigo: #6366f1;
+  --color-red: #ef4444;
+  --color-blue: #3b82f6;
+  --color-green: #10b981;
+  --color-yellow: #eab308;
+  
+  /* Agent color RGB values for alpha variations */
+  --color-purple-rgb: 168, 85, 247;
+  --color-cyan-rgb: 6, 182, 212;
+  --color-pink-rgb: 236, 72, 153;
+  --color-orange-rgb: 249, 115, 22;
+  --color-emerald-rgb: 16, 185, 129;
+  --color-indigo-rgb: 99, 102, 241;
+  --color-red-rgb: 239, 68, 68;
+  --color-blue-rgb: 59, 130, 246;
+  --color-green-rgb: 16, 185, 129;
   
   --gradient-vibrant: linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f97316 100%);
   --gradient-cyan-purple: linear-gradient(135deg, #06b6d4 0%, #a855f7 100%);
@@ -77,6 +93,113 @@
   --border-color: rgba(255, 255, 255, 0.05);
   --card-bg: rgba(255, 255, 255, 0.03);
 }
+
+/* ============================================
+   AGENT BRANDING SYSTEM - SINGLE SOURCE OF TRUTH
+   All agent colors/styles defined in ONE place
+   ============================================ */
+
+/* === ICON BOXES (Landing page cards, agent detail hero) === */
+.agent-purple .agent-icon-box { background: var(--color-purple); box-shadow: 0 0 20px rgba(var(--color-purple-rgb), 0.3); }
+.agent-cyan .agent-icon-box { background: var(--color-cyan); box-shadow: 0 0 20px rgba(var(--color-cyan-rgb), 0.3); }
+.agent-orange .agent-icon-box { background: var(--color-orange); box-shadow: 0 0 20px rgba(var(--color-orange-rgb), 0.3); }
+.agent-pink .agent-icon-box { background: var(--color-pink); box-shadow: 0 0 20px rgba(var(--color-pink-rgb), 0.3); }
+.agent-emerald .agent-icon-box { background: var(--color-emerald); box-shadow: 0 0 20px rgba(var(--color-emerald-rgb), 0.3); }
+.agent-indigo .agent-icon-box { background: var(--color-indigo); box-shadow: 0 0 20px rgba(var(--color-indigo-rgb), 0.3); }
+.agent-red .agent-icon-box { background: var(--color-red); box-shadow: 0 0 20px rgba(var(--color-red-rgb), 0.3); }
+.agent-blue .agent-icon-box { background: var(--color-blue); box-shadow: 0 0 20px rgba(var(--color-blue-rgb), 0.3); }
+.agent-green .agent-icon-box { background: var(--color-green); box-shadow: 0 0 20px rgba(var(--color-green-rgb), 0.3); }
+
+/* === STUDIO ICONS (Sidebar items, agent grid) === */
+.agent-purple .agent-studio-icon { background: rgba(var(--color-purple-rgb), 0.1); color: var(--color-purple); }
+.agent-cyan .agent-studio-icon { background: rgba(var(--color-cyan-rgb), 0.1); color: var(--color-cyan); }
+.agent-orange .agent-studio-icon { background: rgba(var(--color-orange-rgb), 0.1); color: var(--color-orange); }
+.agent-pink .agent-studio-icon { background: rgba(var(--color-pink-rgb), 0.1); color: var(--color-pink); }
+.agent-emerald .agent-studio-icon { background: rgba(var(--color-emerald-rgb), 0.1); color: var(--color-emerald); }
+.agent-indigo .agent-studio-icon { background: rgba(var(--color-indigo-rgb), 0.1); color: var(--color-indigo); }
+.agent-red .agent-studio-icon { background: rgba(var(--color-red-rgb), 0.1); color: var(--color-red); }
+.agent-blue .agent-studio-icon { background: rgba(var(--color-blue-rgb), 0.1); color: var(--color-blue); }
+.agent-green .agent-studio-icon { background: rgba(var(--color-green-rgb), 0.1); color: var(--color-green); }
+
+/* === SIDEBAR ICONS (Agents nav sidebar) === */
+.agent-purple .agent-sidebar-icon { background: rgba(var(--color-purple-rgb), 0.15); color: var(--color-purple); }
+.agent-cyan .agent-sidebar-icon { background: rgba(var(--color-cyan-rgb), 0.15); color: var(--color-cyan); }
+.agent-orange .agent-sidebar-icon { background: rgba(var(--color-orange-rgb), 0.15); color: var(--color-orange); }
+.agent-pink .agent-sidebar-icon { background: rgba(var(--color-pink-rgb), 0.15); color: var(--color-pink); }
+.agent-emerald .agent-sidebar-icon { background: rgba(var(--color-emerald-rgb), 0.15); color: var(--color-emerald); }
+.agent-indigo .agent-sidebar-icon { background: rgba(var(--color-indigo-rgb), 0.15); color: var(--color-indigo); }
+.agent-red .agent-sidebar-icon { background: rgba(var(--color-red-rgb), 0.15); color: var(--color-red); }
+.agent-blue .agent-sidebar-icon { background: rgba(var(--color-blue-rgb), 0.15); color: var(--color-blue); }
+.agent-green .agent-sidebar-icon { background: rgba(var(--color-green-rgb), 0.15); color: var(--color-green); }
+
+/* === MINI ICONS (Modal headers, small contexts) === */
+.agent-purple .agent-mini-icon { background: rgba(var(--color-purple-rgb), 0.15); color: var(--color-purple); }
+.agent-cyan .agent-mini-icon { background: rgba(var(--color-cyan-rgb), 0.15); color: var(--color-cyan); }
+.agent-orange .agent-mini-icon { background: rgba(var(--color-orange-rgb), 0.15); color: var(--color-orange); }
+.agent-pink .agent-mini-icon { background: rgba(var(--color-pink-rgb), 0.15); color: var(--color-pink); }
+.agent-emerald .agent-mini-icon { background: rgba(var(--color-emerald-rgb), 0.15); color: var(--color-emerald); }
+.agent-indigo .agent-mini-icon { background: rgba(var(--color-indigo-rgb), 0.15); color: var(--color-indigo); }
+.agent-red .agent-mini-icon { background: rgba(var(--color-red-rgb), 0.15); color: var(--color-red); }
+.agent-blue .agent-mini-icon { background: rgba(var(--color-blue-rgb), 0.15); color: var(--color-blue); }
+.agent-green .agent-mini-icon { background: rgba(var(--color-green-rgb), 0.15); color: var(--color-green); }
+
+/* === AGENT TAGS (Category badges) === */
+.agent-tag.agent-purple { background: rgba(var(--color-purple-rgb), 0.1); color: var(--color-purple); border: 1px solid rgba(var(--color-purple-rgb), 0.2); }
+.agent-tag.agent-cyan { background: rgba(var(--color-cyan-rgb), 0.1); color: var(--color-cyan); border: 1px solid rgba(var(--color-cyan-rgb), 0.2); }
+.agent-tag.agent-orange { background: rgba(var(--color-orange-rgb), 0.1); color: var(--color-orange); border: 1px solid rgba(var(--color-orange-rgb), 0.2); }
+.agent-tag.agent-pink { background: rgba(var(--color-pink-rgb), 0.1); color: var(--color-pink); border: 1px solid rgba(var(--color-pink-rgb), 0.2); }
+.agent-tag.agent-emerald { background: rgba(var(--color-emerald-rgb), 0.1); color: var(--color-emerald); border: 1px solid rgba(var(--color-emerald-rgb), 0.2); }
+.agent-tag.agent-indigo { background: rgba(var(--color-indigo-rgb), 0.1); color: var(--color-indigo); border: 1px solid rgba(var(--color-indigo-rgb), 0.2); }
+.agent-tag.agent-red { background: rgba(var(--color-red-rgb), 0.1); color: var(--color-red); border: 1px solid rgba(var(--color-red-rgb), 0.2); }
+.agent-tag.agent-blue { background: rgba(var(--color-blue-rgb), 0.1); color: var(--color-blue); border: 1px solid rgba(var(--color-blue-rgb), 0.2); }
+.agent-tag.agent-green { background: rgba(var(--color-green-rgb), 0.1); color: var(--color-green); border: 1px solid rgba(var(--color-green-rgb), 0.2); }
+
+/* === HERO ICONS (Large agent detail view) === */
+.agent-purple .agent-icon-large { background: linear-gradient(135deg, rgba(var(--color-purple-rgb), 0.2), rgba(var(--color-purple-rgb), 0.1)); color: var(--color-purple); }
+.agent-cyan .agent-icon-large { background: linear-gradient(135deg, rgba(var(--color-cyan-rgb), 0.2), rgba(var(--color-cyan-rgb), 0.1)); color: var(--color-cyan); }
+.agent-orange .agent-icon-large { background: linear-gradient(135deg, rgba(var(--color-orange-rgb), 0.2), rgba(var(--color-orange-rgb), 0.1)); color: var(--color-orange); }
+.agent-pink .agent-icon-large { background: linear-gradient(135deg, rgba(var(--color-pink-rgb), 0.2), rgba(var(--color-pink-rgb), 0.1)); color: var(--color-pink); }
+.agent-emerald .agent-icon-large { background: linear-gradient(135deg, rgba(var(--color-emerald-rgb), 0.2), rgba(var(--color-emerald-rgb), 0.1)); color: var(--color-emerald); }
+.agent-indigo .agent-icon-large { background: linear-gradient(135deg, rgba(var(--color-indigo-rgb), 0.2), rgba(var(--color-indigo-rgb), 0.1)); color: var(--color-indigo); }
+.agent-red .agent-icon-large { background: linear-gradient(135deg, rgba(var(--color-red-rgb), 0.2), rgba(var(--color-red-rgb), 0.1)); color: var(--color-red); }
+.agent-blue .agent-icon-large { background: linear-gradient(135deg, rgba(var(--color-blue-rgb), 0.2), rgba(var(--color-blue-rgb), 0.1)); color: var(--color-blue); }
+.agent-green .agent-icon-large { background: linear-gradient(135deg, rgba(var(--color-green-rgb), 0.2), rgba(var(--color-green-rgb), 0.1)); color: var(--color-green); }
+
+/* === CARD BORDER HOVER EFFECTS === */
+.agent-purple:hover { border-color: rgba(var(--color-purple-rgb), 0.4) !important; }
+.agent-cyan:hover { border-color: rgba(var(--color-cyan-rgb), 0.4) !important; }
+.agent-orange:hover { border-color: rgba(var(--color-orange-rgb), 0.4) !important; }
+.agent-pink:hover { border-color: rgba(var(--color-pink-rgb), 0.4) !important; }
+.agent-emerald:hover { border-color: rgba(var(--color-emerald-rgb), 0.4) !important; }
+.agent-indigo:hover { border-color: rgba(var(--color-indigo-rgb), 0.4) !important; }
+.agent-red:hover { border-color: rgba(var(--color-red-rgb), 0.4) !important; }
+.agent-blue:hover { border-color: rgba(var(--color-blue-rgb), 0.4) !important; }
+.agent-green:hover { border-color: rgba(var(--color-green-rgb), 0.4) !important; }
+
+/* === ACTIVE STATE (Selected agent in sidebar) === */
+.agent-sidebar-item.active.agent-purple { background: rgba(var(--color-purple-rgb), 0.15); border-color: rgba(var(--color-purple-rgb), 0.4); }
+.agent-sidebar-item.active.agent-cyan { background: rgba(var(--color-cyan-rgb), 0.15); border-color: rgba(var(--color-cyan-rgb), 0.4); }
+.agent-sidebar-item.active.agent-orange { background: rgba(var(--color-orange-rgb), 0.15); border-color: rgba(var(--color-orange-rgb), 0.4); }
+.agent-sidebar-item.active.agent-pink { background: rgba(var(--color-pink-rgb), 0.15); border-color: rgba(var(--color-pink-rgb), 0.4); }
+.agent-sidebar-item.active.agent-emerald { background: rgba(var(--color-emerald-rgb), 0.15); border-color: rgba(var(--color-emerald-rgb), 0.4); }
+.agent-sidebar-item.active.agent-indigo { background: rgba(var(--color-indigo-rgb), 0.15); border-color: rgba(var(--color-indigo-rgb), 0.4); }
+.agent-sidebar-item.active.agent-red { background: rgba(var(--color-red-rgb), 0.15); border-color: rgba(var(--color-red-rgb), 0.4); }
+.agent-sidebar-item.active.agent-blue { background: rgba(var(--color-blue-rgb), 0.15); border-color: rgba(var(--color-blue-rgb), 0.4); }
+.agent-sidebar-item.active.agent-green { background: rgba(var(--color-green-rgb), 0.15); border-color: rgba(var(--color-green-rgb), 0.4); }
+
+/* === TEXT COLOR HELPERS === */
+.text-purple { color: var(--color-purple) !important; }
+.text-cyan { color: var(--color-cyan) !important; }
+.text-orange { color: var(--color-orange) !important; }
+.text-pink { color: var(--color-pink) !important; }
+.text-emerald { color: var(--color-emerald) !important; }
+.text-indigo { color: var(--color-indigo) !important; }
+.text-red { color: var(--color-red) !important; }
+.text-blue { color: var(--color-blue) !important; }
+.text-green { color: var(--color-green) !important; }
+.text-yellow { color: var(--color-yellow) !important; }
+
+/* END AGENT BRANDING SYSTEM */
 
 /* --- Global Components --- */
 
@@ -1992,13 +2115,7 @@ select optgroup {
   transform: translateX(0);
 }
 
-/* Agent Colors */
-.agent-cyan .agent-icon-box { background: var(--color-cyan); box-shadow: 0 0 20px rgba(6, 182, 212, 0.3); }
-.agent-purple .agent-icon-box { background: var(--color-purple); box-shadow: 0 0 20px rgba(168, 85, 247, 0.3); }
-.agent-orange .agent-icon-box { background: var(--color-orange); box-shadow: 0 0 20px rgba(249, 115, 22, 0.3); }
-.agent-emerald .agent-icon-box { background: var(--color-emerald); box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
-.agent-indigo .agent-icon-box { background: var(--color-indigo); box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
-.agent-pink .agent-icon-box { background: var(--color-pink); box-shadow: 0 0 20px rgba(236, 72, 153, 0.3); }
+/* Agent icon-box colors defined in Agent Branding System at top of file */
 
 /* --- Benefits Section --- */
 .benefits-section {
@@ -2386,9 +2503,7 @@ select optgroup {
 }
 
 .agent-tag.agent-purple { background: rgba(168, 85, 247, 0.1); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.2); }
-.agent-cyan { background: rgba(6, 182, 212, 0.1); color: #06b6d4; border: 1px solid rgba(6, 182, 212, 0.2); }
-.agent-orange { background: rgba(249, 115, 22, 0.1); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.2); }
-.agent-emerald { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+/* Other agent-tag colors defined in Agent Branding System above */
 
 .activity-card-body h3 {
   font-size: 1.1rem;
@@ -3856,24 +3971,13 @@ select optgroup {
   background: rgba(139, 92, 246, 0.5);
 }
 
-/* Agent Studio Colors - Unified Design */
-/* All agents use the same clean look with subtle category accents */
+/* Agent studio icon colors defined in Agent Branding System at top of file */
+/* Base styling for unified look */
 .agent-studio-icon,
 .generator-icon-box { 
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15)); 
   color: var(--color-purple); 
 }
-
-/* Category-based subtle border accent on hover only */
-.agent-cyan:hover .agent-studio-icon { color: var(--color-cyan); }
-.agent-purple:hover .agent-studio-icon { color: var(--color-purple); }
-.agent-orange:hover .agent-studio-icon { color: var(--color-orange); }
-.agent-emerald:hover .agent-studio-icon { color: var(--color-emerald); }
-.agent-indigo:hover .agent-studio-icon { color: var(--color-indigo); }
-.agent-pink:hover .agent-studio-icon { color: var(--color-pink); }
-.agent-blue:hover .agent-studio-icon { color: #3b82f6; }
-.agent-red:hover .agent-studio-icon { color: #ef4444; }
-.agent-green:hover .agent-studio-icon { color: #10b981; }
 
 /* Placeholders */
 .comeup-placeholder, .news-placeholder {
