@@ -10686,27 +10686,28 @@ html, body, #root {
 }
 
 /* ========================================
-   AGENTS SPLIT LAYOUT - 20/80 Master-Detail
+   AGENTS SPLIT LAYOUT - 10-15% Sidebar / Main Content
    ======================================== */
 
 .agents-split-layout {
   display: grid;
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: minmax(60px, 12%) 1fr;
   gap: 0;
   height: calc(100vh - 180px);
   min-height: 600px;
   overflow: hidden;
 }
 
-/* Left Sidebar - Icon Only */
+/* Left Sidebar - Icon Only (10-15% width) */
 .agents-sidebar {
   background: var(--color-bg-secondary);
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-width: 0;
-  max-width: 64px;
+  min-width: 60px;
+  max-width: 15%;
+  height: 100%;
 }
 
 .agents-sidebar-header {
@@ -10746,15 +10747,24 @@ html, body, #root {
   gap: 6px;
   align-items: center;
   min-width: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .agents-sidebar-list::-webkit-scrollbar {
-  width: 2px;
+  width: 3px;
+}
+
+.agents-sidebar-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .agents-sidebar-list::-webkit-scrollbar-thumb {
   background: rgba(139, 92, 246, 0.3);
   border-radius: 2px;
+}
+
+.agents-sidebar-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
 }
 
 /* Sidebar item - icon only with hover tooltip */
@@ -10937,18 +10947,20 @@ html, body, #root {
 /* Mobile Responsive */
 @media (max-width: 900px) {
   .agents-split-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    grid-template-columns: minmax(56px, 15%) 1fr;
+    grid-template-rows: 1fr;
     height: calc(100vh - 140px);
     min-height: 400px;
   }
   
   .agents-sidebar {
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
     flex-direction: column;
-    height: auto;
-    max-height: 200px;
+    height: 100%;
+    max-height: 100%;
+    max-width: none;
+    min-width: 56px;
     overflow-x: hidden;
     overflow-y: auto;
   }
@@ -10958,27 +10970,32 @@ html, body, #root {
   }
   
   .agents-sidebar-list {
-    flex-direction: row;
-    flex-wrap: wrap;
-    padding: 8px;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    padding: 8px 4px;
     gap: 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    align-items: center;
+    flex: 1;
   }
   
   .agents-sidebar-list::-webkit-scrollbar {
-    height: 3px;
+    width: 2px;
+    height: 0;
   }
   
   .agent-sidebar-item {
-    width: auto;
-    padding: 6px 10px;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    padding: 0;
     flex-shrink: 0;
   }
   
   .agent-sidebar-icon {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
   }
   
   .agent-sidebar-icon svg {
@@ -10987,7 +11004,7 @@ html, body, #root {
   }
   
   .agent-sidebar-info h4 {
-    font-size: 0.7rem;
+    display: none;
   }
   
   .agent-sidebar-info span {
