@@ -265,26 +265,6 @@ export const AGENTS = [
       example: 'Target: "Spotify Loudness"',
       getStarted: 'Master Track'
     },
-    { 
-      id: 'sound-design', 
-      name: 'Sound Designer', 
-      category: 'Audio Engineering', 
-      icon: Shield, 
-      tier: 'pro', // PRO TIER
-      colorClass: 'agent-cyan', 
-      isPro: true,
-      comingSoon: true,
-      description: '🚧 COMING SOON - Custom synth patch and texture creation',
-      capabilities: ['Wavetable Synthesis', 'Texture Layering', 'Modulation Mapping', 'Preset Export'],
-      examples: ['Design a gritty bass patch for a dark techno track', 'Create an ethereal pad texture with granular synthesis'],
-      howToUse: 'Use the AI to explore new sonic territories. Generate custom patches and textures for your favorite synths.',
-      explanation: 'Sound Designer is a "Cross-Modal" synthesis engine that can translate descriptive words into complex synth parameters. It understands the relationship between "Timbre" and "Emotion," allowing you to "describe" the sound you want.',
-      helpTips: 'Use specific descriptive words like "Gritty," "Ethereal," or "Metallic" to get more accurate synth patches. Export your presets in "Wavetable" format to use them in popular synths like Serum or Vital.',
-      onboarding: ["Select synthesis type.", "Generate texture.", "Export preset."],
-      howTo: 'Describe a sound. The AI will generate a synth patch.',
-      example: 'Sound: "Retro Sci-Fi Pad"',
-      getStarted: 'Design Sound'
-    },
     // === ROW 7: Marketing (Trends + Social) ===
     { 
       id: 'trend', 

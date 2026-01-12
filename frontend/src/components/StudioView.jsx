@@ -6228,7 +6228,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   return (
                     <button
                       key={agent.id}
-                      className={`agent-sidebar-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                      className={`agent-sidebar-item ${agent.colorClass} ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                      data-name={agent.name}
                       onClick={() => {
                         if (isLocked) {
                           if (!isLoggedIn) {
@@ -6246,13 +6247,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       <div className={`agent-sidebar-icon ${agent.colorClass}`}>
                         <Icon size={18} />
                       </div>
-                      <div className="agent-sidebar-info">
-                        <h4>{agent.name}</h4>
-                        <span>Free</span>
-                      </div>
-                      {agent.isBeta && (
-                        <span className="agent-sidebar-badge beta">BETA</span>
-                      )}
                     </button>
                   );
                 })}
@@ -6280,7 +6274,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   return (
                     <button
                       key={agent.id}
-                      className={`agent-sidebar-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                      className={`agent-sidebar-item ${agent.colorClass} ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                      data-name={agent.name}
                       onClick={() => {
                         if (isLocked) {
                           if (!isLoggedIn) {
@@ -6298,14 +6293,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       <div className={`agent-sidebar-icon ${agent.colorClass}`} style={isLocked ? { background: 'rgba(255,255,255,0.05)' } : {}}>
                         <Icon size={18} style={isLocked ? { opacity: 0.5 } : {}} />
                       </div>
-                      <div className="agent-sidebar-info">
-                        <h4>{agent.name}</h4>
-                        <span>Monthly</span>
-                      </div>
-                      {isLocked && <Lock size={12} style={{ opacity: 0.5 }} />}
-                      {agent.isBeta && !isLocked && (
-                        <span className="agent-sidebar-badge beta">BETA</span>
-                      )}
                     </button>
                   );
                 })}
@@ -6333,7 +6320,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   return (
                     <button
                       key={agent.id}
-                      className={`agent-sidebar-item ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                      className={`agent-sidebar-item ${agent.colorClass} ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                      data-name={agent.name}
                       onClick={() => {
                         if (isLocked) {
                           if (!isLoggedIn) {
@@ -6351,14 +6339,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       <div className={`agent-sidebar-icon ${agent.colorClass}`} style={isLocked ? { background: 'rgba(255,255,255,0.05)' } : {}}>
                         <Icon size={18} style={isLocked ? { opacity: 0.5 } : {}} />
                       </div>
-                      <div className="agent-sidebar-info">
-                        <h4>{agent.name}</h4>
-                        <span>Pro</span>
-                      </div>
-                      {isLocked && <Lock size={12} style={{ opacity: 0.5 }} />}
-                      {agent.isBeta && !isLocked && (
-                        <span className="agent-sidebar-badge beta">BETA</span>
-                      )}
                     </button>
                   );
                 })}
@@ -6371,7 +6351,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 renderAgentWorkspace()
               ) : (
                 /* Agent Cards Grid with Whitepapers & Legal */
-                <div className="agents-cards-view" style={{ padding: '24px', overflowY: 'auto' }}>
+                <div className="agents-cards-view" style={{ padding: '16px', overflowY: 'auto' }}>
                   {/* Header with Action Buttons */}
                   <div style={{ 
                     display: 'flex', 
@@ -7413,7 +7393,6 @@ When you write a song, you create intellectual property that generates money eve
           { title: 'Drop Engineer', desc: 'EDM-focused production with build-up generation, impact design, and festival-ready drops.', version: 'v1.3', icon: Rocket, tier: 'Pro' },
           { title: 'Film Composer', desc: 'Orchestral scoring with emotional mapping, sync-point logic, and multi-genre soundtrack creation.', version: 'v2.1', icon: Film, tier: 'Pro' },
           { title: 'Master Engineer', desc: 'AI-assisted mastering with loudness optimization, stereo imaging, and format-specific exports.', version: 'v3.0', icon: Shield, tier: 'Monthly' },
-          { title: 'Sound Designer', desc: 'Foley generation, texture synthesis, and cinematic sound design for any project.', version: 'v1.6', icon: Volume2, tier: 'Pro' },
           { title: 'Trend Analyst', desc: 'Real-time music industry trend tracking, viral prediction, and audience insights.', version: 'v2.5', icon: TrendingUp, tier: 'Monthly' },
           { title: 'Social Strategist', desc: 'Platform-specific content optimization, hashtag research, and posting schedule generation.', version: 'v1.9', icon: Globe, tier: 'Pro' },
           { title: 'Collab Finder', desc: 'AI-powered artist matching, style compatibility analysis, and networking recommendations.', version: 'v1.4', icon: UsersIcon, tier: 'Pro' },
@@ -7435,15 +7414,43 @@ When you write a song, you create intellectual property that generates money eve
               <p>Essential tools, guides, and technical documentation for professional growth.</p>
             </div>
 
-            {/* Multi-Agent & Video Pitch Demos */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-              <div className="resources-demo-section" style={{ padding: '24px', background: 'var(--color-bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.5rem', fontWeight: '800' }}>
-                    <Zap size={24} className="text-purple" /> 
-                    Multi-Agent Brainstorm
-                  </h2>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Watch 4 AI agents work in parallel to create your release package.</p>
+            {/* Multi-Agent & Video Pitch Demos - Glass style matching resource cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+              <div className="resource-card" style={{ 
+                padding: '1.5rem', 
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <div style={{ 
+                  position: 'absolute', 
+                  top: '12px', 
+                  right: '12px',
+                  padding: '4px 10px',
+                  background: 'rgba(168, 85, 247, 0.15)',
+                  color: 'var(--color-purple)',
+                  borderRadius: '8px',
+                  fontSize: '0.65rem',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>Interactive</div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    background: 'rgba(168, 85, 247, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Zap size={24} style={{ color: 'var(--color-purple)' }} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.35rem', color: 'var(--text-primary)' }}>Multi-Agent Brainstorm</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5' }}>Watch 4 AI agents work in parallel to create your release package.</p>
+                  </div>
                 </div>
                 <Suspense fallback={<LazyFallback />}>
                   <MultiAgentDemo onCreateProject={(p) => {
@@ -7455,13 +7462,41 @@ When you write a song, you create intellectual property that generates money eve
                 </Suspense>
               </div>
 
-              <div className="resources-demo-section" style={{ padding: '24px', background: 'var(--color-bg-secondary)', borderRadius: '24px', border: '1px solid var(--border-color)', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.5rem', fontWeight: '800' }}>
-                    <Video size={24} className="text-blue" /> 
-                    Viral Pitch Lab
-                  </h2>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Create a 7-second viral hook and convert it to a full project.</p>
+              <div className="resource-card" style={{ 
+                padding: '1.5rem', 
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <div style={{ 
+                  position: 'absolute', 
+                  top: '12px', 
+                  right: '12px',
+                  padding: '4px 10px',
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  color: 'var(--color-blue)',
+                  borderRadius: '8px',
+                  fontSize: '0.65rem',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>Interactive</div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem' }}>
+                  <div style={{
+                    width: '48px',
+                    height: '48px',
+                    borderRadius: '12px',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <Video size={24} style={{ color: 'var(--color-blue)' }} />
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.35rem', color: 'var(--text-primary)' }}>Viral Pitch Lab</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5' }}>Create a 7-second viral hook and convert it to a full project.</p>
+                  </div>
                 </div>
                 <Suspense fallback={<LazyFallback />}>
                   <VideoPitchDemo onCreateProject={(p) => {
