@@ -667,7 +667,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           </div>
 
           {/* CTA Buttons - Simplified */}
-          <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '340px' }}>
+          <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '400px' }}>
             
             <button
               onClick={() => handleCtaClick('start')}
@@ -727,6 +727,20 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               <Briefcase size={16} />
               <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Investor Pitch Deck</span>
             </button>
+
+          </div>
+
+          {/* ═══════════════════════════════════════════════════════════════
+              WORKFLOW CARDS CONTAINER - Wider on Desktop
+              ═══════════════════════════════════════════════════════════════ */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '20px', 
+            width: '100%', 
+            maxWidth: '600px',
+            marginTop: '24px'
+          }}>
 
             {/* ═══════════════════════════════════════════════════════════════
                 STUDIO WORKFLOW CARD - Premium Design with 3-Step Process
