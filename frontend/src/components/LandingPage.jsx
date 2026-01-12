@@ -1169,15 +1169,24 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         
         <div style={{ textAlign: 'center', marginTop: '48px' }}>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-            Ready for the full production pipeline?
+            Ready to start creating?
           </p>
           <button 
-            onClick={() => handleCtaClick('orchestrator')}
-            className="cta-button-premium haptic-press"
-            style={{ padding: '16px 32px' }}
+            onClick={() => handleCtaClick('start')}
+            className="cta-button-primary haptic-press"
+            style={{ 
+              padding: '18px 32px',
+              borderRadius: '16px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '1.1rem',
+              fontWeight: '700'
+            }}
           >
             <Zap size={20} />
-            Try Studio Orchestrator
+            Start Free
+            <ArrowRight size={18} />
           </button>
         </div>
         
