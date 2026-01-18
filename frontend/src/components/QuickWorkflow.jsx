@@ -178,72 +178,74 @@ function QuickWorkflow({
         className="modal-content quick-workflow-modal" 
         onClick={e => e.stopPropagation()}
         style={{ 
-          maxWidth: '420px', 
-          width: 'calc(100% - 32px)',
-          maxHeight: '85vh', 
+          maxWidth: '380px', 
+          width: 'calc(100vw - 24px)',
+          maxHeight: '80vh', 
           height: 'auto',
           overflow: 'hidden', 
           display: 'flex', 
           flexDirection: 'column',
-          margin: '16px'
+          margin: '12px',
+          padding: 0
         }}
       >
         {/* Header */}
         <div className="modal-header" style={{ 
           borderBottom: '1px solid var(--border-color)', 
-          padding: '12px 16px',
+          padding: '10px 12px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '10px'
+          gap: '8px',
+          flexShrink: 0
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
             <div style={{ 
-              width: '36px', height: '36px', borderRadius: '8px',
+              width: '32px', height: '32px', borderRadius: '8px',
               background: `${agent.color || 'var(--color-purple)'}20`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: agent.color || 'var(--color-purple)',
               flexShrink: 0
             }}>
-              <agent.icon size={18} />
+              <agent.icon size={16} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <h3 style={{ margin: 0, fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</h3>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.role || agent.category}</p>
+              <h3 style={{ margin: 0, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.name}</h3>
+              <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{agent.role || agent.category}</p>
             </div>
           </div>
           <button 
             className="modal-close" 
             onClick={onClose}
-            style={{ position: 'relative', top: 'auto', right: 'auto', flexShrink: 0 }}
+            style={{ position: 'relative', top: 'auto', right: 'auto', flexShrink: 0, width: '28px', height: '28px', minWidth: '28px' }}
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Body - scrollable */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
           
           {/* Configuration Bar */}
           <div style={{ 
             display: 'flex', 
-            gap: '8px', 
-            marginBottom: '16px',
+            gap: '6px', 
+            marginBottom: '12px',
             flexWrap: 'wrap'
           }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Language</label>
+            <div style={{ flex: 1, minWidth: '80px' }}>
+              <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '3px', textTransform: 'uppercase', fontWeight: '600' }}>Language</label>
               <select 
                 value={language}
                 onChange={(e) => setLanguage(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
                   color: 'white',
-                  fontSize: '0.85rem',
+                  fontSize: '0.75rem',
                   outline: 'none',
                   cursor: 'pointer'
                 }}
@@ -254,19 +256,19 @@ function QuickWorkflow({
               </select>
             </div>
 
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Style</label>
+            <div style={{ flex: 1, minWidth: '80px' }}>
+              <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '3px', textTransform: 'uppercase', fontWeight: '600' }}>Style</label>
               <select 
                 value={style}
                 onChange={(e) => setStyle(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
                   color: 'white',
-                  fontSize: '0.85rem',
+                  fontSize: '0.75rem',
                   outline: 'none',
                   cursor: 'pointer'
                 }}
@@ -277,19 +279,19 @@ function QuickWorkflow({
               </select>
             </div>
 
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', fontWeight: '600' }}>Model</label>
+            <div style={{ flex: 1, minWidth: '80px' }}>
+              <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '3px', textTransform: 'uppercase', fontWeight: '600' }}>Model</label>
               <select 
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
+                  padding: '6px 8px',
+                  borderRadius: '6px',
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
                   color: 'white',
-                  fontSize: '0.85rem',
+                  fontSize: '0.75rem',
                   outline: 'none',
                   cursor: 'pointer'
                 }}
@@ -303,25 +305,25 @@ function QuickWorkflow({
 
           {/* Quick Prompts */}
           {quickPrompts.length > 0 && !output && (
-            <div style={{ marginBottom: '16px' }}>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Try:</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Try:</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {quickPrompts.map((ex, i) => (
                   <button
                     key={i}
                     onClick={() => setPrompt(ex)}
                     style={{
-                      padding: '6px 12px',
-                      fontSize: '0.8rem',
+                      padding: '4px 10px',
+                      fontSize: '0.7rem',
                       background: 'var(--color-bg-tertiary)',
                       border: '1px solid var(--border-color)',
-                      borderRadius: '20px',
+                      borderRadius: '16px',
                       color: 'var(--text-secondary)',
                       cursor: 'pointer',
                       transition: 'all 0.2s'
                     }}
                   >
-                    {ex.length > 40 ? ex.substring(0, 40) + '...' : ex}
+                    {ex.length > 30 ? ex.substring(0, 30) + '...' : ex}
                   </button>
                 ))}
               </div>
@@ -329,21 +331,21 @@ function QuickWorkflow({
           )}
 
           {/* Input Area */}
-          <div style={{ position: 'relative', marginBottom: '16px' }}>
+          <div style={{ position: 'relative', marginBottom: '12px' }}>
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={agent.example || `What do you want ${agent.name} to create?`}
               style={{
                 width: '100%',
-                minHeight: '100px',
-                padding: '16px',
-                paddingRight: '48px',
+                minHeight: '80px',
+                padding: '12px',
+                paddingRight: '40px',
                 background: 'var(--color-bg-tertiary)',
                 border: '1px solid var(--border-color)',
-                borderRadius: '12px',
+                borderRadius: '10px',
                 color: 'var(--text-primary)',
-                fontSize: '1rem',
+                fontSize: '0.9rem',
                 resize: 'vertical',
                 fontFamily: 'inherit'
               }}
@@ -353,8 +355,8 @@ function QuickWorkflow({
               onClick={handleVoiceInput}
               style={{
                 position: 'absolute',
-                right: '12px',
-                top: '12px',
+                right: '10px',
+                top: '10px',
                 background: isListening ? 'var(--color-purple)' : 'transparent',
                 border: 'none',
                 color: isListening ? 'white' : 'var(--text-secondary)',
