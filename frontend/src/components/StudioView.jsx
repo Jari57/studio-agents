@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, PenTool, PenTool as Tool, Map as MapIcon, ExternalLink, Layout, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award
 } from 'lucide-react';
 
 // Alias for clarity and to avoid potential minification issues
@@ -8,8 +8,6 @@ const Users = UsersIcon;
 const Image = ImageIcon;
 
 // Lazy load heavy sub-components
-const VideoPitchDemo = lazy(() => import('./VideoPitchDemo'));
-const MultiAgentDemo = lazy(() => import('./MultiAgentDemo'));
 const StudioOrchestrator = lazy(() => import('./StudioOrchestratorV2'));
 const QuickWorkflow = lazy(() => import('./QuickWorkflow'));
 const ProjectHub = lazy(() => import('./ProjectHub'));
@@ -172,7 +170,7 @@ const getTimeSince = (date) => {
   return `${Math.floor(seconds / 2592000)}mo ago`;
 };
 
-function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan }) {
+function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan, initialTab }) {
   // Helper to get tab from hash
   const getTabFromHash = () => {
     const hash = window.location.hash;
@@ -652,7 +650,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   // Onboarding & Help State
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showProjectChoiceModal, setShowProjectChoiceModal] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [selectedPath, setSelectedPath] = useState(null);
   // Reserved for future use: const [showHelpPanel, setShowHelpPanel] = useState(false);
@@ -665,9 +662,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     // Format: { agentId: { video: url, image: url, audio: url } }
   });
   
-  // Asset preview state - enhanced with navigation
+  // Asset preview state - enhanced with navigation and robust handling
   const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image', url, title, asset, assets, currentIndex }
+  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max toggle for preview modal
   const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
+  
+  // Safe preview data access (prevents TDZ/null errors)
+  const safePreview = showPreview || {};
+  const safePreviewAssets = Array.isArray(safePreview.assets) ? safePreview.assets : [];
+  const safePreviewIndex = typeof safePreview.currentIndex === 'number' && !isNaN(safePreview.currentIndex) ? safePreview.currentIndex : 0;
   
   // Audio refs to prevent re-render interruption
   const previewAudioRef = useRef(null);
@@ -767,9 +770,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     // If launching recommended agent, open it directly
     if (launchRecommended && agentObjects.length > 0) {
       setSelectedAgent(agentObjects[0]);
-      handleTextToVoice(`Welcome! Launching ${agentObjects[0].name} to get you started.`);
+      safeVoiceAnnounce(`Welcome! Launching ${agentObjects[0].name} to get you started.`);
     } else {
-      handleTextToVoice('Welcome to your studio. Pick an agent to start creating.');
+      safeVoiceAnnounce('Welcome to your studio. Pick an agent to start creating.');
     }
   };
 
@@ -798,6 +801,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setShowOrchestrator(true);
     }
   }, [startOrchestrator]);
+
+  // If initialTab prop is provided, navigate to that tab on mount
+  useEffect(() => {
+    if (initialTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'].includes(initialTab)) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [systemStatus, setSystemStatus] = useState({ status: 'healthy', message: 'All Systems Operational' });
   
   // System Health Check
@@ -827,12 +837,31 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return () => clearInterval(interval);
   }, []);
 
-  // Handle initial plan from landing page
+  // Handle initial plan from landing page - using ref to avoid TDZ
+  const handleSubscribeRef = useRef(null);
+  const handleTextToVoiceRef = useRef(null);
   useEffect(() => {
-    if (initialPlan) {
-      handleSubscribe(initialPlan);
+    if (initialPlan && handleSubscribeRef.current) {
+      handleSubscribeRef.current(initialPlan);
     }
   }, [initialPlan]);
+  
+  // Safe voice announcement helper (avoids TDZ)
+  const safeVoiceAnnounce = (text) => {
+    if (handleTextToVoiceRef.current) {
+      handleTextToVoiceRef.current(text);
+    }
+  };
+
+  // Auto-select first asset for Project Canvas preview (moved from render to avoid infinite re-render)
+  useEffect(() => {
+    if (activeTab === 'project_canvas' && !selectedAgent && selectedProject) {
+      const safeAssets = Array.isArray(selectedProject.assets) ? selectedProject.assets.filter(Boolean) : [];
+      if (!canvasPreviewAsset && safeAssets.length > 0 && safeAssets[0]) {
+        setCanvasPreviewAsset(safeAssets[0]);
+      }
+    }
+  }, [activeTab, selectedAgent, selectedProject, canvasPreviewAsset]);
 
   const [newProjectData, setNewProjectData] = useState({
     name: '',
@@ -961,7 +990,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     });
     
     // Switch to dashboard to show the new project checklist
-    handleTextToVoice(`Project ${newProject.name} created. Loading your production checklist.`);
+    safeVoiceAnnounce(`Project ${newProject.name} created. Loading your production checklist.`);
     setActiveTab('mystudio');
   };
 
@@ -1009,10 +1038,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const tabToSet = (typeof targetTab === 'string') ? targetTab : 'mystudio';
     setActiveTab(tabToSet);
     
-    handleTextToVoice(`Quick project created.`);
+    safeVoiceAnnounce(`Quick project created.`);
   };
 
-  const handleManualCreate = () => {
+  // Reserved for future use
+  const _handleManualCreate = () => {
     handleSkipWizard('agents');
     // Go straight to agents page - user can pick any agent to start creating
   };
@@ -1130,7 +1160,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
     // Check if agent already exists in project
     if (currentAgents.some(a => a.id === agent.id)) {
-      handleTextToVoice(`${agent.name} is already in this project.`);
+      safeVoiceAnnounce(`${agent.name} is already in this project.`);
       return;
     }
 
@@ -1146,7 +1176,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
     
     setShowAddAgentModal(false);
-    handleTextToVoice(`${agent.name} added to project.`);
+    safeVoiceAnnounce(`${agent.name} added to project.`);
   };
 
   // --- FIREBASE AUTH LISTENER ---
@@ -1687,6 +1717,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setShowLoginModal(true);
     }
   };
+  
+  // Set ref for TDZ-safe access from earlier useEffect
+  handleSubscribeRef.current = handleSubscribe;
 
   // --- PROFESSIONAL VOICE & TRANSLATION LOGIC (Whisperer-style) ---
   
@@ -1993,6 +2026,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       };
     }
   };
+  
+  // Set ref for TDZ-safe access from earlier functions
+  handleTextToVoiceRef.current = handleTextToVoice;
 
   // State for AI vocal generation
   const [isCreatingVocal, setIsCreatingVocal] = useState(false);
@@ -3270,15 +3306,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           </div>
         );
       }
-      
-      // Ensure assets is always an array (defensive)
-      const safeAssets = Array.isArray(selectedProject.assets) ? selectedProject.assets : [];
-      
-      // Auto-select first asset if none selected
-      if (!canvasPreviewAsset && safeAssets.length > 0) {
-        // Use timeout to avoid render loop
-        setTimeout(() => setCanvasPreviewAsset(safeAssets[0]), 0);
-      }
 
       return (
         <div className="project-canvas-view animate-fadeIn">
@@ -3373,7 +3400,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                          src={canvasPreviewAsset.audioUrl} 
                          controls 
                          style={{ width: '100%', maxWidth: '600px' }}
-                         onError={(e) => {
+                         onError={() => {
                            console.warn('[AssetViewer] Audio failed to load:', canvasPreviewAsset.audioUrl);
                            toast.error('Audio file could not be loaded');
                          }}
@@ -3461,7 +3488,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                    )}
                    
                    {/* Quick Actions Overlay */}
-                   <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '8px' }}>
+                   <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                      <button 
                        onClick={() => {
                          try {
@@ -3539,11 +3566,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><UsersIcon size={18} className="text-purple" /> The Team</h3>
               <div className="team-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {selectedProject.agents && selectedProject.agents.length > 0 ? (
-                  selectedProject.agents.map((agentId, idx) => {
-                    const agent = AGENTS.find(a => a.id === agentId || a.name === agentId) || AGENTS[0];
+                  selectedProject.agents.filter(Boolean).map((agentItem, idx) => {
+                    // Agent might be stored as object or as ID string - handle both
+                    const agent = typeof agentItem === 'object' && agentItem?.id 
+                      ? agentItem 
+                      : (AGENTS.find(a => a.id === agentItem || a.name === agentItem) || AGENTS[0] || null);
+                    if (!agent) return null; // Skip if agent couldn't be resolved
                     return (
                       <div 
-                        key={idx} 
+                        key={agent.id || idx} 
                         className="agent-card-mini haptic-press" 
                         onClick={() => setSelectedAgent(agent)}
                         style={{ 
@@ -3729,7 +3760,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
              
              {selectedProject.assets && selectedProject.assets.length > 0 ? (
                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
-                 {selectedProject.assets.map((asset, idx) => (
+                 {selectedProject.assets.filter(Boolean).map((asset, idx) => (
                    <div 
                      key={idx} 
                      className="asset-card-canvas"
@@ -3797,7 +3828,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                          display: 'flex',
                          alignItems: 'center',
                          justifyContent: 'center',
-                         border: canvasPreviewAsset?.id === asset.id ? '2px solid var(--color-cyan)' : 'none'
+                         border: (canvasPreviewAsset?.id && asset?.id && canvasPreviewAsset.id === asset.id) ? '2px solid var(--color-cyan)' : 'none'
                        }}
                      >
                        {asset.imageUrl ? (
@@ -3900,7 +3931,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                        }}>
                          {asset.type === 'Video' && <Video size={10} />}
                          {asset.type === 'Audio' && <Music size={10} />}
-                         {asset.type === 'Image' && <Image size={10} />}
+                         {asset.type === 'Image' && <ImageIcon size={10} />}
                          {(asset.type === 'Text' || asset.type === 'Lyrics' || asset.type === 'Script') && <FileText size={10} />}
                          {asset.type}
                        </div>
@@ -5235,9 +5266,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             )}
                             
                             <p className="settings-info" style={{ marginTop: '8px', opacity: 0.8 }}>
-                              🚀 <strong>Real AI Vocals</strong> powered by Suno AI & Bark. 
-                              {(voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female') && ` Flow: ${voiceSettings.rapStyle || 'aggressive'}`}
-                              {(voiceSettings.style === 'singer' || voiceSettings.style === 'singer-female') && ` Genre: ${voiceSettings.genre || 'r&b'}`}
+                              {['rapper', 'rapper-female', 'singer', 'singer-female'].includes(voiceSettings.style) ? (
+                                <>
+                                  🚀 <strong>AI Vocals Mode</strong> — Real rapper/singer voices via Suno AI & Bark (30-60s generation time). 
+                                  {(voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female') && ` Flow: ${voiceSettings.rapStyle || 'aggressive'}`}
+                                  {(voiceSettings.style === 'singer' || voiceSettings.style === 'singer-female') && ` Genre: ${voiceSettings.genre || 'r&b'}`}
+                                </>
+                              ) : (
+                                <>
+                                  ⚡ <strong>Instant TTS Mode</strong> — Browser voices for quick preview. Switch to rapper/singer for real AI vocals.
+                                </>
+                              )}
                             </p>
                           </div>
                         )}
@@ -5534,23 +5573,33 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         >
                           <FolderPlus size={14} /> Save to Project
                         </button>
-                        {/* TTS Preview - Read text aloud (not for vocal creation) */}
+                        {/* TTS Preview - Read text aloud (uses AI voices when style is rapper/singer) */}
                         {currentPreview.snippet && !currentPreview.audioUrl && (
                           <button 
                             className="btn-pill secondary" 
                             style={{ fontSize: '0.75rem' }}
+                            disabled={isCreatingVocal}
                             onClick={() => {
                               const text = currentPreview.snippet || currentPreview.content || '';
-                              if (window.speechSynthesis.speaking) {
-                                window.speechSynthesis.cancel();
+                              // Use AI vocal for rapper/singer styles, browser TTS for narrator/spoken
+                              const aiVoiceStyles = ['rapper', 'rapper-female', 'singer', 'singer-female'];
+                              if (aiVoiceStyles.includes(voiceSettings.style)) {
+                                // Use actual AI vocals (Bark/Suno) for real rapper/singer voices
+                                handleCreateAIVocal(text, selectedAgent?.name || 'AI');
                               } else {
-                                const utterance = new SpeechSynthesisUtterance(text);
-                                window.speechSynthesis.speak(utterance);
+                                // Fall back to browser TTS for narrator/spoken
+                                if (window.speechSynthesis.speaking) {
+                                  window.speechSynthesis.cancel();
+                                } else {
+                                  handleTextToVoice(text);
+                                }
                               }
                             }}
-                            title="Read text aloud using browser TTS"
+                            title={['rapper', 'rapper-female', 'singer', 'singer-female'].includes(voiceSettings.style) 
+                              ? `Read aloud using AI ${voiceSettings.style} voice (takes 30-60 seconds)`
+                              : 'Read text aloud using browser TTS'}
                           >
-                            <Volume2 size={14} /> Read Aloud
+                            <Volume2 size={14} /> {isCreatingVocal ? 'Creating...' : 'Read Aloud'}
                           </button>
                         )}
                       </div>
@@ -7078,596 +7127,83 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         );
 
       case 'resources': {
-        const LEGAL_RESOURCES = [
-          { 
-            title: 'Music Copyright 101', 
-            desc: 'Understanding your rights as a creator - ownership, registration, and protection.', 
-            icon: Shield, 
-            type: 'Guide',
-            status: 'available',
-            content: `
-# Music Copyright 101
-
-## What You Own
-When you create an original song, you automatically own the copyright. No registration required (though it helps in court).
-
-### Two Types of Copyright:
-1. **Composition Copyright** - The song itself (lyrics + melody)
-2. **Sound Recording Copyright** - The specific recording (master)
-
-## Key Rights You Control:
-- Reproduction (copies)
-- Distribution (selling/streaming)
-- Public Performance (radio, venues)
-- Derivative Works (remixes, samples)
-- Sync (TV, film, ads)
-
-## Best Practices:
-- Register with the Copyright Office ($65)
-- Keep dated drafts and session files
-- Use split sheets before sessions
-- Consider publishing admin
-
-## AI-Generated Content:
-Currently, AI-generated content without human authorship may not be copyrightable. Always add meaningful human creative input.
-            `
-          },
-          { 
-            title: 'Split Sheet Template', 
-            desc: 'Standard agreement for co-writing sessions. Define ownership before you create.', 
-            icon: FileText, 
-            type: 'Template',
-            status: 'available',
-            content: `
-# Split Sheet Template
-
-## SONG INFORMATION
-**Song Title:** _______________
-**Date Written:** _______________
-**Session Location:** _______________
-
----
-
-## CONTRIBUTOR SPLITS
-
-| Name | Role | Ownership % | PRO | IPI/CAE |
-|------|------|-------------|-----|---------|
-| | | % | | |
-| | | % | | |
-| | | % | | |
-| | | % | | |
-
-**Total Must Equal 100%**
-
----
-
-## AGREEMENT TERMS
-
-1. Each contributor agrees to the percentage split listed above
-2. Any sample clearances are the responsibility of: _______________
-3. Lead artist for release: _______________
-4. Publishing admin: _______________
-
----
-
-## SIGNATURES
-
-Contributor 1: _______________ Date: _______________
-Contributor 2: _______________ Date: _______________
-Contributor 3: _______________ Date: _______________
-Contributor 4: _______________ Date: _______________
-
----
-
-*Keep copies for all contributors. This is a binding agreement.*
-            `
-          },
-          { 
-            title: 'Sync Licensing Guide', 
-            desc: 'Step-by-step guide to getting your music placed in TV, Film & Ads.', 
-            icon: Tv, 
-            type: 'Guide',
-            status: 'available',
-            content: `
-# Sync Licensing Guide
-
-## What is Sync?
-Synchronization licensing = permission to use music with visual media (TV, film, ads, games, YouTube).
-
-## The Two Licenses You Need:
-1. **Sync License** - From the publisher/songwriter (composition)
-2. **Master License** - From the label/artist (recording)
-
-If you own both, you can grant both!
-
-## How to Get Placements:
-
-### 1. Music Libraries
-- Musicbed, Artlist, Epidemic Sound
-- Non-exclusive = keep your rights
-- Lower fees but steady income
-
-### 2. Sync Agents
-- Pitch to music supervisors for you
-- Take 15-50% commission
-- Best for quality catalog
-
-### 3. Direct Outreach
-- Build relationships with music supervisors
-- Attend sync conferences
-- Use LinkedIn and industry events
-
-## Pricing Guidelines:
-- Student Film: Free - $500
-- Indie Film: $1,000 - $10,000
-- TV Show: $5,000 - $50,000
-- Major Ad Campaign: $50,000 - $500,000+
-
-## Pro Tips:
-- Instrumental versions are essential
-- Clean versions (no explicit)
-- Stems available on request
-- Quick turnaround = more placements
-            `
-          },
-          { 
-            title: 'AI & IP Rights', 
-            desc: 'Navigating the legal landscape of AI-assisted music creation.', 
-            icon: Lock, 
-            type: 'Whitepaper',
-            status: 'available',
-            content: `
-# AI & Intellectual Property Rights
-
-## Current Legal Landscape (2026)
-
-### Copyright Office Position:
-- Works must have human authorship
-- Pure AI output = no copyright
-- Human + AI collaboration = copyrightable (human elements)
-
-### Best Practices for AI-Assisted Creation:
-
-1. **Document Your Process**
-   - Save prompts and iterations
-   - Note your creative decisions
-   - Keep before/after versions
-
-2. **Add Meaningful Human Input**
-   - Edit AI outputs substantially
-   - Use AI as starting point, not final product
-   - Combine multiple generations with human curation
-
-3. **Disclosure Considerations**
-   - No legal requirement (yet) to disclose AI use
-   - Some platforms have policies
-   - Industry norms are evolving
-
-## Studio Agents & Your Rights
-
-When you use Studio Agents:
-- You own the outputs you create
-- We don't claim rights to your work
-- You're responsible for ensuring originality
-- We recommend human review of all outputs
-
-## Training Data Concerns:
-- Some AI models trained on copyrighted works
-- Legal challenges ongoing
-- Studio Agents uses licensed/permitted training data
-
-## Stay Updated:
-AI law is evolving rapidly. This document will be updated as regulations develop.
-            `
-          },
-          { 
-            title: 'Label Deal Breakdown', 
-            desc: 'Understanding record deals, advances, recoupment, and points.', 
-            icon: FileText, 
-            type: 'Guide',
-            status: 'available',
-            content: `
-# Label Deal Breakdown
-
-## Types of Deals
-
-### 1. Traditional Record Deal
-- Label owns masters
-- Artist gets 12-20% royalty
-- Advance recouped from royalties
-- Label funds recording, marketing, distribution
-
-### 2. Distribution Deal
-- You own masters
-- Keep 80-100% of revenue
-- Pay distributor fee (15-30%)
-- You fund everything
-
-### 3. Licensing Deal
-- You own masters
-- License to label for set term (3-7 years)
-- Higher royalty (50-70%)
-- Masters revert to you after term
-
-### 4. Joint Venture (JV)
-- Shared ownership (50/50)
-- Shared costs and profits
-- Best of both worlds
-- Requires leverage to negotiate
-
-## Key Terms to Know:
-
-**Advance:** Loan against future royalties (not free money!)
-**Recoupment:** Label recoups costs before you see royalties
-**Cross-collateralization:** Losses on one album offset gains on another
-**Options:** Label's right to your next albums
-**360 Deal:** Label takes cut of touring, merch, publishing
-
-## Red Flags:
-- Perpetual ownership of masters
-- Cross-collateralization across revenue streams
-- Excessive option periods
-- Vague "commercially reasonable" language
-
-## Negotiation Tips:
-- Always have an entertainment lawyer
-- Sunset clauses on recoupment
-- Audit rights
-- Reversion clauses
-- Cap on recoupable expenses
-            `
-          },
-          { 
-            title: 'Publishing 101', 
-            desc: 'PROs, mechanical royalties, sync fees, and how to collect what you are owed.', 
-            icon: CreditCard, 
-            type: 'Guide',
-            status: 'available',
-            content: `
-# Publishing 101
-
-## What is Music Publishing?
-Publishing = the business of your SONGS (not recordings)
-
-When you write a song, you create intellectual property that generates money every time it's:
-- Streamed or downloaded (Mechanical)
-- Played on radio or in public (Performance)
-- Used in TV/Film/Ads (Sync)
-- Printed as sheet music (Print)
-
-## The Money Flow
-
-### Performance Royalties
-- Collected by PROs (ASCAP, BMI, SESAC, GMR)
-- Radio, TV, streaming, live venues, bars, stores
-- Split: 50% writer / 50% publisher
-
-### Mechanical Royalties
-- Paid for reproductions of your song
-- Streaming, downloads, CDs
-- In US: collected by MLC (Mechanical Licensing Collective)
-- Rate: ~$0.0008 per stream
-
-### Sync Fees
-- One-time licensing fees
-- Negotiated per placement
-- You keep 100% (minus admin fees)
-
-## Who Collects What?
-
-| Source | Who Collects |
-|--------|--------------|
-| US Performance | Your PRO (ASCAP/BMI/SESAC) |
-| US Mechanicals | The MLC |
-| International | Sub-publishers or admin |
-| Sync | Publisher or you directly |
-
-## Getting Started:
-1. Join a PRO (free)
-2. Register with The MLC
-3. Consider a publishing admin (Songtrust, CD Baby Pro)
-4. Register every song you write
-
-## Publisher vs Publishing Admin:
-- **Publisher:** Takes ownership, active pitching, 50% of publishing
-- **Admin:** No ownership, just collection, 10-20% fee
-            `
-          }
+        // Quick navigation cards - consolidated UI/UX
+        const quickNavItems = [
+          { id: 'agents', icon: Sparkles, label: 'AI Agents', desc: 'Your creative team', color: 'var(--color-purple)' },
+          { id: 'mystudio', icon: Folder, label: 'My Studio', desc: 'Projects & assets', color: 'var(--color-cyan)' },
+          { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Reddit, YouTube & Releases', color: 'var(--color-pink)' },
+          { id: 'news', icon: Globe, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-emerald)' },
+          { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-orange)' },
+          { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-yellow)' },
+          { id: 'hub', icon: FolderPlus, label: 'Project Hub', desc: 'Manage all projects', color: 'var(--color-blue)' },
+          { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-purple)' },
         ];
-
-        const AGENT_WHITEPAPERS = [
-          { title: 'Ghostwriter', desc: 'LLM-powered lyric generation with flow mapping, rhyme scheme analysis, and style mimicry across 50+ genres.', version: 'v2.4', icon: Sparkles, tier: 'Free' },
-          { title: 'Beat Lab', desc: 'Algorithmic drum pattern generation, chord progression logic, and BPM-matched sample sourcing.', version: 'v3.1', icon: Zap, tier: 'Free' },
-          { title: 'Album Artist', desc: 'Imagen 3-powered cover art generation with typography, brand palettes, and social media kit export.', version: 'v3.0', icon: Music, tier: 'Free' },
-          { title: 'Video Creator', desc: 'Veo 3.0 cinematic video generation with scene detection, style transfer, and music video creation.', version: 'v1.0', icon: PlayCircle, tier: 'Free' },
-          { title: 'Vocal Architect', desc: 'Neural vocoder synthesis with harmony generation, ad-lib creation, and expressive tuning.', version: 'v2.0', icon: UsersIcon, tier: 'Pro' },
-          { title: 'Instrumentalist', desc: 'AI session players with physical modeling, style mimicry, and multi-instrumental performance.', version: 'v1.5', icon: Music, tier: 'Pro' },
-          { title: 'Beat Architect', desc: 'Advanced rhythm production with drum synthesis, groove templates, and dynamic arrangement.', version: 'v2.2', icon: Target, tier: 'Monthly' },
-          { title: 'Sample Wizard', desc: 'Intelligent sample discovery, clearance checking, and stem isolation technology.', version: 'v1.8', icon: Folder, tier: 'Monthly' },
-          { title: 'Drop Engineer', desc: 'EDM-focused production with build-up generation, impact design, and festival-ready drops.', version: 'v1.3', icon: Rocket, tier: 'Pro' },
-          { title: 'Film Composer', desc: 'Orchestral scoring with emotional mapping, sync-point logic, and multi-genre soundtrack creation.', version: 'v2.1', icon: Film, tier: 'Pro' },
-          { title: 'Master Engineer', desc: 'AI-assisted mastering with loudness optimization, stereo imaging, and format-specific exports.', version: 'v3.0', icon: Shield, tier: 'Monthly' },
-          { title: 'Trend Analyst', desc: 'Real-time music industry trend tracking, viral prediction, and audience insights.', version: 'v2.5', icon: TrendingUp, tier: 'Monthly' },
-          { title: 'Social Strategist', desc: 'Platform-specific content optimization, hashtag research, and posting schedule generation.', version: 'v1.9', icon: Globe, tier: 'Pro' },
-          { title: 'Collab Finder', desc: 'AI-powered artist matching, style compatibility analysis, and networking recommendations.', version: 'v1.4', icon: UsersIcon, tier: 'Pro' },
-          { title: 'Release Planner', desc: 'Strategic rollout planning with timeline generation, budget allocation, and milestone tracking.', version: 'v2.0', icon: Rocket, tier: 'Pro' }
-        ];
-
-        const PRODUCTION_TOOLS = [
-          { name: 'Canva', desc: 'Design', url: 'https://canva.com', icon: Layout },
-          { name: 'Figma', desc: 'Prototyping', url: 'https://figma.com', icon: PenTool },
-          { name: 'Splice', desc: 'Samples', url: 'https://splice.com', icon: Music },
-          { name: 'DistroKid', desc: 'Distribution', url: 'https://distrokid.com', icon: Globe }
-        ];
-
 
         return (
           <div className="resources-view animate-fadeInUp">
             <div className="resources-header">
               <h1>Creator Resources</h1>
-              <p>Essential tools, guides, and technical documentation for professional growth.</p>
+              <p>Quick access to all studio features and tools.</p>
             </div>
 
-            {/* Multi-Agent & Video Pitch Demos - Glass style matching resource cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
-              <div className="resource-card" style={{ 
-                padding: '1.5rem', 
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                <div style={{ 
-                  position: 'absolute', 
-                  top: '12px', 
-                  right: '12px',
-                  padding: '4px 10px',
-                  background: 'rgba(168, 85, 247, 0.15)',
-                  color: 'var(--color-purple)',
-                  borderRadius: '8px',
-                  fontSize: '0.65rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}>Interactive</div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem' }}>
-                  <div style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    background: 'rgba(168, 85, 247, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                  }}>
-                    <Zap size={24} style={{ color: 'var(--color-purple)' }} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.35rem', color: 'var(--text-primary)' }}>Multi-Agent Brainstorm</h3>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5' }}>Watch 4 AI agents work in parallel to create your release package.</p>
-                  </div>
-                </div>
-                <Suspense fallback={<LazyFallback />}>
-                  <MultiAgentDemo onCreateProject={(p) => {
-                    setProjects(prev => [p, ...prev]);
-                    setSelectedProject(p);
-                    setActiveTab('mystudio');
-                    toast.success("Project created from brainstorm!");
-                  }} />
-                </Suspense>
-              </div>
-
-              <div className="resource-card" style={{ 
-                padding: '1.5rem', 
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                <div style={{ 
-                  position: 'absolute', 
-                  top: '12px', 
-                  right: '12px',
-                  padding: '4px 10px',
-                  background: 'rgba(59, 130, 246, 0.15)',
-                  color: 'var(--color-blue)',
-                  borderRadius: '8px',
-                  fontSize: '0.65rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px'
-                }}>Interactive</div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem' }}>
-                  <div style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '12px',
-                    background: 'rgba(59, 130, 246, 0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                  }}>
-                    <Video size={24} style={{ color: 'var(--color-blue)' }} />
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '0.35rem', color: 'var(--text-primary)' }}>Viral Pitch Lab</h3>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5' }}>Create a 7-second viral hook and convert it to a full project.</p>
-                  </div>
-                </div>
-                <Suspense fallback={<LazyFallback />}>
-                  <VideoPitchDemo onCreateProject={(p) => {
-                    setProjects(prev => [p, ...prev]);
-                    setSelectedProject(p);
-                    setActiveTab('mystudio');
-                    toast.success("Project created from pitch!");
-                  }} />
-                </Suspense>
-              </div>
-            </div>
-
-            <div className="resources-grid">
-              <section className="resources-section">
-                <div className="section-header">
-                  <Shield size={20} className="text-purple" />
-                  <h2>Legal & Business</h2>
-                  <span style={{ 
-                    marginLeft: 'auto',
-                    padding: '4px 12px',
-                    background: 'rgba(34, 197, 94, 0.2)',
-                    color: '#22c55e',
-                    borderRadius: '20px',
-                    fontSize: '0.75rem',
-                    fontWeight: '600'
-                  }}>
-                    Available Now
-                  </span>
-                </div>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
-                  Protect your art. Understand your rights. Comprehensive guides for independent creators.
-                </p>
-                <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
-                  {LEGAL_RESOURCES.map((item, i) => (
-                    <div key={i} className="resource-card legal" style={{ 
-                      opacity: 1,
-                      position: 'relative'
+            {/* Quick Navigation Cards - 8 cards grid */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', 
+              gap: '16px',
+              marginBottom: '32px'
+            }}>
+              {quickNavItems.map(item => {
+                const Icon = item.icon;
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    role="button"
+                    tabIndex={0}
+                    className="haptic-press"
+                    style={{
+                      background: 'var(--card-bg)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '16px',
+                      padding: '20px 16px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      textAlign: 'center',
+                      gap: '12px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = item.color;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = `0 8px 24px ${item.color}20`;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--border-color)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <div style={{
+                      width: '56px',
+                      height: '56px',
+                      borderRadius: '14px',
+                      background: `${item.color}15`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}>
-                      <div style={{
-                        position: 'absolute',
-                        top: '12px',
-                        right: '12px',
-                        padding: '3px 8px',
-                        background: item.type === 'Whitepaper' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(6, 182, 212, 0.2)',
-                        color: item.type === 'Whitepaper' ? 'var(--color-purple)' : 'var(--color-cyan)',
-                        borderRadius: '6px',
-                        fontSize: '0.65rem',
-                        fontWeight: '700',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}>
-                        {item.type}
-                      </div>
-                      <div className="card-icon"><item.icon size={24} /></div>
-                      <div className="card-content">
-                        <h3>{item.title}</h3>
-                        <p>{item.desc}</p>
-                      </div>
-                      <button 
-                        className="card-action" 
-                        onClick={() => setShowResourceContent(item)}
-                      >
-                        Read {item.type}
-                      </button>
+                      <Icon size={28} style={{ color: item.color }} />
                     </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="resources-section">
-                <div className="section-header">
-                  <FileText size={20} className="text-cyan" />
-                  <h2>Agent Whitepapers</h2>
-                  <span style={{ 
-                    marginLeft: 'auto',
-                    padding: '4px 12px',
-                    background: 'rgba(6, 182, 212, 0.2)',
-                    color: 'var(--color-cyan)',
-                    borderRadius: '20px',
-                    fontSize: '0.75rem',
-                    fontWeight: '600'
-                  }}>
-                    16 Agents
-                  </span>
-                </div>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', fontSize: '0.9rem' }}>
-                  Technical documentation for each AI agent. Architecture, capabilities, and best practices.
-                </p>
-                <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
-                  {AGENT_WHITEPAPERS.map((item, i) => (
-                    <div key={i} className="resource-card whitepaper" style={{ position: 'relative' }}>
-                      <div style={{
-                        position: 'absolute',
-                        top: '12px',
-                        right: '12px',
-                        padding: '3px 8px',
-                        background: item.tier === 'Free' ? 'rgba(34, 197, 94, 0.2)' : item.tier === 'Monthly' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(168, 85, 247, 0.2)',
-                        color: item.tier === 'Free' ? '#22c55e' : item.tier === 'Monthly' ? '#fbbf24' : 'var(--color-purple)',
-                        borderRadius: '6px',
-                        fontSize: '0.65rem',
-                        fontWeight: '700',
-                        textTransform: 'uppercase'
-                      }}>
-                        {item.tier}
-                      </div>
-                      <div className="card-icon"><item.icon size={24} /></div>
-                      <div className="card-content">
-                        <div className="wp-header">
-                          <h3>{item.title}</h3>
-                          <span className="version-badge">{item.version}</span>
-                        </div>
-                        <p style={{ fontSize: '0.85rem' }}>{item.desc}</p>
-                      </div>
-                      <button 
-                        className="card-action secondary" 
-                        onClick={() => {
-                          const agent = AGENTS.find(a => a.name === item.title || a.name.includes(item.title.split(' ')[0]));
-                          if (agent) openAgentWhitepaper(agent);
-                          else toast(`📄 ${item.title} - ${item.desc}`, { icon: '🔬', duration: 4000 });
-                        }}
-                      >
-                        View Spec
-                      </button>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '600', color: 'var(--text-primary)' }}>{item.label}</h4>
+                      <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{item.desc}</p>
                     </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="resources-section">
-                <div className="section-header">
-                  <Tool size={20} className="text-orange" />
-                  <h2>Production Tools</h2>
-                </div>
-                <div className="tools-grid">
-                  {PRODUCTION_TOOLS.map((tool, i) => (
-                    <a key={i} href={tool.url} target="_blank" rel="noopener noreferrer" className="tool-card">
-                      <div className="tool-icon"><tool.icon size={24} /></div>
-                      <div className="tool-info">
-                        <h3>{tool.name}</h3>
-                        <span>{tool.desc}</span>
-                      </div>
-                      <ExternalLink size={16} className="external-icon" />
-                    </a>
-                  ))}
-                </div>
-              </section>
-
-              <section className="resources-section">
-                <div className="section-header">
-                  <MapIcon size={20} className="text-emerald" />
-                  <h2>Studio Site Map</h2>
-                </div>
-                <div className="sitemap-container">
-                  <div className="sitemap-column">
-                    <h4>Studio</h4>
-                    <ul>
-                      <li onClick={() => setActiveTab('mystudio')}>Dashboard</li>
-                      <li onClick={() => setActiveTab('agents')}>Agent Studio</li>
-                      <li onClick={() => setActiveTab('hub')}>Project Hub</li>
-                    </ul>
                   </div>
-                  <div className="sitemap-column">
-                    <h4>Community</h4>
-                    <ul>
-                      <li onClick={() => setActiveTab('activity')}>Music Hub</li>
-                      <li onClick={() => setActiveTab('news')}>Industry Pulse</li>
-                    </ul>
-                  </div>
-                  <div className="sitemap-column">
-                    <h4>Support</h4>
-                    <ul>
-                      <li onClick={() => setActiveTab('support')}>Help Center</li>
-                      <li onClick={() => setActiveTab('resources')}>Resources</li>
-                    </ul>
-                  </div>
-                </div>
-              </section>
+                );
+              })}
             </div>
           </div>
         );
@@ -9214,14 +8750,14 @@ When you write a song, you create intellectual property that generates money eve
               onClick={() => onBack?.()}
               title="Back to Landing Page"
             >
-              <Home size={18} />
+              <Home size={20} />
             </button>
             <button 
               className="action-button secondary haptic-press"
               onClick={() => setActiveTab('profile')}
               title="User Profile"
             >
-              <User size={18} />
+              <User size={20} />
               <span className="desktop-only">Profile</span>
             </button>
             <button 
@@ -9229,7 +8765,7 @@ When you write a song, you create intellectual property that generates money eve
               onClick={() => { setOnboardingStep(0); setShowOnboarding(true); }}
               title="Welcome Tour"
             >
-              <Sparkles size={18} />
+              <Sparkles size={20} />
               <span className="desktop-only">Tour</span>
             </button>
             <button 
@@ -9237,7 +8773,7 @@ When you write a song, you create intellectual property that generates money eve
               onClick={() => { setActiveTab('support'); setSelectedAgent(null); }}
               title="Help Center"
             >
-              <CircleHelp size={18} />
+              <CircleHelp size={20} />
               <span className="desktop-only">Help</span>
             </button>
             <button 
@@ -9245,7 +8781,7 @@ When you write a song, you create intellectual property that generates money eve
               onClick={() => setShowNotifications(!showNotifications)}
               style={{ position: 'relative' }}
             >
-              <Bell size={18} />
+              <Bell size={20} />
               {notifications.some(n => !n.read) && (
                 <span style={{
                   position: 'absolute',
@@ -10778,36 +10314,48 @@ When you write a song, you create intellectual property that generates money eve
                 flexShrink: 0,
                 flexWrap: 'wrap'
               }}>
-                {/* TTS Read Aloud for text content (not for audio/image/video) */}
+                {/* TTS Read Aloud for text content - uses AI voices when style is rapper/singer */}
                 {!previewItem.audioUrl && !previewItem.imageUrl && !previewItem.videoUrl && (previewItem.snippet || previewItem.content) && (
                   <button 
+                    disabled={isCreatingVocal}
                     onClick={() => {
                       const text = previewView === 'lyrics' 
                         ? (previewItem.snippet || previewItem.content || '')
                         : (previewPrompt || '');
-                      if (window.speechSynthesis.speaking) {
-                        window.speechSynthesis.cancel();
+                      // Use AI vocal for rapper/singer styles, browser TTS for narrator/spoken
+                      const aiVoiceStyles = ['rapper', 'rapper-female', 'singer', 'singer-female'];
+                      if (aiVoiceStyles.includes(voiceSettings.style)) {
+                        // Use actual AI vocals (Bark/Suno) for real rapper/singer voices
+                        handleCreateAIVocal(text, selectedAgent?.name || 'AI');
                       } else {
-                        const utterance = new SpeechSynthesisUtterance(text);
-                        window.speechSynthesis.speak(utterance);
+                        // Fall back to browser TTS for narrator/spoken
+                        if (window.speechSynthesis.speaking) {
+                          window.speechSynthesis.cancel();
+                        } else {
+                          handleTextToVoice(text);
+                        }
                       }
                     }}
-                    title="Read text aloud using browser TTS"
+                    title={['rapper', 'rapper-female', 'singer', 'singer-female'].includes(voiceSettings.style) 
+                      ? `Read aloud using AI ${voiceSettings.style} voice (takes 30-60 seconds)`
+                      : 'Read text aloud using browser TTS'}
                     style={{ 
                       flex: 1, 
                       padding: '0.75rem', 
                       borderRadius: '8px', 
                       border: '1px solid rgba(34, 211, 238, 0.3)',
-                      background: 'rgba(34, 211, 238, 0.1)',
+                      background: isCreatingVocal ? 'rgba(34, 211, 238, 0.3)' : 'rgba(34, 211, 238, 0.1)',
                       color: 'var(--color-cyan)',
-                      cursor: 'pointer',
+                      cursor: isCreatingVocal ? 'not-allowed' : 'pointer',
+                      opacity: isCreatingVocal ? 0.7 : 1,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: '0.5rem'
                     }}
                   >
-                    <Volume2 size={16} /> Read Aloud
+                    <Volume2 size={16} className={isCreatingVocal ? 'animate-pulse' : ''} /> 
+                    {isCreatingVocal ? 'Creating AI Voice...' : 'Read Aloud'}
                   </button>
                 )}
                 
@@ -12963,11 +12511,11 @@ When you write a song, you create intellectual property that generates money eve
         </div>
       )}
 
-      {/* Asset Preview Modal - Enhanced with Navigation */}
+      {/* Asset Preview Modal - Enhanced with Navigation and Robust Handling */}
       {showPreview && (
         <div 
           className="modal-overlay animate-fadeIn" 
-          onClick={() => setShowPreview(null)} 
+          onClick={() => { setShowPreview(null); setPreviewMaximized(false); }} 
           style={{ 
             zIndex: 2000,
             position: 'fixed',
@@ -12979,27 +12527,29 @@ When you write a song, you create intellectual property that generates money eve
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px'
+            padding: previewMaximized ? '0' : '20px'
           }}
         >
           {/* Navigation Arrows */}
-          {showPreview.assets && showPreview.assets.length > 1 && (
+          {safePreviewAssets.length > 1 && (
             <>
               {/* Previous Button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const newIndex = showPreview.currentIndex > 0 
-                    ? showPreview.currentIndex - 1 
-                    : showPreview.assets.length - 1;
-                  const newAsset = showPreview.assets[newIndex];
+                  // Defensive checks for assets array and currentIndex
+                  if (safePreviewAssets.length === 0) return;
+                  const newIndex = safePreviewIndex > 0 
+                    ? safePreviewIndex - 1 
+                    : safePreviewAssets.length - 1;
+                  const newAsset = safePreviewAssets[newIndex];
                   if (!newAsset) return; // Safety check
                   setShowPreview({
                     type: newAsset.audioUrl ? 'audio' : newAsset.videoUrl ? 'video' : 'image',
                     url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl,
                     title: newAsset.title || 'Untitled',
                     asset: newAsset,
-                    assets: showPreview.assets,
+                    assets: safePreviewAssets,
                     currentIndex: newIndex
                   });
                 }}
@@ -13032,17 +12582,19 @@ When you write a song, you create intellectual property that generates money eve
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const newIndex = showPreview.currentIndex < showPreview.assets.length - 1 
-                    ? showPreview.currentIndex + 1 
+                  // Defensive checks for assets array and currentIndex
+                  if (safePreviewAssets.length === 0) return;
+                  const newIndex = safePreviewIndex < safePreviewAssets.length - 1 
+                    ? safePreviewIndex + 1 
                     : 0;
-                  const newAsset = showPreview.assets[newIndex];
+                  const newAsset = safePreviewAssets[newIndex];
                   if (!newAsset) return; // Safety check
                   setShowPreview({
                     type: newAsset.audioUrl ? 'audio' : newAsset.videoUrl ? 'video' : 'image',
                     url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl,
                     title: newAsset.title || 'Untitled',
                     asset: newAsset,
-                    assets: showPreview.assets,
+                    assets: safePreviewAssets,
                     currentIndex: newIndex
                   });
                 }}
@@ -13077,16 +12629,18 @@ When you write a song, you create intellectual property that generates money eve
             className="modal-content" 
             onClick={e => e.stopPropagation()} 
             style={{ 
-              maxWidth: showPreview.type === 'image' ? '90vw' : '85vw', 
-              maxHeight: '85vh',
-              width: showPreview.type === 'image' ? 'auto' : '100%',
+              maxWidth: previewMaximized ? '98vw' : (safePreview.type === 'image' ? '90vw' : '85vw'), 
+              maxHeight: previewMaximized ? '98vh' : '85vh',
+              width: previewMaximized ? '98vw' : (safePreview.type === 'image' ? 'auto' : '100%'),
+              height: previewMaximized ? '98vh' : 'auto',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
               background: 'rgba(10,10,15,0.99)',
-              borderRadius: '16px',
+              borderRadius: previewMaximized ? '8px' : '16px',
               border: '1px solid rgba(255,255,255,0.1)',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+              transition: 'all 0.3s ease'
             }}
           >
             {/* Header */}
@@ -13103,33 +12657,57 @@ When you write a song, you create intellectual property that generates money eve
                   width: '36px',
                   height: '36px',
                   borderRadius: '10px',
-                  background: showPreview.type === 'image' ? 'rgba(236, 72, 153, 0.2)' 
-                    : showPreview.type === 'video' ? 'rgba(6, 182, 212, 0.2)' 
+                  background: safePreview.type === 'image' ? 'rgba(236, 72, 153, 0.2)' 
+                    : safePreview.type === 'video' ? 'rgba(6, 182, 212, 0.2)' 
                     : 'rgba(168, 85, 247, 0.2)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  {showPreview.type === 'image' && <Image size={18} style={{ color: 'var(--color-pink)' }} />}
-                  {showPreview.type === 'video' && <Video size={18} style={{ color: 'var(--color-cyan)' }} />}
-                  {showPreview.type === 'audio' && <Music size={18} style={{ color: 'var(--color-purple)' }} />}
+                  {safePreview.type === 'image' && <ImageIcon size={18} style={{ color: 'var(--color-pink)' }} />}
+                  {safePreview.type === 'video' && <Video size={18} style={{ color: 'var(--color-cyan)' }} />}
+                  {safePreview.type === 'audio' && <Music size={18} style={{ color: 'var(--color-purple)' }} />}
                 </div>
                 <div>
-                  <h2 style={{ fontSize: '1rem', margin: 0, fontWeight: '600' }}>{showPreview.title}</h2>
-                  {showPreview.assets && showPreview.assets.length > 1 && (
+                  <h2 style={{ fontSize: '1rem', margin: 0, fontWeight: '600' }}>{safePreview.title || 'Preview'}</h2>
+                  {safePreviewAssets.length > 1 && (
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
-                      {showPreview.currentIndex + 1} of {showPreview.assets.length} assets
+                      {safePreviewIndex + 1} of {safePreviewAssets.length} assets
                     </p>
                   )}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Min/Max Toggle Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewMaximized(prev => !prev);
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    cursor: 'pointer',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.3)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                  title={previewMaximized ? 'Minimize' : 'Maximize'}
+                >
+                  {previewMaximized ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                </button>
                 {/* Use in Orchestrator Button */}
-                {showPreview.asset && (
+                {safePreview.asset && (
                   <button
                     onClick={() => {
                       // Add asset to orchestrator session
-                      const asset = showPreview.asset;
+                      const asset = safePreview.asset;
                       const slotType = asset.audioUrl ? 'audio' : asset.videoUrl ? 'visual' : asset.imageUrl ? 'visual' : null;
                       if (slotType && selectedProject) {
                         const newSession = {
@@ -13142,6 +12720,7 @@ When you write a song, you create intellectual property that generates money eve
                         });
                         setProjects(prev => prev.map(p => p.id === selectedProject.id ? {...p, sessionState: newSession} : p));
                         setShowPreview(null);
+                        setPreviewMaximized(false);
                         setShowOrchestrator(true);
                         toast.success(`✨ Added "${asset.title}" to Studio Orchestrator`);
                       }
@@ -13159,7 +12738,7 @@ When you write a song, you create intellectual property that generates money eve
                     Use in Orchestrator
                   </button>
                 )}
-                <button className="modal-close" onClick={() => setShowPreview(null)} style={{ 
+                <button className="modal-close" onClick={() => { setShowPreview(null); setPreviewMaximized(false); }} style={{ 
                   color: '#fff',
                   background: 'rgba(255,255,255,0.1)',
                   border: 'none',
@@ -13174,38 +12753,50 @@ When you write a song, you create intellectual property that generates money eve
 
             {/* Content */}
             <div className="modal-body" style={{ 
-              padding: '1.5rem', 
+              padding: previewMaximized ? '2rem' : '1.5rem', 
               flex: 1, 
               overflow: 'auto', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
-              background: showPreview.type === 'image' ? 'transparent' : 'rgba(0,0,0,0.3)'
+              background: safePreview.type === 'image' ? 'transparent' : 'rgba(0,0,0,0.3)'
             }}>
-              {showPreview.type === 'audio' && (
-                <div style={{ width: '100%', maxWidth: '500px', textAlign: 'center' }}>
+              {safePreview.type === 'audio' && safePreview.url && (
+                <div style={{ width: '100%', maxWidth: previewMaximized ? '700px' : '500px', textAlign: 'center' }}>
                   <div style={{
-                    width: '120px',
-                    height: '120px',
+                    width: previewMaximized ? '150px' : '120px',
+                    height: previewMaximized ? '150px' : '120px',
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 24px',
-                    boxShadow: '0 0 40px rgba(168, 85, 247, 0.4)'
+                    boxShadow: '0 0 40px rgba(168, 85, 247, 0.4)',
+                    transition: 'all 0.3s ease'
                   }}>
-                    <Music size={48} style={{ color: 'white' }} />
+                    <Music size={previewMaximized ? 60 : 48} style={{ color: 'white' }} />
                   </div>
                   <audio 
                     ref={previewAudioRef}
-                    key={showPreview.asset?.id || showPreview.url}
-                    src={showPreview.url}
+                    key={safePreview.asset?.id || safePreview.url || 'audio-preview'}
+                    src={safePreview.url}
                     controls
                     style={{ width: '100%' }}
                     autoPlay
                     controlsList="nodownload"
-                    onError={(e) => console.error('[AudioPreview] Error:', e.target.error?.message || 'Unknown error', 'URL:', showPreview.url?.substring(0, 50))}
+                    onError={(e) => {
+                      console.error('[AudioPreview] Error:', e.target.error?.message || 'Unknown error', 'URL:', safePreview.url?.substring(0, 50));
+                      // Show user-friendly error
+                      const container = e.target.parentElement;
+                      if (container && !container.querySelector('.audio-error-msg')) {
+                        const errDiv = document.createElement('div');
+                        errDiv.className = 'audio-error-msg';
+                        errDiv.style.cssText = 'color: var(--color-red); font-size: 0.85rem; margin-top: 12px;';
+                        errDiv.textContent = '⚠️ Audio failed to load. Try downloading instead.';
+                        container.appendChild(errDiv);
+                      }
+                    }}
                     onCanPlay={() => console.log('[AudioPreview] Audio can play')}
                     onLoadedData={() => console.log('[AudioPreview] Audio loaded, duration:', previewAudioRef.current?.duration)}
                     onPlay={() => console.log('[AudioPreview] Audio started playing')}
@@ -13216,11 +12807,11 @@ When you write a song, you create intellectual property that generates money eve
                   />
                   {/* Show URL type for debugging */}
                   <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '12px', opacity: 0.6 }}>
-                    {showPreview.url?.startsWith('data:') ? 'Base64 Audio' : showPreview.url?.startsWith('http') ? 'Remote Audio' : 'Unknown Format'}
+                    {safePreview.url?.startsWith('data:') ? 'Base64 Audio' : safePreview.url?.startsWith('http') ? 'Remote Audio' : 'Unknown Format'}
                   </p>
                 </div>
               )}
-              {showPreview.type === 'image' && (
+              {safePreview.type === 'image' && safePreview.url && (
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {/* Loading state */}
                   <div 
@@ -13246,8 +12837,8 @@ When you write a song, you create intellectual property that generates money eve
                     <span style={{ fontSize: '0.85rem' }}>Loading image...</span>
                   </div>
                   <img 
-                    src={showPreview.url}
-                    alt={showPreview.title}
+                    src={safePreview.url}
+                    alt={safePreview.title || 'Image preview'}
                     onLoad={(e) => {
                       // Hide loading placeholder when loaded
                       const placeholder = e.target.previousElementSibling;
@@ -13255,7 +12846,7 @@ When you write a song, you create intellectual property that generates money eve
                       e.target.style.opacity = 1;
                     }}
                     onError={(e) => {
-                      console.error('[ImagePreview] Failed to load:', showPreview.url?.substring(0, 50));
+                      console.error('[ImagePreview] Failed to load:', safePreview.url?.substring(0, 50));
                       const placeholder = e.target.previousElementSibling;
                       if (placeholder) {
                         placeholder.innerHTML = '<div style="text-align:center;color:var(--color-red)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><p style="margin-top:8px">Failed to load image</p></div>';
@@ -13263,17 +12854,17 @@ When you write a song, you create intellectual property that generates money eve
                     }}
                     style={{ 
                       maxWidth: '100%', 
-                      maxHeight: '80vh', 
+                      maxHeight: previewMaximized ? '90vh' : '80vh', 
                       objectFit: 'contain',
                       borderRadius: '8px',
                       boxShadow: '0 8px 40px rgba(0,0,0,0.5)',
                       opacity: 0,
-                      transition: 'opacity 0.3s ease'
+                      transition: 'all 0.3s ease'
                     }}
                   />
                 </div>
               )}
-              {showPreview.type === 'video' && (
+              {safePreview.type === 'video' && safePreview.url && (
                 <div style={{ position: 'relative', width: '100%', maxWidth: '100%' }}>
                   {/* Loading state for video */}
                   <div 
@@ -13306,7 +12897,7 @@ When you write a song, you create intellectual property that generates money eve
                     <span style={{ fontSize: '0.85rem' }}>Loading video...</span>
                   </div>
                   <video 
-                    src={showPreview.url}
+                    src={safePreview.url}
                     controls
                     autoPlay
                     playsInline
@@ -13317,7 +12908,7 @@ When you write a song, you create intellectual property that generates money eve
                       if (placeholder) placeholder.style.display = 'none';
                     }}
                     onError={(e) => {
-                      console.error('[VideoPreview] Failed to load:', showPreview.url?.substring(0, 50));
+                      console.error('[VideoPreview] Failed to load:', safePreview.url?.substring(0, 50));
                       const placeholder = e.target.previousElementSibling;
                       if (placeholder) {
                         placeholder.innerHTML = '<div style="text-align:center;color:var(--color-red)"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><p style="margin-top:12px;font-size:0.9rem">Failed to load video</p><p style="font-size:0.75rem;opacity:0.7;margin-top:4px">Try downloading instead</p></div>';
@@ -13326,7 +12917,7 @@ When you write a song, you create intellectual property that generates money eve
                     style={{ 
                       width: '100%', 
                       maxWidth: '100%', 
-                      maxHeight: '80vh', 
+                      maxHeight: previewMaximized ? '90vh' : '80vh', 
                       objectFit: 'contain',
                       borderRadius: '8px',
                       background: 'black'
@@ -13337,7 +12928,7 @@ When you write a song, you create intellectual property that generates money eve
             </div>
 
             {/* Thumbnail Strip - for navigation between assets */}
-            {showPreview.assets && showPreview.assets.length > 1 && (
+            {safePreviewAssets.length > 1 && (
               <div style={{
                 borderTop: '1px solid rgba(255,255,255,0.1)',
                 padding: '12px 16px',
@@ -13347,7 +12938,7 @@ When you write a song, you create intellectual property that generates money eve
                 justifyContent: 'center',
                 background: 'rgba(0,0,0,0.3)'
               }}>
-                {showPreview.assets.map((asset, idx) => {
+                {safePreviewAssets.map((asset, idx) => {
                   if (!asset) return null; // Safety check
                   return (
                   <button
@@ -13359,7 +12950,7 @@ When you write a song, you create intellectual property that generates money eve
                         url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
                         title: asset.title || 'Untitled',
                         asset: asset,
-                        assets: showPreview.assets,
+                        assets: safePreviewAssets,
                         currentIndex: idx
                       });
                     }}
@@ -13367,7 +12958,7 @@ When you write a song, you create intellectual property that generates money eve
                       width: '60px',
                       height: '60px',
                       borderRadius: '8px',
-                      border: idx === showPreview.currentIndex 
+                      border: idx === safePreviewIndex 
                         ? '2px solid var(--color-purple)' 
                         : '2px solid transparent',
                       background: asset.imageUrl 
@@ -13378,7 +12969,7 @@ When you write a song, you create intellectual property that generates money eve
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      opacity: idx === showPreview.currentIndex ? 1 : 0.6,
+                      opacity: idx === safePreviewIndex ? 1 : 0.6,
                       transition: 'all 0.2s ease',
                       overflow: 'hidden',
                       position: 'relative'
@@ -13421,16 +13012,17 @@ When you write a song, you create intellectual property that generates money eve
               background: 'rgba(0,0,0,0.4)'
             }}>
               {/* Re-run Agent Button */}
-              {showPreview.asset?.agent && showPreview.asset.agent !== 'User Upload' && (
+              {safePreview.asset?.agent && safePreview.asset.agent !== 'User Upload' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const agent = AGENTS.find(a => a.name === showPreview.asset.agent);
+                    const agent = AGENTS.find(a => a.name === safePreview.asset?.agent);
                     if (agent) {
                       setSelectedAgent(agent);
-                      setPendingPrompt(showPreview.asset.snippet || showPreview.title || '');
+                      setPendingPrompt(safePreview.asset?.snippet || safePreview.title || '');
                       setActiveTab('agents');
                       setShowPreview(null);
+                      setPreviewMaximized(false);
                       toast.success(`Opened ${agent.name} - edit prompt and regenerate!`);
                     }
                   }}
@@ -13448,7 +13040,7 @@ When you write a song, you create intellectual property that generates money eve
                     fontSize: '0.85rem'
                   }}
                 >
-                  <RefreshCw size={16} /> Re-run with {showPreview.asset?.agent}
+                  <RefreshCw size={16} /> Re-run with {safePreview.asset?.agent}
                 </button>
               )}
 
@@ -13458,7 +13050,7 @@ When you write a song, you create intellectual property that generates money eve
                   e.stopPropagation();
                   // Pass asset to orchestrator via sessionState
                   if (selectedProject) {
-                    const asset = showPreview.asset;
+                    const asset = safePreview.asset;
                     const updated = {
                       ...selectedProject,
                       sessionState: {
@@ -13472,6 +13064,7 @@ When you write a song, you create intellectual property that generates money eve
                     setProjects(projects.map(p => p.id === updated.id ? updated : p));
                   }
                   setShowPreview(null);
+                  setPreviewMaximized(false);
                   setShowOrchestrator(true);
                   toast.success('Asset loaded into Orchestrator!');
                 }}
@@ -13493,17 +13086,22 @@ When you write a song, you create intellectual property that generates money eve
               </button>
 
               {/* Download Button (for media) */}
-              {showPreview.url && (
+              {safePreview.url && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const link = document.createElement('a');
-                    link.href = showPreview.url;
-                    link.download = showPreview.title || 'download';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    toast.success('Download started!');
+                    try {
+                      const link = document.createElement('a');
+                      link.href = safePreview.url;
+                      link.download = safePreview.title || 'download';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      toast.success('Download started!');
+                    } catch (err) {
+                      console.error('[Download] Failed:', err);
+                      toast.error('Download failed. Try right-click and save.');
+                    }
                   }}
                   style={{
                     padding: '10px 20px',

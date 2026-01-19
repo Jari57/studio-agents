@@ -97,25 +97,29 @@ export function PreviewModal({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '12px 16px',
+            padding: '10px 12px',
             borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
             background: 'rgba(0, 0, 0, 0.3)',
-            flexShrink: 0
+            flexShrink: 0,
+            gap: '8px',
+            flexWrap: 'wrap'
           }}
         >
           <h2
             style={{
               margin: 0,
-              fontSize: '0.9rem',
+              fontSize: '0.85rem',
               fontWeight: '600',
               color: 'rgba(255, 255, 255, 0.9)',
               textTransform: 'uppercase',
-              letterSpacing: '0.05em'
+              letterSpacing: '0.05em',
+              flex: '1 1 auto',
+              minWidth: '80px'
             }}
           >
             {title} Preview
           </h2>
-          <div style={{ display: 'flex', gap: '6px' }}>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
             {mediaType === 'text' && textContent && (
               <button
                 onClick={handleCopy}
@@ -132,7 +136,9 @@ export function PreviewModal({
                   fontSize: '0.75rem',
                   fontWeight: '600',
                   transition: 'all 0.2s',
-                  touchAction: 'manipulation'
+                  touchAction: 'manipulation',
+                  minHeight: '36px',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 {copied ? <Check size={12} /> : <Copy size={12} />}
@@ -154,7 +160,9 @@ export function PreviewModal({
                 fontSize: '0.75rem',
                 fontWeight: '600',
                 transition: 'all 0.2s',
-                touchAction: 'manipulation'
+                touchAction: 'manipulation',
+                minHeight: '36px',
+                whiteSpace: 'nowrap'
               }}
             >
               <Download size={12} />
@@ -166,22 +174,21 @@ export function PreviewModal({
                 background: 'rgba(239, 68, 68, 0.2)',
                 border: '1px solid rgba(239, 68, 68, 0.4)',
                 color: '#ef4444',
-                padding: '8px 12px',
-                borderRadius: '8px',
+                padding: '6px 10px',
+                borderRadius: '6px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.8rem',
+                gap: '4px',
+                fontSize: '0.75rem',
                 fontWeight: '600',
                 transition: 'all 0.2s',
                 touchAction: 'manipulation',
-                minWidth: '44px',
-                minHeight: '44px',
-                justifyContent: 'center'
+                minHeight: '36px',
+                whiteSpace: 'nowrap'
               }}
             >
-              <X size={18} />
+              <X size={14} />
               Close
             </button>
           </div>

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Play, Pause, Sparkles, Mic, MicOff, FileText, Video, RefreshCw, Zap, 
-  Music, Image as ImageIcon, Download, Save, FolderPlus, Volume2, VolumeX, X,
-  Check, Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, ChevronDown
-  // Speaker, Hash - removed (unused)
+  Sparkles, Mic, MicOff, FileText, Video, RefreshCw, Zap, 
+  Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
+  Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, Lightbulb
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS } from '../constants';
 import toast from 'react-hot-toast';
@@ -37,8 +36,15 @@ function GeneratorCard({
   const [editText, setEditText] = useState(output || '');
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Sync editText when output prop changes - intentional setState in effect for prop sync
+  const prevOutputRef = useRef(output);
   useEffect(() => {
-    setEditText(output || '');
+    // Only update if output actually changed (avoid loops)
+    if (prevOutputRef.current !== output) {
+      prevOutputRef.current = output;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setEditText(output || '');
+    }
   }, [output]);
 
   const handleCopy = () => {
@@ -1505,9 +1511,16 @@ export default function StudioOrchestratorV2({
   const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
   const [musicVideoUrl, setMusicVideoUrl] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
+  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   // const speechSynthRef = useRef(null); - removed (unused)
   const recognitionRef = useRef(null);
+  
+  // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
+  const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
+  const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
   
   // Helper to format image data for display
   // Handles: URLs (http/https), data URLs, and raw base64
@@ -2403,6 +2416,10 @@ export default function StudioOrchestratorV2({
       try {
         onCreateProject(project);
         toast.success(`Saved ${project.assets.length} assets to "${project.name}"!`);
+        // Show save confirmation with option to preview
+        setShowCreateProject(false);
+        setShowSaveConfirm(true);
+        return; // Don't close immediately - let user choose to preview or close
       } catch (err) {
         console.error('[Orchestrator] onCreateProject callback error:', err);
         toast.error('Save failed - callback error');
@@ -2413,7 +2430,6 @@ export default function StudioOrchestratorV2({
     }
     
     setShowCreateProject(false);
-    onClose?.();
   };
 
   if (!isOpen) return null;
@@ -2430,8 +2446,7 @@ export default function StudioOrchestratorV2({
         background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(10,10,20,0.98) 100%)',
         zIndex: 2000,
         display: 'flex',
-        flexDirection: 'column',
-        overflowY: 'auto'
+        flexDirection: 'column'
       }}
     >
       {/* Header */}
@@ -2486,8 +2501,17 @@ export default function StudioOrchestratorV2({
         </button>
       </div>
 
-      {/* Main Content */}
-      <div style={{ flex: 1, padding: '16px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+      {/* Main Content - Scrollable area */}
+      <div style={{ 
+        flex: 1, 
+        padding: '16px', 
+        maxWidth: '1200px', 
+        margin: '0 auto', 
+        width: '100%',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        WebkitOverflowScrolling: 'touch'
+      }}>
         
         {/* Input Section */}
         <div style={{ 
@@ -2591,20 +2615,38 @@ export default function StudioOrchestratorV2({
             gap: '8px', 
             flexWrap: 'wrap', 
             alignItems: 'center',
-            overflowX: 'auto',
             paddingBottom: '4px'
           }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Try:</span>
-            {EXAMPLE_IDEAS.map((idea, i) => (
+            <button
+              onClick={() => setShowSuggestions(!showSuggestions)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: '10px',
+                background: showSuggestions ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: showSuggestions ? '#a855f7' : 'var(--text-secondary)',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                minHeight: '40px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Lightbulb size={14} />
+              {showSuggestions ? 'Hide Ideas' : 'Need Ideas?'}
+            </button>
+            {showSuggestions && EXAMPLE_IDEAS.map((idea, i) => (
               <button
                 key={i}
-                onClick={() => setSongIdea(idea)}
+                onClick={() => { setSongIdea(idea); setShowSuggestions(false); }}
                 style={{
                   padding: '10px 16px',
                   borderRadius: '20px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'var(--text-secondary)',
+                  background: 'rgba(139, 92, 246, 0.15)',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  color: 'rgba(255,255,255,0.8)',
                   fontSize: '0.85rem',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap',
@@ -3563,219 +3605,431 @@ export default function StudioOrchestratorV2({
         </div>
       )}
 
-      {/* Preview All Creations Modal */}
-      {showPreviewModal && (
+      {/* Save Confirmation Dialog */}
+      {showSaveConfirm && (
         <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
+          background: 'rgba(0,0,0,0.85)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10000,
+          zIndex: 10001,
           padding: '20px'
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
             borderRadius: '20px',
             padding: '32px',
-            border: '1px solid rgba(148, 163, 184, 0.2)',
-            maxWidth: '900px',
-            maxHeight: '90vh',
-            overflowY: 'auto',
+            border: '1px solid rgba(34, 197, 94, 0.4)',
+            maxWidth: '450px',
             width: '100%',
-            position: 'relative'
+            textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
           }}>
-            {/* Close Button */}
-            <button
-              onClick={() => setShowPreviewModal(false)}
-              style={{
-                position: 'absolute',
-                top: '20px',
-                right: '20px',
-                background: 'rgba(255,255,255,0.1)',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '8px',
-                cursor: 'pointer',
-                color: 'white'
-              }}
-            >
-              <X size={20} />
-            </button>
-
-            <h2 style={{
-              margin: '0 0 24px',
-              fontSize: '1.5rem',
-              fontWeight: '700',
-              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text'
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'rgba(34, 197, 94, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px'
             }}>
-              👁️ Preview All Creations
+              <FolderPlus size={32} color="#22c55e" />
+            </div>
+            <h2 style={{
+              margin: '0 0 12px',
+              fontSize: '1.4rem',
+              fontWeight: '700',
+              color: 'white'
+            }}>
+              Project Saved! 🎉
             </h2>
+            <p style={{
+              margin: '0 0 24px',
+              color: 'rgba(255,255,255,0.7)',
+              fontSize: '0.95rem',
+              lineHeight: '1.5'
+            }}>
+              Your project "{songIdea || 'Untitled'}" has been saved with {Object.values(safeOutputs).filter(Boolean).length} creations.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => {
+                  setShowSaveConfirm(false);
+                  onClose?.();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  borderRadius: '12px',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: 'white',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem'
+                }}
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setShowSaveConfirm(false);
+                  setShowPreviewModal(true);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Eye size={18} />
+                Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
-              {/* Lyrics Preview */}
+      {/* Preview All Creations Modal - Robust Version */}
+      {showPreviewModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.9)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: previewMaximized ? '0' : '20px'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowPreviewModal(false);
+          }}
+        >
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
+            borderRadius: previewMaximized ? '0' : '20px',
+            padding: previewMaximized ? '24px' : '32px',
+            border: previewMaximized ? 'none' : '1px solid rgba(148, 163, 184, 0.2)',
+            width: previewMaximized ? '100%' : '100%',
+            maxWidth: previewMaximized ? '100%' : '900px',
+            height: previewMaximized ? '100%' : 'auto',
+            maxHeight: previewMaximized ? '100%' : '90vh',
+            overflowY: 'auto',
+            position: 'relative',
+            boxShadow: previewMaximized ? 'none' : '0 25px 80px rgba(0,0,0,0.5)'
+          }}>
+            {/* Header with controls */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '24px',
+              position: 'sticky',
+              top: 0,
+              background: previewMaximized ? 'rgba(15, 23, 42, 0.95)' : 'transparent',
+              padding: previewMaximized ? '8px 0 16px' : '0',
+              zIndex: 5
+            }}>
+              <h2 style={{
+                margin: 0,
+                fontSize: previewMaximized ? '1.75rem' : '1.5rem',
+                fontWeight: '700',
+                background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <Eye size={previewMaximized ? 28 : 24} color="#8b5cf6" />
+                Preview All Creations
+              </h2>
+              
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {/* Min/Max Toggle */}
+                <button
+                  onClick={() => setPreviewMaximized(!previewMaximized)}
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    padding: '10px',
+                    cursor: 'pointer',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.85rem'
+                  }}
+                  title={previewMaximized ? 'Minimize' : 'Maximize'}
+                >
+                  <Maximize2 size={18} />
+                  {previewMaximized ? 'Minimize' : 'Maximize'}
+                </button>
+                
+                {/* Close Button */}
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    borderRadius: '10px',
+                    padding: '10px',
+                    cursor: 'pointer',
+                    color: '#ef4444'
+                  }}
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Content Grid */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: previewMaximized ? 'repeat(2, 1fr)' : 'repeat(2, 1fr)', 
+              gap: previewMaximized ? '32px' : '24px', 
+              marginBottom: '24px' 
+            }}>
+              {/* Lyrics Preview - Always safe */}
               <div style={{
                 background: 'rgba(139, 92, 246, 0.1)',
-                borderRadius: '12px',
-                padding: '16px',
+                borderRadius: '16px',
+                padding: '20px',
                 border: '1px solid rgba(139, 92, 246, 0.3)'
               }}>
-                <h3 style={{ margin: '0 0 12px', color: '#a78bfa', fontSize: '0.95rem', fontWeight: '600' }}>
-                  📝 Lyrics
-                </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, color: '#a78bfa', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FileText size={18} />
+                    Lyrics
+                  </h3>
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    background: safeOutputs.lyrics ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
+                    color: safeOutputs.lyrics ? '#22c55e' : 'rgba(255,255,255,0.5)'
+                  }}>
+                    {safeOutputs.lyrics ? '✓ Ready' : 'Pending'}
+                  </span>
+                </div>
                 <div style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  maxHeight: '200px',
+                  background: 'rgba(0,0,0,0.4)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  minHeight: previewMaximized ? '300px' : '180px',
+                  maxHeight: previewMaximized ? '400px' : '200px',
                   overflowY: 'auto',
                   fontSize: '0.9rem',
-                  lineHeight: '1.6',
-                  color: 'rgba(255,255,255,0.9)',
+                  lineHeight: '1.7',
+                  color: safeOutputs.lyrics ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
                   whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
+                  wordBreak: 'break-word',
+                  fontStyle: safeOutputs.lyrics ? 'normal' : 'italic'
                 }}>
-                  {outputs.lyrics || 'No lyrics generated yet'}
+                  {safeOutputs.lyrics || 'No lyrics generated yet. Use the Lyrics generator to create lyrics.'}
                 </div>
               </div>
 
-              {/* Beat Audio Preview */}
+              {/* Beat Audio Preview - Safe audio handling */}
               <div style={{
                 background: 'rgba(6, 182, 212, 0.1)',
-                borderRadius: '12px',
-                padding: '16px',
+                borderRadius: '16px',
+                padding: '20px',
                 border: '1px solid rgba(6, 182, 212, 0.3)'
               }}>
-                <h3 style={{ margin: '0 0 12px', color: '#22d3ee', fontSize: '0.95rem', fontWeight: '600' }}>
-                  🎵 Beat Audio
-                </h3>
-                {mediaUrls.audio ? (
-                  <div style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    borderRadius: '8px',
-                    padding: '12px',
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, color: '#22d3ee', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Music size={18} />
+                    Beat Audio
+                  </h3>
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    background: safeMediaUrls.audio ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
+                    color: safeMediaUrls.audio ? '#22c55e' : 'rgba(255,255,255,0.5)'
                   }}>
-                    <audio
-                      controls
-                      style={{ width: '100%', marginBottom: '8px' }}
-                      src={mediaUrls.audio}
-                    />
-                    <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
-                      ✓ Audio ready to play
+                    {safeMediaUrls.audio ? '✓ Ready' : 'Pending'}
+                  </span>
+                </div>
+                <div style={{
+                  background: 'rgba(0,0,0,0.4)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  minHeight: '100px'
+                }}>
+                  {safeMediaUrls.audio ? (
+                    <>
+                      <audio
+                        controls
+                        style={{ width: '100%', marginBottom: '12px' }}
+                        src={safeMediaUrls.audio}
+                        onError={(e) => console.warn('[Preview] Audio load error:', e)}
+                      />
+                      <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Volume2 size={14} />
+                        Audio ready to play
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{
+                      textAlign: 'center',
+                      color: 'rgba(255,255,255,0.4)',
+                      fontSize: '0.9rem',
+                      padding: '24px',
+                      fontStyle: 'italic'
+                    }}>
+                      No audio generated yet. Generate a beat to preview audio.
                     </div>
-                  </div>
-                ) : (
-                  <div style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    textAlign: 'center',
-                    color: 'rgba(255,255,255,0.5)',
-                    fontSize: '0.9rem'
-                  }}>
-                    No audio generated yet
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              {/* Visual Image Preview */}
+              {/* Visual Image Preview - Safe image handling */}
               <div style={{
                 background: 'rgba(236, 72, 153, 0.1)',
-                borderRadius: '12px',
-                padding: '16px',
+                borderRadius: '16px',
+                padding: '20px',
                 border: '1px solid rgba(236, 72, 153, 0.3)'
               }}>
-                <h3 style={{ margin: '0 0 12px', color: '#f472b6', fontSize: '0.95rem', fontWeight: '600' }}>
-                  🖼️ Cover Visual
-                </h3>
-                {mediaUrls.image ? (
-                  <div style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    borderRadius: '8px',
-                    padding: '8px',
-                    aspectRatio: '1'
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, color: '#f472b6', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ImageIcon size={18} />
+                    Cover Visual
+                  </h3>
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    background: safeMediaUrls.image ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
+                    color: safeMediaUrls.image ? '#22c55e' : 'rgba(255,255,255,0.5)'
                   }}>
+                    {safeMediaUrls.image ? '✓ Ready' : 'Pending'}
+                  </span>
+                </div>
+                <div style={{
+                  background: 'rgba(0,0,0,0.4)',
+                  borderRadius: '12px',
+                  padding: '8px',
+                  aspectRatio: '1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden'
+                }}>
+                  {safeMediaUrls.image ? (
                     <img
-                      src={formatImageSrc(mediaUrls.image)}
+                      src={formatImageSrc(safeMediaUrls.image)}
                       alt="Cover Art"
                       style={{
                         width: '100%',
                         height: '100%',
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         objectFit: 'cover'
                       }}
+                      onError={(e) => {
+                        console.warn('[Preview] Image load error');
+                        e.target.style.display = 'none';
+                      }}
                     />
-                  </div>
-                ) : (
-                  <div style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    borderRadius: '8px',
-                    padding: '24px',
-                    textAlign: 'center',
-                    color: 'rgba(255,255,255,0.5)',
-                    fontSize: '0.9rem',
-                    aspectRatio: '1',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    No image generated yet
-                  </div>
-                )}
+                  ) : (
+                    <div style={{
+                      textAlign: 'center',
+                      color: 'rgba(255,255,255,0.4)',
+                      fontSize: '0.9rem',
+                      fontStyle: 'italic'
+                    }}>
+                      No image generated yet
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Video Preview */}
+              {/* Video Preview - Safe video handling */}
               <div style={{
                 background: 'rgba(245, 158, 11, 0.1)',
-                borderRadius: '12px',
-                padding: '16px',
+                borderRadius: '16px',
+                padding: '20px',
                 border: '1px solid rgba(245, 158, 11, 0.3)'
               }}>
-                <h3 style={{ margin: '0 0 12px', color: '#fbbf24', fontSize: '0.95rem', fontWeight: '600' }}>
-                  🎬 Video Storyboard
-                </h3>
-                {mediaUrls.video ? (
-                  <div style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    borderRadius: '8px',
-                    padding: '8px',
-                    aspectRatio: '16/9'
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ margin: 0, color: '#fbbf24', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Video size={18} />
+                    Video
+                  </h3>
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    background: safeMediaUrls.video ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
+                    color: safeMediaUrls.video ? '#22c55e' : 'rgba(255,255,255,0.5)'
                   }}>
+                    {safeMediaUrls.video ? '✓ Ready' : 'Pending'}
+                  </span>
+                </div>
+                <div style={{
+                  background: 'rgba(0,0,0,0.4)',
+                  borderRadius: '12px',
+                  padding: '8px',
+                  aspectRatio: '16/9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden'
+                }}>
+                  {safeMediaUrls.video ? (
                     <video
-                      src={mediaUrls.video}
+                      src={safeMediaUrls.video}
                       controls
                       style={{
                         width: '100%',
                         height: '100%',
-                        borderRadius: '6px',
-                        objectFit: 'cover',
+                        borderRadius: '8px',
+                        objectFit: 'contain',
                         backgroundColor: '#000'
                       }}
+                      onError={(e) => console.warn('[Preview] Video load error:', e)}
                     />
-                  </div>
-                ) : (
-                  <div style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    borderRadius: '8px',
-                    padding: '24px',
-                    textAlign: 'center',
-                    color: 'rgba(255,255,255,0.5)',
-                    fontSize: '0.9rem',
-                    aspectRatio: '16/9',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    No video generated yet
-                  </div>
-                )}
+                  ) : (
+                    <div style={{
+                      textAlign: 'center',
+                      color: 'rgba(255,255,255,0.4)',
+                      fontSize: '0.9rem',
+                      fontStyle: 'italic'
+                    }}>
+                      No video generated yet
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -3790,36 +4044,45 @@ export default function StudioOrchestratorV2({
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: '12px',
-                fontSize: '0.85rem'
+                gap: '16px',
+                fontSize: '0.9rem'
               }}>
-                <div>
-                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '4px' }}>Lyrics</div>
-                  <div style={{ fontWeight: '600', color: '#a78bfa' }}>{outputs.lyrics?.length || 0} chars</div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '6px', fontSize: '0.8rem' }}>Lyrics</div>
+                  <div style={{ fontWeight: '700', color: '#a78bfa', fontSize: '1.1rem' }}>
+                    {safeOutputs.lyrics ? `${safeOutputs.lyrics.length} chars` : '—'}
+                  </div>
                 </div>
-                <div>
-                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '4px' }}>Audio</div>
-                  <div style={{ fontWeight: '600', color: '#22d3ee' }}>{mediaUrls.audio ? '✓ Ready' : 'Pending'}</div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '6px', fontSize: '0.8rem' }}>Audio</div>
+                  <div style={{ fontWeight: '700', color: '#22d3ee', fontSize: '1.1rem' }}>
+                    {safeMediaUrls.audio ? '✓ Ready' : '—'}
+                  </div>
                 </div>
-                <div>
-                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '4px' }}>Visual</div>
-                  <div style={{ fontWeight: '600', color: '#f472b6' }}>{mediaUrls.image ? '✓ Ready' : 'Pending'}</div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '6px', fontSize: '0.8rem' }}>Visual</div>
+                  <div style={{ fontWeight: '700', color: '#f472b6', fontSize: '1.1rem' }}>
+                    {safeMediaUrls.image ? '✓ Ready' : '—'}
+                  </div>
                 </div>
-                <div>
-                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '4px' }}>Video</div>
-                  <div style={{ fontWeight: '600', color: '#fbbf24' }}>{mediaUrls.video ? '✓ Ready' : 'Pending'}</div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '6px', fontSize: '0.8rem' }}>Video</div>
+                  <div style={{ fontWeight: '700', color: '#fbbf24', fontSize: '1.1rem' }}>
+                    {safeMediaUrls.video ? '✓ Ready' : '—'}
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', gap: '12px' }}>
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <button
                 onClick={() => setShowPreviewModal(false)}
                 style={{
                   flex: 1,
-                  padding: '12px',
-                  borderRadius: '10px',
+                  minWidth: '120px',
+                  padding: '14px',
+                  borderRadius: '12px',
                   background: 'rgba(255,255,255,0.1)',
                   border: '1px solid rgba(255,255,255,0.2)',
                   color: 'white',
@@ -3828,23 +4091,24 @@ export default function StudioOrchestratorV2({
                   fontSize: '0.95rem'
                 }}
               >
-                Close
+                Close Preview
               </button>
+              
               <button
                 onClick={() => {
                   setShowPreviewModal(false);
-                  handleCreateFinalMix();
+                  setShowCreateProject(true);
                 }}
-                disabled={creatingFinalMix}
                 style={{
                   flex: 1,
-                  padding: '12px',
-                  borderRadius: '10px',
-                  background: creatingFinalMix ? 'rgba(34, 197, 94, 0.3)' : 'rgba(34, 197, 94, 0.5)',
-                  border: '1px solid rgba(34, 197, 94, 0.6)',
-                  color: '#22c55e',
-                  fontWeight: '600',
-                  cursor: creatingFinalMix ? 'not-allowed' : 'pointer',
+                  minWidth: '140px',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: '700',
+                  cursor: 'pointer',
                   fontSize: '0.95rem',
                   display: 'flex',
                   alignItems: 'center',
@@ -3852,15 +4116,45 @@ export default function StudioOrchestratorV2({
                   gap: '8px'
                 }}
               >
+                <FolderPlus size={18} />
+                Save Project
+              </button>
+              
+              <button
+                onClick={() => {
+                  setShowPreviewModal(false);
+                  handleCreateFinalMix();
+                }}
+                disabled={creatingFinalMix || !Object.values(safeOutputs).some(Boolean)}
+                style={{
+                  flex: 1,
+                  minWidth: '140px',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  background: (creatingFinalMix || !Object.values(safeOutputs).some(Boolean)) 
+                    ? 'rgba(34, 197, 94, 0.2)' 
+                    : 'rgba(34, 197, 94, 0.5)',
+                  border: '1px solid rgba(34, 197, 94, 0.6)',
+                  color: '#22c55e',
+                  fontWeight: '600',
+                  cursor: (creatingFinalMix || !Object.values(safeOutputs).some(Boolean)) ? 'not-allowed' : 'pointer',
+                  fontSize: '0.95rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: !Object.values(safeOutputs).some(Boolean) ? 0.5 : 1
+                }}
+              >
                 {creatingFinalMix ? (
                   <>
                     <Loader2 size={16} className="spin" />
-                    Creating Final Mix...
+                    Creating...
                   </>
                 ) : (
                   <>
                     <Zap size={16} />
-                    Create Final Mix
+                    Final Mix
                   </>
                 )}
               </button>

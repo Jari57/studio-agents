@@ -59,12 +59,15 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  const handleEnterStudio = (shouldStartWizard = false, startOrchestrator = false) => {
-    console.log('[App] handleEnterStudio called, shouldStartWizard:', shouldStartWizard, 'startOrchestrator:', startOrchestrator);
+  const [initialTab, setInitialTab] = useState(null);
+
+  const handleEnterStudio = (shouldStartWizard = false, startOrchestrator = false, targetTab = null) => {
+    console.log('[App] handleEnterStudio called, shouldStartWizard:', shouldStartWizard, 'startOrchestrator:', startOrchestrator, 'targetTab:', targetTab);
     setStartWizard(shouldStartWizard);
     setStartOrchestrator(startOrchestrator);
     setStartTour(false);
     setInitialPlan(null);
+    setInitialTab(targetTab);
     console.log('[App] Setting hash to #/studio');
     window.location.hash = '#/studio';
   };
@@ -112,6 +115,7 @@ function App() {
             startOrchestrator={startOrchestrator}
             startTour={startTour}
             initialPlan={initialPlan}
+            initialTab={initialTab}
           />
         </Suspense>
       )}

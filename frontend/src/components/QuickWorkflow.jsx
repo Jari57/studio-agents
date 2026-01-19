@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Save, FolderPlus, ChevronRight, Mic, Copy, Check, Loader, Volume2, VolumeX } from 'lucide-react';
+import { X, Sparkles, Save, FolderPlus, ChevronRight, Mic, Copy, Check, Loader, Volume2, VolumeX, Lightbulb } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BACKEND_URL } from '../constants';
 import { useVoice } from '../hooks/useVoice';
@@ -29,6 +29,7 @@ function QuickWorkflow({
   const [showSaveOptions, setShowSaveOptions] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Global voice hook for VTT and TTV
   const { 
@@ -303,30 +304,44 @@ function QuickWorkflow({
             </div>
           </div>
 
-          {/* Quick Prompts */}
+          {/* Quick Prompts - Collapsible */}
           {quickPrompts.length > 0 && !output && (
-            <div style={{ marginBottom: '12px' }}>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>Try:</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {quickPrompts.map((ex, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPrompt(ex)}
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '0.7rem',
-                      background: 'var(--color-bg-tertiary)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '16px',
-                      color: 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {ex.length > 30 ? ex.substring(0, 30) + '...' : ex}
-                  </button>
-                ))}
-              </div>
+            <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setShowSuggestions(!showSuggestions)}
+                style={{
+                  padding: '5px 10px',
+                  borderRadius: '8px',
+                  background: showSuggestions ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: showSuggestions ? '#a855f7' : 'var(--text-secondary)',
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <Lightbulb size={12} />
+                {showSuggestions ? 'Hide' : 'Ideas'}
+              </button>
+              {showSuggestions && quickPrompts.map((ex, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setPrompt(ex); setShowSuggestions(false); }}
+                  style={{
+                    padding: '4px 10px',
+                    fontSize: '0.7rem',
+                    background: 'rgba(139, 92, 246, 0.15)',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    borderRadius: '16px',
+                    color: 'rgba(255,255,255,0.8)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {ex.length > 25 ? ex.substring(0, 25) + '...' : ex}
+                </button>
+              ))}
             </div>
           )}
 

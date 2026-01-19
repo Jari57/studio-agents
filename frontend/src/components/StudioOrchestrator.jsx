@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Sparkles, Mic2, FileText, Video, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, FolderPlus, X,
-  Loader2, Maximize2, Users, Eye
+  Loader2, Maximize2, Users, Eye, Lightbulb
 } from 'lucide-react';
 import { Plyr } from 'plyr-react';
 import 'plyr-react/plyr.css';
@@ -450,6 +450,7 @@ export default function StudioOrchestrator({
   const [activeTrack, setActiveTrack] = useState('hook'); // which track is in focus
   // const [playbackTime, setPlaybackTime] = useState(0); - reserved for timeline feature
   const [canvasMode, setCanvasMode] = useState('timeline'); // 'timeline', 'composition', or 'gallery'
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   const inputRef = useRef(null);
   
@@ -1185,22 +1186,38 @@ export default function StudioOrchestrator({
             </button>
           </div>
           
-          {/* Quick Examples */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginRight: '4px' }}>Try:</span>
-            {EXAMPLE_IDEAS.map((idea, i) => (
+          {/* Quick Examples - Collapsible */}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              onClick={() => setShowSuggestions(!showSuggestions)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '8px',
+                background: showSuggestions ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: showSuggestions ? '#a855f7' : 'var(--text-secondary)',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Lightbulb size={14} />
+              {showSuggestions ? 'Hide Ideas' : 'Need Ideas?'}
+            </button>
+            {showSuggestions && EXAMPLE_IDEAS.map((idea, i) => (
               <button
                 key={i}
-                onClick={() => setSongIdea(idea)}
+                onClick={() => { setSongIdea(idea); setShowSuggestions(false); }}
                 style={{
                   padding: '6px 14px',
                   borderRadius: '20px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'var(--text-secondary)',
+                  background: 'rgba(139, 92, 246, 0.15)',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  color: 'rgba(255,255,255,0.8)',
                   fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  cursor: 'pointer'
                 }}
               >
                 {idea}

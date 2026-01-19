@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, FolderPlus } from 'lucide-react';
+import { Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, FolderPlus, Lightbulb } from 'lucide-react';
 import { BACKEND_URL } from '../constants';
 import { useLazyLoadImages } from '../hooks/useLazyLoadImages';
 import { auth } from '../firebase';
@@ -166,6 +166,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
     pitch: null
   });
   const [masterOutput, setMasterOutput] = useState(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   // const [showSaveOptions, setShowSaveOptions] = useState(false); - reserved for future save feature
   
   const inputRef = useRef(null);
@@ -334,7 +335,9 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
       padding: '32px 24px',
       border: '1px solid rgba(139, 92, 246, 0.2)',
       maxWidth: '800px',
-      margin: '0 auto'
+      margin: '0 auto',
+      boxSizing: 'border-box',
+      overflow: 'hidden'
     }}>
       {/* Header */}
       <div style={{ textAlign: 'center', marginBottom: '24px' }}>
@@ -495,42 +498,56 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
           </button>
         </div>
         
-        {/* Quick Examples */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginRight: '4px' }}>Try:</span>
-          {EXAMPLE_IDEAS.map((idea, i) => (
-            <button
-              key={i}
-              onClick={() => handleExampleClick(idea)}
-              style={{
-                padding: '4px 12px',
-                borderRadius: '20px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: 'var(--text-secondary)',
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.target.style.background = 'rgba(139, 92, 246, 0.2)';
-                e.target.style.borderColor = 'rgba(139, 92, 246, 0.4)';
-                e.target.style.color = 'white';
-              }}
-              onMouseOut={(e) => {
-                e.target.style.background = 'rgba(255,255,255,0.05)';
-                e.target.style.borderColor = 'rgba(255,255,255,0.1)';
-                e.target.style.color = 'var(--text-secondary)';
-              }}
-            >
-              {idea}
-            </button>
-          ))}
+        {/* Suggestions Toggle Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => setShowSuggestions(!showSuggestions)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '8px',
+              background: showSuggestions ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: showSuggestions ? '#a855f7' : 'var(--text-secondary)',
+              fontSize: '0.75rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s'
+            }}
+          >
+            <Lightbulb size={14} />
+            {showSuggestions ? 'Hide Ideas' : 'Need Ideas?'}
+          </button>
+          
+          {/* Collapsible Quick Examples */}
+          {showSuggestions && (
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', animation: 'fadeIn 0.2s ease' }}>
+              {EXAMPLE_IDEAS.map((idea, i) => (
+                <button
+                  key={i}
+                  onClick={() => { handleExampleClick(idea); setShowSuggestions(false); }}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: '16px',
+                    background: 'rgba(139, 92, 246, 0.15)',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    color: 'rgba(255,255,255,0.8)',
+                    fontSize: '0.75rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {idea}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       
       {/* Agent Outputs Grid */}
-      <div style={{
+      <div className="agent-outputs-grid" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: '16px'

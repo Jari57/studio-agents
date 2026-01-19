@@ -81,7 +81,11 @@ function QuickStart({ onSelect, onClose }) {
       });
     }
     
-    setTimeout(() => setIsGenerating(false), 500);
+    // Close modal after a short delay to show loading feedback
+    setTimeout(() => {
+      setIsGenerating(false);
+      if (onClose) onClose();
+    }, 300);
   };
 
   const handleKeyPress = (e) => {
@@ -233,6 +237,9 @@ function QuickStart({ onSelect, onClose }) {
           width: 100%;
           max-height: 85vh;
           overflow-y: auto;
+          overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
         }
 
@@ -550,14 +557,16 @@ function QuickStart({ onSelect, onClose }) {
         @media (max-width: 767px) {
           .quickstart-overlay {
             padding: 0;
+            padding-bottom: env(safe-area-inset-bottom, 0);
             align-items: flex-end;
           }
 
           .quickstart-container {
             max-width: 100%;
             width: 100%;
-            max-height: 90vh;
+            max-height: calc(85vh - env(safe-area-inset-bottom, 0));
             padding: 20px;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom, 0));
             border-radius: 24px 24px 0 0;
             margin-bottom: 0;
           }
@@ -667,6 +676,8 @@ function QuickStart({ onSelect, onClose }) {
         @media (max-width: 479px) {
           .quickstart-container {
             padding: 16px;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
+            max-height: calc(80vh - env(safe-area-inset-bottom, 0));
           }
 
           .quickstart-title {
@@ -703,21 +714,40 @@ function QuickStart({ onSelect, onClose }) {
 
         /* ===== LANDSCAPE MODE ===== */
         @media (max-height: 600px) {
+          .quickstart-overlay {
+            align-items: center;
+            padding: 8px;
+          }
+
           .quickstart-container {
-            max-height: 95vh;
+            max-height: 90vh;
+            border-radius: 16px;
+          }
+
+          .quickstart-header {
+            margin-bottom: 16px;
           }
 
           .quickstart-goals {
             gap: 8px;
+            grid-template-columns: repeat(2, 1fr);
           }
 
           .quickstart-goal-card {
-            min-height: 100px;
-            padding: 14px;
+            min-height: 80px;
+            padding: 12px;
+          }
+
+          .goal-hint {
+            display: none;
           }
 
           .form-textarea {
-            min-height: 60px;
+            min-height: 50px;
+          }
+
+          .form-tips {
+            display: none;
           }
         }
 

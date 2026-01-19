@@ -460,8 +460,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [showAgentWhitepaper, setShowAgentWhitepaper] = useState(false);
   const [selectedWhitepaperAgent, setSelectedWhitepaperAgent] = useState(null);
   const [whitepaperTab, setWhitepaperTab] = useState('overview');
-  const statsRef = useRef(null);
-  const [statsVisible, setStatsVisible] = useState(false);
   
   // Investor Pitch Access Control - Email-based validation
   const [investorAccessUnlocked, setInvestorAccessUnlocked] = useState(() => {
@@ -537,9 +535,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   
   // Protected tabs that require access code
   const PROTECTED_TABS = ['traction', 'roadmap', 'financials'];
-  
-  // Animated counter for stats
-  const [animatedStats, setAnimatedStats] = useState({ songs: 0, hours: 0, saved: 0, artists: 0 });
 
   // Open agent whitepaper
   const openAgentWhitepaper = (agent) => {
@@ -565,40 +560,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       setShowCookieConsent(true);
     }
 
-    // Intersection observer for stats animation
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !statsVisible) {
-          setStatsVisible(true);
-          // Animate stats
-          const duration = 2000;
-          const steps = 60;
-          // Conservative, realistic estimates
-          const targets = { songs: 12000, hours: 35000, saved: 1200, artists: 2100 };
-          let step = 0;
-          const timer = setInterval(() => {
-            step++;
-            const progress = step / steps;
-            const eased = 1 - Math.pow(1 - progress, 3); // ease out cubic
-            setAnimatedStats({
-              songs: Math.round(targets.songs * eased),
-              hours: Math.round(targets.hours * eased),
-              saved: Math.round(targets.saved * eased),
-              artists: Math.round(targets.artists * eased)
-            });
-            if (step >= steps) clearInterval(timer);
-          }, duration / steps);
-        }
-      },
-      { threshold: 0.3 }
-    );
-    if (statsRef.current) observer.observe(statsRef.current);
-
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      observer.disconnect();
     };
-  }, [statsVisible]);
+  }, []);
 
   const acceptCookies = () => {
     localStorage.setItem('studio_cookie_consent', 'true');
@@ -690,7 +655,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             </button>
 
             <button
-              onClick={() => setShowMarketing(true)}
+              onClick={() => onEnter(false, false, 'resources')}
               className="glass-button haptic-press"
               style={{ 
                 width: '100%', 
@@ -706,26 +671,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               }}
             >
               <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>See What's Possible →</span>
-            </button>
-
-            <button
-              onClick={() => setShowInvestorPitch(true)}
-              className="glass-button haptic-press"
-              style={{ 
-                width: '100%', 
-                justifyContent: 'center', 
-                padding: '14px 24px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
-                border: '1px solid rgba(139, 92, 246, 0.4)',
-                borderRadius: '16px',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <Briefcase size={16} />
-              <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Investor Pitch Deck</span>
             </button>
 
           </div>
@@ -1241,138 +1186,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </div>
       </section>
 
-      {/* Consolidated: The Edge + What Artists Say */}
-      <section style={{ padding: '60px 20px', background: 'var(--color-bg-secondary)' }}>
-        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-          <div className="section-header" style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <div className="section-tag">The Edge</div>
-            <h2 className="section-title">
-              Why Artists <span className="gradient-text-purple-pink">Choose Us</span>
-            </h2>
-          </div>
-          
-          {/* Benefits Row */}
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(3, 1fr)', 
-            gap: '16px', 
-            marginBottom: '32px',
-            textAlign: 'center'
-          }}>
-            {[
-              { icon: Zap, title: 'Instant Output', desc: 'Seconds, not days' },
-              { icon: DollarSign, title: 'Save $4,700/yr', desc: 'Skip the middlemen' },
-              { icon: Shield, title: 'You Own It', desc: '100% your rights' }
-            ].map((item, idx) => {
-              const Icon = item.icon;
-              return (
-                <div key={idx} style={{
-                  padding: '16px 12px',
-                  background: 'rgba(255,255,255,0.03)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.08)'
-                }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '10px',
-                    background: 'var(--gradient-vibrant)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 10px'
-                  }}>
-                    <Icon size={20} className="text-white" />
-                  </div>
-                  <h4 style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '4px', color: 'white' }}>{item.title}</h4>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{item.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-          
-          {/* Stats Grid */}
-          <div ref={statsRef} style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '0',
-            marginBottom: '32px',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '12px',
-            overflow: 'hidden'
-          }}>
-            {[
-              { value: animatedStats.songs, label: 'Songs Created', suffix: '+' },
-              { value: animatedStats.hours, label: 'Hours Saved', suffix: '+' },
-              { value: animatedStats.saved, label: 'Avg Saved/Artist', prefix: '$' },
-              { value: animatedStats.artists, label: 'Active Artists', suffix: '+' }
-            ].map((stat, i) => (
-              <div key={i} style={{
-                padding: '20px 12px',
-                textAlign: 'center',
-                borderRight: i % 2 === 0 ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                borderBottom: i < 2 ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                background: 'rgba(255,255,255,0.02)'
-              }}>
-                <div style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '800',
-                  background: 'var(--gradient-vibrant)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  marginBottom: '2px'
-                }}>{stat.prefix}{stat.value.toLocaleString()}{stat.suffix}</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{stat.label}</div>
-              </div>
-            ))}
-          </div>
-          
-          {/* Divider */}
-          <div style={{ 
-            width: '60px', 
-            height: '2px', 
-            background: 'var(--gradient-vibrant)', 
-            margin: '0 auto 24px',
-            borderRadius: '2px'
-          }} />
-          
-          {/* Testimonials */}
-          <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>What Artists Say</span>
-          </div>
-          
-          {[
-            { quote: "Dropped my EP in 2 weeks instead of 6 months. Studio Agents is insane.", name: "@prodbylex", role: "45K Spotify Monthly" },
-            { quote: "I was stuck on writer's block for months. Ghostwriter unlocked me in one session.", name: "Mira Cole", role: "Indie R&B Artist" },
-            { quote: "The marketing agent alone saved me $3K in consultant fees.", name: "DJ Phantom", role: "Club DJ, Atlanta" }
-          ].map((t, i) => (
-            <div key={i} style={{
-              padding: '16px 20px',
-              background: 'rgba(255,255,255,0.03)',
-              borderRadius: '14px',
-              border: '1px solid rgba(255,255,255,0.08)',
-              marginBottom: '12px'
-            }}>
-              <p style={{ fontSize: '0.95rem', lineHeight: '1.5', marginBottom: '10px', color: 'white', fontStyle: 'italic' }}>
-                "{t.quote}"
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ 
-                  width: '32px', 
-                  height: '32px', 
-                  borderRadius: '50%', 
-                  background: 'var(--gradient-vibrant)'
-                }} />
-                <div>
-                  <div style={{ fontWeight: '600', fontSize: '0.85rem' }}>{t.name}</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{t.role}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
       {/* Pricing Section */}
       <section className="pricing-section">
         <div className="section-header">
@@ -1580,6 +1393,35 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           <ArrowRight size={24} />
         </button>
       </section>
+
+      {/* Investor Pitch Button - Moved to bottom */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        padding: '24px 20px',
+        background: 'rgba(0,0,0,0.3)'
+      }}>
+        <button
+          onClick={() => setShowInvestorPitch(true)}
+          className="glass-button haptic-press"
+          style={{ 
+            maxWidth: '400px',
+            width: '100%', 
+            justifyContent: 'center', 
+            padding: '14px 24px',
+            background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
+            border: '1px solid rgba(139, 92, 246, 0.4)',
+            borderRadius: '16px',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Briefcase size={16} />
+          <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Investor Pitch Deck</span>
+        </button>
+      </div>
 
       {/* Footer */}
       <footer className="main-footer">

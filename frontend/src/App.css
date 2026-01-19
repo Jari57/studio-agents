@@ -307,6 +307,21 @@ select optgroup {
   box-shadow: 0 6px 16px rgba(168, 85, 247, 0.4);
 }
 
+/* Responsive btn-pill sizing */
+@media (max-width: 640px) {
+  .btn-pill {
+    min-height: 40px;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8rem;
+  }
+  
+  .btn-pill svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+}
+
 /* --- Mobile & Pop Enhancements --- */
 @media (max-width: 768px) {
   .studio-container {
@@ -322,9 +337,10 @@ select optgroup {
   }
 
   .cta-button-premium, .cta-button-secondary {
-    min-height: 48px; /* Larger touch target */
-    font-size: 1rem;
+    min-height: 44px; /* Touch target */
+    font-size: 0.9rem;
     border-radius: 12px;
+    padding: 0.5rem 0.75rem;
   }
 
   .studio-nav {
@@ -1871,6 +1887,7 @@ select optgroup {
     margin-bottom: 0.75rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
@@ -2889,6 +2906,13 @@ select optgroup {
   transition: all 0.2s;
   text-align: left;
   white-space: nowrap;
+}
+
+/* Consistent icon sizing in sidebar nav */
+.nav-link svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .nav-link:hover {
@@ -3918,7 +3942,13 @@ select optgroup {
 .action-button.secondary {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
+}
+
+/* Consistent icon sizing in action buttons - matches sidebar nav (20px) */
+.action-button svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .studio-content {
@@ -3932,7 +3962,7 @@ select optgroup {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
-  max-width: 975px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -3941,7 +3971,7 @@ select optgroup {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
-  max-width: 975px;
+  max-width: 100%;
   margin: 0 auto 24px;
 }
 
@@ -4402,8 +4432,8 @@ select optgroup {
   }
 
   .studio-header-actions .action-button svg {
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
   }
 
   .studio-header-actions .action-button.secondary {
@@ -5837,6 +5867,7 @@ select optgroup {
 .news-card-text.preview {
   display: -webkit-box;
   -webkit-line-clamp: 4;
+  line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -5985,6 +6016,79 @@ select optgroup {
   margin-top: 2rem;
   font-size: 0.75rem;
   color: #4b5563;
+}
+
+/* ===== MODAL ACTION BUTTONS - Consistent Sizing ===== */
+.modal-actions,
+.modal-footer-actions,
+.preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Icon circle buttons in modals (Copy, Download, Fullscreen) */
+.btn-icon-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.btn-icon-circle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.btn-icon-circle:active {
+  transform: scale(0.95);
+}
+
+.btn-icon-circle.glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.btn-icon-circle svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Mobile: Slightly larger touch targets for modal buttons */
+@media (max-width: 640px) {
+  .btn-icon-circle {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  
+  .btn-icon-circle svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .modal-actions,
+  .modal-footer-actions,
+  .preview-actions {
+    width: 100%;
+    justify-content: space-between;
+    padding: 0;
+  }
 }
 
 .cta-button-secondary {
@@ -6220,8 +6324,47 @@ select optgroup {
 
 .generation-actions {
   display: flex;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0;
+}
+
+/* Mobile responsive generation actions */
+@media (max-width: 640px) {
+  .generation-actions {
+    flex-direction: column;
+    gap: 0.375rem;
+    padding: 0;
+  }
+  
+  .generation-actions button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .generation-actions .cta-button-premium,
+  .generation-actions .cta-button-secondary,
+  .generation-actions .btn-pill {
+    flex: none;
+    width: 100%;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 900px) {
+  .generation-actions {
+    flex-wrap: wrap;
+    padding: 0;
+  }
+  
+  .generation-actions button {
+    min-width: fit-content;
+    flex: 1 1 auto;
+    padding: 0.5rem 0.75rem;
+  }
 }
 
 .external-storage-grid {
@@ -6732,6 +6875,7 @@ select optgroup {
     margin-bottom: 0.75rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
@@ -7419,12 +7563,12 @@ select optgroup {
 }
 
 .bottom-nav-item svg {
-  transition: transform 0.15s ease;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
 }
 
-.bottom-nav-item.active svg {
-  transform: scale(1.1);
-}
+/* Active state uses same size for consistency - no scaling */
 
 /* Improved haptic feedback for all interactive elements */
 .haptic-press {
@@ -8483,6 +8627,7 @@ html, body {
     font-size: 0.7rem !important;
     line-height: 1.3 !important;
     -webkit-line-clamp: 2 !important;
+    line-clamp: 2 !important;
     display: -webkit-box !important;
     -webkit-box-orient: vertical !important;
     overflow: hidden !important;
@@ -10023,15 +10168,30 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
 .generation-actions .cta-button-premium {
   flex: 1;
   min-width: 0;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 700;
-  padding: 0.875rem 1.5rem;
+  padding: 0.5rem 0.75rem;
+  white-space: nowrap;
 }
 
 .generation-actions .cta-button-secondary {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 600;
-  padding: 0.875rem 1.25rem;
+  padding: 0.5rem 0.75rem;
+  white-space: nowrap;
+}
+
+/* Tablet: Compact buttons */
+@media (max-width: 1024px) {
+  .generation-actions .cta-button-premium {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.85rem;
+  }
+  
+  .generation-actions .cta-button-secondary {
+    padding: 0.5rem 0.625rem;
+    font-size: 0.8rem;
+  }
 }
 
 /* Agent grid launch buttons - BASE STYLES */
@@ -10431,6 +10591,186 @@ html, body, #root {
     flex: 1 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
+  }
+}
+
+/* ========================================
+   MULTI-AGENT DEMO - Mobile Responsive
+   ======================================== */
+
+.multi-agent-demo {
+  overflow: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Agent outputs grid responsive */
+.agent-outputs-grid {
+  display: grid;
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .multi-agent-demo {
+    padding: 20px 16px !important;
+    border-radius: 16px !important;
+  }
+  
+  /* Header text */
+  .multi-agent-demo h3 {
+    font-size: 1.25rem !important;
+  }
+  
+  /* Configuration dropdowns - stack vertically */
+  .multi-agent-demo > div > div:first-of-type {
+    flex-direction: column !important;
+  }
+  
+  .multi-agent-demo select {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    font-size: 0.9rem !important;
+  }
+  
+  /* Input + Generate button row */
+  .multi-agent-demo input[type="text"] {
+    padding: 12px 14px !important;
+    font-size: 0.95rem !important;
+    min-width: 0 !important;
+  }
+  
+  .multi-agent-demo button {
+    padding: 12px 16px !important;
+    font-size: 0.85rem !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+  
+  /* Agent output grid - single column on mobile */
+  .agent-outputs-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  /* AMO Master Output section */
+  .multi-agent-demo > div:last-of-type[style*="margin-top"] {
+    padding: 16px !important;
+    margin-top: 16px !important;
+  }
+  
+  /* Quick examples - allow wrapping */
+  .multi-agent-demo > div > div[style*="flexWrap"] button {
+    padding: 4px 10px !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .multi-agent-demo {
+    padding: 16px 12px !important;
+  }
+  
+  .multi-agent-demo h3 {
+    font-size: 1.1rem !important;
+  }
+  
+  /* Make input row stack on very small screens */
+  .multi-agent-demo > div > div[style*="display: 'flex'"][style*="gap: '12px'"] {
+    flex-wrap: wrap !important;
+  }
+  
+  .multi-agent-demo input[type="text"] {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+  
+  .multi-agent-demo button[style*="padding: '14px 24px'"] {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ========================================
+   LEGAL RESOURCES MODAL - Mobile Responsive
+   ======================================== */
+
+@media (max-width: 768px) {
+  /* Legal modal and whitepaper modal grids - force single column */
+  .modal-body > div[style*="gridTemplateColumns"],
+  .modal-body > div[style*="grid-template-columns"],
+  .modal-content .modal-body > div > div[style*="grid"] {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  /* Resource cards in modals */
+  .modal-body .resource-card,
+  .resource-card.legal,
+  .resource-card.whitepaper {
+    padding: 16px !important;
+  }
+  
+  .modal-body .resource-card h3,
+  .resource-card.legal h3,
+  .resource-card.whitepaper h3 {
+    font-size: 0.95rem !important;
+  }
+  
+  .modal-body .resource-card p,
+  .resource-card.legal p,
+  .resource-card.whitepaper p {
+    font-size: 0.8rem !important;
+    line-height: 1.4 !important;
+  }
+  
+  /* Card icons in modals */
+  .modal-body div[style*="width: '48px'"][style*="height: '48px'"] {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  /* Type badges in modals */
+  .modal-body div[style*="position: 'absolute'"][style*="top: '12px'"] {
+    padding: 2px 6px !important;
+    font-size: 0.6rem !important;
+  }
+  
+  /* Modal header text */
+  .modal-header h2 {
+    font-size: 1.2rem !important;
+  }
+  
+  .modal-header p {
+    font-size: 0.8rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-body > div[style*="gridTemplateColumns"],
+  .modal-body > div[style*="grid-template-columns"] {
+    gap: 10px !important;
+  }
+  
+  .modal-body .resource-card,
+  .resource-card.legal,
+  .resource-card.whitepaper {
+    padding: 14px !important;
+  }
+  
+  .modal-body .resource-card h3,
+  .resource-card.legal h3,
+  .resource-card.whitepaper h3 {
+    font-size: 0.9rem !important;
+  }
+  
+  /* Modal header icon container */
+  .modal-header > div > div[style*="padding: '12px'"] {
+    padding: 10px !important;
+  }
+  
+  .modal-header h2 {
+    font-size: 1.1rem !important;
   }
 }
 
