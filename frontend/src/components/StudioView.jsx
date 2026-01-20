@@ -1209,15 +1209,38 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             toast.success('Welcome, Administrator!', { icon: '🔐' });
           }
           
-          // Fetch credits from Firestore (non-admins)
+          // Fetch credits AND subscription plan from Firestore (non-admins)
           if (db && !adminStatus) {
             try {
               const userRef = doc(db, 'users', currentUser.uid);
               const userDoc = await getDoc(userRef);
               if (userDoc.exists()) {
-                const credits = userDoc.data().credits || 0;
+                const userData = userDoc.data();
+                const credits = userData.credits || 0;
                 setUserCredits(credits);
                 setUserProfile(prev => ({ ...prev, credits }));
+                
+                // Load subscription plan from Firestore
+                // Backend saves: tier, subscriptionTier, subscriptionStatus
+                if (userData.subscriptionStatus === 'active' && userData.tier) {
+                  // Map backend tier names to frontend plan names
+                  const tierMap = { 'creator': 'monthly', 'studio': 'pro', 'lifetime': 'lifetime' };
+                  const planName = tierMap[userData.tier] || userData.tier;
+                  setUserPlan(planName);
+                  localStorage.setItem('studio_user_plan', planName);
+                  console.log('[Auth] Subscription loaded:', planName, 'from tier:', userData.tier);
+                } else if (userData.plan) {
+                  // Fallback to plan field if set directly
+                  setUserPlan(userData.plan);
+                  localStorage.setItem('studio_user_plan', userData.plan);
+                  console.log('[Auth] User plan loaded from Firestore:', userData.plan);
+                } else if (userData.subscription?.status === 'active') {
+                  // Legacy format support
+                  const planName = userData.subscription.plan || 'monthly';
+                  setUserPlan(planName);
+                  localStorage.setItem('studio_user_plan', planName);
+                  console.log('[Auth] Legacy subscription format loaded:', planName);
+                }
               }
               
               // Load and merge projects from cloud
