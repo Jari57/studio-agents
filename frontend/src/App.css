@@ -8492,8 +8492,10 @@ input:checked + .slider:before {
 /* Global Horizontal Overflow Fix */
 html, body {
   overflow-x: hidden;
+  overflow-y: auto !important;
   width: 100%;
   position: relative;
+  height: auto;
 }
 
 @media (max-width: 768px) {
