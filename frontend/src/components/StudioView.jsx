@@ -3320,9 +3320,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 <span className="date">Created {selectedProject.date}</span>
               </div>
             </div>
-            <div className="header-actions">
+            <div className="header-actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button 
+                className="btn-pill" 
+                style={{ background: 'rgba(168, 85, 247, 0.15)', color: 'var(--color-purple)' }}
+                onClick={() => setShowOrchestrator(true)}
+              >
+                <Sparkles size={16} /> Add Assets
+              </button>
               <button className="btn-pill primary" onClick={() => setActiveTab('agents')}>
-                <Zap size={16} /> Open Studio
+                <Zap size={16} /> Browse Agents
               </button>
             </div>
           </div>
@@ -3747,13 +3754,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                  </span>
                </h3>
                
-               <div style={{ display: 'flex', gap: '12px' }}>
+               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <button 
                     className="btn-pill" 
                     style={{ fontSize: '0.85rem', padding: '8px 16px' }}
                     onClick={() => setShowOrchestrator(true)}
                   >
                     <Sparkles size={14} /> Generate New
+                  </button>
+                  <button 
+                    className="btn-pill" 
+                    style={{ fontSize: '0.85rem', padding: '8px 16px', background: 'rgba(6, 182, 212, 0.15)', color: 'var(--color-cyan)' }}
+                    onClick={() => setActiveTab('agents')}
+                  >
+                    <Users size={14} /> Use Agent
                   </button>
                </div>
              </div>
