@@ -9577,6 +9577,23 @@ html, body {
     grid-template-columns: 1fr;
   }
   
+  /* Resources cards - 2x2 grid on mobile */
+  .resources-cards-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+  
+  .resources-cards-grid > div {
+    padding: 20px 14px !important;
+    min-height: 150px !important;
+    border-radius: 16px !important;
+  }
+  
+  .resources-cards-grid > div > div:first-child {
+    width: 56px !important;
+    height: 56px !important;
+  }
+  
   .sitemap-container {
     grid-template-columns: 1fr;
     gap: 1.5rem;

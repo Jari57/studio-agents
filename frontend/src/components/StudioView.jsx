@@ -7146,11 +7146,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               <p>Quick access to all studio features and tools.</p>
             </div>
 
-            {/* Quick Navigation Cards - 8 cards grid */}
-            <div style={{ 
+            {/* Quick Navigation Cards - 4x4 on desktop, 2x2 on mobile */}
+            <div className="resources-cards-grid" style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', 
-              gap: '16px',
+              gridTemplateColumns: 'repeat(4, 1fr)', 
+              gap: '20px',
               marginBottom: '32px'
             }}>
               {quickNavItems.map(item => {
@@ -7165,15 +7165,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     style={{
                       background: 'var(--card-bg)',
                       border: '1px solid var(--border-color)',
-                      borderRadius: '16px',
-                      padding: '20px 16px',
+                      borderRadius: '20px',
+                      padding: '28px 20px',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       textAlign: 'center',
-                      gap: '12px'
+                      gap: '16px',
+                      minHeight: '180px'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = item.color;
@@ -7187,15 +7188,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     }}
                   >
                     <div style={{
-                      width: '56px',
-                      height: '56px',
-                      borderRadius: '14px',
+                      width: '70px',
+                      height: '70px',
+                      borderRadius: '18px',
                       background: `${item.color}15`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}>
-                      <Icon size={28} style={{ color: item.color }} />
+                      <Icon size={34} style={{ color: item.color }} />
                     </div>
                     <div>
                       <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '600', color: 'var(--text-primary)' }}>{item.label}</h4>
