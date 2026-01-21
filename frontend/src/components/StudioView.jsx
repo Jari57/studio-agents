@@ -75,26 +75,8 @@ const onboardingSteps = [
   {
     id: 'welcome',
     title: "Welcome to The Studio",
-    content: "Your creative control room—16 AI agents that give independent creators the tools that used to require a label deal.",
-    detail: "Take 60 seconds to set up your workspace, and you'll get 10x more value out of every session."
-  },
-  {
-    id: 'setup',
-    title: "Quick Setup",
-    content: "Tell us who you are and what you're working on.",
-    detail: "This helps us tailor the studio to your sound and pre-select the right agents for your goal."
-  },
-  {
-    id: 'agents',
-    title: "Your AI Team",
-    content: "Based on your goal, we've selected these agents.",
-    detail: "You can always add or remove agents later. These are just your starting lineup."
-  },
-  {
-    id: 'ready',
-    title: "You're All Set!",
-    content: "Your studio is ready. Start creating.",
-    detail: "Explore the agents tab, or jump straight into your first project."
+    content: "16 AI agents ready to help you write, produce, and grow your music career.",
+    detail: "Pick an agent to start. That's it."
   }
 ];
 
@@ -214,7 +196,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [backingTrack, setBackingTrack] = useState(null); // For vocal sync
   const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // Initialize isLoggedIn from localStorage to avoid login gate while Firebase is checking
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('studio_user_id'));
   const [authChecking, setAuthChecking] = useState(true); // Track if we're still checking auth state
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
@@ -734,66 +717,28 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   }, [startWizard]);
 
-  const completeOnboarding = (launchRecommended = false) => {
+  const completeOnboarding = () => {
     localStorage.setItem('studio_onboarding_v3', 'true');
     setShowOnboarding(false);
     
-    // Create project directly from onboarding data
-    const recommendedAgents = getRecommendedAgents();
-    const agentObjects = recommendedAgents.map(id => AGENTS.find(a => a.id === id)).filter(Boolean);
-    
-    const newProject = {
-      id: String(Date.now()),
-      name: userProfile.stageName ? `${userProfile.stageName}'s Project` : `Project ${projects.length + 1}`,
-      category: selectedPath === 'write' ? 'pro' : selectedPath === 'produce' ? 'vybing' : selectedPath === 'grow' ? 'social' : 'mixtapes',
-      description: `Created from ${selectedPath || 'explore'} goal`,
-      agents: agentObjects,
-      workflow: 'custom',
-      date: new Date().toLocaleDateString(),
-      status: 'Active',
-      progress: 0,
-      assets: [],
-      context: {}
-    };
-
-    setProjects(prev => [newProject, ...prev]);
-    setSelectedProject(newProject);
-    
-    // Prompt login if not logged in
-    if (!isLoggedIn) {
-      setShowLoginModal(true);
-    }
-    
-    // Take user to agents tab (agent-first experience)
+    // Go straight to agents tab - no project creation, no complexity
     setActiveTab('agents');
-    
-    // If launching recommended agent, open it directly
-    if (launchRecommended && agentObjects.length > 0) {
-      setSelectedAgent(agentObjects[0]);
-      safeVoiceAnnounce(`Welcome! Launching ${agentObjects[0].name} to get you started.`);
-    } else {
-      safeVoiceAnnounce('Welcome to your studio. Pick an agent to start creating.');
-    }
+    safeVoiceAnnounce('Welcome to your studio. Pick an agent to start creating.');
   };
 
   const handleSkipOnboarding = () => {
     localStorage.setItem('studio_onboarding_v3', 'true');
     setShowOnboarding(false);
-    // Just let them explore
+    setActiveTab('agents');
   };
 
   // Project Wizard State
-  // Note: If startWizard is true (from landing page), we show the choice modal instead
-  // so users always get the choice between wizard and manual creation
+  // Project wizard is ONLY shown when user explicitly clicks "Create Project"
   const [showProjectWizard, setShowProjectWizard] = useState(false);
   const [projectWizardStep, setProjectWizardStep] = useState(1);
   
-  // If startWizard prop is true, open the project wizard on mount
-  useEffect(() => {
-    if (startWizard) {
-      setShowProjectWizard(true);
-    }
-  }, [startWizard]);
+  // startWizard prop is deprecated - we no longer auto-open wizard from landing page
+  // Users go straight to agents tab and can click "Create Project" when ready
 
   // If startOrchestrator prop is true, open the AI orchestrator directly
   useEffect(() => {
@@ -8535,8 +8480,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Demo mode state for banner visibility
   const [showDemoBanner, setShowDemoBanner] = useState(getDemoModeState());
 
-  // AUTH GATE: Show loading while checking auth, then require login
-  if (authChecking) {
+  // AUTH GATE: Show loading only if checking auth AND user wasn't previously logged in
+  // This prevents the loading flash for returning users
+  if (authChecking && !isLoggedIn) {
     return (
       <div className={`studio-container ${theme}-theme`} style={{
         display: 'flex',
@@ -8561,8 +8507,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     );
   }
 
-  // AUTH GATE: If not logged in, show login prompt
-  if (!isLoggedIn) {
+  // AUTH GATE: If not logged in AND auth check complete, show login prompt
+  if (!isLoggedIn && !authChecking) {
     return (
       <div className={`studio-container ${theme}-theme`} style={{
         display: 'flex',
@@ -12003,264 +11949,52 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         </div>
       )}
 
-      {/* Onboarding Modal */}
+      {/* Onboarding Modal - Simple Welcome */}
       {showOnboarding && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}>
-          <div className="modal-content onboarding-modal" style={{ maxWidth: 'min(92vw, 750px)', width: '100%', padding: 0, margin: '1rem auto' }}>
-            {/* Progress Bar */}
-            <div style={{ height: '4px', background: 'var(--color-bg-tertiary)', width: '100%' }}>
-              <div style={{ 
-                height: '100%', 
-                background: 'var(--color-purple)', 
-                width: `${((onboardingStep + 1) / onboardingSteps.length) * 100}%`,
-                transition: 'width 0.3s ease'
-              }}></div>
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content onboarding-modal" style={{ maxWidth: '500px', width: '90%', padding: '40px', textAlign: 'center' }}>
+            <button 
+              onClick={handleSkipOnboarding}
+              style={{ 
+                position: 'absolute',
+                top: '16px', 
+                right: '16px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'white',
+                padding: 0
+              }}
+            >
+              <X size={20} />
+            </button>
+
+            <div style={{ marginBottom: '32px' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎧</div>
+              <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>
+                {onboardingSteps[0].title}
+              </h2>
+              <p style={{ fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '8px', lineHeight: '1.6' }}>
+                {onboardingSteps[0].content}
+              </p>
+              <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                {onboardingSteps[0].detail}
+              </p>
             </div>
 
-            <div style={{ padding: '32px', position: 'relative' }}>
-              {/* Skip and Close buttons - properly spaced */}
-              <button 
-                onClick={handleSkipOnboarding}
-                style={{ 
-                  position: 'absolute',
-                  top: '20px', 
-                  right: '70px',
-                  background: 'none', 
-                  border: 'none', 
-                  color: 'var(--text-secondary)', 
-                  fontSize: '0.9rem', 
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                  zIndex: 10
-                }}
-              >
-                Skip
-              </button>
-              <button 
-                onClick={() => setShowOnboarding(false)}
-                style={{ 
-                  position: 'absolute',
-                  top: '16px', 
-                  right: '20px',
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  borderRadius: '50%',
-                  width: '36px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  color: 'white',
-                  zIndex: 10,
-                  padding: 0
-                }}
-              >
-                <X size={20} />
-              </button>
-
-              <div style={{ marginBottom: '24px' }}>
-                <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-purple)' }}>
-                  Step {onboardingStep + 1} of {onboardingSteps.length}
-                </span>
-                <h2 style={{ fontSize: '2rem', marginTop: '8px', marginBottom: '16px' }}>
-                  {onboardingSteps[onboardingStep].title}
-                </h2>
-                <p style={{ fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '16px', lineHeight: '1.6' }}>
-                  {onboardingSteps[onboardingStep].content}
-                </p>
-                <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                  {onboardingSteps[onboardingStep].detail}
-                </p>
-              </div>
-
-              {/* Step 1: Profile Setup */}
-              {onboardingStep === 1 && (
-                <div className="profile-setup-step animate-fadeInUp" style={{ marginTop: '24px' }}>
-                  <div className="form-group" style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>
-                      Stage Name <span style={{ color: 'var(--color-purple)' }}>*</span>
-                    </label>
-                    <input 
-                      type="text" 
-                      className="search-input" 
-                      placeholder="e.g. The Weeknd, J. Cole"
-                      value={userProfile.stageName}
-                      onChange={(e) => setUserProfile({...userProfile, stageName: e.target.value})}
-                      autoFocus
-                      style={{ 
-                        width: '100%', 
-                        padding: '12px', 
-                        fontSize: '1.1rem', 
-                        background: 'rgba(255,255,255,0.05)', 
-                        border: userProfile.stageName ? '1px solid var(--color-purple)' : '1px solid var(--border-color)', 
-                        borderRadius: '8px', 
-                        color: 'white' 
-                      }}
-                    />
-                    {!userProfile.stageName && (
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                        Required to personalize your experience
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="form-group" style={{ marginBottom: '20px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Primary Genre</label>
-                    <div className="genre-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      {['Hip Hop', 'R&B', 'Pop', 'Electronic', 'Rock', 'Afrobeats'].map(genre => (
-                        <button
-                          key={genre}
-                          onClick={() => setUserProfile({...userProfile, genre})}
-                          style={{
-                            padding: '10px',
-                            borderRadius: '8px',
-                            border: userProfile.genre === genre ? '1px solid var(--color-purple)' : '1px solid var(--border-color)',
-                            background: userProfile.genre === genre ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
-                            color: userProfile.genre === genre ? 'white' : 'var(--text-secondary)',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          {genre}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div className="form-group">
-                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Target Demographic</label>
-                      <select 
-                        className="studio-select"
-                        value={userProfile.targetDemographic || 'Gen Z'}
-                        onChange={(e) => setUserProfile({...userProfile, targetDemographic: e.target.value})}
-                        style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'white' }}
-                      >
-                        <option>Gen Z</option>
-                        <option>Millennials</option>
-                        <option>Gen X</option>
-                        <option>Global</option>
-                        <option>Niche / Underground</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Language</label>
-                      <select 
-                        className="studio-select"
-                        value={userProfile.language || 'English'}
-                        onChange={(e) => setUserProfile({...userProfile, language: e.target.value})}
-                        style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: 'white' }}
-                      >
-                        <option>English</option>
-                        <option>Spanish</option>
-                        <option>French</option>
-                        <option>German</option>
-                        <option>Portuguese</option>
-                        <option>Japanese</option>
-                        <option>Korean</option>
-                        <option>Mandarin</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 2: Path Selection */}
-              {onboardingStep === 2 && (
-                <div className="path-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', marginTop: '24px' }}>
-                  {(goalOptions || []).map(path => (
-                    <div 
-                      key={path.id}
-                      onClick={() => setSelectedPath(path.id)}
-                      className={`path-card ${selectedPath === path.id ? 'selected' : ''}`}
-                      style={{
-                        padding: '16px',
-                        background: selectedPath === path.id ? 'rgba(168, 85, 247, 0.15)' : 'var(--color-bg-tertiary)',
-                        border: selectedPath === path.id ? '1px solid var(--color-purple)' : '1px solid transparent',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      <path.icon size={24} style={{ color: selectedPath === path.id ? 'var(--color-purple)' : 'var(--text-secondary)', marginBottom: '12px' }} />
-                      <h4 style={{ fontSize: '0.95rem', marginBottom: '4px' }}>{path.label}</h4>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{path.description}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Step 3: Recommendation */}
-              {onboardingStep === 3 && selectedPath && (
-                <div className="recommendation-box animate-fadeInUp" style={{ marginTop: '24px', padding: '20px', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-                  {(() => {
-                    const recId = getRecommendation();
-                    if (!recId) return <p>Explore the studio freely!</p>;
-                    const agent = AGENTS.find(a => a.id === recId);
-                    const details = agentDetails[recId];
-                    return (
-                      <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                        <div style={{ background: 'var(--color-purple)', padding: '12px', borderRadius: '12px', color: 'white' }}>
-                          {agent ? <agent.icon size={24} /> : <Sparkles size={24} />}
-                        </div>
-                        <div>
-                          <h4 style={{ fontSize: '1.1rem', marginBottom: '4px' }}>Recommended: {details?.title || agent?.name}</h4>
-                          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>{details?.tagline}</p>
-                          <p style={{ fontSize: '0.9rem', lineHeight: '1.5' }}>{details?.description?.substring(0, 150)}...</p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              <div className="modal-footer" style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button 
-                  className="btn-ghost" 
-                  onClick={() => setOnboardingStep(prev => Math.max(0, prev - 1))}
-                  disabled={onboardingStep === 0}
-                  style={{ opacity: onboardingStep === 0 ? 0 : 1 }}
-                >
-                  Back
-                </button>
-                
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  {/* Hint for required fields */}
-                  {onboardingStep === 1 && !userProfile.stageName && (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginRight: '8px' }}>
-                      Enter stage name to continue
-                    </span>
-                  )}
-                  {onboardingStep === 2 && !selectedPath && (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginRight: '8px' }}>
-                      Select a path to continue
-                    </span>
-                  )}
-                  
-                  {onboardingStep < onboardingSteps.length - 1 ? (
-                    <button 
-                      className="cta-button-premium"
-                      onClick={() => setOnboardingStep(prev => prev + 1)}
-                      disabled={(onboardingStep === 2 && !selectedPath) || (onboardingStep === 1 && !userProfile.stageName)}
-                      style={{ 
-                        opacity: ((onboardingStep === 2 && !selectedPath) || (onboardingStep === 1 && !userProfile.stageName)) ? 0.5 : 1,
-                        cursor: ((onboardingStep === 2 && !selectedPath) || (onboardingStep === 1 && !userProfile.stageName)) ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      Next Step
-                    </button>
-                  ) : (
-                    <button 
-                      className="cta-button-premium"
-                      onClick={completeOnboarding}
-                    >
-                      Enter Studio
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+            <button 
+              className="cta-button-premium"
+              onClick={completeOnboarding}
+              style={{ width: '100%', padding: '16px', fontSize: '1.1rem' }}
+            >
+              Enter Studio →
+            </button>
           </div>
         </div>
       )}
