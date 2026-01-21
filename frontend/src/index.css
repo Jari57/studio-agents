@@ -331,6 +331,12 @@ body.modal-open {
   width: 100%;
 }
 
+/* Ensure landing page can scroll when no modal is open */
+body:not(.modal-open) {
+  overflow-y: auto !important;
+  position: static !important;
+}
+
 @media (pointer: coarse) {
   button, a, [role="button"] {
     min-height: 44px;
