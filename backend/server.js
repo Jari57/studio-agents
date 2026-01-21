@@ -4921,40 +4921,51 @@ const fetchRedditMusic = async () => {
   }
 };
 
-// Fetch YouTube trending music (using RSS feed - no API key needed)
+// Fetch YouTube music content (using channel RSS feeds - no API key needed)
 const fetchYouTubeTrending = async () => {
   try {
-    // YouTube Music trending RSS feeds
-    const feeds = [
-      { url: 'https://www.youtube.com/feeds/videos.xml?playlist_id=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf', name: 'Trending Music' },
-      { url: 'https://www.youtube.com/feeds/videos.xml?playlist_id=PL4fGSI1pDJn5rWitrRWFKdm-ulaFiIyoK', name: 'New Music' }
+    // Active music channels that post frequently - using channel RSS feeds
+    const channels = [
+      { channelId: 'UC-9-kyTW8ZkZNDHQJ6FgpwQ', name: 'Music', category: 'Official Charts' }, // YouTube Music
+      { channelId: 'UCk1SpWNzOs4MYmr0uICEntg', name: 'Rap City', category: 'Hip-Hop' },
+      { channelId: 'UCIwFjwMjI0y7PDBVEO9-bkQ', name: 'Lyrical Lemonade', category: 'Hip-Hop' },
+      { channelId: 'UC2pmfLm7iq6Ov1UwYrWYkZA', name: 'Genius', category: 'Behind the Lyrics' },
+      { channelId: 'UCnSp1ABVZPzq2Vx-mIhRnjQ', name: 'Complex', category: 'Culture' },
+      { channelId: 'UCqhMTbpnt7gN9dmJXmgLYgA', name: 'Trap Nation', category: 'EDM/Trap' },
+      { channelId: 'UC3ifTl5zKiCAhHIBQYcaTeg', name: 'NoCopyrightSounds', category: 'Electronic' },
+      { channelId: 'UC_aEa8K-EOJ3D6gOs7HcyNg', name: 'NME', category: 'News' }
     ];
     
-    const results = await Promise.all(feeds.map(async (feed) => {
+    const results = await Promise.all(channels.map(async (channel) => {
       try {
-        const response = await fetch(feed.url, {
-          headers: { 'User-Agent': 'StudioAgents/1.0' }
-        });
-        if (!response.ok) return [];
+        const response = await fetch(
+          `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.channelId}`, 
+          {
+            headers: { 
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          }
+        );
+        if (!response.ok) {
+          logger.warn(`YouTube channel ${channel.name} returned ${response.status}`);
+          return [];
+        }
         const xmlText = await response.text();
         
         const entries = xmlText.match(/<entry>[\s\S]*?<\/entry>/g) || [];
         
-        return entries.slice(0, 15).map(entry => {
+        return entries.slice(0, 5).map(entry => {
           const getTag = (tag) => {
             const match = entry.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));
             return match ? match[1].trim() : '';
           };
-          const getAttr = (tag, attr) => {
-            const match = entry.match(new RegExp(`<${tag}[^>]*${attr}="([^"]*)"`));
-            return match ? match[1] : '';
-          };
           
           const videoId = getTag('yt:videoId');
-          const title = getTag('title');
+          const title = getTag('title').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
           const author = getTag('name');
           const published = getTag('published');
-          const views = entry.match(/views="(\d+)"/)?.[1] || '0';
+          
+          if (!videoId || !title) return null;
           
           const pubDate = new Date(published);
           const hoursAgo = Math.floor((Date.now() - pubDate) / (1000 * 60 * 60));
@@ -4962,29 +4973,40 @@ const fetchYouTubeTrending = async () => {
           return {
             id: videoId,
             type: 'youtube',
-            source: 'YouTube',
-            category: feed.name,
+            source: channel.name,
+            category: channel.category,
             color: 'agent-red',
             title: title,
-            snippet: `By ${author}`,
+            snippet: `From ${channel.name}`,
             author: author,
             url: `https://www.youtube.com/watch?v=${videoId}`,
-            likes: parseInt(views) || 0,
-            views: parseInt(views) || 0,
+            likes: 0,
+            views: 0,
             time: hoursAgo < 1 ? 'Just now' : hoursAgo < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo / 24)}d ago`,
             timestamp: pubDate.getTime(),
             imageUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
             videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
             isVideo: true
           };
-        });
+        }).filter(Boolean);
       } catch (e) {
-        logger.warn(`Failed to fetch YouTube feed: ${feed.name}`, { error: e.message });
+        logger.warn(`Failed to fetch YouTube channel: ${channel.name}`, { error: e.message });
         return [];
       }
     }));
     
-    return results.flat();
+    // Flatten and sort by timestamp (newest first)
+    const allVideos = results.flat().sort((a, b) => b.timestamp - a.timestamp);
+    
+    // Remove duplicates by videoId
+    const seen = new Set();
+    const unique = allVideos.filter(v => {
+      if (seen.has(v.id)) return false;
+      seen.add(v.id);
+      return true;
+    });
+    
+    return unique;
   } catch (e) {
     logger.error('YouTube fetch failed', { error: e.message });
     return [];
