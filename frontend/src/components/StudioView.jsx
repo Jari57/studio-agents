@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award, AlertCircle, Building, Layers, History, Copy, Wifi, WifiOff, Star, Trash, RotateCcw, HelpCircle, BookOpen
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award
 } from 'lucide-react';
 
 // Alias for clarity and to avoid potential minification issues
@@ -213,7 +213,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [backingTrack, setBackingTrack] = useState(null); // For vocal sync
-  const [audioDuration, setAudioDuration] = useState(15); // Audio generation duration in seconds
   const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authChecking, setAuthChecking] = useState(true); // Track if we're still checking auth state
@@ -222,9 +221,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showWhitepapersModal, setShowWhitepapersModal] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState(false);
-  const [whitepaperExpandedSection, setWhitepaperExpandedSection] = useState('executive');
-  const [activeLegalSection, setActiveLegalSection] = useState('copyright');
   const [newsSearch, setNewsSearch] = useState('');
+  // Reserved for future use: const [isRefreshingNews, setIsRefreshingNews] = useState(false);
   const [projects, setProjects] = useState(() => {
     try {
       const saved = localStorage.getItem('studio_agents_projects');
@@ -243,311 +241,25 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   });
   
-  // Trash/Recycle Bin for deleted projects
-  const [trashedProjects, setTrashedProjects] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_trash');
-      return saved ? JSON.parse(saved) : [];
-    } catch (_e) { return []; }
-  });
-  const [showTrash, setShowTrash] = useState(false);
-  
-  // Favorites/Pinned projects
-  const [favoriteProjectIds, setFavoriteProjectIds] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_favorites');
-      return saved ? JSON.parse(saved) : [];
-    } catch (_e) { return []; }
-  });
-  
-  // Onboarding state
-  const [showOnboardingTour, setShowOnboardingTour] = useState(() => {
-    try {
-      const completed = localStorage.getItem('studio_onboarding_completed');
-      return !completed; // Show if not completed
-    } catch (_e) { return true; }
-  });
-  const [onboardingTourStep, setOnboardingTourStep] = useState(0);
-  
-  // Persist trash and favorites to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('studio_agents_trash', JSON.stringify(trashedProjects));
-    } catch (_e) { /* quota exceeded */ }
-  }, [trashedProjects]);
-  
-  useEffect(() => {
-    try {
-      localStorage.setItem('studio_agents_favorites', JSON.stringify(favoriteProjectIds));
-    } catch (_e) { /* quota exceeded */ }
-  }, [favoriteProjectIds]);
-  
-  // Duplicate a project
-  const duplicateProject = (project) => {
-    if (!project) return;
-    
-    const duplicated = {
-      ...JSON.parse(JSON.stringify(project)),
-      id: String(Date.now()),
-      name: `${project.name} (Copy)`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      date: new Date().toLocaleDateString()
-    };
-    
-    setProjects(prev => [duplicated, ...prev]);
-    toast.success(`📋 Duplicated "${project.name}"`);
-    
-    // Save to cloud if logged in
-    if (user?.uid) {
-      saveProjectToCloud(user.uid, duplicated, { silent: true });
-    }
-    
-    return duplicated;
-  };
-  
-  // Move project to trash
-  const moveToTrash = (project) => {
-    if (!project) return;
-    
-    const trashedProject = {
-      ...project,
-      trashedAt: new Date().toISOString()
-    };
-    
-    setTrashedProjects(prev => [trashedProject, ...prev]);
-    setProjects(prev => prev.filter(p => p.id !== project.id));
-    
-    toast.success(`🗑️ Moved to trash`, {
-      duration: 4000,
-      action: {
-        label: 'Undo',
-        onClick: () => restoreFromTrash(trashedProject)
-      }
-    });
-  };
-  
-  // Restore project from trash
-  const restoreFromTrash = (project) => {
-    if (!project) return;
-    
-    const restored = { ...project };
-    delete restored.trashedAt;
-    restored.updatedAt = new Date().toISOString();
-    
-    setTrashedProjects(prev => prev.filter(p => p.id !== project.id));
-    setProjects(prev => [restored, ...prev]);
-    toast.success(`♻️ Restored "${project.name}"`);
-    
-    // Save to cloud
-    if (user?.uid) {
-      saveProjectToCloud(user.uid, restored, { silent: true });
-    }
-  };
-  
-  // Permanently delete from trash
-  const permanentlyDelete = (project) => {
-    if (!project) return;
-    setTrashedProjects(prev => prev.filter(p => p.id !== project.id));
-    toast.success(`🔥 Permanently deleted`);
-  };
-  
-  // Empty entire trash
-  const emptyTrash = () => {
-    if (trashedProjects.length === 0) return;
-    if (window.confirm(`Permanently delete ${trashedProjects.length} project(s)? This cannot be undone.`)) {
-      setTrashedProjects([]);
-      toast.success(`🔥 Trash emptied`);
-    }
-  };
-  
-  // Toggle favorite
-  const toggleFavorite = (projectId) => {
-    setFavoriteProjectIds(prev => {
-      if (prev.includes(projectId)) {
-        toast('⭐ Removed from favorites', { duration: 1500 });
-        return prev.filter(id => id !== projectId);
-      } else {
-        toast('⭐ Added to favorites', { duration: 1500 });
-        return [...prev, projectId];
-      }
-    });
-  };
-  
-  // Complete onboarding tour (new user tour)
-  const completeOnboardingTour = () => {
-    setShowOnboardingTour(false);
-    localStorage.setItem('studio_onboarding_completed', 'true');
-    toast.success('🎉 Welcome to Studio Agents!');
-  };
-  
   // Cloud sync state
   const [_projectsSyncing, setProjectsSyncing] = useState(false);
   const [_lastSyncTime, setLastSyncTime] = useState(null);
   const syncTimeoutRef = useRef(null);
-  
-  // Offline support state
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [pendingSaves, setPendingSaves] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_pending_saves');
-      return saved ? JSON.parse(saved) : [];
-    } catch (_e) { return []; }
-  });
-  
-  // Version history state
-  const [projectVersions, setProjectVersions] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_project_versions');
-      return saved ? JSON.parse(saved) : {};
-    } catch (_e) { return {}; }
-  });
-  const MAX_VERSIONS = 10; // Keep last 10 versions per project
-  
-  // Online/Offline detection
-  useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      toast.success('🌐 Back online! Syncing pending changes...');
-      // Process pending saves
-      if (pendingSaves.length > 0 && user?.uid) {
-        processPendingSaves();
-      }
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      toast('📴 Working offline - changes saved locally', { icon: '💾' });
-    };
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [pendingSaves, user?.uid]);
-  
-  // Save pending saves to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('studio_pending_saves', JSON.stringify(pendingSaves));
-    } catch (_e) { /* quota exceeded */ }
-  }, [pendingSaves]);
-  
-  // Save project versions to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem('studio_project_versions', JSON.stringify(projectVersions));
-    } catch (_e) { /* quota exceeded */ }
-  }, [projectVersions]);
-  
-  // Add version to history
-  const addProjectVersion = (project) => {
-    if (!project?.id) return;
-    
-    const version = {
-      timestamp: new Date().toISOString(),
-      snapshot: JSON.parse(JSON.stringify(project)),
-      assetCount: project.assets?.length || 0
-    };
-    
-    setProjectVersions(prev => {
-      const projectHistory = prev[project.id] || [];
-      const updated = [version, ...projectHistory].slice(0, MAX_VERSIONS);
-      return { ...prev, [project.id]: updated };
-    });
-  };
-  
-  // Restore project from version
-  const restoreProjectVersion = (projectId, versionIndex) => {
-    const versions = projectVersions[projectId];
-    if (!versions || !versions[versionIndex]) {
-      toast.error('Version not found');
-      return false;
-    }
-    
-    const restoredProject = {
-      ...versions[versionIndex].snapshot,
-      updatedAt: new Date().toISOString(),
-      restoredFrom: versions[versionIndex].timestamp
-    };
-    
-    // Update projects state
-    setProjects(prev => prev.map(p => 
-      p.id === projectId ? restoredProject : p
-    ));
-    
-    // Update selected project if it's the current one
-    if (selectedProject?.id === projectId) {
-      setSelectedProject(restoredProject);
-    }
-    
-    toast.success(`✅ Restored version from ${new Date(versions[versionIndex].timestamp).toLocaleString()}`);
-    return true;
-  };
-  
-  // Process pending saves when back online
-  const processPendingSaves = async () => {
-    if (!user?.uid || pendingSaves.length === 0) return;
-    
-    const toProcess = [...pendingSaves];
-    setPendingSaves([]);
-    
-    let successCount = 0;
-    for (const save of toProcess) {
-      try {
-        const success = await saveProjectToCloud(user.uid, save.project);
-        if (success) successCount++;
-        else {
-          // Re-add to pending if failed
-          setPendingSaves(prev => [...prev, save]);
-        }
-      } catch (_err) {
-        setPendingSaves(prev => [...prev, save]);
-      }
-    }
-    
-    if (successCount > 0) {
-      toast.success(`☁️ Synced ${successCount} pending changes`);
-    }
-  };
 
-  // Save a single project to Firestore via backend API (with offline support)
-  const saveProjectToCloud = async (uid, project, options = {}) => {
-    const { skipVersion = false, silent = false } = options;
+  // Save a single project to Firestore via backend API
+  const saveProjectToCloud = async (uid, project) => {
     const traceId = `SAVE-${Date.now()}`;
     console.log(`[TRACE:${traceId}] saveProjectToCloud START`, {
       hasUid: !!uid,
       projectId: project?.id,
       projectName: project?.name,
       assetCount: project?.assets?.length,
-      isOnline,
       assetTypes: project?.assets?.map(a => ({ id: a.id, type: a.type, hasImage: !!a.imageUrl, hasAudio: !!a.audioUrl, hasVideo: !!a.videoUrl }))
     });
     
     if (!uid || !project || !project.id) {
       console.warn(`[TRACE:${traceId}] saveProjectToCloud ABORT - Missing required data`, { hasUid: !!uid, hasProject: !!project });
       return false;
-    }
-    
-    // Add version before saving (unless skipped)
-    if (!skipVersion) {
-      addProjectVersion(project);
-    }
-    
-    // If offline, queue for later
-    if (!isOnline) {
-      console.log(`[TRACE:${traceId}] Offline - queuing save for later`);
-      setPendingSaves(prev => {
-        // Replace existing pending save for same project
-        const filtered = prev.filter(p => p.project?.id !== project.id);
-        return [...filtered, { project, timestamp: new Date().toISOString() }];
-      });
-      if (!silent) {
-        toast('💾 Saved locally (will sync when online)', { duration: 2000 });
-      }
-      return true; // Return true since local save succeeded
     }
     
     try {
@@ -824,11 +536,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
   
+  const [expandedNews, setExpandedNews] = useState(new Set());
+  const [allNewsExpanded, setAllNewsExpanded] = useState(false);
   const [expandedHelp, setExpandedHelp] = useState(null);
   const [helpSearch, setHelpSearch] = useState('');
   const [showNudge, setShowNudge] = useState(true);
+  // Reserved for future use: const [hubFilter, setHubFilter] = useState('All');
+  const [playingItem, setPlayingItem] = useState(null);
   
   // Preview Modal State (for reviewing AI generations before saving)
+  // Reserved for future use: const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewItem, setPreviewItem] = useState(null);
   const [previewPrompt, setPreviewPrompt] = useState('');
   const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt' toggle
@@ -916,6 +633,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
   const [showAddAgentModal, setShowAddAgentModal] = useState(false);
   const [quickWorkflowAgent, setQuickWorkflowAgent] = useState(null); // Streamlined agent workflow modal
+  // Reserved for future use: const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
   const [autoStartVoice, setAutoStartVoice] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [pendingProjectNav, setPendingProjectNav] = useState(false); // Flag to safely navigate after project selection
@@ -929,53 +647,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setPendingProjectNav(false);
     }
   }, [pendingProjectNav, selectedProject]);
-  
-  // Auto-save selectedProject when it changes (debounced)
-  const autoSaveTimeoutRef = useRef(null);
-  const lastSavedProjectRef = useRef(null);
-  
-  useEffect(() => {
-    if (!selectedProject?.id || !user?.uid) return;
-    
-    // Skip if project hasn't actually changed
-    const projectJson = JSON.stringify(selectedProject);
-    if (lastSavedProjectRef.current === projectJson) return;
-    
-    // Clear existing timeout
-    if (autoSaveTimeoutRef.current) {
-      clearTimeout(autoSaveTimeoutRef.current);
-    }
-    
-    // Debounced auto-save after 2 seconds of no changes
-    autoSaveTimeoutRef.current = setTimeout(() => {
-      console.log('[AutoSave] Saving project:', selectedProject.id, selectedProject.name);
-      lastSavedProjectRef.current = projectJson;
-      
-      // Update in projects array
-      setProjects(prev => prev.map(p => 
-        p.id === selectedProject.id 
-          ? { ...selectedProject, updatedAt: new Date().toISOString() }
-          : p
-      ));
-      
-      // Save to cloud
-      saveProjectToCloud(user.uid, {
-        ...selectedProject,
-        updatedAt: new Date().toISOString()
-      }, { silent: true });
-    }, 2000);
-    
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-    };
-  }, [selectedProject, user?.uid]);
 
   // Onboarding & Help State
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [selectedPath, setSelectedPath] = useState(null);
+  // Reserved for future use: const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
   const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
   const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
@@ -989,18 +666,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image', url, title, asset, assets, currentIndex }
   const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max toggle for preview modal
   const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
-  const [showSaveOptions, setShowSaveOptions] = useState(false); // Save destination picker in preview modal
-  const [showVersionHistory, setShowVersionHistory] = useState(false); // Version history modal
-  
-  // Storage usage tracking (in MB)
-  const [storageUsed, setStorageUsed] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_storage_used');
-      return saved ? parseFloat(saved) : 0;
-    } catch (_e) { return 0; }
-  });
-  const storageLimit = userPlan === 'pro' ? 10000 : userPlan === 'starter' ? 2000 : 500; // MB - Pro: 10GB, Starter: 2GB, Free: 500MB
-  const storagePercent = Math.min(100, Math.round((storageUsed / storageLimit) * 100));
   
   // Safe preview data access (prevents TDZ/null errors)
   const safePreview = showPreview || {};
@@ -1009,26 +674,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   
   // Audio refs to prevent re-render interruption
   const previewAudioRef = useRef(null);
-  const previewVideoRef = useRef(null);
   const canvasAudioRef = useRef(null);
-  
-  // Media Player Controls State
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLooping, setIsLooping] = useState(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [isMuted, setIsMuted] = useState(false);
-  
-  // Reset player state when preview changes
-  useEffect(() => {
-    if (showPreview) {
-      setCurrentTime(0);
-      setDuration(0);
-      setIsPlaying(false);
-      // Keep loop and speed settings between tracks (user preference)
-    }
-  }, [showPreview?.asset?.id, showPreview?.url]);
   
   // Transition guard ref (doesn't cause re-render)
   const isModalTransitioning = useRef(false);
@@ -1080,12 +726,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return goal.agents[0]; // Primary recommendation
   };
 
-  // Check for first visit - use unified onboarding tour only
+  // Check for first visit
   useEffect(() => {
-    const hasSeenOnboarding = localStorage.getItem('studio_onboarding_completed');
+    const hasSeenOnboarding = localStorage.getItem('studio_onboarding_v3');
     if (!hasSeenOnboarding && !startWizard) {
-      // Use the new streamlined tour instead of old onboarding
-      setShowOnboardingTour(true);
+      setShowOnboarding(true);
     }
   }, [startWizard]);
 
@@ -1396,6 +1041,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     safeVoiceAnnounce(`Quick project created.`);
   };
 
+  // Reserved for future use
+  const _handleManualCreate = () => {
+    handleSkipWizard('agents');
+    // Go straight to agents page - user can pick any agent to start creating
+  };
+
   // Open agent whitepaper modal for any agent
   const openAgentWhitepaper = (agent) => {
     setShowAgentWhitePaper({
@@ -1694,19 +1345,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       if (error.code === 'auth/popup-closed-by-user') {
         toast('Sign-in cancelled', { icon: '👋' });
       } else if (error.code === 'auth/unauthorized-domain') {
-        // Log for developers, show friendly message to users
-        console.error(`Unauthorized domain: ${window.location.hostname}. Add to Firebase Console > Auth > Settings > Authorized domains.`);
-        toast.error('Sign in is temporarily unavailable. Please try again later.');
-      } else if (error.code === 'auth/network-request-failed') {
-        toast.error('Network error. Check your internet connection.');
-      } else if (error.code === 'auth/too-many-requests') {
-        toast.error('Too many attempts. Please try again later.');
-      } else if (error.code === 'auth/popup-blocked') {
-        toast.error('Popup blocked. Please allow popups for this site.');
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        // Ignore - user clicked login button multiple times
+        toast.error(`Domain not authorized. Add ${window.location.hostname} in Firebase Console.`);
       } else {
-        toast.error('Sign in failed. Please try again.');
+        toast.error(error.message);
       }
     } finally {
       setAuthLoading(false);
@@ -1747,20 +1388,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       console.error('Auth failed', error);
       if (error.code === 'auth/email-already-in-use') {
         toast.error('Email already in use. Try logging in.');
-      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        toast.error('Incorrect email or password');
+      } else if (error.code === 'auth/wrong-password') {
+        toast.error('Incorrect password');
       } else if (error.code === 'auth/user-not-found') {
         toast.error('No account found. Try signing up.');
       } else if (error.code === 'auth/weak-password') {
         toast.error('Password should be at least 6 characters');
-      } else if (error.code === 'auth/invalid-email') {
-        toast.error('Please enter a valid email address');
-      } else if (error.code === 'auth/network-request-failed') {
-        toast.error('Network error. Check your internet connection.');
-      } else if (error.code === 'auth/too-many-requests') {
-        toast.error('Too many attempts. Please try again later.');
       } else {
-        toast.error(error.message || 'Authentication failed. Please try again.');
+        toast.error(error.message);
       }
     } finally {
       setAuthLoading(false);
@@ -1783,6 +1418,25 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     } finally {
       setAuthLoading(false);
     }
+  };
+
+  // Reserved for future use: Legacy handler for compatibility
+  // const handleLogin = handleGoogleLogin;
+
+  // --- LOGOUT HANDLER ---
+  // Reserved for future use:
+  const _handleLogout = async () => {
+    if (auth) {
+      await signOut(auth);
+    }
+    // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
+    setUser(null);
+    setUserToken(null);
+    setUserCredits(3);
+    localStorage.removeItem('studio_user_id');
+    setIsLoggedIn(false); // Set this LAST
+    setActiveTab('landing'); 
+    onBack?.(); 
   };
 
   // Dashboard State
@@ -1976,6 +1630,18 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     { id: 1, title: 'Welcome to Studio Agents', message: 'Start creating your first track!', time: 'Just now', read: false },
     { id: 2, title: 'Pro Tip', message: 'Try the Ghostwriter agent for lyrics.', time: '2m ago', read: false }
   ]);
+
+  // Reserved for future use:
+  const _addNotification = (title, message) => {
+    const newNotif = {
+      id: Date.now(),
+      title,
+      message,
+      time: 'Just now',
+      read: false
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+  };
 
   // Persist payment state
   useEffect(() => {
@@ -2494,6 +2160,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
 
+  // Reserved for future use:
+  const _handleEditPayment = (item, type) => {
+    setEditingPayment({ item, type });
+    setPaymentType(type);
+    setShowAddPaymentModal(true);
+  };
+
   const handleSavePayment = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -2545,6 +2218,25 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     
     setShowAddPaymentModal(false);
     setEditingPayment(null);
+  };
+
+  // Reserved for future use:
+  const _handleProviderClick = (provider) => {
+    const confirm = window.confirm(`Connect your ${provider} account?`);
+    if (confirm) {
+      handleTextToVoice(`Connecting to ${provider}...`);
+      setTimeout(() => {
+        handleTextToVoice(`Successfully connected ${provider}.`);
+        const newPM = {
+            id: `pm_${Date.now()}`,
+            type: provider,
+            last4: 'Linked',
+            expiry: 'N/A',
+            isDefault: false
+        };
+        setPaymentMethods(prev => [...prev, newPM]);
+      }, 1500);
+    }
   };
 
   const handleTranslatePrompt = async () => {
@@ -2708,7 +2400,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           bpm: 90, // Could add UI controls for this
           genre: agentId === 'beat' ? 'hip-hop' : 'sample',
           mood: 'creative',
-          durationSeconds: audioDuration
+          durationSeconds: 15
         };
       } else if (isSpeechAgent) {
         endpoint = '/api/generate-speech';
@@ -3486,6 +3178,29 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setActivityFeed([newActivity, ...activityFeed]);
     toast.success('Shared to Activity Wall!');
     setActiveTab('activity');
+    setPlayingItem(null);
+  };
+
+  // Share to Twitter/X
+  // Reserved for future use:
+  const _handleShareToTwitter = (item) => {
+    if (!item) return;
+    
+    // Create tweet text with snippet preview
+    const snippet = item.snippet ? item.snippet.substring(0, 180) : '';
+    const agentName = item.agent || 'Studio Agents';
+    const hashtags = ['StudioAgents', 'AIMusic', 'MusicCreator'].join(',');
+    
+    // Build tweet content
+    let tweetText = `🎵 Just created with ${agentName}:\n\n"${snippet}"\n\n`;
+    tweetText += `Try it yourself at studioagentsai.com`;
+    
+    // Twitter Web Intent URL (works without OAuth)
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&hashtags=${hashtags}`;
+    
+    // Open in new window
+    window.open(twitterUrl, '_blank', 'width=550,height=420');
+    toast.success('Opening Twitter to share!');
   };
 
   const handleConnectSocial = async (platform) => {
@@ -3581,6 +3296,27 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     fetchNews(1);
   };
 
+  // Reserved for future use:
+  const _toggleNewsExpansion = (id) => {
+    const newExpanded = new Set(expandedNews);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedNews(newExpanded);
+  };
+
+  // Reserved for future use:
+  const _toggleAllNews = () => {
+    if (allNewsExpanded) {
+      setExpandedNews(new Set());
+    } else {
+      setExpandedNews(new Set(filteredNews.map(n => n.id)));
+    }
+    setAllNewsExpanded(!allNewsExpanded);
+  };
+
   const renderContent = () => {
     if (activeTab === 'project_canvas' && !selectedAgent) {
       if (!selectedProject) {
@@ -3605,39 +3341,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 <span className="date">Created {selectedProject.date}</span>
               </div>
             </div>
-            <div className="header-actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* Sync Status Indicator */}
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '6px', 
-                fontSize: '0.7rem', 
-                color: isOnline ? 'var(--color-green)' : 'var(--color-yellow)',
-                padding: '4px 10px',
-                background: isOnline ? 'rgba(34, 197, 94, 0.1)' : 'rgba(234, 179, 8, 0.1)',
-                borderRadius: '20px'
-              }}>
-                <div style={{ 
-                  width: '6px', 
-                  height: '6px', 
-                  borderRadius: '50%', 
-                  background: isOnline ? 'var(--color-green)' : 'var(--color-yellow)'
-                }} />
-                {isOnline ? 'Auto-saving' : 'Offline'}
-                {pendingSaves.length > 0 && ` (${pendingSaves.length} pending)`}
-              </div>
-              
-              {/* Version History Button */}
-              {projectVersions[selectedProject.id]?.length > 0 && (
-                <button 
-                  className="btn-pill" 
-                  style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-secondary)' }}
-                  onClick={() => setShowVersionHistory(true)}
-                >
-                  <History size={14} /> {projectVersions[selectedProject.id].length} versions
-                </button>
-              )}
-              
+            <div className="header-actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               <button 
                 className="btn-pill" 
                 style={{ background: 'rgba(168, 85, 247, 0.15)', color: 'var(--color-purple)' }}
@@ -3651,82 +3355,41 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             </div>
           </div>
 
-          {/* Studio Monitor (Embedded Preview) - Full Width, Zero Padding */}
+          {/* Studio Monitor (Embedded Preview) */}
           <div className="studio-monitor-panel" style={{ 
-            background: '#000', 
-            borderRadius: '12px', 
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(20, 20, 25, 0.6)', 
+            borderRadius: '16px', 
+            border: '1px solid rgba(255,255,255,0.1)',
             marginBottom: '24px',
             overflow: 'hidden',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)'
           }}>
-            {/* Compact Header */}
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(20,20,25,0.95)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }}></div>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }}></div>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }}></div>
-              </div>
+            <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', color: 'var(--color-cyan)' }}>
+                <Activity size={18} /> Studio Monitor
+              </h3>
               {canvasPreviewAsset ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                     {canvasPreviewAsset.title}
                   </span>
-                  <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', background: canvasPreviewAsset.type === 'Audio' ? 'var(--color-purple)' : canvasPreviewAsset.type === 'Video' ? 'var(--color-cyan)' : 'var(--color-pink)', color: 'white' }}>
+                  <span className={`badge ${canvasPreviewAsset.type === 'Audio' ? 'bg-purple' : canvasPreviewAsset.type === 'Video' ? 'bg-cyan' : 'bg-pink'}`} style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
                     {canvasPreviewAsset.type}
                   </span>
                 </div>
               ) : (
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>No asset selected</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>No asset selected</span>
               )}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {canvasPreviewAsset && (
-                  <>
-                    <button 
-                      onClick={() => {
-                        const assetsList = selectedProject?.assets || [];
-                        setShowPreview({
-                          type: (canvasPreviewAsset.type || 'text').toLowerCase(),
-                          url: canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl || null,
-                          title: canvasPreviewAsset.title || 'Untitled',
-                          asset: canvasPreviewAsset,
-                          assets: assetsList,
-                          currentIndex: Math.max(0, assetsList.findIndex(a => a.id === canvasPreviewAsset.id))
-                        });
-                      }}
-                      style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: 'white', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      <Maximize2 size={12} /> Fullscreen
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const mediaUrl = canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl;
-                        if (mediaUrl) {
-                          const link = document.createElement('a');
-                          link.href = mediaUrl;
-                          link.download = canvasPreviewAsset.title || 'download';
-                          link.click();
-                          toast.success('Download started');
-                        }
-                      }}
-                      style={{ padding: '4px 10px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', color: 'white', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      <Download size={12} /> Export
-                    </button>
-                  </>
-                )}
-              </div>
             </div>
             
-            {/* Preview Area - Zero Padding */}
-            <div style={{ minHeight: '400px', maxHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', position: 'relative' }}>
+            <div style={{ minHeight: '360px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', position: 'relative' }}>
                {canvasPreviewAsset ? (
                  <>
                    {canvasPreviewAsset.type === 'Video' && canvasPreviewAsset.videoUrl && (
                      <video 
                        src={canvasPreviewAsset.videoUrl} 
                        controls 
-                       style={{ width: '100%', height: '100%', maxHeight: '60vh', objectFit: 'contain', background: '#000' }}
+                       style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }}
                        onError={(e) => {
                          console.warn('[AssetViewer] Video failed to load:', canvasPreviewAsset.videoUrl);
                          e.target.style.display = 'none';
@@ -3738,7 +3401,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                      <img 
                        src={canvasPreviewAsset.imageUrl} 
                        alt={canvasPreviewAsset.title || 'Asset'}
-                       style={{ width: '100%', height: '100%', maxHeight: '60vh', objectFit: 'contain', background: '#000' }}
+                       style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }}
                        onError={(e) => {
                          console.warn('[AssetViewer] Image failed to load:', canvasPreviewAsset.imageUrl);
                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"%3E%3Crect fill="%231a1a2e" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23666" font-family="sans-serif"%3EImage unavailable%3C/text%3E%3C/svg%3E';
@@ -3746,30 +3409,33 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                      />
                    )}
                    {canvasPreviewAsset.type === 'Audio' && canvasPreviewAsset.audioUrl && (
-                     <div style={{ width: '100%', padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', background: 'linear-gradient(180deg, rgba(168,85,247,0.1) 0%, rgba(0,0,0,0) 100%)' }}>
+                     <div style={{ width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
                        <div style={{ 
-                         width: '100px', 
-                         height: '100px', 
+                         width: '120px', 
+                         height: '120px', 
                          borderRadius: '50%', 
                          background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
                          display: 'flex', 
                          alignItems: 'center', 
                          justifyContent: 'center',
-                         boxShadow: '0 0 60px rgba(168, 85, 247, 0.4)',
-                         animation: 'pulse 2s ease-in-out infinite'
+                         boxShadow: '0 0 40px rgba(168, 85, 247, 0.3)'
                        }}>
-                         <Music size={40} color="white" />
+                         <Music size={48} color="white" />
                        </div>
                        <audio 
                          ref={canvasAudioRef}
                          key={canvasPreviewAsset.id || canvasPreviewAsset.audioUrl}
                          src={canvasPreviewAsset.audioUrl} 
                          controls 
-                         style={{ width: '100%', maxWidth: '500px', height: '40px' }}
+                         style={{ width: '100%', maxWidth: '600px' }}
                          onError={() => {
                            console.warn('[AssetViewer] Audio failed to load:', canvasPreviewAsset.audioUrl);
                            toast.error('Audio file could not be loaded');
                          }}
+                         onPlay={() => console.log('[AssetViewer] Audio started playing')}
+                         onPause={(e) => console.log('[AssetViewer] Audio paused at', e.target.currentTime, 'ended:', e.target.ended)}
+                         onEnded={() => console.log('[AssetViewer] Audio ended')}
+                         onLoadedData={() => console.log('[AssetViewer] Audio loaded, duration:', canvasAudioRef.current?.duration)}
                        />
                      </div>
                    )}
@@ -4098,136 +3764,62 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             </div>
           </div>
           
-          {/* Project Generations Section - Timeline Style */}
-          <div className="project-generations-section" style={{ marginTop: '24px', paddingBottom: '40px', background: 'rgba(0,0,0,0.3)', borderRadius: '16px', overflow: 'hidden' }}>
-             {/* Timeline Header */}
-             <div style={{ 
-               display: 'flex', 
-               alignItems: 'center', 
-               justifyContent: 'space-between', 
-               padding: '16px 20px',
-               background: 'rgba(255,255,255,0.02)',
-               borderBottom: '1px solid rgba(255,255,255,0.05)'
-             }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                 <h3 style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: '600' }}>
-                   <Layers size={16} className="text-purple" /> 
-                   Assets
-                   <span style={{ 
-                     fontSize: '0.7rem', 
-                     background: 'var(--color-purple)', 
-                     padding: '2px 8px', 
-                     borderRadius: '10px', 
-                     color: 'white',
-                     fontWeight: '500'
-                   }}>
-                     {selectedProject.assets?.length || 0}
-                   </span>
-                 </h3>
-                 {/* Filter Pills */}
-                 <div style={{ display: 'flex', gap: '6px' }}>
-                   {['All', 'Audio', 'Video', 'Image', 'Text'].map(filter => (
-                     <button
-                       key={filter}
-                       style={{
-                         padding: '4px 10px',
-                         borderRadius: '6px',
-                         fontSize: '0.7rem',
-                         fontWeight: '500',
-                         background: filter === 'All' ? 'var(--color-purple)' : 'rgba(255,255,255,0.05)',
-                         color: filter === 'All' ? 'white' : 'var(--text-secondary)',
-                         border: 'none',
-                         cursor: 'pointer',
-                         transition: 'all 0.15s ease'
-                       }}
-                     >
-                       {filter}
-                     </button>
-                   ))}
-                 </div>
-               </div>
+          {/* Project Generations Section */}
+          <div className="project-generations-section" style={{ marginTop: '32px', paddingBottom: '40px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '24px' }}>
+             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+               <h3 style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                 <Layers size={20} className="text-purple" /> 
+                 Project Generations
+                 <span style={{ fontSize: '0.8rem', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '12px', color: 'var(--text-secondary)' }}>
+                   {selectedProject.assets?.length || 0}
+                 </span>
+               </h3>
                
-               <div style={{ display: 'flex', gap: '8px' }}>
+               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <button 
                     className="btn-pill" 
-                    style={{ fontSize: '0.75rem', padding: '6px 14px', background: 'var(--color-purple)' }}
+                    style={{ fontSize: '0.85rem', padding: '8px 16px' }}
                     onClick={() => setShowOrchestrator(true)}
                   >
-                    <Sparkles size={12} /> Generate
+                    <Sparkles size={14} /> Generate New
                   </button>
                   <button 
                     className="btn-pill" 
-                    style={{ fontSize: '0.75rem', padding: '6px 14px', background: 'rgba(6, 182, 212, 0.2)', color: 'var(--color-cyan)' }}
+                    style={{ fontSize: '0.85rem', padding: '8px 16px', background: 'rgba(6, 182, 212, 0.15)', color: 'var(--color-cyan)' }}
                     onClick={() => setActiveTab('agents')}
                   >
-                    <Users size={12} /> Agent
+                    <Users size={14} /> Use Agent
                   </button>
-                  <label 
-                    className="btn-pill" 
-                    style={{ fontSize: '0.75rem', padding: '6px 14px', background: 'rgba(255,255,255,0.05)', cursor: 'pointer' }}
-                  >
-                    <input 
-                      type="file" 
-                      accept="audio/*,image/*,video/*" 
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          const url = URL.createObjectURL(file);
-                          const type = file.type.startsWith('audio') ? 'Audio' : file.type.startsWith('video') ? 'Video' : 'Image';
-                          const newAsset = {
-                            id: String(Date.now()),
-                            title: file.name,
-                            type: type,
-                            agent: 'User Upload',
-                            date: 'Just now',
-                            color: 'agent-cyan',
-                            snippet: `Uploaded ${type} file`,
-                            audioUrl: file.type.startsWith('audio') ? url : null,
-                            videoUrl: file.type.startsWith('video') ? url : null,
-                            imageUrl: file.type.startsWith('image') ? url : null
-                          };
-                          const updated = { ...selectedProject, assets: [newAsset, ...(selectedProject.assets || [])] };
-                          setSelectedProject(updated);
-                          setProjects(projects.map(p => p.id === updated.id ? updated : p));
-                        }
-                      }}
-                    />
-                    <Upload size={12} /> Upload
-                  </label>
                </div>
              </div>
              
-             {/* Assets Grid */}
-             <div style={{ padding: '12px 16px' }}>
-             
              {selectedProject.assets && selectedProject.assets.length > 0 ? (
-               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '12px' }}>
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
                  {selectedProject.assets.filter(Boolean).map((asset, idx) => (
                    <div 
                      key={idx} 
                      className="asset-card-canvas"
                      style={{
-                       background: 'rgba(255,255,255,0.02)',
-                       borderRadius: '10px',
-                       padding: '8px',
-                       border: '1px solid rgba(255,255,255,0.06)',
-                       transition: 'all 0.15s ease',
+                       background: 'rgba(255,255,255,0.03)',
+                       borderRadius: '16px',
+                       padding: '16px',
+                       border: '1px solid rgba(255,255,255,0.08)',
+                       transition: 'all 0.2s ease',
                        display: 'flex',
                        flexDirection: 'column',
-                       gap: '6px',
+                       gap: '12px',
                        position: 'relative',
                        height: '100%'
                      }}
                      onMouseEnter={(e) => {
                        e.currentTarget.style.borderColor = 'var(--color-purple)';
-                       e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-                       e.currentTarget.style.transform = 'scale(1.02)';
+                       e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                       e.currentTarget.style.transform = 'translateY(-2px)';
                      }}
                      onMouseLeave={(e) => {
-                       e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                       e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                       e.currentTarget.style.transform = 'scale(1)';
+                       e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                       e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                       e.currentTarget.style.transform = 'translateY(0)';
                      }}
                    >
                      {/* Media Preview */}
@@ -4262,9 +3854,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                        }}
                        style={{ 
                          width: '100%',
-                         aspectRatio: '1/1',
-                         background: '#0a0a0f', 
-                         borderRadius: '8px', 
+                         aspectRatio: '16/9',
+                         background: 'rgba(0,0,0,0.3)', 
+                         borderRadius: '12px', 
                          overflow: 'hidden', 
                          cursor: 'pointer',
                          position: 'relative',
@@ -4360,36 +3952,38 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                        {/* Type Badge */}
                        <div style={{
                          position: 'absolute',
-                         top: '6px',
-                         left: '6px',
-                         background: 'rgba(0,0,0,0.7)',
+                         top: '8px',
+                         left: '8px',
+                         background: 'rgba(0,0,0,0.6)',
                          backdropFilter: 'blur(4px)',
-                         padding: '2px 6px',
-                         borderRadius: '4px',
-                         fontSize: '0.6rem',
+                         padding: '4px 8px',
+                         borderRadius: '6px',
+                         fontSize: '0.65rem',
                          color: 'white',
                          display: 'flex',
                          alignItems: 'center',
-                         gap: '3px',
-                         textTransform: 'uppercase',
-                         fontWeight: '600',
-                         letterSpacing: '0.5px'
+                         gap: '4px'
                        }}>
-                         {asset.type === 'Video' && <Video size={8} />}
-                         {asset.type === 'Audio' && <Music size={8} />}
-                         {asset.type === 'Image' && <ImageIcon size={8} />}
-                         {(asset.type === 'Text' || asset.type === 'Lyrics' || asset.type === 'Script') && <FileText size={8} />}
+                         {asset.type === 'Video' && <Video size={10} />}
+                         {asset.type === 'Audio' && <Music size={10} />}
+                         {asset.type === 'Image' && <ImageIcon size={10} />}
+                         {(asset.type === 'Text' || asset.type === 'Lyrics' || asset.type === 'Script') && <FileText size={10} />}
                          {asset.type}
                        </div>
                      </div>
                      
-                     {/* Info - Compact */}
-                     <div style={{ padding: '0 2px' }}>
-                       <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                     {/* Info */}
+                     <div style={{ flex: 1 }}>
+                       <div style={{ fontSize: '0.95rem', fontWeight: '600', color: 'white', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                          {asset.title}
                        </div>
-                       <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
-                         <User size={8} /> {asset.agent}
+                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                           <User size={10} /> {asset.agent}
+                         </div>
+                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                           {asset.date}
+                         </div>
                        </div>
                      </div>
 
@@ -4509,7 +4103,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                  </button>
                </div>
              )}
-             </div>
           </div>
         </div>
       );
@@ -4836,6 +4429,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             day: 'numeric',
                             year: createdDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
                           });
+                          const _timeSince = getTimeSince(createdDate);
                           
                           return (
                             <div 
@@ -4957,56 +4551,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                               </div>
                               
                               {/* Quick Actions */}
-                              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                {/* Favorite Toggle */}
-                                <button 
-                                  className="btn-icon-sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleFavorite(project.id);
-                                  }}
-                                  title={favoriteProjectIds.includes(project.id) ? "Remove from favorites" : "Add to favorites"}
-                                  style={{
-                                    width: '28px',
-                                    height: '28px',
-                                    borderRadius: '6px',
-                                    background: favoriteProjectIds.includes(project.id) ? 'rgba(234, 179, 8, 0.2)' : 'rgba(255,255,255,0.05)',
-                                    border: 'none',
-                                    color: favoriteProjectIds.includes(project.id) ? 'var(--color-yellow)' : 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                >
-                                  <Star size={12} fill={favoriteProjectIds.includes(project.id) ? 'currentColor' : 'none'} />
-                                </button>
-                                
-                                {/* Duplicate */}
-                                <button 
-                                  className="btn-icon-sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    duplicateProject(project);
-                                  }}
-                                  title="Duplicate Project"
-                                  style={{
-                                    width: '28px',
-                                    height: '28px',
-                                    borderRadius: '6px',
-                                    background: 'rgba(255,255,255,0.05)',
-                                    border: 'none',
-                                    color: 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                >
-                                  <Copy size={12} />
-                                </button>
-                                
-                                {/* Open Project */}
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 <button 
                                   className="btn-icon-sm"
                                   onClick={(e) => {
@@ -5033,30 +4578,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                 >
                                   <Play size={14} />
                                 </button>
-                                
-                                {/* Delete/Trash */}
-                                <button 
-                                  className="btn-icon-sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    moveToTrash(project);
-                                  }}
-                                  title="Move to Trash"
-                                  style={{
-                                    width: '28px',
-                                    height: '28px',
-                                    borderRadius: '6px',
-                                    background: 'rgba(239, 68, 68, 0.1)',
-                                    border: 'none',
-                                    color: 'var(--color-red)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                >
-                                  <Trash2 size={12} />
-                                </button>
                               </div>
                             </div>
                           );
@@ -5069,23 +4590,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             style={{ width: '100%', marginTop: '8px' }}
                           >
                             View All {projects.length} Projects <ChevronRight size={14} />
-                          </button>
-                        )}
-                        
-                        {/* Trash Button */}
-                        {trashedProjects.length > 0 && (
-                          <button 
-                            className="btn-pill" 
-                            onClick={() => setShowTrash(true)}
-                            style={{ 
-                              width: '100%', 
-                              marginTop: '8px', 
-                              background: 'rgba(239, 68, 68, 0.1)', 
-                              color: 'var(--color-red)',
-                              border: '1px solid rgba(239, 68, 68, 0.2)'
-                            }}
-                          >
-                            <Trash2 size={14} /> Trash ({trashedProjects.length})
                           </button>
                         )}
                       </div>
@@ -5585,7 +5089,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     if (selectedAgent && activeTab !== 'agents') {
       const Icon = selectedAgent.icon;
       return (
-        <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative', paddingBottom: '100px', overflowX: 'hidden', maxWidth: '100%', boxSizing: 'border-box' }}>
+        <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative', paddingBottom: '80px' }}>
           {/* Onboarding Nudge */}
           {showNudge && selectedAgent.onboarding && (
             <div className="agent-nudge-overlay animate-fadeInDown">
@@ -5620,8 +5124,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             <span>{activeTab === 'project_canvas' ? 'Back to Project' : 'Back to Agents'}</span>
           </button>
 
-          <div className="agent-detail-layout" style={{ maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
-            <div className="agent-main-panel" style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+          <div className="agent-detail-layout">
+            <div className="agent-main-panel">
               <div className="agent-hero-card">
                 <div className={`agent-icon-large ${selectedAgent.colorClass}`}>
                   <Icon size={40} />
@@ -5962,44 +5466,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     </div>
                   )}
 
-                  {/* Duration Selector for Audio Agents */}
-                  {(selectedAgent?.id === 'beat' || selectedAgent?.id === 'sample') && (
-                    <div className="duration-selector" style={{
-                      marginBottom: '12px',
-                      padding: '12px',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                        <Clock size={16} color="var(--color-cyan)" />
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600' }}>Duration</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        {[15, 30, 45, 60].map(duration => (
-                          <button
-                            key={duration}
-                            onClick={() => setAudioDuration(duration)}
-                            style={{
-                              flex: 1,
-                              padding: '10px 12px',
-                              background: audioDuration === duration ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                              border: audioDuration === duration ? '1px solid var(--color-cyan)' : '1px solid rgba(255, 255, 255, 0.1)',
-                              borderRadius: '8px',
-                              color: audioDuration === duration ? 'var(--color-cyan)' : 'var(--text-secondary)',
-                              fontSize: '0.85rem',
-                              fontWeight: audioDuration === duration ? '600' : '400',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s ease'
-                            }}
-                          >
-                            {duration === 60 ? '60+' : duration}s
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   <textarea 
                     ref={textareaRef}
                     placeholder={`Describe what you want ${selectedAgent.name} to create...`}
@@ -6050,8 +5516,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     if (!currentPreview) return null;
                     
                     return (
-                    <div className="agent-preview-mini animate-fadeIn" style={{ marginTop: '16px', padding: '0', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'rgba(0,0,0,0.2)' }}>
+                    <div className="agent-preview-mini animate-fadeIn" style={{ marginTop: '16px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600' }}>Last Generated</span>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button onClick={() => setPreviewItem(currentPreview)} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -6061,10 +5527,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       </div>
                       
                       {currentPreview.type === 'image' && currentPreview.imageUrl ? (
-                        <img src={currentPreview.imageUrl} alt="Preview" style={{ width: '100%', height: '120px', objectFit: 'cover', cursor: 'pointer', display: 'block' }} onClick={() => setPreviewItem(currentPreview)} />
+                        <img src={currentPreview.imageUrl} alt="Preview" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(currentPreview)} />
                       ) : currentPreview.type === 'video' && currentPreview.videoUrl ? (
                         <div style={{ position: 'relative' }}>
-                          <video src={currentPreview.videoUrl} style={{ width: '100%', height: '120px', objectFit: 'cover', cursor: 'pointer', display: 'block' }} onClick={() => setPreviewItem(currentPreview)} />
+                          <video src={currentPreview.videoUrl} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(currentPreview)} />
                           {currentPreview.audioUrl && (
                             <div style={{ position: 'absolute', bottom: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <Music size={10} /> Synced
@@ -6072,7 +5538,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           )}
                         </div>
                       ) : (currentPreview.type === 'audio' || currentPreview.type === 'vocal') && currentPreview.audioUrl ? (
-                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '4px', padding: '8px', display: 'flex', gap: '12px', alignItems: 'center' }}>
                            {currentPreview.imageUrl && (
                              <div style={{
                                width: '48px',
@@ -6122,87 +5588,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                            </div>
                         </div>
                       ) : (
-                        /* Text content (Ghostwriter lyrics, etc.) - Show lyrics + Sing This button */
-                        <div style={{ background: 'rgba(0,0,0,0.2)', overflow: 'hidden' }}>
-                          {/* Lyrics/Text Display */}
-                          <div style={{ 
-                            fontSize: '0.85rem', 
-                            color: 'var(--text-primary)', 
-                            padding: '10px', 
-                            maxHeight: '120px', 
-                            overflow: 'auto',
-                            whiteSpace: 'pre-wrap',
-                            lineHeight: '1.6',
-                            borderBottom: currentPreview.audioUrl ? 'none' : '1px solid rgba(255,255,255,0.05)'
-                          }}>
-                            {currentPreview.snippet}
-                          </div>
-                          
-                          {/* AI Vocal Player - shows when vocal has been created */}
-                          {currentPreview.audioUrl && (
-                            <div style={{ 
-                              padding: '8px 10px', 
-                              background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15), rgba(139, 92, 246, 0.15))',
-                              borderTop: '1px solid rgba(236, 72, 153, 0.2)'
-                            }}>
-                              <div style={{ 
-                                fontSize: '0.7rem', 
-                                color: 'var(--color-pink)', 
-                                marginBottom: '6px', 
-                                fontWeight: 'bold',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}>
-                                <Mic size={12} /> AI Vocal
-                              </div>
-                              <audio 
-                                controls 
-                                src={currentPreview.audioUrl} 
-                                style={{ width: '100%', height: '32px' }}
-                              />
-                            </div>
-                          )}
-                          
-                          {/* Sing This button - only show if no vocal yet */}
-                          {!currentPreview.audioUrl && selectedAgent?.id === 'ghost' && (
-                            <button
-                              onClick={() => {
-                                const text = currentPreview.snippet || currentPreview.content || '';
-                                handleCreateAIVocal(text, 'Ghostwriter');
-                              }}
-                              disabled={isCreatingVocal}
-                              style={{
-                                width: '100%',
-                                padding: '10px',
-                                background: isCreatingVocal 
-                                  ? 'rgba(236, 72, 153, 0.3)' 
-                                  : 'linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(139, 92, 246, 0.2))',
-                                border: 'none',
-                                borderTop: '1px solid rgba(236, 72, 153, 0.2)',
-                                color: 'var(--color-pink)',
-                                fontSize: '0.8rem',
-                                fontWeight: '600',
-                                cursor: isCreatingVocal ? 'not-allowed' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                                transition: 'all 0.2s'
-                              }}
-                            >
-                              {isCreatingVocal ? (
-                                <>
-                                  <div className="spinner-mini" style={{ width: '14px', height: '14px' }}></div>
-                                  Creating Vocal...
-                                </>
-                              ) : (
-                                <>
-                                  <Mic size={14} /> 🎤 Sing This
-                                </>
-                              )}
-                            </button>
-                          )}
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', maxHeight: '80px', overflow: 'hidden' }}>
+                          {currentPreview.snippet}
                         </div>
                       )}
                       
@@ -6697,8 +6084,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 </div>
               )}
 
-              <div className="agent-detail-layout" style={{ gridTemplateColumns: '1fr 300px', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
-                <div className="agent-main-panel" style={{ maxWidth: '100%', overflowX: 'hidden' }}>
+              <div className="agent-detail-layout" style={{ gridTemplateColumns: '1fr 300px' }}>
+                <div className="agent-main-panel">
                   <div className="agent-hero-card">
                     <div className={`agent-icon-large ${selectedAgent.colorClass}`}>
                       <Icon size={40} />
@@ -8437,369 +7824,184 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         );
       case 'profile':
         return (
-          <div className="studio-profile-view animate-fadeInUp" style={{ padding: '20px', maxWidth: '680px', margin: '0 auto' }}>
-            {/* Compact Profile Header */}
-            <div style={{ 
-              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(6, 182, 212, 0.1) 100%)',
-              borderRadius: '20px',
-              padding: '24px',
-              marginBottom: '20px',
-              border: '1px solid rgba(168, 85, 247, 0.2)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <div style={{ 
-                  width: '72px', 
-                  height: '72px', 
-                  borderRadius: '50%', 
-                  overflow: 'hidden', 
-                  border: '3px solid var(--color-purple)',
-                  flexShrink: 0,
-                  background: 'var(--color-purple)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  {user?.photoURL ? (
-                    <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <span style={{ fontSize: '1.8rem', fontWeight: '600', color: 'white' }}>
-                      {(userProfile.stageName || user?.displayName || 'U').charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <h2 style={{ fontSize: '1.4rem', margin: '0 0 4px', fontWeight: '600' }}>
-                    {userProfile.stageName || user?.displayName || 'Creator'}
-                  </h2>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                    {user?.email || 'Guest Account'}
-                  </p>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ 
-                      background: 'var(--color-purple)', 
-                      color: 'white', 
-                      padding: '3px 10px', 
-                      borderRadius: '10px', 
-                      fontSize: '0.7rem',
-                      fontWeight: '500'
-                    }}>{userProfile.plan}</span>
-                    <span style={{ 
-                      background: 'rgba(255,255,255,0.1)', 
-                      color: 'var(--color-cyan)', 
-                      padding: '3px 10px', 
-                      borderRadius: '10px', 
-                      fontSize: '0.7rem',
-                      fontWeight: '500'
-                    }}>{userProfile.credits} credits</span>
-                  </div>
+          <div className="studio-profile-view animate-fadeInUp" style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
+            <div className="profile-header" style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '32px' }}>
+              <div className="profile-avatar-large" style={{ width: '100px', height: '100px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--color-purple)', position: 'relative' }}>
+                {user?.photoURL ? <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
+                <button style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', fontSize: '0.7rem', padding: '4px', cursor: 'pointer' }}>Edit</button>
+              </div>
+              <div>
+                <h1 style={{ fontSize: '2rem', marginBottom: '8px' }}>{userProfile.stageName || user?.displayName || 'Guest Creator'}</h1>
+                <p style={{ color: 'var(--text-secondary)' }}>{user?.email || 'No email linked'}</p>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                  <span className="badge" style={{ background: 'var(--color-purple)', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>{userProfile.plan} Plan</span>
+                  <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>Member since {userProfile.memberSince}</span>
+                  <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--color-cyan)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem' }}>{userProfile.credits} Credits</span>
                 </div>
               </div>
-              
-              {/* Quick Stats Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+            </div>
+
+            <div className="profile-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+              <div className="stat-card" style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-purple)', marginBottom: '4px' }}>{(projects || []).length}</h4>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Projects</span>
+              </div>
+              <div className="stat-card" style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-cyan)', marginBottom: '4px' }}>{new Set((projects || []).map(p => p.agent)).size}</h4>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Agents Used</span>
+              </div>
+              <div 
+                className="stat-card haptic-press" 
+                onClick={() => setShowCreditsModal(true)}
+                style={{ background: 'var(--card-bg)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center', cursor: 'pointer' }}
+              >
+                <h4 style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--color-orange)', marginBottom: '4px' }}>{userProfile.credits}</h4>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Credits Left</span>
+              </div>
+            </div>
+
+            <div className="profile-section" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid var(--border-color)' }}>
+              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><User size={20} /> Creator Profile</h3>
+              <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Stage Name</label>
+                  <input 
+                    type="text" 
+                    value={userProfile.stageName} 
+                    onChange={(e) => setUserProfile({...userProfile, stageName: e.target.value})}
+                    placeholder={user?.displayName || "Enter stage name"}
+                    className="form-input"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }} 
+                  />
+                </div>
+                <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Primary Genre</label>
+                  <select 
+                    value={userProfile.genre}
+                    onChange={(e) => setUserProfile({...userProfile, genre: e.target.value})}
+                    className="form-input"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }}
+                  >
+                    <option>Hip Hop / Rap</option>
+                    <option>R&B</option>
+                    <option>Pop</option>
+                    <option>Electronic</option>
+                    <option>Rock</option>
+                    <option>Afrobeats</option>
+                    <option>Latin</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Creator Bio</label>
+                  <textarea 
+                    rows="4" 
+                    value={userProfile.bio}
+                    onChange={(e) => setUserProfile({...userProfile, bio: e.target.value})}
+                    placeholder="Tell your story..." 
+                    className="form-input"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', resize: 'vertical' }}
+                  ></textarea>
+                </div>
+                 <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Location</label>
+                  <input 
+                    type="text" 
+                    value={userProfile.location} 
+                    onChange={(e) => setUserProfile({...userProfile, location: e.target.value})}
+                    placeholder="City, Country"
+                    className="form-input"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }} 
+                  />
+                </div>
+                 <div className="form-group">
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Website</label>
+                  <input 
+                    type="text" 
+                    value={userProfile.website} 
+                    onChange={(e) => setUserProfile({...userProfile, website: e.target.value})}
+                    placeholder="https://"
+                    className="form-input"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }} 
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="profile-section" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid var(--border-color)' }}>
+              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><Share2 size={20} /> Social Connections</h3>
+              <div className="social-connect-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {[
-                  { value: (projects || []).length, label: 'Projects', color: 'var(--color-purple)' },
-                  { value: new Set((projects || []).map(p => p.agent)).size, label: 'Agents', color: 'var(--color-cyan)' },
-                  { value: userProfile.memberSince, label: 'Member', color: 'var(--color-pink)', isText: true }
-                ].map((stat, i) => (
-                  <div key={i} style={{ 
-                    background: 'rgba(0,0,0,0.2)', 
-                    borderRadius: '12px', 
-                    padding: '12px 8px', 
-                    textAlign: 'center' 
-                  }}>
-                    <div style={{ 
-                      fontSize: stat.isText ? '0.9rem' : '1.5rem', 
-                      fontWeight: '700', 
-                      color: stat.color,
-                      marginBottom: '2px'
-                    }}>{stat.value}</div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{stat.label}</div>
+                  { id: 'instagram', label: 'Instagram', icon: Instagram, color: '#E1306C' },
+                  { id: 'twitter', label: 'X / Twitter', icon: Twitter, color: '#1DA1F2' },
+                  { id: 'spotify', label: 'Spotify for Artists', icon: Music, color: '#1DB954' },
+                  { id: 'tiktok', label: 'TikTok', icon: Video, color: '#00f2ea' }
+                ].map(social => (
+                  <div key={social.id} className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <social.icon size={20} color={social.color} />
+                      <span>{social.label}</span>
+                    </div>
+                    <button 
+                      className="btn-sm" 
+                      onClick={() => setSocialConnections(prev => {
+                        const newState = { ...prev, [social.id]: !prev[social.id] };
+                        localStorage.setItem('studio_agents_socials', JSON.stringify(newState));
+                        return newState;
+                      })}
+                      style={{ 
+                        background: socialConnections[social.id] ? 'rgba(16, 185, 129, 0.2)' : 'transparent', 
+                        border: `1px solid ${socialConnections[social.id] ? '#10b981' : 'var(--border-color)'}`, 
+                        color: socialConnections[social.id] ? '#10b981' : 'white', 
+                        padding: '6px 12px', 
+                        borderRadius: '6px', 
+                        cursor: 'pointer',
+                        minWidth: '100px'
+                      }}
+                    >
+                      {socialConnections[social.id] ? 'Connected' : 'Connect'}
+                    </button>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Creative Identity - Compact Form */}
-            <div style={{ 
-              background: 'var(--card-bg)', 
-              borderRadius: '16px', 
-              padding: '20px', 
-              marginBottom: '16px',
-              border: '1px solid var(--border-color)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <Sparkles size={18} style={{ color: 'var(--color-purple)' }} />
-                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>Creative Identity</h3>
-              </div>
-              
-              <div style={{ display: 'grid', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: '500' }}>
-                    Artist / Stage Name
-                  </label>
-                  <input 
-                    type="text" 
-                    value={userProfile.stageName} 
-                    onChange={(e) => setUserProfile({...userProfile, stageName: e.target.value})}
-                    placeholder="How should AI agents address you?"
-                    style={{ 
-                      width: '100%', 
-                      padding: '12px 14px', 
-                      borderRadius: '10px',
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid var(--border-color)',
-                      color: 'white',
-                      fontSize: '0.95rem'
-                    }} 
-                  />
-                </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 480 ? '1fr' : '1fr 1fr', gap: '12px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: '500' }}>
-                      Primary Genre
-                    </label>
-                    <select 
-                      value={userProfile.genre}
-                      onChange={(e) => setUserProfile({...userProfile, genre: e.target.value})}
-                      style={{ 
-                        width: '100%', 
-                        padding: '12px 14px', 
-                        borderRadius: '10px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid var(--border-color)',
-                        color: 'white',
-                        fontSize: '0.95rem'
-                      }}
-                    >
-                      <option value="Hip Hop / Rap">Hip Hop / Rap</option>
-                      <option value="R&B">R&B</option>
-                      <option value="Pop">Pop</option>
-                      <option value="Electronic">Electronic</option>
-                      <option value="Rock">Rock</option>
-                      <option value="Afrobeats">Afrobeats</option>
-                      <option value="Latin">Latin</option>
-                      <option value="Country">Country</option>
-                      <option value="Jazz">Jazz</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: '500' }}>
-                      Target Audience
-                    </label>
-                    <select 
-                      value={userProfile.targetDemographic}
-                      onChange={(e) => setUserProfile({...userProfile, targetDemographic: e.target.value})}
-                      style={{ 
-                        width: '100%', 
-                        padding: '12px 14px', 
-                        borderRadius: '10px',
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid var(--border-color)',
-                        color: 'white',
-                        fontSize: '0.95rem'
-                      }}
-                    >
-                      <option value="Gen Z">Gen Z (18-24)</option>
-                      <option value="Millennials">Millennials (25-40)</option>
-                      <option value="Gen X">Gen X (40+)</option>
-                      <option value="Global">Global / All Ages</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '4px 0 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Zap size={12} /> AI agents use this to personalize outputs for your style
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Actions - Higher Value */}
-            <div style={{ 
-              background: 'var(--card-bg)', 
-              borderRadius: '16px', 
-              padding: '20px', 
-              marginBottom: '16px',
-              border: '1px solid var(--border-color)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <Settings size={18} style={{ color: 'var(--color-cyan)' }} />
-                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>Quick Actions</h3>
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {/* Theme Toggle */}
-                <div 
-                  className="haptic-press"
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    padding: '12px 14px', 
-                    background: 'rgba(255,255,255,0.03)', 
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s'
-                  }}
-                >
+            <div className="profile-section" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid var(--border-color)' }}>
+              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}><Settings size={20} /> Preferences</h3>
+              <div className="preferences-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="preference-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {theme === 'dark' ? <Moon size={18} style={{ color: 'var(--color-purple)' }} /> : <Sun size={18} style={{ color: 'var(--color-orange)' }} />}
-                    <span style={{ fontSize: '0.9rem' }}>Dark Mode</span>
-                  </div>
-                  <div style={{ 
-                    width: '42px', 
-                    height: '24px', 
-                    borderRadius: '12px', 
-                    background: theme === 'dark' ? 'var(--color-purple)' : 'rgba(255,255,255,0.2)',
-                    position: 'relative',
-                    transition: 'background 0.2s'
-                  }}>
-                    <div style={{ 
-                      position: 'absolute',
-                      top: '2px',
-                      left: theme === 'dark' ? '20px' : '2px',
-                      width: '20px',
-                      height: '20px',
-                      borderRadius: '50%',
-                      background: 'white',
-                      transition: 'left 0.2s'
-                    }} />
-                  </div>
-                </div>
-
-                {/* Credits Action */}
-                <div 
-                  className="haptic-press"
-                  onClick={() => setShowCreditsModal(true)}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    padding: '12px 14px', 
-                    background: 'rgba(255,255,255,0.03)', 
-                    borderRadius: '10px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Zap size={18} style={{ color: 'var(--color-orange)' }} />
+                    {theme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
                     <div>
-                      <span style={{ fontSize: '0.9rem' }}>Credits</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>{userProfile.credits} remaining</span>
+                      <div style={{ fontWeight: '600' }}>Appearance</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</div>
                     </div>
                   </div>
-                  <ChevronRight size={18} style={{ color: 'var(--text-secondary)' }} />
-                </div>
-
-                {/* Re-run Onboarding */}
-                <div 
-                  className="haptic-press"
-                  onClick={() => { setShowOnboardingTour(true); setOnboardingTourStep(0); }}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    padding: '12px 14px', 
-                    background: 'rgba(255,255,255,0.03)', 
-                    borderRadius: '10px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <PlayCircle size={18} style={{ color: 'var(--color-green)' }} />
-                    <span style={{ fontSize: '0.9rem' }}>Replay Quick Tour</span>
-                  </div>
-                  <ChevronRight size={18} style={{ color: 'var(--text-secondary)' }} />
-                </div>
-
-                {/* View Trash */}
-                <div 
-                  className="haptic-press"
-                  onClick={() => setShowTrashModal(true)}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    padding: '12px 14px', 
-                    background: 'rgba(255,255,255,0.03)', 
-                    borderRadius: '10px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Trash2 size={18} style={{ color: 'var(--text-secondary)' }} />
-                    <div>
-                      <span style={{ fontSize: '0.9rem' }}>Trash</span>
-                      {trashedProjects.length > 0 && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '8px' }}>{trashedProjects.length} items</span>
-                      )}
-                    </div>
-                  </div>
-                  <ChevronRight size={18} style={{ color: 'var(--text-secondary)' }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Account Actions */}
-            <div style={{ 
-              background: 'var(--card-bg)', 
-              borderRadius: '16px', 
-              padding: '20px',
-              border: '1px solid var(--border-color)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <User size={18} style={{ color: 'var(--text-secondary)' }} />
-                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>Account</h3>
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <button 
-                  onClick={() => { 
-                    localStorage.setItem('studio_user_profile', JSON.stringify(userProfile));
-                    toast.success('Profile saved!'); 
-                  }}
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '14px', 
-                    background: 'var(--color-purple)', 
-                    border: 'none',
-                    borderRadius: '10px',
-                    color: 'white',
-                    fontSize: '0.95rem',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Save size={18} /> Save Profile
-                </button>
-                
-                {user && (
                   <button 
-                    onClick={() => auth.signOut()}
+                    className="btn-sm" 
+                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                     style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      gap: '8px',
-                      padding: '12px', 
                       background: 'transparent', 
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      borderRadius: '10px',
-                      color: '#ef4444',
-                      fontSize: '0.9rem',
-                      cursor: 'pointer'
+                      border: '1px solid var(--border-color)', 
+                      color: 'var(--text-primary)', 
+                      padding: '6px 12px', 
+                      borderRadius: '6px', 
+                      cursor: 'pointer',
+                      minWidth: '100px'
                     }}
                   >
-                    <LogOut size={16} /> Sign Out
+                    Switch to {theme === 'dark' ? 'Light' : 'Dark'}
                   </button>
-                )}
+                </div>
               </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button className="cta-button-secondary" onClick={() => setActiveTab('mystudio')}>Cancel</button>
+              <button className="cta-button-premium" onClick={() => { 
+                localStorage.setItem('studio_user_profile', JSON.stringify(userProfile));
+                toast.success('Profile saved!'); 
+                setActiveTab('mystudio'); 
+              }}>Save Changes</button>
             </div>
           </div>
         );
@@ -9081,853 +8283,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           </div>
         );
       }
-      
-      case 'whitepaper': {
-        // Professional Whitepaper Page - Full Educational Experience
-        const whitepaperSections = [
-          {
-            id: 'executive',
-            title: 'Executive Summary',
-            icon: Sparkles,
-            content: `Studio Agents represents a paradigm shift in how creators build and manage their artistic careers. Built as a comprehensive AI-powered suite, Studio Agents is not merely a website or application—it is a living, breathing digital ecosystem that bridges the gap between creative vision and professional execution.
-
-Our platform features 8 Purpose-Built AI Agents powering creative workflows from lyrics to distribution, a Project Hub for seamless asset recall and project management, and a community-driven ecosystem for real-time collaboration.
-
-Studio Agents transforms creative friction into seamless flow, creating a new model for artist empowerment in the digital age.`
-          },
-          {
-            id: 'vision',
-            title: 'Platform Vision',
-            icon: Eye,
-            content: `Traditional creative software serves as static tools—one-way interfaces that require manual input for every step. Studio Agents reimagines this relationship through:
-
-• Immersive Intelligence: Rather than simply providing templates, Studio Agents offers specialized AI partners that understand the context of your project.
-
-• AI-Powered Creation: The AI Studio democratizes the creative process, allowing creators to engage with the same tools that power professional music production.
-
-• Asset Persistence: Through the Project Hub, every creation is saved, indexed, and ready for recall.
-
-• Strategic Growth: The platform helps you grow with trend analysis and release planning.`
-          },
-          {
-            id: 'architecture',
-            title: 'Technical Architecture',
-            icon: Layers,
-            content: `Studio Agents is built on a modern, scalable architecture designed for reliability, performance, and future expansion.
-
-CLIENT LAYER
-• React 18 with Vite for optimal performance
-• Responsive design with Tailwind CSS patterns
-• PWA-ready with offline capabilities
-
-API LAYER  
-• Express.js server with RESTful endpoints
-• CORS-enabled for secure cross-origin requests
-• Rate limiting and request validation
-
-SERVICE LAYER
-• Google Gemini AI for intelligent generation
-• Firebase Auth for secure authentication
-• Firestore for real-time data synchronization
-• Stripe for secure payment processing`
-          },
-          {
-            id: 'agents',
-            title: 'The 8 AI Agents',
-            icon: Users,
-            content: `Each agent is purpose-built with specialized capabilities:
-
-🎤 GHOSTWRITER — Lyrics & songwriting with style adaptation
-🎹 BEATSMITH — Beat generation and instrumental composition  
-🎨 ALBUM ART — Cover art and visual identity design
-📊 ANALYZER — Music theory and production analysis
-📈 TREND SCOUT — Market research and viral potential
-📺 CONTENT — Video scripts and social media content
-📍 TOUR GURU — Live performance and logistics planning
-🎧 SAMPLE — Sound design and sample generation
-
-Each agent understands context, learns from your style, and integrates seamlessly with your project workflow.`
-          },
-          {
-            id: 'pricing',
-            title: 'Pricing Model',
-            icon: CreditCard,
-            content: `Studio Agents offers flexible pricing to meet every creator's needs:
-
-FREE TIER
-• 25 credits/month
-• Access to core agents
-• Basic project management
-
-MONTHLY PRO ($19/mo)
-• 500 credits/month
-• All agents unlocked
-• Priority generation queue
-• Advanced export options
-
-LIFETIME DEAL ($299 one-time)
-• Unlimited credits forever
-• All current and future agents
-• Priority support
-• Founding member badge
-• Early access to new features`
-          },
-          {
-            id: 'roadmap',
-            title: 'Product Roadmap',
-            icon: TrendingUp,
-            content: `Q1 2025: Enhanced Collaboration
-• Real-time multiplayer projects
-• Team workspaces
-• Version history & branching
-
-Q2 2025: Distribution Integration
-• Direct release to streaming platforms
-• Automated metadata management
-• Revenue tracking dashboard
-
-Q3 2025: Advanced AI Features
-• Voice cloning (with consent)
-• Style transfer between genres
-• AI mastering and mixing
-
-Q4 2025: Creator Economy
-• NFT minting for stems
-• Collaboration marketplace
-• Royalty split automation`
-          }
-        ];
-        
-        // Using component-level state: whitepaperExpandedSection, setWhitepaperExpandedSection
-        
-        return (
-          <div className="whitepaper-page animate-fadeInUp" style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto' }}>
-            {/* Hero Header */}
-            <div style={{ 
-              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%)',
-              borderRadius: '24px',
-              padding: '48px 32px',
-              textAlign: 'center',
-              marginBottom: '32px',
-              border: '1px solid rgba(6, 182, 212, 0.2)'
-            }}>
-              <div style={{ 
-                width: '80px', 
-                height: '80px', 
-                borderRadius: '20px',
-                background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 24px',
-                boxShadow: '0 8px 32px rgba(6, 182, 212, 0.3)'
-              }}>
-                <FileText size={40} color="white" />
-              </div>
-              <h1 style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '12px', background: 'linear-gradient(135deg, #06b6d4, #a855f7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Studio Agents Whitepaper
-              </h1>
-              <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 24px' }}>
-                Technical documentation for the AI-powered creative suite transforming how artists build their careers.
-              </p>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <span style={{ padding: '6px 14px', background: 'rgba(6, 182, 212, 0.2)', borderRadius: '20px', fontSize: '0.8rem', color: '#06b6d4' }}>
-                  Version 1.0
-                </span>
-                <span style={{ padding: '6px 14px', background: 'rgba(168, 85, 247, 0.2)', borderRadius: '20px', fontSize: '0.8rem', color: '#a855f7' }}>
-                  January 2025
-                </span>
-                <span style={{ padding: '6px 14px', background: 'rgba(34, 197, 94, 0.2)', borderRadius: '20px', fontSize: '0.8rem', color: '#22c55e' }}>
-                  Public Release
-                </span>
-              </div>
-            </div>
-            
-            {/* Table of Contents */}
-            <div style={{ 
-              background: 'var(--card-bg)',
-              borderRadius: '16px',
-              padding: '24px',
-              marginBottom: '24px',
-              border: '1px solid var(--border-color)'
-            }}>
-              <h3 style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Table of Contents
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
-                {whitepaperSections.map((section, idx) => {
-                  const Icon = section.icon;
-                  return (
-                    <button
-                      key={section.id}
-                      onClick={() => setWhitepaperExpandedSection(section.id)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '12px 16px',
-                        background: whitepaperExpandedSection === section.id ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255,255,255,0.03)',
-                        border: whitepaperExpandedSection === section.id ? '1px solid rgba(6, 182, 212, 0.3)' : '1px solid transparent',
-                        borderRadius: '10px',
-                        color: whitepaperExpandedSection === section.id ? '#06b6d4' : 'var(--text-primary)',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.15s ease',
-                        fontSize: '0.85rem'
-                      }}
-                    >
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', minWidth: '20px' }}>{idx + 1}.</span>
-                      <Icon size={16} />
-                      {section.title}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            
-            {/* Content Sections */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {whitepaperSections.map((section) => {
-                const Icon = section.icon;
-                const isExpanded = whitepaperExpandedSection === section.id;
-                return (
-                  <div 
-                    key={section.id}
-                    style={{ 
-                      background: 'var(--card-bg)',
-                      borderRadius: '16px',
-                      border: isExpanded ? '1px solid rgba(6, 182, 212, 0.3)' : '1px solid var(--border-color)',
-                      overflow: 'hidden',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <button
-                      onClick={() => setWhitepaperExpandedSection(isExpanded ? null : section.id)}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '16px',
-                        padding: '20px 24px',
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        textAlign: 'left'
-                      }}
-                    >
-                      <div style={{
-                        width: '44px',
-                        height: '44px',
-                        borderRadius: '12px',
-                        background: isExpanded ? 'linear-gradient(135deg, #06b6d4, #8b5cf6)' : 'rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}>
-                        <Icon size={22} color={isExpanded ? 'white' : '#06b6d4'} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '2px' }}>{section.title}</h3>
-                      </div>
-                      <ChevronDown 
-                        size={20} 
-                        style={{ 
-                          color: 'var(--text-secondary)', 
-                          transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                          transition: 'transform 0.2s ease'
-                        }} 
-                      />
-                    </button>
-                    {isExpanded && (
-                      <div style={{ 
-                        padding: '0 24px 24px 84px',
-                        whiteSpace: 'pre-line',
-                        lineHeight: '1.8',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.95rem'
-                      }}>
-                        {section.content}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            
-            {/* Agent Whitepapers Grid */}
-            <div style={{ marginTop: '40px' }}>
-              <h2 style={{ fontSize: '1.4rem', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Users size={24} className="text-purple" />
-                Individual Agent Documentation
-              </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-                {AGENTS.map((agent) => {
-                  const Icon = agent.icon;
-                  const tierColor = agent.tier === 'free' ? '#22c55e' : agent.tier === 'monthly' ? '#fbbf24' : '#a855f7';
-                  return (
-                    <div 
-                      key={agent.id}
-                      className="haptic-press"
-                      style={{ 
-                        padding: '16px',
-                        background: 'var(--card-bg)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '12px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
-                      onClick={() => openAgentWhitepaper(agent)}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                        <div style={{ 
-                          width: '36px', 
-                          height: '36px', 
-                          borderRadius: '10px', 
-                          background: `${tierColor}20`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
-                          <Icon size={18} style={{ color: tierColor }} />
-                        </div>
-                        <span style={{ 
-                          padding: '2px 6px', 
-                          background: `${tierColor}20`, 
-                          color: tierColor, 
-                          borderRadius: '4px', 
-                          fontSize: '0.6rem',
-                          fontWeight: '700',
-                          textTransform: 'uppercase'
-                        }}>
-                          {agent.tier}
-                        </span>
-                      </div>
-                      <h4 style={{ fontSize: '0.9rem', fontWeight: '600', marginBottom: '4px' }}>{agent.name}</h4>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                        {(agent.description || agent.desc || '').substring(0, 60)}...
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            
-            {/* Download CTA */}
-            <div style={{ 
-              marginTop: '40px',
-              padding: '32px',
-              background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)',
-              borderRadius: '20px',
-              textAlign: 'center',
-              border: '1px solid rgba(6, 182, 212, 0.2)'
-            }}>
-              <h3 style={{ marginBottom: '12px' }}>Download Full Documentation</h3>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                Get the complete technical whitepaper with API references, architecture diagrams, and integration guides.
-              </p>
-              <button 
-                className="cta-button-premium"
-                onClick={() => toast.info('PDF download coming soon!')}
-              >
-                <Download size={18} /> Download PDF (Coming Soon)
-              </button>
-            </div>
-          </div>
-        );
-      }
-      
-      case 'legal': {
-        // Professional Legal & Rights Page - Educational Experience
-        // Using component-level state: activeLegalSection, setActiveLegalSection
-        
-        const legalSections = [
-          {
-            id: 'copyright',
-            title: 'Music Copyright 101',
-            icon: Shield,
-            type: 'Guide',
-            intro: 'Understanding your rights as a creator is the foundation of protecting your work.',
-            sections: [
-              {
-                subtitle: 'What is Copyright?',
-                content: `Copyright is automatic—the moment you create an original work and fix it in a tangible form (like a recording), you own the copyright. You don't need to register, but registration provides important legal benefits.
-
-There are TWO copyrights in every song:
-• Composition (PA): The melody, lyrics, and arrangement
-• Sound Recording (SR): The actual recorded performance
-
-These can be owned by different parties. As a creator, understanding this split is crucial for negotiations.`
-              },
-              {
-                subtitle: 'How to Register',
-                content: `For U.S. creators, register at copyright.gov:
-1. Create an account on copyright.gov
-2. Choose your registration type (PA for composition, SR for recording)
-3. Pay the filing fee ($35-85)
-4. Upload your work
-5. Wait 3-10 months for certificate
-
-Registration before infringement allows you to sue for statutory damages ($30,000-150,000) rather than just actual damages.`
-              },
-              {
-                subtitle: 'Fair Use & Sampling',
-                content: `Fair use is a limited defense, NOT a right. The four factors courts consider:
-1. Purpose (commercial vs educational)
-2. Nature of the original work
-3. Amount used
-4. Market impact
-
-For sampling: There is NO safe amount. Even 2 seconds can be infringement. Always clear samples or use royalty-free sources like those generated by Studio Agents.`
-              }
-            ]
-          },
-          {
-            id: 'splits',
-            title: 'Split Sheets & Collaboration',
-            icon: FileText,
-            type: 'Template',
-            intro: 'Before you create together, agree on ownership. A split sheet is your first line of defense.',
-            sections: [
-              {
-                subtitle: 'What is a Split Sheet?',
-                content: `A split sheet documents who contributed what to a song and what percentage each party owns. It should be signed BEFORE or immediately after every writing session.
-
-Essential elements:
-• Song title and date
-• All contributor names and contact info  
-• Percentage split for each contributor
-• Publisher information (if any)
-• Signatures from all parties`
-              },
-              {
-                subtitle: 'How to Divide Splits',
-                content: `There's no "right" way—it's negotiated. Common approaches:
-
-Equal Split: Everyone gets the same regardless of contribution
-Contribution-Based: Percentage based on what you brought (lyrics, melody, production)
-Producer Points: Producers often take 2-5 "points" (percentage of royalties)
-
-Pro tip: Agree on splits in writing before the session ends. Memory fades, relationships change, but contracts remain.`
-              },
-              {
-                subtitle: 'AI-Assisted Creation',
-                content: `When using AI tools like Studio Agents:
-• YOU own the output—AI cannot hold copyright
-• Document your creative input and selection process
-• Keep records of prompts and iterations
-• The human creative direction establishes ownership
-
-Studio Agents assigns all generated content to you. Our Terms of Service explicitly grant you full commercial rights to anything you create.`
-              }
-            ]
-          },
-          {
-            id: 'sync',
-            title: 'Sync Licensing Guide',
-            icon: Tv,
-            type: 'Guide',
-            intro: 'Getting your music placed in TV, film, and ads can be life-changing. Here\'s how it works.',
-            sections: [
-              {
-                subtitle: 'What is Sync?',
-                content: `Sync (synchronization) licensing is when your music is "synchronized" to visual media—TV shows, films, commercials, video games, YouTube videos.
-
-There are two payments:
-• Sync Fee: Upfront payment for the license (negotiated)
-• Performance Royalties: Paid when the content airs (collected by your PRO)
-
-Fees range from $0 (for exposure) to $500,000+ for major placements.`
-              },
-              {
-                subtitle: 'How to Get Placements',
-                content: `Multiple paths to sync success:
-
-1. Music Libraries: Submit to production music libraries (Musicbed, Artlist, Epidemic Sound)
-2. Sync Agents: Partner with a sync representative who pitches your catalog
-3. Direct Outreach: Contact music supervisors directly (LinkedIn, IMDb Pro)
-4. Briefs: Respond to music briefs from production companies
-
-Key: Your metadata must be perfect. Supervisors search by mood, tempo, genre, and lyric themes.`
-              },
-              {
-                subtitle: 'Sync-Ready Checklist',
-                content: `Before pitching, ensure you have:
-☐ Full ownership or documented splits
-☐ No uncleared samples
-☐ Instrumental versions available
-☐ Clean (radio edit) versions
-☐ Stems available on request
-☐ Proper metadata (BPM, key, mood tags)
-☐ High-quality WAV files (24-bit, 44.1kHz minimum)`
-              }
-            ]
-          },
-          {
-            id: 'publishing',
-            title: 'Publishing 101',
-            icon: CreditCard,
-            type: 'Guide',
-            intro: 'Publishing is how songwriters get paid. If you write songs, you need a publishing strategy.',
-            sections: [
-              {
-                subtitle: 'What is Publishing?',
-                content: `Music publishing manages the business of songwriting. As a songwriter, you earn royalties whenever your COMPOSITION is used:
-
-• Performance Royalties: Radio, streaming, live venues, TV
-• Mechanical Royalties: Physical sales, downloads, streaming (composition portion)
-• Sync Royalties: TV, film, ads, video games
-• Print Royalties: Sheet music sales
-
-A publisher administers these rights, pitches songs, and collects royalties in exchange for a cut (typically 10-50%).`
-              },
-              {
-                subtitle: 'PROs Explained',
-                content: `PROs (Performing Rights Organizations) collect PERFORMANCE royalties:
-
-USA:
-• ASCAP (ascap.com)
-• BMI (bmi.com)
-• SESAC (invite-only)
-
-International:
-• PRS (UK), SOCAN (Canada), GEMA (Germany), etc.
-
-You can only join ONE PRO per country. Registration is free. They collect from radio, TV, venues, and streaming services, then pay you quarterly.`
-              },
-              {
-                subtitle: 'Self-Publishing vs Deals',
-                content: `Self-Publishing: You keep 100% but do all the work
-• Register with a PRO
-• Use an admin publisher (Songtrust, CD Baby Pro, TuneCore Publishing) for mechanical collection
-• Cost: $50-100/year
-
-Publishing Deal: Trade ownership for resources
-• Co-Publishing: You keep 50%, they keep 50%
-• Admin Deal: You keep 80-90%, they handle administration
-• Full Publishing: They own 100% (rare, avoid if possible)
-
-Studio Agents recommendation: Start with self-publishing + admin deal until you have leverage for better terms.`
-              }
-            ]
-          },
-          {
-            id: 'ai-rights',
-            title: 'AI & Intellectual Property',
-            icon: Lock,
-            type: 'Whitepaper',
-            intro: 'The legal landscape of AI-assisted creation is evolving. Here\'s what you need to know.',
-            sections: [
-              {
-                subtitle: 'Current Legal Status',
-                content: `As of 2025, the legal consensus:
-
-• AI CANNOT be an author: Copyright requires human authorship. AI output alone is not copyrightable.
-• Human selection + arrangement IS protectable: Your creative choices in prompting, selecting, and combining AI outputs establish copyright.
-• No registration for pure AI output: The Copyright Office has rejected registrations for purely AI-generated works.
-
-Key case: Zarya of the Dawn (2023) - Images created by Midjourney were denied copyright, but the human-selected arrangement was protected.`
-              },
-              {
-                subtitle: 'Your Rights with Studio Agents',
-                content: `Our Terms of Service grant you:
-✓ Full commercial rights to all generated content
-✓ No royalty obligations to Studio Agents
-✓ Freedom to register works as your own
-✓ Right to sell, license, and distribute
-
-Your creative input (prompts, selection, arrangement, editing) establishes your authorship. We provide the tool; you create the art.`
-              },
-              {
-                subtitle: 'Best Practices',
-                content: `To maximize your legal protection:
-
-1. Document your process: Save prompts, iterations, and selection criteria
-2. Add human creativity: Edit, combine, and transform AI outputs
-3. Be transparent: Don't claim you performed something you didn't
-4. Understand platform terms: Know what rights you're granting
-5. Stay informed: AI law is evolving rapidly
-
-When in doubt, consult an entertainment attorney. The $500 consultation could save you millions in disputes.`
-              }
-            ]
-          },
-          {
-            id: 'labels',
-            title: 'Record Label Deals',
-            icon: Building,
-            type: 'Guide',
-            intro: 'Before signing anything, understand what you\'re giving up and what you\'re getting.',
-            sections: [
-              {
-                subtitle: 'Types of Deals',
-                content: `Modern label deal structures:
-
-Distribution Deal: 15-30% fee, you keep masters
-• Best for: Artists with existing audience and capital
-• You fund everything, they distribute and provide some marketing
-
-License Deal: Label licenses your masters for 3-7 years
-• Best for: Artists who want help but want to keep ownership
-• Label invests, recoups, then rights revert
-
-Traditional Deal: Label owns masters, you get royalties
-• 12-20% royalty rate (before recoupment)
-• 360 deals may include merch, touring, publishing cuts`
-              },
-              {
-                subtitle: 'Key Terms to Negotiate',
-                content: `Always negotiate (or at least understand):
-
-• Advance: Upfront payment (YOU pay this back from royalties)
-• Recoupment: What expenses come out of your share?
-• Royalty Rate: 12-20% is standard; push for higher
-• Territory: World vs specific regions
-• Term: How many albums? How long?
-• Options: Who decides if there's a next album?
-• Reversion: When do masters come back to you?
-• Audit Rights: Can you verify their accounting?`
-              },
-              {
-                subtitle: 'Red Flags',
-                content: `Walk away if you see:
-🚩 "In perpetuity throughout the universe" with no reversion
-🚩 Cross-collateralization across multiple albums
-🚩 360 deal taking more than 10-15% of non-recorded income
-🚩 No advance but they want ownership
-🚩 Pressure to sign without legal review
-🚩 "Standard industry terms" without showing the contract
-
-ALWAYS have an entertainment attorney review before signing. $1,000 now could save your career.`
-              }
-            ]
-          }
-        ];
-        
-        const currentSection = legalSections.find(s => s.id === activeLegalSection) || legalSections[0];
-        
-        return (
-          <div className="legal-page animate-fadeInUp" style={{ padding: '24px', maxWidth: '1000px', margin: '0 auto' }}>
-            {/* Hero Header */}
-            <div style={{ 
-              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(236, 72, 153, 0.15) 100%)',
-              borderRadius: '24px',
-              padding: '48px 32px',
-              textAlign: 'center',
-              marginBottom: '32px',
-              border: '1px solid rgba(168, 85, 247, 0.2)'
-            }}>
-              <div style={{ 
-                width: '80px', 
-                height: '80px', 
-                borderRadius: '20px',
-                background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 24px',
-                boxShadow: '0 8px 32px rgba(168, 85, 247, 0.3)'
-              }}>
-                <Shield size={40} color="white" />
-              </div>
-              <h1 style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '12px', background: 'linear-gradient(135deg, #a855f7, #ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Legal & Creator Rights
-              </h1>
-              <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 24px' }}>
-                Protect your art, understand your rights, and build a sustainable creative career.
-              </p>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <span style={{ padding: '6px 14px', background: 'rgba(168, 85, 247, 0.2)', borderRadius: '20px', fontSize: '0.8rem', color: '#a855f7' }}>
-                  6 Comprehensive Guides
-                </span>
-                <span style={{ padding: '6px 14px', background: 'rgba(236, 72, 153, 0.2)', borderRadius: '20px', fontSize: '0.8rem', color: '#ec4899' }}>
-                  Templates Included
-                </span>
-                <span style={{ padding: '6px 14px', background: 'rgba(34, 197, 94, 0.2)', borderRadius: '20px', fontSize: '0.8rem', color: '#22c55e' }}>
-                  Updated 2025
-                </span>
-              </div>
-            </div>
-            
-            {/* Topic Navigation */}
-            <div style={{ 
-              display: 'flex', 
-              gap: '8px', 
-              overflowX: 'auto', 
-              paddingBottom: '16px',
-              marginBottom: '24px',
-              WebkitOverflowScrolling: 'touch'
-            }}>
-              {legalSections.map((section) => {
-                const Icon = section.icon;
-                const isActive = activeLegalSection === section.id;
-                return (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveLegalSection(section.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 16px',
-                      background: isActive ? 'var(--color-purple)' : 'var(--card-bg)',
-                      border: isActive ? 'none' : '1px solid var(--border-color)',
-                      borderRadius: '10px',
-                      color: isActive ? 'white' : 'var(--text-primary)',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      fontSize: '0.85rem',
-                      fontWeight: isActive ? '600' : '500',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <Icon size={16} />
-                    {section.title}
-                  </button>
-                );
-              })}
-            </div>
-            
-            {/* Active Section Content */}
-            <div style={{ 
-              background: 'var(--card-bg)',
-              borderRadius: '20px',
-              border: '1px solid var(--border-color)',
-              overflow: 'hidden'
-            }}>
-              {/* Section Header */}
-              <div style={{ 
-                padding: '24px 28px',
-                borderBottom: '1px solid var(--border-color)',
-                background: 'rgba(168, 85, 247, 0.05)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
-                  <div style={{
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '14px',
-                    background: 'linear-gradient(135deg, #8b5cf6, #ec4899)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <currentSection.icon size={26} color="white" />
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                      <h2 style={{ margin: 0, fontSize: '1.4rem' }}>{currentSection.title}</h2>
-                      <span style={{ 
-                        padding: '3px 10px', 
-                        background: currentSection.type === 'Whitepaper' ? 'rgba(168, 85, 247, 0.2)' : currentSection.type === 'Template' ? 'rgba(6, 182, 212, 0.2)' : 'rgba(34, 197, 94, 0.2)',
-                        color: currentSection.type === 'Whitepaper' ? '#a855f7' : currentSection.type === 'Template' ? '#06b6d4' : '#22c55e',
-                        borderRadius: '6px',
-                        fontSize: '0.7rem',
-                        fontWeight: '700',
-                        textTransform: 'uppercase'
-                      }}>
-                        {currentSection.type}
-                      </span>
-                    </div>
-                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{currentSection.intro}</p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Section Content */}
-              <div style={{ padding: '28px' }}>
-                {currentSection.sections.map((subsection, idx) => (
-                  <div key={idx} style={{ marginBottom: idx < currentSection.sections.length - 1 ? '32px' : 0 }}>
-                    <h3 style={{ 
-                      fontSize: '1.1rem', 
-                      fontWeight: '700', 
-                      marginBottom: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}>
-                      <span style={{ 
-                        width: '28px', 
-                        height: '28px', 
-                        borderRadius: '8px', 
-                        background: 'rgba(168, 85, 247, 0.15)',
-                        color: '#a855f7',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.8rem',
-                        fontWeight: '700'
-                      }}>
-                        {idx + 1}
-                      </span>
-                      {subsection.subtitle}
-                    </h3>
-                    <div style={{ 
-                      paddingLeft: '38px',
-                      whiteSpace: 'pre-line',
-                      lineHeight: '1.8',
-                      color: 'var(--text-secondary)',
-                      fontSize: '0.95rem'
-                    }}>
-                      {subsection.content}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            {/* Disclaimer */}
-            <div style={{ 
-              marginTop: '32px',
-              padding: '20px 24px',
-              background: 'rgba(251, 191, 36, 0.1)',
-              borderRadius: '12px',
-              border: '1px solid rgba(251, 191, 36, 0.2)',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '16px'
-            }}>
-              <AlertCircle size={24} style={{ color: '#fbbf24', flexShrink: 0, marginTop: '2px' }} />
-              <div>
-                <h4 style={{ margin: '0 0 6px', color: '#fbbf24', fontSize: '0.95rem' }}>Legal Disclaimer</h4>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                  This content is for educational purposes only and does not constitute legal advice. Laws vary by jurisdiction and change over time. For specific legal questions about your situation, consult a qualified entertainment attorney in your jurisdiction.
-                </p>
-              </div>
-            </div>
-            
-            {/* Resources CTA */}
-            <div style={{ 
-              marginTop: '32px',
-              padding: '32px',
-              background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)',
-              borderRadius: '20px',
-              textAlign: 'center',
-              border: '1px solid rgba(168, 85, 247, 0.2)'
-            }}>
-              <h3 style={{ marginBottom: '12px' }}>Need More Help?</h3>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: '20px', maxWidth: '500px', margin: '0 auto 20px' }}>
-                Join our community for discussions with fellow creators, or reach out for personalized support.
-              </p>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                <button 
-                  className="cta-button-premium"
-                  onClick={() => window.open('https://discord.gg/studioagents', '_blank')}
-                >
-                  <MessageSquare size={18} /> Join Discord
-                </button>
-                <button 
-                  className="cta-button-secondary"
-                  onClick={() => setActiveTab('support')}
-                >
-                  <CircleHelp size={18} /> Get Support
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      }
-      
       case 'more': {
         // Mobile "More" menu with all navigation options
         const moreMenuItems = [
@@ -9936,8 +8291,6 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
           { id: 'resources', icon: Book, label: 'Resources', desc: 'Guides & tutorials', color: 'var(--color-orange)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-pink)' },
           { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-emerald)' },
-          { id: 'whitepaper', icon: FileText, label: 'Whitepaper', desc: 'Platform documentation', color: 'var(--color-cyan)' },
-          { id: 'legal', icon: Shield, label: 'Legal & Rights', desc: 'Protect your work', color: 'var(--color-purple)' },
           { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-yellow)' },
         ];
 
@@ -10544,9 +8897,117 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
           </div>
         </header>
 
-        <div className="studio-content" style={{ overflowX: 'hidden', maxWidth: '100%' }}>
+        <div className="studio-content">
           {renderContent()}
         </div>
+
+        {/* Media Player Modal */}
+        {playingItem && (
+          <div 
+            className="media-player-overlay animate-fadeIn"
+            onClick={() => setPlayingItem(null)}
+            onTouchEnd={() => setPlayingItem(null)}
+          >
+            <div 
+              className="media-player-container animate-fadeInUp"
+              onClick={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+            >
+              <button className="player-close" onClick={() => setPlayingItem(null)} onTouchEnd={(e) => { e.preventDefault(); setPlayingItem(null); }}>
+                <X size={24} />
+              </button>
+              
+              <div className="player-content">
+                <div className="player-header">
+                  <div className={`player-icon-box ${playingItem.color || 'agent-purple'}`}>
+                    {playingItem.videoUrl ? <PlayCircle size={32} /> : playingItem.imageUrl ? <Music size={32} /> : <Music size={32} />}
+                  </div>
+                  <div className="player-info">
+                    <h2>{playingItem.title}</h2>
+                    <p>{playingItem.agent} • {playingItem.user || 'Your Creation'}</p>
+                  </div>
+                </div>
+
+                <div className="player-visualizer" style={{ position: 'relative' }}>
+                  {playingItem.videoUrl && (playingItem.videoUrl.includes('youtube.com') || playingItem.videoUrl.includes('youtu.be')) ? (
+                    <iframe 
+                      width="100%" 
+                      height="100%" 
+                      src={playingItem.videoUrl.replace('watch?v=', 'embed/')} 
+                      title={playingItem.title}
+                      frameBorder="0" 
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                      allowFullScreen
+                      className="player-video"
+                      style={{ border: 'none' }}
+                    ></iframe>
+                  ) : (
+                    <>
+                      {/* Visual Layer */}
+                      {playingItem.videoUrl ? (
+                        <video 
+                          src={playingItem.videoUrl} 
+                          controls={!playingItem.audioUrl} 
+                          autoPlay 
+                          muted={!!playingItem.audioUrl} // Mute video if we have separate audio track (Mastering case)
+                          className="player-video"
+                        />
+                      ) : playingItem.imageUrl ? (
+                        <img 
+                          src={playingItem.imageUrl} 
+                          alt={playingItem.title} 
+                          className="player-video" 
+                          loading="lazy"
+                          style={{ objectFit: 'contain', background: '#000' }}
+                        />
+                      ) : (
+                        <div className="audio-visualizer-placeholder">
+                          <div className="visualizer-bars">
+                            {[...Array(20)].map((_, i) => (
+                              <div key={i} className="v-bar" style={{ animationDelay: `${i * 0.1}s` }}></div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Audio Layer - Overlay if visual exists or just audio */}
+                      {playingItem.audioUrl && (
+                        <div style={{ position: 'absolute', bottom: '20px', left: '0', right: '0', padding: '0 20px', zIndex: 10 }}>
+                           <audio 
+                            src={playingItem.audioUrl} 
+                            controls 
+                            autoPlay 
+                            className="player-audio"
+                            style={{ width: '100%', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', borderRadius: '30px' }}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="player-footer">
+                  <div className="player-actions">
+                    <button 
+                      className="player-btn primary"
+                      onClick={() => handleDownload(playingItem)}
+                    >
+                      <Download size={18} />
+                      <span>Download to Device</span>
+                    </button>
+                    <button 
+                      className="player-btn secondary"
+                      onClick={() => handleShareToFeed(playingItem)}
+                    >
+                      <Share2 size={18} />
+                      <span>Share to Feed</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Studio Session Overlay (Global Mechanism) */}
         {showStudioSession && (
@@ -11942,27 +10403,24 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                       handleCreateAIVocal(text, selectedAgent?.name || 'Ghostwriter');
                     }}
                     disabled={isCreatingVocal}
-                    title="Create AI sung vocal from lyrics"
+                    title="Create AI vocal using rapper voices (Uberduck/Replicate)"
                     style={{ 
-                      flex: 1.5, 
+                      flex: 1, 
                       padding: '0.75rem', 
                       borderRadius: '8px', 
                       border: '1px solid rgba(236, 72, 153, 0.3)',
-                      background: isCreatingVocal 
-                        ? 'rgba(236, 72, 153, 0.3)' 
-                        : 'linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(139, 92, 246, 0.2))',
+                      background: isCreatingVocal ? 'rgba(236, 72, 153, 0.3)' : 'rgba(236, 72, 153, 0.1)',
                       color: 'var(--color-pink)',
                       cursor: isCreatingVocal ? 'not-allowed' : 'pointer',
                       opacity: isCreatingVocal ? 0.7 : 1,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '0.5rem',
-                      fontWeight: '600'
+                      gap: '0.5rem'
                     }}
                   >
                     <Mic size={16} className={isCreatingVocal ? 'animate-pulse' : ''} /> 
-                    {isCreatingVocal ? 'Creating Vocal...' : '🎤 Sing This'}
+                    {isCreatingVocal ? 'Creating...' : 'Create Vocal'}
                   </button>
                 )}
                 
@@ -12954,514 +11412,6 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
           </div>
         </div>
       )}
-      
-      {/* Trash Modal */}
-      {showTrash && (
-        <div className="modal-overlay animate-fadeIn" style={{ overflowY: 'auto', padding: '1rem' }} onClick={() => setShowTrash(false)}>
-          <div 
-            className="modal-content" 
-            onClick={e => e.stopPropagation()} 
-            style={{ 
-              maxWidth: 'min(92vw, 500px)', 
-              width: '100%',
-              margin: '1rem auto',
-              background: 'var(--card-bg)',
-              borderRadius: '16px',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            <div className="modal-header" style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Trash2 size={20} style={{ color: 'var(--color-red)' }} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Trash</h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{trashedProjects.length} project{trashedProjects.length !== 1 ? 's' : ''}</p>
-                </div>
-              </div>
-              <button className="modal-close" onClick={() => setShowTrash(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px', padding: '8px', cursor: 'pointer', color: '#fff' }}>
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="modal-body" style={{ padding: '1rem', maxHeight: '50vh', overflowY: 'auto' }}>
-              {trashedProjects.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {trashedProjects.map((project, idx) => (
-                    <div 
-                      key={project.id || idx}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
-                        background: 'rgba(255,255,255,0.03)',
-                        borderRadius: '10px',
-                        border: '1px solid rgba(255,255,255,0.05)'
-                      }}
-                    >
-                      <div>
-                        <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>{project.name}</span>
-                        <p style={{ margin: '4px 0 0', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                          Deleted {project.trashedAt ? getTimeSince(new Date(project.trashedAt)) : 'recently'}
-                        </p>
-                      </div>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button
-                          onClick={() => restoreFromTrash(project)}
-                          style={{
-                            padding: '6px 10px',
-                            background: 'rgba(34, 197, 94, 0.1)',
-                            border: 'none',
-                            borderRadius: '6px',
-                            color: 'var(--color-green)',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <RotateCcw size={12} /> Restore
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Permanently delete this project?')) {
-                              permanentlyDelete(project);
-                            }
-                          }}
-                          style={{
-                            padding: '6px 10px',
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            border: 'none',
-                            borderRadius: '6px',
-                            color: 'var(--color-red)',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
-                  <Trash2 size={32} style={{ opacity: 0.5, marginBottom: '12px' }} />
-                  <p>Trash is empty</p>
-                </div>
-              )}
-            </div>
-            
-            {trashedProjects.length > 0 && (
-              <div className="modal-footer" style={{ padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between' }}>
-                <button 
-                  className="btn-pill" 
-                  onClick={emptyTrash}
-                  style={{ background: 'rgba(239, 68, 68, 0.2)', color: 'var(--color-red)' }}
-                >
-                  <Trash2 size={14} /> Empty Trash
-                </button>
-                <button 
-                  className="btn-pill" 
-                  onClick={() => setShowTrash(false)}
-                  style={{ background: 'rgba(255,255,255,0.1)' }}
-                >
-                  Close
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* Unified Onboarding Tour - Smooth & Easy */}
-      {showOnboardingTour && (
-        <div className="modal-overlay animate-fadeIn" style={{ background: 'rgba(0,0,0,0.9)', padding: '1rem', backdropFilter: 'blur(10px)' }}>
-          <div 
-            className="modal-content onboarding-tour" 
-            onClick={e => e.stopPropagation()} 
-            style={{ 
-              maxWidth: 'min(95vw, 520px)', 
-              width: '100%',
-              margin: 'auto',
-              background: 'linear-gradient(145deg, rgba(20,20,30,0.98) 0%, rgba(10,10,15,0.98) 100%)',
-              borderRadius: '24px',
-              border: '1px solid rgba(168, 85, 247, 0.2)',
-              overflow: 'hidden',
-              boxShadow: '0 25px 80px rgba(168, 85, 247, 0.2)'
-            }}
-          >
-            {/* Progress Bar */}
-            <div style={{ height: '3px', background: 'rgba(255,255,255,0.05)' }}>
-              <div style={{ 
-                height: '100%', 
-                background: 'linear-gradient(90deg, var(--color-purple), var(--color-pink))',
-                width: `${((onboardingTourStep + 1) / 5) * 100}%`,
-                transition: 'width 0.4s ease'
-              }} />
-            </div>
-            
-            {/* Step 0: Welcome */}
-            {onboardingTourStep === 0 && (
-              <div style={{ textAlign: 'center', padding: '40px 32px' }}>
-                <div style={{ 
-                  width: '72px', 
-                  height: '72px', 
-                  borderRadius: '50%', 
-                  background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 20px',
-                  boxShadow: '0 0 40px rgba(168, 85, 247, 0.4)',
-                  animation: 'pulse 2s infinite'
-                }}>
-                  <Sparkles size={32} style={{ color: 'white' }} />
-                </div>
-                <h2 style={{ fontSize: '1.6rem', margin: '0 0 8px', fontWeight: '600' }}>Welcome to Studio Agents</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.6', maxWidth: '380px', margin: '0 auto 28px' }}>
-                  Your AI-powered creative studio. Let's get you set up in under a minute.
-                </p>
-                <button 
-                  className="btn-pill primary"
-                  onClick={() => setOnboardingTourStep(1)}
-                  style={{ padding: '12px 36px', fontSize: '0.95rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-                >
-                  Let's Go <ArrowRight size={16} />
-                </button>
-                <p 
-                  style={{ marginTop: '16px', fontSize: '0.75rem', color: 'var(--text-tertiary)', cursor: 'pointer' }} 
-                  onClick={completeOnboardingTour}
-                >
-                  Skip for now
-                </p>
-              </div>
-            )}
-            
-            {/* Step 1: Quick Profile - Name + Genre */}
-            {onboardingTourStep === 1 && (
-              <div style={{ padding: '32px' }}>
-                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                  <p style={{ fontSize: '0.7rem', color: 'var(--color-purple)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '1px' }}>STEP 1 OF 4</p>
-                  <h3 style={{ margin: 0, fontSize: '1.3rem' }}>Let's personalize your experience</h3>
-                </div>
-                
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: '500' }}>
-                    What should we call you?
-                  </label>
-                  <input 
-                    type="text" 
-                    placeholder="Your name or artist name"
-                    value={userProfile.stageName}
-                    onChange={(e) => setUserProfile({...userProfile, stageName: e.target.value})}
-                    autoFocus
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px', 
-                      fontSize: '1rem', 
-                      background: 'rgba(255,255,255,0.05)', 
-                      border: '1px solid rgba(255,255,255,0.1)', 
-                      borderRadius: '12px', 
-                      color: 'white'
-                    }}
-                  />
-                </div>
-                
-                <div style={{ marginBottom: '20px' }}>
-                  <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: '500' }}>
-                    Your primary genre
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                    {['Hip Hop / Rap', 'R&B', 'Pop', 'Electronic', 'Afrobeats', 'Latin'].map(genre => (
-                      <button
-                        key={genre}
-                        onClick={() => setUserProfile({...userProfile, genre})}
-                        style={{
-                          padding: '10px 8px',
-                          fontSize: '0.75rem',
-                          background: userProfile.genre === genre ? 'var(--color-purple)' : 'rgba(255,255,255,0.05)',
-                          border: userProfile.genre === genre ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: '8px',
-                          color: 'white',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {genre.length > 10 ? genre.split('/')[0].trim() : genre}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textAlign: 'center', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                  <Zap size={12} /> AI agents use this to personalize outputs
-                </p>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <button className="btn-pill" onClick={() => setOnboardingTourStep(0)} style={{ background: 'rgba(255,255,255,0.08)', flex: 1 }}>
-                    <ChevronLeft size={16} /> Back
-                  </button>
-                  <button className="btn-pill primary" onClick={() => setOnboardingTourStep(2)} style={{ flex: 2 }}>
-                    Continue <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {/* Step 2: AI Agents */}
-            {onboardingTourStep === 2 && (
-              <div style={{ padding: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Zap size={22} style={{ color: 'var(--color-purple)' }} />
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--color-purple)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '1px' }}>STEP 2 OF 4</p>
-                    <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Meet Your AI Agents</h3>
-                  </div>
-                </div>
-                <p style={{ color: 'var(--text-secondary)', lineHeight: '1.7', fontSize: '0.9rem', marginBottom: '16px' }}>
-                  Each agent specializes in a different creative task—lyrics, beats, videos, marketing, and more.
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '20px' }}>
-                  {[
-                    { icon: Feather, label: 'Lyrics', color: 'var(--color-purple)' },
-                    { icon: Music, label: 'Beats', color: 'var(--color-cyan)' },
-                    { icon: Video, label: 'Video', color: 'var(--color-pink)' }
-                  ].map(item => (
-                    <div key={item.label} style={{ 
-                      background: 'rgba(255,255,255,0.03)', 
-                      borderRadius: '10px', 
-                      padding: '12px 8px', 
-                      textAlign: 'center' 
-                    }}>
-                      <item.icon size={20} style={{ color: item.color, marginBottom: '4px' }} />
-                      <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', margin: 0 }}>{item.label}</p>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <button className="btn-pill" onClick={() => setOnboardingTourStep(1)} style={{ background: 'rgba(255,255,255,0.08)', flex: 1 }}>
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button className="btn-pill primary" onClick={() => setOnboardingTourStep(3)} style={{ flex: 2 }}>
-                    Next <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {/* Step 3: Projects */}
-            {onboardingTourStep === 3 && (
-              <div style={{ padding: '32px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
-                  <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'rgba(6, 182, 212, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Folder size={22} style={{ color: 'var(--color-cyan)' }} />
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '0.7rem', color: 'var(--color-cyan)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '1px' }}>STEP 3 OF 4</p>
-                    <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Organize in Projects</h3>
-                  </div>
-                </div>
-                <p style={{ color: 'var(--text-secondary)', lineHeight: '1.7', fontSize: '0.9rem', marginBottom: '16px' }}>
-                  Projects keep your work organized. All your generated assets—audio, video, lyrics—stay together.
-                </p>
-                <div style={{ background: 'rgba(34, 197, 94, 0.1)', borderRadius: '10px', padding: '12px 14px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <CheckCircle size={18} style={{ color: 'var(--color-green)', flexShrink: 0 }} />
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-                    Auto-saves your work. Works offline too!
-                  </p>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                  <button className="btn-pill" onClick={() => setOnboardingTourStep(2)} style={{ background: 'rgba(255,255,255,0.08)', flex: 1 }}>
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button className="btn-pill primary" onClick={() => setOnboardingTourStep(4)} style={{ flex: 2 }}>
-                    Next <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {/* Step 4: Ready */}
-            {onboardingTourStep === 4 && (
-              <div style={{ textAlign: 'center', padding: '40px 32px' }}>
-                <div style={{ 
-                  width: '72px', 
-                  height: '72px', 
-                  borderRadius: '50%', 
-                  background: 'linear-gradient(135deg, var(--color-green), var(--color-cyan))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 20px',
-                  boxShadow: '0 0 40px rgba(34, 197, 94, 0.3)'
-                }}>
-                  <CheckCircle size={32} style={{ color: 'white' }} />
-                </div>
-                <h2 style={{ fontSize: '1.5rem', margin: '0 0 8px' }}>You're All Set! 🎉</h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6', maxWidth: '340px', margin: '0 auto 24px' }}>
-                  {userProfile.stageName ? `Ready to create, ${userProfile.stageName}!` : 'Ready to create amazing content!'}
-                </p>
-                <button 
-                  className="btn-pill primary"
-                  onClick={() => { completeOnboardingTour(); setActiveTab('agents'); }}
-                  style={{ padding: '12px 32px', fontSize: '0.95rem', marginBottom: '12px', width: '100%', justifyContent: 'center' }}
-                >
-                  <Zap size={16} /> Explore AI Agents
-                </button>
-                <button 
-                  className="btn-pill"
-                  onClick={() => { completeOnboardingTour(); setShowProjectWizard(true); }}
-                  style={{ padding: '12px 32px', fontSize: '0.95rem', background: 'rgba(255,255,255,0.08)', width: '100%', justifyContent: 'center' }}
-                >
-                  <FolderPlus size={16} /> Create First Project
-                </button>
-              </div>
-            )}
-            
-            {/* Progress Dots */}
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'center', 
-              gap: '6px', 
-              padding: '16px',
-              background: 'rgba(0,0,0,0.2)'
-            }}>
-              {[0, 1, 2, 3, 4].map(step => (
-                <div 
-                  key={step}
-                  onClick={() => setOnboardingTourStep(step)}
-                  style={{ 
-                    width: onboardingTourStep === step ? '20px' : '6px', 
-                    height: '6px', 
-                    borderRadius: '3px', 
-                    background: onboardingTourStep >= step 
-                      ? 'var(--color-purple)' 
-                      : 'rgba(255,255,255,0.15)',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Version History Modal */}
-      {showVersionHistory && selectedProject && (
-        <div className="modal-overlay animate-fadeIn" style={{ overflowY: 'auto', padding: '1rem' }} onClick={() => setShowVersionHistory(false)}>
-          <div 
-            className="modal-content" 
-            onClick={e => e.stopPropagation()} 
-            style={{ 
-              maxWidth: 'min(92vw, 500px)', 
-              width: '100%',
-              margin: '1rem auto',
-              background: 'var(--card-bg)',
-              borderRadius: '16px',
-              border: '1px solid rgba(255,255,255,0.1)'
-            }}
-          >
-            <div className="modal-header" style={{ padding: '1.25rem', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(168, 85, 247, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <History size={20} style={{ color: 'var(--color-purple)' }} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Version History</h3>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{selectedProject.name}</p>
-                </div>
-              </div>
-              <button className="modal-close" onClick={() => setShowVersionHistory(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px', padding: '8px', cursor: 'pointer', color: '#fff' }}>
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="modal-body" style={{ padding: '1rem', maxHeight: '60vh', overflowY: 'auto' }}>
-              {projectVersions[selectedProject.id]?.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {projectVersions[selectedProject.id].map((version, idx) => (
-                    <div 
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
-                        background: idx === 0 ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255,255,255,0.03)',
-                        borderRadius: '10px',
-                        border: idx === 0 ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid rgba(255,255,255,0.05)'
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {idx === 0 && (
-                            <span style={{ fontSize: '0.65rem', background: 'var(--color-purple)', color: 'white', padding: '2px 6px', borderRadius: '4px' }}>CURRENT</span>
-                          )}
-                          <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>
-                            {new Date(version.timestamp).toLocaleDateString()} at {new Date(version.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          {version.assetCount} assets
-                        </p>
-                      </div>
-                      {idx > 0 && (
-                        <button
-                          onClick={() => {
-                            if (window.confirm('Restore this version? Current changes will be saved as a new version first.')) {
-                              restoreProjectVersion(selectedProject.id, idx);
-                              setShowVersionHistory(false);
-                            }
-                          }}
-                          style={{
-                            padding: '6px 12px',
-                            background: 'rgba(255,255,255,0.1)',
-                            border: 'none',
-                            borderRadius: '6px',
-                            color: '#fff',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <Undo size={12} /> Restore
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
-                  <History size={32} style={{ opacity: 0.5, marginBottom: '12px' }} />
-                  <p>No version history yet</p>
-                  <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>Versions are saved automatically when you make changes</p>
-                </div>
-              )}
-            </div>
-            
-            <div className="modal-footer" style={{ padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', margin: 0 }}>
-                Keeping last {MAX_VERSIONS} versions
-              </p>
-              <button 
-                className="btn-pill" 
-                onClick={() => setShowVersionHistory(false)}
-                style={{ background: 'var(--color-purple)' }}
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Credits Info Modal */}
       {showCreditsModal && (
@@ -14054,7 +12004,7 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
       {/* Onboarding Modal */}
       {showOnboarding && (
         <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}>
-          <div className="modal-content onboarding-modal" style={{ maxWidth: 'min(88vw, 600px)', width: '100%', padding: 0, margin: '1rem auto', maxHeight: '85vh', overflowY: 'auto' }}>
+          <div className="modal-content onboarding-modal" style={{ maxWidth: 'min(92vw, 750px)', width: '100%', padding: 0, margin: '1rem auto' }}>
             {/* Progress Bar */}
             <div style={{ height: '4px', background: 'var(--color-bg-tertiary)', width: '100%' }}>
               <div style={{ 
@@ -14065,18 +12015,18 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
               }}></div>
             </div>
 
-            <div style={{ padding: '24px', position: 'relative' }}>
+            <div style={{ padding: '32px', position: 'relative' }}>
               {/* Skip and Close buttons - properly spaced */}
               <button 
                 onClick={handleSkipOnboarding}
                 style={{ 
                   position: 'absolute',
-                  top: '16px', 
-                  right: '60px',
+                  top: '20px', 
+                  right: '70px',
                   background: 'none', 
                   border: 'none', 
                   color: 'var(--text-secondary)', 
-                  fontSize: '0.85rem', 
+                  fontSize: '0.9rem', 
                   cursor: 'pointer',
                   textDecoration: 'underline',
                   zIndex: 10
@@ -14088,13 +12038,13 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                 onClick={() => setShowOnboarding(false)}
                 style={{ 
                   position: 'absolute',
-                  top: '12px', 
-                  right: '16px',
+                  top: '16px', 
+                  right: '20px',
                   background: 'rgba(255, 255, 255, 0.1)',
                   border: '1px solid rgba(255, 255, 255, 0.2)',
                   borderRadius: '50%',
-                  width: '32px',
-                  height: '32px',
+                  width: '36px',
+                  height: '36px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -14104,20 +12054,20 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                   padding: 0
                 }}
               >
-                <X size={18} />
+                <X size={20} />
               </button>
 
-              <div style={{ marginBottom: '20px' }}>
-                <span style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-purple)' }}>
+              <div style={{ marginBottom: '24px' }}>
+                <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-purple)' }}>
                   Step {onboardingStep + 1} of {onboardingSteps.length}
                 </span>
-                <h2 style={{ fontSize: '1.6rem', marginTop: '6px', marginBottom: '12px' }}>
+                <h2 style={{ fontSize: '2rem', marginTop: '8px', marginBottom: '16px' }}>
                   {onboardingSteps[onboardingStep].title}
                 </h2>
-                <p style={{ fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '12px', lineHeight: '1.5' }}>
+                <p style={{ fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '16px', lineHeight: '1.6' }}>
                   {onboardingSteps[onboardingStep].content}
                 </p>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
                   {onboardingSteps[onboardingStep].detail}
                 </p>
               </div>
@@ -14601,7 +12551,7 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
       {showPreview && (
         <div 
           className="modal-overlay animate-fadeIn" 
-          onClick={() => { setShowPreview(null); setPreviewMaximized(false); setShowSaveOptions(false); }} 
+          onClick={() => { setShowPreview(null); setPreviewMaximized(false); }} 
           style={{ 
             zIndex: 2000,
             position: 'fixed',
@@ -14712,177 +12662,58 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
           )}
 
           <div 
-            className="modal-content preview-modal-responsive" 
+            className="modal-content" 
             onClick={e => e.stopPropagation()} 
             style={{ 
               maxWidth: previewMaximized ? '98vw' : (safePreview.type === 'image' ? '90vw' : '85vw'), 
-              maxHeight: previewMaximized ? '98vh' : '90vh',
+              maxHeight: previewMaximized ? '98vh' : '85vh',
               width: previewMaximized ? '98vw' : (safePreview.type === 'image' ? 'auto' : '100%'),
-              minWidth: window.innerWidth <= 768 ? '95vw' : 'auto',
               height: previewMaximized ? '98vh' : 'auto',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
               background: 'rgba(10,10,15,0.99)',
-              borderRadius: previewMaximized ? '8px' : (window.innerWidth <= 768 ? '12px' : '16px'),
+              borderRadius: previewMaximized ? '8px' : '16px',
               border: '1px solid rgba(255,255,255,0.1)',
               boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
               transition: 'all 0.3s ease'
             }}
           >
-            {/* Header - Mobile Responsive */}
+            {/* Header */}
             <div className="modal-header" style={{ 
               borderBottom: '1px solid rgba(255,255,255,0.1)', 
-              padding: window.innerWidth <= 768 ? '0.75rem 1rem' : '1rem 1.5rem', 
+              padding: '1rem 1.5rem', 
               flexShrink: 0,
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '8px'
+              alignItems: 'center'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: window.innerWidth <= 768 ? '8px' : '12px', minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{
-                  width: window.innerWidth <= 768 ? '32px' : '36px',
-                  height: window.innerWidth <= 768 ? '32px' : '36px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '10px',
                   background: safePreview.type === 'image' ? 'rgba(236, 72, 153, 0.2)' 
                     : safePreview.type === 'video' ? 'rgba(6, 182, 212, 0.2)' 
-                    : ['text', 'lyrics', 'script'].includes(safePreview.type) ? 'rgba(34, 197, 94, 0.2)'
                     : 'rgba(168, 85, 247, 0.2)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0
+                  justifyContent: 'center'
                 }}>
-                  {safePreview.type === 'image' && <ImageIcon size={16} style={{ color: 'var(--color-pink)' }} />}
-                  {safePreview.type === 'video' && <Video size={16} style={{ color: 'var(--color-cyan)' }} />}
-                  {safePreview.type === 'audio' && <Music size={16} style={{ color: 'var(--color-purple)' }} />}
-                  {['text', 'lyrics', 'script'].includes(safePreview.type) && <FileText size={16} style={{ color: 'var(--color-green)' }} />}
+                  {safePreview.type === 'image' && <ImageIcon size={18} style={{ color: 'var(--color-pink)' }} />}
+                  {safePreview.type === 'video' && <Video size={18} style={{ color: 'var(--color-cyan)' }} />}
+                  {safePreview.type === 'audio' && <Music size={18} style={{ color: 'var(--color-purple)' }} />}
                 </div>
-                <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                  <h2 style={{ 
-                    fontSize: window.innerWidth <= 768 ? '0.85rem' : '1rem', 
-                    margin: 0, 
-                    fontWeight: '600',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    maxWidth: window.innerWidth <= 768 ? '150px' : '300px'
-                  }}>{safePreview.title || 'Preview'}</h2>
+                <div>
+                  <h2 style={{ fontSize: '1rem', margin: 0, fontWeight: '600' }}>{safePreview.title || 'Preview'}</h2>
                   {safePreviewAssets.length > 1 && (
-                    <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
                       {safePreviewIndex + 1} of {safePreviewAssets.length} assets
                     </p>
                   )}
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: window.innerWidth <= 768 ? '4px' : '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                {/* Loop Toggle Button */}
-                {(safePreview.type === 'audio' || safePreview.type === 'video') && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const mediaEl = previewAudioRef.current || previewVideoRef.current;
-                      if (mediaEl) {
-                        mediaEl.loop = !mediaEl.loop;
-                        setIsLooping(mediaEl.loop);
-                        toast(mediaEl.loop ? '🔁 Loop ON' : '➡️ Loop OFF', { duration: 1500 });
-                      }
-                    }}
-                    style={{
-                      background: isLooping ? 'rgba(168, 85, 247, 0.3)' : 'rgba(255,255,255,0.1)',
-                      border: isLooping ? '1px solid var(--color-purple)' : '1px solid transparent',
-                      borderRadius: '8px',
-                      padding: '8px',
-                      cursor: 'pointer',
-                      color: isLooping ? 'var(--color-purple)' : '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.2s ease'
-                    }}
-                    title={isLooping ? 'Loop ON' : 'Loop OFF'}
-                  >
-                    <RefreshCw size={16} />
-                  </button>
-                )}
-
-                {/* Playback Speed Dropdown */}
-                {(safePreview.type === 'audio' || safePreview.type === 'video') && (
-                  <select
-                    value={playbackSpeed}
-                    onChange={(e) => {
-                      const speed = parseFloat(e.target.value);
-                      setPlaybackSpeed(speed);
-                      const mediaEl = previewAudioRef.current || previewVideoRef.current;
-                      if (mediaEl) mediaEl.playbackRate = speed;
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      background: 'rgba(255,255,255,0.1)',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: '8px',
-                      padding: '6px 10px',
-                      color: '#fff',
-                      fontSize: '0.75rem',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      appearance: 'none',
-                      WebkitAppearance: 'none'
-                    }}
-                    title="Playback Speed"
-                  >
-                    <option value="0.5" style={{ background: '#1a1a2e' }}>0.5x</option>
-                    <option value="0.75" style={{ background: '#1a1a2e' }}>0.75x</option>
-                    <option value="1" style={{ background: '#1a1a2e' }}>1x</option>
-                    <option value="1.25" style={{ background: '#1a1a2e' }}>1.25x</option>
-                    <option value="1.5" style={{ background: '#1a1a2e' }}>1.5x</option>
-                    <option value="2" style={{ background: '#1a1a2e' }}>2x</option>
-                  </select>
-                )}
-
-                {/* Share/Copy Link Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const shareUrl = safePreview.url || safePreview.asset?.audioUrl || safePreview.asset?.videoUrl || safePreview.asset?.imageUrl;
-                    if (shareUrl) {
-                      navigator.clipboard.writeText(shareUrl).then(() => {
-                        toast.success('📋 Link copied to clipboard!');
-                      }).catch(() => {
-                        // Fallback for older browsers
-                        const input = document.createElement('input');
-                        input.value = shareUrl;
-                        document.body.appendChild(input);
-                        input.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(input);
-                        toast.success('📋 Link copied!');
-                      });
-                    } else {
-                      toast.error('No shareable link available');
-                    }
-                  }}
-                  style={{
-                    background: 'rgba(255,255,255,0.1)',
-                    border: 'none',
-                    borderRadius: '8px',
-                    padding: '8px',
-                    cursor: 'pointer',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(6, 182, 212, 0.3)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                  title="Copy Link"
-                >
-                  <Share2 size={16} />
-                </button>
-
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {/* Min/Max Toggle Button */}
                 <button
                   onClick={(e) => {
@@ -14926,7 +12757,6 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                         setProjects(prev => prev.map(p => p.id === selectedProject.id ? {...p, sessionState: newSession} : p));
                         setShowPreview(null);
                         setPreviewMaximized(false);
-                        setShowSaveOptions(false);
                         setShowOrchestrator(true);
                         toast.success(`✨ Added "${asset.title}" to Studio Orchestrator`);
                       }
@@ -14944,7 +12774,7 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                     Use in Orchestrator
                   </button>
                 )}
-                <button className="modal-close" onClick={() => { setShowPreview(null); setPreviewMaximized(false); setShowSaveOptions(false); }} style={{ 
+                <button className="modal-close" onClick={() => { setShowPreview(null); setPreviewMaximized(false); }} style={{ 
                   color: '#fff',
                   background: 'rgba(255,255,255,0.1)',
                   border: 'none',
@@ -14957,18 +12787,15 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
               </div>
             </div>
 
-            {/* Content - Minimal padding for maximum content area */}
+            {/* Content */}
             <div className="modal-body" style={{ 
-              padding: ['text', 'lyrics', 'script'].includes(safePreview.type) 
-                ? (window.innerWidth <= 768 ? '8px' : '12px')
-                : (previewMaximized ? '1rem' : '0.75rem'), 
+              padding: previewMaximized ? '2rem' : '1.5rem', 
               flex: 1, 
               overflow: 'auto', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
-              background: safePreview.type === 'image' ? 'transparent' : 'rgba(0,0,0,0.2)',
-              minHeight: 0
+              background: safePreview.type === 'image' ? 'transparent' : 'rgba(0,0,0,0.3)'
             }}>
               {safePreview.type === 'audio' && safePreview.url && (
                 <div style={{ width: '100%', maxWidth: previewMaximized ? '700px' : '500px', textAlign: 'center' }}>
@@ -14991,18 +12818,9 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                     key={safePreview.asset?.id || safePreview.url || 'audio-preview'}
                     src={safePreview.url}
                     controls
-                    loop={isLooping}
                     style={{ width: '100%' }}
                     autoPlay
                     controlsList="nodownload"
-                    onLoadedMetadata={(e) => {
-                      e.target.playbackRate = playbackSpeed;
-                      setDuration(e.target.duration || 0);
-                      setIsPlaying(!e.target.paused);
-                    }}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
                     onError={(e) => {
                       console.error('[AudioPreview] Error:', e.target.error?.message || 'Unknown error', 'URL:', safePreview.url?.substring(0, 50));
                       // Show user-friendly error
@@ -15015,15 +12833,14 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                         container.appendChild(errDiv);
                       }
                     }}
+                    onCanPlay={() => console.log('[AudioPreview] Audio can play')}
+                    onLoadedData={() => console.log('[AudioPreview] Audio loaded, duration:', previewAudioRef.current?.duration)}
+                    onPlay={() => console.log('[AudioPreview] Audio started playing')}
+                    onPause={(e) => console.log('[AudioPreview] Audio paused at', e.target.currentTime, 'seconds, ended:', e.target.ended)}
+                    onEnded={() => console.log('[AudioPreview] Audio ended naturally')}
+                    onStalled={() => console.log('[AudioPreview] Audio stalled - network issue')}
+                    onWaiting={() => console.log('[AudioPreview] Audio waiting for data')}
                   />
-                  {/* Time display */}
-                  {duration > 0 && (
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
-                      {Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')} / {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
-                      {isLooping && <span style={{ marginLeft: '8px', color: 'var(--color-purple)' }}>🔁 Looping</span>}
-                      {playbackSpeed !== 1 && <span style={{ marginLeft: '8px', color: 'var(--color-cyan)' }}>{playbackSpeed}x</span>}
-                    </p>
-                  )}
                   {/* Show URL type for debugging */}
                   <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '12px', opacity: 0.6 }}>
                     {safePreview.url?.startsWith('data:') ? 'Base64 Audio' : safePreview.url?.startsWith('http') ? 'Remote Audio' : 'Unknown Format'}
@@ -15116,20 +12933,11 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                     <span style={{ fontSize: '0.85rem' }}>Loading video...</span>
                   </div>
                   <video 
-                    ref={previewVideoRef}
                     src={safePreview.url}
                     controls
                     autoPlay
                     playsInline
-                    loop={isLooping}
-                    onLoadedMetadata={(e) => {
-                      e.target.playbackRate = playbackSpeed;
-                      setDuration(e.target.duration || 0);
-                      setIsPlaying(!e.target.paused);
-                    }}
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                    onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
+                    loop
                     onCanPlay={(e) => {
                       // Hide loading placeholder when video can play
                       const placeholder = e.target.previousElementSibling;
@@ -15151,259 +12959,31 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                       background: 'black'
                     }}
                   />
-                  {/* Video time display */}
-                  {duration > 0 && (
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px', textAlign: 'center' }}>
-                      {Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')} / {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
-                      {isLooping && <span style={{ marginLeft: '8px', color: 'var(--color-purple)' }}>🔁 Looping</span>}
-                      {playbackSpeed !== 1 && <span style={{ marginLeft: '8px', color: 'var(--color-cyan)' }}>{playbackSpeed}x</span>}
-                    </p>
-                  )}
-                </div>
-              )}
-              
-              {/* Text/Content Preview - For lyrics, scripts, generated text */}
-              {['text', 'lyrics', 'script'].includes(safePreview.type) && (
-                <div style={{ 
-                  width: '100%', 
-                  maxWidth: previewMaximized ? '100%' : '95%', 
-                  padding: window.innerWidth <= 768 ? '8px' : '12px',
-                  margin: '0 auto',
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}>
-                  {/* Compact Content Header */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '8px',
-                    flexWrap: 'wrap',
-                    gap: '6px',
-                    flexShrink: 0
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <FileText size={20} style={{ color: 'var(--color-green)' }} />
-                      <span style={{ 
-                        fontSize: '0.8rem', 
-                        color: 'var(--text-secondary)',
-                        textTransform: 'capitalize'
-                      }}>
-                        {safePreview.type} Content
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {/* Copy Text Button */}
-                      <button
-                        onClick={() => {
-                          const textContent = safePreview.content || safePreview.asset?.content || safePreview.asset?.snippet || '';
-                          navigator.clipboard.writeText(textContent).then(() => {
-                            toast.success('📋 Text copied to clipboard!');
-                          }).catch(() => {
-                            toast.error('Failed to copy');
-                          });
-                        }}
-                        style={{
-                          padding: '6px 12px',
-                          background: 'rgba(255,255,255,0.1)',
-                          border: 'none',
-                          borderRadius: '8px',
-                          color: '#fff',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        <Copy size={14} />
-                        Copy
-                      </button>
-                      {/* Download as TXT */}
-                      <button
-                        onClick={() => {
-                          const textContent = safePreview.content || safePreview.asset?.content || safePreview.asset?.snippet || '';
-                          const blob = new Blob([textContent], { type: 'text/plain' });
-                          const url = URL.createObjectURL(blob);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = `${safePreview.title || 'content'}.txt`;
-                          link.click();
-                          URL.revokeObjectURL(url);
-                          toast.success('📄 Downloaded as text file');
-                        }}
-                        style={{
-                          padding: '6px 12px',
-                          background: 'rgba(255,255,255,0.1)',
-                          border: 'none',
-                          borderRadius: '8px',
-                          color: '#fff',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        <Download size={14} />
-                        .txt
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Scrollable Text Content - Maximized display area */}
-                  <div style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    padding: window.innerWidth <= 768 ? '10px' : '14px',
-                    flex: 1,
-                    minHeight: 0,
-                    maxHeight: previewMaximized ? 'calc(90vh - 140px)' : 'calc(70vh - 120px)',
-                    overflowY: 'auto',
-                    WebkitOverflowScrolling: 'touch'
-                  }}>
-                    <pre style={{
-                      fontFamily: "'SF Mono', 'Fira Code', 'Monaco', monospace",
-                      fontSize: window.innerWidth <= 768 ? '0.9rem' : '1rem',
-                      lineHeight: '1.6',
-                      color: '#f0f0f0',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      margin: 0
-                    }}>
-                      {safePreview.content || safePreview.asset?.content || safePreview.asset?.snippet || 'No content available'}
-                    </pre>
-                  </div>
-                  
-                  {/* Compact Word/Character Count */}
-                  <div style={{
-                    marginTop: '6px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '0.65rem',
-                    color: 'var(--text-tertiary)',
-                    flexShrink: 0
-                  }}>
-                    <span>
-                      {(() => {
-                        const text = safePreview.content || safePreview.asset?.content || safePreview.asset?.snippet || '';
-                        const words = text.trim().split(/\s+/).filter(Boolean).length;
-                        return `${words} words`;
-                      })()}
-                    </span>
-                    <span>
-                      {(() => {
-                        const text = safePreview.content || safePreview.asset?.content || safePreview.asset?.snippet || '';
-                        return `${text.length} characters`;
-                      })()}
-                    </span>
-                  </div>
-                </div>
-              )}
-              
-              {/* Fallback for unknown types with content - Minimal padding */}
-              {!['audio', 'video', 'image', 'text', 'lyrics', 'script'].includes(safePreview.type) && 
-               (safePreview.content || safePreview.asset?.content || safePreview.asset?.snippet) && (
-                <div style={{ 
-                  width: '100%', 
-                  maxWidth: '95%', 
-                  padding: '10px',
-                  margin: '0 auto',
-                  height: '100%'
-                }}>
-                  <div style={{
-                    background: 'rgba(0,0,0,0.3)',
-                    borderRadius: '8px',
-                    padding: '12px',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    height: '100%',
-                    overflowY: 'auto'
-                  }}>
-                    <pre style={{
-                      textAlign: 'left',
-                      fontSize: '1rem',
-                      lineHeight: '1.6',
-                      color: '#f0f0f0',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      margin: 0
-                    }}>
-                      {safePreview.content || safePreview.asset?.content || safePreview.asset?.snippet}
-                    </pre>
-                  </div>
-                </div>
-              )}
-              
-              {/* No Content Available */}
-              {!safePreview.url && !safePreview.content && 
-               !safePreview.asset?.content && !safePreview.asset?.snippet &&
-               !safePreview.asset?.audioUrl && !safePreview.asset?.videoUrl && !safePreview.asset?.imageUrl && (
-                <div style={{ 
-                  width: '100%', 
-                  maxWidth: '400px', 
-                  padding: '48px 24px',
-                  margin: '0 auto',
-                  textAlign: 'center'
-                }}>
-                  <div style={{
-                    width: '80px',
-                    height: '80px',
-                    borderRadius: '50%',
-                    background: 'rgba(255,255,255,0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 16px'
-                  }}>
-                    <Eye size={32} style={{ color: 'var(--text-secondary)' }} />
-                  </div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                    No preview available for this item
-                  </p>
-                  <p style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', marginTop: '8px' }}>
-                    The content may still be processing or unavailable
-                  </p>
                 </div>
               )}
             </div>
 
-            {/* Thumbnail Strip - Mobile Touch Friendly */}
+            {/* Thumbnail Strip - for navigation between assets */}
             {safePreviewAssets.length > 1 && (
               <div style={{
                 borderTop: '1px solid rgba(255,255,255,0.1)',
-                padding: window.innerWidth <= 768 ? '8px 12px' : '12px 16px',
+                padding: '12px 16px',
                 display: 'flex',
-                gap: window.innerWidth <= 768 ? '6px' : '8px',
+                gap: '8px',
                 overflowX: 'auto',
-                justifyContent: safePreviewAssets.length <= 5 ? 'center' : 'flex-start',
-                background: 'rgba(0,0,0,0.3)',
-                WebkitOverflowScrolling: 'touch', // Smooth scroll on iOS
-                scrollbarWidth: 'none', // Hide scrollbar on Firefox
-                msOverflowStyle: 'none' // Hide scrollbar on IE/Edge
+                justifyContent: 'center',
+                background: 'rgba(0,0,0,0.3)'
               }}>
                 {safePreviewAssets.map((asset, idx) => {
                   if (!asset) return null; // Safety check
-                  // Determine asset type
-                  const getAssetType = (a) => {
-                    if (a.audioUrl) return 'audio';
-                    if (a.videoUrl) return 'video';
-                    if (a.imageUrl) return 'image';
-                    if (a.type && ['text', 'lyrics', 'script'].includes(a.type.toLowerCase())) return a.type.toLowerCase();
-                    if (a.content || a.snippet) return 'text';
-                    return 'text';
-                  };
-                  const assetType = getAssetType(asset);
                   return (
                   <button
                     key={asset?.id || idx}
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowPreview({
-                        type: assetType,
-                        url: asset.audioUrl || asset.videoUrl || asset.imageUrl || null,
-                        content: asset.content || asset.snippet || null,
+                        type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
+                        url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
                         title: asset.title || 'Untitled',
                         asset: asset,
                         assets: safePreviewAssets,
@@ -15411,8 +12991,8 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                       });
                     }}
                     style={{
-                      width: window.innerWidth <= 768 ? '50px' : '60px',
-                      height: window.innerWidth <= 768 ? '50px' : '60px',
+                      width: '60px',
+                      height: '60px',
                       borderRadius: '8px',
                       border: idx === safePreviewIndex 
                         ? '2px solid var(--color-purple)' 
@@ -15445,11 +13025,11 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                     )}
                     {/* Audio icon */}
                     {asset.audioUrl && !asset.imageUrl && (
-                      <Music size={18} style={{ color: 'var(--color-purple)' }} />
+                      <Music size={20} style={{ color: 'var(--color-purple)' }} />
                     )}
-                    {/* Text/Content icon - green for text types */}
+                    {/* Text file icon */}
                     {!asset.imageUrl && !asset.videoUrl && !asset.audioUrl && (
-                      <FileText size={18} style={{ color: 'var(--color-green)' }} />
+                      <FileText size={20} style={{ color: 'var(--text-secondary)' }} />
                     )}
                   </button>
                   );
@@ -15457,12 +13037,12 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
               </div>
             )}
 
-            {/* Action Buttons Footer - Mobile Responsive */}
+            {/* Action Buttons Footer */}
             <div style={{
               borderTop: '1px solid rgba(255,255,255,0.1)',
-              padding: window.innerWidth <= 768 ? '10px 12px' : '12px 16px',
+              padding: '12px 16px',
               display: 'flex',
-              gap: window.innerWidth <= 768 ? '6px' : '10px',
+              gap: '10px',
               justifyContent: 'center',
               flexWrap: 'wrap',
               background: 'rgba(0,0,0,0.4)'
@@ -15479,12 +13059,11 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                       setActiveTab('agents');
                       setShowPreview(null);
                       setPreviewMaximized(false);
-                      setShowSaveOptions(false);
                       toast.success(`Opened ${agent.name} - edit prompt and regenerate!`);
                     }
                   }}
                   style={{
-                    padding: window.innerWidth <= 768 ? '8px 14px' : '10px 20px',
+                    padding: '10px 20px',
                     borderRadius: '8px',
                     border: 'none',
                     background: 'linear-gradient(135deg, var(--color-cyan), var(--color-purple))',
@@ -15522,7 +13101,6 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                   }
                   setShowPreview(null);
                   setPreviewMaximized(false);
-                  setShowSaveOptions(false);
                   setShowOrchestrator(true);
                   toast.success('Asset loaded into Orchestrator!');
                 }}
@@ -15543,295 +13121,39 @@ ALWAYS have an entertainment attorney review before signing. $1,000 now could sa
                 <Sparkles size={16} /> Use in Orchestrator
               </button>
 
-              {/* Save/Download Section with Storage Options */}
+              {/* Download Button (for media) */}
               {safePreview.url && (
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowSaveOptions(!showSaveOptions);
-                    }}
-                    style={{
-                      padding: '10px 20px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(16, 185, 129, 0.5)',
-                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(6, 182, 212, 0.2))',
-                      color: 'var(--color-emerald)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '0.85rem',
-                      fontWeight: '600'
-                    }}
-                  >
-                    <Save size={16} /> Save To...
-                    <ChevronDown size={14} style={{ 
-                      transform: showSaveOptions ? 'rotate(180deg)' : 'rotate(0)', 
-                      transition: 'transform 0.2s' 
-                    }} />
-                  </button>
-
-                  {/* Save Options Dropdown */}
-                  {showSaveOptions && (
-                    <div 
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        position: 'absolute',
-                        bottom: '100%',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        marginBottom: '8px',
-                        background: 'rgba(15, 15, 20, 0.98)',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: '12px',
-                        padding: '12px',
-                        minWidth: '280px',
-                        boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
-                        zIndex: 2010,
-                        animation: 'fadeInUp 0.2s ease'
-                      }}
-                    >
-                      {/* Storage Capacity Indicator */}
-                      <div style={{ 
-                        marginBottom: '12px', 
-                        padding: '10px 12px',
-                        background: 'rgba(255,255,255,0.05)',
-                        borderRadius: '8px'
-                      }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center',
-                          marginBottom: '6px'
-                        }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Database size={12} /> Studio Agents Cloud
-                          </span>
-                          <span style={{ 
-                            fontSize: '0.75rem', 
-                            fontWeight: '600',
-                            color: storagePercent > 90 ? 'var(--color-red)' : storagePercent > 70 ? 'var(--color-orange)' : 'var(--color-emerald)'
-                          }}>
-                            {storageUsed.toFixed(1)} / {storageLimit >= 1000 ? `${(storageLimit/1000).toFixed(0)}GB` : `${storageLimit}MB`}
-                          </span>
-                        </div>
-                        <div style={{
-                          height: '4px',
-                          background: 'rgba(255,255,255,0.1)',
-                          borderRadius: '2px',
-                          overflow: 'hidden'
-                        }}>
-                          <div style={{
-                            height: '100%',
-                            width: `${storagePercent}%`,
-                            background: storagePercent > 90 
-                              ? 'linear-gradient(90deg, var(--color-red), var(--color-orange))'
-                              : storagePercent > 70 
-                                ? 'linear-gradient(90deg, var(--color-orange), var(--color-yellow))'
-                                : 'linear-gradient(90deg, var(--color-emerald), var(--color-cyan))',
-                            borderRadius: '2px',
-                            transition: 'width 0.3s ease'
-                          }} />
-                        </div>
-                        <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '4px', opacity: 0.7 }}>
-                          {storagePercent > 90 ? '⚠️ Storage nearly full' : `${100 - storagePercent}% available`}
-                        </p>
-                      </div>
-
-                      {/* Save Destination Options */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {/* Save to Studio Agents Cloud */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Estimate file size (simplified: assume 2MB per asset for tracking)
-                            const estimatedSize = 2;
-                            if (storageUsed + estimatedSize > storageLimit) {
-                              toast.error('Storage full! Upgrade to Pro for more space.');
-                              return;
-                            }
-                            // Save to project assets
-                            if (selectedProject && safePreview.asset) {
-                              const newAsset = { ...safePreview.asset, savedAt: new Date().toISOString(), savedTo: 'cloud' };
-                              const updatedProject = {
-                                ...selectedProject,
-                                assets: [...(selectedProject.assets || []).filter(a => a.id !== newAsset.id), newAsset]
-                              };
-                              setSelectedProject(updatedProject);
-                              setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
-                              setStorageUsed(prev => {
-                                const newVal = prev + estimatedSize;
-                                localStorage.setItem('studio_agents_storage_used', String(newVal));
-                                return newVal;
-                              });
-                              toast.success('✓ Saved to Studio Agents Cloud');
-                            } else {
-                              toast.error('Select a project first to save');
-                            }
-                            setShowSaveOptions(false);
-                          }}
-                          style={{
-                            padding: '10px 14px',
-                            borderRadius: '8px',
-                            border: '1px solid rgba(168, 85, 247, 0.3)',
-                            background: 'rgba(168, 85, 247, 0.1)',
-                            color: 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            fontSize: '0.85rem',
-                            textAlign: 'left',
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.25)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.1)'}
-                        >
-                          <Cloud size={18} style={{ color: 'var(--color-purple)' }} />
-                          <div>
-                            <div style={{ fontWeight: '600' }}>Studio Agents Cloud</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Syncs across devices</div>
-                          </div>
-                        </button>
-
-                        {/* Save to Google Drive */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!storageConnections.googleDrive) {
-                              toast('Connect Google Drive first in Settings → Connections', { icon: '🔗' });
-                              setShowSaveOptions(false);
-                              setShowPreview(null);
-                              setActiveTab('settings');
-                              return;
-                            }
-                            // Simulate Google Drive save
-                            toast.success('✓ Uploading to Google Drive...');
-                            setTimeout(() => toast.success('Saved to Google Drive!'), 1500);
-                            setShowSaveOptions(false);
-                          }}
-                          style={{
-                            padding: '10px 14px',
-                            borderRadius: '8px',
-                            border: storageConnections.googleDrive ? '1px solid rgba(66, 133, 244, 0.3)' : '1px solid rgba(255,255,255,0.1)',
-                            background: storageConnections.googleDrive ? 'rgba(66, 133, 244, 0.1)' : 'rgba(255,255,255,0.03)',
-                            color: storageConnections.googleDrive ? 'white' : 'var(--text-secondary)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            fontSize: '0.85rem',
-                            textAlign: 'left',
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = storageConnections.googleDrive ? 'rgba(66, 133, 244, 0.25)' : 'rgba(255,255,255,0.05)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = storageConnections.googleDrive ? 'rgba(66, 133, 244, 0.1)' : 'rgba(255,255,255,0.03)'}
-                        >
-                          <Globe size={18} style={{ color: storageConnections.googleDrive ? '#4285F4' : 'var(--text-secondary)' }} />
-                          <div>
-                            <div style={{ fontWeight: '600' }}>Google Drive</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                              {storageConnections.googleDrive ? 'Connected' : 'Not connected'}
-                            </div>
-                          </div>
-                          {!storageConnections.googleDrive && (
-                            <span style={{ marginLeft: 'auto', fontSize: '0.65rem', color: 'var(--color-cyan)' }}>Connect →</span>
-                          )}
-                        </button>
-
-                        {/* Save to OneDrive */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!storageConnections.oneDrive) {
-                              toast('Connect OneDrive first in Settings → Connections', { icon: '🔗' });
-                              setShowSaveOptions(false);
-                              setShowPreview(null);
-                              setActiveTab('settings');
-                              return;
-                            }
-                            toast.success('✓ Uploading to OneDrive...');
-                            setTimeout(() => toast.success('Saved to OneDrive!'), 1500);
-                            setShowSaveOptions(false);
-                          }}
-                          style={{
-                            padding: '10px 14px',
-                            borderRadius: '8px',
-                            border: storageConnections.oneDrive ? '1px solid rgba(0, 120, 215, 0.3)' : '1px solid rgba(255,255,255,0.1)',
-                            background: storageConnections.oneDrive ? 'rgba(0, 120, 215, 0.1)' : 'rgba(255,255,255,0.03)',
-                            color: storageConnections.oneDrive ? 'white' : 'var(--text-secondary)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            fontSize: '0.85rem',
-                            textAlign: 'left',
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = storageConnections.oneDrive ? 'rgba(0, 120, 215, 0.25)' : 'rgba(255,255,255,0.05)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = storageConnections.oneDrive ? 'rgba(0, 120, 215, 0.1)' : 'rgba(255,255,255,0.03)'}
-                        >
-                          <HardDrive size={18} style={{ color: storageConnections.oneDrive ? '#0078D7' : 'var(--text-secondary)' }} />
-                          <div>
-                            <div style={{ fontWeight: '600' }}>OneDrive</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                              {storageConnections.oneDrive ? 'Connected' : 'Not connected'}
-                            </div>
-                          </div>
-                          {!storageConnections.oneDrive && (
-                            <span style={{ marginLeft: 'auto', fontSize: '0.65rem', color: 'var(--color-cyan)' }}>Connect →</span>
-                          )}
-                        </button>
-
-                        {/* Divider */}
-                        <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
-
-                        {/* Download to Device */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            try {
-                              const link = document.createElement('a');
-                              link.href = safePreview.url;
-                              link.download = safePreview.title || 'download';
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                              toast.success('Download started!');
-                            } catch (err) {
-                              console.error('[Download] Failed:', err);
-                              toast.error('Download failed. Try right-click and save.');
-                            }
-                            setShowSaveOptions(false);
-                          }}
-                          style={{
-                            padding: '10px 14px',
-                            borderRadius: '8px',
-                            border: '1px solid rgba(255,255,255,0.15)',
-                            background: 'rgba(255,255,255,0.05)',
-                            color: 'white',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            fontSize: '0.85rem',
-                            textAlign: 'left',
-                            transition: 'all 0.2s'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-                        >
-                          <Download size={18} />
-                          <div>
-                            <div style={{ fontWeight: '600' }}>Download to Device</div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Save locally</div>
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    try {
+                      const link = document.createElement('a');
+                      link.href = safePreview.url;
+                      link.download = safePreview.title || 'download';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      toast.success('Download started!');
+                    } catch (err) {
+                      console.error('[Download] Failed:', err);
+                      toast.error('Download failed. Try right-click and save.');
+                    }
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'rgba(255,255,255,0.1)',
+                    color: 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  <Download size={16} /> Download
+                </button>
               )}
             </div>
           </div>
