@@ -3732,6 +3732,11 @@ select optgroup {
   to { transform: rotate(360deg); }
 }
 
+/* Generic spin class for any icon */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
 .cta-button-premium.loading {
   opacity: 0.8;
   cursor: not-allowed;

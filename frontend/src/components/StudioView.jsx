@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2
 } from 'lucide-react';
 
 // Alias for clarity and to avoid potential minification issues
@@ -535,6 +535,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [isSaving, setIsSaving] = useState(false); // Saving/syncing state with animated loader
   const [agentPreviews, setAgentPreviews] = useState({}); // Cache last generation per agent
   
+  // Save status for visual feedback: 'idle' | 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState('idle');
+  const saveStatusTimeoutRef = useRef(null);
+  
+  // Pending operations guard - prevents double-clicks and overlapping operations
+  const pendingOperationsRef = useRef(new Set());
+  
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
@@ -1008,8 +1015,77 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     });
   };
 
+  // --- IMPROVED STATE MANAGEMENT HELPERS ---
+  
+  // Update save status with auto-reset
+  const updateSaveStatus = useCallback((status) => {
+    setSaveStatus(status);
+    if (saveStatusTimeoutRef.current) {
+      clearTimeout(saveStatusTimeoutRef.current);
+    }
+    // Reset to idle after 3 seconds for 'saved' or 'error' states
+    if (status === 'saved' || status === 'error') {
+      saveStatusTimeoutRef.current = setTimeout(() => {
+        setSaveStatus('idle');
+      }, 3000);
+    }
+  }, []);
+  
+  // Guard against double-clicks and overlapping operations
+  const withOperationGuard = useCallback((operationId, asyncFn) => {
+    return async (...args) => {
+      if (pendingOperationsRef.current.has(operationId)) {
+        console.log(`[Guard] Operation "${operationId}" already in progress, skipping`);
+        return;
+      }
+      pendingOperationsRef.current.add(operationId);
+      try {
+        return await asyncFn(...args);
+      } finally {
+        pendingOperationsRef.current.delete(operationId);
+      }
+    };
+  }, []);
+  
+  // Provide haptic feedback (if available)
+  const triggerHapticFeedback = useCallback((type = 'light') => {
+    if ('vibrate' in navigator) {
+      switch (type) {
+        case 'light':
+          navigator.vibrate(10);
+          break;
+        case 'medium':
+          navigator.vibrate(25);
+          break;
+        case 'heavy':
+          navigator.vibrate([30, 10, 30]);
+          break;
+        case 'success':
+          navigator.vibrate([10, 50, 20]);
+          break;
+        case 'error':
+          navigator.vibrate([50, 30, 50, 30, 50]);
+          break;
+        default:
+          navigator.vibrate(10);
+      }
+    }
+  }, []);
+
   // QuickWorkflow handlers - centralized project save flow
-  const handleSaveAssetToProject = (projectId, asset) => {
+  const handleSaveAssetToProject = useCallback((projectId, asset) => {
+    // Guard against double-saves
+    const operationId = `save-asset-${asset?.id || Date.now()}`;
+    if (pendingOperationsRef.current.has(operationId)) {
+      console.log('[SaveAsset] Operation already in progress, skipping');
+      return;
+    }
+    pendingOperationsRef.current.add(operationId);
+    
+    // Haptic feedback on save start
+    triggerHapticFeedback('light');
+    updateSaveStatus('saving');
+    
     setProjects(prev => {
       const newProjects = prev.map(p => {
         if (p.id === projectId) {
@@ -1023,6 +1099,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           
           if (isDuplicate) {
             console.log('[SaveAsset] Skipping duplicate asset:', asset.id);
+            pendingOperationsRef.current.delete(operationId);
+            updateSaveStatus('idle');
             return p; // Return unchanged project
           }
           
@@ -1040,16 +1118,31 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       // Save to cloud if logged in
       const updatedProject = newProjects.find(p => p.id === projectId);
       if (updatedProject && user && db) {
-        saveProjectToCloud(user.uid, updatedProject).catch(err => {
-          console.error('Failed to save updated project to cloud:', err);
-        });
+        saveProjectToCloud(user.uid, updatedProject)
+          .then(() => {
+            updateSaveStatus('saved');
+            triggerHapticFeedback('success');
+          })
+          .catch(err => {
+            console.error('Failed to save updated project to cloud:', err);
+            updateSaveStatus('error');
+            triggerHapticFeedback('error');
+          })
+          .finally(() => {
+            pendingOperationsRef.current.delete(operationId);
+          });
+      } else {
+        // Local save only
+        updateSaveStatus('saved');
+        triggerHapticFeedback('success');
+        pendingOperationsRef.current.delete(operationId);
       }
 
       return newProjects;
     });
     
     toast.success('Asset saved to project');
-  };
+  }, [user, db, saveProjectToCloud, updateSaveStatus, triggerHapticFeedback]);
 
   const handleCreateProjectWithAsset = (projectName, asset) => {
     // Check if user has enough credits
@@ -8754,9 +8847,42 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
       <main className="studio-main" onScroll={handleScroll}>
         <header className="studio-header">
-          <h2 className="studio-title">
-            {selectedAgent ? selectedAgent.name : (activeTab === 'mystudio' ? 'Dashboard' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1))}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h2 className="studio-title">
+              {selectedAgent ? selectedAgent.name : (activeTab === 'mystudio' ? 'Dashboard' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1))}
+            </h2>
+            {/* Save Status Indicator */}
+            {saveStatus !== 'idle' && (
+              <div 
+                className="save-status-indicator animate-fadeIn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 10px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: '500',
+                  background: saveStatus === 'saving' ? 'rgba(168, 85, 247, 0.15)' 
+                    : saveStatus === 'saved' ? 'rgba(34, 197, 94, 0.15)' 
+                    : 'rgba(239, 68, 68, 0.15)',
+                  color: saveStatus === 'saving' ? 'var(--color-purple)' 
+                    : saveStatus === 'saved' ? 'var(--color-green)' 
+                    : 'var(--color-red)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {saveStatus === 'saving' && <Loader2 size={12} className="spin" />}
+                {saveStatus === 'saved' && <Cloud size={12} />}
+                {saveStatus === 'error' && <CloudOff size={12} />}
+                <span>
+                  {saveStatus === 'saving' ? 'Saving...' 
+                    : saveStatus === 'saved' ? 'Saved' 
+                    : 'Save failed'}
+                </span>
+              </div>
+            )}
+          </div>
           <div className="studio-header-actions">
             <button 
               className="action-button secondary haptic-press"
