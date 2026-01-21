@@ -171,17 +171,18 @@
     box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important;
   }
 
-  /* Fix Modal Floating */
+  /* Fix Modal Floating - Pull toward top, reduce padding by 40% */
   .modal-content {
     width: 95% !important;
     max-width: 100% !important;
-    padding: 1.25rem !important;
+    padding: 0.9rem !important;
+    margin-top: 0 !important;
   }
 
   .modal-overlay {
     align-items: flex-start !important;
-    padding-top: 1rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.75rem !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
   }
