@@ -1326,15 +1326,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       
-      // Ensure user document exists before closing modal (creates doc for new users)
-      await fetchUserCredits(result.user.uid);
-      
-      // Close modal after user is initialized
+      // Close modal immediately for faster UX
       setShowLoginModal(false);
       toast.success('Welcome back!', { id: loadingToast });
       
       // Track login
       Analytics.login('google');
+      
+      // Fetch credits in background (don't wait)
+      fetchUserCredits(result.user.uid).catch(err => 
+        console.warn('Background credits fetch failed:', err)
+      );
       
       if (selectedPlan) {
         handleCheckoutRedirect(selectedPlan);
