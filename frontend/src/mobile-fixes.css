@@ -938,7 +938,11 @@ button, .nav-link, .agent-card-premium {
   .onboarding-tour,
   .preview-modal,
   [style*="maxWidth: min(95vw, 520px)"] {
-    /* These have their own styling */
+    position: fixed !important;
+    bottom: auto !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
   }
 }
 
