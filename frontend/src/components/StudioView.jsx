@@ -3775,32 +3775,58 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                      {/* Media Preview */}
                      <div 
                        onClick={() => {
-                         // Guard: prevent rapid clicks
-                         if (isModalTransitioning.current) return;
-                         
-                         // For text-only assets, just select for preview in Studio Monitor
-                         if (!asset.audioUrl && !asset.imageUrl && !asset.videoUrl) {
-                           setCanvasPreviewAsset(asset);
-                           return;
+                         try {
+                           // Guard: prevent rapid clicks
+                           if (isModalTransitioning.current) {
+                             console.log('[AssetClick] Blocked - transition in progress');
+                             return;
+                           }
+                           
+                           console.log('[AssetClick] Asset clicked:', asset?.id, asset?.title, 'type:', asset?.type);
+                           console.log('[AssetClick] URLs:', { audio: !!asset?.audioUrl, video: !!asset?.videoUrl, image: !!asset?.imageUrl });
+                           
+                           isModalTransitioning.current = true;
+                           
+                           // For text-only assets, open fullscreen text preview
+                           if (!asset?.audioUrl && !asset?.imageUrl && !asset?.videoUrl) {
+                             console.log('[AssetClick] Text-only asset, opening fullscreen text preview');
+                             const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                             const currentIndex = safeAssetsList.findIndex(a => a?.id === asset?.id);
+                             setShowPreview({
+                               type: (asset.type || 'text').toLowerCase(),
+                               url: null,
+                               content: asset.content || asset.snippet || asset.output || null,
+                               title: asset.title || 'Untitled',
+                               asset: asset,
+                               assets: safeAssetsList,
+                               currentIndex: currentIndex >= 0 ? currentIndex : 0
+                             });
+                             setTimeout(() => { isModalTransitioning.current = false; }, 300);
+                             return;
+                           }
+                           
+                           // Open fullscreen preview (auto-plays audio/video)
+                           const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                           const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
+                           const currentIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
+                           
+                           const previewData = {
+                             type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
+                             url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
+                             title: asset.title || 'Untitled',
+                             asset: asset,
+                             assets: previewableAssets,
+                             currentIndex: currentIndex >= 0 ? currentIndex : 0
+                           };
+                           console.log('[AssetClick] Opening preview:', previewData.type, 'url exists:', !!previewData.url);
+                           setShowPreview(previewData);
+                           
+                           // Reset guard after modal opens
+                           setTimeout(() => { isModalTransitioning.current = false; }, 300);
+                         } catch (err) {
+                           console.error('[AssetClick] Error:', err);
+                           isModalTransitioning.current = false;
                          }
-                         
-                         isModalTransitioning.current = true;
-                         
-                         // Open fullscreen preview (auto-plays audio/video)
-                         const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
-                         const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
-                         const currentIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
-                         setShowPreview({
-                           type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
-                           url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                           title: asset.title || 'Untitled',
-                           asset: asset,
-                           assets: previewableAssets,
-                           currentIndex: currentIndex >= 0 ? currentIndex : 0
-                         });
-                         
-                         // Reset guard after modal opens
-                         setTimeout(() => { isModalTransitioning.current = false; }, 300);
                        }}
                        style={{ 
                          width: '100%',
@@ -12546,7 +12572,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   borderRadius: '10px',
                   background: safePreview.type === 'image' ? 'rgba(236, 72, 153, 0.2)' 
                     : safePreview.type === 'video' ? 'rgba(6, 182, 212, 0.2)' 
-                    : 'rgba(168, 85, 247, 0.2)',
+                    : safePreview.type === 'audio' ? 'rgba(168, 85, 247, 0.2)'
+                    : 'rgba(34, 197, 94, 0.2)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
@@ -12554,6 +12581,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   {safePreview.type === 'image' && <ImageIcon size={18} style={{ color: 'var(--color-pink)' }} />}
                   {safePreview.type === 'video' && <Video size={18} style={{ color: 'var(--color-cyan)' }} />}
                   {safePreview.type === 'audio' && <Music size={18} style={{ color: 'var(--color-purple)' }} />}
+                  {(safePreview.type === 'text' || safePreview.type === 'lyrics' || safePreview.type === 'hook' || safePreview.type === 'verse' || safePreview.type === 'concept') && <FileText size={18} style={{ color: 'var(--color-green)' }} />}
                 </div>
                 <div>
                   <h2 style={{ fontSize: '1rem', margin: 0, fontWeight: '600' }}>{safePreview.title || 'Preview'}</h2>
@@ -12810,6 +12838,31 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       background: 'black'
                     }}
                   />
+                </div>
+              )}
+              {/* Text content preview */}
+              {(safePreview.type === 'text' || safePreview.type === 'lyrics' || safePreview.type === 'hook' || safePreview.type === 'verse' || safePreview.type === 'concept') && (
+                <div style={{ 
+                  width: '100%', 
+                  maxWidth: previewMaximized ? '800px' : '600px', 
+                  maxHeight: previewMaximized ? '85vh' : '70vh',
+                  overflow: 'auto',
+                  padding: '2rem',
+                  background: 'rgba(20, 20, 30, 0.8)',
+                  borderRadius: '16px',
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }}>
+                  <div style={{ 
+                    fontSize: previewMaximized ? '1.1rem' : '1rem', 
+                    lineHeight: '1.8',
+                    color: 'var(--text-primary)',
+                    whiteSpace: 'pre-wrap',
+                    fontFamily: 'inherit'
+                  }}>
+                    {safePreview.content || safePreview.asset?.content || safePreview.asset?.snippet || safePreview.asset?.output || (
+                      <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>No text content available</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
