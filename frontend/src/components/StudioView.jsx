@@ -732,6 +732,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setActiveTab('agents');
   };
 
+  // Project Type Choice Modal - lets user choose between Studio Creation and AI Pipeline
+  const [showProjectTypeChoice, setShowProjectTypeChoice] = useState(false);
+
   // Project Wizard State
   // Project wizard is ONLY shown when user explicitly clicks "Create Project"
   const [showProjectWizard, setShowProjectWizard] = useState(false);
@@ -4326,7 +4329,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       ))}
                     </div>
                     <div className="workflow-actions" style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
-                      <button className="btn-pill primary" onClick={() => setShowProjectWizard(true)}>
+                      <button className="btn-pill primary" onClick={() => setShowProjectTypeChoice(true)}>
                         <Plus size={14} /> New Project
                       </button>
                       <button className="btn-pill glass" onClick={() => setActiveTab('hub')}>
@@ -4363,7 +4366,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         <p style={{ margin: '0 0 16px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                           Start your first project and track your creative journey.
                         </p>
-                        <button className="btn-pill primary" onClick={() => setShowProjectWizard(true)}>
+                        <button className="btn-pill primary" onClick={() => setShowProjectTypeChoice(true)}>
                           <Plus size={14} /> Create First Project
                         </button>
                       </div>
@@ -7361,7 +7364,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               <button 
                 className="cta-button-primary haptic-press" 
                 style={{ width: '100%', padding: '16px', fontSize: '1.1rem' }}
-                onClick={() => setShowProjectWizard(true)}
+                onClick={() => setShowProjectTypeChoice(true)}
               >
                 Create New Project <ArrowRight size={20} style={{ marginLeft: '8px' }} />
               </button>
@@ -8303,7 +8306,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               <h3 style={{ marginBottom: '16px', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Quick Actions</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <button
-                  onClick={() => setShowProjectWizard(true)}
+                  onClick={() => setShowProjectTypeChoice(true)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -8829,7 +8832,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               <div className="user-projects-dropdown">
                 <button 
                   className="action-button primary haptic-press"
-                  onClick={() => setShowProjectWizard(true)}
+                  onClick={() => setShowProjectTypeChoice(true)}
                 >
                   New Project ({projects?.length || 0})
                 </button>
@@ -11277,7 +11280,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           {/* Global Create Button */}
           <div 
             className="bottom-nav-item create-btn" 
-            onClick={() => setShowProjectWizard(true)}
+            onClick={() => setShowProjectTypeChoice(true)}
             role="button"
             tabIndex={0}
           >
@@ -11496,7 +11499,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 onClick={() => {
                   setShowCreditsModal(false);
-                  setShowProjectWizard(true);
+                  setShowProjectTypeChoice(true);
                 }}
               >
                 <Rocket size={18} style={{ marginRight: '6px' }} /> Create Project
@@ -11995,6 +11998,118 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             >
               Enter Studio →
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Project Type Choice Modal - Studio Creation vs AI Pipeline */}
+      {showProjectTypeChoice && (
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectTypeChoice(false)} style={{ zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px', width: '90%', padding: '32px' }}>
+            <button 
+              onClick={() => setShowProjectTypeChoice(false)}
+              style={{ 
+                position: 'absolute',
+                top: '16px', 
+                right: '16px',
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: 'white',
+                padding: 0
+              }}
+            >
+              <X size={20} />
+            </button>
+
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Create New Project</h2>
+              <p style={{ color: 'var(--text-secondary)' }}>Choose how you want to build your project</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Studio Creation Option */}
+              <button
+                onClick={() => {
+                  setShowProjectTypeChoice(false);
+                  setShowProjectWizard(true);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '16px',
+                  padding: '20px',
+                  background: 'rgba(168, 85, 247, 0.1)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  color: 'inherit',
+                  transition: 'all 0.2s ease'
+                }}
+                className="haptic-press"
+              >
+                <div style={{ 
+                  background: 'var(--color-purple)', 
+                  padding: '12px', 
+                  borderRadius: '12px', 
+                  color: 'white',
+                  flexShrink: 0
+                }}>
+                  <FolderPlus size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', marginBottom: '4px', color: 'var(--text-primary)' }}>Studio Creation</h3>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
+                    Build your project step by step. Choose name, type, and select agents manually.
+                  </p>
+                </div>
+              </button>
+
+              {/* AI Production Pipeline Option */}
+              <button
+                onClick={() => {
+                  setShowProjectTypeChoice(false);
+                  setShowOrchestrator(true);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '16px',
+                  padding: '20px',
+                  background: 'rgba(6, 182, 212, 0.1)',
+                  border: '1px solid rgba(6, 182, 212, 0.3)',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  color: 'inherit',
+                  transition: 'all 0.2s ease'
+                }}
+                className="haptic-press"
+              >
+                <div style={{ 
+                  background: 'var(--color-cyan)', 
+                  padding: '12px', 
+                  borderRadius: '12px', 
+                  color: 'white',
+                  flexShrink: 0
+                }}>
+                  <Sparkles size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', marginBottom: '4px', color: 'var(--text-primary)' }}>AI Production Pipeline</h3>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
+                    Let AI orchestrate your creative workflow. Describe your vision and get a complete production plan.
+                  </p>
+                </div>
+              </button>
+            </div>
           </div>
         </div>
       )}
