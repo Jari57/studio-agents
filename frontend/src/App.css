@@ -11584,3 +11584,44 @@ html, body, #root {
     padding: 14px;
   }
 }
+
+/* ============================================
+   SCROLL FIX: Ensure all tab views can scroll
+   ============================================ */
+
+/* News Hub scrollable container */
+.news-hub-v2 {
+  padding: 20px;
+  padding-bottom: 100px;
+  min-height: 100%;
+}
+
+/* Ensure studio-main can scroll on all screen sizes */
+.studio-main {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+/* studio-content should NOT block scrolling */
+.studio-content {
+  overflow: visible;
+  min-height: min-content;
+}
+
+/* Mobile scroll fix */
+@media (max-width: 768px) {
+  .news-hub-v2,
+  .activity-wall-view,
+  .resources-view,
+  .support-view,
+  .profile-view,
+  .marketing-view {
+    padding-bottom: 120px;
+  }
+  
+  .studio-main {
+    padding-bottom: 0 !important;
+  }
+}
