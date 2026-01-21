@@ -604,3 +604,427 @@ button, .nav-link, .agent-card-premium {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PROFILE SCREEN MOBILE POLISH
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .studio-profile-view {
+    padding: 16px !important;
+  }
+  
+  /* Profile header compact on small screens */
+  .studio-profile-view > div:first-child {
+    padding: 16px !important;
+    border-radius: 16px !important;
+  }
+  
+  /* Avatar smaller on mobile */
+  .studio-profile-view > div:first-child > div:first-child > div:first-child {
+    width: 56px !important;
+    height: 56px !important;
+  }
+  
+  /* Name smaller */
+  .studio-profile-view h2 {
+    font-size: 1.2rem !important;
+  }
+  
+  /* Quick stats - 3 columns still work but smaller */
+  .studio-profile-view .stat-card,
+  .studio-profile-view [style*="gridTemplateColumns: repeat(3"] > div {
+    padding: 10px 6px !important;
+  }
+  
+  .studio-profile-view [style*="gridTemplateColumns: repeat(3"] > div > div:first-child {
+    font-size: 1.2rem !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   QUICK WORKFLOW MODAL - CRITICAL OVERFLOW FIXES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.quick-workflow-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.quick-workflow-modal .modal-header {
+  flex-shrink: 0;
+}
+
+.quick-workflow-modal > div:nth-child(2) {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 480px) {
+  .quick-workflow-modal {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 85vh !important;
+    border-radius: 20px 20px 0 0 !important;
+    animation: slideUpSheet 0.3s ease forwards;
+  }
+  
+  .quick-workflow-modal .modal-header {
+    padding: 12px 16px !important;
+  }
+  
+  .quick-workflow-modal textarea {
+    font-size: 16px !important; /* Prevent iOS zoom */
+  }
+  
+  .quick-workflow-modal select {
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+  
+  .quick-workflow-modal button {
+    min-height: 44px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ONBOARDING TOUR MOBILE POLISH
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.onboarding-tour {
+  touch-action: pan-y;
+}
+
+@media (max-width: 480px) {
+  .onboarding-tour {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 85vh;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    animation: slideUpSheet 0.3s ease forwards;
+  }
+  
+  @keyframes slideUpSheet {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  /* Smaller icon on mobile */
+  .onboarding-tour [style*="width: 72px"][style*="height: 72px"] {
+    width: 56px !important;
+    height: 56px !important;
+  }
+  
+  /* Smaller padding */
+  .onboarding-tour > div:not(:first-child):not(:last-child) {
+    padding: 24px 20px !important;
+  }
+  
+  /* Genre grid - 3 columns still works */
+  .onboarding-tour [style*="gridTemplateColumns: repeat(3"] {
+    gap: 6px !important;
+  }
+  
+  .onboarding-tour [style*="gridTemplateColumns: repeat(3"] button {
+    padding: 8px 4px !important;
+    font-size: 0.7rem !important;
+  }
+  
+  /* Navigation buttons */
+  .onboarding-tour .btn-pill {
+    padding: 12px 16px !important;
+    font-size: 0.9rem !important;
+    min-height: 44px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   VERSION HISTORY MODAL MOBILE POLISH
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  /* Version history items */
+  .modal-content [style*="Version"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  
+  /* Restore button full width */
+  .modal-content button[style*="Restore"],
+  .modal-content button:contains("Restore") {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   TRASH MODAL MOBILE POLISH
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  /* Trash items compact */
+  [class*="trash"] .modal-body > div > div {
+    padding: 12px !important;
+  }
+  
+  /* Action buttons row */
+  [class*="trash"] .modal-footer {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  
+  [class*="trash"] .modal-footer button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PREVIEW MODAL MOBILE POLISH
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Preview modal full screen on mobile */
+  .modal-overlay:has(.preview-modal),
+  .modal-overlay:has([style*="previewMaximized"]) {
+    padding: 0 !important;
+  }
+  
+  /* Preview header actions wrap */
+  .preview-modal [style*="display: flex"][style*="gap"] {
+    flex-wrap: wrap;
+  }
+  
+  /* Control buttons minimum touch size */
+  .preview-modal button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  
+  /* Save options dropdown */
+  .preview-modal [style*="position: absolute"][style*="background"] {
+    left: 0 !important;
+    right: 0 !important;
+    width: auto !important;
+    max-width: 100% !important;
+  }
+  
+  /* Text preview larger on mobile */
+  .preview-modal pre,
+  .preview-modal [style*="whiteSpace: pre-wrap"] {
+    font-size: 0.95rem !important;
+    line-height: 1.7 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Very small screens - stack header elements */
+  .preview-modal .modal-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  
+  .preview-modal .modal-header > div:last-child {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   QUICK ACTIONS MOBILE TOUCH TARGETS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Ensure all clickable items have proper touch targets */
+  .haptic-press,
+  [role="button"],
+  button:not(.icon-btn) {
+    min-height: 44px;
+  }
+  
+  /* Toggle switches touch area */
+  [style*="width: 42px"][style*="height: 24px"] {
+    min-width: 48px;
+    min-height: 32px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   FORM INPUTS MOBILE POLISH
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Form grids stack on mobile */
+  [style*="gridTemplateColumns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Inputs larger touch targets */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 16px !important; /* Prevents iOS zoom */
+    padding: 14px !important;
+    min-height: 48px;
+  }
+  
+  /* Select dropdowns */
+  select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   BOTTOM SHEET STYLE MODALS (iOS-like)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  /* Bottom sheet indicator */
+  .modal-content::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+  }
+  
+  /* Modal slides up from bottom */
+  .modal-content {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin: 0 !important;
+    max-height: 90vh !important;
+    border-radius: 20px 20px 0 0 !important;
+    padding-top: 24px !important;
+    animation: slideUpModal 0.3s ease forwards;
+  }
+  
+  @keyframes slideUpModal {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  
+  /* Exceptions - some modals should stay centered */
+  .onboarding-tour,
+  .preview-modal,
+  [style*="maxWidth: min(95vw, 520px)"] {
+    /* These have their own styling */
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SAFE AREA INSETS (notch/home indicator)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .bottom-nav {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom)) !important;
+    height: calc(72px + env(safe-area-inset-bottom)) !important;
+  }
+  
+  .modal-content {
+    padding-bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+  }
+  
+  .studio-content {
+    padding-bottom: calc(90px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   HAPTIC FEEDBACK ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.haptic-press {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.haptic-press:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+/* Buttons with stronger feedback */
+.btn-pill:active,
+.cta-button-primary:active,
+.cta-button-premium:active {
+  transform: scale(0.95);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SCROLLING IMPROVEMENTS
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.studio-content,
+.modal-body,
+.more-menu-view {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbars on mobile but keep functionality */
+@media (max-width: 768px) {
+  .studio-content::-webkit-scrollbar,
+  .modal-body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   LANDSCAPE ORIENTATION FIXES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Reduce header height in landscape */
+  .studio-header {
+    height: 50px !important;
+    padding: 8px 16px !important;
+  }
+  
+  /* Bottom nav smaller */
+  .bottom-nav {
+    height: 56px !important;
+  }
+  
+  /* Modals shorter */
+  .modal-content {
+    max-height: 85vh !important;
+  }
+  
+  .onboarding-tour {
+    max-height: 100vh !important;
+    border-radius: 16px !important;
+  }
+}
+
+
