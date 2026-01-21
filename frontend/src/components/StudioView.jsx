@@ -3688,6 +3688,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         setShowPreview({
                           type: (canvasPreviewAsset.type || 'text').toLowerCase(),
                           url: canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl || null,
+                          content: canvasPreviewAsset.content || canvasPreviewAsset.snippet || null,
                           title: canvasPreviewAsset.title || 'Untitled',
                           asset: canvasPreviewAsset,
                           assets: assetsList,
@@ -3897,6 +3898,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                            setShowPreview({
                              type: (canvasPreviewAsset.type || 'text').toLowerCase(),
                              url: canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl || null,
+                             content: canvasPreviewAsset.content || canvasPreviewAsset.snippet || null,
                              title: canvasPreviewAsset.title || 'Untitled',
                              asset: canvasPreviewAsset,
                              assets: assetsList,
@@ -4236,13 +4238,24 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                          // Guard: prevent rapid clicks
                          if (isModalTransitioning.current) return;
                          
-                         // For text-only assets, just select for preview in Studio Monitor
+                         isModalTransitioning.current = true;
+                         
+                         // For text-only assets, open text preview modal
                          if (!asset.audioUrl && !asset.imageUrl && !asset.videoUrl) {
-                           setCanvasPreviewAsset(asset);
+                           const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                           const currentIndex = safeAssetsList.findIndex(a => a?.id === asset?.id);
+                           setShowPreview({
+                             type: (asset.type || 'text').toLowerCase(),
+                             url: null,
+                             content: asset.content || asset.snippet || asset.output || null,
+                             title: asset.title || 'Untitled',
+                             asset: asset,
+                             assets: safeAssetsList,
+                             currentIndex: currentIndex >= 0 ? currentIndex : 0
+                           });
+                           setTimeout(() => { isModalTransitioning.current = false; }, 300);
                            return;
                          }
-                         
-                         isModalTransitioning.current = true;
                          
                          // Open fullscreen preview (auto-plays audio/video)
                          const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
