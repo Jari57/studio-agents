@@ -1,7 +1,12 @@
-# Backend files (not needed for Vercel frontend deployment)
+# Backend and infrastructure (ignored for Vercel)
 backend/
 scripts/
 test-results/
+railway.json
+Procfile
+Dockerfile
+docker-compose.yml
+.dockerignore
 
 # Documentation
 *.md
