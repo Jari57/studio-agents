@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock, LayoutGrid } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock, LayoutGrid, Image as ImageIcon, Disc } from 'lucide-react';
 import { AGENTS } from '../constants';
 import { auth, GoogleAuthProvider, signInWithPopup } from '../firebase';
 import MultiAgentDemo from './MultiAgentDemo';
@@ -614,17 +614,59 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           </div>
 
           {/* Main Title - Short & Punchy */}
-          <h1 className="hero-title">
-            <span className="gradient-text-vibrant">
-              YOUR LABEL. YOUR POCKET.
+          <h1 className="hero-title" style={{ 
+            fontSize: 'clamp(2.5rem, 8vw, 4rem)',
+            fontWeight: '900',
+            lineHeight: '1.1',
+            marginBottom: '24px',
+            letterSpacing: '-0.02em'
+          }}>
+            <span style={{
+              background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f59e0b 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              display: 'inline-block',
+              animation: 'gradient-shift 3s ease infinite',
+              backgroundSize: '200% 200%'
+            }}>
+              YOUR LABEL.
+            </span>
+            <br />
+            <span style={{
+              background: 'linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              display: 'inline-block',
+              animation: 'gradient-shift 3s ease infinite 0.5s',
+              backgroundSize: '200% 200%'
+            }}>
+              YOUR POCKET.
             </span>
           </h1>
 
           {/* Subtitle - Value Prop */}
-          <p className="hero-subtitle" style={{ maxWidth: '360px', margin: '0 auto 20px' }}>
-            16 AI agents. One studio. Zero gatekeepers.
+          <p className="hero-subtitle" style={{ 
+            maxWidth: '400px', 
+            margin: '0 auto 20px',
+            fontSize: '1.1rem',
+            fontWeight: '500',
+            lineHeight: '1.6'
+          }}>
+            <span style={{ 
+              color: '#fff',
+              fontSize: '1.2em',
+              fontWeight: '600'
+            }}>
+              16 AI agents. One studio. Zero gatekeepers.
+            </span>
             <br />
-            <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>
+            <span style={{ 
+              fontSize: '0.9em', 
+              color: 'rgba(255,255,255,0.7)',
+              fontStyle: 'italic'
+            }}>
               Drop tracks in hours, not months.
             </span>
           </p>
@@ -1077,6 +1119,238 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           <div className="scroll-indicator">
             <div className="scroll-text">Explore the future</div>
             <div className="scroll-dot"></div>
+          </div>
+        </div>
+      </section>
+
+      {/* THE PITCH - Problem/Solution Section */}
+      <section style={{
+        padding: '80px 20px',
+        background: 'linear-gradient(180deg, #0a0a0f 0%, #12121a 100%)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Background decoration */}
+        <div style={{
+          position: 'absolute',
+          top: '-50%',
+          left: '-10%',
+          width: '500px',
+          height: '500px',
+          background: 'radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%)',
+          filter: 'blur(80px)',
+          pointerEvents: 'none'
+        }} />
+
+        <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          {/* Section Header */}
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <h2 style={{ 
+              fontSize: 'clamp(1.8rem, 6vw, 3rem)',
+              fontWeight: '900',
+              marginBottom: '16px',
+              background: 'linear-gradient(135deg, #ef4444 0%, #f97316 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              letterSpacing: '-0.02em'
+            }}>
+              The Indie Artist's Trap
+            </h2>
+            <p style={{ 
+              fontSize: 'clamp(1rem, 3vw, 1.2rem)', 
+              color: 'rgba(255,255,255,0.8)',
+              maxWidth: '700px',
+              margin: '0 auto'
+            }}>
+              Without a label, the costs add up fast—and 99% never break even.
+            </p>
+          </div>
+
+          {/* The Problem - Cost Breakdown */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+            gap: '20px',
+            marginBottom: '60px'
+          }}>
+            {[
+              { item: 'Producer', cost: '$500–5K/beat', icon: Music },
+              { item: 'Designer', cost: '$200–1K/artwork', icon: ImageIcon },
+              { item: 'Marketing', cost: '$1K+/campaign', icon: TrendingUp },
+              { item: 'Mastering', cost: '$100–500/track', icon: Disc }
+            ].map((service, i) => (
+              <div key={i} style={{
+                padding: '24px',
+                background: 'rgba(239, 68, 68, 0.08)',
+                borderRadius: '16px',
+                border: '2px solid rgba(239, 68, 68, 0.2)',
+                textAlign: 'center',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.2)';
+              }}>
+                <service.icon size={32} style={{ color: '#ef4444', marginBottom: '12px' }} />
+                <div style={{ 
+                  fontSize: '1rem', 
+                  fontWeight: '600', 
+                  color: 'white',
+                  marginBottom: '8px'
+                }}>
+                  {service.item}
+                </div>
+                <div style={{ 
+                  fontSize: '1.3rem', 
+                  fontWeight: '800', 
+                  color: '#ef4444'
+                }}>
+                  {service.cost}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Divider with Arrow */}
+          <div style={{ 
+            textAlign: 'center', 
+            margin: '40px 0',
+            position: 'relative'
+          }}>
+            <div style={{
+              display: 'inline-block',
+              padding: '12px 24px',
+              background: 'linear-gradient(135deg, #a855f7, #06b6d4)',
+              borderRadius: '50px',
+              fontSize: '0.9rem',
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              boxShadow: '0 8px 32px rgba(168, 85, 247, 0.3)'
+            }}>
+              The Solution ↓
+            </div>
+          </div>
+
+          {/* The Solution - Agent Grid */}
+          <div style={{ marginBottom: '40px' }}>
+            <h3 style={{ 
+              fontSize: 'clamp(1.5rem, 5vw, 2.2rem)',
+              fontWeight: '900',
+              textAlign: 'center',
+              marginBottom: '40px',
+              background: 'linear-gradient(135deg, #22c55e 0%, #06b6d4 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              Your AI Record Label
+            </h3>
+
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+              gap: '16px'
+            }}>
+              {[
+                { name: '🎤 Ghostwriter', output: 'Lyrics & hooks' },
+                { name: '🎹 Beat Architect', output: 'Instrumentals' },
+                { name: '🎨 Album Artist', output: 'Cover art' },
+                { name: '🎬 Video Creator', output: 'Music videos' },
+                { name: '📱 Trend Analyzer', output: 'Viral content' },
+                { name: '📊 Release Manager', output: 'Release strategy' }
+              ].map((agent, i) => (
+                <div key={i} style={{
+                  padding: '20px',
+                  background: 'linear-gradient(145deg, rgba(34, 197, 94, 0.1), rgba(6, 182, 212, 0.05))',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(34, 197, 94, 0.2)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = 'rgba(34, 197, 94, 0.2)';
+                }}>
+                  <div style={{ 
+                    fontSize: '1.1rem', 
+                    fontWeight: '700', 
+                    color: 'white',
+                    marginBottom: '6px'
+                  }}>
+                    {agent.name}
+                  </div>
+                  <div style={{ 
+                    fontSize: '0.9rem', 
+                    color: 'rgba(255,255,255,0.7)'
+                  }}>
+                    {agent.output}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ 
+              textAlign: 'center', 
+              marginTop: '24px',
+              padding: '16px',
+              background: 'rgba(168, 85, 247, 0.1)',
+              borderRadius: '12px',
+              border: '1px solid rgba(168, 85, 247, 0.2)'
+            }}>
+              <div style={{ fontSize: '1rem', fontWeight: '600', color: 'white' }}>
+                +10 more specialized agents
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', marginTop: '4px' }}>
+                Orchestrate 4 agents at once → Full release package in minutes
+              </div>
+            </div>
+          </div>
+
+          {/* Value Prop CTA */}
+          <div style={{ 
+            textAlign: 'center',
+            marginTop: '50px'
+          }}>
+            <button
+              onClick={() => handleCtaClick('start')}
+              className="haptic-press"
+              style={{
+                padding: '18px 48px',
+                background: 'linear-gradient(135deg, #a855f7, #06b6d4)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50px',
+                fontSize: '1.1rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                boxShadow: '0 12px 40px rgba(168, 85, 247, 0.4)',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 16px 50px rgba(168, 85, 247, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 12px 40px rgba(168, 85, 247, 0.4)';
+              }}
+            >
+              Start Creating For Free →
+            </button>
+            <div style={{ 
+              marginTop: '16px',
+              fontSize: '0.85rem',
+              color: 'rgba(255,255,255,0.5)'
+            }}>
+              No credit card required • 3 free trials
+            </div>
           </div>
         </div>
       </section>

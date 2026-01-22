@@ -4354,7 +4354,7 @@ const twitterSessions = new Map();
 const TWITTER_CLIENT_ID = process.env.TWITTER_CLIENT_ID;
 const TWITTER_CLIENT_SECRET = process.env.TWITTER_CLIENT_SECRET;
 const TWITTER_CALLBACK_URL = process.env.TWITTER_CALLBACK_URL || 
-  (isDevelopment ? 'http://localhost:3001/api/twitter/callback' : 'https://studio-agents-production.up.railway.app/api/twitter/callback');
+  (isDevelopment ? 'http://localhost:3000/api/twitter/callback' : 'https://studio-agents-production.up.railway.app/api/twitter/callback');
 
 // ==================== CONCERTS API ====================
 // Fetches real hip-hop and mainstream concerts from SeatGeek API
@@ -5324,7 +5324,7 @@ app.get('/api/twitter/callback', async (req, res) => {
 const META_CLIENT_ID = process.env.META_CLIENT_ID;
 const META_CLIENT_SECRET = process.env.META_CLIENT_SECRET;
 const META_CALLBACK_URL = process.env.META_CALLBACK_URL || 
-  (isDevelopment ? 'http://localhost:3001/api/meta/callback' : 'https://studio-agents-production.up.railway.app/api/meta/callback');
+  (isDevelopment ? 'http://localhost:3000/api/meta/callback' : 'https://studio-agents-production.up.railway.app/api/meta/callback');
 
 const metaSessions = new Map();
 

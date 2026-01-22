@@ -4314,6 +4314,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 >
                   <CreditCard size={18} /> Billing & Wallet
                 </button>
+                {isAdminEmail(user?.email) && (
+                  <button 
+                    className={`sidebar-link ${dashboardTab === 'analytics' ? 'active' : ''}`}
+                    onClick={() => setDashboardTab('analytics')}
+                  >
+                    <Activity size={18} /> Analytics
+                  </button>
+                )}
                 <button 
                   className={`sidebar-link ${dashboardTab === 'settings' ? 'active' : ''}`}
                   onClick={() => setDashboardTab('settings')}
@@ -5133,6 +5141,183 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {dashboardTab === 'analytics' && isAdminEmail(user?.email) && (
+                <div className="dashboard-view-analytics animate-fadeIn">
+                  <div className="section-header-simple">
+                    <h2>Analytics Dashboard</h2>
+                    <p>Track user engagement and app metrics in real-time.</p>
+                  </div>
+
+                  {(() => {
+                    const metrics = Analytics.getMetrics();
+                    const firstVisit = localStorage.getItem('first_visit');
+                    const lastVisit = localStorage.getItem('last_visit');
+                    const visitCount = localStorage.getItem('visit_count');
+                    const visitorId = localStorage.getItem('visitor_id');
+
+                    return (
+                      <div style={{ display: 'grid', gap: '20px' }}>
+                        {/* Metrics Cards */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                          <div style={{ 
+                            padding: '20px', 
+                            background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.1), rgba(168, 85, 247, 0.05))', 
+                            borderRadius: '12px',
+                            border: '1px solid rgba(168, 85, 247, 0.2)'
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Total Signups</div>
+                            <div style={{ fontSize: '2rem', fontWeight: '700', color: '#a855f7' }}>{metrics?.totalSignups || 0}</div>
+                          </div>
+
+                          <div style={{ 
+                            padding: '20px', 
+                            background: 'linear-gradient(145deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05))', 
+                            borderRadius: '12px',
+                            border: '1px solid rgba(34, 197, 94, 0.2)'
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Total Generations</div>
+                            <div style={{ fontSize: '2rem', fontWeight: '700', color: '#22c55e' }}>{metrics?.totalGenerations || 0}</div>
+                          </div>
+
+                          <div style={{ 
+                            padding: '20px', 
+                            background: 'linear-gradient(145deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))', 
+                            borderRadius: '12px',
+                            border: '1px solid rgba(59, 130, 246, 0.2)'
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Total Projects</div>
+                            <div style={{ fontSize: '2rem', fontWeight: '700', color: '#3b82f6' }}>{metrics?.totalProjects || 0}</div>
+                          </div>
+
+                          <div style={{ 
+                            padding: '20px', 
+                            background: 'linear-gradient(145deg, rgba(251, 191, 36, 0.1), rgba(251, 191, 36, 0.05))', 
+                            borderRadius: '12px',
+                            border: '1px solid rgba(251, 191, 36, 0.2)'
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Avg Gen/User</div>
+                            <div style={{ fontSize: '2rem', fontWeight: '700', color: '#fbbf24' }}>{metrics?.avgGenerationsPerUser || 0}</div>
+                          </div>
+                        </div>
+
+                        {/* Agent Usage Breakdown */}
+                        <div style={{ 
+                          padding: '24px', 
+                          background: 'rgba(255,255,255,0.02)', 
+                          borderRadius: '12px',
+                          border: '1px solid rgba(255,255,255,0.05)'
+                        }}>
+                          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '16px' }}>Agent Usage Breakdown</h3>
+                          <div style={{ display: 'grid', gap: '8px' }}>
+                            {metrics?.agentUsage && Object.entries(metrics.agentUsage)
+                              .sort(([,a], [,b]) => b - a)
+                              .slice(0, 10)
+                              .map(([agentId, count]) => {
+                                const agent = AGENTS.find(a => a.id === agentId);
+                                const percentage = metrics.totalGenerations > 0 ? ((count / metrics.totalGenerations) * 100).toFixed(1) : 0;
+                                return (
+                                  <div key={agentId} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <div style={{ minWidth: '120px', fontSize: '0.85rem' }}>{agent?.name || agentId}</div>
+                                    <div style={{ flex: 1, height: '24px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
+                                      <div style={{ 
+                                        width: `${percentage}%`, 
+                                        height: '100%', 
+                                        background: 'linear-gradient(90deg, #a855f7, #ec4899)',
+                                        transition: 'width 0.5s ease'
+                                      }} />
+                                    </div>
+                                    <div style={{ minWidth: '60px', textAlign: 'right', fontSize: '0.85rem', fontWeight: '600' }}>
+                                      {count} <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>({percentage}%)</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+
+                        {/* Visitor Info */}
+                        <div style={{ 
+                          padding: '24px', 
+                          background: 'rgba(255,255,255,0.02)', 
+                          borderRadius: '12px',
+                          border: '1px solid rgba(255,255,255,0.05)'
+                        }}>
+                          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '16px' }}>Current Session</h3>
+                          <div style={{ display: 'grid', gap: '12px', fontSize: '0.85rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: 'var(--text-secondary)' }}>Visitor ID:</span>
+                              <span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{visitorId || 'N/A'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: 'var(--text-secondary)' }}>Visit Count:</span>
+                              <span style={{ fontWeight: '600' }}>{visitCount || 0}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: 'var(--text-secondary)' }}>First Visit:</span>
+                              <span>{firstVisit ? new Date(firstVisit).toLocaleDateString() : 'N/A'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: 'var(--text-secondary)' }}>Last Visit:</span>
+                              <span>{lastVisit ? new Date(lastVisit).toLocaleDateString() : 'N/A'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: 'var(--text-secondary)' }}>GA4 Measurement ID:</span>
+                              <span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>G-37J2MVHXS7</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div style={{ 
+                          padding: '24px', 
+                          background: 'rgba(255,255,255,0.02)', 
+                          borderRadius: '12px',
+                          border: '1px solid rgba(255,255,255,0.05)'
+                        }}>
+                          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '16px' }}>Quick Actions</h3>
+                          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                            <button 
+                              className="btn-pill glass"
+                              onClick={() => {
+                                const data = Analytics.getMetrics();
+                                const csv = `Metric,Value\nTotal Signups,${data.totalSignups}\nTotal Generations,${data.totalGenerations}\nTotal Projects,${data.totalProjects}\nAvg Generations per User,${data.avgGenerationsPerUser}`;
+                                const blob = new Blob([csv], { type: 'text/csv' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `studio-agents-metrics-${new Date().toISOString().split('T')[0]}.csv`;
+                                a.click();
+                                toast.success('Metrics exported to CSV');
+                              }}
+                            >
+                              <Download size={16} /> Export CSV
+                            </button>
+                            <button 
+                              className="btn-pill glass"
+                              onClick={() => {
+                                window.open('https://analytics.google.com/analytics/web/#/p474918033/reports/intelligenthome', '_blank');
+                              }}
+                            >
+                              <Globe size={16} /> Open GA4 Dashboard
+                            </button>
+                            <button 
+                              className="btn-pill glass"
+                              onClick={() => {
+                                console.log('=== STUDIO AGENTS METRICS ===');
+                                console.log(Analytics.getMetrics());
+                                toast.success('Metrics logged to console');
+                              }}
+                            >
+                              <Activity size={16} /> Log to Console
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -6749,7 +6934,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           }}>
                             <Icon size={20} style={{ color: '#22c55e' }} />
                           </div>
-                          <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                            <h4 style={{ fontWeight: '700', fontSize: '0.85rem', margin: 0 }}>{agent.name}</h4>
+                            {agent.isBeta && (
+                              <span style={{ 
+                                padding: '2px 6px', 
+                                background: 'rgba(251, 191, 36, 0.2)', 
+                                color: '#fbbf24', 
+                                borderRadius: '4px', 
+                                fontSize: '0.55rem', 
+                                fontWeight: '700',
+                                textTransform: 'uppercase'
+                              }}>BETA</span>
+                            )}
+                          </div>
                           <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '8px' }}>{agent.category}</p>
                           <span style={{ 
                             padding: '2px 6px', 
@@ -6827,7 +7025,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           }}>
                             <Icon size={20} style={{ color: '#fbbf24' }} />
                           </div>
-                          <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                            <h4 style={{ fontWeight: '700', fontSize: '0.85rem', margin: 0 }}>{agent.name}</h4>
+                            {agent.isBeta && (
+                              <span style={{ 
+                                padding: '2px 6px', 
+                                background: 'rgba(251, 191, 36, 0.2)', 
+                                color: '#fbbf24', 
+                                borderRadius: '4px', 
+                                fontSize: '0.55rem', 
+                                fontWeight: '700',
+                                textTransform: 'uppercase'
+                              }}>BETA</span>
+                            )}
+                          </div>
                           <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '8px' }}>{agent.category}</p>
                           <span style={{ 
                             padding: '2px 6px', 
@@ -6906,7 +7117,31 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           }}>
                             <Icon size={20} style={{ color: '#a855f7' }} />
                           </div>
-                          <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                            <h4 style={{ fontWeight: '700', fontSize: '0.85rem', margin: 0 }}>{agent.name}</h4>
+                            {agent.isBeta && (
+                              <span style={{ 
+                                padding: '2px 6px', 
+                                background: 'rgba(251, 191, 36, 0.2)', 
+                                color: '#fbbf24', 
+                                borderRadius: '4px', 
+                                fontSize: '0.55rem', 
+                                fontWeight: '700',
+                                textTransform: 'uppercase'
+                              }}>BETA</span>
+                            )}
+                            {agent.comingSoon && (
+                              <span style={{ 
+                                padding: '2px 6px', 
+                                background: 'rgba(100, 116, 139, 0.2)', 
+                                color: '#94a3b8', 
+                                borderRadius: '4px', 
+                                fontSize: '0.55rem', 
+                                fontWeight: '700',
+                                textTransform: 'uppercase'
+                              }}>SOON</span>
+                            )}
+                          </div>
                           <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '8px' }}>{agent.category}</p>
                           <span style={{ 
                             padding: '2px 6px', 

@@ -259,6 +259,16 @@ button:active {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+/* Gradient Shift Animation for Hero Text */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
 /* Smooth Scroll */
 .scroll-container {
   -webkit-overflow-scrolling: touch;
