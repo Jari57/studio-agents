@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock, LayoutGrid, Image as ImageIcon, Disc } from 'lucide-react';
 import { AGENTS } from '../constants';
-import { auth, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from '../firebase';
+import { auth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged } from '../firebase';
 import MultiAgentDemo from './MultiAgentDemo';
 
 // Comprehensive Agent Whitepaper Data
@@ -542,6 +542,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         if (result && result.user) {
           console.log('[LandingPage] Auth redirect successful, user:', result.user.email);
           
+          // Set localStorage to prevent flashes on navigation
+          localStorage.setItem('studio_user_id', result.user.uid);
+          
           // Retrieve pending action from sessionStorage
           const storedAction = sessionStorage.getItem('auth_pending_action');
           console.log('[LandingPage] Retrieved pending action:', storedAction);
@@ -568,6 +571,29 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     
     checkRedirectResult();
   }, []); // Run once on mount
+
+  // Auto-enter studio if user is already logged in (persistence)
+  useEffect(() => {
+    if (!auth) return;
+    
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && !isTransitioning) {
+        console.log('[LandingPage] User already logged in, transitioning to studio...');
+        
+        // Ensure user ID is in localStorage for StudioView
+        localStorage.setItem('studio_user_id', user.uid);
+        
+        setIsTransitioning(true);
+        // Navigate user to studio
+        setTimeout(() => {
+          onEnter(true);
+          setIsTransitioning(false);
+        }, 300);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [onEnter]);
 
   // Manage body scroll lock when ANY modal is open
   useEffect(() => {

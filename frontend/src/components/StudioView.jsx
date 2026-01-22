@@ -1036,12 +1036,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       toast.success(`Generation complete! Review your result.`, { id: toastId });
       
       // Track successful generation
-      Analytics.contentGenerated(selectedAgent.id, newItem.type || 'text');
+      SafeAnalytics.contentGenerated(selectedAgent.id, newItem.type || 'text');
 
     } catch (error) {
       console.error("Generation error", error);
       toast.error(error.message || 'Generation failed', { id: toastId });
-      Analytics.errorOccurred('generation_failed', error.message);
+      SafeAnalytics.errorOccurred('generation_failed', error.message);
     } finally {
       setIsGenerating(false);
     }
@@ -1754,7 +1754,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setProjectWizardStep(1);
     
     // Track project creation
-    Analytics.projectCreated(newProject.category);
+    SafeAnalytics.projectCreated(newProject.category);
     
     // Reset form data
     setNewProjectData({ 
@@ -2067,12 +2067,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             // User successfully signed in via redirect
             console.log('[Auth] Redirect sign-in successful', { uid: result.user.uid });
             toast.success('Welcome back!');
+            setUser(result.user);
+            setIsLoggedIn(true);
+            setAuthChecking(false);
             setShowLoginModal(false);
             setAuthLoading(false); // Clear loading state
             SafeAnalytics.login('google');
             
-            // Don't process pending plan here - let onAuthStateChanged handle it
-            // The user state isn't fully set yet at this point
+            // Set localStorage to prevent flashes on reload
+            localStorage.setItem('studio_user_id', result.user.uid);
           }
         })
         .catch((error) => {
@@ -5631,7 +5634,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           }
                         } else {
                           setSelectedAgent(agent);
-                          Analytics.agentUsed(agent.id);
+                          SafeAnalytics.agentUsed(agent.id);
                         }
                       }}
                     >
@@ -5677,7 +5680,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           }
                         } else {
                           setSelectedAgent(agent);
-                          Analytics.agentUsed(agent.id);
+                          SafeAnalytics.agentUsed(agent.id);
                         }
                       }}
                     >
@@ -5723,7 +5726,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           }
                         } else {
                           setSelectedAgent(agent);
-                          Analytics.agentUsed(agent.id);
+                          SafeAnalytics.agentUsed(agent.id);
                         }
                       }}
                     >
@@ -5867,7 +5870,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                               else { setDashboardTab('subscription'); setActiveTab('mystudio'); }
                             } else {
                               setSelectedAgent(agent);
-                              Analytics.agentUsed(agent.id);
+                              SafeAnalytics.agentUsed(agent.id);
                             }
                           }}
                           style={{
@@ -5958,7 +5961,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                               else { setDashboardTab('subscription'); setActiveTab('mystudio'); }
                             } else {
                               setSelectedAgent(agent);
-                              Analytics.agentUsed(agent.id);
+                              SafeAnalytics.agentUsed(agent.id);
                             }
                           }}
                           style={{
@@ -6050,7 +6053,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                               else { setDashboardTab('subscription'); setActiveTab('mystudio'); }
                             } else {
                               setSelectedAgent(agent);
-                              Analytics.agentUsed(agent.id);
+                              SafeAnalytics.agentUsed(agent.id);
                             }
                           }}
                           style={{
