@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Bell, Lock, Globe, Moon, Volume2, Save, LogOut } from 'lucide-react';
+import { User, Save, LogOut } from 'lucide-react';
 import './StudioDashboard.css';
 
 export default function StudioSettings({ userProfile, setUserProfile, onLogout }) {

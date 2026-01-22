@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { 
-  FileText, X, ChevronRight, Book, Lightbulb, Target, 
-  Zap, Music, Mic, Image, Video, TrendingUp, Users,
-  MessageSquare, Calendar, ArrowLeft, ExternalLink
+  FileText, ChevronRight, Book, Lightbulb, 
+  Zap, ArrowLeft
 } from 'lucide-react';
 
 const WhitepapersPage = ({ onBack, onSelectAgent, agents }) => {

@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { 
-  BarChart2, Users, Folder, Clock, 
-  Sparkles, Zap, Video, Music, ArrowRight,
-  TrendingUp, Activity, PlayCircle, Star,
-  Plus, LayoutGrid, Award, Film, Edit3,
-  Settings, CreditCard
+  Sparkles, Zap, Music, ArrowRight,
+  TrendingUp, Activity,
+  Plus, LayoutGrid, Film, Edit3,
+  Settings, CreditCard, Folder // added back relevant used icons
 } from 'lucide-react';
 import './StudioDashboard.css';
 
@@ -20,24 +19,17 @@ function StudioDashboard({
   onCreateProject,
   onOpenProject
 }) {
-  const [stats, setStats] = useState({
-    totalProjects: 0,
-    hoursSaved: 0,
-    assetsGenerated: 0,
-    creditsUsed: 0
-  });
-
   // Calculate real stats from projects
-  useEffect(() => {
-    if (projects) {
-      const assetCount = projects.reduce((acc, p) => acc + (p.assets ? p.assets.length : 0), 0);
-      setStats({
-        totalProjects: projects.length,
-        hoursSaved: Math.round(assetCount * 0.5), // Approx 30 mins saved per asset
-        assetsGenerated: assetCount,
-        creditsUsed: 500 - (credits || 0) // Assuming 500 start
-      });
-    }
+  const stats = useMemo(() => {
+    if (!projects) return { totalProjects: 0, hoursSaved: 0, assetsGenerated: 0, creditsUsed: 0 };
+    
+    const assetCount = projects.reduce((acc, p) => acc + (p.assets ? p.assets.length : 0), 0);
+    return {
+      totalProjects: projects.length,
+      hoursSaved: Math.round(assetCount * 0.5), // Approx 30 mins saved per asset
+      assetsGenerated: assetCount,
+      creditsUsed: 500 - (credits || 0) // Assuming 500 start
+    };
   }, [projects, credits]);
 
   const RECENTLY_ADDED = [

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CreditCard, Zap, Check, Clock, TrendingUp, Shield, Rocket } from 'lucide-react';
+import { Zap, Check, Clock } from 'lucide-react';
 import './StudioDashboard.css';
 
 export default function StudioBilling({ credits = 0, plan = 'Free' }) {

@@ -50,8 +50,10 @@ export function suppressExtensionErrors() {
 /**
  * Suppress extension errors in production, warn in development
  */
-if (process.env.NODE_ENV === 'production') {
+if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.PROD) {
   suppressExtensionErrors();
+} else if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production') {
+   suppressExtensionErrors();
 } else {
   // In development, still suppress but with a warning
   setTimeout(() => {
