@@ -11,14 +11,17 @@ export default defineConfig({
   cacheDir: '.vite/cache',
   build: {
     // Raise warning threshold a bit and split large vendor chunks
-    chunkSizeWarningLimit: 700,
+    chunkSizeWarningLimit: 1000,
     minify: 'terser',
     terserOptions: {
       compress: {
         drop_console: true, // Remove console logs in production
         drop_debugger: true
-      }
+      },
+      maxWorkers: 1
     },
+    sourcemap: false,
+    cssCodeSplit: true,
     rollupOptions: {
       output: {
         manualChunks(id) {

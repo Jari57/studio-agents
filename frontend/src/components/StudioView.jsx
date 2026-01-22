@@ -13,6 +13,10 @@ const QuickWorkflow = lazy(() => import('./QuickWorkflow'));
 const ProjectHub = lazy(() => import('./ProjectHub'));
 const NewsHub = lazy(() => import('./NewsHub'));
 
+// Import page components
+import WhitepapersPage from './WhitepapersPage';
+import LegalResourcesPage from './LegalResourcesPage';
+
 // Simple inline fallback for lazy components
 const LazyFallback = () => (
   <div style={{ 
@@ -202,8 +206,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showWhitepapersModal, setShowWhitepapersModal] = useState(false);
-  const [showLegalModal, setShowLegalModal] = useState(false);
+  const [showWhitepapersPage, setShowWhitepapersPage] = useState(false);
+  const [showLegalPage, setShowLegalPage] = useState(false);
   const [newsSearch, setNewsSearch] = useState('');
   // Reserved for future use: const [isRefreshingNews, setIsRefreshingNews] = useState(false);
   const [projects, setProjects] = useState(() => {
@@ -724,20 +728,29 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   }, [startWizard]);
 
-  const completeOnboarding = () => {
-    localStorage.setItem('studio_onboarding_v3', 'true');
-    setShowOnboarding(false);
-    
-    // Go straight to agents tab - no project creation, no complexity
-    setActiveTab('agents');
-    safeVoiceAnnounce('Welcome to your studio. Pick an agent to start creating.');
-  };
+  const completeOnboarding = useCallback(() => {
+    try {
+      localStorage.setItem('studio_onboarding_v3', 'true');
+      setShowOnboarding(false);
+      
+      // Go straight to agents tab - no project creation, no complexity
+      setActiveTab('agents');
+      safeVoiceAnnounce('Welcome to your studio. Pick an agent to start creating.');
+      toast.success('Welcome to Studio Agents!');
+    } catch (err) {
+      console.error('[Onboarding] Error:', err);
+    }
+  }, [safeVoiceAnnounce]);
 
-  const handleSkipOnboarding = () => {
-    localStorage.setItem('studio_onboarding_v3', 'true');
-    setShowOnboarding(false);
-    setActiveTab('agents');
-  };
+  const handleSkipOnboarding = useCallback(() => {
+    try {
+      localStorage.setItem('studio_onboarding_v3', 'true');
+      setShowOnboarding(false);
+      setActiveTab('agents');
+    } catch (err) {
+      console.error('[Onboarding] Error:', err);
+    }
+  }, []);
 
   // Project Type Choice Modal - lets user choose between Studio Creation and AI Pipeline
   const [showProjectTypeChoice, setShowProjectTypeChoice] = useState(false);
@@ -900,6 +913,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setProjects(prev => {
       const newProjects = [newProject, ...prev];
       console.log('[CreateProject] Projects updated. Total:', newProjects.length);
+      
+      // Immediately save to localStorage
+      try {
+        const projectsToSave = newProjects.slice(0, 50);
+        safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
+        console.log('[CreateProject] Saved to localStorage');
+      } catch (err) {
+        console.error('[CreateProject] Failed to save to localStorage:', err);
+      }
+      
       return newProjects;
     });
     
@@ -924,19 +947,21 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     
     toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
+    // Close wizard and reset
     setShowProjectWizard(false);
     setProjectWizardStep(1);
     
     // Track project creation
     Analytics.projectCreated(newProject.category);
     
-    // Project created successfully - go straight to dashboard
-    // (User already completed onboarding before reaching wizard)
-
+    // Reset form data
     setNewProjectData({ 
       name: '', 
       category: '', 
       description: '', 
+      language: 'English',
+      style: 'Modern Hip-Hop',
+      model: 'Gemini 2.0 Flash',
       selectedAgents: [], 
       workflow: '',
       socialHandle: '',
@@ -944,8 +969,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       socialPlatform: 'instagram'
     });
     
-    // Switch to dashboard to show the new project checklist
-    safeVoiceAnnounce(`Project ${newProject.name} created. Loading your production checklist.`);
+    // Switch to My Studio to show the new project
+    safeVoiceAnnounce(`Project ${newProject.name} created. Loading your studio.`);
     setActiveTab('mystudio');
   };
 
@@ -1115,6 +1140,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         return p;
       });
 
+      // Immediately save to localStorage
+      try {
+        const projectsToSave = newProjects.slice(0, 50);
+        safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
+      } catch (err) {
+        console.error('[SaveAsset] Failed to save to localStorage:', err);
+      }
+      
       // Save to cloud if logged in
       const updatedProject = newProjects.find(p => p.id === projectId);
       if (updatedProject && user && db) {
@@ -1207,14 +1240,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
     const updatedProject = {
       ...selectedProject,
-      agents: [...currentAgents, agent]
+      agents: [...currentAgents, agent],
+      updatedAt: new Date().toISOString()
     };
 
     // Update local state
     setSelectedProject(updatedProject);
     
-    // Update projects list
-    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    // Update projects list with immediate save
+    updateProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
     
     setShowAddAgentModal(false);
     safeVoiceAnnounce(`${agent.name} added to project.`);
@@ -1226,11 +1260,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         if (currentUser) {
           // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
-          // where isLoggedIn=true but user=null
+          // Use batch state updates to prevent render in-between
           setUser(currentUser);
           localStorage.setItem('studio_user_id', currentUser.uid);
-          setIsLoggedIn(true); // Set this LAST after user is set
           setAuthChecking(false); // Auth check complete
+          setIsLoggedIn(true); // Set this LAST after user is set
           
           // Get and store token
           try {
@@ -1303,12 +1337,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           }
         } else {
           // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
+          // Batch all state updates together
           setUser(null);
           setUserToken(null);
           setUserCredits(3); // Reset to trial
+          setAuthChecking(false); // Auth check complete (not logged in)
           localStorage.removeItem('studio_user_id');
           setIsLoggedIn(false); // Set this LAST after user is cleared
-          setAuthChecking(false); // Auth check complete (not logged in)
         }
       });
       return () => unsubscribe();
@@ -2785,9 +2820,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   };
 
   // Save the previewed item to projects with timeout and loading feedback
-  const handleSavePreview = async (destination = 'hub') => {
-    if (!previewItem) return;
-    if (isSaving) return; // Prevent double-save
+  const handleSavePreview = useCallback(async (destination = 'hub') => {
+    if (!previewItem) {
+      console.warn('[handleSavePreview] No preview item to save');
+      return;
+    }
+    if (isSaving) {
+      console.warn('[handleSavePreview] Save already in progress');
+      return; // Prevent double-save
+    }
     
     setIsSaving(true);
     const toastId = toast.loading('Syncing to cloud...', { icon: '☁️' });
@@ -2915,7 +2956,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [previewItem, isSaving, selectedAgent, selectedProject, isLoggedIn, auth, userCredits]);
 
   // Discard the preview and go back to agent
   const handleDiscardPreview = () => {
@@ -3078,6 +3119,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               const trimmed = parsed.slice(0, 20);
               localStorage.setItem(key, JSON.stringify(trimmed));
               console.log('[Storage] Trimmed projects to 20 most recent');
+              toast.warning('Storage full - keeping 20 most recent projects');
               return true;
             }
           }
@@ -3089,6 +3131,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           return true;
         } catch (retryError) {
           console.error('[Storage] Still failed after cleanup:', retryError);
+          toast.error('Storage full - please clear browser data');
           return false;
         }
       }
@@ -3096,6 +3139,23 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       return false;
     }
   };
+  
+  // Centralized function to update projects with automatic persistence
+  const updateProjects = useCallback((updater) => {
+    setProjects(prev => {
+      const newProjects = typeof updater === 'function' ? updater(prev) : updater;
+      
+      // Immediately save to localStorage
+      try {
+        const projectsToSave = newProjects.slice(0, 50);
+        safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
+      } catch (err) {
+        console.error('[updateProjects] Failed to save to localStorage:', err);
+      }
+      
+      return newProjects;
+    });
+  }, []);
 
   // Load projects from localStorage on mount
   useEffect(() => {
@@ -3166,13 +3226,36 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   }, [isLoggedIn]);
 
-  // Save projects to localStorage whenever they change (with quota handling)
+  // Save projects to localStorage whenever they change (with quota handling and debouncing)
+  const projectsSaveTimeoutRef = useRef(null);
   useEffect(() => {
-    if (projects && projects.length > 0) {
-      // Limit to 50 projects max to prevent quota issues
-      const projectsToSave = projects.slice(0, 50);
-      safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
+    if (!projects || projects.length === 0) return;
+    
+    // Clear existing timeout
+    if (projectsSaveTimeoutRef.current) {
+      clearTimeout(projectsSaveTimeoutRef.current);
     }
+    
+    // Debounce localStorage save by 500ms to avoid excessive writes
+    projectsSaveTimeoutRef.current = setTimeout(() => {
+      try {
+        // Limit to 50 projects max to prevent quota issues
+        const projectsToSave = projects.slice(0, 50);
+        const saved = safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
+        if (saved) {
+          console.log(`[Storage] Saved ${projectsToSave.length} projects to localStorage`);
+        }
+      } catch (err) {
+        console.error('[Storage] Failed to save projects:', err);
+        toast.error('Failed to save locally - storage full');
+      }
+    }, 500);
+    
+    return () => {
+      if (projectsSaveTimeoutRef.current) {
+        clearTimeout(projectsSaveTimeoutRef.current);
+      }
+    };
   }, [projects]);
 
   const handleDeadLink = (e, featureName) => {
@@ -3287,8 +3370,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const projectName = projectToDelete?.name || 'Unknown';
 
     // Optimistic UI update - remove from local state
-    // The useEffect for projects will automatically update localStorage (studio_agents_projects)
-    setProjects((projects || []).filter(p => p.id !== projectId));
+    setProjects(prev => {
+      const filtered = (prev || []).filter(p => p.id !== projectId);
+      
+      // Immediately save to localStorage
+      try {
+        const projectsToSave = filtered.slice(0, 50);
+        safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
+        console.log('[DeleteProject] Saved to localStorage');
+      } catch (err) {
+        console.error('[DeleteProject] Failed to save to localStorage:', err);
+      }
+      
+      return filtered;
+    });
 
     // Delete from cloud via backend API (uses Admin SDK, bypasses security rules)
     if (isLoggedIn && user) {
@@ -3713,9 +3808,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   value={selectedProject?.description || ''}
                   onChange={(e) => {
                     if (!selectedProject) return;
-                    const updated = { ...selectedProject, description: e.target.value };
+                    const updated = { ...selectedProject, description: e.target.value, updatedAt: new Date().toISOString() };
                     setSelectedProject(updated);
-                    setProjects(prev => Array.isArray(prev) ? prev.map(p => p?.id === updated.id ? updated : p) : []);
+                    updateProjects(prev => Array.isArray(prev) ? prev.map(p => p?.id === updated.id ? updated : p) : []);
                   }}
                   className="narrative-textarea"
                   placeholder="Describe your project vision here..."
@@ -4132,7 +4227,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                const updatedAssets = currentAssets.filter((_, i) => i !== idx);
                                const updated = { ...selectedProject, assets: updatedAssets, updatedAt: new Date().toISOString() };
                                setSelectedProject(updated);
-                               setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                               updateProjects(projects.map(p => p.id === updated.id ? updated : p));
                                // Clear preview if we deleted the currently previewed asset
                                if (canvasPreviewAsset?.id === asset.id) {
                                  setCanvasPreviewAsset(updatedAssets[0] || null);
@@ -6525,7 +6620,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     </div>
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <button
-                        onClick={() => setShowWhitepapersModal(true)}
+                        onClick={() => setShowWhitepapersPage(true)}
                         className="btn-pill glass haptic-press"
                         style={{ 
                           display: 'flex', 
@@ -6541,7 +6636,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         Whitepapers
                       </button>
                       <button
-                        onClick={() => setShowLegalModal(true)}
+                        onClick={() => setShowLegalPage(true)}
                         className="btn-pill glass haptic-press"
                         style={{ 
                           display: 'flex', 
@@ -6554,7 +6649,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         }}
                       >
                         <Shield size={16} />
-                        Legal
+                        Legal & Business
                       </button>
                     </div>
                   </div>
@@ -10875,180 +10970,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           </div>
         )}
 
-        {/* Whitepapers Modal */}
-        {showWhitepapersModal && (
-          <div className="modal-overlay" onClick={() => setShowWhitepapersModal(false)}>
-            <div 
-              className="modal-content animate-fadeInUp" 
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '900px', width: '95%', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-            >
-              <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)', padding: '12px', borderRadius: '12px' }}>
-                    <FileText size={24} color="white" />
-                  </div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Agent Whitepapers</h2>
-                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Technical documentation for each AI agent</p>
-                  </div>
-                </div>
-                <button className="modal-close" onClick={() => setShowWhitepapersModal(false)}><X size={20} /></button>
-              </div>
-              <div className="modal-body" style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
-                  {AGENTS.map((agent) => {
-                    const Icon = agent.icon;
-                    const tierColor = agent.tier === 'free' ? '#22c55e' : agent.tier === 'monthly' ? '#fbbf24' : '#a855f7';
-                    return (
-                      <div 
-                        key={agent.id}
-                        className="resource-card whitepaper haptic-press"
-                        style={{ 
-                          padding: '20px',
-                          background: 'var(--color-bg-tertiary)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '16px',
-                          cursor: 'pointer',
-                          position: 'relative'
-                        }}
-                        onClick={() => {
-                          setShowWhitepapersModal(false);
-                          openAgentWhitepaper(agent);
-                        }}
-                      >
-                        <div style={{
-                          position: 'absolute',
-                          top: '12px',
-                          right: '12px',
-                          padding: '3px 8px',
-                          background: `${tierColor}20`,
-                          color: tierColor,
-                          borderRadius: '6px',
-                          fontSize: '0.65rem',
-                          fontWeight: '700',
-                          textTransform: 'uppercase'
-                        }}>
-                          {agent.tier}
-                        </div>
-                        <div style={{ 
-                          width: '48px', 
-                          height: '48px', 
-                          borderRadius: '12px', 
-                          background: `${tierColor}20`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginBottom: '12px'
-                        }}>
-                          <Icon size={24} style={{ color: tierColor }} />
-                        </div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '6px' }}>{agent.name}</h3>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '12px' }}>
-                          {agent.description || agent.desc}
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#06b6d4', fontSize: '0.8rem', fontWeight: '600' }}>
-                          <FileText size={14} />
-                          View Whitepaper
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Legal Resources Modal */}
-        {showLegalModal && (
-          <div className="modal-overlay" onClick={() => setShowLegalModal(false)}>
-            <div 
-              className="modal-content animate-fadeInUp" 
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '900px', width: '95%', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-            >
-              <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', padding: '12px', borderRadius: '12px' }}>
-                    <Shield size={24} color="white" />
-                  </div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Legal & Business</h2>
-                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Protect your art. Understand your rights.</p>
-                  </div>
-                </div>
-                <button className="modal-close" onClick={() => setShowLegalModal(false)}><X size={20} /></button>
-              </div>
-              <div className="modal-body" style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                  {[
-                    { title: 'Music Copyright 101', desc: 'Understanding your rights as a creator - ownership, registration, and protection.', icon: Shield, type: 'Guide' },
-                    { title: 'Split Sheet Template', desc: 'Standard agreement for co-writing sessions. Define ownership before you create.', icon: FileText, type: 'Template' },
-                    { title: 'Sync Licensing Guide', desc: 'Step-by-step guide to getting your music placed in TV, Film & Ads.', icon: Tv, type: 'Guide' },
-                    { title: 'AI & IP Rights', desc: 'Navigating the legal landscape of AI-assisted music creation.', icon: Lock, type: 'Whitepaper' },
-                    { title: 'Label Deal Breakdown', desc: 'Understanding record deals, advances, recoupment, and points.', icon: FileText, type: 'Guide' },
-                    { title: 'Publishing 101', desc: 'PROs, mechanical royalties, sync fees, and how to collect what you are owed.', icon: CreditCard, type: 'Guide' }
-                  ].map((item, i) => (
-                    <div 
-                      key={i}
-                      className="resource-card legal haptic-press"
-                      style={{ 
-                        padding: '20px',
-                        background: 'var(--color-bg-tertiary)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '16px',
-                        cursor: 'pointer',
-                        position: 'relative'
-                      }}
-                      onClick={() => {
-                        setShowLegalModal(false);
-                        setActiveTab('resources');
-                        toast.success(`Opening ${item.title}...`);
-                      }}
-                    >
-                      <div style={{
-                        position: 'absolute',
-                        top: '12px',
-                        right: '12px',
-                        padding: '3px 8px',
-                        background: item.type === 'Whitepaper' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(6, 182, 212, 0.2)',
-                        color: item.type === 'Whitepaper' ? '#a855f7' : '#06b6d4',
-                        borderRadius: '6px',
-                        fontSize: '0.65rem',
-                        fontWeight: '700',
-                        textTransform: 'uppercase'
-                      }}>
-                        {item.type}
-                      </div>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        borderRadius: '12px', 
-                        background: 'rgba(139, 92, 246, 0.15)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '12px'
-                      }}>
-                        <item.icon size={24} style={{ color: '#a855f7' }} />
-                      </div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '6px' }}>{item.title}</h3>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '12px' }}>
-                        {item.desc}
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#a855f7', fontSize: '0.8rem', fontWeight: '600' }}>
-                        <Shield size={14} />
-                        Read {item.type}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Add/Edit Payment Method Modal */}
         {showAddPaymentModal && (
           <div className="modal-overlay" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }} onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}>
@@ -12087,15 +12008,30 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 <button 
                   className="cta-button-premium" 
                   disabled={
-                    (projectWizardStep === 1 && (!newProjectData.name || !newProjectData.category)) ||
+                    (projectWizardStep === 1 && (!newProjectData.name?.trim() || !newProjectData.category)) ||
                     (projectWizardStep === 2 && !newProjectData.workflow)
                   }
-                  onClick={() => setProjectWizardStep(prev => prev + 1)}
+                  onClick={() => {
+                    if (projectWizardStep === 1 && (!newProjectData.name?.trim() || !newProjectData.category)) {
+                      toast.error('Please enter a project name and select a category');
+                      return;
+                    }
+                    setProjectWizardStep(prev => prev + 1);
+                  }}
                 >
                   Next Step
                 </button>
               ) : (
-                <button className="cta-button-premium" onClick={handleCreateProject}>
+                <button 
+                  className="cta-button-premium" 
+                  onClick={() => {
+                    if (!newProjectData.name?.trim() || !newProjectData.category) {
+                      toast.error('Project name and category are required');
+                      return;
+                    }
+                    handleCreateProject();
+                  }}
+                >
                   Create Project
                 </button>
               )}
@@ -13777,6 +13713,26 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             </div>
           </div>
         </div>
+      )}
+
+      {/* Whitepapers Page */}
+      {showWhitepapersPage && (
+        <WhitepapersPage 
+          onBack={() => setShowWhitepapersPage(false)}
+          onSelectAgent={(agent) => {
+            setShowWhitepapersPage(false);
+            setSelectedAgent(agent);
+            setActiveTab('agents');
+          }}
+          agents={AGENTS}
+        />
+      )}
+
+      {/* Legal Resources Page */}
+      {showLegalPage && (
+        <LegalResourcesPage 
+          onBack={() => setShowLegalPage(false)}
+        />
       )}
     </div>
   );
