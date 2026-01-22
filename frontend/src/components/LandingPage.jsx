@@ -552,6 +552,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           
           setIsTransitioning(true);
           setShowAuthModal(false);
+          // Remove scroll lock before navigating
+          document.body.classList.remove('modal-open');
           
           // Navigate user to studio (true = show agents)
           setTimeout(() => {
@@ -584,6 +586,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         localStorage.setItem('studio_user_id', user.uid);
         
         setIsTransitioning(true);
+        // Remove scroll lock before navigating
+        document.body.classList.remove('modal-open');
         // Navigate user to studio
         setTimeout(() => {
           onEnter(true);

@@ -211,6 +211,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const handleTextToVoiceRef = useRef(null);
   const syncTimeoutRef = useRef(null);
 
+  // Clear scroll lock on mount (LandingPage may have left it set)
+  useEffect(() => {
+    document.body.classList.remove('modal-open');
+  }, []);
+
   // Sync state with hash (Browser Back/Forward)
   useEffect(() => {
     const handleHashChange = () => {
@@ -243,9 +248,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [backingTrack, setBackingTrack] = useState(null); // For vocal sync
   const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
-  // Initialize isLoggedIn from localStorage to avoid login gate while Firebase is checking
-  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('studio_user_id'));
-  const [authChecking, setAuthChecking] = useState(true); // Track if we're still checking auth state
+  // Check localStorage for existing session to prevent login flash on page load
+  const hasExistingSession = !!localStorage.getItem('studio_user_id');
+  const [authChecking, setAuthChecking] = useState(!hasExistingSession); // Skip auth check if we have a cached session
+  const [isLoggedIn, setIsLoggedIn] = useState(hasExistingSession); // Start as logged in if session exists
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
