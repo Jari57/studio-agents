@@ -71,9 +71,23 @@ body {
   width: 100%;
   min-height: 100vh;
   min-width: 320px;
-  overflow-x: hidden;
+  height: auto !important;
+  position: static !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
   background: var(--color-bg-primary);
   overscroll-behavior: none; /* Prevent bounce effect */
+}
+
+#root {
+  min-height: 100vh;
+  height: auto;
+}
+
+body.modal-open {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
 }
 
 /* Premium Typography */

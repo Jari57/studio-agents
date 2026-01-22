@@ -548,6 +548,22 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     return AGENT_WHITEPAPER[agentId] || DEFAULT_WHITEPAPER;
   };
 
+  // Manage body scroll lock when ANY modal is open
+  useEffect(() => {
+    const anyModalOpen = showAgentWhitepaper || showAuthModal || showPrivacy || 
+                         showTerms || showShowcase || showMarketing || showInvestorPitch;
+    
+    if (anyModalOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [showAgentWhitepaper, showAuthModal, showPrivacy, showTerms, showShowcase, showMarketing, showInvestorPitch]);
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
