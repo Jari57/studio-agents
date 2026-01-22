@@ -465,8 +465,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   
   // Backend API for investor access validation
   const INVESTOR_API_URL = isLocal 
-    ? 'http://localhost:3001/api/investor-access'
-    : 'https://web-production-b5922.up.railway.app/api/investor-access';
+    ? 'http://localhost:3000/api/investor-access'
+    : 'https://studio-agents-backend-production.up.railway.app/api/investor-access';
   
   const handleInvestorAccessSubmit = async () => {
     const email = investorEmail.trim().toLowerCase();

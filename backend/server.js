@@ -578,7 +578,6 @@ app.use(helmet({
         "https://api.stripe.com",
         // Railway backend (production)
         "https://studio-agents-backend-production.up.railway.app",
-        "https://web-production-b5922.up.railway.app",
         "https://*.up.railway.app",
         // Vercel frontend (production)
         "https://studioagentsai.com",
