@@ -1,6 +1,6 @@
 // Service Worker for Studio Agents PWA
 // IMPORTANT: Increment version when deploying new builds to invalidate old caches
-const CACHE_NAME = 'studio-agents-v10';
+const CACHE_NAME = 'studio-agents-v11';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

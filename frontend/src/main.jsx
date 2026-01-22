@@ -15,7 +15,7 @@ initAnalytics();
 // Initialize Error Monitoring (Sentry when configured)
 initErrorMonitoring();
 
-console.log("Main.jsx: Starting execution...");
+console.log("Main.jsx: Starting execution... v2.0.1 (Fixes Applied)");
 
 try {
   const rootElement = document.getElementById('root');

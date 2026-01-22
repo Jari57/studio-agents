@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { 
   Sparkles, Zap, Music, ArrowRight,
-  TrendingUp, Activity,
+  TrendingUp, Activity, Clock,
   Plus, LayoutGrid, Film, Edit3,
-  Settings, CreditCard, Folder // added back relevant used icons
+  Settings, CreditCard, Folder
 } from 'lucide-react';
 import './StudioDashboard.css';
 
