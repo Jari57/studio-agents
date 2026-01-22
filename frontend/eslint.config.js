@@ -32,6 +32,7 @@ export default defineConfig([
       },
     },
     rules: {
+      'no-use-before-define': ['error', { functions: false, classes: true, variables: true }],
       'no-unused-vars': ['error', { 
         varsIgnorePattern: '^_', 
         argsIgnorePattern: '^_',
