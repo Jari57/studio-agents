@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock, LayoutGrid, Image as ImageIcon, Disc } from 'lucide-react';
 import { AGENTS } from '../constants';
-import { auth, GoogleAuthProvider, signInWithPopup } from '../firebase';
+import { auth, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from '../firebase';
 import MultiAgentDemo from './MultiAgentDemo';
 
 // Comprehensive Agent Whitepaper Data
@@ -395,30 +395,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     try {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
-      await signInWithPopup(auth, provider);
-      
-      setIsTransitioning(true);
-      setShowAuthModal(false);
-      
-      // Small delay to let modal close
-      setTimeout(() => {
-        if (pendingAction === 'start') {
-          onEnter(true);
-        } else {
-          onEnter(false);
-        }
-        setIsTransitioning(false);
-      }, 100);
+      // Redirect to Google - will return to this page after auth
+      await signInWithRedirect(auth, provider);
+      // Note: Code after signInWithRedirect won't execute because page redirects
     } catch (error) {
-      console.error('Google sign in error:', error);
-      if (error.code === 'auth/popup-closed-by-user') {
-        setAuthError('Sign-in cancelled. Please try again.');
-      } else if (error.code === 'auth/popup-blocked') {
-        setAuthError('Popup blocked. Please allow popups for this site.');
-      } else {
-        setAuthError(error.message || 'Failed to sign in. Please try again.');
-      }
-    } finally {
+      console.error('[LandingPage] Google sign in error:', error);
+      setAuthError(error.message || 'Failed to sign in. Please try again.');
       setAuthLoading(false);
     }
   };
@@ -547,6 +529,39 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const getWhitepaperData = (agentId) => {
     return AGENT_WHITEPAPER[agentId] || DEFAULT_WHITEPAPER;
   };
+
+  // Check for redirect result on mount (handle Google sign-in redirect)
+  useEffect(() => {
+    const checkRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          console.log('[LandingPage] Auth redirect successful, user:', result.user.email);
+          setIsTransitioning(true);
+          setShowAuthModal(false);
+          
+          // Continue with pending action after redirect
+          setTimeout(() => {
+            if (pendingAction === 'start') {
+              onEnter(true);
+            } else {
+              onEnter(false);
+            }
+            setIsTransitioning(false);
+          }, 100);
+        }
+      } catch (error) {
+        console.error('[LandingPage] Redirect result error:', error);
+        if (error.code === 'auth/popup-closed-by-user') {
+          setAuthError('Sign-in cancelled. Please try again.');
+        } else {
+          setAuthError(error.message || 'Failed to sign in. Please try again.');
+        }
+      }
+    };
+    
+    checkRedirectResult();
+  }, []); // Run once on mount
 
   // Manage body scroll lock when ANY modal is open
   useEffect(() => {

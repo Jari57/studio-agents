@@ -23,7 +23,7 @@ import {
 } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
 import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
-import { Analytics, trackPageView } from '../utils/analytics';
+import { trackPageView } from '../utils/analytics';
 
 // Alias for clarity and to avoid potential minification issues
 const Users = UsersIcon;
