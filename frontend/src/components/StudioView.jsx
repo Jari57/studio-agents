@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2
 } from 'lucide-react';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import toast, { Toaster } from 'react-hot-toast';
@@ -33,6 +33,8 @@ const QuickWorkflow = lazy(() => import('./QuickWorkflow'));
 const ProjectHub = lazy(() => import('./ProjectHub'));
 const NewsHub = lazy(() => import('./NewsHub'));
 const StudioDashboard = lazy(() => import('./StudioDashboard'));
+const StudioBilling = lazy(() => import('./StudioBilling'));
+const StudioSettings = lazy(() => import('./StudioSettings'));
 const WhitepapersPage = lazy(() => import('./WhitepapersPage'));
 const LegalResourcesPage = lazy(() => import('./LegalResourcesPage'));
 
@@ -1497,24 +1499,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   };
 
   // Reserved for future use: Legacy handler for compatibility
-  // const handleLogin = handleGoogleLogin;
-
-  // --- LOGOUT HANDLER ---
-  // Reserved for future use:
-  const _handleLogout = async () => {
-    if (auth) {
-      await signOut(auth);
-    }
-    // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
-    setUser(null);
-    setUserToken(null);
-    setUserCredits(3);
-    localStorage.removeItem('studio_user_id');
-    setIsLoggedIn(false); // Set this LAST
-    setActiveTab('landing'); 
-    onBack?.(); 
-  };
-
   // Dashboard State - CLEANED UP
   // managedAgents, appSettings, and dashboardTab state removed as they are no longer used in the new dashboard.
   // temporary no-op function to support legacy calls in the Agents tab render:
@@ -4223,6 +4207,26 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               setSelectedProject(project);
               setActiveTab('hub');
             }}
+          />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === 'billing') {
+      return (
+        <Suspense fallback={<div className="loading-spinner"><Loader2 className="animate-spin" /></div>}>
+          <StudioBilling credits={userProfile?.credits || 0} plan={userProfile?.plan || 'Free'} />
+        </Suspense>
+      );
+    }
+
+    if (activeTab === 'settings') {
+      return (
+        <Suspense fallback={<div className="loading-spinner"><Loader2 className="animate-spin" /></div>}>
+          <StudioSettings 
+             userProfile={userProfile} 
+             setUserProfile={setUserProfile} 
+             onLogout={() => { auth.signOut(); window.location.reload(); }}
           />
         </Suspense>
       );
@@ -7277,9 +7281,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         ];
 
         const NAVIGATION_ITEMS = [
-          { keywords: ['billing', 'payment', 'card', 'subscription', 'plan', 'wallet', 'money', 'cost', 'price'], label: 'Billing & Wallet', action: () => { setActiveTab('mystudio'); setDashboardTab('billing'); } },
-          { keywords: ['settings', 'config', 'preferences', 'dark mode', 'theme', 'language', 'voice'], label: 'App Settings', action: () => { setActiveTab('mystudio'); setDashboardTab('settings'); } },
-          { keywords: ['profile', 'account', 'user', 'avatar', 'login', 'logout', 'email'], label: 'User Profile', action: () => { setActiveTab('mystudio'); setDashboardTab('overview'); } },
+          { keywords: ['billing', 'payment', 'card', 'subscription', 'plan', 'wallet', 'money', 'cost', 'price'], label: 'Billing & Wallet', action: () => { setActiveTab('billing'); } },
+          { keywords: ['settings', 'config', 'preferences', 'dark mode', 'theme', 'language', 'voice'], label: 'App Settings', action: () => { setActiveTab('settings'); } },
+          { keywords: ['profile', 'account', 'user', 'avatar', 'login', 'logout', 'email'], label: 'User Profile', action: () => { setActiveTab('settings'); } },
           { keywords: ['news', 'feed', 'updates', 'industry', 'trends', 'pulse'], label: 'Industry Pulse', action: () => setActiveTab('news') },
           { keywords: ['hub', 'projects', 'files', 'saved', 'library', 'creations'], label: 'Project Hub', action: () => setActiveTab('hub') },
           { keywords: ['activity', 'wall', 'community', 'social', 'share', 'feed', 'music', 'hub', 'reddit', 'youtube', 'releases'], label: 'Music Hub', action: () => setActiveTab('activity') },

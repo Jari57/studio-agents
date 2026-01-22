@@ -3,7 +3,8 @@ import {
   BarChart2, Users, Folder, Clock, 
   Sparkles, Zap, Video, Music, ArrowRight,
   TrendingUp, Activity, PlayCircle, Star,
-  Plus, LayoutGrid, Award, Film, Edit3
+  Plus, LayoutGrid, Award, Film, Edit3,
+  Settings, CreditCard
 } from 'lucide-react';
 import './StudioDashboard.css';
 
@@ -74,10 +75,48 @@ function StudioDashboard({
           <h1>Welcome back, {user?.displayName || 'Creator'}</h1>
           <p>Ready to create something amazing today?</p>
         </div>
-        <button className="create-new-btn haptic-press" onClick={onCreateProject}>
-          <Plus size={20} />
-          <span>New Project</span>
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+             <button 
+               className="haptic-press" 
+               onClick={() => onNavigate('billing')}
+               title="Billing & Credits"
+               style={{
+                 background: 'rgba(255,255,255,0.05)',
+                 border: '1px solid rgba(255,255,255,0.1)',
+                 borderRadius: '12px',
+                 padding: '12px',
+                 color: 'white',
+                 cursor: 'pointer',
+                 display: 'flex',
+                 alignItems: 'center',
+                 justifyContent: 'center'
+               }}
+             >
+               <CreditCard size={20} />
+             </button>
+             <button 
+               className="haptic-press" 
+               onClick={() => onNavigate('settings')}
+               title="Settings"
+               style={{
+                 background: 'rgba(255,255,255,0.05)',
+                 border: '1px solid rgba(255,255,255,0.1)',
+                 borderRadius: '12px',
+                 padding: '12px',
+                 color: 'white',
+                 cursor: 'pointer',
+                 display: 'flex',
+                 alignItems: 'center',
+                 justifyContent: 'center'
+               }}
+             >
+               <Settings size={20} />
+             </button>
+            <button className="create-new-btn haptic-press" onClick={onCreateProject}>
+              <Plus size={20} />
+              <span>New Project</span>
+            </button>
+        </div>
       </div>
 
       {/* Analytics Overview */}
