@@ -12,10 +12,8 @@ const StudioOrchestrator = lazy(() => import('./StudioOrchestratorV2'));
 const QuickWorkflow = lazy(() => import('./QuickWorkflow'));
 const ProjectHub = lazy(() => import('./ProjectHub'));
 const NewsHub = lazy(() => import('./NewsHub'));
-
-// Import page components
-import WhitepapersPage from './WhitepapersPage';
-import LegalResourcesPage from './LegalResourcesPage';
+const WhitepapersPage = lazy(() => import('./WhitepapersPage'));
+const LegalResourcesPage = lazy(() => import('./LegalResourcesPage'));
 
 // Simple inline fallback for lazy components
 const LazyFallback = () => (
@@ -13717,22 +13715,26 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
       {/* Whitepapers Page */}
       {showWhitepapersPage && (
-        <WhitepapersPage 
-          onBack={() => setShowWhitepapersPage(false)}
-          onSelectAgent={(agent) => {
-            setShowWhitepapersPage(false);
-            setSelectedAgent(agent);
-            setActiveTab('agents');
-          }}
-          agents={AGENTS}
-        />
+        <Suspense fallback={<LazyFallback />}>
+          <WhitepapersPage 
+            onBack={() => setShowWhitepapersPage(false)}
+            onSelectAgent={(agent) => {
+              setShowWhitepapersPage(false);
+              setSelectedAgent(agent);
+              setActiveTab('agents');
+            }}
+            agents={AGENTS}
+          />
+        </Suspense>
       )}
 
       {/* Legal Resources Page */}
       {showLegalPage && (
-        <LegalResourcesPage 
-          onBack={() => setShowLegalPage(false)}
-        />
+        <Suspense fallback={<LazyFallback />}>
+          <LegalResourcesPage 
+            onBack={() => setShowLegalPage(false)}
+          />
+        </Suspense>
       )}
     </div>
   );
