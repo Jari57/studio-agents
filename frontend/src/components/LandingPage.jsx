@@ -393,6 +393,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     setAuthLoading(true);
     setAuthError('');
     try {
+      // Store pending action in sessionStorage so it survives redirect
+      sessionStorage.setItem('auth_pending_action', pendingAction || 'start');
+      console.log('[LandingPage] Storing pending action:', pendingAction);
+      
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
       // Redirect to Google - will return to this page after auth
@@ -537,16 +541,18 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         const result = await getRedirectResult(auth);
         if (result && result.user) {
           console.log('[LandingPage] Auth redirect successful, user:', result.user.email);
+          
+          // Retrieve pending action from sessionStorage
+          const storedAction = sessionStorage.getItem('auth_pending_action');
+          console.log('[LandingPage] Retrieved pending action:', storedAction);
+          sessionStorage.removeItem('auth_pending_action'); // Clean up
+          
           setIsTransitioning(true);
           setShowAuthModal(false);
           
-          // Continue with pending action after redirect
+          // Navigate user to studio (true = show agents)
           setTimeout(() => {
-            if (pendingAction === 'start') {
-              onEnter(true);
-            } else {
-              onEnter(false);
-            }
+            onEnter(true); // Always go to agents page after successful login
             setIsTransitioning(false);
           }, 100);
         }
