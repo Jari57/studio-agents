@@ -5872,8 +5872,13 @@ app.post('/api/stripe/create-portal-session', async (req, res) => {
 app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
   const { userId, project } = req.body;
   
-  // Allow saving if we have a userId (even if not fully auth'd via token for now, to support the "Mock" login)
-  // In a real app, we'd strictly enforce req.user.uid === userId
+  // Security Hardening for Revenue Readiness:
+  // In production, strictly enforce that the authenticated user matches the target ID.
+  if (!isDevelopment && (!req.user || req.user.uid !== userId)) {
+     return res.status(401).json({ error: 'Unauthorized: ID mismatch or not logged in' });
+  }
+
+  // Allow fallback in dev mode or if auth token is verified matching
   const targetUserId = req.user ? req.user.uid : userId;
 
   if (!targetUserId) {
@@ -5920,6 +5925,12 @@ app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
 // GET /api/projects - Get user projects
 app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
   const userId = req.query.userId;
+  
+  // Security Hardening for Revenue Readiness:
+  if (!isDevelopment && (!req.user || req.user.uid !== userId)) {
+    return res.status(401).json({ error: 'Unauthorized: ID mismatch or not logged in' });
+  }
+
   const targetUserId = req.user ? req.user.uid : userId;
 
   if (!targetUserId) {

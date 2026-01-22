@@ -45,11 +45,12 @@ function AgentOutputCard({ icon: Icon, title, color, output, isLoading, delay = 
     let timer;
     if (output && !isLoading) {
       timer = setTimeout(() => setShowContent(true), delay);
-    } else {
+    } else if (showContent) {
+      // Only reset if currently showing, prevents redundant updates
       setShowContent(false);
     }
     return () => clearTimeout(timer);
-  }, [output, isLoading, delay]);
+  }, [output, isLoading, delay, showContent]);
   
   return (
     <div style={{

@@ -4,11 +4,13 @@ import {
 } from 'lucide-react';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import toast, { Toaster } from 'react-hot-toast';
+import * as Analytics from '../utils/analytics';
 import { 
   auth, 
   db, 
   GoogleAuthProvider, 
-  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut, 
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -72,6 +74,24 @@ const ADMIN_EMAILS = [
 const isAdminEmail = (email) => {
   if (!email) return false;
   return ADMIN_EMAILS.includes(email.toLowerCase());
+};
+
+// Safe Analytics wrapper (handles undefined gracefully)
+const SafeAnalytics = {
+  login: (method) => {
+    try {
+      if (Analytics?.login) Analytics.login(method);
+    } catch (err) {
+      console.warn('[Analytics] Login tracking failed:', err);
+    }
+  },
+  signUp: (method) => {
+    try {
+      if (Analytics?.signUp) Analytics.signUp(method);
+    } catch (err) {
+      console.warn('[Analytics] SignUp tracking failed:', err);
+    }
+  }
 };
 
 // Simplified 4-step onboarding flow
@@ -143,18 +163,7 @@ const agentDetails = {
   }
 };
 
-// Helper: Get relative time since date
-const getTimeSince = (date) => {
-  const now = new Date();
-  const seconds = Math.floor((now - date) / 1000);
-  
-  if (seconds < 60) return 'Just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  if (seconds < 2592000) return `${Math.floor(seconds / 604800)}w ago`;
-  return `${Math.floor(seconds / 2592000)}mo ago`;
-};
+
 
 function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan, initialTab }) {
   // Helper to get tab from hash
@@ -167,6 +176,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   };
 
   const [activeTab, _setActiveTab] = useState(getTabFromHash());
+
+  // --- REFS (Hoisted for safe access) ---
+  const textareaRef = useRef(null);
+  const handleSubscribeRef = useRef(null);
+  const handleTextToVoiceRef = useRef(null);
+  const syncTimeoutRef = useRef(null);
 
   // Sync state with hash (Browser Back/Forward)
   useEffect(() => {
@@ -209,343 +224,56 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showWhitepapersPage, setShowWhitepapersPage] = useState(false);
   const [showLegalPage, setShowLegalPage] = useState(false);
   const [newsSearch, setNewsSearch] = useState('');
-  // Reserved for future use: const [isRefreshingNews, setIsRefreshingNews] = useState(false);
-  const [projects, setProjects] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_projects');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Sort by updatedAt/createdAt descending (newest first)
-        return parsed.sort((a, b) => {
-          const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
-          const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
-          return bTime - aTime;
-        });
-      }
-      return [];
-    } catch (_e) {
-      return [];
-    }
-  });
-  
-  // Cloud sync state
-  const [_projectsSyncing, setProjectsSyncing] = useState(false);
-  const [_lastSyncTime, setLastSyncTime] = useState(null);
-  const syncTimeoutRef = useRef(null);
 
-  // Save a single project to Firestore via backend API
-  const saveProjectToCloud = async (uid, project) => {
-    const traceId = `SAVE-${Date.now()}`;
-    console.log(`[TRACE:${traceId}] saveProjectToCloud START`, {
-      hasUid: !!uid,
-      projectId: project?.id,
-      projectName: project?.name,
-      assetCount: project?.assets?.length,
-      assetTypes: project?.assets?.map(a => ({ id: a.id, type: a.type, hasImage: !!a.imageUrl, hasAudio: !!a.audioUrl, hasVideo: !!a.videoUrl }))
-    });
-    
-    if (!uid || !project || !project.id) {
-      console.warn(`[TRACE:${traceId}] saveProjectToCloud ABORT - Missing required data`, { hasUid: !!uid, hasProject: !!project });
-      return false;
-    }
-    
+  const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(null); // { item, type }
+  const [paymentType, setPaymentType] = useState('card'); // 'card' or 'bank'
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: 'Welcome to Studio Agents', message: 'Start creating your first track!', time: 'Just now', read: false },
+    { id: 2, title: 'Pro Tip', message: 'Try the Ghostwriter agent for lyrics.', time: '2m ago', read: false }
+  ]);
+
+  // Helper to safely save to localStorage with quota handling
+  const safeLocalStorageSet = (key, value) => {
     try {
-      // Sanitize project data - remove undefined values, functions, and circular refs
-      const sanitizedProject = {};
-      for (const [key, value] of Object.entries(project)) {
-        if (value !== undefined && typeof value !== 'function') {
-          // Deep clone to avoid circular reference issues
-          try {
-            sanitizedProject[key] = JSON.parse(JSON.stringify(value));
-          } catch (_e) {
-            // Skip values that can't be serialized
-            console.warn(`[TRACE:${traceId}] Skipping non-serializable field: ${key}`);
-          }
-        }
-      }
-      
-      console.log(`[TRACE:${traceId}] Sanitized project assets:`, sanitizedProject.assets?.length, sanitizedProject.assets?.map(a => a.id));
-      
-      // Get auth token for backend API
-      let authToken = null;
-      if (auth?.currentUser) {
-        try {
-          authToken = await auth.currentUser.getIdToken(true);
-        } catch (tokenErr) {
-          console.warn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
-        }
-      }
-      
-      // Use backend API to save (uses Admin SDK, bypasses security rules)
-      const response = await fetch(`${BACKEND_URL}/api/projects`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
-        },
-        body: JSON.stringify({
-          userId: uid,
-          project: {
-            ...sanitizedProject,
-            id: String(project.id),
-            updatedAt: new Date().toISOString(),
-            syncedAt: new Date().toISOString()
-          }
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log(`[TRACE:${traceId}] Project saved via API:`, project.id, result);
+      localStorage.setItem(key, value);
       return true;
-    } catch (err) {
-      console.error(`[TRACE:${traceId}] Failed to save project to cloud:`, err.message || err);
-      toast.error(`Save failed: ${err.message || 'Network error'}`);
+    } catch (e) {
+      if (e.name === 'QuotaExceededError') {
+        console.warn(`[Storage] Quota exceeded for ${key}, cleaning up old data...`);
+        // Try to free up space by removing old/large items
+        try {
+          // Remove oldest projects if saving projects
+          if (key === 'studio_agents_projects') {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed) && parsed.length > 20) {
+              // Keep only the 20 most recent projects
+              const trimmed = parsed.slice(0, 20);
+              localStorage.setItem(key, JSON.stringify(trimmed));
+              console.log('[Storage] Trimmed projects to 20 most recent');
+              toast.warning('Storage full - keeping 20 most recent projects');
+              return true;
+            }
+          }
+          // Clear some non-essential cached data
+          localStorage.removeItem('studio_theme');
+          localStorage.removeItem('studio_onboarding_v3');
+          // Try again
+          localStorage.setItem(key, value);
+          return true;
+        } catch (retryError) {
+          console.error('[Storage] Still failed after cleanup:', retryError);
+          toast.error('Storage full - please clear browser data');
+          return false;
+        }
+      }
+      console.error(`[Storage] Failed to save ${key}:`, e);
       return false;
     }
   };
-  
-  // Sync all projects to cloud via backend API (individual saves)
-  const syncProjectsToCloud = async (uid, projectsToSync) => {
-    if (!uid || !Array.isArray(projectsToSync) || projectsToSync.length === 0) return;
-    setProjectsSyncing(true);
-    
-    try {
-      // Save projects individually via backend API
-      let successCount = 0;
-      for (const project of projectsToSync) {
-        if (!project || !project.id) continue;
-        
-        try {
-          const success = await saveProjectToCloud(uid, project);
-          if (success) successCount++;
-        } catch (individualErr) {
-          console.error(`Failed to save project ${project?.id}:`, individualErr);
-        }
-      }
-      
-      if (successCount > 0) {
-        setLastSyncTime(new Date());
-        console.log(`Synced ${successCount}/${projectsToSync.length} projects to cloud via API`);
-      } else if (projectsToSync.length > 0) {
-        toast.error('Failed to sync projects - check your connection');
-      }
-    } catch (err) {
-      console.error('Sync failed:', err);
-      toast.error('Failed to sync projects');
-    } finally {
-      setProjectsSyncing(false);
-    }
-  };
 
-  // Note: localStorage save is handled by the useEffect with quota handling below
-  
-  // Debounced cloud sync when projects change (only if logged in)
-  useEffect(() => {
-    if (!user?.uid || projects.length === 0) return;
-    
-    // Clear existing timeout
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-    }
-    
-    // Debounce sync by 3 seconds to avoid excessive writes
-    syncTimeoutRef.current = setTimeout(() => {
-      syncProjectsToCloud(user.uid, projects);
-    }, 3000);
-    
-    return () => {
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-      }
-    };
-  }, [projects, user?.uid]);
-  
-  // Load projects from cloud via backend API
-  const loadProjectsFromCloud = async (uid) => {
-    const traceId = `LOAD-${Date.now()}`;
-    console.log(`[TRACE:${traceId}] loadProjectsFromCloud START`, { hasUid: !!uid });
-    
-    if (!uid) return [];
-    try {
-      // Get auth token
-      let authToken = null;
-      if (auth?.currentUser) {
-        try {
-          authToken = await auth.currentUser.getIdToken(true);
-        } catch (tokenErr) {
-          console.warn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
-        }
-      }
-      
-      // Use backend API to load projects
-      const response = await fetch(`${BACKEND_URL}/api/projects?userId=${encodeURIComponent(uid)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
-        }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
-      const cloudProjects = (data.projects || []).map(p => ({
-        ...p,
-        id: p.id || String(Date.now()),
-        // Normalize timestamps
-        createdAt: p.createdAt || new Date().toISOString(),
-        updatedAt: p.updatedAt || new Date().toISOString()
-      }));
-      
-      console.log(`[TRACE:${traceId}] loadProjectsFromCloud COMPLETE`, {
-        count: cloudProjects.length,
-        projects: cloudProjects.map(p => ({
-          id: p.id,
-          name: p.name,
-          assetCount: p.assets?.length || 0,
-          assetTypes: p.assets?.map(a => a.type)
-        }))
-      });
-      
-      return cloudProjects;
-    } catch (err) {
-      console.error(`[TRACE:${traceId}] loadProjectsFromCloud ERROR:`, err);
-      return [];
-    }
-  };
-  
-  // Merge local and cloud projects (cloud takes priority for conflicts)
-  const mergeProjects = (localProjects, cloudProjects) => {
-    const merged = new Map();
-    const local = Array.isArray(localProjects) ? localProjects : [];
-    const cloud = Array.isArray(cloudProjects) ? cloudProjects : [];
-    
-    // Add all cloud projects first (they take priority)
-    for (const project of cloud) {
-      if (project && project.id) {
-        merged.set(project.id, project);
-      }
-    }
-    
-    // Add local projects that aren't in cloud
-    for (const project of local) {
-      if (!project || !project.id) continue;
-      if (!merged.has(project.id)) {
-        merged.set(project.id, project);
-      } else {
-        // Compare timestamps, keep newer
-        const cloudProject = merged.get(project.id);
-        const localTime = new Date(project.updatedAt || project.createdAt || 0).getTime();
-        const cloudTime = new Date(cloudProject.updatedAt || cloudProject.createdAt || 0).getTime();
-        if (localTime > cloudTime) {
-          merged.set(project.id, project);
-        }
-      }
-    }
-    
-    // Sort by updated time
-    return Array.from(merged.values()).sort((a, b) => {
-      const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
-      const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
-      return bTime - aTime;
-    });
-  };
-  
-  // Studio Orchestrator State (New Clean Interface)
-  const [showOrchestrator, setShowOrchestrator] = useState(false);
-  
-  // Studio Session State (Global Mechanism)
-  const [showStudioSession, setShowStudioSession] = useState(false);
-  const [sessionTracks, setSessionTracks] = useState({ 
-    audio: null, 
-    vocal: null, 
-    visual: null,
-    audioVolume: 0.8,
-    vocalVolume: 1.0,
-    // Professional sync settings
-    bpm: 120,
-    timeSignature: '4/4',
-    key: 'C Major',
-    frameRate: 30,
-    aspectRatio: '16:9',
-    sampleRate: 48000,
-    bitDepth: 24,
-    syncLocked: true,
-    // Real assets toggle
-    generateRealAssets: false,
-    // Render tracking
-    renderCount: 0,
-    maxRenders: 3,
-    lastRenderTime: null,
-    renderHistory: []
-  });
-  const [sessionHistory, setSessionHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [sessionPlaying, setSessionPlaying] = useState(false);
-
-  // History Helpers
-  const updateSessionWithHistory = (newTracksOrUpdater) => {
-    let newTracks;
-    if (typeof newTracksOrUpdater === 'function') {
-      newTracks = newTracksOrUpdater(sessionTracks);
-    } else {
-      newTracks = newTracksOrUpdater;
-    }
-
-    const newHistory = sessionHistory.slice(0, historyIndex + 1);
-    newHistory.push(newTracks);
-    setSessionHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
-    setSessionTracks(newTracks);
-  };
-
-  const handleUndo = () => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      setSessionTracks(sessionHistory[newIndex]);
-    }
-  };
-
-  const handleRedo = () => {
-    if (historyIndex < sessionHistory.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      setSessionTracks(sessionHistory[newIndex]);
-    }
-  };
-  
-  const [expandedNews, setExpandedNews] = useState(new Set());
-  const [allNewsExpanded, setAllNewsExpanded] = useState(false);
-  const [expandedHelp, setExpandedHelp] = useState(null);
-  const [helpSearch, setHelpSearch] = useState('');
-  const [showNudge, setShowNudge] = useState(true);
-  // Reserved for future use: const [hubFilter, setHubFilter] = useState('All');
-  const [playingItem, setPlayingItem] = useState(null);
-  
-  // Preview Modal State (for reviewing AI generations before saving)
-  // Reserved for future use: const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [previewItem, setPreviewItem] = useState(null);
-  const [previewPrompt, setPreviewPrompt] = useState('');
-  const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt' toggle
-  const [isSaving, setIsSaving] = useState(false); // Saving/syncing state with animated loader
-  const [agentPreviews, setAgentPreviews] = useState({}); // Cache last generation per agent
-  
-  // Save status for visual feedback: 'idle' | 'saving' | 'saved' | 'error'
-  const [saveStatus, setSaveStatus] = useState('idle');
-  const saveStatusTimeoutRef = useRef(null);
-  
-  // Pending operations guard - prevents double-clicks and overlapping operations
-  const pendingOperationsRef = useRef(new Set());
-  
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
@@ -574,949 +302,36 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   ];
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
-  // user state moved to top of component (before cloud sync useEffect)
-  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('studio_user_plan') || 'Free');
-  
-  // Free generation tracking (3 free before requiring login/payment)
-  const [freeGenerationsUsed, setFreeGenerationsUsed] = useState(() => {
-    const stored = localStorage.getItem('studio_free_generations');
-    return stored ? parseInt(stored, 10) : 0;
-  });
-  const FREE_GENERATION_LIMIT = 3;
-  
-  // Persist free generations
-  useEffect(() => {
-    localStorage.setItem('studio_free_generations', freeGenerationsUsed.toString());
-  }, [freeGenerationsUsed]);
-  
-  // Get agents available for current tier
-  const getAvailableAgents = () => {
-    const plan = userPlan.toLowerCase();
-    if (plan === 'pro' || plan === 'lifetime access') return AGENTS; // All 16 agents
-    if (plan === 'monthly') return AGENTS.filter(a => a.tier === 'free' || a.tier === 'monthly'); // 8 agents
-    return AGENTS.filter(a => a.tier === 'free'); // 4 agents for free tier
-  };
-  
-  // Get locked agents for teaser section
-  const getLockedAgents = () => {
-    if (isAdmin) return []; // Admins have all agents
-    const plan = userPlan.toLowerCase();
-    if (plan === 'pro' || plan === 'lifetime access') return []; // No locked agents
-    if (plan === 'monthly') return AGENTS.filter(a => a.tier === 'pro'); // Only pro locked
-    return AGENTS.filter(a => a.tier !== 'free'); // Monthly + Pro locked
-  };
-  
-  // Check if user can generate (has free uses left or is subscribed)
-  const canGenerate = () => {
-    if (isAdmin) return true; // Admins always have access
-    const plan = userPlan.toLowerCase();
-    if (plan === 'monthly' || plan === 'pro' || plan === 'lifetime access') return true;
-    if (isLoggedIn && userCredits > 0) return true;
-    return freeGenerationsUsed < FREE_GENERATION_LIMIT;
-  };
-  
-  // Get remaining free generations
-  const getRemainingFreeGenerations = () => {
-    if (isAdmin) return 999999; // Unlimited for admins
-    return Math.max(0, FREE_GENERATION_LIMIT - freeGenerationsUsed);
-  };
 
-  useEffect(() => {
-    localStorage.setItem('studio_user_plan', userPlan);
-  }, [userPlan]);
-  const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
-  const [showAddAgentModal, setShowAddAgentModal] = useState(false);
-  const [quickWorkflowAgent, setQuickWorkflowAgent] = useState(null); // Streamlined agent workflow modal
-  // Reserved for future use: const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
-  const [autoStartVoice, setAutoStartVoice] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [pendingProjectNav, setPendingProjectNav] = useState(false); // Flag to safely navigate after project selection
-
-  // Effect to safely navigate to project_canvas after selectedProject is set
-  // This prevents race conditions where tab changes before state update completes
-  useEffect(() => {
-    if (pendingProjectNav && selectedProject) {
-      console.log('[StudioView] Safe navigation: project ready, switching to project_canvas');
-      setActiveTab('project_canvas');
-      setPendingProjectNav(false);
-    }
-  }, [pendingProjectNav, selectedProject]);
-
-  // Onboarding & Help State
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(0);
-  const [selectedPath, setSelectedPath] = useState(null);
-  // Reserved for future use: const [showHelpPanel, setShowHelpPanel] = useState(false);
-  const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
-  const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
-  const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
-  
-  // Track generated creations per agent for preview in agent details
-  const [agentCreations, setAgentCreations] = useState({
-    // Format: { agentId: { video: url, image: url, audio: url } }
-  });
-  
-  // Asset preview state - enhanced with navigation and robust handling
-  const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image', url, title, asset, assets, currentIndex }
-  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max toggle for preview modal
-  const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
-  
-  // Safe preview data access (prevents TDZ/null errors)
-  const safePreview = showPreview || {};
-  const safePreviewAssets = Array.isArray(safePreview.assets) ? safePreview.assets : [];
-  const safePreviewIndex = typeof safePreview.currentIndex === 'number' && !isNaN(safePreview.currentIndex) ? safePreview.currentIndex : 0;
-  
-  // Audio refs to prevent re-render interruption
-  const previewAudioRef = useRef(null);
-  const canvasAudioRef = useRef(null);
-  
-  // Transition guard ref (doesn't cause re-render)
-  const isModalTransitioning = useRef(false);
-
-  // Audio Export/Mastering State
-  const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
-  const [exportPreset, setExportPreset] = useState('streaming');
-  const [isExporting, setIsExporting] = useState(false);
-
-  // Add Asset to Project Modal State
-  const [addToProjectAsset, setAddToProjectAsset] = useState(null); // Asset waiting to be added to project
-  const [newProjectNameFromAsset, setNewProjectNameFromAsset] = useState('');
-
-  // Model Picker State - Available AI Models
-  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
-  const AI_MODELS = [
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Fastest responses, great for quick tasks', tier: 'free', speed: '⚡⚡⚡', quality: '★★★☆' },
-    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: 'Ultra-fast, cost-effective', tier: 'free', speed: '⚡⚡⚡⚡', quality: '★★☆☆' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Best quality for complex prompts', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Balanced speed and quality', tier: 'free', speed: '⚡⚡⚡', quality: '★★★☆' },
-    { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', provider: 'Google', description: 'Lightweight, efficient', tier: 'free', speed: '⚡⚡⚡⚡', quality: '★★☆☆' },
-    { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (Preview)', provider: 'Google', description: 'Latest capabilities, experimental', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
-    { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (Preview)', provider: 'Google', description: 'Next-gen speed + quality', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
-    { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent for creative writing', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
-    { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Fast and capable', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
-    { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Multimodal powerhouse', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Affordable GPT-4 class', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
-    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'High capability, larger context', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
-    { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta', description: 'Open-source powerhouse', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
-    { id: 'llama-3.2-90b-vision', name: 'Llama 3.2 90B Vision', provider: 'Meta', description: 'Multimodal open model', tier: 'pro', speed: '⚡', quality: '★★★★' },
-    { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'European excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
-    { id: 'codestral', name: 'Codestral', provider: 'Mistral', description: 'Optimized for code generation', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
-    { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', description: 'Cost-effective reasoning', tier: 'free', speed: '⚡⚡⚡', quality: '★★★★' },
-    { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Multilingual excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' }
-  ];
-
-  // Get recommendation based on selected path
-  const getRecommendedAgents = () => {
-    if (!selectedPath) return [];
-    const goal = goalOptions.find(g => g.id === selectedPath);
-    return goal?.agents || [];
-  };
-
-  // Get primary recommendation (first agent for selected path)
-  const getRecommendation = () => {
-    if (!selectedPath) return null;
-    const goal = goalOptions.find(g => g.id === selectedPath);
-    if (!goal || !goal.agents || goal.agents.length === 0) return null;
-    return goal.agents[0]; // Primary recommendation
-  };
-
-  // Check for first visit
-  useEffect(() => {
-    const hasSeenOnboarding = localStorage.getItem('studio_onboarding_v3');
-    if (!hasSeenOnboarding && !startWizard) {
-      setShowOnboarding(true);
-    }
-  }, [startWizard]);
-
-  const completeOnboarding = useCallback(() => {
+  const [projects, setProjects] = useState(() => {
     try {
-      localStorage.setItem('studio_onboarding_v3', 'true');
-      setShowOnboarding(false);
-      
-      // Go straight to agents tab - no project creation, no complexity
-      setActiveTab('agents');
-      safeVoiceAnnounce('Welcome to your studio. Pick an agent to start creating.');
-      toast.success('Welcome to Studio Agents!');
-    } catch (err) {
-      console.error('[Onboarding] Error:', err);
-    }
-  }, [safeVoiceAnnounce]);
-
-  const handleSkipOnboarding = useCallback(() => {
-    try {
-      localStorage.setItem('studio_onboarding_v3', 'true');
-      setShowOnboarding(false);
-      setActiveTab('agents');
-    } catch (err) {
-      console.error('[Onboarding] Error:', err);
-    }
-  }, []);
-
-  // Project Type Choice Modal - lets user choose between Studio Creation and AI Pipeline
-  const [showProjectTypeChoice, setShowProjectTypeChoice] = useState(false);
-
-  // Project Wizard State
-  // Project wizard is ONLY shown when user explicitly clicks "Create Project"
-  const [showProjectWizard, setShowProjectWizard] = useState(false);
-  const [projectWizardStep, setProjectWizardStep] = useState(1);
-  
-  // startWizard prop is deprecated - we no longer auto-open wizard from landing page
-  // Users go straight to agents tab and can click "Create Project" when ready
-
-  // If startOrchestrator prop is true, open the AI orchestrator directly
-  useEffect(() => {
-    if (startOrchestrator) {
-      setShowOrchestrator(true);
-    }
-  }, [startOrchestrator]);
-
-  // If initialTab prop is provided, navigate to that tab on mount
-  useEffect(() => {
-    if (initialTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'].includes(initialTab)) {
-      setActiveTab(initialTab);
-    }
-  }, [initialTab]);
-  const [systemStatus, setSystemStatus] = useState({ status: 'healthy', message: 'All Systems Operational' });
-  
-  // System Health Check
-  useEffect(() => {
-    const checkHealth = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/health`);
-        if (!res.ok) throw new Error('Backend unreachable');
-        const data = await res.json();
-        setSystemStatus({ 
-          status: 'healthy', 
-          message: 'All Systems Operational',
-          details: data 
-        });
-      } catch (err) {
-        console.error("Health check failed:", err);
-        setSystemStatus({ 
-          status: 'maintenance', 
-          message: 'System Under Maintenance',
-          details: err.message
+      const saved = localStorage.getItem('studio_agents_projects');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Sort by updatedAt/createdAt descending (newest first)
+        return parsed.sort((a, b) => {
+          const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+          return bTime - aTime;
         });
       }
-    };
-    
-    checkHealth();
-    const interval = setInterval(checkHealth, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, []);
-
-  // Handle initial plan from landing page - using ref to avoid TDZ
-  const handleSubscribeRef = useRef(null);
-  const handleTextToVoiceRef = useRef(null);
-  useEffect(() => {
-    if (initialPlan && handleSubscribeRef.current) {
-      handleSubscribeRef.current(initialPlan);
+      return [];
+    } catch (_e) {
+      return [];
     }
-  }, [initialPlan]);
-  
-  // Safe voice announcement helper (avoids TDZ)
-  const safeVoiceAnnounce = (text) => {
-    if (handleTextToVoiceRef.current) {
-      handleTextToVoiceRef.current(text);
-    }
-  };
-
-  // Auto-select first asset for Project Canvas preview (moved from render to avoid infinite re-render)
-  useEffect(() => {
-    if (activeTab === 'project_canvas' && !selectedAgent && selectedProject) {
-      const safeAssets = Array.isArray(selectedProject.assets) ? selectedProject.assets.filter(Boolean) : [];
-      if (!canvasPreviewAsset && safeAssets.length > 0 && safeAssets[0]) {
-        setCanvasPreviewAsset(safeAssets[0]);
-      }
-    }
-  }, [activeTab, selectedAgent, selectedProject, canvasPreviewAsset]);
-
-  const [newProjectData, setNewProjectData] = useState({
-    name: '',
-    category: '',
-    description: '',
-    language: 'English',
-    style: 'Modern Hip-Hop',
-    model: 'Gemini 2.0 Flash',
-    selectedAgents: [],
-    socialHandle: '',
-    socialBio: '',
-    socialPlatform: 'instagram'
   });
 
-  const PROJECT_CATEGORIES = [
-    { id: 'pro', label: 'Pro Studio', icon: Crown, desc: 'Full production suite', color: 'var(--color-purple)' },
-    { id: 'vybing', label: 'Vybing', icon: Music, desc: 'Quick beat ideas', color: 'var(--color-cyan)' },
-    { id: 'mixtapes', label: 'Mixtapes', icon: Disc, desc: 'Curated playlists', color: 'var(--color-orange)' },
-    { id: 'video', label: 'Video', icon: Video, desc: 'Visual content', color: 'var(--color-pink)' },
-    { id: 'scores', label: 'Scores', icon: FileMusic, desc: 'Cinematic composition', color: 'var(--color-emerald)' },
-    { id: 'moves', label: 'Moves', icon: Activity, desc: 'Dance & Choreo', color: 'var(--color-yellow)' },
-    { id: 'music_videos', label: 'Music Videos', icon: Film, desc: 'Full production clips', color: 'var(--color-red)' },
-    { id: 'social', label: 'Social Brand', icon: Share2, desc: 'Grow your audience', color: 'var(--color-blue)' }
-  ];
+  // Cloud sync state
+  const [_projectsSyncing, setProjectsSyncing] = useState(false);
+  const [_lastSyncTime, setLastSyncTime] = useState(null);
 
-  const PROJECT_CREDIT_COST = 2;
-
-  const handleCreateProject = () => {
-    console.log('[CreateProject] Starting with data:', newProjectData);
-    console.log('[CreateProject] Current credits:', userCredits, 'Required:', PROJECT_CREDIT_COST);
-    console.log('[CreateProject] User:', user?.email, 'DB initialized:', !!db);
-    
-    if (!newProjectData.name || !newProjectData.category) {
-      console.error('[CreateProject] Missing required fields:', { name: newProjectData.name, category: newProjectData.category });
-      toast.error('Please fill in project name and category');
-      return;
-    }
-
-    // Check if user has enough credits
-    const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
-    console.log('[CreateProject] Credit check - Current:', currentCredits, 'Cost:', PROJECT_CREDIT_COST);
-    
-    if (currentCredits < PROJECT_CREDIT_COST) {
-      console.error('[CreateProject] Insufficient credits');
-      toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
-      setShowCreditsModal(true);
-      return;
-    }
-    
-    const newProject = {
-      id: String(Date.now()),
-      name: newProjectData.name,
-      category: newProjectData.category,
-      description: newProjectData.description || '',
-      language: newProjectData.language || 'English',
-      style: newProjectData.style || 'Modern Hip-Hop',
-      model: newProjectData.model || 'Gemini 2.0 Flash',
-      agents: newProjectData.selectedAgents || [],
-      workflow: newProjectData.workflow || 'custom',
-      socialHandle: newProjectData.socialHandle || '',
-      socialBio: newProjectData.socialBio || '',
-      socialPlatform: newProjectData.socialPlatform || 'instagram',
-      date: new Date().toLocaleDateString(),
-      status: 'Active',
-      progress: 0,
-      assets: [], // Store generated content here
-      context: {} // Shared context for MAS
-    };
-    
-    console.log('[CreateProject] New project object created:', newProject);
-
-    // Deduct credits
-    console.log('[CreateProject] Deducting credits...');
-    setUserCredits(prev => {
-      const newCredits = prev - PROJECT_CREDIT_COST;
-      console.log('[CreateProject] Credits updated:', prev, '->', newCredits);
-      return newCredits;
-    });
-    
-    console.log('[CreateProject] Adding project to state...');
-    setProjects(prev => {
-      const newProjects = [newProject, ...prev];
-      console.log('[CreateProject] Projects updated. Total:', newProjects.length);
-      
-      // Immediately save to localStorage
-      try {
-        const projectsToSave = newProjects.slice(0, 50);
-        safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
-        console.log('[CreateProject] Saved to localStorage');
-      } catch (err) {
-        console.error('[CreateProject] Failed to save to localStorage:', err);
-      }
-      
-      return newProjects;
-    });
-    
-    setSelectedProject(newProject); // Auto-select the new project
-    console.log('[CreateProject] Selected project set:', newProject.id);
-    
-    // Save to cloud if logged in (uses backend API now)
-    console.log('[CreateProject] Auth check - isLoggedIn:', isLoggedIn, 'user:', !!user);
-    if (isLoggedIn && user) {
-      console.log('[CreateProject] Saving to cloud for user:', user.uid, user.email);
-      saveProjectToCloud(user.uid, newProject).then(success => {
-        console.log('[CreateProject] Cloud save result:', success);
-      }).catch(err => {
-        console.error('[CreateProject] Cloud save error:', err);
-      });
-    } else {
-      console.warn('[CreateProject] NOT saving to cloud. isLoggedIn:', isLoggedIn, 'user:', !!user);
-      if (isLoggedIn && !user) {
-        console.error('[CreateProject] RACE CONDITION: isLoggedIn is true but user is null!');
-      }
-    }
-    
-    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
-
-    // Close wizard and reset
-    setShowProjectWizard(false);
-    setProjectWizardStep(1);
-    
-    // Track project creation
-    Analytics.projectCreated(newProject.category);
-    
-    // Reset form data
-    setNewProjectData({ 
-      name: '', 
-      category: '', 
-      description: '', 
-      language: 'English',
-      style: 'Modern Hip-Hop',
-      model: 'Gemini 2.0 Flash',
-      selectedAgents: [], 
-      workflow: '',
-      socialHandle: '',
-      socialBio: '',
-      socialPlatform: 'instagram'
-    });
-    
-    // Switch to My Studio to show the new project
-    safeVoiceAnnounce(`Project ${newProject.name} created. Loading your studio.`);
-    setActiveTab('mystudio');
-  };
-
-  const handleSkipWizard = (targetTab) => {
-    // Check if user has enough credits
-    const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
-    if (currentCredits < PROJECT_CREDIT_COST) {
-      toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
-      setShowCreditsModal(true);
-      return;
-    }
-
-    const newProject = {
-      id: String(Date.now()),
-      name: `Untitled Project ${projects.length + 1}`,
-      category: "music",
-      description: "Quick start project",
-      agents: [],
-      workflow: "custom",
-      date: new Date().toLocaleDateString(),
-      status: 'Active',
-      progress: 0,
-      assets: [],
-      context: {}
-    };
-
-    // Deduct credits
-    setUserCredits(prev => prev - PROJECT_CREDIT_COST);
-    toast.success(`Quick project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
-
-    setProjects(prev => [newProject, ...prev]);
-    setSelectedProject(newProject);
-    
-    // Save to cloud if logged in
-    if (user && db) {
-      saveProjectToCloud(user.uid, newProject).catch(err => {
-        console.error('Failed to save quick project to cloud:', err);
-      });
-    }
-
-    setShowProjectWizard(false);
-    setProjectWizardStep(1);
-    
-    // Default to 'mystudio' if targetTab is not a string (e.g. event object)
-    const tabToSet = (typeof targetTab === 'string') ? targetTab : 'mystudio';
-    setActiveTab(tabToSet);
-    
-    safeVoiceAnnounce(`Quick project created.`);
-  };
-
-  // Reserved for future use
-  const _handleManualCreate = () => {
-    handleSkipWizard('agents');
-    // Go straight to agents page - user can pick any agent to start creating
-  };
-
-  // Open agent whitepaper modal for any agent
-  const openAgentWhitepaper = (agent) => {
-    setShowAgentWhitePaper({
-      key: agent.id,
-      icon: agent.icon,
-      title: agent.name,
-      subtitle: agent.category,
-      description: agent.explanation || agent.description,
-      whoFor: agent.helpTips || `Artists and creators looking to leverage AI for ${agent.category.toLowerCase()}.`,
-      howTo: agent.howToUse || agent.howTo || `Enter your prompt and let ${agent.name} generate results instantly.`
-    });
-  };
-
-  // --- IMPROVED STATE MANAGEMENT HELPERS ---
-  
-  // Update save status with auto-reset
-  const updateSaveStatus = useCallback((status) => {
-    setSaveStatus(status);
-    if (saveStatusTimeoutRef.current) {
-      clearTimeout(saveStatusTimeoutRef.current);
-    }
-    // Reset to idle after 3 seconds for 'saved' or 'error' states
-    if (status === 'saved' || status === 'error') {
-      saveStatusTimeoutRef.current = setTimeout(() => {
-        setSaveStatus('idle');
-      }, 3000);
-    }
-  }, []);
-  
-  // Guard against double-clicks and overlapping operations
-  const withOperationGuard = useCallback((operationId, asyncFn) => {
-    return async (...args) => {
-      if (pendingOperationsRef.current.has(operationId)) {
-        console.log(`[Guard] Operation "${operationId}" already in progress, skipping`);
-        return;
-      }
-      pendingOperationsRef.current.add(operationId);
-      try {
-        return await asyncFn(...args);
-      } finally {
-        pendingOperationsRef.current.delete(operationId);
-      }
-    };
-  }, []);
-  
-  // Provide haptic feedback (if available)
-  const triggerHapticFeedback = useCallback((type = 'light') => {
-    if ('vibrate' in navigator) {
-      switch (type) {
-        case 'light':
-          navigator.vibrate(10);
-          break;
-        case 'medium':
-          navigator.vibrate(25);
-          break;
-        case 'heavy':
-          navigator.vibrate([30, 10, 30]);
-          break;
-        case 'success':
-          navigator.vibrate([10, 50, 20]);
-          break;
-        case 'error':
-          navigator.vibrate([50, 30, 50, 30, 50]);
-          break;
-        default:
-          navigator.vibrate(10);
-      }
-    }
-  }, []);
-
-  // QuickWorkflow handlers - centralized project save flow
-  const handleSaveAssetToProject = useCallback((projectId, asset) => {
-    // Guard against double-saves
-    const operationId = `save-asset-${asset?.id || Date.now()}`;
-    if (pendingOperationsRef.current.has(operationId)) {
-      console.log('[SaveAsset] Operation already in progress, skipping');
-      return;
-    }
-    pendingOperationsRef.current.add(operationId);
-    
-    // Haptic feedback on save start
-    triggerHapticFeedback('light');
-    updateSaveStatus('saving');
-    
-    setProjects(prev => {
-      const newProjects = prev.map(p => {
-        if (p.id === projectId) {
-          const existingAssets = p.assets || [];
-          
-          // Check for duplicate asset by ID or by content hash
-          const isDuplicate = existingAssets.some(existing => 
-            existing.id === asset.id || 
-            (existing.content === asset.content && existing.type === asset.type && existing.agent === asset.agent)
-          );
-          
-          if (isDuplicate) {
-            console.log('[SaveAsset] Skipping duplicate asset:', asset.id);
-            pendingOperationsRef.current.delete(operationId);
-            updateSaveStatus('idle');
-            return p; // Return unchanged project
-          }
-          
-          console.log('[SaveAsset] Adding new asset to project:', projectId, asset.id);
-          return {
-            ...p,
-            assets: [...existingAssets, asset],
-            progress: Math.min(100, (p.progress || 0) + 10),
-            updatedAt: new Date().toISOString()
-          };
-        }
-        return p;
-      });
-
-      // Immediately save to localStorage
-      try {
-        const projectsToSave = newProjects.slice(0, 50);
-        safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
-      } catch (err) {
-        console.error('[SaveAsset] Failed to save to localStorage:', err);
-      }
-      
-      // Save to cloud if logged in
-      const updatedProject = newProjects.find(p => p.id === projectId);
-      if (updatedProject && user && db) {
-        saveProjectToCloud(user.uid, updatedProject)
-          .then(() => {
-            updateSaveStatus('saved');
-            triggerHapticFeedback('success');
-          })
-          .catch(err => {
-            console.error('Failed to save updated project to cloud:', err);
-            updateSaveStatus('error');
-            triggerHapticFeedback('error');
-          })
-          .finally(() => {
-            pendingOperationsRef.current.delete(operationId);
-          });
-      } else {
-        // Local save only
-        updateSaveStatus('saved');
-        triggerHapticFeedback('success');
-        pendingOperationsRef.current.delete(operationId);
-      }
-
-      return newProjects;
-    });
-    
-    toast.success('Asset saved to project');
-  }, [user, db, saveProjectToCloud, updateSaveStatus, triggerHapticFeedback]);
-
-  const handleCreateProjectWithAsset = (projectName, asset) => {
-    // Check if user has enough credits
-    const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
-    if (currentCredits < PROJECT_CREDIT_COST) {
-      toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
-      setShowCreditsModal(true);
-      return;
-    }
-
-    const newProject = {
-      id: String(Date.now()),
-      name: projectName,
-      category: 'pro',
-      description: `Created from ${asset.agentName || asset.agent || 'AI Agent'}`,
-      agents: [asset.agent], // Store ID string
-      workflow: 'custom',
-      date: new Date().toLocaleDateString(),
-      status: 'Active',
-      progress: 10,
-      assets: [asset],
-      context: {}
-    };
-    
-    // Deduct credits
-    setUserCredits(prev => prev - PROJECT_CREDIT_COST);
-    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
-
-    setProjects(prev => [newProject, ...prev]);
-    setSelectedProject(newProject);
-
-    // Save to cloud if logged in
-    if (user && db) {
-      saveProjectToCloud(user.uid, newProject).catch(err => {
-        console.error('Failed to save new project with asset to cloud:', err);
-      });
-    }
-  };
-
-  const handleAddAgent = (agent) => {
-    if (!selectedProject || !agent) return;
-    
-    const currentAgents = Array.isArray(selectedProject.agents) ? selectedProject.agents : [];
-
-    // Enforce Plan Limits (admins have no limit)
-    let limit = isAdmin ? 999 : 3; // Free default
-    if (!isAdmin) {
-      if (userPlan === 'Creator') limit = 5;
-      if (userPlan === 'Studio Pro' || userPlan === 'Lifetime Access') limit = 16;
-    }
-
-    if (currentAgents.length >= limit) {
-      toast.error(`Agent limit reached for ${userPlan} plan. Please upgrade.`);
-      return;
-    }
-
-    // Check if agent already exists in project
-    if (currentAgents.some(a => a.id === agent.id)) {
-      safeVoiceAnnounce(`${agent.name} is already in this project.`);
-      return;
-    }
-
-    const updatedProject = {
-      ...selectedProject,
-      agents: [...currentAgents, agent],
-      updatedAt: new Date().toISOString()
-    };
-
-    // Update local state
-    setSelectedProject(updatedProject);
-    
-    // Update projects list with immediate save
-    updateProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
-    
-    setShowAddAgentModal(false);
-    safeVoiceAnnounce(`${agent.name} added to project.`);
-  };
-
-  // --- FIREBASE AUTH LISTENER ---
-  useEffect(() => {
-    if (auth) {
-      const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-        if (currentUser) {
-          // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
-          // Use batch state updates to prevent render in-between
-          setUser(currentUser);
-          localStorage.setItem('studio_user_id', currentUser.uid);
-          setAuthChecking(false); // Auth check complete
-          setIsLoggedIn(true); // Set this LAST after user is set
-          
-          // Get and store token
-          try {
-            const token = await currentUser.getIdToken();
-            setUserToken(token);
-          } catch (tokenErr) {
-            console.error("Error getting user token:", tokenErr);
-          }
-          
-          // Check if admin account
-          const adminStatus = isAdminEmail(currentUser.email);
-          setIsAdmin(adminStatus);
-          if (adminStatus) {
-            console.log('🔐 Admin access granted:', currentUser.email);
-            setUserPlan('Lifetime Access');
-            setUserCredits(999999); // Unlimited credits for admin
-            toast.success('Welcome, Administrator!', { icon: '🔐' });
-          }
-          
-          // Fetch credits AND subscription plan from Firestore (non-admins)
-          if (db && !adminStatus) {
-            try {
-              const userRef = doc(db, 'users', currentUser.uid);
-              const userDoc = await getDoc(userRef);
-              if (userDoc.exists()) {
-                const userData = userDoc.data();
-                const credits = userData.credits || 0;
-                setUserCredits(credits);
-                setUserProfile(prev => ({ ...prev, credits }));
-                
-                // Load subscription plan from Firestore
-                // Backend saves: tier, subscriptionTier, subscriptionStatus
-                if (userData.subscriptionStatus === 'active' && userData.tier) {
-                  // Map backend tier names to frontend plan names
-                  const tierMap = { 'creator': 'monthly', 'studio': 'pro', 'lifetime': 'lifetime' };
-                  const planName = tierMap[userData.tier] || userData.tier;
-                  setUserPlan(planName);
-                  localStorage.setItem('studio_user_plan', planName);
-                  console.log('[Auth] Subscription loaded:', planName, 'from tier:', userData.tier);
-                } else if (userData.plan) {
-                  // Fallback to plan field if set directly
-                  setUserPlan(userData.plan);
-                  localStorage.setItem('studio_user_plan', userData.plan);
-                  console.log('[Auth] User plan loaded from Firestore:', userData.plan);
-                } else if (userData.subscription?.status === 'active') {
-                  // Legacy format support
-                  const planName = userData.subscription.plan || 'monthly';
-                  setUserPlan(planName);
-                  localStorage.setItem('studio_user_plan', planName);
-                  console.log('[Auth] Legacy subscription format loaded:', planName);
-                }
-              }
-              
-              // Load and merge projects from cloud
-              const cloudProjects = await loadProjectsFromCloud(currentUser.uid);
-              if (cloudProjects.length > 0) {
-                setProjects(prev => {
-                  const merged = mergeProjects(prev, cloudProjects);
-                  console.log(`Merged ${prev.length} local + ${cloudProjects.length} cloud = ${merged.length} projects`);
-                  return merged;
-                });
-                toast.success(`Synced ${cloudProjects.length} projects from cloud`);
-              } else if (projects.length > 0) {
-                // No cloud projects but have local - sync them up
-                syncProjectsToCloud(currentUser.uid, projects);
-              }
-            } catch (err) {
-              console.error('Failed to fetch user data:', err);
-            }
-          }
-        } else {
-          // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
-          // Batch all state updates together
-          setUser(null);
-          setUserToken(null);
-          setUserCredits(3); // Reset to trial
-          setAuthChecking(false); // Auth check complete (not logged in)
-          localStorage.removeItem('studio_user_id');
-          setIsLoggedIn(false); // Set this LAST after user is cleared
-        }
-      });
-      return () => unsubscribe();
-    } else {
-      // No auth service - mark auth check as complete
-      setAuthChecking(false);
-    }
-  }, []);
-
-  // Listen for auth modal open events from child components
-  useEffect(() => {
-    const handleOpenAuthModal = () => {
-      setShowLoginModal(true);
-    };
-
-    window.addEventListener('openAuthModal', handleOpenAuthModal);
-    return () => window.removeEventListener('openAuthModal', handleOpenAuthModal);
-  }, []);
-
-  // --- AUTH STATE ---
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset'
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [userCredits, setUserCredits] = useState(3); // Default trial credits
-
-  // Fetch user credits from Firestore
-  const fetchUserCredits = async (uid) => {
-    if (!db) return;
-    try {
-      const userRef = doc(db, 'users', uid);
-      const userDoc = await getDoc(userRef);
-      if (userDoc.exists()) {
-        setUserCredits(userDoc.data().credits || 0);
-        setUserProfile(prev => ({ ...prev, credits: userDoc.data().credits || 0 }));
-      } else {
-        // Initialize new user with 3 trial credits
-        await setDoc(userRef, { credits: 3, tier: 'free', createdAt: new Date() });
-        setUserCredits(3);
-      }
-    } catch (err) {
-      console.error('Failed to fetch credits:', err);
-    }
-  };
-
-  // --- LOGIN HANDLER (Google) ---
-  const handleGoogleLogin = async () => {
-    if (!auth) {
-      toast.error('Authentication service unavailable');
-      return;
-    }
-    setAuthLoading(true);
-    const loadingToast = toast.loading('Signing in with Google...');
-    
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      
-      // Close modal immediately for faster UX
-      setShowLoginModal(false);
-      toast.success('Welcome back!', { id: loadingToast });
-      
-      // Track login
-      Analytics.login('google');
-      
-      // Fetch credits in background (don't wait)
-      fetchUserCredits(result.user.uid).catch(err => 
-        console.warn('Background credits fetch failed:', err)
-      );
-      
-      if (selectedPlan) {
-        handleCheckoutRedirect(selectedPlan);
-      }
-    } catch (error) {
-      console.error('Login failed', error);
-      toast.dismiss(loadingToast);
-      if (error.code === 'auth/popup-closed-by-user') {
-        toast('Sign-in cancelled', { icon: '👋' });
-      } else if (error.code === 'auth/unauthorized-domain') {
-        toast.error(`Domain not authorized. Add ${window.location.hostname} in Firebase Console.`);
-      } else {
-        toast.error(error.message);
-      }
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  // --- EMAIL/PASSWORD LOGIN ---
-  const handleEmailAuth = async (e) => {
-    e.preventDefault();
-    if (!auth) {
-      toast.error('Authentication service unavailable');
-      return;
-    }
-    if (!authEmail || !authPassword) {
-      toast.error('Please enter email and password');
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      let result;
-      if (authMode === 'signup') {
-        result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
-        toast.success('Account created successfully!');
-        Analytics.signUp('email');
-      } else {
-        result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
-        toast.success('Welcome back!');
-        Analytics.login('email');
-      }
-      await fetchUserCredits(result.user.uid);
-      setShowLoginModal(false);
-      setAuthEmail('');
-      setAuthPassword('');
-      if (selectedPlan) {
-        handleCheckoutRedirect(selectedPlan);
-      }
-    } catch (error) {
-      console.error('Auth failed', error);
-      if (error.code === 'auth/email-already-in-use') {
-        toast.error('Email already in use. Try logging in.');
-      } else if (error.code === 'auth/wrong-password') {
-        toast.error('Incorrect password');
-      } else if (error.code === 'auth/user-not-found') {
-        toast.error('No account found. Try signing up.');
-      } else if (error.code === 'auth/weak-password') {
-        toast.error('Password should be at least 6 characters');
-      } else {
-        toast.error(error.message);
-      }
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  // --- PASSWORD RESET ---
-  const handlePasswordReset = async () => {
-    if (!authEmail) {
-      toast.error('Please enter your email first');
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      await sendPasswordResetEmail(auth, authEmail);
-      toast.success('Password reset email sent!');
-      setAuthMode('login');
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  // Reserved for future use: Legacy handler for compatibility
-  // Dashboard State - CLEANED UP
-  // managedAgents, appSettings, and dashboardTab state removed as they are no longer used in the new dashboard.
-  // temporary no-op function to support legacy calls in the Agents tab render:
-  const setDashboardTab = () => {}; 
-
-  
-  // Activity Wall Pagination State
-  const [activityPage, setActivityPage] = useState(1);
-  const [isLoadingActivity, setIsLoadingActivity] = useState(false);
-  const [hasMoreActivity, setHasMoreActivity] = useState(true);
-  const [activityFeed, setActivityFeed] = useState([]);
-  const [activitySection, setActivitySection] = useState(() => localStorage.getItem('musicHubSection') || 'all');
-
-  // News Pagination State
-  const [newsPage, setNewsPage] = useState(1);
-  const [isLoadingNews, setIsLoadingNews] = useState(false);
-  const [hasMoreNews, setHasMoreNews] = useState(true);
-  const [newsArticles, setNewsArticles] = useState([]);
+  const [previewItem, setPreviewItem] = useState(null);
+  const [previewPrompt, setPreviewPrompt] = useState('');
+  const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt' toggle
+  const [isSaving, setIsSaving] = useState(false); // Saving/syncing state with animated loader
+  const [agentPreviews, setAgentPreviews] = useState({}); // Cache last generation per agent
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showDemoBanner, setShowDemoBanner] = useState(getDemoModeState());
 
   const [userProfile, setUserProfile] = useState(() => {
     try {
@@ -1547,146 +362,24 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   });
 
-  // Simulated Performance Data removed
-
-
-  useEffect(() => {
-    localStorage.setItem('studio_user_profile', JSON.stringify(userProfile));
-  }, [userProfile]);
-
-  const [socialConnections, setSocialConnections] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_socials');
-      return saved ? JSON.parse(saved) : {
-        instagram: false,
-        tiktok: false,
-        twitter: false,
-        spotify: false
-      };
-    } catch (_e) {
-      return {
-        instagram: false,
-        tiktok: false,
-        twitter: false,
-        spotify: false
-      };
-    }
-  });
-  const [twitterUsername, setTwitterUsername] = useState(() => localStorage.getItem('studio_agents_twitter_user'));
-  const [metaName, setMetaName] = useState(() => localStorage.getItem('studio_agents_meta_name'));
-  const [storageConnections, setStorageConnections] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_storage');
-      return saved ? JSON.parse(saved) : {
-        googleDrive: false,
-        dropbox: false,
-        oneDrive: false,
-        localDevice: true
-      };
-    } catch (_e) {
-      return {
-        googleDrive: false,
-        dropbox: false,
-        oneDrive: false,
-        localDevice: true
-      };
-    }
-  });
-
-  const [paymentMethods, setPaymentMethods] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_payments');
-      return saved ? JSON.parse(saved) : [
-        { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
-        { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
-      ];
-    } catch (_e) {
-      return [
-        { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
-        { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
-      ];
-    }
-  });
-
-  const [bankAccounts, setBankAccounts] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_banks');
-      return saved ? JSON.parse(saved) : [
-        { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
-      ];
-    } catch (_e) {
-      return [
-        { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
-      ];
-    }
-  });
-
-  const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
-  const [showCreditsModal, setShowCreditsModal] = useState(false);
-  const [editingPayment, setEditingPayment] = useState(null); // { item, type }
-  const [paymentType, setPaymentType] = useState('card'); // 'card' or 'bank'
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Welcome to Studio Agents', message: 'Start creating your first track!', time: 'Just now', read: false },
-    { id: 2, title: 'Pro Tip', message: 'Try the Ghostwriter agent for lyrics.', time: '2m ago', read: false }
-  ]);
-
-  // Reserved for future use:
-  const _addNotification = (title, message) => {
-    const newNotif = {
-      id: Date.now(),
-      title,
-      message,
-      time: 'Just now',
-      read: false
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-  };
-
-  // Persist payment state
-  useEffect(() => {
-    localStorage.setItem('studio_agents_payments', JSON.stringify(paymentMethods));
-    localStorage.setItem('studio_agents_banks', JSON.stringify(bankAccounts));
-  }, [paymentMethods, bankAccounts]);
-
-  // Persist social state
-  useEffect(() => {
-    localStorage.setItem('studio_agents_socials', JSON.stringify(socialConnections));
-    localStorage.setItem('studio_agents_storage', JSON.stringify(storageConnections));
-    if (twitterUsername) localStorage.setItem('studio_agents_twitter_user', twitterUsername);
-    if (metaName) localStorage.setItem('studio_agents_meta_name', metaName);
-  }, [socialConnections, twitterUsername, metaName, storageConnections]);
-
-  // Handle Social OAuth Callbacks
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    
-    // Twitter Callback
-    if (params.get('twitter_connected') === 'true') {
-      const username = params.get('twitter_username');
-      setSocialConnections(prev => ({ ...prev, twitter: true }));
-      setTwitterUsername(username);
-      
-      const newUrl = window.location.pathname + window.location.hash;
-      window.history.replaceState({}, document.title, newUrl);
-      toast.success(`Connected to X/Twitter as @${username}!`);
-    }
-
-    // Meta Callback (Insta/FB)
-    if (params.get('meta_connected') === 'true') {
-      const name = params.get('meta_name');
-      setSocialConnections(prev => ({ ...prev, instagram: true, facebook: true }));
-      setMetaName(name);
-      
-      const newUrl = window.location.pathname + window.location.hash;
-      window.history.replaceState({}, document.title, newUrl);
-      toast.success(`Connected to Meta as ${name}!`);
-    }
-  }, []);
+  // --- AUTH STATE (Hoisted used by canGenerate) ---
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset'
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [userCredits, setUserCredits] = useState(3); // Default trial credits
+  const setDashboardTab = () => {}; 
 
   // --- STRIPE CHECKOUT ---
   const handleCheckoutRedirect = async (plan) => {
+    console.log('[Checkout] handleCheckoutRedirect called', { 
+      isLoggedIn, 
+      hasUser: !!user, 
+      planName: plan?.name 
+    });
+    
     if (!isLoggedIn || !user) {
+      console.warn('[Checkout] User not logged in, aborting');
       toast.error('Please log in first');
       setShowLoginModal(true);
       return;
@@ -1700,6 +393,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const tier = tierMap[plan.name] || 'creator';
 
     try {
+      console.log('[Checkout] Creating checkout session', { tier, userId: user.uid });
       toast.loading('Redirecting to checkout...');
       const response = await fetch(`${BACKEND_URL}/api/stripe/create-checkout-session`, {
         method: 'POST',
@@ -1715,6 +409,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
       const data = await response.json();
       toast.dismiss();
+      
+      console.log('[Checkout] Checkout response', { hasUrl: !!data.url, error: data.error });
 
       if (data.url) {
         window.location.href = data.url;
@@ -1725,7 +421,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
     } catch (err) {
       toast.dismiss();
-      console.error('Checkout error:', err);
+      console.error('[Checkout] Checkout error:', err);
       toast.error('Payment system unavailable. Please try again later.');
     }
   };
@@ -1738,243 +434,43 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setShowLoginModal(true);
     }
   };
+
+  // Centralized function to update projects with automatic persistence
+  const updateProjects = useCallback((updater) => {
+    setProjects(prev => {
+      const newProjects = typeof updater === 'function' ? updater(prev) : updater;
+      
+      // Immediately save to localStorage
+      try {
+        const projectsToSave = newProjects.slice(0, 50);
+        safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
+      } catch (err) {
+        console.error('[updateProjects] Failed to save to localStorage:', err);
+      }
+      
+      return newProjects;
+    });
+  }, []); 
+
+  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('studio_user_plan') || 'Free');
   
-  // Set ref for TDZ-safe access from earlier useEffect
-  handleSubscribeRef.current = handleSubscribe;
+  // Free generation tracking (3 free before requiring login/payment)
+  const [freeGenerationsUsed, setFreeGenerationsUsed] = useState(() => {
+    const stored = localStorage.getItem('studio_free_generations');
+    return stored ? parseInt(stored, 10) : 0;
+  });
+  const FREE_GENERATION_LIMIT = 3;
 
-  // --- PROFESSIONAL VOICE & TRANSLATION LOGIC (Whisperer-style) ---
-  
-  const recognitionRef = useRef(null);
-  const textareaRef = useRef(null);
-  
-  // Pending prompt to apply when agent view renders (for re-run functionality)
-  const [pendingPrompt, setPendingPrompt] = useState(null);
-  
-  // Apply pending prompt when agent view becomes active
-  useEffect(() => {
-    if (pendingPrompt && selectedAgent && activeTab === 'agents') {
-      // Wait for textarea to render, then set value
-      setTimeout(() => {
-        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-        if (textarea) {
-          textarea.value = pendingPrompt;
-          textarea.focus();
-        }
-        setPendingPrompt(null);
-      }, 100);
-    }
-  }, [pendingPrompt, selectedAgent, activeTab]);
+  const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
 
-  const handleVoiceToText = () => {
-    if (isListening) {
-      if (recognitionRef.current) recognitionRef.current.stop();
-      setIsListening(false);
-      setVoiceTranscript('');
-      return;
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      toast.error('Speech recognition not supported. Try Chrome or Safari.');
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = voiceSettings.language === 'English' ? 'en-US' : 
-                      voiceSettings.language === 'Spanish' ? 'es-ES' :
-                      voiceSettings.language === 'French' ? 'fr-FR' :
-                      voiceSettings.language === 'German' ? 'de-DE' :
-                      voiceSettings.language === 'Japanese' ? 'ja-JP' : 'en-US';
-    
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      toast.success('🎤 Listening... Say a command or dictate your prompt', { duration: 2000 });
-    };
-    
-    recognition.onend = () => {
-      setIsListening(false);
-      setVoiceTranscript('');
-    };
-    
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error", event.error);
-      setIsListening(false);
-      setVoiceTranscript('');
-      if (event.error !== 'aborted') {
-        toast.error(`Voice error: ${event.error}`);
-      }
-    };
-
-    recognition.onresult = (event) => {
-      let interimTranscript = '';
-      let finalTranscript = '';
-      
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript = transcript;
-        }
-      }
-      
-      // Show real-time interim results (Whisperer-style feedback)
-      if (interimTranscript) {
-        setVoiceTranscript(interimTranscript);
-      }
-      
-      if (!finalTranscript) return;
-      
-      const transcript = finalTranscript.toLowerCase().trim();
-      setVoiceTranscript('');
-      setLastVoiceCommand({ text: finalTranscript, time: new Date().toLocaleTimeString() });
-      
-      // --- VOICE COMMAND PROCESSING ---
-      
-      // Stop listening command
-      if (transcript.includes('stop listening') || transcript.includes('stop voice') || transcript === 'stop' || transcript === 'cancel') {
-        if (recognitionRef.current) recognitionRef.current.stop();
-        setIsListening(false);
-        handleTextToVoice("Voice control stopped.");
-        return;
-      }
-      
-      // Open/Launch agent commands
-      if (transcript.includes('open') || transcript.includes('launch')) {
-        const agentName = transcript.replace('open', '').replace('launch', '').trim();
-        const foundAgent = AGENTS.find(a => a.name.toLowerCase().includes(agentName));
-        if (foundAgent) {
-          setSelectedAgent(foundAgent);
-          setActiveTab('agents');
-          toast.success(`🚀 Launching ${foundAgent.name}`);
-          handleTextToVoice(`Launching ${foundAgent.name}.`);
-          return;
-        }
-      }
-
-      // Navigation commands
-      if (transcript.includes('go to') || transcript.includes('show me') || transcript.includes('navigate')) {
-        let navigated = false;
-        if (transcript.includes('dashboard') || transcript.includes('studio') || transcript.includes('home')) {
-          setActiveTab('mystudio');
-          toast.success('📊 Dashboard');
-          handleTextToVoice("Navigating to your dashboard.");
-          navigated = true;
-        } else if (transcript.includes('hub') || transcript.includes('projects')) {
-          setActiveTab('hub');
-          toast.success('📁 Project Hub');
-          handleTextToVoice("Opening the Project Hub.");
-          navigated = true;
-        } else if (transcript.includes('news')) {
-          setActiveTab('news');
-          toast.success('📰 Industry Pulse');
-          handleTextToVoice("Checking the latest industry pulse.");
-          navigated = true;
-        } else if (transcript.includes('help') || transcript.includes('support')) {
-          setActiveTab('support');
-          toast.success('💡 Help Center');
-          handleTextToVoice("How can I help you today?");
-          navigated = true;
-        } else if (transcript.includes('agents') || transcript.includes('tools')) {
-          setActiveTab('agents');
-          toast.success('🤖 Agents');
-          handleTextToVoice("Viewing all available agents.");
-          navigated = true;
-        }
-        if (navigated) return;
-      }
-
-      // Theme toggle
-      if (transcript.includes('switch theme') || transcript.includes('toggle theme') || transcript.includes('light mode') || transcript.includes('dark mode')) {
-        const newTheme = theme === 'dark' ? 'light' : 'dark';
-        setTheme(newTheme);
-        localStorage.setItem('studio_theme', newTheme);
-        toast.success(`🎨 ${newTheme === 'dark' ? 'Dark' : 'Light'} mode`);
-        handleTextToVoice(`Switching to ${newTheme} mode.`);
-        return;
-      }
-
-      // Generate command
-      if (transcript === 'generate' || transcript.includes('start generation') || transcript.includes('create now') || transcript.includes('make it')) {
-        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-        if (textarea && textarea.value.trim()) {
-          handleGenerate();
-          toast.success('⚡ Generating...');
-          handleTextToVoice("Starting generation.");
-        } else {
-          toast.error('Please enter a prompt first');
-          handleTextToVoice("Please enter a prompt first.");
-        }
-        return;
-      }
-      
-      // Clear prompt command
-      if (transcript.includes('clear prompt') || transcript.includes('clear text') || transcript.includes('start over') || transcript === 'clear') {
-        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-        if (textarea) {
-          textarea.value = '';
-          textarea.dispatchEvent(new Event('input', { bubbles: true }));
-          toast.success('🗑️ Prompt cleared');
-          handleTextToVoice("Prompt cleared.");
-        }
-        return;
-      }
-      
-      // Read back command
-      if (transcript.includes('read back') || transcript.includes('read prompt') || transcript.includes('what did i write') || transcript.includes('read it')) {
-        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-        if (textarea && textarea.value.trim()) {
-          handleTextToVoice(textarea.value);
-        } else {
-          handleTextToVoice("The prompt is empty.");
-        }
-        return;
-      }
-      
-      // Show voice commands
-      if (transcript.includes('show commands') || transcript.includes('voice commands') || transcript.includes('what can i say') || transcript.includes('help commands')) {
-        setShowVoiceCommandPalette(true);
-        handleTextToVoice("Here are the available voice commands.");
-        return;
-      }
-
-      // Payment commands
-      if (transcript.includes('add payment') || transcript.includes('billing') || transcript.includes('manage card')) {
-        setActiveTab('mystudio');
-        setShowAddPaymentModal(true);
-        handleTextToVoice("Opening payment management.");
-        return;
-      }
-
-      // Default: Append to textarea as dictation
-      const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-      if (textarea) {
-        const newText = (textarea.value + ' ' + finalTranscript).trim();
-        textarea.value = newText;
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-        // Brief visual feedback
-        toast.success(`✏️ Added: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`, { duration: 1500 });
-      }
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
+  // Check if user can generate (has free uses left or is subscribed)
+  const canGenerate = () => {
+    if (isAdmin) return true; // Admins always have access
+    const plan = userPlan.toLowerCase();
+    if (plan === 'monthly' || plan === 'pro' || plan === 'lifetime access') return true;
+    if (isLoggedIn && userCredits > 0) return true;
+    return freeGenerationsUsed < FREE_GENERATION_LIMIT;
   };
-
-  // Effect to handle auto-start of voice when opening agent from grid
-  useEffect(() => {
-    if (selectedAgent && autoStartVoice) {
-      // Wait for view transition
-      const timer = setTimeout(() => {
-        handleVoiceToText();
-        setAutoStartVoice(false);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedAgent, autoStartVoice]);
 
   const handleTextToVoice = (textInput) => {
     if (isSpeaking && (!textInput || typeof textInput !== 'string')) {
@@ -2047,224 +543,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       };
     }
   };
-  
-  // Set ref for TDZ-safe access from earlier functions
-  handleTextToVoiceRef.current = handleTextToVoice;
-
-  // State for AI vocal generation
-  const [isCreatingVocal, setIsCreatingVocal] = useState(false);
-
-  // Create AI Vocal from text using Uberduck TTS API (NOT browser TTS)
-  const handleCreateAIVocal = async (textContent, sourceAgent = 'Ghostwriter') => {
-    if (!textContent || textContent.trim().length === 0) {
-      toast.error('No text content to vocalize');
-      return;
-    }
-
-    setIsCreatingVocal(true);
-    const toastId = toast.loading('Creating AI vocal...');
-
-    try {
-      // Build headers with auth token if logged in
-      const headers = { 'Content-Type': 'application/json' };
-      if (isLoggedIn && auth?.currentUser) {
-        try {
-          const token = await auth.currentUser.getIdToken();
-          headers['Authorization'] = `Bearer ${token}`;
-        } catch (err) {
-          console.warn('Could not get auth token:', err);
-        }
-      }
-
-      // Trim text to reasonable length for vocals (1500 chars for Suno, 2000 for fallback)
-      const textToSpeak = textContent.substring(0, 1500);
-
-      console.log('[handleCreateAIVocal] Generating REAL AI vocal via Suno/Bark for:', textToSpeak.substring(0, 50) + '...');
-
-      const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          prompt: textToSpeak,
-          voice: voiceSettings.voiceName || 'rapper-male-1',
-          style: voiceSettings.style || 'rapper',  // rapper, rapper-female, singer, singer-female
-          rapStyle: voiceSettings.rapStyle || 'aggressive',  // aggressive, melodic, trap, drill, boom-bap, fast, chill, hype
-          genre: voiceSettings.genre || 'hip-hop'  // hip-hop, r&b, pop, soul, trap, drill
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.audioUrl) {
-        // Instead of creating a NEW item, ADD the audio to the EXISTING preview item
-        // This consolidates lyrics + vocal into ONE card
-        if (previewItem) {
-          const consolidatedItem = {
-            ...previewItem,
-            audioUrl: data.audioUrl,
-            mimeType: data.mimeType || 'audio/wav',
-            type: 'vocal', // Upgrade type to vocal (has both text + audio)
-            vocalSnippet: `🎤 AI Vocal created from lyrics`,
-            updatedAt: new Date().toISOString()
-          };
-
-          // Update the preview with consolidated item
-          setPreviewItem(consolidatedItem);
-          
-          // Also update agent previews cache
-          if (selectedAgent?.id) {
-            setAgentPreviews(prev => ({ ...prev, [selectedAgent.id]: consolidatedItem }));
-          }
-          
-          toast.success('AI vocal added to your creation!', { id: toastId });
-          return consolidatedItem;
-        } else {
-          // Fallback: Create standalone vocal item if no preview exists
-          const vocalItem = {
-            id: String(Date.now()),
-            title: `AI Vocal - ${sourceAgent}`,
-            agent: sourceAgent,
-            type: 'vocal',
-            audioUrl: data.audioUrl,
-            mimeType: data.mimeType || 'audio/wav',
-            snippet: `🎤 AI Vocal: "${textToSpeak.substring(0, 50)}..."`,
-            createdAt: new Date().toISOString()
-          };
-
-          setPreviewItem(vocalItem);
-          toast.success('AI vocal created!', { id: toastId });
-          return vocalItem;
-        }
-      } else if (data.error) {
-        throw new Error(data.error);
-      } else {
-        throw new Error('No audio URL returned');
-      }
-    } catch (error) {
-      console.error('[handleCreateAIVocal] Error:', error);
-      toast.error(error.message || 'Failed to create AI vocal', { id: toastId });
-      return null;
-    } finally {
-      setIsCreatingVocal(false);
-    }
-  };
-
-  const handleDeletePayment = (id, type) => {
-    if (window.confirm('Are you sure you want to remove this payment method?')) {
-      if (type === 'card') {
-        setPaymentMethods(prev => prev.filter(pm => pm.id !== id));
-      } else {
-        setBankAccounts(prev => prev.filter(ba => ba.id !== id));
-      }
-      handleTextToVoice('Payment method removed.');
-    }
-  };
-
-  // Reserved for future use:
-  const _handleEditPayment = (item, type) => {
-    setEditingPayment({ item, type });
-    setPaymentType(type);
-    setShowAddPaymentModal(true);
-  };
-
-  const handleSavePayment = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    
-    if (paymentType === 'card') {
-      const cardNumber = formData.get('cardNumber');
-      const expiry = formData.get('expiry');
-      
-      // Basic validation
-      if (cardNumber.length < 12) {
-        toast.error('Please enter a valid card number');
-        return;
-      }
-
-      const newPM = {
-        id: editingPayment ? editingPayment.item.id : `pm_${Date.now()}`,
-        type: 'Visa', // In a real app, detect type from number
-        last4: cardNumber.slice(-4),
-        expiry: expiry,
-        isDefault: editingPayment ? editingPayment.item.isDefault : false
-      };
-
-      if (editingPayment) {
-        setPaymentMethods(prev => prev.map(pm => pm.id === newPM.id ? newPM : pm));
-        handleTextToVoice('Card updated successfully.');
-      } else {
-        setPaymentMethods(prev => [...prev, newPM]);
-        handleTextToVoice(`Successfully added your card ending in ${newPM.last4}.`);
-      }
-    } else {
-      const bankName = formData.get('bankName');
-      const accountNumber = formData.get('accountNumber');
-
-      const newBA = {
-        id: editingPayment ? editingPayment.item.id : `ba_${Date.now()}`,
-        bankName: bankName,
-        last4: accountNumber.slice(-4),
-        type: 'Checking'
-      };
-
-      if (editingPayment) {
-        setBankAccounts(prev => prev.map(ba => ba.id === newBA.id ? newBA : ba));
-        handleTextToVoice('Bank account updated successfully.');
-      } else {
-        setBankAccounts(prev => [...prev, newBA]);
-        handleTextToVoice(`Successfully linked your ${newBA.bankName} account.`);
-      }
-    }
-    
-    setShowAddPaymentModal(false);
-    setEditingPayment(null);
-  };
-
-  // Reserved for future use:
-  const _handleProviderClick = (provider) => {
-    const confirm = window.confirm(`Connect your ${provider} account?`);
-    if (confirm) {
-      handleTextToVoice(`Connecting to ${provider}...`);
-      setTimeout(() => {
-        handleTextToVoice(`Successfully connected ${provider}.`);
-        const newPM = {
-            id: `pm_${Date.now()}`,
-            type: provider,
-            last4: 'Linked',
-            expiry: 'N/A',
-            isDefault: false
-        };
-        setPaymentMethods(prev => [...prev, newPM]);
-      }, 1500);
-    }
-  };
-
-  const handleTranslatePrompt = async () => {
-    const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-    if (!textarea || !textarea.value || voiceSettings.language === 'English') return;
-
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/translate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: textarea.value,
-          targetLanguage: 'English',
-          sourceLanguage: voiceSettings.language
-        })
-      });
-
-      const data = await response.json();
-      if (data.translatedText) {
-        textarea.value = data.translatedText;
-        toast.success('Prompt translated to English!');
-      }
-    } catch (error) {
-      console.error("Translation failed", error);
-    }
-  };
-
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerate = async () => {
     // Guard: Ensure agent is selected
@@ -2740,6 +1018,1907 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setIsGenerating(false);
     }
   };
+  // Reserved for future use: const [isRefreshingNews, setIsRefreshingNews] = useState(false);
+
+
+  // Set refs safely after functions are defined AND handle initialPlan (prevents TDZ issues)
+  useEffect(() => {
+    handleTextToVoiceRef.current = handleTextToVoice;
+    handleSubscribeRef.current = handleSubscribe;
+    
+    // Handle initial plan from landing page now that refs are safely assigned
+    if (initialPlan && handleSubscribeRef.current) {
+      handleSubscribeRef.current(initialPlan);
+    }
+  }, [initialPlan]);
+  
+  // Safe voice announcement helper (avoids TDZ)
+  const safeVoiceAnnounce = (text) => {
+    if (handleTextToVoiceRef.current) {
+      handleTextToVoiceRef.current(text);
+    }
+  };
+
+  // Save a single project to Firestore via backend API
+  const saveProjectToCloud = async (uid, project) => {
+    const traceId = `SAVE-${Date.now()}`;
+    console.log(`[TRACE:${traceId}] saveProjectToCloud START`, {
+      hasUid: !!uid,
+      projectId: project?.id,
+      projectName: project?.name,
+      assetCount: project?.assets?.length,
+      assetTypes: project?.assets?.map(a => ({ id: a.id, type: a.type, hasImage: !!a.imageUrl, hasAudio: !!a.audioUrl, hasVideo: !!a.videoUrl }))
+    });
+    
+    if (!uid || !project || !project.id) {
+      console.warn(`[TRACE:${traceId}] saveProjectToCloud ABORT - Missing required data`, { hasUid: !!uid, hasProject: !!project });
+      return false;
+    }
+    
+    try {
+      // Sanitize project data - remove undefined values, functions, and circular refs
+      const sanitizedProject = {};
+      for (const [key, value] of Object.entries(project)) {
+        if (value !== undefined && typeof value !== 'function') {
+          // Deep clone to avoid circular reference issues
+          try {
+            sanitizedProject[key] = JSON.parse(JSON.stringify(value));
+          } catch (_e) {
+            // Skip values that can't be serialized
+            console.warn(`[TRACE:${traceId}] Skipping non-serializable field: ${key}`);
+          }
+        }
+      }
+      
+      console.log(`[TRACE:${traceId}] Sanitized project assets:`, sanitizedProject.assets?.length, sanitizedProject.assets?.map(a => a.id));
+      
+      // Get auth token for backend API
+      let authToken = null;
+      if (auth?.currentUser) {
+        try {
+          authToken = await auth.currentUser.getIdToken(true);
+        } catch (tokenErr) {
+          console.warn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
+        }
+      }
+      
+      // Check if user is still logged in before saving
+      if (!auth?.currentUser || auth.currentUser.uid !== uid) {
+        console.warn(`[TRACE:${traceId}] User logged out before save - aborting`);
+        return false;
+      }
+      
+      // Use backend API to save (uses Admin SDK, bypasses security rules)
+      const response = await fetch(`${BACKEND_URL}/api/projects`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify({
+          userId: uid,
+          project: {
+            ...sanitizedProject,
+            id: String(project.id),
+            updatedAt: new Date().toISOString(),
+            syncedAt: new Date().toISOString()
+          }
+        })
+      });
+      
+      // Check again after async operation
+      if (!auth?.currentUser || auth.currentUser.uid !== uid) {
+        console.warn(`[TRACE:${traceId}] User logged out during save - aborting`);
+        return false;
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log(`[TRACE:${traceId}] Project saved via API:`, project.id, result);
+      return true;
+    } catch (err) {
+      console.error(`[TRACE:${traceId}] Failed to save project to cloud:`, err.message || err);
+      toast.error(`Save failed: ${err.message || 'Network error'}`);
+      return false;
+    }
+  };
+  
+  // Sync all projects to cloud via backend API (individual saves)
+  const syncProjectsToCloud = async (uid, projectsToSync) => {
+    if (!uid || !Array.isArray(projectsToSync) || projectsToSync.length === 0) return;
+    setProjectsSyncing(true);
+    
+    try {
+      // Save projects individually via backend API
+      let successCount = 0;
+      for (const project of projectsToSync) {
+        if (!project || !project.id) continue;
+        
+        try {
+          const success = await saveProjectToCloud(uid, project);
+          if (success) successCount++;
+        } catch (individualErr) {
+          console.error(`Failed to save project ${project?.id}:`, individualErr);
+        }
+      }
+      
+      if (successCount > 0) {
+        setLastSyncTime(new Date());
+        console.log(`Synced ${successCount}/${projectsToSync.length} projects to cloud via API`);
+      } else if (projectsToSync.length > 0) {
+        toast.error('Failed to sync projects - check your connection');
+      }
+    } catch (err) {
+      console.error('Sync failed:', err);
+      toast.error('Failed to sync projects');
+    } finally {
+      setProjectsSyncing(false);
+    }
+  };
+
+  // Note: localStorage save is handled by the useEffect with quota handling below
+  
+  // Debounced cloud sync when projects change (only if logged in)
+  useEffect(() => {
+    if (!user?.uid || projects.length === 0) return;
+    
+    // Clear existing timeout
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    
+    // Debounce sync by 3 seconds to avoid excessive writes
+    syncTimeoutRef.current = setTimeout(() => {
+      syncProjectsToCloud(user.uid, projects);
+    }, 3000);
+    
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, [projects, user?.uid]);
+  
+  // Load projects from cloud via backend API
+  const loadProjectsFromCloud = async (uid) => {
+    const traceId = `LOAD-${Date.now()}`;
+    console.log(`[TRACE:${traceId}] loadProjectsFromCloud START`, { hasUid: !!uid });
+    
+    if (!uid) return [];
+    try {
+      // Get auth token
+      let authToken = null;
+      if (auth?.currentUser) {
+        try {
+          authToken = await auth.currentUser.getIdToken(true);
+        } catch (tokenErr) {
+          console.warn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
+        }
+      }
+      
+      // Check if user is still logged in before making request
+      if (!auth?.currentUser || auth.currentUser.uid !== uid) {
+        console.warn(`[TRACE:${traceId}] User logged out before fetch - aborting`);
+        return [];
+      }
+      
+      // Use backend API to load projects
+      const response = await fetch(`${BACKEND_URL}/api/projects?userId=${encodeURIComponent(uid)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        }
+      });
+      
+      // Check again after async fetch operation
+      if (!auth?.currentUser || auth.currentUser.uid !== uid) {
+        console.warn(`[TRACE:${traceId}] User logged out during fetch - aborting`);
+        return [];
+      }
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const cloudProjects = (data.projects || []).map(p => ({
+        ...p,
+        id: p.id || String(Date.now()),
+        // Normalize timestamps
+        createdAt: p.createdAt || new Date().toISOString(),
+        updatedAt: p.updatedAt || new Date().toISOString()
+      }));
+      
+      console.log(`[TRACE:${traceId}] loadProjectsFromCloud COMPLETE`, {
+        count: cloudProjects.length,
+        projects: cloudProjects.map(p => ({
+          id: p.id,
+          name: p.name,
+          assetCount: p.assets?.length || 0,
+          assetTypes: p.assets?.map(a => a.type)
+        }))
+      });
+      
+      return cloudProjects;
+    } catch (err) {
+      console.error(`[TRACE:${traceId}] loadProjectsFromCloud ERROR:`, err);
+      return [];
+    }
+  };
+  
+  // Merge local and cloud projects (cloud takes priority for conflicts)
+  const mergeProjects = (localProjects, cloudProjects) => {
+    const merged = new Map();
+    const local = Array.isArray(localProjects) ? localProjects : [];
+    const cloud = Array.isArray(cloudProjects) ? cloudProjects : [];
+    
+    // Add all cloud projects first (they take priority)
+    for (const project of cloud) {
+      if (project && project.id) {
+        merged.set(project.id, project);
+      }
+    }
+    
+    // Add local projects that aren't in cloud
+    for (const project of local) {
+      if (!project || !project.id) continue;
+      if (!merged.has(project.id)) {
+        merged.set(project.id, project);
+      } else {
+        // Compare timestamps, keep newer
+        const cloudProject = merged.get(project.id);
+        const localTime = new Date(project.updatedAt || project.createdAt || 0).getTime();
+        const cloudTime = new Date(cloudProject.updatedAt || cloudProject.createdAt || 0).getTime();
+        if (localTime > cloudTime) {
+          merged.set(project.id, project);
+        }
+      }
+    }
+    
+    // Sort by updated time
+    return Array.from(merged.values()).sort((a, b) => {
+      const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return bTime - aTime;
+    });
+  };
+  
+  // Studio Orchestrator State (New Clean Interface)
+  const [showOrchestrator, setShowOrchestrator] = useState(false);
+  
+  // Studio Session State (Global Mechanism)
+  const [showStudioSession, setShowStudioSession] = useState(false);
+  const [sessionTracks, setSessionTracks] = useState({ 
+    audio: null, 
+    vocal: null, 
+    visual: null,
+    audioVolume: 0.8,
+    vocalVolume: 1.0,
+    // Professional sync settings
+    bpm: 120,
+    timeSignature: '4/4',
+    key: 'C Major',
+    frameRate: 30,
+    aspectRatio: '16:9',
+    sampleRate: 48000,
+    bitDepth: 24,
+    syncLocked: true,
+    // Real assets toggle
+    generateRealAssets: false,
+    // Render tracking
+    renderCount: 0,
+    maxRenders: 3,
+    lastRenderTime: null,
+    renderHistory: []
+  });
+  const [sessionHistory, setSessionHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [sessionPlaying, setSessionPlaying] = useState(false);
+
+  // History Helpers
+  const updateSessionWithHistory = (newTracksOrUpdater) => {
+    let newTracks;
+    if (typeof newTracksOrUpdater === 'function') {
+      newTracks = newTracksOrUpdater(sessionTracks);
+    } else {
+      newTracks = newTracksOrUpdater;
+    }
+
+    const newHistory = sessionHistory.slice(0, historyIndex + 1);
+    newHistory.push(newTracks);
+    setSessionHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+    setSessionTracks(newTracks);
+  };
+
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setSessionTracks(sessionHistory[newIndex]);
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < sessionHistory.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setSessionTracks(sessionHistory[newIndex]);
+    }
+  };
+  
+  const [expandedNews, setExpandedNews] = useState(new Set());
+  const [allNewsExpanded, setAllNewsExpanded] = useState(false);
+  const [expandedHelp, setExpandedHelp] = useState(null);
+  const [helpSearch, setHelpSearch] = useState('');
+  const [showNudge, setShowNudge] = useState(true);
+  
+
+
+  // Reserved for future use: const [hubFilter, setHubFilter] = useState('All');
+  const [playingItem, setPlayingItem] = useState(null);
+  
+  // Preview Modal State (for reviewing AI generations before saving)
+  // Reserved for future use: const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  
+  // Save status for visual feedback: 'idle' | 'saving' | 'saved' | 'error'
+  const [saveStatus, setSaveStatus] = useState('idle');
+  const saveStatusTimeoutRef = useRef(null);
+  
+  // Pending operations guard - prevents double-clicks and overlapping operations
+  const pendingOperationsRef = useRef(new Set());
+  
+
+  // user state moved to top of component (before cloud sync useEffect)
+
+  
+  // Persist free generations
+  useEffect(() => {
+    localStorage.setItem('studio_free_generations', freeGenerationsUsed.toString());
+  }, [freeGenerationsUsed]);
+  
+  // Get agents available for current tier
+  const getAvailableAgents = () => {
+    const plan = userPlan.toLowerCase();
+    if (plan === 'pro' || plan === 'lifetime access') return AGENTS; // All 16 agents
+    if (plan === 'monthly') return AGENTS.filter(a => a.tier === 'free' || a.tier === 'monthly'); // 8 agents
+    return AGENTS.filter(a => a.tier === 'free'); // 4 agents for free tier
+  };
+  
+  // Get locked agents for teaser section
+  const getLockedAgents = () => {
+    if (isAdmin) return []; // Admins have all agents
+    const plan = userPlan.toLowerCase();
+    if (plan === 'pro' || plan === 'lifetime access') return []; // No locked agents
+    if (plan === 'monthly') return AGENTS.filter(a => a.tier === 'pro'); // Only pro locked
+    return AGENTS.filter(a => a.tier !== 'free'); // Monthly + Pro locked
+  };
+  
+
+  
+  // Get remaining free generations
+  const getRemainingFreeGenerations = () => {
+    if (isAdmin) return 999999; // Unlimited for admins
+    return Math.max(0, FREE_GENERATION_LIMIT - freeGenerationsUsed);
+  };
+
+  useEffect(() => {
+    localStorage.setItem('studio_user_plan', userPlan);
+  }, [userPlan]);
+  const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
+  const [showAddAgentModal, setShowAddAgentModal] = useState(false);
+  const [quickWorkflowAgent, setQuickWorkflowAgent] = useState(null); // Streamlined agent workflow modal
+  // Reserved for future use: const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
+  const [autoStartVoice, setAutoStartVoice] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [pendingProjectNav, setPendingProjectNav] = useState(false); // Flag to safely navigate after project selection
+
+  // Effect to safely navigate to project_canvas after selectedProject is set
+  // This prevents race conditions where tab changes before state update completes
+  useEffect(() => {
+    if (pendingProjectNav && selectedProject) {
+      console.log('[StudioView] Safe navigation: project ready, switching to project_canvas');
+      setActiveTab('project_canvas');
+      setPendingProjectNav(false);
+    }
+  }, [pendingProjectNav, selectedProject]);
+
+  // Onboarding & Help State
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const [selectedPath, setSelectedPath] = useState(null);
+  // Reserved for future use: const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
+  const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
+  const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
+  
+  // Track generated creations per agent for preview in agent details
+  const [agentCreations, setAgentCreations] = useState({
+    // Format: { agentId: { video: url, image: url, audio: url } }
+  });
+  
+  // Asset preview state - enhanced with navigation and robust handling
+  const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image', url, title, asset, assets, currentIndex }
+  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max toggle for preview modal
+  const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
+  
+  // Safe preview data access (prevents TDZ/null errors)
+  const safePreview = showPreview || {};
+  const safePreviewAssets = Array.isArray(safePreview.assets) ? safePreview.assets : [];
+  const safePreviewIndex = typeof safePreview.currentIndex === 'number' && !isNaN(safePreview.currentIndex) ? safePreview.currentIndex : 0;
+  
+  // Audio refs to prevent re-render interruption
+  const previewAudioRef = useRef(null);
+  const canvasAudioRef = useRef(null);
+  
+  // Transition guard ref (doesn't cause re-render)
+  const isModalTransitioning = useRef(false);
+
+  // Audio Export/Mastering State
+  const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
+  const [exportPreset, setExportPreset] = useState('streaming');
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Add Asset to Project Modal State
+  const [addToProjectAsset, setAddToProjectAsset] = useState(null); // Asset waiting to be added to project
+  const [newProjectNameFromAsset, setNewProjectNameFromAsset] = useState('');
+
+  // Model Picker State - Available AI Models
+
+  const AI_MODELS = [
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Fastest responses, great for quick tasks', tier: 'free', speed: '⚡⚡⚡', quality: '★★★☆' },
+    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: 'Ultra-fast, cost-effective', tier: 'free', speed: '⚡⚡⚡⚡', quality: '★★☆☆' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Best quality for complex prompts', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Balanced speed and quality', tier: 'free', speed: '⚡⚡⚡', quality: '★★★☆' },
+    { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', provider: 'Google', description: 'Lightweight, efficient', tier: 'free', speed: '⚡⚡⚡⚡', quality: '★★☆☆' },
+    { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (Preview)', provider: 'Google', description: 'Latest capabilities, experimental', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+    { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (Preview)', provider: 'Google', description: 'Next-gen speed + quality', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+    { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent for creative writing', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+    { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Fast and capable', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+    { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Multimodal powerhouse', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Affordable GPT-4 class', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'High capability, larger context', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+    { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta', description: 'Open-source powerhouse', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
+    { id: 'llama-3.2-90b-vision', name: 'Llama 3.2 90B Vision', provider: 'Meta', description: 'Multimodal open model', tier: 'pro', speed: '⚡', quality: '★★★★' },
+    { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'European excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
+    { id: 'codestral', name: 'Codestral', provider: 'Mistral', description: 'Optimized for code generation', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+    { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', description: 'Cost-effective reasoning', tier: 'free', speed: '⚡⚡⚡', quality: '★★★★' },
+    { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Multilingual excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' }
+  ];
+
+  // Get recommendation based on selected path
+  const getRecommendedAgents = () => {
+    if (!selectedPath) return [];
+    const goal = goalOptions.find(g => g.id === selectedPath);
+    return goal?.agents || [];
+  };
+
+  // Get primary recommendation (first agent for selected path)
+  const getRecommendation = () => {
+    if (!selectedPath) return null;
+    const goal = goalOptions.find(g => g.id === selectedPath);
+    if (!goal || !goal.agents || goal.agents.length === 0) return null;
+    return goal.agents[0]; // Primary recommendation
+  };
+
+  // Check for first visit
+  useEffect(() => {
+    const hasSeenOnboarding = localStorage.getItem('studio_onboarding_v3');
+    if (!hasSeenOnboarding && !startWizard) {
+      setShowOnboarding(true);
+    }
+  }, [startWizard]);
+
+  const completeOnboarding = useCallback(() => {
+    try {
+      localStorage.setItem('studio_onboarding_v3', 'true');
+      setShowOnboarding(false);
+      
+      // Go straight to agents tab - no project creation, no complexity
+      setActiveTab('agents');
+      safeVoiceAnnounce('Welcome to your studio. Pick an agent to start creating.');
+      toast.success('Welcome to Studio Agents!');
+    } catch (err) {
+      console.error('[Onboarding] Error:', err);
+    }
+  }, [safeVoiceAnnounce]);
+
+  const handleSkipOnboarding = useCallback(() => {
+    try {
+      localStorage.setItem('studio_onboarding_v3', 'true');
+      setShowOnboarding(false);
+      setActiveTab('agents');
+    } catch (err) {
+      console.error('[Onboarding] Error:', err);
+    }
+  }, []);
+
+  // Project Type Choice Modal - lets user choose between Studio Creation and AI Pipeline
+  const [showProjectTypeChoice, setShowProjectTypeChoice] = useState(false);
+
+  // Project Wizard State
+  // Project wizard is ONLY shown when user explicitly clicks "Create Project"
+  const [showProjectWizard, setShowProjectWizard] = useState(false);
+  const [projectWizardStep, setProjectWizardStep] = useState(1);
+  
+  // startWizard prop is deprecated - we no longer auto-open wizard from landing page
+  // Users go straight to agents tab and can click "Create Project" when ready
+
+  // If startOrchestrator prop is true, open the AI orchestrator directly
+  useEffect(() => {
+    if (startOrchestrator) {
+      setShowOrchestrator(true);
+    }
+  }, [startOrchestrator]);
+
+  // If initialTab prop is provided, navigate to that tab on mount
+  useEffect(() => {
+    if (initialTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'].includes(initialTab)) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+  const [systemStatus, setSystemStatus] = useState({ status: 'healthy', message: 'All Systems Operational' });
+  
+  // System Health Check
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/health`);
+        if (!res.ok) throw new Error('Backend unreachable');
+        const data = await res.json();
+        setSystemStatus({ 
+          status: 'healthy', 
+          message: 'All Systems Operational',
+          details: data 
+        });
+      } catch (err) {
+        console.error("Health check failed:", err);
+        setSystemStatus({ 
+          status: 'maintenance', 
+          message: 'System Under Maintenance',
+          details: err.message
+        });
+      }
+    };
+    
+    checkHealth();
+    const interval = setInterval(checkHealth, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
+
+
+
+  // Auto-select first asset for Project Canvas preview (moved from render to avoid infinite re-render)
+  useEffect(() => {
+    if (activeTab === 'project_canvas' && !selectedAgent && selectedProject) {
+      const safeAssets = Array.isArray(selectedProject.assets) ? selectedProject.assets.filter(Boolean) : [];
+      if (!canvasPreviewAsset && safeAssets.length > 0 && safeAssets[0]) {
+        setCanvasPreviewAsset(safeAssets[0]);
+      }
+    }
+  }, [activeTab, selectedAgent, selectedProject, canvasPreviewAsset]);
+
+  const [newProjectData, setNewProjectData] = useState({
+    name: '',
+    category: '',
+    description: '',
+    language: 'English',
+    style: 'Modern Hip-Hop',
+    model: 'Gemini 2.0 Flash',
+    selectedAgents: [],
+    socialHandle: '',
+    socialBio: '',
+    socialPlatform: 'instagram'
+  });
+
+  const PROJECT_CATEGORIES = [
+    { id: 'pro', label: 'Pro Studio', icon: Crown, desc: 'Full production suite', color: 'var(--color-purple)' },
+    { id: 'vybing', label: 'Vybing', icon: Music, desc: 'Quick beat ideas', color: 'var(--color-cyan)' },
+    { id: 'mixtapes', label: 'Mixtapes', icon: Disc, desc: 'Curated playlists', color: 'var(--color-orange)' },
+    { id: 'video', label: 'Video', icon: Video, desc: 'Visual content', color: 'var(--color-pink)' },
+    { id: 'scores', label: 'Scores', icon: FileMusic, desc: 'Cinematic composition', color: 'var(--color-emerald)' },
+    { id: 'moves', label: 'Moves', icon: Activity, desc: 'Dance & Choreo', color: 'var(--color-yellow)' },
+    { id: 'music_videos', label: 'Music Videos', icon: Film, desc: 'Full production clips', color: 'var(--color-red)' },
+    { id: 'social', label: 'Social Brand', icon: Share2, desc: 'Grow your audience', color: 'var(--color-blue)' }
+  ];
+
+  const PROJECT_CREDIT_COST = 2;
+
+  const handleCreateProject = () => {
+    console.log('[CreateProject] Starting with data:', newProjectData);
+    console.log('[CreateProject] Current credits:', userCredits, 'Required:', PROJECT_CREDIT_COST);
+    console.log('[CreateProject] User:', user?.email, 'DB initialized:', !!db);
+    
+    if (!newProjectData.name || !newProjectData.category) {
+      console.error('[CreateProject] Missing required fields:', { name: newProjectData.name, category: newProjectData.category });
+      toast.error('Please fill in project name and category');
+      return;
+    }
+
+    // Check if user has enough credits
+    const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
+    console.log('[CreateProject] Credit check - Current:', currentCredits, 'Cost:', PROJECT_CREDIT_COST);
+    
+    if (currentCredits < PROJECT_CREDIT_COST) {
+      console.error('[CreateProject] Insufficient credits');
+      toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
+      setShowCreditsModal(true);
+      return;
+    }
+    
+    const newProject = {
+      id: String(Date.now()),
+      name: newProjectData.name,
+      category: newProjectData.category,
+      description: newProjectData.description || '',
+      language: newProjectData.language || 'English',
+      style: newProjectData.style || 'Modern Hip-Hop',
+      model: newProjectData.model || 'Gemini 2.0 Flash',
+      agents: newProjectData.selectedAgents || [],
+      workflow: newProjectData.workflow || 'custom',
+      socialHandle: newProjectData.socialHandle || '',
+      socialBio: newProjectData.socialBio || '',
+      socialPlatform: newProjectData.socialPlatform || 'instagram',
+      date: new Date().toLocaleDateString(),
+      status: 'Active',
+      progress: 0,
+      assets: [], // Store generated content here
+      context: {} // Shared context for MAS
+    };
+    
+    console.log('[CreateProject] New project object created:', newProject);
+
+    // Deduct credits
+    console.log('[CreateProject] Deducting credits...');
+    setUserCredits(prev => {
+      const newCredits = prev - PROJECT_CREDIT_COST;
+      console.log('[CreateProject] Credits updated:', prev, '->', newCredits);
+      return newCredits;
+    });
+    
+    console.log('[CreateProject] Adding project to state...');
+    setProjects(prev => {
+      const newProjects = [newProject, ...prev];
+      console.log('[CreateProject] Projects updated. Total:', newProjects.length);
+      
+      // Immediately save to localStorage
+      try {
+        const projectsToSave = newProjects.slice(0, 50);
+        safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
+        console.log('[CreateProject] Saved to localStorage');
+      } catch (err) {
+        console.error('[CreateProject] Failed to save to localStorage:', err);
+      }
+      
+      return newProjects;
+    });
+    
+    setSelectedProject(newProject); // Auto-select the new project
+    console.log('[CreateProject] Selected project set:', newProject.id);
+    
+    // Save to cloud if logged in (uses backend API now)
+    console.log('[CreateProject] Auth check - isLoggedIn:', isLoggedIn, 'user:', !!user);
+    if (isLoggedIn && user) {
+      console.log('[CreateProject] Saving to cloud for user:', user.uid, user.email);
+      saveProjectToCloud(user.uid, newProject).then(success => {
+        console.log('[CreateProject] Cloud save result:', success);
+      }).catch(err => {
+        console.error('[CreateProject] Cloud save error:', err);
+      });
+    } else {
+      console.warn('[CreateProject] NOT saving to cloud. isLoggedIn:', isLoggedIn, 'user:', !!user);
+      if (isLoggedIn && !user) {
+        console.error('[CreateProject] RACE CONDITION: isLoggedIn is true but user is null!');
+      }
+    }
+    
+    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
+
+    // Close wizard and reset
+    setShowProjectWizard(false);
+    setProjectWizardStep(1);
+    
+    // Track project creation
+    Analytics.projectCreated(newProject.category);
+    
+    // Reset form data
+    setNewProjectData({ 
+      name: '', 
+      category: '', 
+      description: '', 
+      language: 'English',
+      style: 'Modern Hip-Hop',
+      model: 'Gemini 2.0 Flash',
+      selectedAgents: [], 
+      workflow: '',
+      socialHandle: '',
+      socialBio: '',
+      socialPlatform: 'instagram'
+    });
+    
+    // Switch to My Studio to show the new project
+    safeVoiceAnnounce(`Project ${newProject.name} created. Loading your studio.`);
+    setActiveTab('mystudio');
+  };
+
+  const handleSkipWizard = (targetTab) => {
+    // Check if user has enough credits
+    const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
+    if (currentCredits < PROJECT_CREDIT_COST) {
+      toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
+      setShowCreditsModal(true);
+      return;
+    }
+
+    const newProject = {
+      id: String(Date.now()),
+      name: `Untitled Project ${projects.length + 1}`,
+      category: "music",
+      description: "Quick start project",
+      agents: [],
+      workflow: "custom",
+      date: new Date().toLocaleDateString(),
+      status: 'Active',
+      progress: 0,
+      assets: [],
+      context: {}
+    };
+
+    // Deduct credits
+    setUserCredits(prev => prev - PROJECT_CREDIT_COST);
+    toast.success(`Quick project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
+
+    setProjects(prev => [newProject, ...prev]);
+    setSelectedProject(newProject);
+    
+    // Save to cloud if logged in
+    if (user && db) {
+      saveProjectToCloud(user.uid, newProject).catch(err => {
+        console.error('Failed to save quick project to cloud:', err);
+      });
+    }
+
+    setShowProjectWizard(false);
+    setProjectWizardStep(1);
+    
+    // Default to 'mystudio' if targetTab is not a string (e.g. event object)
+    const tabToSet = (typeof targetTab === 'string') ? targetTab : 'mystudio';
+    setActiveTab(tabToSet);
+    
+    safeVoiceAnnounce(`Quick project created.`);
+  };
+
+  // Reserved for future use
+  const _handleManualCreate = () => {
+    handleSkipWizard('agents');
+    // Go straight to agents page - user can pick any agent to start creating
+  };
+
+  // Open agent whitepaper modal for any agent
+  const openAgentWhitepaper = (agent) => {
+    setShowAgentWhitePaper({
+      key: agent.id,
+      icon: agent.icon,
+      title: agent.name,
+      subtitle: agent.category,
+      description: agent.explanation || agent.description,
+      whoFor: agent.helpTips || `Artists and creators looking to leverage AI for ${agent.category.toLowerCase()}.`,
+      howTo: agent.howToUse || agent.howTo || `Enter your prompt and let ${agent.name} generate results instantly.`
+    });
+  };
+
+  // --- IMPROVED STATE MANAGEMENT HELPERS ---
+  
+  // Update save status with auto-reset
+  const updateSaveStatus = useCallback((status) => {
+    setSaveStatus(status);
+    if (saveStatusTimeoutRef.current) {
+      clearTimeout(saveStatusTimeoutRef.current);
+    }
+    // Reset to idle after 3 seconds for 'saved' or 'error' states
+    if (status === 'saved' || status === 'error') {
+      saveStatusTimeoutRef.current = setTimeout(() => {
+        setSaveStatus('idle');
+      }, 3000);
+    }
+  }, []);
+  
+  // Guard against double-clicks and overlapping operations
+  const withOperationGuard = useCallback((operationId, asyncFn) => {
+    return async (...args) => {
+      if (pendingOperationsRef.current.has(operationId)) {
+        console.log(`[Guard] Operation "${operationId}" already in progress, skipping`);
+        return;
+      }
+      pendingOperationsRef.current.add(operationId);
+      try {
+        return await asyncFn(...args);
+      } finally {
+        pendingOperationsRef.current.delete(operationId);
+      }
+    };
+  }, []);
+  
+  // Provide haptic feedback (if available)
+  const triggerHapticFeedback = useCallback((type = 'light') => {
+    if ('vibrate' in navigator) {
+      switch (type) {
+        case 'light':
+          navigator.vibrate(10);
+          break;
+        case 'medium':
+          navigator.vibrate(25);
+          break;
+        case 'heavy':
+          navigator.vibrate([30, 10, 30]);
+          break;
+        case 'success':
+          navigator.vibrate([10, 50, 20]);
+          break;
+        case 'error':
+          navigator.vibrate([50, 30, 50, 30, 50]);
+          break;
+        default:
+          navigator.vibrate(10);
+      }
+    }
+  }, []);
+
+  // QuickWorkflow handlers - centralized project save flow
+  const handleSaveAssetToProject = useCallback((projectId, asset) => {
+    // Guard against double-saves
+    const operationId = `save-asset-${asset?.id || Date.now()}`;
+    if (pendingOperationsRef.current.has(operationId)) {
+      console.log('[SaveAsset] Operation already in progress, skipping');
+      return;
+    }
+    pendingOperationsRef.current.add(operationId);
+    
+    // Haptic feedback on save start
+    triggerHapticFeedback('light');
+    updateSaveStatus('saving');
+    
+    setProjects(prev => {
+      const newProjects = prev.map(p => {
+        if (p.id === projectId) {
+          const existingAssets = p.assets || [];
+          
+          // Check for duplicate asset by ID or by content hash
+          const isDuplicate = existingAssets.some(existing => 
+            existing.id === asset.id || 
+            (existing.content === asset.content && existing.type === asset.type && existing.agent === asset.agent)
+          );
+          
+          if (isDuplicate) {
+            console.log('[SaveAsset] Skipping duplicate asset:', asset.id);
+            pendingOperationsRef.current.delete(operationId);
+            updateSaveStatus('idle');
+            return p; // Return unchanged project
+          }
+          
+          console.log('[SaveAsset] Adding new asset to project:', projectId, asset.id);
+          return {
+            ...p,
+            assets: [...existingAssets, asset],
+            progress: Math.min(100, (p.progress || 0) + 10),
+            updatedAt: new Date().toISOString()
+          };
+        }
+        return p;
+      });
+
+      // Immediately save to localStorage
+      try {
+        const projectsToSave = newProjects.slice(0, 50);
+        safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
+      } catch (err) {
+        console.error('[SaveAsset] Failed to save to localStorage:', err);
+      }
+      
+      // Save to cloud if logged in
+      const updatedProject = newProjects.find(p => p.id === projectId);
+      if (updatedProject && user && db) {
+        saveProjectToCloud(user.uid, updatedProject)
+          .then(() => {
+            updateSaveStatus('saved');
+            triggerHapticFeedback('success');
+          })
+          .catch(err => {
+            console.error('Failed to save updated project to cloud:', err);
+            updateSaveStatus('error');
+            triggerHapticFeedback('error');
+          })
+          .finally(() => {
+            pendingOperationsRef.current.delete(operationId);
+          });
+      } else {
+        // Local save only
+        updateSaveStatus('saved');
+        triggerHapticFeedback('success');
+        pendingOperationsRef.current.delete(operationId);
+      }
+
+      return newProjects;
+    });
+    
+    toast.success('Asset saved to project');
+  }, [user, db, saveProjectToCloud, updateSaveStatus, triggerHapticFeedback]);
+
+  const handleCreateProjectWithAsset = (projectName, asset) => {
+    // Check if user has enough credits
+    const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
+    if (currentCredits < PROJECT_CREDIT_COST) {
+      toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
+      setShowCreditsModal(true);
+      return;
+    }
+
+    const newProject = {
+      id: String(Date.now()),
+      name: projectName,
+      category: 'pro',
+      description: `Created from ${asset.agentName || asset.agent || 'AI Agent'}`,
+      agents: [asset.agent], // Store ID string
+      workflow: 'custom',
+      date: new Date().toLocaleDateString(),
+      status: 'Active',
+      progress: 10,
+      assets: [asset],
+      context: {}
+    };
+    
+    // Deduct credits
+    setUserCredits(prev => prev - PROJECT_CREDIT_COST);
+    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
+
+    setProjects(prev => [newProject, ...prev]);
+    setSelectedProject(newProject);
+
+    // Save to cloud if logged in
+    if (user && db) {
+      saveProjectToCloud(user.uid, newProject).catch(err => {
+        console.error('Failed to save new project with asset to cloud:', err);
+      });
+    }
+  };
+
+  const handleAddAgent = (agent) => {
+    if (!selectedProject || !agent) return;
+    
+    const currentAgents = Array.isArray(selectedProject.agents) ? selectedProject.agents : [];
+
+    // Enforce Plan Limits (admins have no limit)
+    let limit = isAdmin ? 999 : 3; // Free default
+    if (!isAdmin) {
+      if (userPlan === 'Creator') limit = 5;
+      if (userPlan === 'Studio Pro' || userPlan === 'Lifetime Access') limit = 16;
+    }
+
+    if (currentAgents.length >= limit) {
+      toast.error(`Agent limit reached for ${userPlan} plan. Please upgrade.`);
+      return;
+    }
+
+    // Check if agent already exists in project
+    if (currentAgents.some(a => a.id === agent.id)) {
+      safeVoiceAnnounce(`${agent.name} is already in this project.`);
+      return;
+    }
+
+    const updatedProject = {
+      ...selectedProject,
+      agents: [...currentAgents, agent],
+      updatedAt: new Date().toISOString()
+    };
+
+    // Update local state
+    setSelectedProject(updatedProject);
+    
+    // Update projects list with immediate save
+    updateProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    
+    setShowAddAgentModal(false);
+    safeVoiceAnnounce(`${agent.name} added to project.`);
+  };
+
+  // --- FIREBASE AUTH LISTENER ---
+  useEffect(() => {
+    if (auth) {
+      // Check for redirect result first (for Google sign-in redirect)
+      getRedirectResult(auth)
+        .then((result) => {
+          console.log('[Auth] getRedirectResult completed', { hasResult: !!result });
+          if (result) {
+            // User successfully signed in via redirect
+            console.log('[Auth] Redirect sign-in successful', { uid: result.user.uid });
+            toast.success('Welcome back!');
+            setShowLoginModal(false);
+            setAuthLoading(false); // Clear loading state
+            SafeAnalytics.login('google');
+            
+            // Don't process pending plan here - let onAuthStateChanged handle it
+            // The user state isn't fully set yet at this point
+          }
+        })
+        .catch((error) => {
+          console.error('[Auth] Redirect result error:', error);
+          setAuthLoading(false); // Clear loading state on error
+          if (error.code !== 'auth/popup-closed-by-user') {
+            toast.error(error.message || 'Sign-in failed');
+          }
+        });
+      
+      const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+        console.log('[Auth] onAuthStateChanged fired', { hasUser: !!currentUser, uid: currentUser?.uid });
+        if (currentUser) {
+          // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
+          // Use batch state updates to prevent render in-between
+          setUser(currentUser);
+          localStorage.setItem('studio_user_id', currentUser.uid);
+          setAuthChecking(false); // Auth check complete
+          setIsLoggedIn(true); // Set this LAST after user is set
+          
+          console.log('[Auth] User state set, checking for pending plan');
+          
+          // Get and store token
+          try {
+            const token = await currentUser.getIdToken();
+            setUserToken(token);
+          } catch (tokenErr) {
+            console.error("Error getting user token:", tokenErr);
+          }
+          
+          // Check for pending plan from sessionStorage (after user state is set)
+          const pendingPlan = sessionStorage.getItem('studio_pending_plan');
+          console.log('[Auth] Pending plan check', { hasPendingPlan: !!pendingPlan });
+          if (pendingPlan) {
+            try {
+              const plan = JSON.parse(pendingPlan);
+              sessionStorage.removeItem('studio_pending_plan');
+              console.log('[Auth] Processing pending plan', { planName: plan.name });
+              // Use setTimeout to ensure state is fully updated
+              setTimeout(() => {
+                handleCheckoutRedirect(plan);
+              }, 100);
+            } catch (err) {
+              console.error('[Auth] Failed to parse pending plan:', err);
+            }
+          }
+          
+          // Check if admin account
+          const adminStatus = isAdminEmail(currentUser.email);
+          setIsAdmin(adminStatus);
+          if (adminStatus) {
+            console.log('🔐 Admin access granted:', currentUser.email);
+            setUserPlan('Lifetime Access');
+            setUserCredits(999999); // Unlimited credits for admin
+            toast.success('Welcome, Administrator!', { icon: '🔐' });
+          }
+          
+          // Fetch credits AND subscription plan from Firestore (non-admins)
+          if (db && !adminStatus) {
+            try {
+              const userRef = doc(db, 'users', currentUser.uid);
+              const userDoc = await getDoc(userRef);
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                const credits = userData.credits || 0;
+                setUserCredits(credits);
+                setUserProfile(prev => ({ ...prev, credits }));
+                
+                // Load subscription plan from Firestore
+                // Backend saves: tier, subscriptionTier, subscriptionStatus
+                if (userData.subscriptionStatus === 'active' && userData.tier) {
+                  // Map backend tier names to frontend plan names
+                  const tierMap = { 'creator': 'monthly', 'studio': 'pro', 'lifetime': 'lifetime' };
+                  const planName = tierMap[userData.tier] || userData.tier;
+                  setUserPlan(planName);
+                  localStorage.setItem('studio_user_plan', planName);
+                  console.log('[Auth] Subscription loaded:', planName, 'from tier:', userData.tier);
+                } else if (userData.plan) {
+                  // Fallback to plan field if set directly
+                  setUserPlan(userData.plan);
+                  localStorage.setItem('studio_user_plan', userData.plan);
+                  console.log('[Auth] User plan loaded from Firestore:', userData.plan);
+                } else if (userData.subscription?.status === 'active') {
+                  // Legacy format support
+                  const planName = userData.subscription.plan || 'monthly';
+                  setUserPlan(planName);
+                  localStorage.setItem('studio_user_plan', planName);
+                  console.log('[Auth] Legacy subscription format loaded:', planName);
+                }
+              }
+              
+              // Load and merge projects from cloud
+              const cloudProjects = await loadProjectsFromCloud(currentUser.uid);
+              
+              // Check if user is still logged in after async operation (prevent stale state)
+              if (!auth.currentUser || auth.currentUser.uid !== currentUser.uid) {
+                console.warn('[Auth] User logged out during cloud sync - aborting');
+                return;
+              }
+              
+              if (cloudProjects.length > 0) {
+                setProjects(prev => {
+                  const merged = mergeProjects(prev, cloudProjects);
+                  console.log(`Merged ${prev.length} local + ${cloudProjects.length} cloud = ${merged.length} projects`);
+                  return merged;
+                });
+                toast.success(`Synced ${cloudProjects.length} projects from cloud`);
+              } else if (projects.length > 0) {
+                // No cloud projects but have local - sync them up
+                syncProjectsToCloud(currentUser.uid, projects);
+              }
+            } catch (err) {
+              console.error('Failed to fetch user data:', err);
+            }
+          }
+        } else {
+          // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
+          // Batch all state updates together
+          setUser(null);
+          setUserToken(null);
+          setUserCredits(3); // Reset to trial
+          setAuthChecking(false); // Auth check complete (not logged in)
+          localStorage.removeItem('studio_user_id');
+          setIsLoggedIn(false); // Set this LAST after user is cleared
+        }
+      });
+      return () => unsubscribe();
+    } else {
+      // No auth service - mark auth check as complete
+      setAuthChecking(false);
+    }
+  }, []);
+
+  // Listen for auth modal open events from child components
+  useEffect(() => {
+    const handleOpenAuthModal = () => {
+      setShowLoginModal(true);
+    };
+
+    window.addEventListener('openAuthModal', handleOpenAuthModal);
+    return () => window.removeEventListener('openAuthModal', handleOpenAuthModal);
+  }, []);
+
+
+  // Fetch user credits from Firestore
+  const fetchUserCredits = async (uid) => {
+    if (!db) return;
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userDoc = await getDoc(userRef);
+      
+      // Check if user is still logged in after async Firestore operation
+      if (!auth.currentUser || auth.currentUser.uid !== uid) {
+        console.warn('[Credits] User logged out during fetch - aborting');
+        return;
+      }
+      
+      if (userDoc.exists()) {
+        setUserCredits(userDoc.data().credits || 0);
+        setUserProfile(prev => ({ ...prev, credits: userDoc.data().credits || 0 }));
+      } else {
+        // Initialize new user with 3 trial credits
+        await setDoc(userRef, { credits: 3, tier: 'free', createdAt: new Date() });
+        setUserCredits(3);
+      }
+    } catch (err) {
+      console.error('Failed to fetch credits:', err);
+    }
+  };
+
+  // --- LOGIN HANDLER (Google) ---
+  const handleGoogleLogin = async () => {
+    if (!auth) {
+      toast.error('Authentication service unavailable');
+      return;
+    }
+    setAuthLoading(true);
+    toast.loading('Redirecting to Google...');
+    
+    try {
+      const provider = new GoogleAuthProvider();
+      // Store selectedPlan in sessionStorage to retrieve after redirect
+      if (selectedPlan) {
+        sessionStorage.setItem('studio_pending_plan', JSON.stringify(selectedPlan));
+      }
+      // Redirect-based auth (no popup, more reliable)
+      await signInWithRedirect(auth, provider);
+      // Note: User will be redirected away. Login completion happens in auth listener after redirect.
+    } catch (error) {
+      console.error('Login failed', error);
+      setAuthLoading(false);
+      if (error.code === 'auth/unauthorized-domain') {
+        toast.error(`Domain not authorized. Add ${window.location.hostname} in Firebase Console.`);
+      } else {
+        toast.error(error.message);
+      }
+    }
+  };
+
+  // --- EMAIL/PASSWORD LOGIN ---
+  const handleEmailAuth = async (e) => {
+    e.preventDefault();
+    if (!auth) {
+      toast.error('Authentication service unavailable');
+      return;
+    }
+    if (!authEmail || !authPassword) {
+      toast.error('Please enter email and password');
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      let result;
+      if (authMode === 'signup') {
+        result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+        toast.success('Account created successfully!');
+        SafeAnalytics.signUp('email');
+      } else {
+        result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
+        toast.success('Welcome back!');
+        SafeAnalytics.login('email');
+      }
+      await fetchUserCredits(result.user.uid);
+      setShowLoginModal(false);
+      setAuthEmail('');
+      setAuthPassword('');
+      if (selectedPlan) {
+        handleCheckoutRedirect(selectedPlan);
+      }
+    } catch (error) {
+      console.error('Auth failed', error);
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error('Email already in use. Try logging in.');
+      } else if (error.code === 'auth/wrong-password') {
+        toast.error('Incorrect password');
+      } else if (error.code === 'auth/user-not-found') {
+        toast.error('No account found. Try signing up.');
+      } else if (error.code === 'auth/weak-password') {
+        toast.error('Password should be at least 6 characters');
+      } else {
+        toast.error(error.message);
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // --- PASSWORD RESET ---
+  const handlePasswordReset = async () => {
+    if (!authEmail) {
+      toast.error('Please enter your email first');
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, authEmail);
+      toast.success('Password reset email sent!');
+      setAuthMode('login');
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Reserved for future use: Legacy handler for compatibility
+  // Dashboard State - CLEANED UP
+  // managedAgents, appSettings, and dashboardTab state removed as they are no longer used in the new dashboard.
+
+
+  
+  // Activity Wall Pagination State
+  const [activityPage, setActivityPage] = useState(1);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(false);
+  const [hasMoreActivity, setHasMoreActivity] = useState(true);
+  const [activityFeed, setActivityFeed] = useState([]);
+  const [activitySection, setActivitySection] = useState(() => localStorage.getItem('musicHubSection') || 'all');
+
+  // News Pagination State
+  const [newsPage, setNewsPage] = useState(1);
+  const [isLoadingNews, setIsLoadingNews] = useState(false);
+  const [hasMoreNews, setHasMoreNews] = useState(true);
+  const [newsArticles, setNewsArticles] = useState([]);
+
+
+
+  // Simulated Performance Data removed
+
+
+  useEffect(() => {
+    localStorage.setItem('studio_user_profile', JSON.stringify(userProfile));
+  }, [userProfile]);
+
+  const [socialConnections, setSocialConnections] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_agents_socials');
+      return saved ? JSON.parse(saved) : {
+        instagram: false,
+        tiktok: false,
+        twitter: false,
+        spotify: false
+      };
+    } catch (_e) {
+      return {
+        instagram: false,
+        tiktok: false,
+        twitter: false,
+        spotify: false
+      };
+    }
+  });
+  const [twitterUsername, setTwitterUsername] = useState(() => localStorage.getItem('studio_agents_twitter_user'));
+  const [metaName, setMetaName] = useState(() => localStorage.getItem('studio_agents_meta_name'));
+  const [storageConnections, setStorageConnections] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_agents_storage');
+      return saved ? JSON.parse(saved) : {
+        googleDrive: false,
+        dropbox: false,
+        oneDrive: false,
+        localDevice: true
+      };
+    } catch (_e) {
+      return {
+        googleDrive: false,
+        dropbox: false,
+        oneDrive: false,
+        localDevice: true
+      };
+    }
+  });
+
+  const [paymentMethods, setPaymentMethods] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_agents_payments');
+      return saved ? JSON.parse(saved) : [
+        { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
+        { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
+      ];
+    } catch (_e) {
+      return [
+        { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
+        { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
+      ];
+    }
+  });
+
+  const [bankAccounts, setBankAccounts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_agents_banks');
+      return saved ? JSON.parse(saved) : [
+        { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
+      ];
+    } catch (_e) {
+      return [
+        { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
+      ];
+    }
+  });
+
+
+
+  // Reserved for future use:
+  const _addNotification = (title, message) => {
+    const newNotif = {
+      id: Date.now(),
+      title,
+      message,
+      time: 'Just now',
+      read: false
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+  };
+
+  // Persist payment state
+  useEffect(() => {
+    localStorage.setItem('studio_agents_payments', JSON.stringify(paymentMethods));
+    localStorage.setItem('studio_agents_banks', JSON.stringify(bankAccounts));
+  }, [paymentMethods, bankAccounts]);
+
+  // Persist social state
+  useEffect(() => {
+    localStorage.setItem('studio_agents_socials', JSON.stringify(socialConnections));
+    localStorage.setItem('studio_agents_storage', JSON.stringify(storageConnections));
+    if (twitterUsername) localStorage.setItem('studio_agents_twitter_user', twitterUsername);
+    if (metaName) localStorage.setItem('studio_agents_meta_name', metaName);
+  }, [socialConnections, twitterUsername, metaName, storageConnections]);
+
+  // Handle Social OAuth Callbacks
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    
+    // Twitter Callback
+    if (params.get('twitter_connected') === 'true') {
+      const username = params.get('twitter_username');
+      setSocialConnections(prev => ({ ...prev, twitter: true }));
+      setTwitterUsername(username);
+      
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+      toast.success(`Connected to X/Twitter as @${username}!`);
+    }
+
+    // Meta Callback (Insta/FB)
+    if (params.get('meta_connected') === 'true') {
+      const name = params.get('meta_name');
+      setSocialConnections(prev => ({ ...prev, instagram: true, facebook: true }));
+      setMetaName(name);
+      
+      const newUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, document.title, newUrl);
+      toast.success(`Connected to Meta as ${name}!`);
+    }
+  }, []);
+
+  // --- PROFESSIONAL VOICE & TRANSLATION LOGIC (Whisperer-style) ---
+  
+  const recognitionRef = useRef(null);
+
+  
+  // Pending prompt to apply when agent view renders (for re-run functionality)
+  const [pendingPrompt, setPendingPrompt] = useState(null);
+  
+  // Apply pending prompt when agent view becomes active
+  useEffect(() => {
+    if (pendingPrompt && selectedAgent && activeTab === 'agents') {
+      // Wait for textarea to render, then set value with retry logic
+      const attemptSetValue = (retries = 3) => {
+        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+        if (textarea) {
+          textarea.value = pendingPrompt;
+          textarea.focus();
+          setPendingPrompt(null);
+        } else if (retries > 0) {
+          // Retry after a short delay if textarea not found yet
+          setTimeout(() => attemptSetValue(retries - 1), 50);
+        } else {
+          console.warn('[PendingPrompt] Textarea not found after retries');
+          setPendingPrompt(null);
+        }
+      };
+      
+      setTimeout(() => attemptSetValue(), 100);
+    }
+  }, [pendingPrompt, selectedAgent, activeTab]);
+
+  const handleVoiceToText = () => {
+    if (isListening) {
+      if (recognitionRef.current) recognitionRef.current.stop();
+      setIsListening(false);
+      setVoiceTranscript('');
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast.error('Speech recognition not supported. Try Chrome or Safari.');
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = voiceSettings.language === 'English' ? 'en-US' : 
+                      voiceSettings.language === 'Spanish' ? 'es-ES' :
+                      voiceSettings.language === 'French' ? 'fr-FR' :
+                      voiceSettings.language === 'German' ? 'de-DE' :
+                      voiceSettings.language === 'Japanese' ? 'ja-JP' : 'en-US';
+    
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      toast.success('🎤 Listening... Say a command or dictate your prompt', { duration: 2000 });
+    };
+    
+    recognition.onend = () => {
+      setIsListening(false);
+      setVoiceTranscript('');
+    };
+    
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+      setVoiceTranscript('');
+      if (event.error !== 'aborted') {
+        toast.error(`Voice error: ${event.error}`);
+      }
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+      
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript = transcript;
+        }
+      }
+      
+      // Show real-time interim results (Whisperer-style feedback)
+      if (interimTranscript) {
+        setVoiceTranscript(interimTranscript);
+      }
+      
+      if (!finalTranscript) return;
+      
+      const transcript = finalTranscript.toLowerCase().trim();
+      setVoiceTranscript('');
+      setLastVoiceCommand({ text: finalTranscript, time: new Date().toLocaleTimeString() });
+      
+      // --- VOICE COMMAND PROCESSING ---
+      
+      // Stop listening command
+      if (transcript.includes('stop listening') || transcript.includes('stop voice') || transcript === 'stop' || transcript === 'cancel') {
+        if (recognitionRef.current) recognitionRef.current.stop();
+        setIsListening(false);
+        handleTextToVoice("Voice control stopped.");
+        return;
+      }
+      
+      // Open/Launch agent commands
+      if (transcript.includes('open') || transcript.includes('launch')) {
+        const agentName = transcript.replace('open', '').replace('launch', '').trim();
+        const foundAgent = AGENTS.find(a => a.name.toLowerCase().includes(agentName));
+        if (foundAgent) {
+          setSelectedAgent(foundAgent);
+          setActiveTab('agents');
+          toast.success(`🚀 Launching ${foundAgent.name}`);
+          handleTextToVoice(`Launching ${foundAgent.name}.`);
+          return;
+        }
+      }
+
+      // Navigation commands
+      if (transcript.includes('go to') || transcript.includes('show me') || transcript.includes('navigate')) {
+        let navigated = false;
+        if (transcript.includes('dashboard') || transcript.includes('studio') || transcript.includes('home')) {
+          setActiveTab('mystudio');
+          toast.success('📊 Dashboard');
+          handleTextToVoice("Navigating to your dashboard.");
+          navigated = true;
+        } else if (transcript.includes('hub') || transcript.includes('projects')) {
+          setActiveTab('hub');
+          toast.success('📁 Project Hub');
+          handleTextToVoice("Opening the Project Hub.");
+          navigated = true;
+        } else if (transcript.includes('news')) {
+          setActiveTab('news');
+          toast.success('📰 Industry Pulse');
+          handleTextToVoice("Checking the latest industry pulse.");
+          navigated = true;
+        } else if (transcript.includes('help') || transcript.includes('support')) {
+          setActiveTab('support');
+          toast.success('💡 Help Center');
+          handleTextToVoice("How can I help you today?");
+          navigated = true;
+        } else if (transcript.includes('agents') || transcript.includes('tools')) {
+          setActiveTab('agents');
+          toast.success('🤖 Agents');
+          handleTextToVoice("Viewing all available agents.");
+          navigated = true;
+        }
+        if (navigated) return;
+      }
+
+      // Theme toggle
+      if (transcript.includes('switch theme') || transcript.includes('toggle theme') || transcript.includes('light mode') || transcript.includes('dark mode')) {
+        const newTheme = theme === 'dark' ? 'light' : 'dark';
+        setTheme(newTheme);
+        localStorage.setItem('studio_theme', newTheme);
+        toast.success(`🎨 ${newTheme === 'dark' ? 'Dark' : 'Light'} mode`);
+        handleTextToVoice(`Switching to ${newTheme} mode.`);
+        return;
+      }
+
+      // Generate command
+      if (transcript === 'generate' || transcript.includes('start generation') || transcript.includes('create now') || transcript.includes('make it')) {
+        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+        if (textarea && textarea.value.trim()) {
+          handleGenerate();
+          toast.success('⚡ Generating...');
+          handleTextToVoice("Starting generation.");
+        } else {
+          toast.error('Please enter a prompt first');
+          handleTextToVoice("Please enter a prompt first.");
+        }
+        return;
+      }
+      
+      // Clear prompt command
+      if (transcript.includes('clear prompt') || transcript.includes('clear text') || transcript.includes('start over') || transcript === 'clear') {
+        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+        if (textarea) {
+          textarea.value = '';
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+          toast.success('🗑️ Prompt cleared');
+          handleTextToVoice("Prompt cleared.");
+        }
+        return;
+      }
+      
+      // Read back command
+      if (transcript.includes('read back') || transcript.includes('read prompt') || transcript.includes('what did i write') || transcript.includes('read it')) {
+        const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+        if (textarea && textarea.value.trim()) {
+          handleTextToVoice(textarea.value);
+        } else {
+          handleTextToVoice("The prompt is empty.");
+        }
+        return;
+      }
+      
+      // Show voice commands
+      if (transcript.includes('show commands') || transcript.includes('voice commands') || transcript.includes('what can i say') || transcript.includes('help commands')) {
+        setShowVoiceCommandPalette(true);
+        handleTextToVoice("Here are the available voice commands.");
+        return;
+      }
+
+      // Payment commands
+      if (transcript.includes('add payment') || transcript.includes('billing') || transcript.includes('manage card')) {
+        setActiveTab('mystudio');
+        setShowAddPaymentModal(true);
+        handleTextToVoice("Opening payment management.");
+        return;
+      }
+
+      // Default: Append to textarea as dictation
+      const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+      if (textarea) {
+        const newText = (textarea.value + ' ' + finalTranscript).trim();
+        textarea.value = newText;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        // Brief visual feedback
+        toast.success(`✏️ Added: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`, { duration: 1500 });
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  // Effect to handle auto-start of voice when opening agent from grid
+  useEffect(() => {
+    if (selectedAgent && autoStartVoice) {
+      // Check if SpeechRecognition is available before auto-starting
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        console.warn('[Voice] SpeechRecognition not available - skipping auto-start');
+        setAutoStartVoice(false);
+        return;
+      }
+      
+      // Wait for view transition
+      const timer = setTimeout(() => {
+        handleVoiceToText();
+        setAutoStartVoice(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedAgent, autoStartVoice]);
+
+
+
+  // State for AI vocal generation
+  const [isCreatingVocal, setIsCreatingVocal] = useState(false);
+
+  // Create AI Vocal from text using Uberduck TTS API (NOT browser TTS)
+  const handleCreateAIVocal = async (textContent, sourceAgent = 'Ghostwriter') => {
+    if (!textContent || textContent.trim().length === 0) {
+      toast.error('No text content to vocalize');
+      return;
+    }
+
+    setIsCreatingVocal(true);
+    const toastId = toast.loading('Creating AI vocal...');
+
+    try {
+      // Build headers with auth token if logged in
+      const headers = { 'Content-Type': 'application/json' };
+      if (isLoggedIn && auth?.currentUser) {
+        try {
+          const token = await auth.currentUser.getIdToken();
+          headers['Authorization'] = `Bearer ${token}`;
+        } catch (err) {
+          console.warn('Could not get auth token:', err);
+        }
+      }
+
+      // Trim text to reasonable length for vocals (1500 chars for Suno, 2000 for fallback)
+      const textToSpeak = textContent.substring(0, 1500);
+
+      console.log('[handleCreateAIVocal] Generating REAL AI vocal via Suno/Bark for:', textToSpeak.substring(0, 50) + '...');
+
+      const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          prompt: textToSpeak,
+          voice: voiceSettings.voiceName || 'rapper-male-1',
+          style: voiceSettings.style || 'rapper',  // rapper, rapper-female, singer, singer-female
+          rapStyle: voiceSettings.rapStyle || 'aggressive',  // aggressive, melodic, trap, drill, boom-bap, fast, chill, hype
+          genre: voiceSettings.genre || 'hip-hop'  // hip-hop, r&b, pop, soul, trap, drill
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.audioUrl) {
+        // Instead of creating a NEW item, ADD the audio to the EXISTING preview item
+        // This consolidates lyrics + vocal into ONE card
+        if (previewItem) {
+          const consolidatedItem = {
+            ...previewItem,
+            audioUrl: data.audioUrl,
+            mimeType: data.mimeType || 'audio/wav',
+            type: 'vocal', // Upgrade type to vocal (has both text + audio)
+            vocalSnippet: `🎤 AI Vocal created from lyrics`,
+            updatedAt: new Date().toISOString()
+          };
+
+          // Update the preview with consolidated item
+          setPreviewItem(consolidatedItem);
+          
+          // Also update agent previews cache
+          if (selectedAgent?.id) {
+            setAgentPreviews(prev => ({ ...prev, [selectedAgent.id]: consolidatedItem }));
+          }
+          
+          toast.success('AI vocal added to your creation!', { id: toastId });
+          return consolidatedItem;
+        } else {
+          // Fallback: Create standalone vocal item if no preview exists
+          const vocalItem = {
+            id: String(Date.now()),
+            title: `AI Vocal - ${sourceAgent}`,
+            agent: sourceAgent,
+            type: 'vocal',
+            audioUrl: data.audioUrl,
+            mimeType: data.mimeType || 'audio/wav',
+            snippet: `🎤 AI Vocal: "${textToSpeak.substring(0, 50)}..."`,
+            createdAt: new Date().toISOString()
+          };
+
+          setPreviewItem(vocalItem);
+          toast.success('AI vocal created!', { id: toastId });
+          return vocalItem;
+        }
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        throw new Error('No audio URL returned');
+      }
+    } catch (error) {
+      console.error('[handleCreateAIVocal] Error:', error);
+      toast.error(error.message || 'Failed to create AI vocal', { id: toastId });
+      return null;
+    } finally {
+      setIsCreatingVocal(false);
+    }
+  };
+
+
+
+  // Reserved for future use:
+  const _handleEditPayment = (item, type) => {
+    setEditingPayment({ item, type });
+    setPaymentType(type);
+    setShowAddPaymentModal(true);
+  };
+
+  const handleSavePayment = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    
+    if (paymentType === 'card') {
+      const cardNumber = formData.get('cardNumber');
+      const expiry = formData.get('expiry');
+      
+      // Basic validation
+      if (cardNumber.length < 12) {
+        toast.error('Please enter a valid card number');
+        return;
+      }
+
+      const newPM = {
+        id: editingPayment ? editingPayment.item.id : `pm_${Date.now()}`,
+        type: 'Visa', // In a real app, detect type from number
+        last4: cardNumber.slice(-4),
+        expiry: expiry,
+        isDefault: editingPayment ? editingPayment.item.isDefault : false
+      };
+
+      if (editingPayment) {
+        setPaymentMethods(prev => prev.map(pm => pm.id === newPM.id ? newPM : pm));
+        handleTextToVoice('Card updated successfully.');
+      } else {
+        setPaymentMethods(prev => [...prev, newPM]);
+        handleTextToVoice(`Successfully added your card ending in ${newPM.last4}.`);
+      }
+    } else {
+      const bankName = formData.get('bankName');
+      const accountNumber = formData.get('accountNumber');
+
+      const newBA = {
+        id: editingPayment ? editingPayment.item.id : `ba_${Date.now()}`,
+        bankName: bankName,
+        last4: accountNumber.slice(-4),
+        type: 'Checking'
+      };
+
+      if (editingPayment) {
+        setBankAccounts(prev => prev.map(ba => ba.id === newBA.id ? newBA : ba));
+        handleTextToVoice('Bank account updated successfully.');
+      } else {
+        setBankAccounts(prev => [...prev, newBA]);
+        handleTextToVoice(`Successfully linked your ${newBA.bankName} account.`);
+      }
+    }
+    
+    setShowAddPaymentModal(false);
+    setEditingPayment(null);
+  };
+
+  // Reserved for future use:
+  const _handleProviderClick = (provider) => {
+    const confirm = window.confirm(`Connect your ${provider} account?`);
+    if (confirm) {
+      handleTextToVoice(`Connecting to ${provider}...`);
+      setTimeout(() => {
+        handleTextToVoice(`Successfully connected ${provider}.`);
+        const newPM = {
+            id: `pm_${Date.now()}`,
+            type: provider,
+            last4: 'Linked',
+            expiry: 'N/A',
+            isDefault: false
+        };
+        setPaymentMethods(prev => [...prev, newPM]);
+      }, 1500);
+    }
+  };
+
+  const handleTranslatePrompt = async () => {
+    const textarea = textareaRef.current || document.querySelector('.studio-textarea');
+    if (!textarea || !textarea.value || voiceSettings.language === 'English') return;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: textarea.value,
+          targetLanguage: 'English',
+          sourceLanguage: voiceSettings.language
+        })
+      });
+
+      const data = await response.json();
+      if (data.translatedText) {
+        textarea.value = data.translatedText;
+        toast.success('Prompt translated to English!');
+      }
+    } catch (error) {
+      console.error("Translation failed", error);
+    }
+  };
+
+
+
+
 
   // Save the previewed item to projects with timeout and loading feedback
   const handleSavePreview = useCallback(async (destination = 'hub') => {
@@ -3023,61 +3202,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     if (selectedAgent) setShowNudge(true);
   }, [selectedAgent]);
 
-  // Helper to safely save to localStorage with quota handling
-  const safeLocalStorageSet = (key, value) => {
-    try {
-      localStorage.setItem(key, value);
-      return true;
-    } catch (e) {
-      if (e.name === 'QuotaExceededError') {
-        console.warn(`[Storage] Quota exceeded for ${key}, cleaning up old data...`);
-        // Try to free up space by removing old/large items
-        try {
-          // Remove oldest projects if saving projects
-          if (key === 'studio_agents_projects') {
-            const parsed = JSON.parse(value);
-            if (Array.isArray(parsed) && parsed.length > 20) {
-              // Keep only the 20 most recent projects
-              const trimmed = parsed.slice(0, 20);
-              localStorage.setItem(key, JSON.stringify(trimmed));
-              console.log('[Storage] Trimmed projects to 20 most recent');
-              toast.warning('Storage full - keeping 20 most recent projects');
-              return true;
-            }
-          }
-          // Clear some non-essential cached data
-          localStorage.removeItem('studio_theme');
-          localStorage.removeItem('studio_onboarding_v3');
-          // Try again
-          localStorage.setItem(key, value);
-          return true;
-        } catch (retryError) {
-          console.error('[Storage] Still failed after cleanup:', retryError);
-          toast.error('Storage full - please clear browser data');
-          return false;
-        }
-      }
-      console.error(`[Storage] Failed to save ${key}:`, e);
-      return false;
-    }
-  };
+
   
-  // Centralized function to update projects with automatic persistence
-  const updateProjects = useCallback((updater) => {
-    setProjects(prev => {
-      const newProjects = typeof updater === 'function' ? updater(prev) : updater;
-      
-      // Immediately save to localStorage
-      try {
-        const projectsToSave = newProjects.slice(0, 50);
-        safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
-      } catch (err) {
-        console.error('[updateProjects] Failed to save to localStorage:', err);
-      }
-      
-      return newProjects;
-    });
-  }, []);
+
 
   // Load projects from localStorage on mount
   useEffect(() => {
@@ -4215,7 +4342,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     if (activeTab === 'billing') {
       return (
         <Suspense fallback={<div className="loading-spinner"><Loader2 className="animate-spin" /></div>}>
-          <StudioBilling credits={userProfile?.credits || 0} plan={userProfile?.plan || 'Free'} />
+          <StudioBilling 
+            credits={userProfile?.credits || 0} 
+            plan={userProfile?.plan || 'Free'} 
+            onSubscribe={handleSubscribe} 
+          />
         </Suspense>
       );
     }
@@ -7726,10 +7857,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
 
-  const activeProjectSteps = getProjectSteps();
+
 
   // Demo mode state for banner visibility
-  const [showDemoBanner, setShowDemoBanner] = useState(getDemoModeState());
+
 
   // AUTH GATE: Show loading only if checking auth AND user wasn't previously logged in
   // This prevents the loading flash for returning users
@@ -12777,3 +12908,4 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 }
 
 export default StudioView;
+// force reload

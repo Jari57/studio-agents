@@ -1882,6 +1882,56 @@ export default function StudioOrchestratorV2({
     });
   };
 
+  async function tryVideoFrameFallback() {
+    const videoUrl = mediaUrls.video || musicVideoUrl;
+    if (!videoUrl) {
+      toast.error('No image or video available', { id: 'gen-image' });
+      return;
+    }
+    
+    toast.loading('Extracting frame from video...', { id: 'gen-image' });
+    
+    try {
+      // Try server-side extraction first
+      const headers = await getHeaders();
+      const response = await fetch(`${BACKEND_URL}/api/extract-video-frame`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ videoUrl, timestamp: 1 })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.extractClientSide) {
+          // Server says use client-side extraction
+          console.log('[Orchestrator] Using client-side frame extraction');
+          const frameDataUrl = await extractFrameFromVideo(videoUrl);
+          setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
+          toast.success('Frame extracted from video!', { id: 'gen-image' });
+          return;
+        }
+        
+        if (data.output || data.imageData) {
+          const imageData = data.output || `data:${data.mimeType || 'image/jpeg'};base64,${data.imageData}`;
+          setMediaUrls(prev => ({ ...prev, image: imageData }));
+          toast.success('Frame extracted from video!', { id: 'gen-image' });
+          return;
+        }
+      }
+      
+      // Fallback to client-side extraction
+      console.log('[Orchestrator] Server extraction failed, trying client-side');
+      const frameDataUrl = await extractFrameFromVideo(videoUrl);
+      setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
+      toast.success('Frame extracted from video!', { id: 'gen-image' });
+      
+    } catch (err) {
+      console.error('[Orchestrator] Frame extraction failed:', err);
+      toast.error('Could not extract frame from video', { id: 'gen-image' });
+    }
+  };
+
   const handleGenerateImage = async () => {
     if (!outputs.visual) return;
     setGeneratingMedia(prev => ({ ...prev, image: true }));
@@ -1945,55 +1995,7 @@ export default function StudioOrchestratorV2({
   };
 
   // Fallback: Extract frame from existing video if image generation fails
-  const tryVideoFrameFallback = async () => {
-    const videoUrl = mediaUrls.video || musicVideoUrl;
-    if (!videoUrl) {
-      toast.error('No image or video available', { id: 'gen-image' });
-      return;
-    }
-    
-    toast.loading('Extracting frame from video...', { id: 'gen-image' });
-    
-    try {
-      // Try server-side extraction first
-      const headers = await getHeaders();
-      const response = await fetch(`${BACKEND_URL}/api/extract-video-frame`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ videoUrl, timestamp: 1 })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data.extractClientSide) {
-          // Server says use client-side extraction
-          console.log('[Orchestrator] Using client-side frame extraction');
-          const frameDataUrl = await extractFrameFromVideo(videoUrl);
-          setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
-          toast.success('Frame extracted from video!', { id: 'gen-image' });
-          return;
-        }
-        
-        if (data.output || data.imageData) {
-          const imageData = data.output || `data:${data.mimeType || 'image/jpeg'};base64,${data.imageData}`;
-          setMediaUrls(prev => ({ ...prev, image: imageData }));
-          toast.success('Frame extracted from video!', { id: 'gen-image' });
-          return;
-        }
-      }
-      
-      // Fallback to client-side extraction
-      console.log('[Orchestrator] Server extraction failed, trying client-side');
-      const frameDataUrl = await extractFrameFromVideo(videoUrl);
-      setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
-      toast.success('Frame extracted from video!', { id: 'gen-image' });
-      
-    } catch (err) {
-      console.error('[Orchestrator] Frame extraction failed:', err);
-      toast.error('Could not extract frame from video', { id: 'gen-image' });
-    }
-  };
+
 
   const handleGenerateVideo = async () => {
     if (!outputs.video) return;

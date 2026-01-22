@@ -2,7 +2,7 @@ import React from 'react';
 import { Zap, Check, Clock } from 'lucide-react';
 import './StudioDashboard.css';
 
-export default function StudioBilling({ credits = 0, plan = 'Free' }) {
+export default function StudioBilling({ credits = 0, plan = 'Free', onSubscribe }) {
   const PLANS = [
     {
       name: 'Free',
@@ -116,7 +116,9 @@ export default function StudioBilling({ credits = 0, plan = 'Free' }) {
               ))}
             </div>
 
-            <button style={{
+            <button 
+              onClick={() => !p.active && onSubscribe && onSubscribe(p)}
+              style={{
               marginTop: 'auto',
               padding: '12px',
               borderRadius: '8px',
