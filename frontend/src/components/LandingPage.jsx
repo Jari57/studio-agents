@@ -385,6 +385,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [authError, setAuthError] = useState('');
   const [pendingAction, setPendingAction] = useState(null); // Store what to do after auth
   const [isTransitioning, setIsTransitioning] = useState(false); // Guard against race conditions
+  const hasTransitionedRef = useRef(false); // Ref to track if we've already transitioned (survives re-renders)
   
   // Handle Google Sign In - with transition guard
   const handleGoogleSignIn = async () => {
@@ -537,10 +538,19 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   // Check for redirect result on mount (handle Google sign-in redirect)
   useEffect(() => {
     const checkRedirectResult = async () => {
+      // Guard: prevent double navigation
+      if (hasTransitionedRef.current) {
+        console.log('[LandingPage] Already transitioned, skipping redirect check');
+        return;
+      }
+      
       try {
         const result = await getRedirectResult(auth);
         if (result && result.user) {
           console.log('[LandingPage] Auth redirect successful, user:', result.user.email);
+          
+          // Mark as transitioned immediately
+          hasTransitionedRef.current = true;
           
           // Set localStorage to prevent flashes on navigation
           localStorage.setItem('studio_user_id', result.user.uid);
@@ -556,10 +566,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           document.body.classList.remove('modal-open');
           
           // Navigate user to studio (true = show agents)
-          setTimeout(() => {
-            onEnter(true); // Always go to agents page after successful login
-            setIsTransitioning(false);
-          }, 100);
+          console.log('[LandingPage] Calling onEnter from redirect result');
+          onEnter(true); // Navigate immediately, no timeout
         }
       } catch (error) {
         console.error('[LandingPage] Redirect result error:', error);
@@ -572,15 +580,24 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     };
     
     checkRedirectResult();
-  }, []); // Run once on mount
+  }, [onEnter]); // Include onEnter in deps
 
   // Auto-enter studio if user is already logged in (persistence)
   useEffect(() => {
     if (!auth) return;
     
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && !isTransitioning) {
+      // Guard: prevent double navigation using ref
+      if (hasTransitionedRef.current) {
+        console.log('[LandingPage] Already transitioned, skipping auth state change');
+        return;
+      }
+      
+      if (user) {
         console.log('[LandingPage] User already logged in, transitioning to studio...');
+        
+        // Mark as transitioned immediately
+        hasTransitionedRef.current = true;
         
         // Ensure user ID is in localStorage for StudioView
         localStorage.setItem('studio_user_id', user.uid);
@@ -588,11 +605,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         setIsTransitioning(true);
         // Remove scroll lock before navigating
         document.body.classList.remove('modal-open');
-        // Navigate user to studio
-        setTimeout(() => {
-          onEnter(true);
-          setIsTransitioning(false);
-        }, 300);
+        
+        // Navigate user to studio immediately
+        console.log('[LandingPage] Calling onEnter from auth state change');
+        onEnter(true);
       }
     });
     
