@@ -1,0 +1,48 @@
+# Backend files (not needed for Vercel frontend deployment)
+backend/
+scripts/
+test-results/
+
+# Documentation
+*.md
+!README.md
+
+# Development files
+.github/
+.git/
+.vscode/
+.idea/
+
+# Logs and temp files
+logs/
+*.log
+*.tmp
+*.temp
+
+# Python artifacts (if any)
+__pycache__/
+*.py[cod]
+*.whl
+*.egg-info/
+
+# Test files
+frontend/tests/
+frontend/test-results/
+frontend/playwright-report/
+*.spec.js
+*.spec.ts
+
+# Build artifacts that shouldn't be committed
+node_modules/
+.cache/
+
+# Environment files
+.env
+.env.*
+backend/.env
+
+# Other config files not needed for deployment
+deploy-*.ps1
+Dockerfile
+railway.json
+Procfile
