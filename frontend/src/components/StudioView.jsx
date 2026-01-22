@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 import toast, { Toaster } from 'react-hot-toast';
-import * as Analytics from '../utils/analytics';
+import Analytics from '../utils/analytics';
 import { 
   auth, 
   db, 
@@ -90,6 +90,34 @@ const SafeAnalytics = {
       if (Analytics?.signUp) Analytics.signUp(method);
     } catch (err) {
       console.warn('[Analytics] SignUp tracking failed:', err);
+    }
+  },
+  contentGenerated: (agentId, type) => {
+    try {
+      if (Analytics?.contentGenerated) Analytics.contentGenerated(agentId, type);
+    } catch (err) {
+      console.warn('[Analytics] Content generated tracking failed:', err);
+    }
+  },
+  errorOccurred: (errorMessage, errorSource) => {
+    try {
+      if (Analytics?.errorOccurred) Analytics.errorOccurred(errorMessage, errorSource);
+    } catch (err) {
+      console.warn('[Analytics] Error tracking failed:', err);
+    }
+  },
+  projectCreated: (templateId) => {
+    try {
+      if (Analytics?.projectCreated) Analytics.projectCreated(templateId);
+    } catch (err) {
+      console.warn('[Analytics] Project created tracking failed:', err);
+    }
+  },
+  agentUsed: (agentId, agentName) => {
+    try {
+      if (Analytics?.agentUsed) Analytics.agentUsed(agentId, agentName);
+    } catch (err) {
+      console.warn('[Analytics] Agent used tracking failed:', err);
     }
   }
 };
