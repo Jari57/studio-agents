@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { Analytics } from '@vercel/analytics/react'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary'
 import { initAnalytics } from './utils/analytics'
@@ -31,6 +32,7 @@ try {
       <React.StrictMode>
         <ErrorBoundary>
           <App />
+          <Analytics />
         </ErrorBoundary>
       </React.StrictMode>,
     );
