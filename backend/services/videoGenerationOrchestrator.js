@@ -12,7 +12,6 @@ const { analyzeMusicBeats } = require('./beatDetectionService');
 const { 
   composeVideoWithBeats, 
   createBeatSyncedVideo,
-  normalizeVideo,
   getVideoMetadata 
 } = require('./videoCompositionService');
 
@@ -27,6 +26,7 @@ function ensureFfmpegAvailable(logger) {
   try {
     const probe = spawnSync('ffmpeg', ['-version'], { encoding: 'utf-8' });
 
+    
     if (probe.error) {
       throw probe.error;
     }
@@ -267,7 +267,7 @@ async function generateSyncedMusicVideo(
     // Download video segments for local composition
     const downloadedSegments = [];
     for (let i = 0; i < videoSegments.length; i++) {
-      const segPath = path.join(tempDir, `segment_${i}_${Date.now()}.mp4`);
+     // const segPath = path.join(tempDir, `segment_${i}_${Date.now()}.mp4`);
       
       try {
         // Note: In production, you'd download these files

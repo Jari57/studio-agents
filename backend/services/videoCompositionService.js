@@ -115,7 +115,7 @@ async function composeVideoWithBeats(
           // Cleanup
           try {
             fs.unlinkSync(concatFile);
-          } catch (e) {}
+          } catch (_e) { /* ignore */ }
           
           resolve({ success: true, outputPath });
         })
@@ -126,7 +126,7 @@ async function composeVideoWithBeats(
           try {
             fs.unlinkSync(concatFile);
             fs.unlinkSync(outputPath);
-          } catch (e) {}
+          } catch (_e) { /* ignore */ }
           
           reject(err);
         });
@@ -165,7 +165,7 @@ async function createBeatSyncedVideo(
       if (beatMarkers && beatMarkers.length > 0) {
         // Create filter for beat markers (every beat triggers a keyframe mark)
         // This is informational for video players/editors
-        const beatFilterParts = beatMarkers.slice(0, 5).map((beat, idx) => {
+        const beatFilterParts = beatMarkers.slice(0, 5).map((beat) => {
           // Mark approximate beat positions with subtle effects
           const beatSeconds = beat / 1000;
           return `drawbox=enable='between(t,${beatSeconds-0.1},${beatSeconds+0.1})':x=0:y=0:w=64:h=64:color=white:thickness=1:t=fill`;

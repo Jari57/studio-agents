@@ -145,7 +145,7 @@ function parseWavFile(filePath) {
     // RIFF header
     const riff = buffer.toString('ascii', offset, offset + 4);
     offset += 4;
-    const riffSize = buffer.readUInt32LE(offset);
+    // const riffSize = buffer.readUInt32LE(offset); // Unused
     offset += 4;
     const wave = buffer.toString('ascii', offset, offset + 4);
     offset += 4;
@@ -166,7 +166,7 @@ function parseWavFile(filePath) {
       offset += 4;
       
       if (chunkId === 'fmt ') {
-        const audioFormat = buffer.readUInt16LE(offset);
+        // const audioFormat = buffer.readUInt16LE(offset); // Unused
         channels = buffer.readUInt16LE(offset + 2);
         sampleRate = buffer.readUInt32LE(offset + 4);
         bitDepth = buffer.readUInt16LE(offset + 14);
@@ -296,7 +296,7 @@ async function analyzeMusicBeats(audioUrl, logger) {
       if (fs.existsSync(tempAudioPath)) {
         fs.unlinkSync(tempAudioPath);
       }
-    } catch (e) {
+    } catch (_e) {
       // Ignore cleanup errors
     }
   }

@@ -8,7 +8,6 @@ const morgan = require('morgan');
 const winston = require('winston');
 const fs = require('fs');
 const crypto = require('crypto');
-const cookieParser = require('cookie-parser');
 const admin = require('firebase-admin');
 const Replicate = require('replicate');
 
@@ -17,28 +16,23 @@ const emailService = require('./services/emailService');
 const userPreferencesService = require('./services/userPreferencesService');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
 const { 
-  composeVideoWithBeats,
-  createBeatSyncedVideo,
   getVideoMetadata
 } = require('./services/videoCompositionService');
 const {
-  generateSyncedMusicVideo,
-  generateVideoSegments,
-  generateSingleVideo
+  generateSyncedMusicVideo
 } = require('./services/videoGenerationOrchestrator');
 
 // Audio processing imports
 let WaveFile;
 try {
   WaveFile = require('wavefile').WaveFile;
-} catch (e) {
+} catch (_e) {
   console.warn('wavefile not available, audio mastering will be limited');
 }
 
 // Environment detection
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const isDevelopment = NODE_ENV === 'development';
-const isProduction = NODE_ENV === 'production';
 
 //  WINSTON LOGGER SETUP
 const logDir = path.join(__dirname, 'logs');
@@ -431,7 +425,7 @@ const verifyFirebaseToken = async (req, res, next) => {
 };
 
 // Require auth middleware - blocks unauthenticated requests
-const requireAuth = (req, res, next) => {
+const _requireAuth = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
@@ -453,7 +447,7 @@ const requireAdmin = (req, res, next) => {
 };
 
 // Check if user is admin (doesn't block, just sets flag)
-const checkAdmin = (req, res, next) => {
+const _checkAdmin = (req, res, next) => {
   if (req.user && req.user.email && ADMIN_EMAILS.includes(req.user.email.toLowerCase())) {
     req.user.isAdmin = true;
   }
@@ -559,7 +553,7 @@ const checkCreditsFor = (featureType) => {
 };
 
 // Legacy middleware for backwards compatibility (1 credit)
-const checkCredits = checkCreditsFor('default');
+const _checkCredits = checkCreditsFor('default');
 
 const app = express();
 // Trust the first proxy (Railway load balancer)
@@ -633,6 +627,7 @@ const sanitizeInput = (input, maxLength = 5000) => {
   return input
     .trim()
     .slice(0, maxLength)
+    // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
     .replace(/[\r\n]{2,}/g, '\n'); // Normalize line breaks
 };
@@ -962,7 +957,7 @@ app.get('/api/models', async (req, res) => {
       try {
         const methods = m.supportedGenerationMethods || m.supportedMethods || [];
         return Array.isArray(methods) && methods.includes('generateContent');
-      } catch (e) { return false; }
+      } catch (_e) { return false; }
     }).map(m => (m.name || m.model || '').toString().replace(/^models\//, ''));
 
     res.json({ models: supported });
@@ -1339,7 +1334,7 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
     
     let totalCredits = 0;
     let paidUsers = 0;
-    let tierCounts = { free: 0, creator: 0, pro: 0, lifetime: 0 };
+    const tierCounts = { free: 0, creator: 0, pro: 0, lifetime: 0 };
     
     usersSnapshot.forEach(doc => {
       const data = doc.data();
@@ -2415,7 +2410,7 @@ app.delete('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
 // GENERATION ROUTE (with optional Firebase auth) - 1 credit for text/lyrics
 app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generationLimiter, async (req, res) => {
   try {
-    let { prompt, systemInstruction, model: requestedModel } = req.body;
+    const { prompt, systemInstruction, model: requestedModel } = req.body;
     
     // Log auth status
     if (req.user) {
@@ -2963,6 +2958,7 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCreditsFor('image'), g
     }
 
     // Try Nano Banana first (Gemini native image generation)
+    // eslint-disable-next-line no-constant-condition
     if (model === 'nano-banana' || model === 'gemini' || true) { // Default fallback
       try {
         logger.info('Generating image with Nano Banana', { prompt: prompt.substring(0, 50) });
@@ -3064,8 +3060,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
       voice = 'rapper-male-1', 
       style = 'rapper',  // rapper, rapper-female, singer, singer-female, narrator, spoken
       rapStyle = 'aggressive', // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
-      genre = 'hip-hop', // hip-hop, r&b, pop, soul, trap, drill, boom-bap
-      instrumental = false // If true, just return instrumental with no vocals
+      genre = 'hip-hop' // hip-hop, r&b, pop, soul, trap, drill, boom-bap
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
@@ -3101,7 +3096,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         
         // Clean the prompt text - remove any style direction markers that may have been included
         // These markers like [aggressive rap style - ...] should NOT be read aloud
-        let cleanPrompt = prompt
+        const cleanPrompt = prompt
           .replace(/\[.*?style.*?\]\s*/gi, '') // Remove [any style...] markers
           .replace(/^\[.*?\]\s*/g, '')         // Remove any leading brackets
           .trim();
@@ -3961,7 +3956,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
 });
 
 // Demo video URL generator - returns a sample video URL for testing
-function generateDemoVideoUrl(prompt) {
+function _generateDemoVideoUrl(prompt) {
   // Use a reliable public sample video (Big Buck Bunny or similar)
   // This ensures the player controls (play, seek, fullscreen) work correctly
   // instead of a 1-frame static blob.
@@ -4173,7 +4168,6 @@ app.post('/api/master-audio', verifyFirebaseToken, async (req, res) => {
       targetBitDepth = 16,   // 16-bit for distribution
       format = 'wav',        // wav or flac
       normalize = true,      // Apply loudness normalization
-      targetLufs = -14,      // Industry standard for streaming
       preset = 'streaming'   // streaming, cd, or hires
     } = req.body;
 
@@ -4787,7 +4781,7 @@ app.get('/api/news', async (req, res) => {
     // Interleave articles from different sources
     const sourceQueues = Object.values(bySource);
     const mixedArticles = [];
-    let maxLen = Math.max(...sourceQueues.map(q => q.length));
+    const maxLen = Math.max(...sourceQueues.map(q => q.length));
     
     for (let i = 0; i < maxLen; i++) {
       // Shuffle source order each round for variety
@@ -5173,7 +5167,7 @@ app.get('/api/trending-ai', async (req, res) => {
     const response = await fetch(`http://localhost:${PORT}/api/music-hub?section=all&page=${page}&per_page=${per_page}`);
     const data = await response.json();
     res.json(data);
-  } catch (err) {
+  } catch (_err) {
     res.status(500).json({ error: 'Failed to fetch activity data' });
   }
 });
@@ -5367,17 +5361,6 @@ app.get('/api/meta/callback', async (req, res) => {
   metaSessions.delete(state);
 
   try {
-    const tokenResponse = await fetch('https://graph.facebook.com/v18.0/oauth/access_token', {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      params: new URLSearchParams({
-        client_id: META_CLIENT_ID,
-        client_secret: META_CLIENT_SECRET,
-        redirect_uri: META_CALLBACK_URL,
-        code
-      })
-    });
-
     // Note: fetch doesn't take 'params' in the options object like axios, 
     // we need to append them to the URL.
     const tokenUrl = new URL('https://graph.facebook.com/v18.0/oauth/access_token');
@@ -6021,7 +6004,7 @@ const server = app.listen(PORT, HOST, () => {
 });
 
 // Global error handler middleware
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   logger.error('❌ Unhandled error', {
     error: err.message,
     stack: err.stack,

@@ -139,7 +139,7 @@ const shouldNotify = async (admin, uid, notificationType) => {
   try {
     const prefs = await getUserPreferences(admin, uid);
     return prefs.notifications[notificationType] ?? true;
-  } catch (error) {
+  } catch (_error) {
     console.warn('[UserPrefs] Error checking notification preference, defaulting to true');
     return true;
   }
