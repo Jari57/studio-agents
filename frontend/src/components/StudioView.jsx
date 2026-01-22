@@ -2,6 +2,26 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspens
 import { 
   Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2
 } from 'lucide-react';
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
+import toast, { Toaster } from 'react-hot-toast';
+import { 
+  auth, 
+  db, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  doc,
+  getDoc,
+  setDoc
+  // Note: collection, getDocs, query, orderBy, deleteDoc moved to backend API
+} from '../firebase';
+import { AGENTS, BACKEND_URL } from '../constants';
+import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
+import { Analytics, trackPageView } from '../utils/analytics';
 
 // Alias for clarity and to avoid potential minification issues
 const Users = UsersIcon;
@@ -36,27 +56,6 @@ const LazyFallback = () => (
     Loading...
   </div>
 );
-
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
-import toast, { Toaster } from 'react-hot-toast';
-import { 
-  auth, 
-  db, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  doc,
-  getDoc,
-  setDoc
-  // Note: collection, getDocs, query, orderBy, deleteDoc moved to backend API
-} from '../firebase';
-import { AGENTS, BACKEND_URL } from '../constants';
-import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
-import { Analytics, trackPageView } from '../utils/analytics';
 
 // --- CONSTANTS FOR ONBOARDING & SUPPORT ---
 
