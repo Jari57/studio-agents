@@ -19,5 +19,6 @@ RUN apk add --no-cache ffmpeg
 WORKDIR /app/backend
 COPY --from=backend-builder /app/backend ./
 ENV NODE_ENV=production
-EXPOSE 3001
+ENV PORT=3000
+EXPOSE 3000
 CMD ["node", "server.js"]
