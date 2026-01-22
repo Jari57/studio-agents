@@ -6,7 +6,7 @@ import {
 
 export const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
   ? 'http://localhost:3000' 
-  : 'https://web-production-b5922.up.railway.app';
+  : 'https://studio-agents-backend-production.up.railway.app';
 
 // AGENTS ordered for logical 2-column pairing on mobile
 // Row 1: Lyrics + Beats (core music creation)
