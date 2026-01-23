@@ -1628,7 +1628,7 @@ export default function StudioOrchestratorV2({
     setIsListening(false);
   };
 
-  // Text-to-Speech
+  // Text-to-Speech (Browser TTS with voice style adjustments)
   const speakText = (text, slot) => {
     if (speakingSlot === slot) {
       window.speechSynthesis.cancel();
@@ -1638,7 +1638,39 @@ export default function StudioOrchestratorV2({
     
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.9;
+    
+    // Get available voices and try to match style
+    const voices = window.speechSynthesis.getVoices();
+    
+    // Adjust pitch and rate based on voice style
+    if (voiceStyle === 'rapper' || voiceStyle === 'rapper-female') {
+      utterance.rate = rapStyle === 'fast' ? 1.3 : rapStyle === 'chill' ? 0.85 : 1.0;
+      utterance.pitch = voiceStyle === 'rapper-female' ? 1.2 : 0.9;
+      // Try to find a matching voice
+      const preferredVoice = voices.find(v => 
+        voiceStyle === 'rapper-female' 
+          ? (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('samantha'))
+          : (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('alex'))
+      );
+      if (preferredVoice) utterance.voice = preferredVoice;
+    } else if (voiceStyle === 'singer' || voiceStyle === 'singer-female') {
+      utterance.rate = 0.85;
+      utterance.pitch = voiceStyle === 'singer-female' ? 1.3 : 1.0;
+      const preferredVoice = voices.find(v => 
+        voiceStyle === 'singer-female'
+          ? (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira'))
+          : (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david'))
+      );
+      if (preferredVoice) utterance.voice = preferredVoice;
+    } else if (voiceStyle === 'narrator') {
+      utterance.rate = 0.9;
+      utterance.pitch = 0.8;
+      const preferredVoice = voices.find(v => v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('male'));
+      if (preferredVoice) utterance.voice = preferredVoice;
+    } else {
+      utterance.rate = 0.9;
+    }
+    
     utterance.onend = () => setSpeakingSlot(null);
     utterance.onerror = () => setSpeakingSlot(null);
     window.speechSynthesis.speak(utterance);
@@ -2116,13 +2148,13 @@ export default function StudioOrchestratorV2({
       const headers = await getHeaders();
       
       // Map voice style to API voice parameter
-      // Uberduck handles: rapper, rapper-female
-      // Bark/Suno handles: singer
-      // Gemini handles: narrator, whisper, spoken
+      // Bark handles all voice styles with speaker presets
+      // The backend maps these to Bark speaker histories
       const voiceMapping = {
         'rapper': 'rapper-male-1',
         'rapper-female': 'rapper-female-1',
-        'singer': 'singer',
+        'singer': 'singer-male',
+        'singer-female': 'singer-female',
         'narrator': 'narrator',
         'whisper': 'whisper',
         'spoken': 'spoken'

@@ -3078,21 +3078,49 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     // ═══════════════════════════════════════════════════════════════
     if (replicateKey && !audioUrl) {
       try {
-        logger.info('🎤 Using Bark for expressive vocal generation');
+        logger.info('🎤 Using Bark for expressive vocal generation', { style, rapStyle, genre });
         
         // Bark speaker presets for different styles
         // Valid options: announcer, de_speaker_0-9, en_speaker_0-9, es_speaker_0-9, fr_speaker_0-9
         // hi_speaker_0-9, it_speaker_0-9, ja_speaker_0-9, ko_speaker_0-9, pl_speaker_0-9
         // pt_speaker_0-9, ru_speaker_0-9, tr_speaker_0-9, zh_speaker_0-9
+        // en_speaker_0: Neutral male, en_speaker_1: Young male, en_speaker_2: Middle-aged male
+        // en_speaker_3: Intense/dramatic male, en_speaker_4: Older male, en_speaker_5: Soft male
+        // en_speaker_6: Expressive male (good for singing), en_speaker_7: Deep male
+        // en_speaker_8: Energetic female, en_speaker_9: Expressive female (good for singing)
+        
         let speakerHistory = 'en_speaker_6'; // Default: expressive male
         
-        if (style === 'rapper-female' || style === 'singer-female') {
-          speakerHistory = 'en_speaker_9'; // Expressive female
-        } else if (rapStyle === 'aggressive' || rapStyle === 'hype') {
-          speakerHistory = 'en_speaker_3'; // Intense male
-        } else if (rapStyle === 'chill' || rapStyle === 'melodic') {
-          speakerHistory = 'en_speaker_6'; // Smooth male
+        // Map voice style + rap style to best Bark speaker
+        if (style === 'rapper-female') {
+          // Female rapper - use energetic female
+          speakerHistory = rapStyle === 'chill' || rapStyle === 'melodic' ? 'en_speaker_9' : 'en_speaker_8';
+        } else if (style === 'singer-female') {
+          // Female singer - use expressive female
+          speakerHistory = 'en_speaker_9';
+        } else if (style === 'singer' || style === 'singer-male') {
+          // Male singer - use expressive/smooth male
+          speakerHistory = 'en_speaker_6';
+        } else if (style === 'rapper' || style === 'rapper-male') {
+          // Male rapper - adjust based on rap style
+          if (rapStyle === 'aggressive' || rapStyle === 'hype' || rapStyle === 'drill') {
+            speakerHistory = 'en_speaker_3'; // Intense male
+          } else if (rapStyle === 'chill' || rapStyle === 'melodic') {
+            speakerHistory = 'en_speaker_6'; // Smooth male
+          } else if (rapStyle === 'fast' || rapStyle === 'trap') {
+            speakerHistory = 'en_speaker_1'; // Young energetic male
+          } else if (rapStyle === 'boom-bap' || rapStyle === 'oldschool') {
+            speakerHistory = 'en_speaker_7'; // Deep male
+          } else {
+            speakerHistory = 'en_speaker_2'; // Middle-aged male (default rap)
+          }
+        } else if (style === 'narrator') {
+          speakerHistory = 'announcer'; // Professional announcer voice
+        } else if (style === 'spoken') {
+          speakerHistory = 'en_speaker_0'; // Neutral male
         }
+        
+        logger.info('🎤 Selected Bark speaker', { speakerHistory, style, rapStyle });
         
         // Clean the prompt text - remove any style direction markers that may have been included
         // These markers like [aggressive rap style - ...] should NOT be read aloud
