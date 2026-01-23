@@ -1521,9 +1521,7 @@ select optgroup {
   position: relative;
   width: 100%;
   min-height: 100vh;
-  height: auto;
   overflow-x: hidden;
-  overflow-y: visible;
   background-color: var(--color-bg-primary);
   color: white;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -8688,8 +8686,6 @@ html, body {
 .app-container {
   width: 100%;
   min-height: 100vh;
-  height: auto;
-  overflow: visible;
   background-color: #0a0a0c; /* Fallback */
   background-color: var(--color-bg-primary);
 }

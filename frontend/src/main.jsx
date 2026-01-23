@@ -1,6 +1,5 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { Analytics } from '@vercel/analytics/react'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary'
 import { initAnalytics } from './utils/analytics'
@@ -15,7 +14,7 @@ initAnalytics();
 // Initialize Error Monitoring (Sentry when configured)
 initErrorMonitoring();
 
-console.log("Main.jsx: Starting execution... v2.0.1 (Fixes Applied)");
+console.log("Main.jsx: Starting execution...");
 
 try {
   const rootElement = document.getElementById('root');
@@ -32,7 +31,6 @@ try {
       <React.StrictMode>
         <ErrorBoundary>
           <App />
-          <Analytics />
         </ErrorBoundary>
       </React.StrictMode>,
     );

@@ -71,23 +71,9 @@ body {
   width: 100%;
   min-height: 100vh;
   min-width: 320px;
-  height: auto !important;
-  position: static !important;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
+  overflow-x: hidden;
   background: var(--color-bg-primary);
   overscroll-behavior: none; /* Prevent bounce effect */
-}
-
-#root {
-  min-height: 100vh;
-  height: auto;
-}
-
-body.modal-open {
-  overflow: hidden !important;
-  position: fixed !important;
-  width: 100% !important;
 }
 
 /* Premium Typography */
@@ -257,16 +243,6 @@ button:active {
 
 .pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
-}
-
-/* Gradient Shift Animation for Hero Text */
-@keyframes gradient-shift {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
 }
 
 /* Smooth Scroll */

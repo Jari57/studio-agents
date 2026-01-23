@@ -42,15 +42,13 @@ function AgentOutputCard({ icon: Icon, title, color, output, isLoading, delay = 
   const { displayed, isTyping } = useTypewriter(output, 15, showContent);
   
   useEffect(() => {
-    let timer;
     if (output && !isLoading) {
-      timer = setTimeout(() => setShowContent(true), delay);
-    } else if (showContent) {
-      // Only reset if currently showing, prevents redundant updates
+      const timer = setTimeout(() => setShowContent(true), delay);
+      return () => clearTimeout(timer);
+    } else {
       setShowContent(false);
     }
-    return () => clearTimeout(timer);
-  }, [output, isLoading, delay, showContent]);
+  }, [output, isLoading, delay]);
   
   return (
     <div style={{
