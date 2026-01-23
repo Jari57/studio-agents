@@ -384,6 +384,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
   const [pendingAction, setPendingAction] = useState(null); // Store what to do after auth
+  const [pendingTargetTab, setPendingTargetTab] = useState(null); // Store which tab to navigate to
   const [isTransitioning, setIsTransitioning] = useState(false); // Guard against race conditions
   
   // Handle Google Sign In - with transition guard
@@ -403,10 +404,11 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       // Small delay to let modal close
       setTimeout(() => {
         if (pendingAction === 'start') {
-          onEnter(true);
+          onEnter(true, false, pendingTargetTab);
         } else {
-          onEnter(false);
+          onEnter(false, false, pendingTargetTab);
         }
+        setPendingTargetTab(null);
         setIsTransitioning(false);
       }, 100);
     } catch (error) {
@@ -424,9 +426,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   };
   
   // Handle CTA button clicks - show auth modal (with guard)
-  const handleCtaClick = (action = 'start') => {
+  const handleCtaClick = (action = 'start', targetTab = null) => {
     if (isTransitioning) return; // Prevent clicks during transition
     setPendingAction(action);
+    setPendingTargetTab(targetTab);
     setShowAuthModal(true);
     setAuthError('');
   };
@@ -446,13 +449,14 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     // Small delay to let modal close animation complete before navigation
     setTimeout(() => {
       if (pendingAction === 'start') {
-        console.log('[LandingPage] Calling onEnter(true)');
-        onEnter(true);
+        console.log('[LandingPage] Calling onEnter(true) with targetTab:', pendingTargetTab);
+        onEnter(true, false, pendingTargetTab);
       } else {
-        console.log('[LandingPage] Calling onEnter(false)');
-        onEnter(false);
+        console.log('[LandingPage] Calling onEnter(false) with targetTab:', pendingTargetTab);
+        onEnter(false, false, pendingTargetTab);
       }
       // Reset after navigation (in case user comes back)
+      setPendingTargetTab(null);
       setIsTransitioning(false);
     }, 100);
   };
@@ -635,7 +639,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '400px' }}>
             
             <button
-              onClick={() => handleCtaClick('start')}
+              onClick={() => handleCtaClick('start', 'agents')}
               className="cta-button-primary haptic-press"
               style={{ 
                 width: '100%', 
