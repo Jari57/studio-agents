@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { 
   Shield, X, ChevronRight, Lock, FileText, Tv, CreditCard,
   Scale, AlertCircle, CheckCircle, Download, ArrowLeft, ExternalLink,
@@ -21,99 +21,99 @@ const LegalResourcesPage = ({ onBack }) => {
       sections: [
         {
           heading: 'What is Copyright?',
-          content: `Copyright is your automatic legal protection the moment you create an original work. No registration required  "though registration offers additional benefits.
+          content: `Copyright is your automatic legal protection the moment you create an original work. No registration requiredâ€"though registration offers additional benefits.
 
 **The Two Copyrights in Music:**
 
-1. **Composition Copyright (  )**
-       Lyrics and melody
-       Chord progressions and structure
-       Arrangement and form
-       Owned by songwriter(s)
+1. **Composition Copyright (Â©)**
+   â€¢ Lyrics and melody
+   â€¢ Chord progressions and structure
+   â€¢ Arrangement and form
+   â€¢ Owned by songwriter(s)
 
-2. **Sound Recording Copyright (  -)**
-       The actual audio recording
-       Performance and production
-       Mix and master
-       Owned by recording artist/producer
+2. **Sound Recording Copyright (â„-)**
+   â€¢ The actual audio recording
+   â€¢ Performance and production
+   â€¢ Mix and master
+   â€¢ Owned by recording artist/producer
 
 **Example:**
 If you write and record a song yourself, you own BOTH copyrights. If you write a song and someone else records it, you own the composition, they own that particular recording.
 
 **Duration of Protection:**
-    Your lifetime + 70 years (US law)
-    Works for hire: 95 years from publication or 120 years from creation, whichever is shorter
-    Applies automatically in 180+ countries through international treaties`
+â€¢ Your lifetime + 70 years (US law)
+â€¢ Works for hire: 95 years from publication or 120 years from creation, whichever is shorter
+â€¢ Applies automatically in 180+ countries through international treaties`
         },
         {
           heading: 'Why Register Your Copyright',
           content: `Registration with the US Copyright Office isn't required for protection, but it unlocks powerful benefits:
 
 **Legal Advantages:**
-    **Sue for infringement** - Required before filing lawsuit
-    **Statutory damages** - Up to $150,000 per work infringed (vs. proving actual damages)
-    **Attorney's fees** - Court can order infringer to pay your legal costs
-    **Public record** - Official timestamp of your ownership
-    **Evidence** - Prima facie proof in court
+âœ… **Sue for infringement** - Required before filing lawsuit
+âœ… **Statutory damages** - Up to $150,000 per work infringed (vs. proving actual damages)
+âœ… **Attorney's fees** - Court can order infringer to pay your legal costs
+âœ… **Public record** - Official timestamp of your ownership
+âœ… **Evidence** - Prima facie proof in court
 
 **Registration Timeline Benefits:**
-    **Before publication**: Get full statutory damages
-    **Within 3 months of publication**: Still qualify for statutory damages
-    **After 3 months**: Only actual damages (harder to prove, lower amounts)
+â€¢ **Before publication**: Get full statutory damages
+â€¢ **Within 3 months of publication**: Still qualify for statutory damages
+â€¢ **After 3 months**: Only actual damages (harder to prove, lower amounts)
 
 **Cost & Process:**
-    $65 online registration (2-3 months processing)
-    $125 expedited processing (1-2 weeks)
-    Form PA (Performing Arts) or SR (Sound Recording)
-    Upload MP3 or audio file
-    Typically approved within 3-6 months
+â€¢ $65 online registration (2-3 months processing)
+â€¢ $125 expedited processing (1-2 weeks)
+â€¢ Form PA (Performing Arts) or SR (Sound Recording)
+â€¢ Upload MP3 or audio file
+â€¢ Typically approved within 3-6 months
 
 **Pro Tip:**
-Register your best work immediately. For everything else, consider batch registration  "up to 10 unpublished songs for one $65 fee as a "collection."`
+Register your best work immediately. For everything else, consider batch registrationâ€"up to 10 unpublished songs for one $65 fee as a "collection."`
         },
         {
           heading: 'How to Register (Step-by-Step)',
           content: `**Online Registration Process:**
 
 **Step 1: Create Account**
-    Visit copyright.gov
-    Click "Register a Work"
-    Create eCO (electronic Copyright Office) account
-    Free to create
+â€¢ Visit copyright.gov
+â€¢ Click "Register a Work"
+â€¢ Create eCO (electronic Copyright Office) account
+â€¢ Free to create
 
 **Step 2: Choose Form**
-    Form PA: Published or unpublished musical composition
-    Form SR: Sound recording
-    Form PA/SR: Both composition and recording (same author)
+â€¢ Form PA: Published or unpublished musical composition
+â€¢ Form SR: Sound recording
+â€¢ Form PA/SR: Both composition and recording (same author)
 
 **Step 3: Complete Application**
-    Title of work
-    Author information (you or your publishing company)
-    Year of completion
-    Year of publication (if published)
-    Copyright claimant (usually same as author)
-    Rights and permissions contact
+â€¢ Title of work
+â€¢ Author information (you or your publishing company)
+â€¢ Year of completion
+â€¢ Year of publication (if published)
+â€¢ Copyright claimant (usually same as author)
+â€¢ Rights and permissions contact
 
 **Step 4: Pay Fee**
-    Standard: $65 (online)
-    Special handling: $800+ (if you need it in 1-5 business days)
+â€¢ Standard: $65 (online)
+â€¢ Special handling: $800+ (if you need it in 1-5 business days)
 
 **Step 5: Upload Deposit**
-    MP3 or WAV file
-    Lyric sheet (optional but recommended)
-    Lead sheet if you have one
+â€¢ MP3 or WAV file
+â€¢ Lyric sheet (optional but recommended)
+â€¢ Lead sheet if you have one
 
 **Step 6: Submit & Wait**
-    Processing time: 3-6 months typical
-    Check status in your eCO account
-    Certificate arrives via email
+â€¢ Processing time: 3-6 months typical
+â€¢ Check status in your eCO account
+â€¢ Certificate arrives via email
 
 **Common Mistakes to Avoid:**
-    Waiting too long after release
-    Not including all co-writers
-    Incorrect publication date
-    Missing lyric attachments
-    Wrong form selection`
+âŒ Waiting too long after release
+âŒ Not including all co-writers
+âŒ Incorrect publication date
+âŒ Missing lyric attachments
+âŒ Wrong form selection`
         },
         {
           heading: 'Copyright Infringement & Enforcement',
@@ -126,57 +126,57 @@ To prove copyright infringement, you must show:
 
 **"Substantial Similarity" Explained:**
 Courts look at:
-    Melodic similarities
-    Lyrical similarities
-    Harmonic progression patterns
-    Overall "feel" and structure
-    Not just a few notes or common phrases
+â€¢ Melodic similarities
+â€¢ Lyrical similarities
+â€¢ Harmonic progression patterns
+â€¢ Overall "feel" and structure
+â€¢ Not just a few notes or common phrases
 
 **Common Phrase Exception:**
 You can't copyright:
-    Song titles
-    Common chord progressions (I-V-vi-IV)
-    Generic lyrics ("baby I love you")
-    Musical styles or genres
+â€¢ Song titles
+â€¢ Common chord progressions (I-V-vi-IV)
+â€¢ Generic lyrics ("baby I love you")
+â€¢ Musical styles or genres
 
 **If Someone Infringes Your Copyright:**
 
 **Step 1: Document Everything**
-    Screenshots, URLs, dates discovered
-    Copies of the infringing work
-    Your original work with timestamp
-    Any communication with infringer
+â€¢ Screenshots, URLs, dates discovered
+â€¢ Copies of the infringing work
+â€¢ Your original work with timestamp
+â€¢ Any communication with infringer
 
 **Step 2: Send DMCA Takedown Notice**
 For online infringement:
-    Email platform (YouTube, Spotify, SoundCloud)
-    Include your copyright registration number
-    Describe infringement specifics
-    Most platforms respond within 7 days
+â€¢ Email platform (YouTube, Spotify, SoundCloud)
+â€¢ Include your copyright registration number
+â€¢ Describe infringement specifics
+â€¢ Most platforms respond within 7 days
 
 **Step 3: Cease and Desist Letter**
-    Send via certified mail
-    Detail the infringement
-    Demand they stop and remove content
-    Set deadline (typically 10-14 days)
-    Many issues resolve at this stage
+â€¢ Send via certified mail
+â€¢ Detail the infringement
+â€¢ Demand they stop and remove content
+â€¢ Set deadline (typically 10-14 days)
+â€¢ Many issues resolve at this stage
 
 **Step 4: Legal Action**
 If needed, consult an entertainment attorney:
-    Must have registered copyright
-    Must prove damages or seek statutory damages
-    Consider settlement vs. court costs
-    Most cases settle out of court
+â€¢ Must have registered copyright
+â€¢ Must prove damages or seek statutory damages
+â€¢ Consider settlement vs. court costs
+â€¢ Most cases settle out of court
 
 **Damages You Can Claim:**
-    **Actual damages**: Lost profits, licensing fees
-    **Statutory damages**: $750-$30,000 per work (or up to $150,000 if willful)
-    **Attorney's fees**: If registered before infringement
-    **Injunctions**: Court order to stop infringement
+â€¢ **Actual damages**: Lost profits, licensing fees
+â€¢ **Statutory damages**: $750-$30,000 per work (or up to $150,000 if willful)
+â€¢ **Attorney's fees**: If registered before infringement
+â€¢ **Injunctions**: Court order to stop infringement
 
 **Statute of Limitations:**
-    3 years from discovery of infringement
-    Each new instance restarts the clock`
+â€¢ 3 years from discovery of infringement
+â€¢ Each new instance restarts the clock`
         },
         {
           heading: 'Fair Use & Sampling',
@@ -190,24 +190,24 @@ Four factors courts consider:
 
 **Music-Specific Fair Use Examples:**
 
-    **Generally Considered Fair Use:**
-    Academic music theory analysis
-    Parody (if clearly mocking the original)
-    Educational reviews and criticism
-    Short clips in documentary commentary
+âœ… **Generally Considered Fair Use:**
+â€¢ Academic music theory analysis
+â€¢ Parody (if clearly mocking the original)
+â€¢ Educational reviews and criticism
+â€¢ Short clips in documentary commentary
 
-    **NOT Fair Use in Music:**
-    Sampling without permission (even 2 seconds)
-    "Tribute" covers sold commercially
-    Remixes without a license
-    Background music in monetized videos
+âŒ **NOT Fair Use in Music:**
+â€¢ Sampling without permission (even 2 seconds)
+â€¢ "Tribute" covers sold commercially
+â€¢ Remixes without a license
+â€¢ Background music in monetized videos
 
 **The Sampling Reality:**
 Despite urban myths, there is NO "3-second rule" or "7-note rule."
-    ANY recognizable sample needs clearance
-    Two licenses required: Master (recording) + Publishing (composition)
-    Costs vary: $0 (denied) to $100,000+
-    Major labels almost always say no or charge high fees
+â€¢ ANY recognizable sample needs clearance
+â€¢ Two licenses required: Master (recording) + Publishing (composition)
+â€¢ Costs vary: $0 (denied) to $100,000+
+â€¢ Major labels almost always say no or charge high fees
 
 **Sample Clearance Process:**
 1. Identify **Master Rights** holder (record label)
@@ -220,73 +220,73 @@ Despite urban myths, there is NO "3-second rule" or "7-note rule."
 5. Get written agreements before releasing
 
 **Alternatives to Sampling:**
-    Interpolation (re-record the melody/lyrics legally)
-    Work with lesser-known artists (easier clearance)
-    Use royalty-free sample libraries
-    Create original compositions "inspired by"
+â€¢ Interpolation (re-record the melody/lyrics legally)
+â€¢ Work with lesser-known artists (easier clearance)
+â€¢ Use royalty-free sample libraries
+â€¢ Create original compositions "inspired by"
 
 **Consequences of Uncleared Samples:**
-    Entire song profits seized
-    Lawsuit for statutory damages
-    Removed from all platforms
-    Permanent industry reputation damage
-    No "accidentally" defense`
+â€¢ Entire song profits seized
+â€¢ Lawsuit for statutory damages
+â€¢ Removed from all platforms
+â€¢ Permanent industry reputation damage
+â€¢ No "accidentally" defense`
         },
         {
           heading: 'International Copyright Protection',
           content: `**Global Protection Through Treaties:**
 
 **Berne Convention (180+ countries):**
-    Automatic protection in all member countries
-    No registration required
-    Your US copyright works in UK, EU, Japan, etc.
-    Protection lasts life + 50-70 years (varies by country)
+â€¢ Automatic protection in all member countries
+â€¢ No registration required
+â€¢ Your US copyright works in UK, EU, Japan, etc.
+â€¢ Protection lasts life + 50-70 years (varies by country)
 
 **Key Countries Covered:**
-    All of Europe
-    Canada, Mexico, Australia
-    Brazil, Argentina, Chile
-    Japan, South Korea, India
-    South Africa, Kenya, Nigeria
+â€¢ All of Europe
+â€¢ Canada, Mexico, Australia
+â€¢ Brazil, Argentina, Chile
+â€¢ Japan, South Korea, India
+â€¢ South Africa, Kenya, Nigeria
 
 **Important Exceptions:**
-    Some Middle Eastern countries have limited protections
-    China: Member since 1992, enforcement varies
-    Russia: Member, but enforcement can be challenging
+â€¢ Some Middle Eastern countries have limited protections
+â€¢ China: Member since 1992, enforcement varies
+â€¢ Russia: Member, but enforcement can be challenging
 
 **Enforcing Rights Internationally:**
 
 **Digital Content (Streaming):**
-    DMCA works globally for most platforms
-    Spotify, Apple Music, YouTube honor takedowns worldwide
-    Use platform's infringement reporting system
+â€¢ DMCA works globally for most platforms
+â€¢ Spotify, Apple Music, YouTube honor takedowns worldwide
+â€¢ Use platform's infringement reporting system
 
 **Physical Distribution:**
-    More complex  "requires local legal action
-    Join your country's collecting society
-    They have reciprocal agreements internationally
+â€¢ More complexâ€"requires local legal action
+â€¢ Join your country's collecting society
+â€¢ They have reciprocal agreements internationally
 
 **International Registration:**
 You don't need to register in each country, but it can help:
-    UK: Intellectual Property Office
-    EU: EUIPO (European Union Intellectual Property Office)
-    Registration costs vary (  0-200 typically)
+â€¢ UK: Intellectual Property Office
+â€¢ EU: EUIPO (European Union Intellectual Property Office)
+â€¢ Registration costs vary (Â£0-200 typically)
 
 **Collecting International Royalties:**
 Join your local Performance Rights Organization (PRO):
-    **US**: ASCAP, BMI, or SESAC
-    **UK**: PRS for Music
-    **EU**: GEMA (Germany), SACEM (France), etc.
-    **Worldwide**: These organizations share data and collect for you
+â€¢ **US**: ASCAP, BMI, or SESAC
+â€¢ **UK**: PRS for Music
+â€¢ **EU**: GEMA (Germany), SACEM (France), etc.
+â€¢ **Worldwide**: These organizations share data and collect for you
 
 Your PRO automatically collects:
-    Radio play in 180+ countries
-    TV and film usage globally
-    Streaming royalties worldwide
-    Live performance fees internationally
+â€¢ Radio play in 180+ countries
+â€¢ TV and film usage globally
+â€¢ Streaming royalties worldwide
+â€¢ Live performance fees internationally
 
 **Pro Tip:**
-Also register with SoundExchange (US) or equivalent for digital performance royalties  "this is separate from your PRO and can be significant income.`
+Also register with SoundExchange (US) or equivalent for digital performance royaltiesâ€"this is separate from your PRO and can be significant income.`
         }
       ]
     },
@@ -298,37 +298,37 @@ Also register with SoundExchange (US) or equivalent for digital performance roya
       color: '#06b6d4',
       readTime: '10 min',
       type: 'Template',
-      summary: 'Protect your collaborations with proper split sheet documentation  "the single most important document in music creation.',
+      summary: 'Protect your collaborations with proper split sheet documentationâ€"the single most important document in music creation.',
       sections: [
         {
           heading: 'What is a Split Sheet?',
           content: `A split sheet is a simple written agreement that documents:
-    **Who** created the song
-    **What percentage** of ownership each person has
-    **Contact information** for royalty collection
-    **Date and location** of creation
+â€¢ **Who** created the song
+â€¢ **What percentage** of ownership each person has
+â€¢ **Contact information** for royalty collection
+â€¢ **Date and location** of creation
 
 **Why Split Sheets Are CRITICAL:**
 
 "Whoever owns the publishing owns the money."
 
 Real-world consequences of not having split sheets:
-    Metro Boomin vs. Future lawsuit over "Mask Off" (settled for millions)
-    Drake vs. Detail dispute over "Fake Love"
-    Countless independent artists losing tens of thousands
+â€¢ Metro Boomin vs. Future lawsuit over "Mask Off" (settled for millions)
+â€¢ Drake vs. Detail dispute over "Fake Love"
+â€¢ Countless independent artists losing tens of thousands
 
 **When to Create Split Sheets:**
-    Immediately after the writing session
-    BEFORE the song is released
-    BEFORE anyone registers the copyright
-    While everyone is still friendly
+âœ… Immediately after the writing session
+âœ… BEFORE the song is released
+âœ… BEFORE anyone registers the copyright
+âœ… While everyone is still friendly
 
 **What Happens Without One:**
-    Default: Equal split among all writers (could be 1/5 instead of your agreed 1/2)
-    Costly legal battles to prove your contribution
-    Delayed releases while disputes are resolved
-    Potential loss of your work entirely
-    Destroyed professional relationships
+â€¢ Default: Equal split among all writers (could be 1/5 instead of your agreed 1/2)
+â€¢ Costly legal battles to prove your contribution
+â€¢ Delayed releases while disputes are resolved
+â€¢ Potential loss of your work entirely
+â€¢ Destroyed professional relationships
 
 **The Golden Rule:**
 "No split sheet, no song release."
@@ -339,42 +339,42 @@ Insist on this EVERY TIME you co-write.`
           content: `**SONG SPLIT SHEET AGREEMENT**
 
 **Song Information:**
-    Song Title: _______________________
-    Date Written: _______________________
-    Location: _______________________
-    Total Length: ________ minutes
+â€¢ Song Title: _______________________
+â€¢ Date Written: _______________________
+â€¢ Location: _______________________
+â€¢ Total Length: ________ minutes
 
 **Writers & Publishers:**
 
 Writer 1:
-    Legal Name: _______________________
-    Stage Name: _______________________
-    Role:     Lyrics     Music     Both
-    Ownership %: ________%
-    Email: _______________________
-    Phone: _______________________
-    PRO:     ASCAP     BMI     SESAC  Member ID: __________
-    Publisher (if any): _______________________
-    IPI/CAE #: _______________________
+â€¢ Legal Name: _______________________
+â€¢ Stage Name: _______________________
+â€¢ Role: â–¡ Lyrics â–¡ Music â–¡ Both
+â€¢ Ownership %: ________%
+â€¢ Email: _______________________
+â€¢ Phone: _______________________
+â€¢ PRO: â–¡ ASCAP â–¡ BMI â–¡ SESAC  Member ID: __________
+â€¢ Publisher (if any): _______________________
+â€¢ IPI/CAE #: _______________________
 
 Writer 2:
-    Legal Name: _______________________
-    Stage Name: _______________________
-    Role:     Lyrics     Music     Both
-    Ownership %: ________%
-    Email: _______________________
-    Phone: _______________________
-    PRO:     ASCAP     BMI     SESAC  Member ID: __________
-    Publisher (if any): _______________________
-    IPI/CAE #: _______________________
+â€¢ Legal Name: _______________________
+â€¢ Stage Name: _______________________
+â€¢ Role: â–¡ Lyrics â–¡ Music â–¡ Both
+â€¢ Ownership %: ________%
+â€¢ Email: _______________________
+â€¢ Phone: _______________________
+â€¢ PRO: â–¡ ASCAP â–¡ BMI â–¡ SESAC  Member ID: __________
+â€¢ Publisher (if any): _______________________
+â€¢ IPI/CAE #: _______________________
 
-[Add additional writers as needed  "total must equal 100%]
+[Add additional writers as neededâ€"total must equal 100%]
 
 **Producer Credits (Sound Recording):**
-    Producer Name: _______________________
-    Producer %: ________% (of master recording)
-    Producer Fee: $________ (if applicable)
-    Advance Recoupable:     Yes     No
+â€¢ Producer Name: _______________________
+â€¢ Producer %: ________% (of master recording)
+â€¢ Producer Fee: $________ (if applicable)
+â€¢ Advance Recoupable: â–¡ Yes â–¡ No
 
 **Agreement Terms:**
 
@@ -400,118 +400,118 @@ Writer 2 Signature
           content: `**Standard Industry Splits:**
 
 **Solo Writer + Producer:**
-    Writer: 50% composition
-    Producer: 50% composition (if they contributed melodically/harmonically)
-    Producer: 2-5% of master recording (or flat fee)
+â€¢ Writer: 50% composition
+â€¢ Producer: 50% composition (if they contributed melodically/harmonically)
+â€¢ Producer: 2-5% of master recording (or flat fee)
 
 **Two Writers, One Producer:**
-    Writers: 25% each (50% total)
-    Producer: 50% composition
-    OR: Writers 50% each, producer gets flat fee + master points
+â€¢ Writers: 25% each (50% total)
+â€¢ Producer: 50% composition
+â€¢ OR: Writers 50% each, producer gets flat fee + master points
 
 **Full Band Session:**
-    Equal splits (everyone gets 25% if 4 people)
-    OR: Based on actual contribution
+â€¢ Equal splits (everyone gets 25% if 4 people)
+â€¢ OR: Based on actual contribution
 
 **What "Counts" as Writing:**
 
-    **Does Count:**
-    Writing lyrics
-    Creating melodies
-    Chord progressions
-    Song structure/arrangement
-    Topline melodies
-    Hook/chorus concepts
+âœ… **Does Count:**
+â€¢ Writing lyrics
+â€¢ Creating melodies
+â€¢ Chord progressions
+â€¢ Song structure/arrangement
+â€¢ Topline melodies
+â€¢ Hook/chorus concepts
 
-    **Doesn't Count (typically):**
-    Engineering/recording
-    Mixing or mastering
-    Playing an instrument (unless also writing)
-    Being in the room
-    Emotional support
-    Ordering food
+âŒ **Doesn't Count (typically):**
+â€¢ Engineering/recording
+â€¢ Mixing or mastering
+â€¢ Playing an instrument (unless also writing)
+â€¢ Being in the room
+â€¢ Emotional support
+â€¢ Ordering food
 
 **Negotiation Tips:**
 
 **For Producers:**
-    If you created the beat from scratch: 33-50%
-    If you used a sample pack loop: 15-25%
-    If you just mixed: 0% (get paid for mixing separately)
+â€¢ If you created the beat from scratch: 33-50%
+â€¢ If you used a sample pack loop: 15-25%
+â€¢ If you just mixed: 0% (get paid for mixing separately)
 
 **For Lyricists:**
-    Wrote all lyrics + melody: 50%+
-    Wrote only lyrics: 25-40%
-    Wrote hook only: 20-30%
+â€¢ Wrote all lyrics + melody: 50%+
+â€¢ Wrote only lyrics: 25-40%
+â€¢ Wrote hook only: 20-30%
 
 **For Melody Writers:**
-    Original melody + harmony: 40-60%
-    Melody only: 30-40%
+â€¢ Original melody + harmony: 40-60%
+â€¢ Melody only: 30-40%
 
 **Red Flags:**
-     Someone wants 50%+ but contributed <20%
-     "Let's figure it out later" (NO  "do it NOW)
-     Pressure to sign without reading
-     Someone refuses to sign a split sheet
+ðŸš© Someone wants 50%+ but contributed <20%
+ðŸš© "Let's figure it out later" (NOâ€"do it NOW)
+ðŸš© Pressure to sign without reading
+ðŸš© Someone refuses to sign a split sheet
 
 **Conflict Resolution:**
 If you can't agree:
-    Use a neutral mediator
-    Base it on time spent on each element
-    Consider future collaboration value
-    Walk away if necessary  "protect yourself`
+â€¢ Use a neutral mediator
+â€¢ Base it on time spent on each element
+â€¢ Consider future collaboration value
+â€¢ Walk away if necessaryâ€"protect yourself`
         },
         {
           heading: 'Registering Your Split Sheet',
           content: `**After Everyone Signs:**
 
 **Step 1: Each Writer Registers with Their PRO**
-    ASCAP: ascap.com (register the song + your share)
-    BMI: bmi.com (register the song + your share)
-    SESAC: sesac.com (invitation-only, contact them)
+â€¢ ASCAP: ascap.com (register the song + your share)
+â€¢ BMI: bmi.com (register the song + your share)
+â€¢ SESAC: sesac.com (invitation-only, contact them)
 
 **Information Needed:**
-    Song title
-    Your percentage
-    Co-writers' names and PROs
-    ISWC (International Standard Musical Work Code) if assigned
+â€¢ Song title
+â€¢ Your percentage
+â€¢ Co-writers' names and PROs
+â€¢ ISWC (International Standard Musical Work Code) if assigned
 
 **Step 2: Register Copyright**
-    One person files (usually the lead writer)
-    Attach the split sheet to the application
-    List all writers and percentages
-    Each writer listed becomes a copyright claimant
+â€¢ One person files (usually the lead writer)
+â€¢ Attach the split sheet to the application
+â€¢ List all writers and percentages
+â€¢ Each writer listed becomes a copyright claimant
 
 **Step 3: Distribute Copies**
-    Every writer gets a signed copy
-    Keep PDF backup in the cloud
-    Include with master recordings
-    Provide to label/distributor if signed
+â€¢ Every writer gets a signed copy
+â€¢ Keep PDF backup in the cloud
+â€¢ Include with master recordings
+â€¢ Provide to label/distributor if signed
 
 **Step 4: Update Your Records**
-    Store in Project Hub
-    Add to personal database
-    Tag with release date
-    Link to final master file
+â€¢ Store in Project Hub
+â€¢ Add to personal database
+â€¢ Tag with release date
+â€¢ Link to final master file
 
 **Digital Split Sheet Tools:**
-    Lyric splits: online platform for splits
-    Songtrust: split sheet + publishing admin
-    TuneRegistry: blockchain-verified splits
-    Studio Agents: integrated split sheet management (coming soon)
+â€¢ Lyric splits: online platform for splits
+â€¢ Songtrust: split sheet + publishing admin
+â€¢ TuneRegistry: blockchain-verified splits
+â€¢ Studio Agents: integrated split sheet management (coming soon)
 
 **Legal Enforceability:**
 Split sheets are legal contracts if:
-    All parties are 18+ (or have guardian signature)
-    All parties signed willingly
-    All parties received a copy
-    Terms are clear and specific
-    Total percentages = 100%
+âœ… All parties are 18+ (or have guardian signature)
+âœ… All parties signed willingly
+âœ… All parties received a copy
+âœ… Terms are clear and specific
+âœ… Total percentages = 100%
 
 **If Someone Won't Sign:**
-    Don't release the song
-    Don't register the copyright
-    Don't invest more time/money
-    Walk away if necessary
+â€¢ Don't release the song
+â€¢ Don't register the copyright
+â€¢ Don't invest more time/money
+â€¢ Walk away if necessary
 
 Your protection is worth more than one song.`
         },
@@ -520,77 +520,77 @@ Your protection is worth more than one song.`
           content: `**Samples & Interpolations:**
 
 **If You Sample:**
-    Original song owners get 50-100% of your new composition
-    Negotiate BEFORE creating  "most decline or want majority
-    Budget for clearance: $5,000-$100,000+
+â€¢ Original song owners get 50-100% of your new composition
+â€¢ Negotiate BEFORE creatingâ€"most decline or want majority
+â€¢ Budget for clearance: $5,000-$100,000+
 
 **If You Interpolate (Re-sing/play):**
-    Original songwriters get their % of your new composition (typically 25-50%)
-    You don't need master clearance (you're re-recording)
-    Still need publishing clearance  "cheaper than sampling
+â€¢ Original songwriters get their % of your new composition (typically 25-50%)
+â€¢ You don't need master clearance (you're re-recording)
+â€¢ Still need publishing clearanceâ€"cheaper than sampling
 
 **Example:**
 You write new lyrics over a re-sung melody from "Hotline Bling":
-    Drake's team: 50% of your composition
-    You: 50% of your composition
+â€¢ Drake's team: 50% of your composition
+â€¢ You: 50% of your composition
 
 **Work for Hire Situations:**
 
 **You're Hired to Write:**
-    You get 0% ownership
-    You get a flat fee instead
-    Must sign work-for-hire agreement
-    They own copyright entirely
+â€¢ You get 0% ownership
+â€¢ You get a flat fee instead
+â€¢ Must sign work-for-hire agreement
+â€¢ They own copyright entirely
 
 **You Hire Someone:**
-    They get 0% ownership
-    Pay them a fair fee upfront
-    Have them sign work-for-hire agreement
-    You own 100% copyright
+â€¢ They get 0% ownership
+â€¢ Pay them a fair fee upfront
+â€¢ Have them sign work-for-hire agreement
+â€¢ You own 100% copyright
 
 **Example Rates:**
-    Session writer: $500-$5,000 per song
-    Producer: $1,000-$10,000+ per track
-    Top-tier: $25,000-$100,000+
+â€¢ Session writer: $500-$5,000 per song
+â€¢ Producer: $1,000-$10,000+ per track
+â€¢ Top-tier: $25,000-$100,000+
 
 **Ghost Writing:**
-    You write, someone else takes credit
-    No ownership, no royalties
-    Flat fee only (negotiate high)
-    NDA usually required
-    Common in pop, hip-hop, EDM
+â€¢ You write, someone else takes credit
+â€¢ No ownership, no royalties
+â€¢ Flat fee only (negotiate high)
+â€¢ NDA usually required
+â€¢ Common in pop, hip-hop, EDM
 
 **Publishing Deals:**
 
 **If You Have a Publisher:**
-    You still own your writer's share (50% of composition)
-    Publisher owns publisher's share (other 50%)
-    Split sheet shows you as writer, your publisher as publisher
-    You still get paid  "publisher collects and pays you
+â€¢ You still own your writer's share (50% of composition)
+â€¢ Publisher owns publisher's share (other 50%)
+â€¢ Split sheet shows you as writer, your publisher as publisher
+â€¢ You still get paidâ€"publisher collects and pays you
 
 **Co-Publishing:**
-    You keep 75% (your 50% writer + 25% publisher)
-    Publisher gets 25%
-    More favorable deal
+â€¢ You keep 75% (your 50% writer + 25% publisher)
+â€¢ Publisher gets 25%
+â€¢ More favorable deal
 
 **International Collaborations:**
 
 **Writers in Different Countries:**
-    Each registers with their local PRO
-    PROs handle international collection
-    Split sheet still required
-    Use universal terms (percentages, not specific amounts)
+â€¢ Each registers with their local PRO
+â€¢ PROs handle international collection
+â€¢ Split sheet still required
+â€¢ Use universal terms (percentages, not specific amounts)
 
 **Currency & Payment:**
-    PROs handle currency conversion
-    You receive payment in your local currency
-    May take 12-18 months for international royalties to arrive
+â€¢ PROs handle currency conversion
+â€¢ You receive payment in your local currency
+â€¢ May take 12-18 months for international royalties to arrive
 
 **Language Adaptations:**
-    New lyrics in another language = new copyright work
-    Original writers get % of adaptation
-    Adapter gets % for their lyrics
-    Negotiate clearly: 50/50 or 70/30 typical`
+â€¢ New lyrics in another language = new copyright work
+â€¢ Original writers get % of adaptation
+â€¢ Adapter gets % for their lyrics
+â€¢ Negotiate clearly: 50/50 or 70/30 typical`
         }
       ]
     },
@@ -607,34 +607,34 @@ You write new lyrics over a re-sung melody from "Hotline Bling":
         {
           heading: 'What is Sync Licensing?',
           content: `"Sync" (synchronization) licensing is permission to use your music in visual media:
-    TV shows and films
-    Commercials and ads
-    Video games
-    Trailers and promos
-    YouTube videos and social media content
-    Corporate videos and presentations
+â€¢ TV shows and films
+â€¢ Commercials and ads
+â€¢ Video games
+â€¢ Trailers and promos
+â€¢ YouTube videos and social media content
+â€¢ Corporate videos and presentations
 
 **Why Sync is Lucrative:**
 
-  '  **Payment Range:**
-    YouTube video: $50-$500
-    Indie film: $500-$5,000
-    Network TV episode: $2,500-$15,000
-    Cable TV show: $1,000-$5,000
-    National commercial: $25,000-$500,000+
-    Major film: $15,000-$100,000+
-    Video game: $5,000-$50,000+
+ðŸ'° **Payment Range:**
+â€¢ YouTube video: $50-$500
+â€¢ Indie film: $500-$5,000
+â€¢ Network TV episode: $2,500-$15,000
+â€¢ Cable TV show: $1,000-$5,000
+â€¢ National commercial: $25,000-$500,000+
+â€¢ Major film: $15,000-$100,000+
+â€¢ Video game: $5,000-$50,000+
 
 Plus you keep:
-    Ongoing performance royalties every time it airs
-    Streaming residuals
-    International broadcast royalties
+â€¢ Ongoing performance royalties every time it airs
+â€¢ Streaming residuals
+â€¢ International broadcast royalties
 
 **Real Example:**
 "Dog Days Are Over" by Florence + The Machine in commercials:
-    Multiple sync fees: ~$500,000 total
-    Performance royalties: ~$200,000+/year
-    Career exposure: Invaluable
+â€¢ Multiple sync fees: ~$500,000 total
+â€¢ Performance royalties: ~$200,000+/year
+â€¢ Career exposure: Invaluable
 
 **The Two Licenses Required:**
 
@@ -647,7 +647,7 @@ Plus you keep:
    - Negotiated with recording owner (artist, label, or producer)
 
 **If you wrote AND recorded it yourself:**
-You control both licenses  "negotiate both fees.`
+You control both licensesâ€"negotiate both fees.`
         },
         {
           heading: 'How to Get Sync Placements',
@@ -656,33 +656,33 @@ You control both licenses  "negotiate both fees.`
 Submit your music to agencies that pitch to music supervisors:
 
 **Top Sync Agencies:**
-    **Musicbed** - High-end film/TV/commercial
-    **Artlist** - Subscription model, steady income
-    **Epidemic Sound** - YouTube/social media focus
-    **Marmoset** - Boutique, selective
-    **AudioSocket** - Broad catalog
-    **Music Vine** - Emerging artists
+â€¢ **Musicbed** - High-end film/TV/commercial
+â€¢ **Artlist** - Subscription model, steady income
+â€¢ **Epidemic Sound** - YouTube/social media focus
+â€¢ **Marmoset** - Boutique, selective
+â€¢ **AudioSocket** - Broad catalog
+â€¢ **Music Vine** - Emerging artists
 
 **Pros:**
-    They handle all negotiations
-    Established supervisor relationships
-    Regular payment
-    Global opportunities
+âœ… They handle all negotiations
+âœ… Established supervisor relationships
+âœ… Regular payment
+âœ… Global opportunities
 
 **Cons:**
-    Non-exclusive can limit big placements
-    Lower fees (you split with agency)
-    High competition in catalog
+âŒ Non-exclusive can limit big placements
+âŒ Lower fees (you split with agency)
+âŒ High competition in catalog
 
 **Route 2: Direct to Music Supervisors**
 
 Build relationships with the people who place music:
 
 **Where to Find Them:**
-    IMDb Pro (credits for TV shows/films)
-    Guild of Music Supervisors directory
-    LinkedIn (search "music supervisor")
-    Industry events (SXSW, Sundance, etc.)
+â€¢ IMDb Pro (credits for TV shows/films)
+â€¢ Guild of Music Supervisors directory
+â€¢ LinkedIn (search "music supervisor")
+â€¢ Industry events (SXSW, Sundance, etc.)
 
 **How to Approach:**
 1. Research what they've placed before
@@ -713,30 +713,30 @@ Best,
 **Route 3: Sync Licensing Platforms**
 
 **Syncr (sync. .com):**
-    Upload your catalog
-    Supervisors search and license directly
-    You set your prices
-    Platform takes 30%
+â€¢ Upload your catalog
+â€¢ Supervisors search and license directly
+â€¢ You set your prices
+â€¢ Platform takes 30%
 
 **SongTradr:**
-    Global marketplace
-    AI-powered matching
-    Brief notifications
-    Professional network
+â€¢ Global marketplace
+â€¢ AI-powered matching
+â€¢ Brief notifications
+â€¢ Professional network
 
 **Songfinch:**
-    Custom song commissions
-    Great for building sync portfolio
-    Steady income potential
+â€¢ Custom song commissions
+â€¢ Great for building sync portfolio
+â€¢ Steady income potential
 
 **Route 4: YouTube & Social Media**
 
 Don't overlook micro-licensing:
 
 **Platforms:**
-    **Lickd** - YouTube creator licensing
-    **Epidemic Sound** - Subscription for creators
-    **Artlist** - Popular with video creators
+â€¢ **Lickd** - YouTube creator licensing
+â€¢ **Epidemic Sound** - Subscription for creators
+â€¢ **Artlist** - Popular with video creators
 
 Thousands of small licenses = significant income.`
         },
@@ -745,27 +745,27 @@ Thousands of small licenses = significant income.`
           content: `**What Music Supervisors Look For:**
 
 **Technical Requirements:**
-    **Clean/Instrumental versions** - Essential
-    **High-quality recording** - Professional mix/master
-    **Stems available** - Separate tracks for flexibility
-    **Multiple lengths** - :30, :60, full length
-    **Clear ownership** - No samples, no clearance issues
+âœ… **Clean/Instrumental versions** - Essential
+âœ… **High-quality recording** - Professional mix/master
+âœ… **Stems available** - Separate tracks for flexibility
+âœ… **Multiple lengths** - :30, :60, full length
+âœ… **Clear ownership** - No samples, no clearance issues
 
 **Content Guidelines:**
 
 **Best for Sync:**
-    Universal themes (love, journey, triumph, loss)
-    Clear but not overly specific lyrics
-    Emotional without being cheesy
-    Current production style
-    Moderate BPM (80-130)
+â€¢ Universal themes (love, journey, triumph, loss)
+â€¢ Clear but not overly specific lyrics
+â€¢ Emotional without being cheesy
+â€¢ Current production style
+â€¢ Moderate BPM (80-130)
 
 **Avoid:**
-    Explicit language
-    Brand name mentions
-    Highly specific references
-    Overly political content
-    Dark/disturbing themes (limited use)
+â€¢ Explicit language
+â€¢ Brand name mentions
+â€¢ Highly specific references
+â€¢ Overly political content
+â€¢ Dark/disturbing themes (limited use)
 
 **Production Tips:**
 
@@ -796,16 +796,16 @@ Thousands of small licenses = significant income.`
 **Metadata is CRUCIAL:**
 
 Every track needs:
-    BPM
-    Key
-    Mood tags (uplifting, melancholic, energetic)
-    Instrumentation
-    Vocal/instrumental
-    Genre/subgenre
-    Era/decade feel
-    Cultural context
+â€¢ BPM
+â€¢ Key
+â€¢ Mood tags (uplifting, melancholic, energetic)
+â€¢ Instrumentation
+â€¢ Vocal/instrumental
+â€¢ Genre/subgenre
+â€¢ Era/decade feel
+â€¢ Cultural context
 
-Music supervisors search by these terms  "tag accurately.`
+Music supervisors search by these termsâ€"tag accurately.`
         },
         {
           heading: 'Negotiating Sync Deals',
@@ -814,39 +814,39 @@ Music supervisors search by these terms  "tag accurately.`
 **Typical Deal Points:**
 
 1. **Term**
-       Perpetuity (forever) vs. limited (1-5 years)
-       Perpetuity pays more upfront, limited can re-license later
+   â€¢ Perpetuity (forever) vs. limited (1-5 years)
+   â€¢ Perpetuity pays more upfront, limited can re-license later
 
 2. **Territory**
-       Worldwide, US only, or specific regions
-       Worldwide = higher fee
+   â€¢ Worldwide, US only, or specific regions
+   â€¢ Worldwide = higher fee
 
 3. **Media**
-       All media vs. TV only, film only, etc.
-       Broader rights = higher fee
+   â€¢ All media vs. TV only, film only, etc.
+   â€¢ Broader rights = higher fee
 
 4. **Exclusivity**
-       Can the same music be used elsewhere?
-       Exclusive = much higher fee
+   â€¢ Can the same music be used elsewhere?
+   â€¢ Exclusive = much higher fee
 
 5. **Usage**
-       Background, featured, theme song
-       How many episodes/scenes
-       Featured/theme = higher fee
+   â€¢ Background, featured, theme song
+   â€¢ How many episodes/scenes
+   â€¢ Featured/theme = higher fee
 
 **Fee Negotiation:**
 
 **Starting Points (US Network TV):**
-    Background use, one episode: $2,500-$5,000
-    Featured use, one episode: $5,000-$15,000
-    Theme song, one season: $50,000-$200,000
+â€¢ Background use, one episode: $2,500-$5,000
+â€¢ Featured use, one episode: $5,000-$15,000
+â€¢ Theme song, one season: $50,000-$200,000
 
 **Your Negotiating Power Depends On:**
-    Your track's uniqueness
-    Budget of the project
-    How badly they want YOUR song
-    Timeline pressure (last-minute = higher fee)
-    Your willingness to walk away
+â€¢ Your track's uniqueness
+â€¢ Budget of the project
+â€¢ How badly they want YOUR song
+â€¢ Timeline pressure (last-minute = higher fee)
+â€¢ Your willingness to walk away
 
 **Negotiation Email Template:**
 
@@ -861,95 +861,95 @@ Music supervisors search by these terms  "tag accurately.`
 *Would this work within your budget?*
 
 **Counter-Offer Strategy:**
-    They offer $1,000, you wanted $5,000
-    Counter at $3,500 with justification
-    Meet in the middle: $2,000-$2,500
-    Know your minimum  "be willing to walk
+â€¢ They offer $1,000, you wanted $5,000
+â€¢ Counter at $3,500 with justification
+â€¢ Meet in the middle: $2,000-$2,500
+â€¢ Know your minimumâ€"be willing to walk
 
 **Red Flags:**
-     "Exposure only" (no payment)
-     Requesting 100% ownership transfer
-     Perpetuity worldwide exclusivity for low fee
-     No written agreement
-     Vague usage terms
+ðŸš© "Exposure only" (no payment)
+ðŸš© Requesting 100% ownership transfer
+ðŸš© Perpetuity worldwide exclusivity for low fee
+ðŸš© No written agreement
+ðŸš© Vague usage terms
 
 **Contract Checklist:**
-    Fee amount and payment schedule
-    Usage details (how, where, when)
-    Territory and term specified
-    Credit terms (if applicable)
-    Performance royalty rights retained
-    Option to license elsewhere (if non-exclusive)
-    Approval rights (for edits/changes)`
+âœ… Fee amount and payment schedule
+âœ… Usage details (how, where, when)
+âœ… Territory and term specified
+âœ… Credit terms (if applicable)
+âœ… Performance royalty rights retained
+âœ… Option to license elsewhere (if non-exclusive)
+âœ… Approval rights (for edits/changes)`
         },
         {
           heading: 'After the Placement',
           content: `**Maximizing Your Sync Success:**
 
 **1. Register with Your PRO**
-    File cue sheet information
-    Track title, duration, usage type
-    This ensures you get performance royalties
+â€¢ File cue sheet information
+â€¢ Track title, duration, usage type
+â€¢ This ensures you get performance royalties
 
 **2. Collect Performance Royalties**
 Every time your sync airs on TV:
-    Your PRO tracks broadcasts
-    You earn per airing
-    Can add up to more than the original sync fee
+â€¢ Your PRO tracks broadcasts
+â€¢ You earn per airing
+â€¢ Can add up to more than the original sync fee
 
 **Example:**
 $5,000 sync fee for one episode
 + $250 per broadcast
- - 10 airings (original + reruns)
+Ã- 10 airings (original + reruns)
 + International broadcasts
 = $7,500-$15,000 total
 
 **3. Promote the Placement**
-    Share on social media (with permission)
-    Update your website/EPK
-    Mention in pitches to other supervisors
-    Add to your Sync Resume
+â€¢ Share on social media (with permission)
+â€¢ Update your website/EPK
+â€¢ Mention in pitches to other supervisors
+â€¢ Add to your Sync Resume
 
 **4. Build the Relationship**
-    Thank the music supervisor
-    Ask for feedback
-    Keep them updated on new releases
-    Don't be pushy  "be professional
+â€¢ Thank the music supervisor
+â€¢ Ask for feedback
+â€¢ Keep them updated on new releases
+â€¢ Don't be pushyâ€"be professional
 
 **5. Track Your Success**
 Create a Sync Database:
-    Project name, date, fee
-    Supervisor contact
-    Contract terms
-    Payment status
-    Performance royalty tracking
+â€¢ Project name, date, fee
+â€¢ Supervisor contact
+â€¢ Contract terms
+â€¢ Payment status
+â€¢ Performance royalty tracking
 
 **Long-Term Sync Career:**
 
 **Year 1-2: Portfolio Building**
-    Accept lower fees for credits
-    Build relationships
-    Learn what works
-    Goal: 5-10 placements
+â€¢ Accept lower fees for credits
+â€¢ Build relationships
+â€¢ Learn what works
+â€¢ Goal: 5-10 placements
 
 **Year 3-5: Established**
-    Command higher fees
-    Selective about projects
-    Repeat clients
-    Goal: $20,000-$50,000/year
+â€¢ Command higher fees
+â€¢ Selective about projects
+â€¢ Repeat clients
+â€¢ Goal: $20,000-$50,000/year
 
 **Year 5+: Successful Sync Career**
-    Known by supervisors
-    Regular placements
-    Strategic high-value deals
-    Goal: $50,000-$200,000+/year
+â€¢ Known by supervisors
+â€¢ Regular placements
+â€¢ Strategic high-value deals
+â€¢ Goal: $50,000-$200,000+/year
 
 **Success Story:**
 ZZ Ward: Indie blues artist
-    30+ sync placements in 5 years
-    Featured in "Suits," "Hart of Dixie," Walmart commercials
-    Sync income: $300,000+ estimated
-    Launched her touring career through exposure
+â€¢ 30+ sync placements in 5 years
+â€¢ Featured in "Suits," "Hart of Dixie," Walmart commercials
+â€¢ Sync income: $300,000+ estimated
+â€¢ Launched her touring career through exposure
 
 Sync can be your sustainable income while building your artist career.`
         }
@@ -963,124 +963,124 @@ Sync can be your sustainable income while building your artist career.`
       color: '#22c55e',
       readTime: '16 min',
       type: 'Guide',
-      summary: 'Understand the complex world of music publishing and ensure you are collecting every dollar you have earned.',
+      summary: 'Understand the complex world of music publishing and ensure you\'re collecting every dollar you\'ve earned.',
       sections: [
         {
           heading: 'What is Music Publishing?',
-          content: `Music publishing is the business of protecting and monetizing musical compositions (the songs themselves - not recordings).
+          content: `Music publishing is the business of protecting and monetizing musical compositions (the songs themselvesâ€"not recordings).
 
 **The Two Halves of a Composition:**
 
 **1. Writer's Share (50%)**
-    Belongs to the songwriter(s)
-    Paid directly to you
-    Cannot be sold or signed away
-    Collected by your PRO
+â€¢ Belongs to the songwriter(s)
+â€¢ Paid directly to you
+â€¢ Cannot be sold or signed away
+â€¢ Collected by your PRO
 
 **2. Publisher's Share (50%)**
-    Can be kept by you (self-published)
-    Or assigned to a publishing company
-    Handles administration, licensing, collection
-    Split between you and publisher if signed
+â€¢ Can be kept by you (self-published)
+â€¢ Or assigned to a publishing company
+â€¢ Handles administration, licensing, collection
+â€¢ Split between you and publisher if signed
 
 **Example:**
 Your song earns $10,000 in royalties:
-    $5,000 goes to writer's share   ' You
-    $5,000 goes to publisher's share   ' You (if self-published) OR you + publisher (if signed)
+â€¢ $5,000 goes to writer's share â†' You
+â€¢ $5,000 goes to publisher's share â†' You (if self-published) OR you + publisher (if signed)
 
 **What Publishers Actually Do:**
 
 **Administration Publishing (10-25% commission):**
-    Register your songs worldwide
-    Collect royalties from all sources
-    Handle licensing paperwork
-    Audit companies to ensure payment
-    YOU retain ownership
+â€¢ Register your songs worldwide
+â€¢ Collect royalties from all sources
+â€¢ Handle licensing paperwork
+â€¢ Audit companies to ensure payment
+â€¢ YOU retain ownership
 
 **Traditional Publishing Deal (50% of publisher's share):**
-    They own 50% of publisher's share (or more)
-    Provide advance payment
-    Actively pitch your songs
-    Fund demos and recordings
-    Career development
+â€¢ They own 50% of publisher's share (or more)
+â€¢ Provide advance payment
+â€¢ Actively pitch your songs
+â€¢ Fund demos and recordings
+â€¢ Career development
 
 **Co-Publishing Deal (Most common for established artists):**
-    Split publisher's share 50/50
-    You get: 50% writer + 25% publisher = 75% total
-    They get: 25% of publisher's share
-    Balance of benefits and ownership`
+â€¢ Split publisher's share 50/50
+â€¢ You get: 50% writer + 25% publisher = 75% total
+â€¢ They get: 25% of publisher's share
+â€¢ Balance of benefits and ownership`
         },
         {
           heading: 'Types of Publishing Royalties',
           content: `**1. Performance Royalties**
 
 Earned when your song is performed publicly:
-    Radio (AM/FM, satellite, internet)
-    TV broadcasts
-    Streaming (Spotify, Apple Music, etc.)
-    Live venues (concerts, bars, restaurants)
-    Background music (stores, offices)
+â€¢ Radio (AM/FM, satellite, internet)
+â€¢ TV broadcasts
+â€¢ Streaming (Spotify, Apple Music, etc.)
+â€¢ Live venues (concerts, bars, restaurants)
+â€¢ Background music (stores, offices)
 
 **How It Works:**
-    Collected by PROs (ASCAP, BMI, SESAC)
-    Venues/platforms pay blanket licenses
-    PROs distribute to songwriters
-    You must be registered with a PRO
+â€¢ Collected by PROs (ASCAP, BMI, SESAC)
+â€¢ Venues/platforms pay blanket licenses
+â€¢ PROs distribute to songwriters
+â€¢ You must be registered with a PRO
 
 **Payment Timeline:**
-    Quarterly distributions
-    6-12 month lag from performance to payment
+â€¢ Quarterly distributions
+â€¢ 6-12 month lag from performance to payment
 
 **Typical Earnings:**
-    1 million Spotify streams: ~$500-$800 in performance royalties
-    Local radio play: $50-$500 per play (varies by market)
-    National TV show: $1,000-$5,000+ per episode
+â€¢ 1 million Spotify streams: ~$500-$800 in performance royalties
+â€¢ Local radio play: $50-$500 per play (varies by market)
+â€¢ National TV show: $1,000-$5,000+ per episode
 
 **2. Mechanical Royalties**
 
 Earned when your song is reproduced:
-    Physical CD/vinyl sales
-    Digital downloads (iTunes, etc.)
-    Interactive streams (Spotify, Apple Music)
+â€¢ Physical CD/vinyl sales
+â€¢ Digital downloads (iTunes, etc.)
+â€¢ Interactive streams (Spotify, Apple Music)
 
 **US Statutory Rate (2025):**
-    Physical/download: 12.4   per copy (songs <5 min)
-    Streaming: $0.006-$0.01 per stream (complicated formula)
+â€¢ Physical/download: 12.4Â¢ per copy (songs <5 min)
+â€¢ Streaming: $0.006-$0.01 per stream (complicated formula)
 
 **Who Collects:**
-    US: Mechanical Licensing Collective (MLC) for streaming
-    US: Harry Fox Agency for physical/downloads
-    International: Local mechanical rights societies
+â€¢ US: Mechanical Licensing Collective (MLC) for streaming
+â€¢ US: Harry Fox Agency for physical/downloads
+â€¢ International: Local mechanical rights societies
 
 **You Must:**
-    Register with The MLC (free at themlc.com)
-    Join Harry Fox or use a distributor
-    Provide correct metadata to streaming platforms
+â€¢ Register with The MLC (free at themlc.com)
+â€¢ Join Harry Fox or use a distributor
+â€¢ Provide correct metadata to streaming platforms
 
 **3. Synchronization Royalties** (Covered earlier)
-    TV, film, commercials, video games
-    Negotiated per use
-    One-time fees + ongoing performance royalties
+â€¢ TV, film, commercials, video games
+â€¢ Negotiated per use
+â€¢ One-time fees + ongoing performance royalties
 
 **4. Print Royalties**
-    Sheet music sales
-    Lyric books
-    Guitar tabs
+â€¢ Sheet music sales
+â€¢ Lyric books
+â€¢ Guitar tabs
 
 **Earnings:**
-    10-20% of retail price
-    Niche but can add up
+â€¢ 10-20% of retail price
+â€¢ Niche but can add up
 
 **5. Micro-Sync / Digital Performance**
-    YouTube Content ID
-    Social media uses (TikTok, Instagram)
-    Video game integrations
-    Ringtones (yes, still a thing)
+â€¢ YouTube Content ID
+â€¢ Social media uses (TikTok, Instagram)
+â€¢ Video game integrations
+â€¢ Ringtones (yes, still a thing)
 
 **Collected by:**
-    Publishing administrator
-    YouTube via Content ID
-    Direct licensing platforms
+â€¢ Publishing administrator
+â€¢ YouTube via Content ID
+â€¢ Direct licensing platforms
 
 **Total Potential Income Sources:**
 A successful song can earn from 15+ different royalty streams simultaneously.`
@@ -1090,80 +1090,80 @@ A successful song can earn from 15+ different royalty streams simultaneously.`
           content: `**Step 1: Create Your Own Publishing Company**
 
 **Why:**
-    Collect 100% of royalties (both writer & publisher shares)
-    Professional presentation
-    Tax benefits
-    Ownership and control
+â€¢ Collect 100% of royalties (both writer & publisher shares)
+â€¢ Professional presentation
+â€¢ Tax benefits
+â€¢ Ownership and control
 
 **How to Set Up:**
 
 **1. Choose a Company Name**
-    Can't be same as existing publisher (check ASCAP/BMI databases)
-    Often [Your Name] Music, [Your Name] Publishing
-    Examples: "Luna Records Publishing," "Skyline Songs"
+â€¢ Can't be same as existing publisher (check ASCAP/BMI databases)
+â€¢ Often [Your Name] Music, [Your Name] Publishing
+â€¢ Examples: "Luna Records Publishing," "Skyline Songs"
 
 **2. Register as a Business**
-    LLC recommended ($50-$500 depending on state)
-    Sole proprietorship works too (simpler, less protection)
-    Get EIN from IRS (free, online)
+â€¢ LLC recommended ($50-$500 depending on state)
+â€¢ Sole proprietorship works too (simpler, less protection)
+â€¢ Get EIN from IRS (free, online)
 
 **3. Affiliate with a PRO**
-    ASCAP, BMI, or SESAC
-    Register yourself as "writer"
-    Register your publishing company as "publisher"
-    Costs: $0-$150 depending on PRO
+â€¢ ASCAP, BMI, or SESAC
+â€¢ Register yourself as "writer"
+â€¢ Register your publishing company as "publisher"
+â€¢ Costs: $0-$150 depending on PRO
 
 **4. Open Publishing Bank Account**
-    Separate from personal finances
-    Track publishing income
-    Easier taxes and accounting
+â€¢ Separate from personal finances
+â€¢ Track publishing income
+â€¢ Easier taxes and accounting
 
 **Step 2: Register Your Songs**
 
 **With Your PRO:**
-    Song title
-    Writers and percentages
-    Your publishing company name
-    Do this BEFORE release
+â€¢ Song title
+â€¢ Writers and percentages
+â€¢ Your publishing company name
+â€¢ Do this BEFORE release
 
 **With Mechanical Licensing Collective:**
-    themlc.com (free)
-    Ensures streaming mechanical royalty collection
-    Required for US streaming income
+â€¢ themlc.com (free)
+â€¢ Ensures streaming mechanical royalty collection
+â€¢ Required for US streaming income
 
 **With Copyright Office:**
-    Optional but recommended
-    Strengthens legal protection
-    One-time $65 fee
+â€¢ Optional but recommended
+â€¢ Strengthens legal protection
+â€¢ One-time $65 fee
 
 **Step 3: Distribute with Publishing Admin**
 
 **Option A: Full DIY** (100% royalties, more work)
-    Register with every collection society globally (20+ countries)
-    Monitor and track usage yourself
-    File claims manually
-    Best if: Low volume, specific territories
+â€¢ Register with every collection society globally (20+ countries)
+â€¢ Monitor and track usage yourself
+â€¢ File claims manually
+â€¢ Best if: Low volume, specific territories
 
 **Option B: Publishing Administrator** (85-90% royalties, less work)
 
 **Top Admin Services:**
-    **Songtrust**: $100/year + 15% commission
-    **CD Baby Pro**: $30-$70/year + small commission
-    **TuneCore Publishing**: $75/year + 20% commission
-    **Sentric Music**: Free + 20% commission (UK-based)
+â€¢ **Songtrust**: $100/year + 15% commission
+â€¢ **CD Baby Pro**: $30-$70/year + small commission
+â€¢ **TuneCore Publishing**: $75/year + 20% commission
+â€¢ **Sentric Music**: Free + 20% commission (UK-based)
 
 **What They Do:**
-    Register your songs in 100+ territories
-    Collect from 60+ collection societies
-    YouTube Content ID management
-    Sync licensing opportunities
-    Royalty tracking dashboard
-    Audit services
+âœ… Register your songs in 100+ territories
+âœ… Collect from 60+ collection societies
+âœ… YouTube Content ID management
+âœ… Sync licensing opportunities
+âœ… Royalty tracking dashboard
+âœ… Audit services
 
 **Option C: Hybrid**
-    Use administrator for collection
-    Handle sync licensing yourself
-    Best of both worlds
+â€¢ Use administrator for collection
+â€¢ Handle sync licensing yourself
+â€¢ Best of both worlds
 
 **Recommendation:**
 If you're serious about music career, use an administrator. The 10-15% commission is worth the global collection and time saved.`
@@ -1173,87 +1173,87 @@ If you're serious about music career, use an administrator. The 10-15% commissio
           content: `**Performance Rights Organizations (PROs):**
 
 **ASCAP (American Society of Composers, Authors and Publishers)**
-    Non-profit
-    Member-owned (you get voting rights)
-    850,000+ members
-    Costs: Writer $50, Publisher $50
-    Payment: Quarterly
-    Best for: Traditional songwriters, established artists
+â€¢ Non-profit
+â€¢ Member-owned (you get voting rights)
+â€¢ 850,000+ members
+â€¢ Costs: Writer $50, Publisher $50
+â€¢ Payment: Quarterly
+â€¢ Best for: Traditional songwriters, established artists
 
 **BMI (Broadcast Music, Inc.)**
-    For-profit (but treats members fairly)
-    Free to join (writer & publisher)
-    1.1 million+ members
-    Payment: Quarterly
-    Best for: Anyone, especially starting out (no fees)
+â€¢ For-profit (but treats members fairly)
+â€¢ Free to join (writer & publisher)
+â€¢ 1.1 million+ members
+â€¢ Payment: Quarterly
+â€¢ Best for: Anyone, especially starting out (no fees)
 
 **SESAC (Society of European Stage Authors & Composers)**
-    For-profit, selective (invitation only)
-    Smaller (30,000+ members)
-    Higher per-play rates
-    Payment: Quarterly
-    Best for: Established writers, specific genres
+â€¢ For-profit, selective (invitation only)
+â€¢ Smaller (30,000+ members)
+â€¢ Higher per-play rates
+â€¢ Payment: Quarterly
+â€¢ Best for: Established writers, specific genres
 
 **Global Music Rights (GMR)**
-    Boutique, invitation-only
-    For high-value catalogs
-    Negotiates higher rates
-    Best for: Hits and major placements
+â€¢ Boutique, invitation-only
+â€¢ For high-value catalogs
+â€¢ Negotiates higher rates
+â€¢ Best for: Hits and major placements
 
 **Which Should You Choose?**
 
 **Choose based on:**
-    Cost (BMI is free)
-    Genre representation (ASCAP strong in film/TV, BMI in pop/hip-hop)
-    Advances (some PROs offer advances to established writers)
-    Personal connection (who responds to your questions?)
+â€¢ Cost (BMI is free)
+â€¢ Genre representation (ASCAP strong in film/TV, BMI in pop/hip-hop)
+â€¢ Advances (some PROs offer advances to established writers)
+â€¢ Personal connection (who responds to your questions?)
 
 **You Can Only Join ONE PRO** (per country)
-    You can't switch easily (2-year commitment typically)
-    Your publishing company can be with a different PRO than you as a writer
-    Example: You as writer with ASCAP, your publishing company with BMI
+â€¢ You can't switch easily (2-year commitment typically)
+â€¢ Your publishing company can be with a different PRO than you as a writer
+â€¢ Example: You as writer with ASCAP, your publishing company with BMI
 
 **What Your PRO Does:**
 
-    Licenses venues, radio, streaming services
-    Monitors where your music is performed
-    Distributes royalties to you
-    Advocates for songwriter rights
-    Provides legal resources
+âœ… Licenses venues, radio, streaming services
+âœ… Monitors where your music is performed
+âœ… Distributes royalties to you
+âœ… Advocates for songwriter rights
+âœ… Provides legal resources
 
-    Does NOT:
-    Collect mechanical royalties (that's MLC/Harry Fox)
-    Handle sync licensing (that's you or your publisher)
-    Promote your music
-    Get you placements
+âŒ Does NOT:
+â€¢ Collect mechanical royalties (that's MLC/Harry Fox)
+â€¢ Handle sync licensing (that's you or your publisher)
+â€¢ Promote your music
+â€¢ Get you placements
 
 **Registering Your Songs:**
 
 **Required Information:**
-    Song title
-    Writers (you + any co-writers with their PROs)
-    Publishers (your company name)
-    Ownership percentages
-    ISWC (if you have one)
+â€¢ Song title
+â€¢ Writers (you + any co-writers with their PROs)
+â€¢ Publishers (your company name)
+â€¢ Ownership percentages
+â€¢ ISWC (if you have one)
 
 **Do This:**
-    Register BEFORE release
-    Update after any changes
-    Register every song, even demos
-    Keep your contact info current
+â€¢ Register BEFORE release
+â€¢ Update after any changes
+â€¢ Register every song, even demos
+â€¢ Keep your contact info current
 
 **Checking Your Royalties:**
-    Log in quarterly
-    Review usage reports
-    Flag any missing plays
-    File disputes if needed
+â€¢ Log in quarterly
+â€¢ Review usage reports
+â€¢ Flag any missing plays
+â€¢ File disputes if needed
 
 **Average Royalty Examples:**
-    Local radio (top 50 market): $200-$400 per play
-    National radio (top 10 market): $500-$1,000+ per play
-    Cable TV background use: $20-$100 per 30 seconds
-    Streaming (1 million plays): $500-$800 total
-    Coffee shop background: $0.01-$0.05 per play (adds up!)
+â€¢ Local radio (top 50 market): $200-$400 per play
+â€¢ National radio (top 10 market): $500-$1,000+ per play
+â€¢ Cable TV background use: $20-$100 per 30 seconds
+â€¢ Streaming (1 million plays): $500-$800 total
+â€¢ Coffee shop background: $0.01-$0.05 per play (adds up!)
 
 **Pro Tip:**
 Set aside 30% of your publishing income for taxes. Royalties are self-employment income.`
@@ -1267,50 +1267,50 @@ Your song streams in 200+ countries. Each country has its own collection society
 **Collection Societies by Territory:**
 
 **Europe:**
-    UK: PRS for Music
-    Germany: GEMA
-    France: SACEM
-    Spain: SGAE
-    Scandinavia: STIM (Sweden), TONO (Norway), KODA (Denmark)
+â€¢ UK: PRS for Music
+â€¢ Germany: GEMA
+â€¢ France: SACEM
+â€¢ Spain: SGAE
+â€¢ Scandinavia: STIM (Sweden), TONO (Norway), KODA (Denmark)
 
 **Asia:**
-    Japan: JASRAC
-    South Korea: KOMCA
-    China: MCSC
-    India: IPRS
+â€¢ Japan: JASRAC
+â€¢ South Korea: KOMCA
+â€¢ China: MCSC
+â€¢ India: IPRS
 
 **Latin America:**
-    Brazil: ECAD
-    Mexico: SACM
-    Argentina: SADAIC
+â€¢ Brazil: ECAD
+â€¢ Mexico: SACM
+â€¢ Argentina: SADAIC
 
 **Other:**
-    Canada: SOCAN
-    Australia: APRA AMCOS
-    South Africa: SAMRO
+â€¢ Canada: SOCAN
+â€¢ Australia: APRA AMCOS
+â€¢ South Africa: SAMRO
 
 **How International Collection Works:**
 
 **Without Publisher/Admin:**
-    Your US PRO has reciprocal agreements
-    They collect international on your behalf
-    But: Can take 2-3 years and lose 20-40% in fees
+â€¢ Your US PRO has reciprocal agreements
+â€¢ They collect international on your behalf
+â€¢ But: Can take 2-3 years and lose 20-40% in fees
 
 **With Publishing Administrator:**
-    They register directly with each society
-    Faster collection (6-12 months)
-    Higher royalty capture (5-15% more)
-    One login to see global earnings
+â€¢ They register directly with each society
+â€¢ Faster collection (6-12 months)
+â€¢ Higher royalty capture (5-15% more)
+â€¢ One login to see global earnings
 
 **Black Box Royalties:**
 
 "Black box" = unclaimed royalties sitting in collection societies.
 
 **Why It Happens:**
-    Incomplete metadata
-    Unregistered songs
-    Writers not affiliated with societies
-    Spelling errors in credits
+â€¢ Incomplete metadata
+â€¢ Unregistered songs
+â€¢ Writers not affiliated with societies
+â€¢ Spelling errors in credits
 
 **Estimated unclaimed royalties globally: $1-2 BILLION/year**
 
@@ -1321,12 +1321,12 @@ Your song streams in 200+ countries. Each country has its own collection society
 4. File claims for past releases (can go back 3 years typically)
 
 **Metadata Checklist:**
-    Songwriter legal names (spelled correctly)
-    PRO affiliations
-    IPI/CAE numbers
-    Publisher names
-    ISWC codes
-    Consistent song title spelling
+âœ… Songwriter legal names (spelled correctly)
+âœ… PRO affiliations
+âœ… IPI/CAE numbers
+âœ… Publisher names
+âœ… ISWC codes
+âœ… Consistent song title spelling
 
 **Case Study:**
 Independent artist discovered $18,000 in unclaimed European royalties from 2018-2021. Simple metadata fix + registration = money recovered.
@@ -1444,11 +1444,11 @@ Publishing is complex, but it's YOUR money. Don't leave it uncollected.`
               fontSize: '0.85rem',
               color: 'var(--text-secondary)'
             }}>
-              <span>  "  {selectedResource.readTime} read</span>
-              <span>   </span>
+              <span>ðŸ"– {selectedResource.readTime} read</span>
+              <span>â€¢</span>
               <span>{selectedResource.sections.length} sections</span>
-              <span>   </span>
-              <span style={{ color: selectedResource.color }}>    Action Items Included</span>
+              <span>â€¢</span>
+              <span style={{ color: selectedResource.color }}>âš¡ Action Items Included</span>
             </div>
           </div>
 
@@ -1765,7 +1765,7 @@ Publishing is complex, but it's YOUR money. Don't leave it uncollected.`
                 fontWeight: '600'
               }}
             >
-                "  Office Hours Schedule
+              ðŸ"… Office Hours Schedule
             </button>
             <button
               className="cta-button-premium haptic-press"
@@ -1775,7 +1775,7 @@ Publishing is complex, but it's YOUR money. Don't leave it uncollected.`
                 fontWeight: '600'
               }}
             >
-                "  Download Templates
+              ðŸ" Download Templates
             </button>
           </div>
         </div>

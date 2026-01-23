@@ -1435,10 +1435,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             <span>STUDIO AGENTS AI</span>
           </div>
           <div className="footer-links">
+            <button className="footer-link" onClick={() => window.location.hash = '#/whitepapers'}>Whitepapers</button>
+            <span className="footer-divider">•</span>
+            <button className="footer-link" onClick={() => window.location.hash = '#/legal'}>Legal & Copyright</button>
+            <span className="footer-divider">•</span>
             <button className="footer-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
             <span className="footer-divider">•</span>
             <button className="footer-link" onClick={() => setShowTerms(true)}>Terms of Service</button>
-            <button className="footer-link" onClick={() => setShowShowcase(true)}>Restored OS Showcase</button>
           </div>
           <p>&copy; 2025 studioagentsai.com • Built for the next generation of creators.</p>
         </div>

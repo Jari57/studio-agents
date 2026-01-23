@@ -4,8 +4,10 @@ import './App.css';
 import './mobile-fixes.css';
 import { suppressExtensionErrors } from './utils/suppressExtensionErrors';
 
-// Lazy load the heavy StudioView component
+// Lazy load heavy components
 const StudioView = lazy(() => import('./components/StudioView'));
+const WhitepapersPage = lazy(() => import('./components/WhitepapersPage'));
+const LegalResourcesPage = lazy(() => import('./components/LegalResourcesPage'));
 
 // Loading fallback component
 const StudioLoadingFallback = () => (
@@ -98,16 +100,20 @@ function App() {
 
   // Determine view based on hash
   const isStudio = currentHash.startsWith('#/studio');
+  const isWhitepapers = currentHash === '#/whitepapers';
+  const isLegal = currentHash === '#/legal';
 
   return (
     <div className="app-container">
-      {!isStudio ? (
-        <LandingPage 
-          onEnter={handleEnterStudio} 
-          onStartTour={handleStartTour}
-          onSubscribe={handleSubscribe}
-        />
-      ) : (
+      {isWhitepapers ? (
+        <Suspense fallback={<StudioLoadingFallback />}>
+          <WhitepapersPage onBack={handleBackToLanding} />
+        </Suspense>
+      ) : isLegal ? (
+        <Suspense fallback={<StudioLoadingFallback />}>
+          <LegalResourcesPage onBack={handleBackToLanding} />
+        </Suspense>
+      ) : isStudio ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <StudioView 
             onBack={handleBackToLanding} 
@@ -118,6 +124,12 @@ function App() {
             initialTab={initialTab}
           />
         </Suspense>
+      ) : (
+        <LandingPage 
+          onEnter={handleEnterStudio} 
+          onStartTour={handleStartTour}
+          onSubscribe={handleSubscribe}
+        />
       )}
     </div>
   );
