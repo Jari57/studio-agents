@@ -653,7 +653,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   });
   
   // Asset preview state - enhanced with navigation and robust handling
-  const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image', url, title, asset, assets, currentIndex }
+  const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image'|'text', url, title, asset, assets, currentIndex }
   const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max toggle for preview modal
   const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
   
@@ -661,6 +661,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const safePreview = showPreview || {};
   const safePreviewAssets = Array.isArray(safePreview.assets) ? safePreview.assets : [];
   const safePreviewIndex = typeof safePreview.currentIndex === 'number' && !isNaN(safePreview.currentIndex) ? safePreview.currentIndex : 0;
+  
+  // Helper: Get proper type for asset preview (handles text assets correctly)
+  const getAssetPreviewType = (asset) => {
+    if (!asset) return 'text';
+    if (asset.audioUrl) return 'audio';
+    if (asset.videoUrl) return 'video';
+    if (asset.imageUrl) return 'image';
+    // Text-based assets
+    return (asset.type || 'text').toLowerCase();
+  };
   
   // Audio refs to prevent re-render interruption
   const previewAudioRef = useRef(null);
@@ -12584,8 +12594,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   const newAsset = safePreviewAssets[newIndex];
                   if (!newAsset) return; // Safety check
                   setShowPreview({
-                    type: newAsset.audioUrl ? 'audio' : newAsset.videoUrl ? 'video' : 'image',
-                    url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl,
+                    type: getAssetPreviewType(newAsset),
+                    url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl || null,
+                    content: newAsset.content || newAsset.snippet || newAsset.output || null,
                     title: newAsset.title || 'Untitled',
                     asset: newAsset,
                     assets: safePreviewAssets,
@@ -12629,8 +12640,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   const newAsset = safePreviewAssets[newIndex];
                   if (!newAsset) return; // Safety check
                   setShowPreview({
-                    type: newAsset.audioUrl ? 'audio' : newAsset.videoUrl ? 'video' : 'image',
-                    url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl,
+                    type: getAssetPreviewType(newAsset),
+                    url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl || null,
+                    content: newAsset.content || newAsset.snippet || newAsset.output || null,
                     title: newAsset.title || 'Untitled',
                     asset: newAsset,
                     assets: safePreviewAssets,
@@ -13012,8 +13024,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowPreview({
-                        type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
-                        url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
+                        type: getAssetPreviewType(asset),
+                        url: asset.audioUrl || asset.videoUrl || asset.imageUrl || null,
+                        content: asset.content || asset.snippet || asset.output || null,
                         title: asset.title || 'Untitled',
                         asset: asset,
                         assets: safePreviewAssets,
