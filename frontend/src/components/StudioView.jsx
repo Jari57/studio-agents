@@ -3292,15 +3292,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   const handleDeleteProject = async (projectId, e) => {
     e?.stopPropagation(); // Prevent triggering the card click
+    if (!projectId) return;
     if (!window.confirm("Are you sure you want to delete this project?")) return;
 
     // Find the project name before deleting for notification
-    const projectToDelete = (projects || []).find(p => p.id === projectId);
+    const safeProjects = projects || [];
+    const projectToDelete = safeProjects.find(p => p?.id === projectId);
     const projectName = projectToDelete?.name || 'Unknown';
 
     // Optimistic UI update - remove from local state
     // The useEffect for projects will automatically update localStorage (studio_agents_projects)
-    setProjects((projects || []).filter(p => p.id !== projectId));
+    setProjects(safeProjects.filter(p => p?.id !== projectId));
 
     // Delete from cloud via backend API (uses Admin SDK, bypasses security rules)
     if (isLoggedIn && user) {

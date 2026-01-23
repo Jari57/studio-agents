@@ -289,7 +289,7 @@ function GeneratorCard({
                     overflow: 'hidden'
                   }}
                 >
-                  {mediaType === 'audio' && (
+                  {mediaType === 'audio' && mediaUrl && (
                     <div style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
@@ -315,7 +315,7 @@ function GeneratorCard({
                       />
                     </div>
                   )}
-                  {mediaType === 'image' && (
+                  {mediaType === 'image' && mediaUrl && (
                     <div style={{ position: 'relative' }}>
                       <img 
                         src={mediaUrl.startsWith('http') || mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
@@ -343,7 +343,7 @@ function GeneratorCard({
                       </div>
                     </div>
                   )}
-                  {mediaType === 'video' && (
+                  {mediaType === 'video' && mediaUrl && (
                     <video 
                       src={mediaUrl}
                       style={{ 

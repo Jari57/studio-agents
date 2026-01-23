@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Search, Plus, LayoutGrid, List, MoreVertical,
   Eye, Share2, Trash2, Edit3, Copy, Twitter, Instagram,
   Clock, CheckCircle, Circle, Archive, Sparkles, Folder,
-  Music, Video, Image, Disc, Film, Palette, X, ChevronRight
+  Music, Video, Image, Disc, Film, Palette, X, ChevronRight,
+  Save, Play, Pause, Volume2, Maximize2, Download, FileText,
+  ChevronLeft, RotateCcw, Heart, Bookmark, Layers, Zap
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, PROJECT_STATUSES, createProjectFromTemplate } from '../data/projectTemplates';
@@ -46,13 +48,116 @@ function ProjectHub({
   const [style, setStyle] = useState('Modern Hip-Hop');
   const [model, setModel] = useState('Gemini 2.0 Flash');
   const [showProjectMenu, setShowProjectMenu] = useState(null);
-  // const [editingProject, setEditingProject] = useState(null); - reserved for future edit feature
+  
+  // NEW: Editor-like features
+  const [previewProject, setPreviewProject] = useState(null); // Quick preview panel
+  const [previewAsset, setPreviewAsset] = useState(null); // Full asset preview
+  const [editingProjectId, setEditingProjectId] = useState(null); // Inline editing
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedRecently, setSavedRecently] = useState(false);
+  const [favoriteProjects, setFavoriteProjects] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('studio_favorite_projects') || '[]');
+    } catch { return []; }
+  });
+  const [recentProjects, setRecentProjects] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('studio_recent_projects') || '[]');
+    } catch { return []; }
+  });
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentAudioUrl, setCurrentAudioUrl] = useState(null);
+
+  // Save favorites to localStorage
+  useEffect(() => {
+    localStorage.setItem('studio_favorite_projects', JSON.stringify(favoriteProjects));
+  }, [favoriteProjects]);
+
+  // Save recents to localStorage
+  useEffect(() => {
+    localStorage.setItem('studio_recent_projects', JSON.stringify(recentProjects));
+  }, [recentProjects]);
+
+  // Track project access (add to recents)
+  const trackRecentProject = (projectId) => {
+    setRecentProjects(prev => {
+      const filtered = prev.filter(id => id !== projectId);
+      return [projectId, ...filtered].slice(0, 10); // Keep last 10
+    });
+  };
+
+  const toggleFavorite = (projectId, e) => {
+    e?.stopPropagation();
+    setFavoriteProjects(prev => 
+      prev.includes(projectId) 
+        ? prev.filter(id => id !== projectId)
+        : [...prev, projectId]
+    );
+  };
+
+  // Handle inline save
+  const handleSaveEdit = (project) => {
+    if (!project || !editName.trim()) return;
+    setIsSaving(true);
+    const updated = { 
+      ...project, 
+      name: editName.trim(), 
+      description: editDescription.trim(),
+      updatedAt: new Date().toISOString() 
+    };
+    setProjects?.(prev => (prev || []).map(p => p?.id === project.id ? updated : p));
+    setTimeout(() => {
+      setIsSaving(false);
+      setSavedRecently(true);
+      setEditingProjectId(null);
+      toast.success('Project saved');
+      setTimeout(() => setSavedRecently(false), 2000);
+    }, 300);
+  };
+
+  // Start inline edit
+  const startEdit = (project, e) => {
+    e?.stopPropagation();
+    setEditingProjectId(project.id);
+    setEditName(project.name);
+    setEditDescription(project.description || '');
+    setShowProjectMenu(null);
+  };
+
+  // Play/pause audio
+  const toggleAudio = (audioUrl, e) => {
+    e?.stopPropagation();
+    if (currentAudioUrl === audioUrl && isPlaying) {
+      audioRef.current?.pause();
+      setIsPlaying(false);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.src = audioUrl;
+        audioRef.current.play();
+        setCurrentAudioUrl(audioUrl);
+        setIsPlaying(true);
+      }
+    }
+  };
 
   // Filter and search projects
   const filteredProjects = useMemo(() => {
-    return projects.filter(p => {
-      // Status filter
-      if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+    if (!projects || !Array.isArray(projects)) return [];
+    let filtered = projects.filter(p => {
+      if (!p) return false; // Skip null/undefined entries
+      // Favorites filter
+      if (statusFilter === 'favorites') {
+        if (!favoriteProjects.includes(p.id)) return false;
+      }
+      // Recents filter
+      else if (statusFilter === 'recents') {
+        if (!recentProjects.includes(p.id)) return false;
+      }
+      // Status filter (skip for 'all', 'favorites', 'recents')
+      else if (statusFilter !== 'all' && p.status !== statusFilter) return false;
       
       // Search filter
       if (searchQuery) {
@@ -65,16 +170,24 @@ function ProjectHub({
       }
       return true;
     });
-  }, [projects, statusFilter, searchQuery]);
+
+    // Sort recents by access order
+    if (statusFilter === 'recents') {
+      filtered.sort((a, b) => recentProjects.indexOf(a.id) - recentProjects.indexOf(b.id));
+    }
+
+    return filtered;
+  }, [projects, statusFilter, searchQuery, favoriteProjects, recentProjects]);
 
   // Count projects by status
   const statusCounts = useMemo(() => {
+    const safeProjects = projects || [];
     return {
-      all: projects.length,
-      active: projects.filter(p => p.status === 'active').length,
-      completed: projects.filter(p => p.status === 'completed').length,
-      paused: projects.filter(p => p.status === 'paused').length,
-      archived: projects.filter(p => p.status === 'archived').length,
+      all: safeProjects.length,
+      active: safeProjects.filter(p => p?.status === 'active').length,
+      completed: safeProjects.filter(p => p?.status === 'completed').length,
+      paused: safeProjects.filter(p => p?.status === 'paused').length,
+      archived: safeProjects.filter(p => p?.status === 'archived').length,
     };
   }, [projects]);
 
@@ -105,13 +218,29 @@ function ProjectHub({
   // Project actions
   const handleDeleteProject = (projectId, e) => {
     e?.stopPropagation();
+    
+    // Clean up any UI state referencing the deleted project
+    if (previewProject?.id === projectId) {
+      setPreviewProject(null);
+    }
+    if (previewAsset?.projectId === projectId) {
+      setPreviewAsset(null);
+    }
+    if (editingProjectId === projectId) {
+      setEditingProjectId(null);
+    }
+    
+    // Remove from recents and favorites
+    setRecentProjects(prev => prev.filter(id => id !== projectId));
+    setFavoriteProjects(prev => prev.filter(id => id !== projectId));
+    
     // Use the callback from StudioView which handles both local state and cloud deletion
     if (onDeleteProject) {
       onDeleteProject(projectId, e);
     } else {
       // Fallback: local-only delete if no callback provided
       if (window.confirm('Delete this project? This cannot be undone.')) {
-        setProjects?.(prev => prev.filter(p => p.id !== projectId));
+        setProjects?.(prev => (prev || []).filter(p => p?.id !== projectId));
         toast.success('Project deleted');
       }
     }
@@ -120,30 +249,33 @@ function ProjectHub({
 
   const handleDuplicateProject = (project, e) => {
     e?.stopPropagation();
+    if (!project) return;
     const duplicate = {
       ...project,
       id: Date.now(),
-      name: `${project.name} (Copy)`,
+      name: `${project.name || 'Untitled'} (Copy)`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    setProjects?.(prev => [duplicate, ...prev]);
+    setProjects?.(prev => [duplicate, ...(prev || [])]);
     toast.success('Project duplicated');
     setShowProjectMenu(null);
   };
 
   const handleArchiveProject = (project, e) => {
     e?.stopPropagation();
+    if (!project) return;
     const updated = { ...project, status: project.status === 'archived' ? 'active' : 'archived' };
-    setProjects?.(prev => prev.map(p => p.id === project.id ? updated : p));
+    setProjects?.(prev => (prev || []).map(p => p?.id === project.id ? updated : p));
     toast.success(updated.status === 'archived' ? 'Project archived' : 'Project restored');
     setShowProjectMenu(null);
   };
 
   const handleStatusChange = (project, newStatus, e) => {
     e?.stopPropagation();
+    if (!project) return;
     const updated = { ...project, status: newStatus, updatedAt: new Date().toISOString() };
-    setProjects?.(prev => prev.map(p => p.id === project.id ? updated : p));
+    setProjects?.(prev => (prev || []).map(p => p?.id === project.id ? updated : p));
     toast.success(`Status: ${newStatus}`);
     setShowProjectMenu(null);
   };
@@ -221,31 +353,45 @@ function ProjectHub({
           </div>
 
           {/* Status Filter Pills */}
-          <div className="filter-chips" style={{ display: 'flex', gap: '8px' }}>
+          <div className="filter-chips" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {[
-              { id: 'all', label: 'All' },
-              { id: 'active', label: 'Active' },
-              { id: 'completed', label: 'Completed' },
-              { id: 'archived', label: 'Archived' },
-            ].map(filter => (
-              <button
-                key={filter.id}
-                className={`filter-chip ${statusFilter === filter.id ? 'active' : ''}`}
-                onClick={() => setStatusFilter(filter.id)}
-              >
-                {filter.label}
-                <span style={{ 
-                  marginLeft: '6px', 
-                  fontSize: '0.75rem', 
-                  opacity: 0.7,
-                  background: 'rgba(255,255,255,0.1)',
-                  padding: '2px 6px',
-                  borderRadius: '10px'
-                }}>
-                  {statusCounts[filter.id]}
-                </span>
-              </button>
-            ))}
+              { id: 'all', label: 'All', icon: null },
+              { id: 'recents', label: 'Recent', icon: Clock },
+              { id: 'favorites', label: 'Favorites', icon: Heart },
+              { id: 'active', label: 'Active', icon: null },
+              { id: 'completed', label: 'Completed', icon: null },
+              { id: 'archived', label: 'Archived', icon: null },
+            ].map(filter => {
+              const count = filter.id === 'favorites' 
+                ? favoriteProjects.length 
+                : filter.id === 'recents'
+                  ? recentProjects.filter(id => projects.some(p => p.id === id)).length
+                  : statusCounts[filter.id];
+              return (
+                <button
+                  key={filter.id}
+                  className={`filter-chip ${statusFilter === filter.id ? 'active' : ''}`}
+                  onClick={() => setStatusFilter(filter.id)}
+                  style={filter.id === 'favorites' && favoriteProjects.length > 0 ? { 
+                    borderColor: 'var(--color-pink)',
+                    background: statusFilter === 'favorites' ? 'rgba(236, 72, 153, 0.2)' : 'transparent'
+                  } : {}}
+                >
+                  {filter.icon && <filter.icon size={14} style={{ marginRight: '4px' }} />}
+                  {filter.label}
+                  <span style={{ 
+                    marginLeft: '6px', 
+                    fontSize: '0.75rem', 
+                    opacity: 0.7,
+                    background: 'rgba(255,255,255,0.1)',
+                    padding: '2px 6px',
+                    borderRadius: '10px'
+                  }}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* View Toggle */}
@@ -316,12 +462,14 @@ function ProjectHub({
                 className="project-card-v2 touch-feedback"
                 onClick={() => {
                   console.log('[ProjectHub] Card clicked for project:', project.id, project.name);
+                  trackRecentProject(project.id);
                   onSelectProject?.(project);
                 }}
                 onTouchEnd={(e) => {
                   // Only handle touch on card itself, not on child elements
                   if (e.target === e.currentTarget) {
                     console.log('[ProjectHub] Card touched for project:', project.id, project.name);
+                    trackRecentProject(project.id);
                     onSelectProject?.(project);
                   }
                 }}
@@ -410,11 +558,18 @@ function ProjectHub({
                       <button onClick={() => { onSelectProject?.(project); setShowProjectMenu(null); }} className="dropdown-item">
                         <Eye size={16} /> View Project
                       </button>
-                      <button onClick={() => console.log('Edit project:', project.id)} className="dropdown-item">
+                      <button onClick={(e) => startEdit(project, e)} className="dropdown-item">
                         <Edit3 size={16} /> Edit Details
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setPreviewProject(project); setShowProjectMenu(null); }} className="dropdown-item">
+                        <Layers size={16} /> Quick Preview
                       </button>
                       <button onClick={(e) => handleDuplicateProject(project, e)} className="dropdown-item">
                         <Copy size={16} /> Duplicate
+                      </button>
+                      <button onClick={(e) => toggleFavorite(project.id, e)} className="dropdown-item">
+                        <Heart size={16} style={{ fill: favoriteProjects.includes(project.id) ? 'var(--color-pink)' : 'none' }} /> 
+                        {favoriteProjects.includes(project.id) ? 'Unfavorite' : 'Favorite'}
                       </button>
                       <div style={{ height: '1px', background: 'var(--border-color)', margin: '8px 0' }} />
                       <button onClick={(e) => handleShareToTwitter(project, e)} className="dropdown-item">
@@ -495,84 +650,248 @@ function ProjectHub({
                   )}
                 </div>
 
-                {/* Card Body */}
+                {/* Card Body - With Inline Editing */}
                 <div className="project-card-body">
-                  <h3 style={{ 
-                    fontSize: '1.05rem', 
-                    fontWeight: '600', 
-                    marginBottom: '6px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
-                    {project.name}
-                  </h3>
-                  <p style={{ 
-                    fontSize: '0.85rem', 
-                    color: 'var(--text-secondary)',
-                    marginBottom: '12px',
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden'
-                  }}>
-                    {project.description || 'No description'}
-                  </p>
-                  
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={14} />
-                      {project.date || 'Today'}
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Sparkles size={14} />
-                      {project.assets?.length || 0} assets
-                    </span>
-                  </div>
+                  {editingProjectId === project.id ? (
+                    /* Inline Edit Mode */
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Project name..."
+                        autoFocus
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          marginBottom: '8px',
+                          background: 'var(--color-bg-tertiary)',
+                          border: '1px solid var(--color-purple)',
+                          borderRadius: '8px',
+                          color: 'white',
+                          fontSize: '1rem',
+                          fontWeight: '600'
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEdit(project);
+                          if (e.key === 'Escape') setEditingProjectId(null);
+                        }}
+                      />
+                      <textarea
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        placeholder="Add description..."
+                        rows={2}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          marginBottom: '8px',
+                          background: 'var(--color-bg-tertiary)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                          color: 'white',
+                          fontSize: '0.85rem',
+                          resize: 'none'
+                        }}
+                      />
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => handleSaveEdit(project)}
+                          disabled={isSaving}
+                          style={{
+                            flex: 1,
+                            padding: '8px',
+                            background: 'var(--color-purple)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            color: 'white',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            fontWeight: '600',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          <Save size={14} />
+                          {isSaving ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => setEditingProjectId(null)}
+                          style={{
+                            padding: '8px 12px',
+                            background: 'rgba(255,255,255,0.1)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            color: 'white',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Normal View */
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                        <h3 style={{ 
+                          fontSize: '1.05rem', 
+                          fontWeight: '600', 
+                          flex: 1,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          margin: 0
+                        }}>
+                          {project.name}
+                        </h3>
+                        {favoriteProjects.includes(project.id) && (
+                          <Heart size={14} style={{ color: 'var(--color-pink)', fill: 'var(--color-pink)', flexShrink: 0 }} />
+                        )}
+                        {savedRecently && editingProjectId === project.id && (
+                          <CheckCircle size={14} style={{ color: 'var(--color-emerald)', flexShrink: 0 }} />
+                        )}
+                      </div>
+                      <p style={{ 
+                        fontSize: '0.85rem', 
+                        color: 'var(--text-secondary)',
+                        marginBottom: '12px',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}>
+                        {project.description || 'No description'}
+                      </p>
+
+                      {/* Asset Preview Strip */}
+                      {project.assets && project.assets.length > 0 && (
+                        <div style={{ 
+                          display: 'flex', 
+                          gap: '6px', 
+                          marginBottom: '12px', 
+                          overflowX: 'auto',
+                          paddingBottom: '4px'
+                        }}>
+                          {project.assets.slice(0, 5).map((asset, idx) => (
+                            <div
+                              key={asset.id || idx}
+                              onClick={(e) => { e.stopPropagation(); setPreviewAsset({ ...asset, projectName: project.name }); }}
+                              style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '8px',
+                                background: asset.imageUrl 
+                                  ? `url(${asset.imageUrl}) center/cover`
+                                  : asset.audioUrl 
+                                    ? 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)'
+                                    : asset.videoUrl
+                                      ? 'linear-gradient(135deg, var(--color-cyan) 0%, var(--color-emerald) 100%)'
+                                      : 'linear-gradient(135deg, var(--color-orange) 0%, var(--color-pink) 100%)',
+                                flexShrink: 0,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '2px solid transparent',
+                                transition: 'all 0.2s ease'
+                              }}
+                              className="asset-thumb-hover"
+                              title={asset.title || 'Asset'}
+                            >
+                              {!asset.imageUrl && (
+                                asset.audioUrl ? <Music size={16} style={{ color: 'white' }} /> :
+                                asset.videoUrl ? <Video size={16} style={{ color: 'white' }} /> :
+                                <FileText size={16} style={{ color: 'white' }} />
+                              )}
+                            </div>
+                          ))}
+                          {project.assets.length > 5 && (
+                            <div style={{
+                              width: '40px',
+                              height: '40px',
+                              borderRadius: '8px',
+                              background: 'rgba(255,255,255,0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.75rem',
+                              color: 'var(--text-secondary)',
+                              fontWeight: '600',
+                              flexShrink: 0
+                            }}>
+                              +{project.assets.length - 5}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Clock size={14} />
+                          {project.date || 'Today'}
+                        </span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Sparkles size={14} />
+                          {project.assets?.length || 0} assets
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                {/* Card Actions */}
+                {/* Card Actions - Editor Style */}
                 <div 
                   className="project-card-actions" 
                   onClick={(e) => e.stopPropagation()}
                   style={{ position: 'relative', zIndex: 50, pointerEvents: 'auto' }}
                 >
                   <button 
-                    className="project-card-action-btn"
-                    style={{ pointerEvents: 'auto', zIndex: 51, minHeight: '44px' }}
+                    className="project-card-action-btn primary"
+                    style={{ pointerEvents: 'auto', zIndex: 51, minHeight: '44px', flex: 1 }}
                     onClick={(e) => { 
                       e.stopPropagation(); 
                       e.preventDefault();
-                      console.log('[ProjectHub] View button clicked for project:', project.id, project.name);
+                      trackRecentProject(project.id);
                       onSelectProject?.(project); 
-                    }}
-                    onTouchStart={(_e) => {
-                      console.log('[ProjectHub] View button touchstart');
                     }}
                     onTouchEnd={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
-                      console.log('[ProjectHub] View button touched for project:', project.id, project.name);
+                      trackRecentProject(project.id);
                       onSelectProject?.(project);
                     }}
                   >
-                    <Eye size={16} /> View
+                    <Zap size={16} /> Open
                   </button>
                   <button 
                     className="project-card-action-btn"
                     style={{ pointerEvents: 'auto', zIndex: 51, minHeight: '44px' }}
-                    onClick={(e) => { e.stopPropagation(); handleShareToTwitter(project, e); }}
-                    onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); handleShareToTwitter(project, e); }}
+                    onClick={(e) => { e.stopPropagation(); trackRecentProject(project.id); setPreviewProject(project); }}
+                    onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); trackRecentProject(project.id); setPreviewProject(project); }}
+                    title="Quick Preview"
                   >
-                    <Share2 size={16} /> Share
+                    <Eye size={16} />
                   </button>
                   <button 
-                    className="project-card-action-btn danger"
+                    className="project-card-action-btn"
                     style={{ pointerEvents: 'auto', zIndex: 51, minHeight: '44px' }}
-                    onClick={(e) => handleDeleteProject(project.id, e)}
-                    onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); handleDeleteProject(project.id, e); }}
+                    onClick={(e) => startEdit(project, e)}
+                    onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); startEdit(project, e); }}
+                    title="Edit"
                   >
-                    <Trash2 size={16} />
+                    <Edit3 size={16} />
+                  </button>
+                  <button 
+                    className="project-card-action-btn"
+                    style={{ pointerEvents: 'auto', zIndex: 51, minHeight: '44px' }}
+                    onClick={(e) => toggleFavorite(project.id, e)}
+                    onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); toggleFavorite(project.id, e); }}
+                    title="Favorite"
+                  >
+                    <Heart size={16} style={{ fill: favoriteProjects.includes(project.id) ? 'var(--color-pink)' : 'none', color: favoriteProjects.includes(project.id) ? 'var(--color-pink)' : 'inherit' }} />
                   </button>
                 </div>
               </div>
@@ -590,11 +909,13 @@ function ProjectHub({
                 className="project-list-item touch-feedback"
                 onClick={() => {
                   console.log('[ProjectHub] List item clicked for project:', project.id, project.name);
+                  trackRecentProject(project.id);
                   onSelectProject?.(project);
                 }}
                 onTouchEnd={(e) => {
                   e.preventDefault();
                   console.log('[ProjectHub] List item touched for project:', project.id, project.name);
+                  trackRecentProject(project.id);
                   onSelectProject?.(project);
                 }}
                 style={{ borderBottom: idx < filteredProjects.length - 1 ? '1px solid var(--border-color)' : 'none', cursor: 'pointer' }}
@@ -862,6 +1183,470 @@ function ProjectHub({
         </div>
       )}
 
+      {/* Quick Preview Side Panel */}
+      {previewProject && (
+        <div 
+          className="animate-fadeIn"
+          style={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: '100%',
+            maxWidth: '480px',
+            background: 'var(--color-bg-primary)',
+            borderLeft: '1px solid var(--border-color)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '-10px 0 40px rgba(0,0,0,0.4)'
+          }}
+        >
+          {/* Panel Header */}
+          <div style={{
+            padding: '16px 20px',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'var(--card-bg)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                onClick={() => setPreviewProject(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>{previewProject.name}</h3>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Quick Preview • {previewProject.assets?.length || 0} assets
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => { onSelectProject?.(previewProject); setPreviewProject(null); }}
+                className="cta-button-premium"
+                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+              >
+                <Zap size={16} /> Open
+              </button>
+            </div>
+          </div>
+
+          {/* Panel Content */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+            {/* Description */}
+            {previewProject.description && (
+              <div style={{ marginBottom: '20px' }}>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  {previewProject.description}
+                </p>
+              </div>
+            )}
+
+            {/* Project Stats */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(3, 1fr)', 
+              gap: '12px',
+              marginBottom: '24px'
+            }}>
+              <div style={{ 
+                padding: '16px', 
+                background: 'var(--card-bg)', 
+                borderRadius: '12px', 
+                textAlign: 'center',
+                border: '1px solid var(--border-color)'
+              }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-purple)' }}>
+                  {previewProject.assets?.length || 0}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Assets</div>
+              </div>
+              <div style={{ 
+                padding: '16px', 
+                background: 'var(--card-bg)', 
+                borderRadius: '12px', 
+                textAlign: 'center',
+                border: '1px solid var(--border-color)'
+              }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-cyan)' }}>
+                  {previewProject.assets?.filter(a => a.audioUrl).length || 0}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Audio</div>
+              </div>
+              <div style={{ 
+                padding: '16px', 
+                background: 'var(--card-bg)', 
+                borderRadius: '12px', 
+                textAlign: 'center',
+                border: '1px solid var(--border-color)'
+              }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-pink)' }}>
+                  {previewProject.assets?.filter(a => a.imageUrl).length || 0}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Images</div>
+              </div>
+            </div>
+
+            {/* Assets Grid */}
+            <h4 style={{ marginBottom: '12px', fontSize: '0.9rem', fontWeight: '600' }}>Project Assets</h4>
+            {previewProject.assets && previewProject.assets.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {previewProject.assets.map((asset, idx) => (
+                  <div
+                    key={asset.id || idx}
+                    onClick={() => setPreviewAsset({ ...asset, projectName: previewProject.name })}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px',
+                      background: 'var(--card-bg)',
+                      borderRadius: '12px',
+                      border: '1px solid var(--border-color)',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    className="touch-feedback"
+                  >
+                    {/* Thumbnail */}
+                    <div style={{
+                      width: '56px',
+                      height: '56px',
+                      borderRadius: '10px',
+                      background: asset.imageUrl 
+                        ? `url(${asset.imageUrl}) center/cover`
+                        : asset.audioUrl 
+                          ? 'linear-gradient(135deg, var(--color-purple) 0%, var(--color-cyan) 100%)'
+                          : asset.videoUrl
+                            ? 'linear-gradient(135deg, var(--color-cyan) 0%, var(--color-emerald) 100%)'
+                            : 'linear-gradient(135deg, var(--color-orange) 0%, var(--color-pink) 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
+                    }}>
+                      {!asset.imageUrl && (
+                        asset.audioUrl ? <Music size={24} style={{ color: 'white' }} /> :
+                        asset.videoUrl ? <Video size={24} style={{ color: 'white' }} /> :
+                        <FileText size={24} style={{ color: 'white' }} />
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ 
+                        fontWeight: '600', 
+                        fontSize: '0.9rem',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {asset.title || 'Untitled'}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        {asset.type || (asset.audioUrl ? 'Audio' : asset.videoUrl ? 'Video' : asset.imageUrl ? 'Image' : 'Text')}
+                        {asset.agent && ` • ${asset.agent}`}
+                      </div>
+                    </div>
+
+                    {/* Quick Play for Audio */}
+                    {asset.audioUrl && (
+                      <button
+                        onClick={(e) => toggleAudio(asset.audioUrl, e)}
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          background: currentAudioUrl === asset.audioUrl && isPlaying 
+                            ? 'var(--color-purple)' 
+                            : 'rgba(255,255,255,0.1)',
+                          border: 'none',
+                          color: 'white',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        {currentAudioUrl === asset.audioUrl && isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                      </button>
+                    )}
+
+                    <ChevronRight size={18} style={{ color: 'var(--text-secondary)' }} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ 
+                padding: '40px 20px', 
+                textAlign: 'center', 
+                color: 'var(--text-secondary)',
+                background: 'var(--card-bg)',
+                borderRadius: '12px'
+              }}>
+                <Folder size={32} style={{ opacity: 0.3, marginBottom: '12px' }} />
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>No assets yet</p>
+                <p style={{ margin: '4px 0 0', fontSize: '0.8rem', opacity: 0.7 }}>Open the project to start creating</p>
+              </div>
+            )}
+          </div>
+
+          {/* Panel Footer */}
+          <div style={{
+            padding: '16px 20px',
+            borderTop: '1px solid var(--border-color)',
+            display: 'flex',
+            gap: '12px',
+            background: 'var(--card-bg)'
+          }}>
+            <button
+              onClick={() => startEdit(previewProject)}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                borderRadius: '10px',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontWeight: '500'
+              }}
+            >
+              <Edit3 size={16} /> Edit
+            </button>
+            <button
+              onClick={(e) => handleShareToTwitter(previewProject, e)}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                borderRadius: '10px',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontWeight: '500'
+              }}
+            >
+              <Share2 size={16} /> Share
+            </button>
+            <button
+              onClick={(e) => { handleDeleteProject(previewProject.id, e); setPreviewProject(null); }}
+              style={{
+                padding: '12px',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: 'none',
+                borderRadius: '10px',
+                color: 'var(--color-red)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Backdrop for preview panel */}
+      {previewProject && (
+        <div 
+          className="animate-fadeIn"
+          onClick={() => setPreviewProject(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 999
+          }}
+        />
+      )}
+
+      {/* Full Asset Preview Modal */}
+      {previewAsset && (
+        <div 
+          className="modal-overlay animate-fadeIn"
+          onClick={() => setPreviewAsset(null)}
+          style={{ zIndex: 2000 }}
+        >
+          <div 
+            className="modal-content animate-slideUp"
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              maxWidth: '800px', 
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Modal Header */}
+            <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)' }}>
+              <div>
+                <h2 style={{ margin: 0 }}>{previewAsset.title || 'Asset Preview'}</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  From: {previewAsset.projectName}
+                </p>
+              </div>
+              <button className="modal-close" onClick={() => setPreviewAsset(null)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ flex: 1, padding: '24px', overflow: 'auto' }}>
+              {/* Image Preview */}
+              {previewAsset.imageUrl && (
+                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                  <img 
+                    src={previewAsset.imageUrl}
+                    alt={previewAsset.title}
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '400px',
+                      borderRadius: '12px',
+                      objectFit: 'contain'
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Video Preview */}
+              {previewAsset.videoUrl && (
+                <div style={{ marginBottom: '20px' }}>
+                  <video 
+                    src={previewAsset.videoUrl}
+                    controls
+                    autoPlay
+                    style={{
+                      width: '100%',
+                      maxHeight: '400px',
+                      borderRadius: '12px',
+                      background: 'black'
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Audio Preview */}
+              {previewAsset.audioUrl && (
+                <div style={{ 
+                  padding: '32px', 
+                  background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(6,182,212,0.1))',
+                  borderRadius: '16px',
+                  marginBottom: '20px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{
+                    width: '100px',
+                    height: '100px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 20px',
+                    boxShadow: '0 8px 32px rgba(139,92,246,0.3)'
+                  }}>
+                    <Music size={48} style={{ color: 'white' }} />
+                  </div>
+                  <audio 
+                    src={previewAsset.audioUrl}
+                    controls
+                    autoPlay
+                    style={{ width: '100%', maxWidth: '500px' }}
+                  />
+                </div>
+              )}
+
+              {/* Text Content */}
+              {previewAsset.content || previewAsset.snippet || previewAsset.output ? (
+                <div style={{
+                  padding: '20px',
+                  background: 'var(--card-bg)',
+                  borderRadius: '12px',
+                  border: '1px solid var(--border-color)'
+                }}>
+                  <pre style={{
+                    margin: 0,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    fontSize: '0.95rem',
+                    lineHeight: 1.7,
+                    fontFamily: 'inherit'
+                  }}>
+                    {previewAsset.content || previewAsset.snippet || previewAsset.output}
+                  </pre>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid var(--border-color)',
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end'
+            }}>
+              {(previewAsset.audioUrl || previewAsset.imageUrl || previewAsset.videoUrl) && (
+                <button
+                  onClick={() => {
+                    const url = previewAsset.audioUrl || previewAsset.imageUrl || previewAsset.videoUrl;
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = previewAsset.title || 'download';
+                    link.click();
+                    toast.success('Download started');
+                  }}
+                  className="cta-button-secondary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <Download size={16} /> Download
+                </button>
+              )}
+              <button
+                onClick={() => setPreviewAsset(null)}
+                className="cta-button-premium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden Audio Element for Quick Play */}
+      <audio 
+        ref={audioRef} 
+        onEnded={() => { setIsPlaying(false); setCurrentAudioUrl(null); }}
+        onPause={() => setIsPlaying(false)}
+        style={{ display: 'none' }}
+      />
+
       <style>{`
         .dropdown-item {
           display: flex;
@@ -880,6 +1665,17 @@ function ProjectHub({
         }
         .dropdown-item:hover {
           background: rgba(255,255,255,0.05);
+        }
+        .asset-thumb-hover:hover {
+          border-color: var(--color-purple) !important;
+          transform: scale(1.05);
+        }
+        .project-card-action-btn.primary {
+          background: var(--color-purple) !important;
+          color: white !important;
+        }
+        .project-card-action-btn.primary:hover {
+          background: var(--color-purple-light) !important;
         }
       `}</style>
     </div>

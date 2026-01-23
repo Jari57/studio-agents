@@ -18,7 +18,7 @@ export function PreviewModal({
   if (!isOpen || (!mediaUrl && !textContent)) return null;
 
   const handleDownload = () => {
-    if (mediaType === 'image') {
+    if (mediaType === 'image' && mediaUrl) {
       // Handle URLs, data URLs, and base64
       const imageSrc = mediaUrl.startsWith('http') || mediaUrl.startsWith('data:') 
         ? mediaUrl 
@@ -27,12 +27,12 @@ export function PreviewModal({
       link.href = imageSrc;
       link.download = `${title}-${Date.now()}.png`;
       link.click();
-    } else if (mediaType === 'video') {
+    } else if (mediaType === 'video' && mediaUrl) {
       const link = document.createElement('a');
       link.href = mediaUrl;
       link.download = `${title}-${Date.now()}.mp4`;
       link.click();
-    } else if (mediaType === 'audio') {
+    } else if (mediaType === 'audio' && mediaUrl) {
       const link = document.createElement('a');
       link.href = mediaUrl;
       link.download = `${title}-${Date.now()}.mp3`;
@@ -206,7 +206,7 @@ export function PreviewModal({
             minHeight: '300px'
           }}
         >
-          {mediaType === 'image' && (
+          {mediaType === 'image' && mediaUrl && (
             <img
               src={mediaUrl.startsWith('http') || mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
               alt={title || 'Preview'}
@@ -223,7 +223,7 @@ export function PreviewModal({
               }}
             />
           )}
-          {mediaType === 'video' && (
+          {mediaType === 'video' && mediaUrl && (
             <video
               src={mediaUrl}
               controls
@@ -239,7 +239,7 @@ export function PreviewModal({
               }}
             />
           )}
-          {mediaType === 'audio' && (
+          {mediaType === 'audio' && mediaUrl && (
             <div
               style={{
                 display: 'flex',
