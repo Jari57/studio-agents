@@ -618,10 +618,19 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   useEffect(() => {
     if (!auth) return;
     
+    // Check if we're already on the studio page - don't navigate if so
+    const isOnStudioPage = window.location.hash.startsWith('#/studio');
+    if (isOnStudioPage) {
+      console.log('[LandingPage] Already on studio page, skipping auth listener navigation');
+      return;
+    }
+    
     // Small delay to let getRedirectResult finish first
     const timer = setTimeout(() => {
       const unsubscribe = onAuthStateChanged(auth, (user) => {
-        if (user && !isTransitioning) {
+        // Only navigate if we're still on landing page (not already transitioned)
+        const stillOnLanding = !window.location.hash.startsWith('#/studio');
+        if (user && !isTransitioning && stillOnLanding) {
           console.log('[LandingPage] User already logged in, transitioning to studio...');
           
           // Ensure user ID is in localStorage for StudioView

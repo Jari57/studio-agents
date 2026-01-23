@@ -7941,7 +7941,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   }
 
   // AUTH GATE: If not logged in AND auth check complete, show login prompt
-  if (!isLoggedIn && !authChecking) {
+  // CRITICAL: Only show login gate if we're certain there's no valid session
+  // Check localStorage one more time to prevent race conditions
+  const hasSessionNow = !!localStorage.getItem('studio_user_id');
+  if (!isLoggedIn && !authChecking && !hasSessionNow) {
     return (
       <div className={`studio-container ${theme}-theme`} style={{
         display: 'flex',
