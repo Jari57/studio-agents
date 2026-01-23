@@ -214,13 +214,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Clear scroll lock on mount (LandingPage may have left it set)
   useEffect(() => {
     document.body.classList.remove('modal-open');
-    
-    // Clean up the auth completion flag after 10 seconds
-    const timer = setTimeout(() => {
-      localStorage.removeItem('auth_just_completed');
-    }, 10000);
-    
-    return () => clearTimeout(timer);
   }, []);
 
   // Sync state with hash (Browser Back/Forward)
@@ -259,14 +252,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const hasExistingSession = !!localStorage.getItem('studio_user_id');
   const [authChecking, setAuthChecking] = useState(!hasExistingSession);
   const [isLoggedIn, setIsLoggedIn] = useState(hasExistingSession);
-  
-  // Track if auth just completed (within last 5 seconds) to prevent race conditions
-  const getAuthJustCompleted = () => {
-    const timestamp = localStorage.getItem('auth_just_completed');
-    if (!timestamp) return false;
-    const elapsed = Date.now() - parseInt(timestamp);
-    return elapsed < 5000; // 5 seconds
-  };
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -2212,13 +2197,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             }
           }
         } else {
-          // User is null - but check if auth just completed (race condition protection)
-          if (getAuthJustCompleted()) {
-            console.log('[Auth] Ignoring null user - auth just completed, Firebase still syncing');
-            return; // Don't clear state yet
+          // User is null - clear state
+          // Only clear if we don't have a recent session in localStorage
+          const hasRecentSession = localStorage.getItem('studio_user_id');
+          if (hasRecentSession) {
+            console.log('[Auth] Ignoring null user - localStorage session exists, waiting for Firebase sync');
+            // Don't clear yet - give Firebase time to sync
+            return;
           }
           
-          // Clear user state
           console.log('[Auth] No user logged in, clearing state');
           setUser(null);
           setUserToken(null);

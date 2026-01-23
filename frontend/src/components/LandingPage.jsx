@@ -387,31 +387,11 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [isTransitioning, setIsTransitioning] = useState(false); // Guard against race conditions
   const [authChecking, setAuthChecking] = useState(true); // Track if we're checking auth on mount
   
-  // IMMEDIATE check on mount - before rendering anything - for logged in users
+  // Check on mount - if user has valid session, let them proceed when they click
+  // Don't auto-redirect - let the user control navigation
   useEffect(() => {
-    const checkImmediateAuth = async () => {
-      // If user has session in localStorage, navigate immediately
-      const hasSession = localStorage.getItem('studio_user_id');
-      if (hasSession && auth) {
-        console.log('[LandingPage] Found cached session, checking validity...');
-        
-        // Quick check if auth is actually valid
-        const currentUser = auth.currentUser;
-        if (currentUser) {
-          console.log('[LandingPage] User session valid, navigating immediately');
-          setIsTransitioning(true);
-          document.body.classList.remove('modal-open');
-          onEnter(false, false, 'agents');
-          return; // Don't set authChecking to false - keep loading state
-        }
-      }
-      
-      // No cached session or invalid - show landing page
-      setAuthChecking(false);
-    };
-    
-    checkImmediateAuth();
-  }, [auth, onEnter]);
+    setAuthChecking(false); // Always show landing page
+  }, []);
   
   // Handle Google Sign In - with transition guard
   const handleGoogleSignIn = async () => {
@@ -566,47 +546,30 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     return AGENT_WHITEPAPER[agentId] || DEFAULT_WHITEPAPER;
   };
 
-  // Check for redirect result on mount (handle Google sign-in redirect)
+  // Handle Google OAuth redirect result
   useEffect(() => {
-    const checkRedirectResult = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          console.log('[LandingPage] OAuth redirect successful:', result.user.email);
-          
-          // Mark that auth just completed to prevent interference
+    if (!auth) return;
+    
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log('[LandingPage] OAuth success:', result.user.email);
           localStorage.setItem('studio_user_id', result.user.uid);
-          localStorage.setItem('auth_just_completed', Date.now().toString());
           
-          // Get pending action
           const storedAction = sessionStorage.getItem('auth_pending_action');
           sessionStorage.removeItem('auth_pending_action');
           
-          setIsTransitioning(true);
-          setShowAuthModal(false);
           document.body.classList.remove('modal-open');
-          
-          // Navigate to studio
-          console.log('[LandingPage] Navigating to studio, action:', storedAction);
-          if (storedAction === 'orchestrator') {
-            onEnter(false, true);
-          } else {
-            onEnter(false, false, 'agents');
-          }
+          onEnter(false, storedAction === 'orchestrator', 'agents');
         }
-      } catch (error) {
-        console.error('[LandingPage] Redirect error:', error);
+      })
+      .catch((error) => {
         if (error.code !== 'auth/popup-closed-by-user') {
-          setAuthError(error.message || 'Failed to sign in. Please try again.');
+          console.error('[LandingPage] OAuth error:', error);
+          setAuthError(error.message);
         }
-      }
-    };
-    
-    checkRedirectResult();
-  }, [onEnter]);
-
-  // DISABLED: This listener was causing race conditions and redirect loops
-  // StudioView now handles persistent login via localStorage check on mount
+      });
+  }, [auth, onEnter]);
 
   // Manage body scroll lock when ANY modal is open
   useEffect(() => {
