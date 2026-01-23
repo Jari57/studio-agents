@@ -438,8 +438,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       console.log('[LandingPage] Calling onEnter(false, true) for orchestrator');
       onEnter(false, true);
     } else if (pendingAction === 'start') {
-      console.log('[LandingPage] Calling onEnter(true) for agents');
-      onEnter(true);
+      console.log('[LandingPage] Calling onEnter for agents tab');
+      onEnter(false, false, 'agents');
     } else {
       console.log('[LandingPage] Calling onEnter(false)');
       onEnter(false);
@@ -575,7 +575,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           if (storedAction === 'orchestrator') {
             onEnter(false, true); // Start orchestrator
           } else {
-            onEnter(true); // Default to agents
+            onEnter(false, false, 'agents'); // Navigate to agents tab
           }
         }
       } catch (error) {
@@ -624,7 +624,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         if (storedAction === 'orchestrator') {
           onEnter(false, true); // Start orchestrator
         } else {
-          onEnter(true); // Default to agents
+          onEnter(false, false, 'agents'); // Navigate to agents tab
         }
       }
     });
