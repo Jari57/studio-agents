@@ -68,10 +68,8 @@ function App() {
     setStartTour(false);
     setInitialPlan(null);
     setInitialTab(targetTab);
-    // Navigate directly to the target tab if specified
-    const targetHash = targetTab ? `#/studio/${targetTab}` : '#/studio/agents';
-    console.log('[App] Setting hash to', targetHash);
-    window.location.hash = targetHash;
+    console.log('[App] Setting hash to #/studio');
+    window.location.hash = '#/studio';
   };
 
   const handleStartTour = () => {
