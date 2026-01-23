@@ -676,7 +676,9 @@ function FinalMixSection({
   handleGenerateProfessionalMusicVideo,
   handleCreateFinalMix,
   handleCreateProject,
-  setShowPreviewModal
+  setShowPreviewModal,
+  visualType,
+  setVisualType
 }) {
   // Check completion status
   const completedCount = Object.values(outputs).filter(Boolean).length;
@@ -1038,6 +1040,145 @@ function FinalMixSection({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Visual Type Selector - Choose Image or Video for Final Mix */}
+      {(hasImage || hasVideoMedia) && (
+        <div style={{
+          background: 'rgba(139, 92, 246, 0.1)',
+          borderRadius: '14px',
+          padding: '16px 20px',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          marginBottom: '20px',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div>
+              <div style={{
+                fontSize: '0.8rem',
+                color: '#a78bfa',
+                fontWeight: '600',
+                marginBottom: '4px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}>
+                🎨 Output Visual Type
+              </div>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Choose cover image or video for your final mix
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setVisualType('image')}
+                disabled={!hasImage}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  background: visualType === 'image' 
+                    ? 'linear-gradient(135deg, #ec4899, #f472b6)' 
+                    : 'rgba(255,255,255,0.05)',
+                  border: visualType === 'image' 
+                    ? 'none' 
+                    : '1px solid rgba(255,255,255,0.2)',
+                  color: visualType === 'image' ? 'white' : hasImage ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  cursor: hasImage ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease',
+                  opacity: hasImage ? 1 : 0.5
+                }}
+              >
+                🖼️ Cover Image
+                {visualType === 'image' && hasImage && <span style={{ fontSize: '0.75rem' }}>✓</span>}
+              </button>
+              
+              <button
+                onClick={() => setVisualType('video')}
+                disabled={!hasVideoMedia}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  background: visualType === 'video' 
+                    ? 'linear-gradient(135deg, #f59e0b, #fbbf24)' 
+                    : 'rgba(255,255,255,0.05)',
+                  border: visualType === 'video' 
+                    ? 'none' 
+                    : '1px solid rgba(255,255,255,0.2)',
+                  color: visualType === 'video' ? 'white' : hasVideoMedia ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  cursor: hasVideoMedia ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease',
+                  opacity: hasVideoMedia ? 1 : 0.5
+                }}
+              >
+                🎬 Music Video
+                {visualType === 'video' && hasVideoMedia && <span style={{ fontSize: '0.75rem' }}>✓</span>}
+              </button>
+            </div>
+          </div>
+          
+          {/* Preview of selected visual */}
+          <div style={{
+            marginTop: '12px',
+            background: 'rgba(0,0,0,0.3)',
+            borderRadius: '10px',
+            padding: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '80px',
+            maxHeight: '150px',
+            overflow: 'hidden'
+          }}>
+            {visualType === 'image' && hasImage ? (
+              <img 
+                src={mediaUrls.image} 
+                alt="Selected cover" 
+                style={{ 
+                  maxHeight: '140px', 
+                  borderRadius: '8px',
+                  objectFit: 'contain'
+                }} 
+              />
+            ) : visualType === 'video' && hasVideoMedia ? (
+              <video 
+                src={mediaUrls.video} 
+                style={{ 
+                  maxHeight: '140px', 
+                  borderRadius: '8px'
+                }} 
+                muted 
+                loop 
+                autoPlay
+                playsInline
+              />
+            ) : (
+              <div style={{ 
+                color: 'rgba(255,255,255,0.4)', 
+                fontSize: '0.85rem',
+                fontStyle: 'italic'
+              }}>
+                {visualType === 'image' ? 'No cover image generated yet' : 'No video generated yet'}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1517,6 +1658,7 @@ export default function StudioOrchestratorV2({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
   const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
+  const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
   
   // const speechSynthRef = useRef(null); - removed (unused)
   const recognitionRef = useRef(null);
@@ -3343,6 +3485,8 @@ export default function StudioOrchestratorV2({
           handleCreateFinalMix={handleCreateFinalMix}
           handleCreateProject={handleCreateProject}
           setShowPreviewModal={setShowPreviewModal}
+          visualType={visualType}
+          setVisualType={setVisualType}
         />
       </div>
 
