@@ -385,6 +385,33 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [authError, setAuthError] = useState('');
   const [pendingAction, setPendingAction] = useState(null); // Store what to do after auth
   const [isTransitioning, setIsTransitioning] = useState(false); // Guard against race conditions
+  const [authChecking, setAuthChecking] = useState(true); // Track if we're checking auth on mount
+  
+  // IMMEDIATE check on mount - before rendering anything - for logged in users
+  useEffect(() => {
+    const checkImmediateAuth = async () => {
+      // If user has session in localStorage, navigate immediately
+      const hasSession = localStorage.getItem('studio_user_id');
+      if (hasSession && auth) {
+        console.log('[LandingPage] Found cached session, checking validity...');
+        
+        // Quick check if auth is actually valid
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          console.log('[LandingPage] User session valid, navigating immediately');
+          setIsTransitioning(true);
+          document.body.classList.remove('modal-open');
+          onEnter(false, false, 'agents');
+          return; // Don't set authChecking to false - keep loading state
+        }
+      }
+      
+      // No cached session or invalid - show landing page
+      setAuthChecking(false);
+    };
+    
+    checkImmediateAuth();
+  }, [auth, onEnter]);
   
   // Handle Google Sign In - with transition guard
   const handleGoogleSignIn = async () => {

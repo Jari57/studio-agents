@@ -214,6 +214,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Clear scroll lock on mount (LandingPage may have left it set)
   useEffect(() => {
     document.body.classList.remove('modal-open');
+    // Clear auth transition flag after a delay (allow time for Firebase sync)
+    const timer = setTimeout(() => {
+      authJustCompletedRef.current = false;
+    }, 3000); // 3 seconds should be enough for Firebase to sync
+    return () => clearTimeout(timer);
   }, []);
 
   // Sync state with hash (Browser Back/Forward)
@@ -252,6 +257,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const hasExistingSession = !!localStorage.getItem('studio_user_id');
   const [authChecking, setAuthChecking] = useState(!hasExistingSession); // Skip auth check if we have a cached session
   const [isLoggedIn, setIsLoggedIn] = useState(hasExistingSession); // Start as logged in if session exists
+  const authJustCompletedRef = useRef(hasExistingSession); // Track if we just logged in to prevent premature clearing
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -2097,6 +2103,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         if (currentUser) {
           // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
           // Use batch state updates to prevent render in-between
+          authJustCompletedRef.current = true; // Mark that we have a valid user
           setUser(currentUser);
           localStorage.setItem('studio_user_id', currentUser.uid);
           setAuthChecking(false); // Auth check complete
@@ -2198,6 +2205,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             }
           }
         } else {
+          // CRITICAL: Don't clear state if we just logged in (prevents race condition)
+          // This happens when onAuthStateChanged fires before getRedirectResult completes
+          if (authJustCompletedRef.current) {
+            console.log('[Auth] Ignoring null user - auth just completed, waiting for Firebase to sync');
+            return; // Keep current logged-in state
+          }
+          
           // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
           // Batch all state updates together
           setUser(null);
