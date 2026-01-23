@@ -430,18 +430,23 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     setIsTransitioning(true);
     setShowAuthModal(false);
     
-    // Small delay to let modal close animation complete before navigation
-    setTimeout(() => {
-      if (pendingAction === 'start') {
-        console.log('[LandingPage] Calling onEnter(true)');
-        onEnter(true);
-      } else {
-        console.log('[LandingPage] Calling onEnter(false)');
-        onEnter(false);
-      }
-      // Reset after navigation (in case user comes back)
-      setIsTransitioning(false);
-    }, 100);
+    // Remove scroll lock
+    document.body.classList.remove('modal-open');
+    
+    // Navigate based on action
+    if (pendingAction === 'orchestrator') {
+      console.log('[LandingPage] Calling onEnter(false, true) for orchestrator');
+      onEnter(false, true);
+    } else if (pendingAction === 'start') {
+      console.log('[LandingPage] Calling onEnter(true) for agents');
+      onEnter(true);
+    } else {
+      console.log('[LandingPage] Calling onEnter(false)');
+      onEnter(false);
+    }
+    
+    // Reset after navigation
+    setIsTransitioning(false);
   };
   const [pitchTab, setPitchTab] = useState('vision');
   const [showAgentWhitepaper, setShowAgentWhitepaper] = useState(false);
@@ -565,9 +570,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           // Remove scroll lock before navigating
           document.body.classList.remove('modal-open');
           
-          // Navigate user to studio (true = show agents)
+          // Navigate based on stored action
           console.log('[LandingPage] Calling onEnter from redirect result');
-          onEnter(true); // Navigate immediately, no timeout
+          if (storedAction === 'orchestrator') {
+            onEnter(false, true); // Start orchestrator
+          } else {
+            onEnter(true); // Default to agents
+          }
         }
       } catch (error) {
         console.error('[LandingPage] Redirect result error:', error);
@@ -606,9 +615,17 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         // Remove scroll lock before navigating
         document.body.classList.remove('modal-open');
         
+        // Check for pending action from sessionStorage
+        const storedAction = sessionStorage.getItem('auth_pending_action');
+        sessionStorage.removeItem('auth_pending_action');
+        
         // Navigate user to studio immediately
-        console.log('[LandingPage] Calling onEnter from auth state change');
-        onEnter(true);
+        console.log('[LandingPage] Calling onEnter from auth state change, action:', storedAction);
+        if (storedAction === 'orchestrator') {
+          onEnter(false, true); // Start orchestrator
+        } else {
+          onEnter(true); // Default to agents
+        }
       }
     });
     
@@ -1016,7 +1033,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 position: 'relative',
                 backdropFilter: 'blur(20px)'
               }}
-              onClick={() => onEnter(false, true)}
+              onClick={() => handleCtaClick('orchestrator')}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
                 e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.6)';
