@@ -546,7 +546,7 @@ function ProjectHub({
                       console.log('[ProjectHub] View button clicked for project:', project.id, project.name);
                       onSelectProject?.(project); 
                     }}
-                    onTouchStart={(e) => {
+                    onTouchStart={(_e) => {
                       console.log('[ProjectHub] View button touchstart');
                     }}
                     onTouchEnd={(e) => {

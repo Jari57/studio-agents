@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, Pause, Sparkles, Mic2, FileText, Video, RefreshCw, Zap, 

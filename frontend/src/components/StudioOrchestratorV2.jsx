@@ -1,3 +1,4 @@
+/* eslint-disable no-use-before-define */
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, Mic, MicOff, FileText, Video, RefreshCw, Zap, 

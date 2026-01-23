@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 

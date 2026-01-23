@@ -364,7 +364,7 @@ test.describe('Sanity Checks', () => {
     const response = await request.get(`${BACKEND_URL}/health`);
     expect(response.status()).toBe(200);
     // Check CORS headers are present for frontend access
-    const headers = response.headers();
+    const _headers = response.headers();
     // In production, should have proper CORS
     expect(response.ok()).toBe(true);
   });
@@ -377,7 +377,7 @@ test.describe('Sanity Checks', () => {
 
   test('Generate endpoint latency is reasonable', async ({ request }) => {
     const start = Date.now();
-    const response = await request.post(`${BACKEND_URL}/api/generate`, {
+    const _response = await request.post(`${BACKEND_URL}/api/generate`, {
       data: {
         prompt: 'Say hello',
         systemInstruction: 'Be brief'

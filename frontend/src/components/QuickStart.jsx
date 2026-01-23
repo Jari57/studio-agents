@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { 
-  Sparkles, Music, Zap, Play, ArrowRight, X, 
-  Feather, Disc, Hash, ImageIcon, ChevronRight,
-  Flame, TrendingUp, Volume2, Camera
+  Sparkles, Zap, ArrowRight, X, 
+  Feather, Disc, ChevronRight,
+  Flame, TrendingUp, Camera
 } from 'lucide-react';
 
 /**

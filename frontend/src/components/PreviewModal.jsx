@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Download, Eye, Copy, Check } from 'lucide-react';
+import { X, Download, Copy, Check } from 'lucide-react';
 
 /**
  * PreviewModal - Display full-size previews of generated assets
@@ -234,7 +234,7 @@ export function PreviewModal({
                 borderRadius: '8px',
                 animation: 'zoomIn 0.3s ease-out'
               }}
-              onError={(e) => {
+              onError={(_e) => {
                 console.warn('[PreviewModal] Video failed to load');
               }}
             />
@@ -301,7 +301,7 @@ export function PreviewModal({
                     height: '54px',
                     borderRadius: '8px'
                   }}
-                  onError={(e) => {
+                  onError={(_e) => {
                     console.warn('[PreviewModal] Audio failed to load');
                   }}
                 />

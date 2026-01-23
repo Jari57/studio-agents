@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Search, RefreshCw, ChevronDown, ChevronUp, ChevronRight, ExternalLink,
-  Zap, TrendingUp, Flame, Star, Clock, PlayCircle, Share2, Bookmark,
+  Search, RefreshCw, ChevronUp, ChevronRight, ExternalLink,
+  Zap, TrendingUp, Flame, Clock, PlayCircle, Share2, Bookmark,
   Twitter, Globe, Newspaper, Radio, Mic, Video, X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
