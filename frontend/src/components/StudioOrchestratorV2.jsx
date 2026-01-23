@@ -1515,6 +1515,8 @@ export default function StudioOrchestratorV2({
   const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
   const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
+  const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
   
   // const speechSynthRef = useRef(null); - removed (unused)
   const recognitionRef = useRef(null);
@@ -1522,6 +1524,21 @@ export default function StudioOrchestratorV2({
   // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
   const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
   const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
+  
+  // Check if there's any generated content that hasn't been saved
+  const hasUnsavedContent = () => {
+    const hasContent = Object.values(safeOutputs).some(Boolean) || Object.values(safeMediaUrls).some(Boolean);
+    return hasContent && !isSaved;
+  };
+  
+  // Handle close with unsaved work check
+  const handleCloseWithCheck = () => {
+    if (hasUnsavedContent()) {
+      setShowExitConfirm(true);
+    } else {
+      onClose?.();
+    }
+  };
   
   // Helper to format image data for display
   // Handles: URLs (http/https), data URLs, and raw base64
@@ -2417,6 +2434,8 @@ export default function StudioOrchestratorV2({
       try {
         onCreateProject(project);
         toast.success(`Saved ${project.assets.length} assets to "${project.name}"!`);
+        // Mark as saved so exit check won't prompt
+        setIsSaved(true);
         // Show save confirmation with option to preview
         setShowCreateProject(false);
         setShowSaveConfirm(true);
@@ -2484,7 +2503,7 @@ export default function StudioOrchestratorV2({
           </div>
         </div>
         <button 
-          onClick={onClose}
+          onClick={handleCloseWithCheck}
           style={{ 
             background: 'rgba(255,255,255,0.1)', 
             border: 'none', 
@@ -3704,6 +3723,129 @@ export default function StudioOrchestratorV2({
                 <Eye size={18} />
                 Preview
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exit Confirmation Dialog - Save Before Leaving */}
+      {showExitConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10002,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
+            borderRadius: '20px',
+            padding: '32px',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
+            maxWidth: '450px',
+            width: '100%',
+            textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'rgba(245, 158, 11, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px'
+            }}>
+              <FolderPlus size={32} color="#f59e0b" />
+            </div>
+            <h2 style={{
+              margin: '0 0 12px',
+              fontSize: '1.4rem',
+              fontWeight: '700',
+              color: 'white'
+            }}>
+              Save Your Work?
+            </h2>
+            <p style={{
+              margin: '0 0 24px',
+              color: 'rgba(255,255,255,0.7)',
+              fontSize: '0.95rem',
+              lineHeight: '1.5'
+            }}>
+              You have {Object.values(safeOutputs).filter(Boolean).length + Object.values(safeMediaUrls).filter(Boolean).length} unsaved creations. Would you like to save before leaving?
+            </p>
+            
+            <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
+              <button
+                onClick={() => {
+                  setShowExitConfirm(false);
+                  setShowCreateProject(true);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  fontSize: '0.95rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px'
+                }}
+              >
+                <FolderPlus size={18} />
+                Save Project
+              </button>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button
+                  onClick={() => {
+                    setShowExitConfirm(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    borderRadius: '12px',
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    color: 'white',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.95rem'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowExitConfirm(false);
+                    onClose?.();
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '14px',
+                    borderRadius: '12px',
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    border: '1px solid rgba(239, 68, 68, 0.4)',
+                    color: '#ef4444',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.95rem'
+                  }}
+                >
+                  Discard & Exit
+                </button>
+              </div>
             </div>
           </div>
         </div>
