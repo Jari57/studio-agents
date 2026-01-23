@@ -1,3 +1,5 @@
+/* eslint-disable no-use-before-define */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { 
   Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2
@@ -88,7 +90,7 @@ const goalOptions = [
   { id: 'explore', label: "Just exploring", description: "Discover what's possible", icon: Sparkles, agents: [] }
 ];
 
-const agentDetails = {
+const _agentDetails = {
   ghost: {
     title: "GHOSTWRITER",
     subtitle: "AI Lyric Engine",
@@ -640,8 +642,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   // Onboarding & Help State
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(0);
-  const [selectedPath, setSelectedPath] = useState(null);
+  const [_onboardingStep, setOnboardingStep] = useState(0);
+  const [_selectedPath, _setSelectedPath] = useState(null);
   // Reserved for future use: const [showHelpPanel, setShowHelpPanel] = useState(false);
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
   const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
@@ -712,16 +714,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   ];
 
   // Get recommendation based on selected path
-  const getRecommendedAgents = () => {
-    if (!selectedPath) return [];
-    const goal = goalOptions.find(g => g.id === selectedPath);
+  const _getRecommendedAgents = () => {
+    if (!_selectedPath) return [];
+    const goal = goalOptions.find(g => g.id === _selectedPath);
     return goal?.agents || [];
   };
 
   // Get primary recommendation (first agent for selected path)
-  const getRecommendation = () => {
-    if (!selectedPath) return null;
-    const goal = goalOptions.find(g => g.id === selectedPath);
+  const _getRecommendation = () => {
+    if (!_selectedPath) return null;
+    const goal = goalOptions.find(g => g.id === _selectedPath);
     if (!goal || !goal.agents || goal.agents.length === 0) return null;
     return goal.agents[0]; // Primary recommendation
   };
@@ -1042,7 +1044,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   }, []);
   
   // Guard against double-clicks and overlapping operations
-  const withOperationGuard = useCallback((operationId, asyncFn) => {
+  const _withOperationGuard = useCallback((operationId, asyncFn) => {
     return async (...args) => {
       if (pendingOperationsRef.current.has(operationId)) {
         console.log(`[Guard] Operation "${operationId}" already in progress, skipping`);

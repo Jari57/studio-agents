@@ -1,8 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { 
-  Shield, X, ChevronRight, Lock, FileText, Tv, CreditCard,
-  Scale, AlertCircle, CheckCircle, Download, ArrowLeft, ExternalLink,
-  BookOpen, Award, Users, Building
+  Shield, ChevronRight, FileText, Tv, CreditCard,
+  ArrowLeft, BookOpen
 } from 'lucide-react';
 
 const LegalResourcesPage = ({ onBack }) => {
