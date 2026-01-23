@@ -214,10 +214,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Clear scroll lock on mount (LandingPage may have left it set)
   useEffect(() => {
     document.body.classList.remove('modal-open');
-    // Clear auth transition flag after a delay (allow time for Firebase sync)
+    
+    // Clean up the auth completion flag after 10 seconds
     const timer = setTimeout(() => {
-      authJustCompletedRef.current = false;
-    }, 3000); // 3 seconds should be enough for Firebase to sync
+      localStorage.removeItem('auth_just_completed');
+    }, 10000);
+    
     return () => clearTimeout(timer);
   }, []);
 
@@ -255,9 +257,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
   // Check localStorage for existing session to prevent login flash on page load
   const hasExistingSession = !!localStorage.getItem('studio_user_id');
-  const [authChecking, setAuthChecking] = useState(!hasExistingSession); // Skip auth check if we have a cached session
-  const [isLoggedIn, setIsLoggedIn] = useState(hasExistingSession); // Start as logged in if session exists
-  const authJustCompletedRef = useRef(hasExistingSession); // Track if we just logged in to prevent premature clearing
+  const [authChecking, setAuthChecking] = useState(!hasExistingSession);
+  const [isLoggedIn, setIsLoggedIn] = useState(hasExistingSession);
+  
+  // Track if auth just completed (within last 5 seconds) to prevent race conditions
+  const getAuthJustCompleted = () => {
+    const timestamp = localStorage.getItem('auth_just_completed');
+    if (!timestamp) return false;
+    const elapsed = Date.now() - parseInt(timestamp);
+    return elapsed < 5000; // 5 seconds
+  };
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -2101,13 +2110,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         console.log('[Auth] onAuthStateChanged fired', { hasUser: !!currentUser, uid: currentUser?.uid });
         if (currentUser) {
-          // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
-          // Use batch state updates to prevent render in-between
-          authJustCompletedRef.current = true; // Mark that we have a valid user
+          // User is logged in - update all state
           setUser(currentUser);
           localStorage.setItem('studio_user_id', currentUser.uid);
-          setAuthChecking(false); // Auth check complete
-          setIsLoggedIn(true); // Set this LAST after user is set
+          setAuthChecking(false);
+          setIsLoggedIn(true);
           
           console.log('[Auth] User state set, checking for pending plan');
           
@@ -2205,21 +2212,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             }
           }
         } else {
-          // CRITICAL: Don't clear state if we just logged in (prevents race condition)
-          // This happens when onAuthStateChanged fires before getRedirectResult completes
-          if (authJustCompletedRef.current) {
-            console.log('[Auth] Ignoring null user - auth just completed, waiting for Firebase to sync');
-            return; // Keep current logged-in state
+          // User is null - but check if auth just completed (race condition protection)
+          if (getAuthJustCompleted()) {
+            console.log('[Auth] Ignoring null user - auth just completed, Firebase still syncing');
+            return; // Don't clear state yet
           }
           
-          // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
-          // Batch all state updates together
+          // Clear user state
+          console.log('[Auth] No user logged in, clearing state');
           setUser(null);
           setUserToken(null);
-          setUserCredits(3); // Reset to trial
-          setAuthChecking(false); // Auth check complete (not logged in)
+          setUserCredits(3);
+          setAuthChecking(false);
           localStorage.removeItem('studio_user_id');
-          setIsLoggedIn(false); // Set this LAST after user is cleared
+          setIsLoggedIn(false);
         }
       });
       return () => unsubscribe();

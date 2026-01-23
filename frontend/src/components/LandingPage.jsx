@@ -568,97 +568,45 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
 
   // Check for redirect result on mount (handle Google sign-in redirect)
   useEffect(() => {
-    let hasHandledAuth = false; // Local flag to prevent double handling in this effect cycle
-    
     const checkRedirectResult = async () => {
-      if (hasHandledAuth) return;
-      
       try {
         const result = await getRedirectResult(auth);
         if (result && result.user) {
-          hasHandledAuth = true; // Mark as handled within this effect
-          console.log('[LandingPage] Auth redirect successful, user:', result.user.email);
+          console.log('[LandingPage] OAuth redirect successful:', result.user.email);
           
-          // Set localStorage to prevent flashes on navigation
+          // Mark that auth just completed to prevent interference
           localStorage.setItem('studio_user_id', result.user.uid);
+          localStorage.setItem('auth_just_completed', Date.now().toString());
           
-          // Retrieve pending action from sessionStorage
+          // Get pending action
           const storedAction = sessionStorage.getItem('auth_pending_action');
-          console.log('[LandingPage] Retrieved pending action:', storedAction);
-          sessionStorage.removeItem('auth_pending_action'); // Clean up
+          sessionStorage.removeItem('auth_pending_action');
           
           setIsTransitioning(true);
           setShowAuthModal(false);
-          // Remove scroll lock before navigating
           document.body.classList.remove('modal-open');
           
-          // Navigate based on stored action
-          console.log('[LandingPage] Calling onEnter from redirect result');
+          // Navigate to studio
+          console.log('[LandingPage] Navigating to studio, action:', storedAction);
           if (storedAction === 'orchestrator') {
-            onEnter(false, true); // Start orchestrator
+            onEnter(false, true);
           } else {
-            onEnter(false, false, 'agents'); // Navigate to agents tab
+            onEnter(false, false, 'agents');
           }
         }
       } catch (error) {
-        console.error('[LandingPage] Redirect result error:', error);
-        if (error.code === 'auth/popup-closed-by-user') {
-          setAuthError('Sign-in cancelled. Please try again.');
-        } else {
+        console.error('[LandingPage] Redirect error:', error);
+        if (error.code !== 'auth/popup-closed-by-user') {
           setAuthError(error.message || 'Failed to sign in. Please try again.');
         }
       }
     };
     
     checkRedirectResult();
-  }, [onEnter]); // Include onEnter in deps
+  }, [onEnter]);
 
-  // Auto-enter studio if user is already logged in (persistence)
-  // This only runs for RETURNING users, not fresh redirects from Google
-  useEffect(() => {
-    if (!auth) return;
-    
-    // Check if we're already on the studio page - don't navigate if so
-    const isOnStudioPage = window.location.hash.startsWith('#/studio');
-    if (isOnStudioPage) {
-      console.log('[LandingPage] Already on studio page, skipping auth listener navigation');
-      return;
-    }
-    
-    // Small delay to let getRedirectResult finish first
-    const timer = setTimeout(() => {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        // Only navigate if we're still on landing page (not already transitioned)
-        const stillOnLanding = !window.location.hash.startsWith('#/studio');
-        if (user && !isTransitioning && stillOnLanding) {
-          console.log('[LandingPage] User already logged in, transitioning to studio...');
-          
-          // Ensure user ID is in localStorage for StudioView
-          localStorage.setItem('studio_user_id', user.uid);
-          
-          setIsTransitioning(true);
-          // Remove scroll lock before navigating
-          document.body.classList.remove('modal-open');
-          
-          // Check for pending action from sessionStorage
-          const storedAction = sessionStorage.getItem('auth_pending_action');
-          sessionStorage.removeItem('auth_pending_action');
-          
-          // Navigate user to studio immediately
-          console.log('[LandingPage] Calling onEnter from auth state change, action:', storedAction);
-          if (storedAction === 'orchestrator') {
-            onEnter(false, true); // Start orchestrator
-          } else {
-            onEnter(false, false, 'agents'); // Navigate to agents tab
-          }
-        }
-      });
-      
-      return () => unsubscribe();
-    }, 100); // Small delay
-    
-    return () => clearTimeout(timer);
-  }, [onEnter, isTransitioning]);
+  // DISABLED: This listener was causing race conditions and redirect loops
+  // StudioView now handles persistent login via localStorage check on mount
 
   // Manage body scroll lock when ANY modal is open
   useEffect(() => {
