@@ -7018,11 +7018,18 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 
                 {selectedProject.agents && selectedProject.agents.length > 0 ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
-                    {selectedProject.agents.map(agent => {
+                    {selectedProject.agents.map((agentData, agentIdx) => {
+                      // Handle both agent objects and agent ID strings
+                      const agentId = typeof agentData === 'string' ? agentData : agentData?.id;
+                      const agent = AGENTS.find(a => a.id === agentId) || (typeof agentData === 'object' ? agentData : null);
+                      
+                      // Skip invalid agents
+                      if (!agent) return null;
+                      
                       const AgentIcon = agent.icon || Sparkles;
                       return (
                         <div 
-                          key={agent.id}
+                          key={agentId || agentIdx}
                           onClick={() => setSelectedAgent(agent)}
                           style={{
                             background: 'var(--bg-secondary)',
