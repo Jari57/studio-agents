@@ -2821,6 +2821,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
 
       // Show preview modal instead of auto-saving
+      console.log('[Preview] Setting preview item:', { 
+        hasSnippet: !!newItem.snippet, 
+        type: newItem.type,
+        agent: newItem.agent,
+        keys: Object.keys(newItem)
+      });
       setPreviewItem(newItem);
       setPreviewPrompt(prompt);
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
@@ -10224,8 +10230,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
         {/* Preview Modal - Review AI Generation Before Saving */}
         {previewItem && (
-          <div className="modal-overlay" onClick={() => setPreviewItem(null)}>
-            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          <div className="modal-overlay" onClick={() => {
+            console.log('[Preview] Overlay clicked, closing preview');
+            setPreviewItem(null);
+          }}>
+            <div className="modal-content animate-fadeInUp" onClick={(e) => {
+              console.log('[Preview] Modal content clicked, stopping propagation');
+              e.stopPropagation();
+            }} style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
               <button 
                 className="modal-close" 
                 onClick={(e) => {
