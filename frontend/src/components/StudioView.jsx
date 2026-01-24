@@ -535,7 +535,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Reserved for future use: const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [previewItem, setPreviewItem] = useState(null);
   const [previewPrompt, setPreviewPrompt] = useState('');
-  const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt' toggle
+  const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt'
+  const [mediaLoadError, setMediaLoadError] = useState(null); // Track media load failures toggle
   const [isSaving, setIsSaving] = useState(false); // Saving/syncing state with animated loader
   const [agentPreviews, setAgentPreviews] = useState({}); // Cache last generation per agent
   
@@ -2827,6 +2828,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         agent: newItem.agent,
         keys: Object.keys(newItem)
       });
+      setMediaLoadError(null); // Clear any previous media errors
       setPreviewItem(newItem);
       setPreviewPrompt(prompt);
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
@@ -10451,18 +10453,55 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       </div>
                     </div>
                   ) : previewItem.type === 'audio' && previewItem.audioUrl ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <audio 
-                        controls 
-                        src={previewItem.audioUrl} 
-                        style={{ width: '100%' }}
-                        onError={(e) => console.error('Audio failed to load:', e.target.error?.message, previewItem.audioUrl?.substring(0, 100))}
-                        onCanPlay={() => console.log('Audio ready to play')}
-                      />
-                      {previewItem.audioUrl?.startsWith('http') && (
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          🔗 External audio URL
-                        </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+                      {mediaLoadError?.type === 'audio' ? (
+                        <div style={{ 
+                          padding: '2rem', 
+                          textAlign: 'center', 
+                          background: 'rgba(239, 68, 68, 0.1)', 
+                          borderRadius: '12px',
+                          border: '1px solid rgba(239, 68, 68, 0.3)'
+                        }}>
+                          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🎵</div>
+                          <h4 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Audio Unavailable</h4>
+                          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                            This audio file has expired or is no longer available. Replicate URLs are temporary.
+                          </p>
+                          <button 
+                            onClick={() => {
+                              setMediaLoadError(null);
+                              setPreviewItem(null);
+                            }}
+                            style={{
+                              padding: '8px 16px',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(239, 68, 68, 0.3)',
+                              background: 'transparent',
+                              color: 'var(--text-primary)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Close
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <audio 
+                            controls 
+                            src={previewItem.audioUrl} 
+                            style={{ width: '100%' }}
+                            onError={(e) => {
+                              console.error('Audio failed to load:', e.target.error?.message, previewItem.audioUrl?.substring(0, 100));
+                              setMediaLoadError({ type: 'audio', url: previewItem.audioUrl });
+                            }}
+                            onCanPlay={() => console.log('Audio ready to play')}
+                          />
+                          {previewItem.audioUrl?.startsWith('http') && (
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              🔗 External audio URL (may expire)
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   ) : previewItem.type === 'video' && previewItem.videoUrl ? (
@@ -10504,12 +10543,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           controls 
                           src={previewItem.videoUrl} 
                           style={{ width: '100%', borderRadius: '8px' }}
-                          onError={(e) => console.error('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100))}
+                          onError={(e) => {
+                            console.error('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100));
+                            setMediaLoadError({ type: 'video', url: previewItem.videoUrl });
+                          }}
                         />
                       )}
                       {previewItem.videoUrl?.startsWith('http') && (
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          🔗 External video URL
+                          🔗 External video URL (may expire)
                         </p>
                       )}
                     </div>
