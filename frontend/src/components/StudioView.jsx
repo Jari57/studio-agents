@@ -677,12 +677,92 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return (asset.type || 'text').toLowerCase();
   };
   
+  // Helper: Safely open preview with debouncing and validation
+  const safeOpenPreview = (asset, allAssets) => {
+    // Clear any pending preview opens
+    if (previewDebounceTimer.current) {
+      clearTimeout(previewDebounceTimer.current);
+    }
+    
+    // Debounce to prevent rapid clicks
+    previewDebounceTimer.current = setTimeout(() => {
+      try {
+        if (!asset) {
+          console.warn('[SafePreview] No asset provided');
+          return;
+        }
+        
+        // Guard against concurrent transitions
+        if (isModalTransitioning.current) {
+          console.log('[SafePreview] Blocked - transition in progress');
+          return;
+        }
+        
+        isModalTransitioning.current = true;
+        
+        // Validate and filter assets array
+        const safeAssetsList = Array.isArray(allAssets) ? allAssets.filter(a => a && (a.id || a.audioUrl || a.videoUrl || a.imageUrl || a.content)) : [];
+        
+        // For text-only assets
+        if (!asset.audioUrl && !asset.imageUrl && !asset.videoUrl) {
+          const foundIndex = safeAssetsList.findIndex(a => a?.id === asset?.id);
+          const safeIndex = foundIndex >= 0 && foundIndex < safeAssetsList.length ? foundIndex : 0;
+          
+          // Double-check the asset at safeIndex exists
+          if (safeAssetsList[safeIndex]) {
+            setShowPreview({
+              type: (asset.type || 'text').toLowerCase(),
+              url: null,
+              content: asset.content || asset.snippet || asset.output || '',
+              title: asset.title || 'Untitled',
+              asset: asset,
+              assets: safeAssetsList,
+              currentIndex: safeIndex
+            });
+          }
+        } else {
+          // For media assets - filter to only previewable ones
+          const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
+          
+          if (previewableAssets.length === 0) {
+            toast.error('No previewable content found');
+            isModalTransitioning.current = false;
+            return;
+          }
+          
+          const foundIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
+          const safeIndex = foundIndex >= 0 && foundIndex < previewableAssets.length ? foundIndex : 0;
+          
+          // Double-check the asset at safeIndex exists
+          const targetAsset = previewableAssets[safeIndex];
+          if (targetAsset) {
+            setShowPreview({
+              type: targetAsset.audioUrl ? 'audio' : targetAsset.videoUrl ? 'video' : 'image',
+              url: targetAsset.audioUrl || targetAsset.videoUrl || targetAsset.imageUrl,
+              title: targetAsset.title || 'Untitled',
+              asset: targetAsset,
+              assets: previewableAssets,
+              currentIndex: safeIndex
+            });
+          }
+        }
+        
+        // Reset guard after modal opens (increased timeout for reliability)
+        setTimeout(() => { isModalTransitioning.current = false; }, 500);
+      } catch (err) {
+        console.error('[SafePreview] Error:', err);
+        isModalTransitioning.current = false;
+      }
+    }, 100); // 100ms debounce
+  };
+  
   // Audio refs to prevent re-render interruption
   const previewAudioRef = useRef(null);
   const canvasAudioRef = useRef(null);
   
   // Transition guard ref (doesn't cause re-render)
   const isModalTransitioning = useRef(false);
+  const previewDebounceTimer = useRef(null);
 
   // Audio Export/Mastering State
   const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
@@ -3681,25 +3761,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                      </button>
                      <button 
                        onClick={() => {
-                         try {
-                           const assetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
-                           if (assetsList.length === 0) {
-                             toast.error('No assets to preview');
-                             return;
-                           }
-                           const foundIndex = assetsList.findIndex(a => a && a.id === canvasPreviewAsset?.id);
-                           const safeIndex = foundIndex >= 0 && foundIndex < assetsList.length ? foundIndex : 0;
-                           setShowPreview({
-                             type: (canvasPreviewAsset.type || 'text').toLowerCase(),
-                             url: canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl || null,
-                             title: canvasPreviewAsset.title || 'Untitled',
-                             asset: canvasPreviewAsset,
-                             assets: assetsList,
-                             currentIndex: safeIndex
-                           });
-                         } catch (err) {
-                           console.error('[AssetPreview] Error opening fullscreen:', err);
-                           toast.error('Could not open preview');
+                         const assetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
+                         if (canvasPreviewAsset) {
+                           safeOpenPreview(canvasPreviewAsset, assetsList);
                          }
                        }}
                        className="btn-icon-circle glass"
@@ -3954,70 +4018,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                      {/* Media Preview */}
                      <div 
                        onClick={() => {
-                         try {
-                           // Guard: prevent rapid clicks
-                           if (isModalTransitioning.current) {
-                             console.log('[AssetClick] Blocked - transition in progress');
-                             return;
-                           }
-                           
-                           console.log('[AssetClick] Asset clicked:', asset?.id, asset?.title, 'type:', asset?.type);
-                           console.log('[AssetClick] URLs:', { audio: !!asset?.audioUrl, video: !!asset?.videoUrl, image: !!asset?.imageUrl });
-                           
-                           isModalTransitioning.current = true;
-                           
-                           // For text-only assets, open fullscreen text preview
-                           if (!asset?.audioUrl && !asset?.imageUrl && !asset?.videoUrl) {
-                             console.log('[AssetClick] Text-only asset, opening fullscreen text preview');
-                             const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
-                             if (safeAssetsList.length === 0) {
-                               toast.error('No assets available');
-                               isModalTransitioning.current = false;
-                               return;
-                             }
-                             const foundIndex = safeAssetsList.findIndex(a => a?.id === asset?.id);
-                             const safeIndex = foundIndex >= 0 && foundIndex < safeAssetsList.length ? foundIndex : 0;
-                             setShowPreview({
-                               type: (asset.type || 'text').toLowerCase(),
-                               url: null,
-                               content: asset.content || asset.snippet || asset.output || null,
-                               title: asset.title || 'Untitled',
-                               asset: asset,
-                               assets: safeAssetsList,
-                               currentIndex: safeIndex
-                             });
-                             setTimeout(() => { isModalTransitioning.current = false; }, 300);
-                             return;
-                           }
-                           
-                           // Open fullscreen preview (auto-plays audio/video)
-                           const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
-                           const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
-                           if (previewableAssets.length === 0) {
-                             toast.error('No previewable assets found');
-                             isModalTransitioning.current = false;
-                             return;
-                           }
-                           const foundIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
-                           const safeIndex = foundIndex >= 0 && foundIndex < previewableAssets.length ? foundIndex : 0;
-                           
-                           const previewData = {
-                             type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
-                             url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                             title: asset.title || 'Untitled',
-                             asset: asset,
-                             assets: previewableAssets,
-                             currentIndex: safeIndex
-                           };
-                           console.log('[AssetClick] Opening preview:', previewData.type, 'url exists:', !!previewData.url);
-                           setShowPreview(previewData);
-                           
-                           // Reset guard after modal opens
-                           setTimeout(() => { isModalTransitioning.current = false; }, 300);
-                         } catch (err) {
-                           console.error('[AssetClick] Error:', err);
-                           isModalTransitioning.current = false;
-                         }
+                         const projectAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                         safeOpenPreview(asset, projectAssets);
                        }}
                        style={{ 
                          width: '100%',
@@ -4161,17 +4163,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                          <button
                            onClick={(e) => {
                              e.stopPropagation();
-                             const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
-                             const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
-                             const currentIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
-                             setShowPreview({
-                               type: asset.audioUrl ? 'audio' : 'video',
-                               url: asset.audioUrl || asset.videoUrl,
-                               title: asset.title || 'Untitled',
-                               asset: asset,
-                               assets: previewableAssets,
-                               currentIndex: currentIndex >= 0 ? currentIndex : 0
-                             });
+                             const projectAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                             safeOpenPreview(asset, projectAssets);
                            }}
                            className="btn-icon-sm"
                            title={asset.audioUrl ? "Play Audio" : "Play Video"}
@@ -4202,17 +4195,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                        <button
                          onClick={(e) => {
                            e.stopPropagation();
-                           const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
-                           const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
-                           const currentIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
-                           setShowPreview({
-                             type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
-                             url: asset.audioUrl || asset.videoUrl || asset.imageUrl,
-                             title: asset.title || 'Untitled',
-                             asset: asset,
-                             assets: previewableAssets,
-                             currentIndex: currentIndex >= 0 ? currentIndex : 0
-                           });
+                           const projectAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                           safeOpenPreview(asset, projectAssets);
                          }}
                          className="btn-icon-sm"
                          title="Fullscreen"
@@ -12855,12 +12839,26 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 onClick={(e) => {
                   e.stopPropagation();
                   // Defensive checks for assets array and currentIndex
-                  if (safePreviewAssets.length === 0) return;
+                  if (safePreviewAssets.length === 0 || isModalTransitioning.current) return;
+                  
+                  isModalTransitioning.current = true;
+                  
                   const newIndex = safePreviewIndex > 0 
                     ? safePreviewIndex - 1 
                     : safePreviewAssets.length - 1;
+                  
+                  // Validate new index is in bounds
+                  if (newIndex < 0 || newIndex >= safePreviewAssets.length) {
+                    isModalTransitioning.current = false;
+                    return;
+                  }
+                  
                   const newAsset = safePreviewAssets[newIndex];
-                  if (!newAsset) return; // Safety check
+                  if (!newAsset) {
+                    isModalTransitioning.current = false;
+                    return;
+                  }
+                  
                   setShowPreview({
                     type: getAssetPreviewType(newAsset),
                     url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl || null,
@@ -12870,6 +12868,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     assets: safePreviewAssets,
                     currentIndex: newIndex
                   });
+                  
+                  setTimeout(() => { isModalTransitioning.current = false; }, 300);
                 }}
                 style={{
                   position: 'fixed',
@@ -12901,12 +12901,26 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 onClick={(e) => {
                   e.stopPropagation();
                   // Defensive checks for assets array and currentIndex
-                  if (safePreviewAssets.length === 0) return;
+                  if (safePreviewAssets.length === 0 || isModalTransitioning.current) return;
+                  
+                  isModalTransitioning.current = true;
+                  
                   const newIndex = safePreviewIndex < safePreviewAssets.length - 1 
                     ? safePreviewIndex + 1 
                     : 0;
+                  
+                  // Validate new index is in bounds
+                  if (newIndex < 0 || newIndex >= safePreviewAssets.length) {
+                    isModalTransitioning.current = false;
+                    return;
+                  }
+                  
                   const newAsset = safePreviewAssets[newIndex];
-                  if (!newAsset) return; // Safety check
+                  if (!newAsset) {
+                    isModalTransitioning.current = false;
+                    return;
+                  }
+                  
                   setShowPreview({
                     type: getAssetPreviewType(newAsset),
                     url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl || null,
@@ -12916,6 +12930,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     assets: safePreviewAssets,
                     currentIndex: newIndex
                   });
+                  
+                  setTimeout(() => { isModalTransitioning.current = false; }, 300);
                 }}
                 style={{
                   position: 'fixed',
