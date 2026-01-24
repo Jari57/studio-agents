@@ -664,8 +664,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   
   // Safe preview data access (prevents TDZ/null errors)
   const safePreview = showPreview || {};
-  const safePreviewAssets = Array.isArray(safePreview.assets) ? safePreview.assets : [];
-  const safePreviewIndex = typeof safePreview.currentIndex === 'number' && !isNaN(safePreview.currentIndex) ? safePreview.currentIndex : 0;
+  const safePreviewAssets = Array.isArray(safePreview.assets) ? safePreview.assets.filter(Boolean) : [];
+  const rawPreviewIndex = typeof safePreview.currentIndex === 'number' && !isNaN(safePreview.currentIndex) ? safePreview.currentIndex : 0;
+  // Clamp index to valid bounds
+  const safePreviewIndex = safePreviewAssets.length > 0 
+    ? Math.max(0, Math.min(rawPreviewIndex, safePreviewAssets.length - 1))
+    : 0;
   
   // Helper: Get proper type for asset preview (handles text assets correctly)
   const getAssetPreviewType = (asset) => {
@@ -689,6 +693,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       try {
         if (!asset) {
           console.warn('[SafePreview] No asset provided');
+          toast.error('Unable to preview: asset not found');
           return;
         }
         
@@ -703,6 +708,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         // Validate and filter assets array
         const safeAssetsList = Array.isArray(allAssets) ? allAssets.filter(a => a && (a.id || a.audioUrl || a.videoUrl || a.imageUrl || a.content)) : [];
         
+        if (safeAssetsList.length === 0) {
+          console.warn('[SafePreview] No valid assets in list');
+          toast.error('No assets available to preview');
+          isModalTransitioning.current = false;
+          return;
+        }
+        
         // For text-only assets
         if (!asset.audioUrl && !asset.imageUrl && !asset.videoUrl) {
           const foundIndex = safeAssetsList.findIndex(a => a?.id === asset?.id);
@@ -710,6 +722,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           
           // Double-check the asset at safeIndex exists
           if (safeAssetsList[safeIndex]) {
+            console.log('[SafePreview] Opening text preview at index', safeIndex);
             setShowPreview({
               type: (asset.type || 'text').toLowerCase(),
               url: null,
@@ -719,12 +732,18 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               assets: safeAssetsList,
               currentIndex: safeIndex
             });
+          } else {
+            console.error('[SafePreview] Asset at index', safeIndex, 'does not exist');
+            toast.error('Preview data unavailable');
+            isModalTransitioning.current = false;
+            return;
           }
         } else {
           // For media assets - filter to only previewable ones
           const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
           
           if (previewableAssets.length === 0) {
+            console.warn('[SafePreview] No previewable media assets found');
             toast.error('No previewable content found');
             isModalTransitioning.current = false;
             return;
@@ -736,6 +755,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           // Double-check the asset at safeIndex exists
           const targetAsset = previewableAssets[safeIndex];
           if (targetAsset) {
+            console.log('[SafePreview] Opening media preview at index', safeIndex, 'type:', targetAsset.audioUrl ? 'audio' : targetAsset.videoUrl ? 'video' : 'image');
             setShowPreview({
               type: targetAsset.audioUrl ? 'audio' : targetAsset.videoUrl ? 'video' : 'image',
               url: targetAsset.audioUrl || targetAsset.videoUrl || targetAsset.imageUrl,
@@ -744,6 +764,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               assets: previewableAssets,
               currentIndex: safeIndex
             });
+          } else {
+            console.error('[SafePreview] Asset at index', safeIndex, 'does not exist in previewable list');
+            toast.error('Preview data unavailable');
+            isModalTransitioning.current = false;
+            return;
           }
         }
         
@@ -751,6 +776,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         setTimeout(() => { isModalTransitioning.current = false; }, 500);
       } catch (err) {
         console.error('[SafePreview] Error:', err);
+        toast.error('Preview failed: ' + err.message);
         isModalTransitioning.current = false;
       }
     }, 100); // 100ms debounce
@@ -13307,15 +13333,31 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     key={asset?.id || idx}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowPreview({
-                        type: getAssetPreviewType(asset),
-                        url: asset.audioUrl || asset.videoUrl || asset.imageUrl || null,
-                        content: asset.content || asset.snippet || asset.output || null,
-                        title: asset.title || 'Untitled',
-                        asset: asset,
-                        assets: safePreviewAssets,
-                        currentIndex: idx
-                      });
+                      
+                      // Guard against rapid clicks and invalid indices
+                      if (isModalTransitioning.current) return;
+                      if (idx < 0 || idx >= safePreviewAssets.length) return;
+                      
+                      const targetAsset = safePreviewAssets[idx];
+                      if (!targetAsset) return;
+                      
+                      isModalTransitioning.current = true;
+                      
+                      try {
+                        setShowPreview({
+                          type: getAssetPreviewType(targetAsset),
+                          url: targetAsset.audioUrl || targetAsset.videoUrl || targetAsset.imageUrl || null,
+                          content: targetAsset.content || targetAsset.snippet || targetAsset.output || null,
+                          title: targetAsset.title || 'Untitled',
+                          asset: targetAsset,
+                          assets: safePreviewAssets,
+                          currentIndex: idx
+                        });
+                      } catch (err) {
+                        console.error('[ThumbnailClick] Error:', err);
+                      }
+                      
+                      setTimeout(() => { isModalTransitioning.current = false; }, 300);
                     }}
                     style={{
                       width: '60px',
