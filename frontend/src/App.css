@@ -1522,6 +1522,8 @@ select optgroup {
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   background-color: var(--color-bg-primary);
   color: white;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
