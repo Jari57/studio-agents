@@ -6974,7 +6974,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     onClick={() => {
                       // Launch first agent or show picker
                       if (selectedProject.agents && selectedProject.agents.length > 0) {
-                        setSelectedAgent(selectedProject.agents[0]);
+                        const firstAgentData = selectedProject.agents[0];
+                        const agentId = typeof firstAgentData === 'string' ? firstAgentData : firstAgentData?.id;
+                        const agent = AGENTS.find(a => a.id === agentId) || (typeof firstAgentData === 'object' ? firstAgentData : null);
+                        if (agent) {
+                          setSelectedAgent(agent);
+                        } else {
+                          setShowAddAgentModal(true);
+                        }
                       } else {
                         setShowAddAgentModal(true);
                       }
@@ -7242,7 +7249,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       className="btn-primary"
                       onClick={() => {
                         if (selectedProject.agents && selectedProject.agents.length > 0) {
-                          setSelectedAgent(selectedProject.agents[0]);
+                          const firstAgentData = selectedProject.agents[0];
+                          const agentId = typeof firstAgentData === 'string' ? firstAgentData : firstAgentData?.id;
+                          const agent = AGENTS.find(a => a.id === agentId) || (typeof firstAgentData === 'object' ? firstAgentData : null);
+                          if (agent) {
+                            setSelectedAgent(agent);
+                          } else {
+                            setShowAddAgentModal(true);
+                          }
                         } else {
                           setShowAddAgentModal(true);
                         }
