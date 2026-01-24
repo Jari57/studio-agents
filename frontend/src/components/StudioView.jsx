@@ -992,7 +992,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setSelectedProject(newProject);
     
     // Save to cloud if logged in
-    if (user && db) {
+    if (user) {
       saveProjectToCloud(user.uid, newProject).catch(err => {
         console.error('Failed to save quick project to cloud:', err);
       });
@@ -1129,7 +1129,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
       // Save to cloud if logged in
       const updatedProject = newProjects.find(p => p.id === projectId);
-      if (updatedProject && user && db) {
+      if (updatedProject && user) {
         saveProjectToCloud(user.uid, updatedProject)
           .then(() => {
             updateSaveStatus('saved');
@@ -1154,7 +1154,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     });
     
     toast.success('Asset saved to project');
-  }, [user, db, saveProjectToCloud, updateSaveStatus, triggerHapticFeedback]);
+  }, [user, saveProjectToCloud, updateSaveStatus, triggerHapticFeedback]);
 
   const handleCreateProjectWithAsset = (projectName, asset) => {
     // Check if user has enough credits
@@ -1187,7 +1187,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setSelectedProject(newProject);
 
     // Save to cloud if logged in
-    if (user && db) {
+    if (user) {
       saveProjectToCloud(user.uid, newProject).catch(err => {
         console.error('Failed to save new project with asset to cloud:', err);
       });
