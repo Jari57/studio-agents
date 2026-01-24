@@ -2364,8 +2364,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
 
-  const [isGenerating, setIsGenerating] = useState(false);
-
   const handleGenerate = async () => {
     // Guard: Ensure agent is selected
     if (!selectedAgent) {
@@ -7220,7 +7218,25 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}
-                          onClick={() => setPreviewItem({ ...asset, isExistingAsset: true })}
+                          onClick={() => {
+                            const safeAsset = {
+                              id: asset.id,
+                              title: asset.title,
+                              snippet: asset.snippet,
+                              content: asset.content,
+                              type: asset.type,
+                              agent: asset.agent,
+                              imageUrl: asset.imageUrl,
+                              audioUrl: asset.audioUrl,
+                              videoUrl: asset.videoUrl,
+                              createdAt: asset.createdAt,
+                              date: asset.date,
+                              model: asset.model,
+                              description: asset.description,
+                              isExistingAsset: true
+                            };
+                            setPreviewItem(safeAsset);
+                          }}
                         >
                           {!asset.imageUrl && (
                             asset.type === 'audio' ? <Music size={48} style={{ opacity: 0.2 }} /> :
@@ -7273,7 +7289,25 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             <button 
                               className="btn-secondary-sm" 
                               style={{ flex: 1 }}
-                              onClick={() => setPreviewItem({ ...asset, isExistingAsset: true })}
+                              onClick={() => {
+                                const safeAsset = {
+                                  id: asset.id,
+                                  title: asset.title,
+                                  snippet: asset.snippet,
+                                  content: asset.content,
+                                  type: asset.type,
+                                  agent: asset.agent,
+                                  imageUrl: asset.imageUrl,
+                                  audioUrl: asset.audioUrl,
+                                  videoUrl: asset.videoUrl,
+                                  createdAt: asset.createdAt,
+                                  date: asset.date,
+                                  model: asset.model,
+                                  description: asset.description,
+                                  isExistingAsset: true
+                                };
+                                setPreviewItem(safeAsset);
+                              }}
                             >
                               <Eye size={14} /> View
                             </button>
