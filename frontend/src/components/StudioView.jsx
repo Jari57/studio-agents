@@ -12,7 +12,7 @@ const Image = ImageIcon;
 // Lazy load heavy sub-components
 const StudioOrchestrator = lazy(() => import('./StudioOrchestratorV2'));
 const QuickWorkflow = lazy(() => import('./QuickWorkflow'));
-const ProjectHub = lazy(() => import('./ProjectHub'));
+const ProjectHub = lazy(() => import('./ProjectHubV3')); // CapCut/Captions-style design
 const NewsHub = lazy(() => import('./NewsHub'));
 
 // Simple inline fallback for lazy components
