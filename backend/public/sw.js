@@ -113,8 +113,11 @@ self.addEventListener('message', (event) => {
       return;
     }
     
-    // Handle other message types gracefully
-    console.log('[SW] Received message:', event.data);
+    // Silently handle Firebase auth and other routine messages
+    // Only log non-routine messages to avoid console spam
+    if (event.data && event.data.eventType !== 'keyChanged') {
+      // Uncomment for debugging: console.log('[SW] Received message:', event.data);
+    }
   } catch (error) {
     // Silently handle message parsing errors
     console.warn('[SW] Message handling error:', error);

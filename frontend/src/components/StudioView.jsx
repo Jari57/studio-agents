@@ -3682,14 +3682,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                      <button 
                        onClick={() => {
                          try {
-                           const assetsList = selectedProject?.assets || [];
+                           const assetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
+                           if (assetsList.length === 0) {
+                             toast.error('No assets to preview');
+                             return;
+                           }
+                           const foundIndex = assetsList.findIndex(a => a && a.id === canvasPreviewAsset?.id);
+                           const safeIndex = foundIndex >= 0 && foundIndex < assetsList.length ? foundIndex : 0;
                            setShowPreview({
                              type: (canvasPreviewAsset.type || 'text').toLowerCase(),
                              url: canvasPreviewAsset.audioUrl || canvasPreviewAsset.videoUrl || canvasPreviewAsset.imageUrl || null,
                              title: canvasPreviewAsset.title || 'Untitled',
                              asset: canvasPreviewAsset,
                              assets: assetsList,
-                             currentIndex: Math.max(0, assetsList.findIndex(a => a.id === canvasPreviewAsset.id))
+                             currentIndex: safeIndex
                            });
                          } catch (err) {
                            console.error('[AssetPreview] Error opening fullscreen:', err);
@@ -3963,8 +3969,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                            // For text-only assets, open fullscreen text preview
                            if (!asset?.audioUrl && !asset?.imageUrl && !asset?.videoUrl) {
                              console.log('[AssetClick] Text-only asset, opening fullscreen text preview');
-                             const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
-                             const currentIndex = safeAssetsList.findIndex(a => a?.id === asset?.id);
+                             const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
+                             if (safeAssetsList.length === 0) {
+                               toast.error('No assets available');
+                               isModalTransitioning.current = false;
+                               return;
+                             }
+                             const foundIndex = safeAssetsList.findIndex(a => a?.id === asset?.id);
+                             const safeIndex = foundIndex >= 0 && foundIndex < safeAssetsList.length ? foundIndex : 0;
                              setShowPreview({
                                type: (asset.type || 'text').toLowerCase(),
                                url: null,
@@ -3972,16 +3984,22 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                title: asset.title || 'Untitled',
                                asset: asset,
                                assets: safeAssetsList,
-                               currentIndex: currentIndex >= 0 ? currentIndex : 0
+                               currentIndex: safeIndex
                              });
                              setTimeout(() => { isModalTransitioning.current = false; }, 300);
                              return;
                            }
                            
                            // Open fullscreen preview (auto-plays audio/video)
-                           const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                           const safeAssetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
                            const previewableAssets = safeAssetsList.filter(a => a?.audioUrl || a?.imageUrl || a?.videoUrl);
-                           const currentIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
+                           if (previewableAssets.length === 0) {
+                             toast.error('No previewable assets found');
+                             isModalTransitioning.current = false;
+                             return;
+                           }
+                           const foundIndex = previewableAssets.findIndex(a => a?.id === asset?.id);
+                           const safeIndex = foundIndex >= 0 && foundIndex < previewableAssets.length ? foundIndex : 0;
                            
                            const previewData = {
                              type: asset.audioUrl ? 'audio' : asset.videoUrl ? 'video' : 'image',
@@ -3989,7 +4007,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                              title: asset.title || 'Untitled',
                              asset: asset,
                              assets: previewableAssets,
-                             currentIndex: currentIndex >= 0 ? currentIndex : 0
+                             currentIndex: safeIndex
                            };
                            console.log('[AssetClick] Opening preview:', previewData.type, 'url exists:', !!previewData.url);
                            setShowPreview(previewData);
