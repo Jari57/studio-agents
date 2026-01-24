@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, FileAudio, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2, Copy
 } from 'lucide-react';
 
 // Alias for clarity and to avoid potential minification issues
@@ -200,7 +200,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
   // Initialize isLoggedIn from localStorage to avoid login gate while Firebase is checking
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('studio_user_id'));
+  const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('studio_guest_mode') === 'true');
   const [authChecking, setAuthChecking] = useState(true); // Track if we're still checking auth state
+  const [authRetryCount, setAuthRetryCount] = useState(0); // Track auth retry attempts
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -1314,13 +1316,56 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             }
           }
         } else {
-          // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
-          setUser(null);
-          setUserToken(null);
-          setUserCredits(3); // Reset to trial
-          localStorage.removeItem('studio_user_id');
-          setIsLoggedIn(false); // Set this LAST after user is cleared
-          setAuthChecking(false); // Auth check complete (not logged in)
+          // Firebase returned null - but DON'T immediately log out
+          // This can happen temporarily during network issues or page refresh
+          // Only clear auth if we're certain the user has logged out
+          
+          // Check if we had a previous session in localStorage
+          const previousUserId = localStorage.getItem('studio_user_id');
+          const wasGuestMode = localStorage.getItem('studio_guest_mode') === 'true';
+          
+          if (previousUserId && authRetryCount < 3) {
+            // We had a session - Firebase might just be slow
+            // Wait and retry before clearing
+            console.log('[Auth] Firebase returned null but we have session, retry', authRetryCount + 1);
+            setAuthRetryCount(prev => prev + 1);
+            
+            // Keep user logged in from localStorage while we wait
+            setIsLoggedIn(true);
+            setAuthChecking(true); // Still checking
+            
+            // Don't clear anything yet - give Firebase a moment
+            setTimeout(() => {
+              // After timeout, if still no user, then really log out
+              if (!user) {
+                console.log('[Auth] Retry exhausted, clearing session');
+                setUser(null);
+                setUserToken(null);
+                setUserCredits(3);
+                localStorage.removeItem('studio_user_id');
+                setIsLoggedIn(false);
+                setAuthChecking(false);
+                setAuthRetryCount(0);
+              }
+            }, 2000);
+          } else if (wasGuestMode) {
+            // Guest mode - keep them in without login
+            setUser(null);
+            setUserToken(null);
+            setIsLoggedIn(false);
+            setIsGuestMode(true);
+            setAuthChecking(false);
+            console.log('[Auth] Continuing in guest mode');
+          } else {
+            // No previous session or retries exhausted - clear auth
+            setUser(null);
+            setUserToken(null);
+            setUserCredits(3);
+            localStorage.removeItem('studio_user_id');
+            setIsLoggedIn(false);
+            setAuthChecking(false);
+            setAuthRetryCount(0);
+          }
         }
       });
       return () => unsubscribe();
@@ -2933,7 +2978,22 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const handleDiscardPreview = () => {
     setPreviewItem(null);
     setPreviewPrompt('');
-    toast('Discarded. Try again!', { icon: '🔄' });
+    // Only show discard toast if it was a new generation, not viewing existing asset
+    // toast('Discarded. Try again!', { icon: '🔄' });
+  };
+
+  // Continue as guest (no login required for basic features)
+  const continueAsGuest = () => {
+    setIsGuestMode(true);
+    localStorage.setItem('studio_guest_mode', 'true');
+    toast.success('Welcome! Sign in anytime to save your work.', { icon: '👋' });
+  };
+
+  // Exit guest mode (user wants to log in)
+  const exitGuestMode = () => {
+    setIsGuestMode(false);
+    localStorage.removeItem('studio_guest_mode');
+    setShowLoginModal(true);
   };
 
   // Regenerate with the same prompt
@@ -7160,7 +7220,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}
-                          onClick={() => setPreviewItem(asset)}
+                          onClick={() => setPreviewItem({ ...asset, isExistingAsset: true })}
                         >
                           {!asset.imageUrl && (
                             asset.type === 'audio' ? <Music size={48} style={{ opacity: 0.2 }} /> :
@@ -7213,7 +7273,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             <button 
                               className="btn-secondary-sm" 
                               style={{ flex: 1 }}
-                              onClick={() => setPreviewItem(asset)}
+                              onClick={() => setPreviewItem({ ...asset, isExistingAsset: true })}
                             >
                               <Eye size={14} /> View
                             </button>
@@ -8670,8 +8730,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     );
   }
 
-  // AUTH GATE: If not logged in AND auth check complete, show login prompt
-  if (!isLoggedIn && !authChecking) {
+  // AUTH GATE: If not logged in AND auth check complete AND not in guest mode, show login prompt
+  if (!isLoggedIn && !authChecking && !isGuestMode) {
     return (
       <div className={`studio-container ${theme}-theme`} style={{
         display: 'flex',
@@ -8709,6 +8769,21 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
             {authLoading ? 'Signing in...' : 'Sign In with Google'}
+          </button>
+          <button
+            onClick={continueAsGuest}
+            className="btn-pill"
+            style={{ 
+              padding: '12px 32px', 
+              fontSize: '1rem', 
+              width: '100%', 
+              marginBottom: '12px',
+              background: 'transparent',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              color: 'var(--text-primary)'
+            }}
+          >
+            Continue as Guest
           </button>
           <button
             onClick={onBack}
@@ -10115,25 +10190,27 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
         {/* Preview Modal - Review AI Generation Before Saving */}
         {previewItem && (
-          <div className="modal-overlay" onClick={handleDiscardPreview}>
+          <div className="modal-overlay" onClick={() => setPreviewItem(null)}>
             <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
               <button 
                 className="modal-close" 
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleDiscardPreview();
+                  setPreviewItem(null);
                 }}
                 style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 9999 }}
               >
                 <X size={20} />
               </button>
               <div className="modal-header" style={{ flexShrink: 0, paddingBottom: '0.5rem' }}>
-                <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem', background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+                <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem', background: previewItem.isExistingAsset ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 'linear-gradient(135deg, #10b981, #059669)' }}>
                   <Eye size={24} color="white" />
                 </div>
-                <h2>Preview Your Creation</h2>
+                <h2>{previewItem.isExistingAsset ? 'View Asset' : 'Preview Your Creation'}</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                  Review your AI-generated content before saving to your Hub.
+                  {previewItem.isExistingAsset 
+                    ? 'Your saved project asset.' 
+                    : 'Review your AI-generated content before saving to your Hub.'}
                 </p>
               </div>
               <div className="modal-body" style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
@@ -10568,101 +10645,155 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   </button>
                 )}
                 
-                <button 
-                  onClick={handleDiscardPreview}
-                  disabled={isSaving}
-                  style={{ 
-                    flex: 1, 
-                    padding: '0.75rem', 
-                    borderRadius: '8px', 
-                    border: '1px solid var(--border-color)',
-                    background: 'transparent',
-                    color: 'var(--text-secondary)',
-                    cursor: isSaving ? 'not-allowed' : 'pointer',
-                    opacity: isSaving ? 0.5 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                >
-                  <Trash2 size={16} /> Discard
-                </button>
-                <button 
-                  onClick={handleRegeneratePreview}
-                  disabled={isGenerating || isSaving}
-                  style={{ 
-                    flex: 1, 
-                    padding: '0.75rem', 
-                    borderRadius: '8px', 
-                    border: '1px solid var(--border-color)',
-                    background: 'transparent',
-                    color: 'var(--text-primary)',
-                    cursor: (isGenerating || isSaving) ? 'not-allowed' : 'pointer',
-                    opacity: (isGenerating || isSaving) ? 0.5 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                >
-                  <RefreshCw size={16} className={isGenerating ? 'animate-spin' : ''} /> 
-                  {isGenerating ? 'Generating...' : 'Regenerate'}
-                </button>
-                <button 
-                  onClick={() => handleSavePreview('project_canvas')}
-                  disabled={isSaving}
-                  style={{ 
-                    flex: 1, 
-                    padding: '0.75rem', 
-                    borderRadius: '8px', 
-                    border: '1px solid var(--border-color)',
-                    background: isSaving ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)',
-                    color: 'var(--color-purple)',
-                    cursor: isSaving ? 'not-allowed' : 'pointer',
-                    opacity: isSaving ? 0.7 : 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem'
-                  }}
-                >
-                  {isSaving ? (
-                    <>
-                      <RefreshCw size={16} className="animate-spin" /> Syncing...
-                    </>
-                  ) : (
-                    <>
-                      <Edit3 size={16} /> Edit
-                    </>
-                  )}
-                </button>
-                <button 
-                  onClick={() => handleSavePreview('hub')}
-                  disabled={isSaving}
-                  className="cta-button-premium"
-                  style={{ 
-                    flex: 1.5, 
-                    padding: '0.75rem', 
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    opacity: isSaving ? 0.8 : 1,
-                    cursor: isSaving ? 'wait' : 'pointer'
-                  }}
-                >
-                  {isSaving ? (
-                    <>
-                      <RefreshCw size={16} className="animate-spin" /> 
-                      <span>Syncing to Cloud...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} /> {selectedProject ? 'Save to Project' : 'Save to Hub'}
-                    </>
-                  )}
-                </button>
+                {/* For existing assets - show Close and Copy buttons */}
+                {previewItem.isExistingAsset ? (
+                  <>
+                    <button 
+                      onClick={() => {
+                        const text = previewItem.snippet || previewItem.content || '';
+                        if (text) {
+                          navigator.clipboard.writeText(text);
+                          toast.success('Copied to clipboard!');
+                        } else if (previewItem.imageUrl || previewItem.audioUrl || previewItem.videoUrl) {
+                          navigator.clipboard.writeText(previewItem.imageUrl || previewItem.audioUrl || previewItem.videoUrl);
+                          toast.success('URL copied to clipboard!');
+                        }
+                      }}
+                      style={{ 
+                        flex: 1, 
+                        padding: '0.75rem', 
+                        borderRadius: '8px', 
+                        border: '1px solid var(--border-color)',
+                        background: 'transparent',
+                        color: 'var(--text-primary)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <Copy size={16} /> Copy
+                    </button>
+                    <button 
+                      onClick={() => setPreviewItem(null)}
+                      style={{ 
+                        flex: 1, 
+                        padding: '0.75rem', 
+                        borderRadius: '8px', 
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                        color: 'white',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <X size={16} /> Close
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* For new generations - show Discard, Regenerate, Save buttons */}
+                    <button 
+                      onClick={handleDiscardPreview}
+                      disabled={isSaving}
+                      style={{ 
+                        flex: 1, 
+                        padding: '0.75rem', 
+                        borderRadius: '8px', 
+                        border: '1px solid var(--border-color)',
+                        background: 'transparent',
+                        color: 'var(--text-secondary)',
+                        cursor: isSaving ? 'not-allowed' : 'pointer',
+                        opacity: isSaving ? 0.5 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <Trash2 size={16} /> Discard
+                    </button>
+                    <button 
+                      onClick={handleRegeneratePreview}
+                      disabled={isGenerating || isSaving}
+                      style={{ 
+                        flex: 1, 
+                        padding: '0.75rem', 
+                        borderRadius: '8px', 
+                        border: '1px solid var(--border-color)',
+                        background: 'transparent',
+                        color: 'var(--text-primary)',
+                        cursor: (isGenerating || isSaving) ? 'not-allowed' : 'pointer',
+                        opacity: (isGenerating || isSaving) ? 0.5 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <RefreshCw size={16} className={isGenerating ? 'animate-spin' : ''} /> 
+                      {isGenerating ? 'Generating...' : 'Regenerate'}
+                    </button>
+                    <button 
+                      onClick={() => handleSavePreview('project_canvas')}
+                      disabled={isSaving}
+                      style={{ 
+                        flex: 1, 
+                        padding: '0.75rem', 
+                        borderRadius: '8px', 
+                        border: '1px solid var(--border-color)',
+                        background: isSaving ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.1)',
+                        color: 'var(--color-purple)',
+                        cursor: isSaving ? 'not-allowed' : 'pointer',
+                        opacity: isSaving ? 0.7 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      {isSaving ? (
+                        <>
+                          <RefreshCw size={16} className="animate-spin" /> Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <Edit3 size={16} /> Edit
+                        </>
+                      )}
+                    </button>
+                    <button 
+                      onClick={() => handleSavePreview('hub')}
+                      disabled={isSaving}
+                      className="cta-button-premium"
+                      style={{ 
+                        flex: 1.5, 
+                        padding: '0.75rem', 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        opacity: isSaving ? 0.8 : 1,
+                        cursor: isSaving ? 'wait' : 'pointer'
+                      }}
+                    >
+                      {isSaving ? (
+                        <>
+                          <RefreshCw size={16} className="animate-spin" /> 
+                          <span>Syncing to Cloud...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save size={16} /> {selectedProject ? 'Save to Project' : 'Save to Hub'}
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
