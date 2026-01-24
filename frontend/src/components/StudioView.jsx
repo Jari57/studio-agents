@@ -6906,6 +6906,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 toast.success(`Saved "${project.name}" with ${project.assets?.length || 0} assets!`);
               }}
               onDeleteProject={handleDeleteProject}
+              onSaveProject={(project) => {
+                if (isLoggedIn && user) {
+                  return saveProjectToCloud(user.uid, project);
+                }
+                return Promise.resolve(true);
+              }}
               setActiveTab={setActiveTab}
               setSelectedAgent={setSelectedAgent}
               setQuickWorkflowAgent={setQuickWorkflowAgent}

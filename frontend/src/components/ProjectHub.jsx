@@ -21,6 +21,7 @@ function ProjectHub({
   onSelectProject,
   // onCreateProject, - reserved for future use
   onDeleteProject,
+  onSaveProject, // Cloud save callback
   setActiveTab
   // setSelectedAgent, - reserved for future use
   // setQuickWorkflowAgent - reserved for future use
@@ -109,6 +110,14 @@ function ProjectHub({
       updatedAt: new Date().toISOString() 
     };
     setProjects?.(prev => (prev || []).map(p => p?.id === project.id ? updated : p));
+    
+    // Save to cloud via callback
+    if (onSaveProject) {
+      onSaveProject(updated)
+        .then(() => console.log('[ProjectHub] Project saved to cloud:', updated.id))
+        .catch(err => console.error('[ProjectHub] Cloud save failed:', err));
+    }
+    
     setTimeout(() => {
       setIsSaving(false);
       setSavedRecently(true);
