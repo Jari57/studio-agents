@@ -12980,19 +12980,25 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     )}
 
                     {/* Image Preview */}
-                    {agentCreations[showAgentWhitePaper.key].image && (
+                    {agentCreations[showAgentWhitePaper.key].image && typeof agentCreations[showAgentWhitePaper.key].image === 'string' && (
                       <div style={{ background: 'rgba(168, 85, 247, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
                         <p style={{ fontSize: '0.8rem', color: 'rgba(168, 85, 247, 1)', marginBottom: '8px', fontWeight: '600' }}>🎨 Image</p>
                         <img 
-                          src={agentCreations[showAgentWhitePaper.key].image.startsWith('data:') ? agentCreations[showAgentWhitePaper.key].image : `data:image/png;base64,${agentCreations[showAgentWhitePaper.key].image}`}
+                          src={agentCreations[showAgentWhitePaper.key].image.startsWith?.('data:') || agentCreations[showAgentWhitePaper.key].image.startsWith?.('http') ? agentCreations[showAgentWhitePaper.key].image : `data:image/png;base64,${agentCreations[showAgentWhitePaper.key].image}`}
                           alt="Generated"
                           style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '8px' }}
+                          onError={(e) => {
+                            console.warn('[ImagePreview] Failed to load agent creation image');
+                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="120" viewBox="0 0 200 120"%3E%3Crect fill="%231a1a2e" width="200" height="120"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23666" font-size="12" font-family="sans-serif"%3EImage unavailable%3C/text%3E%3C/svg%3E';
+                          }}
                         />
                         <button 
                           className="btn-pill primary" 
                           style={{ width: '100%', marginTop: '8px', fontSize: '0.75rem', justifyContent: 'center' }}
                           onClick={() => {
-                            const imgUrl = agentCreations[showAgentWhitePaper.key].image.startsWith('data:') ? agentCreations[showAgentWhitePaper.key].image : `data:image/png;base64,${agentCreations[showAgentWhitePaper.key].image}`;
+                            const imageData = agentCreations[showAgentWhitePaper.key]?.image;
+                            if (!imageData || typeof imageData !== 'string') return;
+                            const imgUrl = imageData.startsWith?.('data:') || imageData.startsWith?.('http') ? imageData : `data:image/png;base64,${imageData}`;
                             const asset = {
                               id: String(Date.now()),
                               title: `${showAgentWhitePaper.title} Image`,

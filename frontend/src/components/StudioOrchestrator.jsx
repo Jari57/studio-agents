@@ -1434,11 +1434,12 @@ export default function StudioOrchestrator({
                         {(generatingMedia.image || generatingMedia.video) && <Loader2 size={14} className="spin" color="#ec4899" />}
                       </div>
                       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {mediaUrls.image && (
+                        {mediaUrls.image && typeof mediaUrls.image === 'string' && (
                           <img 
-                            src={mediaUrls.image.startsWith('data:') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
+                            src={mediaUrls.image.startsWith?.('data:') || mediaUrls.image.startsWith?.('http') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
                             alt="Generated"
                             style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover' }}
+                            onError={(e) => { e.target.style.display = 'none'; }}
                           />
                         )}
                         {!mediaUrls.image && (
@@ -1562,11 +1563,12 @@ export default function StudioOrchestrator({
                         }}
                       />
                     )}
-                    {!mediaUrls.video && mediaUrls.image && (
+                    {!mediaUrls.video && mediaUrls.image && typeof mediaUrls.image === 'string' && (
                       <img 
-                        src={mediaUrls.image.startsWith('data:') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
+                        src={mediaUrls.image.startsWith?.('data:') || mediaUrls.image.startsWith?.('http') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
                         alt="Visual"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
                       />
                     )}
                     {!mediaUrls.image && !mediaUrls.video && outputs.visual && (
@@ -1755,11 +1757,12 @@ export default function StudioOrchestrator({
                         <div style={{ fontSize: '0.85rem', lineHeight: '1.5', color: 'rgba(255,255,255,0.8)', whiteSpace: 'pre-wrap', maxHeight: '80px', overflow: 'auto', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px' }}>
                           {outputs.visual}
                         </div>
-                        {mediaUrls.image ? (
+                        {mediaUrls.image && typeof mediaUrls.image === 'string' ? (
                           <img 
-                            src={mediaUrls.image.startsWith('data:') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
+                            src={mediaUrls.image.startsWith?.('data:') || mediaUrls.image.startsWith?.('http') ? mediaUrls.image : `data:image/png;base64,${mediaUrls.image}`}
                             alt="Visual"
                             style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '6px' }}
+                            onError={(e) => { e.target.style.display = 'none'; }}
                           />
                         ) : (
                           <button

@@ -315,16 +315,20 @@ function GeneratorCard({
                       />
                     </div>
                   )}
-                  {mediaType === 'image' && mediaUrl && (
+                  {mediaType === 'image' && mediaUrl && typeof mediaUrl === 'string' && (
                     <div style={{ position: 'relative' }}>
                       <img 
-                        src={mediaUrl.startsWith('http') || mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
+                        src={mediaUrl.startsWith?.('http') || mediaUrl.startsWith?.('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
                         alt="Generated"
                         style={{ 
                           width: '100%', 
                           maxHeight: '120px', 
                           objectFit: 'cover',
                           borderRadius: '8px'
+                        }}
+                        onError={(e) => {
+                          console.warn('[GeneratorCard] Image failed to load');
+                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="120" viewBox="0 0 200 120"%3E%3Crect fill="%231a1a2e" width="200" height="120"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23666" font-size="12" font-family="sans-serif"%3EImage unavailable%3C/text%3E%3C/svg%3E';
                         }}
                       />
                       {/* Hover overlay - CSS only, no JS mouse events for mobile stability */}
@@ -1685,7 +1689,7 @@ export default function StudioOrchestratorV2({
   // Helper to format image data for display
   // Handles: URLs (http/https), data URLs, and raw base64
   const formatImageSrc = (imageData) => {
-    if (!imageData) return null;
+    if (!imageData || typeof imageData !== 'string') return null;
     // Already a URL or data URL
     if (imageData.startsWith('http') || imageData.startsWith('data:')) {
       return imageData;
@@ -2215,7 +2219,7 @@ export default function StudioOrchestratorV2({
         if (data.type === 'image' || (data.mimeType && data.mimeType.startsWith('image/'))) {
           // Handle image response - use as cover art instead
           const imageData = data.output || data.imageUrl;
-          if (imageData) {
+          if (imageData && typeof imageData === 'string') {
             const imageSrc = imageData.startsWith('data:') || imageData.startsWith('http') 
               ? imageData 
               : `data:${data.mimeType || 'image/png'};base64,${imageData}`;
