@@ -7116,9 +7116,31 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               setProjects={setProjects}
               onSelectProject={(project) => {
                 console.log('[StudioView] Selecting project:', project?.id, project?.name, 'assets:', project?.assets?.length);
+                
+                // DEFENSIVE: Validate project before selecting
+                if (!project || typeof project !== 'object' || !project.id) {
+                  console.error('[StudioView] Invalid project object:', project);
+                  toast.error('Unable to open project - invalid data');
+                  return;
+                }
+                
+                // Normalize project to ensure required fields exist
+                const safeProject = {
+                  ...project,
+                  id: project.id,
+                  name: project.name || 'Untitled Project',
+                  description: project.description || '',
+                  category: project.category || 'general',
+                  assets: Array.isArray(project.assets) ? project.assets.filter(Boolean) : [],
+                  agents: Array.isArray(project.agents) ? project.agents.filter(Boolean) : [],
+                  date: project.date || new Date().toLocaleDateString(),
+                  createdAt: project.createdAt || new Date().toISOString(),
+                  updatedAt: project.updatedAt || new Date().toISOString()
+                };
+                
                 // Reset canvas preview asset to avoid stale references
                 setCanvasPreviewAsset(null);
-                setSelectedProject(project);
+                setSelectedProject(safeProject);
                 // Use pendingProjectNav flag for safe navigation (prevents race condition)
                 setPendingProjectNav(true);
               }}
@@ -7299,7 +7321,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       // Skip invalid agents
                       if (!agent) return null;
                       
-                      const AgentIcon = agent.icon || Sparkles;
+                      // DEFENSIVE: Ensure icon is a valid React component, fallback to Sparkles
+                      const AgentIcon = (typeof agent.icon === 'function') ? agent.icon : Sparkles;
                       return (
                         <div 
                           key={agentId || agentIdx}
@@ -7396,9 +7419,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
                 {selectedProject.assets && selectedProject.assets.length > 0 ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-                    {selectedProject.assets.map((asset, idx) => (
+                    {selectedProject.assets.filter(Boolean).map((asset, idx) => {
+                      // Skip invalid assets
+                      if (!asset || typeof asset !== 'object') return null;
+                      
+                      return (
                       <div 
-                        key={idx}
+                        key={asset.id || idx}
                         className="asset-card"
                         style={{
                           background: 'var(--bg-secondary)',
@@ -7529,7 +7556,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           </div>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 ) : (
                   <div style={{ 
