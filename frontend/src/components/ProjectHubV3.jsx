@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback as _useCallback } from 'react';
 import { 
   Search, Plus, LayoutGrid, List, MoreHorizontal,
-  Play, Trash2, Edit3, Copy, Heart, Clock, Folder,
-  Music, Video, Image, Mic, FileText, X, Sparkles,
-  ChevronRight, Download, Share2, CheckCircle, Archive,
-  Pause, Upload, Wand2, Zap, TrendingUp, Star
+  Play, Trash2, Edit3, Copy, Heart, Clock, Folder as _Folder,
+  Music, Video, Image, Mic as _Mic, FileText, X, Sparkles,
+  ChevronRight, Download as _Download, Share2 as _Share2, CheckCircle, Archive,
+  Pause, Upload as _Upload, Wand2, Zap, TrendingUp, Star
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, createProjectFromTemplate } from '../data/projectTemplates';
@@ -19,7 +19,7 @@ function ProjectHubV3({
   onSelectProject,
   onDeleteProject,
   onSaveProject,
-  setActiveTab
+  setActiveTab: _setActiveTab
 }) {
   const [viewMode, setViewMode] = useState('grid');
   const [filter, setFilter] = useState('all');

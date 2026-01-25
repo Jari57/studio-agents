@@ -4,8 +4,8 @@ import {
   Eye, Share2, Trash2, Edit3, Copy, Twitter, Instagram,
   Clock, CheckCircle, Circle, Archive, Sparkles, Folder,
   Music, Video, Image, Disc, Film, Palette, X, ChevronRight,
-  Save, Play, Pause, Volume2, Maximize2, Download, FileText,
-  ChevronLeft, RotateCcw, Heart, Bookmark, Layers, Zap
+  Save, Play, Pause, Volume2 as _Volume2, Maximize2 as _Maximize2, Download, FileText,
+  ChevronLeft, RotateCcw as _RotateCcw, Heart, Bookmark as _Bookmark, Layers, Zap
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, PROJECT_STATUSES, createProjectFromTemplate } from '../data/projectTemplates';

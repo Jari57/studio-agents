@@ -560,6 +560,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt'
   const [mediaLoadError, setMediaLoadError] = useState(null); // Track media load failures toggle
   const [isSaving, setIsSaving] = useState(false); // Saving/syncing state with animated loader
+  const [isGenerating, setIsGenerating] = useState(false); // Generation in progress state
   const [agentPreviews, setAgentPreviews] = useState({}); // Cache last generation per agent
   
   // Save status for visual feedback: 'idle' | 'saving' | 'saved' | 'error'
@@ -3267,7 +3268,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   };
 
   // Exit guest mode (user wants to log in)
-  const exitGuestMode = () => {
+  const _exitGuestMode = () => {
     setIsGuestMode(false);
     localStorage.removeItem('studio_guest_mode');
     setShowLoginModal(true);
