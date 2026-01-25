@@ -232,6 +232,18 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [_projectsSyncing, setProjectsSyncing] = useState(false);
   const [_lastSyncTime, setLastSyncTime] = useState(null);
   const syncTimeoutRef = useRef(null);
+  
+  // REF for stable access to current user in callbacks (prevents stale closure)
+  const userRef = useRef(null);
+  
+  // REF for secure logout function (prevents TDZ in session timeout)
+  const secureLogoutRef = useRef(null);
+  
+  // REF for checkout redirect function (prevents TDZ in login handlers)
+  const checkoutRedirectRef = useRef(null);
+  
+  // REF for handleGenerate (prevents TDZ in voice recognition callback)
+  const handleGenerateRef = useRef(null);
 
   // Save a single project to Firestore via backend API
   const saveProjectToCloud = async (uid, project) => {
@@ -272,8 +284,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         try {
           authToken = await auth.currentUser.getIdToken(true);
         } catch (tokenErr) {
-          console.warn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
+          console.warn(`[TRACE:${traceId}] Failed to get fresh auth token:`, tokenErr.message);
         }
+      }
+      
+      // CRITICAL FIX: If no token and Firebase not ready, abort save
+      // This prevents 401 errors when auth.currentUser hasn't rehydrated yet
+      if (!authToken) {
+        console.warn(`[TRACE:${traceId}] No auth token available - Firebase may still be loading`);
+        // Don't show error toast here - this is expected during page load
+        // The debounced sync will retry in 3 seconds when auth is ready
+        return false;
       }
       
       // Use backend API to save (uses Admin SDK, bypasses security rules)
@@ -344,9 +365,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   // Note: localStorage save is handled by the useEffect with quota handling below
   
-  // Debounced cloud sync when projects change (only if logged in)
+  // Debounced cloud sync when projects change (only if logged in AND Firebase ready)
   useEffect(() => {
-    if (!user?.uid || projects.length === 0) return;
+    // CRITICAL: Check both user state AND auth.currentUser to ensure Firebase is ready
+    if (!user?.uid || projects.length === 0 || !auth?.currentUser) return;
     
     // Clear existing timeout
     if (syncTimeoutRef.current) {
@@ -363,7 +385,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         clearTimeout(syncTimeoutRef.current);
       }
     };
-  }, [projects, user?.uid]);
+  }, [projects, user?.uid, auth?.currentUser]);
   
   // Load projects from cloud via backend API
   const loadProjectsFromCloud = async (uid) => {
@@ -680,6 +702,28 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     // Text-based assets
     return (asset.type || 'text').toLowerCase();
   };
+
+  // Helper: Safely extract text content from any asset (prevents empty preview)
+  const getAssetTextContent = (asset) => {
+    if (!asset) return null;
+    // Priority order: content > snippet > output > description > title
+    const text = asset.content || asset.snippet || asset.output || asset.description || asset.title;
+    if (typeof text === 'string' && text.trim().length > 0) {
+      return text;
+    }
+    return null;
+  };
+
+  // Cleanup audio/video on preview change to prevent race conditions
+  useEffect(() => {
+    return () => {
+      // Stop any playing audio when preview closes
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current.src = '';
+      }
+    };
+  }, [showPreview]);
   
   // Helper: Safely open preview with debouncing and validation
   const safeOpenPreview = (asset, allAssets) => {
@@ -1236,13 +1280,19 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         return p;
       });
 
-      // Save to cloud if logged in
+      // Save to cloud if logged in AND Firebase is ready
       const updatedProject = newProjects.find(p => p.id === projectId);
-      if (updatedProject && user) {
+      if (updatedProject && user && auth?.currentUser) {
         saveProjectToCloud(user.uid, updatedProject)
-          .then(() => {
-            updateSaveStatus('saved');
-            triggerHapticFeedback('success');
+          .then((success) => {
+            if (success) {
+              updateSaveStatus('saved');
+              triggerHapticFeedback('success');
+            } else {
+              // Save returned false (token not ready) - mark as pending, will retry via debounced sync
+              updateSaveStatus('idle');
+              console.log('[SaveAsset] Cloud save deferred - will retry on next sync');
+            }
           })
           .catch(err => {
             console.error('Failed to save updated project to cloud:', err);
@@ -1253,10 +1303,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             pendingOperationsRef.current.delete(operationId);
           });
       } else {
-        // Local save only
+        // Local save only (guest mode or Firebase not ready)
         updateSaveStatus('saved');
         triggerHapticFeedback('success');
         pendingOperationsRef.current.delete(operationId);
+        if (user && !auth?.currentUser) {
+          console.log('[SaveAsset] Local save only - Firebase not ready yet');
+        }
       }
 
       return newProjects;
@@ -1443,8 +1496,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             
             // Don't clear anything yet - give Firebase a moment
             setTimeout(() => {
-              // After timeout, if still no user, then really log out
-              if (!user) {
+              // FIXED: Use ref to get CURRENT user state (not stale closure)
+              if (!userRef.current) {
                 console.log('[Auth] Retry exhausted, clearing session');
                 setUser(null);
                 setUserToken(null);
@@ -1492,12 +1545,110 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return () => window.removeEventListener('openAuthModal', handleOpenAuthModal);
   }, []);
 
+  // 🔐 SESSION TIMEOUT - Auto logout after inactivity (security best practice)
+  const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  const sessionTimeoutRef = useRef(null);
+  
+  const resetSessionTimeout = useCallback(() => {
+    if (sessionTimeoutRef.current) {
+      clearTimeout(sessionTimeoutRef.current);
+    }
+    if (user && !isGuestMode) {
+      sessionTimeoutRef.current = setTimeout(() => {
+        toast('Session expired for security. Please sign in again.', { icon: '🔒' });
+        // FIXED: Use ref to avoid TDZ - handleSecureLogout defined later
+        if (secureLogoutRef.current) {
+          secureLogoutRef.current();
+        }
+      }, SESSION_TIMEOUT_MS);
+    }
+  }, [user, isGuestMode]);
+  
+  // Reset timeout on user activity
+  useEffect(() => {
+    if (!user) return;
+    
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    const handleActivity = () => resetSessionTimeout();
+    
+    activityEvents.forEach(event => {
+      window.addEventListener(event, handleActivity, { passive: true });
+    });
+    
+    resetSessionTimeout(); // Start timer
+    
+    return () => {
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, handleActivity);
+      });
+      if (sessionTimeoutRef.current) {
+        clearTimeout(sessionTimeoutRef.current);
+      }
+    };
+  }, [user, resetSessionTimeout]);
+
   // --- AUTH STATE ---
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset'
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
   const [userCredits, setUserCredits] = useState(3); // Default trial credits
+  
+  // 🔐 PASSWORD VALIDATION - Enforce strong passwords
+  const validatePassword = (password) => {
+    const errors = [];
+    if (password.length < 8) errors.push('At least 8 characters');
+    if (!/[A-Z]/.test(password)) errors.push('One uppercase letter');
+    if (!/[a-z]/.test(password)) errors.push('One lowercase letter');
+    if (!/[0-9]/.test(password)) errors.push('One number');
+    return errors;
+  };
+  
+  // 🔐 SECURE LOGOUT - Clear all sensitive data
+  const handleSecureLogout = async () => {
+    try {
+      // Sign out from Firebase first
+      if (auth) {
+        await signOut(auth);
+      }
+    } catch (err) {
+      console.error('Firebase signOut error:', err);
+    }
+    
+    // Clear ALL sensitive state
+    setUser(null);
+    setUserToken(null);
+    setUserCredits(3);
+    setIsAdmin(false);
+    setUserPlan('');
+    
+    // Clear ALL auth-related localStorage
+    localStorage.removeItem('studio_user_id');
+    localStorage.removeItem('studio_user_plan');
+    localStorage.removeItem('studio_guest_mode');
+    
+    // Clear session storage too
+    sessionStorage.clear();
+    
+    // Reset UI state
+    setIsLoggedIn(false);
+    setIsGuestMode(false);
+    setAuthEmail('');
+    setAuthPassword('');
+    setShowLoginModal(false);
+    
+    toast.success('Signed out securely', { icon: '👋' });
+    onBack?.();
+  };
+  
+  // SYNC REFS with current values (prevents stale closures)
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+  
+  useEffect(() => {
+    secureLogoutRef.current = handleSecureLogout;
+  }, []);
 
   // Fetch user credits from Firestore
   const fetchUserCredits = async (uid) => {
@@ -1544,7 +1695,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       );
       
       if (selectedPlan) {
-        handleCheckoutRedirect(selectedPlan);
+        // FIXED: Use ref to avoid TDZ - handleCheckoutRedirect defined later
+        if (checkoutRedirectRef.current) {
+          checkoutRedirectRef.current(selectedPlan);
+        }
       }
     } catch (error) {
       console.error('Login failed', error);
@@ -1572,6 +1726,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       toast.error('Please enter email and password');
       return;
     }
+    
+    // 🔐 Validate password strength for signups
+    if (authMode === 'signup') {
+      const passwordErrors = validatePassword(authPassword);
+      if (passwordErrors.length > 0) {
+        toast.error(`Password requires: ${passwordErrors.join(', ')}`);
+        return;
+      }
+    }
+    
     setAuthLoading(true);
     try {
       let result;
@@ -1589,18 +1753,21 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setAuthEmail('');
       setAuthPassword('');
       if (selectedPlan) {
-        handleCheckoutRedirect(selectedPlan);
+        // FIXED: Use ref to avoid TDZ - handleCheckoutRedirect defined later
+        if (checkoutRedirectRef.current) {
+          checkoutRedirectRef.current(selectedPlan);
+        }
       }
     } catch (error) {
       console.error('Auth failed', error);
+      // 🔐 Security: Use generic messages to prevent user enumeration
       if (error.code === 'auth/email-already-in-use') {
         toast.error('Email already in use. Try logging in.');
-      } else if (error.code === 'auth/wrong-password') {
-        toast.error('Incorrect password');
-      } else if (error.code === 'auth/user-not-found') {
-        toast.error('No account found. Try signing up.');
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        // Don't reveal whether email exists - security best practice
+        toast.error('Invalid email or password');
       } else if (error.code === 'auth/weak-password') {
-        toast.error('Password should be at least 6 characters');
+        toast.error('Password should be at least 8 characters with uppercase, lowercase, and numbers');
       } else {
         toast.error(error.message);
       }
@@ -1631,20 +1798,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // const handleLogin = handleGoogleLogin;
 
   // --- LOGOUT HANDLER ---
-  // Reserved for future use:
-  const _handleLogout = async () => {
-    if (auth) {
-      await signOut(auth);
-    }
-    // CRITICAL: Clear user state BEFORE setting isLoggedIn to false
-    setUser(null);
-    setUserToken(null);
-    setUserCredits(3);
-    localStorage.removeItem('studio_user_id');
-    setIsLoggedIn(false); // Set this LAST
-    setActiveTab('landing'); 
-    onBack?.(); 
-  };
+  // Use handleSecureLogout defined above for all logout operations
+  // Legacy alias for compatibility with existing code
+  const _handleLogout = handleSecureLogout;
 
   // Dashboard State
   const [dashboardTab, setDashboardTab] = useState('overview');
@@ -1948,6 +2104,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   
   // Set ref for TDZ-safe access from earlier useEffect
   handleSubscribeRef.current = handleSubscribe;
+  
+  // Set ref for TDZ-safe access from login handlers
+  checkoutRedirectRef.current = handleCheckoutRedirect;
 
   // --- PROFESSIONAL VOICE & TRANSLATION LOGIC (Whisperer-style) ---
   
@@ -2108,7 +2267,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       if (transcript === 'generate' || transcript.includes('start generation') || transcript.includes('create now') || transcript.includes('make it')) {
         const textarea = textareaRef.current || document.querySelector('.studio-textarea');
         if (textarea && textarea.value.trim()) {
-          handleGenerate();
+          // FIXED: Use ref to avoid TDZ - handleGenerate defined later
+          if (handleGenerateRef.current) {
+            handleGenerateRef.current();
+          }
           toast.success('⚡ Generating...');
           handleTextToVoice("Starting generation.");
         } else {
@@ -2952,6 +3114,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setIsGenerating(false);
     }
   };
+  
+  // Set ref for TDZ-safe access from voice recognition callback
+  handleGenerateRef.current = handleGenerate;
 
   // Save the previewed item to projects with timeout and loading feedback
   const handleSavePreview = async (destination = 'hub') => {
@@ -8637,7 +8802,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   </button>
                 ) : (
                   <button
-                    onClick={() => { auth && signOut(auth); }}
+                    onClick={handleSecureLogout}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -8813,7 +8978,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         <Toaster position="top-center" />
         <div style={{
           textAlign: 'center',
-          maxWidth: '400px',
+          maxWidth: '420px',
           padding: '40px',
           background: 'var(--bg-secondary)',
           borderRadius: '16px',
@@ -8826,11 +8991,128 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
             Sign in to access your AI-powered creative studio
           </p>
+          
+          {/* Email/Password Form */}
+          <form onSubmit={handleEmailAuth} style={{ marginBottom: '20px' }}>
+            <input
+              type="email"
+              placeholder="Email address"
+              value={authEmail}
+              onChange={(e) => setAuthEmail(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                marginBottom: '12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                fontSize: '1rem',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              required
+              minLength={6}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                marginBottom: '12px',
+                borderRadius: '8px',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
+                background: 'var(--bg-primary)',
+                color: 'var(--text-primary)',
+                fontSize: '1rem',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+            <button
+              type="submit"
+              disabled={authLoading}
+              className="btn-pill primary"
+              style={{ 
+                padding: '12px 32px', 
+                fontSize: '1rem', 
+                width: '100%', 
+                marginBottom: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
+              <Mail size={18} />
+              {authLoading ? 'Please wait...' : (authMode === 'signup' ? 'Create Account' : 'Sign In with Email')}
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <button
+                type="button"
+                onClick={() => setAuthMode(authMode === 'signup' ? 'login' : 'signup')}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#a855f7',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+              >
+                {authMode === 'signup' ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
+              </button>
+              {authMode === 'login' && (
+                <button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
+          </form>
+          
+          {/* Divider */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            margin: '16px 0',
+            gap: '12px'
+          }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(139, 92, 246, 0.2)' }} />
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>or</span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(139, 92, 246, 0.2)' }} />
+          </div>
+          
+          {/* Google Sign In */}
           <button
             onClick={handleGoogleLogin}
             disabled={authLoading}
-            className="btn-pill primary"
-            style={{ padding: '12px 32px', fontSize: '1rem', width: '100%', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
+            className="btn-pill"
+            style={{ 
+              padding: '12px 32px', 
+              fontSize: '1rem', 
+              width: '100%', 
+              marginBottom: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              gap: '10px',
+              background: 'transparent',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              color: 'var(--text-primary)'
+            }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -8838,8 +9120,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
-            {authLoading ? 'Signing in...' : 'Sign In with Google'}
+            {authLoading ? 'Signing in...' : 'Continue with Google'}
           </button>
+          
+          {/* Guest Mode */}
           <button
             onClick={continueAsGuest}
             className="btn-pill"
@@ -8847,14 +9131,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               padding: '12px 32px', 
               fontSize: '1rem', 
               width: '100%', 
-              marginBottom: '12px',
+              marginBottom: '16px',
               background: 'transparent',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
-              color: 'var(--text-primary)'
+              border: '1px solid rgba(139, 92, 246, 0.15)',
+              color: 'var(--text-secondary)'
             }}
           >
-            Continue as Guest
+            Continue as Guest (Limited Features)
           </button>
+          
           <button
             onClick={onBack}
             style={{
@@ -8868,32 +9153,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             ← Back to Home
           </button>
         </div>
-        
-        {/* Login Modal */}
-        {showLoginModal && (
-          <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
-            <div className="login-modal" onClick={(e) => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => setShowLoginModal(false)}>
-                <X size={20} />
-              </button>
-              <h2><User size={24} /> Sign In</h2>
-              <p>Sign in to save your projects and access all features</p>
-              <button
-                className="btn-google"
-                onClick={handleGoogleLogin}
-                disabled={authLoading}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                {authLoading ? 'Signing in...' : 'Continue with Google'}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -9013,7 +9272,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 <button 
                   className="sign-out-link" 
                   style={{ fontSize: '0.7rem', color: 'var(--color-red)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', marginTop: '4px', textAlign: 'left' }}
-                  onClick={(e) => { e.stopPropagation(); auth && signOut(auth); }}
+                  onClick={(e) => { e.stopPropagation(); handleSecureLogout(); }}
                 >
                   Sign Out
                 </button>
@@ -9249,12 +9508,40 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           loading="lazy"
                           style={{ objectFit: 'contain', background: '#000' }}
                         />
-                      ) : (
+                      ) : playingItem.audioUrl ? (
                         <div className="audio-visualizer-placeholder">
                           <div className="visualizer-bars">
                             {[...Array(20)].map((_, i) => (
                               <div key={i} className="v-bar" style={{ animationDelay: `${i * 0.1}s` }}></div>
                             ))}
+                          </div>
+                        </div>
+                      ) : (
+                        /* Text content display when no media */
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          minHeight: '200px',
+                          padding: '2rem',
+                          background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.05))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          overflow: 'auto'
+                        }}>
+                          <div style={{
+                            maxWidth: '600px',
+                            fontSize: '1rem',
+                            lineHeight: '1.8',
+                            color: 'var(--text-primary)',
+                            whiteSpace: 'pre-wrap',
+                            textAlign: 'left'
+                          }}>
+                            {getAssetTextContent(playingItem) || (
+                              <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', textAlign: 'center' }}>
+                                No content to display
+                              </p>
+                            )}
                           </div>
                         </div>
                       )}
@@ -13307,9 +13594,19 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     whiteSpace: 'pre-wrap',
                     fontFamily: 'inherit'
                   }}>
-                    {safePreview.content || safePreview.asset?.content || safePreview.asset?.snippet || safePreview.asset?.output || (
-                      <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>No text content available</p>
-                    )}
+                    {(() => {
+                      // Use helper for robust text extraction
+                      const textContent = safePreview.content || getAssetTextContent(safePreview.asset);
+                      if (textContent) {
+                        return textContent;
+                      }
+                      return (
+                        <div style={{ textAlign: 'center', padding: '2rem' }}>
+                          <p style={{ color: 'var(--text-secondary)', fontStyle: 'italic', marginBottom: '1rem' }}>No text content available</p>
+                          <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>This asset may be audio, video, or image-only.</p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               )}

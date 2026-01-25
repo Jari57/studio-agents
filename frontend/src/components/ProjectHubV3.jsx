@@ -1,16 +1,17 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { 
   Search, Plus, LayoutGrid, List, MoreHorizontal,
   Play, Trash2, Edit3, Copy, Heart, Clock, Folder,
   Music, Video, Image, Mic, FileText, X, Sparkles,
-  ChevronRight, Download, Share2, CheckCircle, Archive
+  ChevronRight, Download, Share2, CheckCircle, Archive,
+  Pause, Upload, Wand2, Zap, TrendingUp, Star
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, createProjectFromTemplate } from '../data/projectTemplates';
 
 /**
  * ProjectHubV3 - CapCut/Captions-inspired modern project management
- * Clean, minimal design with large thumbnails and hover actions
+ * Ultra-fluid UX with smooth animations, drag-drop, and micro-interactions
  */
 function ProjectHubV3({ 
   projects = [], 
@@ -30,8 +31,53 @@ function ProjectHubV3({
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [showContextMenu, setShowContextMenu] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [draggedProject, setDraggedProject] = useState(null);
+  const [dragOverProject, setDragOverProject] = useState(null);
   const audioRef = useRef(null);
   const [playingAudio, setPlayingAudio] = useState(null);
+  const searchInputRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Simulate loading for skeleton effect
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Cmd/Ctrl + K = Focus search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      // Cmd/Ctrl + N = New project
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n' && !e.shiftKey) {
+        e.preventDefault();
+        setShowNewProjectModal(true);
+      }
+      // Escape = Close modals
+      if (e.key === 'Escape') {
+        setShowNewProjectModal(false);
+        setShowContextMenu(null);
+        setEditingId(null);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    const handleClick = () => setShowContextMenu(null);
+    if (showContextMenu) {
+      window.addEventListener('click', handleClick);
+      return () => window.removeEventListener('click', handleClick);
+    }
+  }, [showContextMenu]);
 
   // Favorites from localStorage
   const [favorites, setFavorites] = useState(() => {
@@ -146,6 +192,64 @@ function ProjectHubV3({
     toast.success('Renamed');
   };
 
+  // Drag and drop reordering
+  const handleDragStart = (e, project) => {
+    setDraggedProject(project);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', project.id);
+    // Add dragging class after a frame
+    requestAnimationFrame(() => {
+      e.target.classList.add('dragging');
+    });
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.classList.remove('dragging');
+    setDraggedProject(null);
+    setDragOverProject(null);
+  };
+
+  const handleDragOver = (e, project) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (project.id !== draggedProject?.id) {
+      setDragOverProject(project.id);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverProject(null);
+  };
+
+  const handleDrop = (e, targetProject) => {
+    e.preventDefault();
+    if (!draggedProject || draggedProject.id === targetProject.id) return;
+    
+    setProjects?.(prev => {
+      const newProjects = [...prev];
+      const dragIndex = newProjects.findIndex(p => p.id === draggedProject.id);
+      const dropIndex = newProjects.findIndex(p => p.id === targetProject.id);
+      
+      if (dragIndex === -1 || dropIndex === -1) return prev;
+      
+      // Remove dragged item and insert at new position
+      const [removed] = newProjects.splice(dragIndex, 1);
+      newProjects.splice(dropIndex, 0, removed);
+      
+      return newProjects;
+    });
+    
+    setDraggedProject(null);
+    setDragOverProject(null);
+    toast.success('Projects reordered', { icon: '✨' });
+  };
+
+  // Quick actions
+  const handleQuickOpen = (project, e) => {
+    e?.stopPropagation();
+    onSelectProject?.(project);
+  };
+
   // Create from template
   const handleCreate = () => {
     if (!newProjectName.trim()) {
@@ -181,21 +285,46 @@ function ProjectHubV3({
   // Get first audio asset
   const getAudioUrl = (project) => project.assets?.find(a => a.audioUrl)?.audioUrl;
 
+  // Skeleton card for loading state
+  const SkeletonCard = () => (
+    <div className="project-card skeleton">
+      <div className="card-thumbnail skeleton-pulse" />
+      <div className="card-info">
+        <div className="skeleton-text skeleton-pulse" style={{ width: '70%', height: '16px', marginBottom: '8px' }} />
+        <div className="skeleton-text skeleton-pulse" style={{ width: '50%', height: '12px' }} />
+      </div>
+    </div>
+  );
+
+  // Get progress color
+  const getProgressColor = (progress) => {
+    if (progress >= 80) return 'var(--color-green)';
+    if (progress >= 50) return 'var(--color-cyan)';
+    if (progress >= 20) return 'var(--color-purple)';
+    return 'var(--color-pink)';
+  };
+
   return (
-    <div className="project-hub-v3">
+    <div className="project-hub-v3" ref={containerRef}>
       <audio ref={audioRef} onEnded={() => setPlayingAudio(null)} />
       
       {/* Header */}
       <header className="hub-header-v3">
         <div className="hub-title-row">
-          <div>
+          <div className="title-section">
             <h1>Your Projects</h1>
-            <p className="hub-subtitle">{filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''}</p>
+            <p className="hub-subtitle">
+              {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''}
+              {filter !== 'all' && <span className="filter-badge">{filter}</span>}
+            </p>
           </div>
-          <button className="btn-create-new" onClick={() => setShowNewProjectModal(true)}>
-            <Plus size={20} />
-            <span>New Project</span>
-          </button>
+          <div className="header-actions">
+            <button className="btn-create-new" onClick={() => setShowNewProjectModal(true)}>
+              <Plus size={20} />
+              <span>New Project</span>
+              <kbd className="shortcut-hint">⌘N</kbd>
+            </button>
+          </div>
         </div>
 
         {/* Search & Filters */}
@@ -203,8 +332,9 @@ function ProjectHubV3({
           <div className="hub-search">
             <Search size={18} />
             <input 
+              ref={searchInputRef}
               type="text" 
-              placeholder="Search projects..." 
+              placeholder="Search projects... ⌘K" 
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -216,39 +346,107 @@ function ProjectHubV3({
           </div>
 
           <div className="hub-filters">
-            {['all', 'favorites', 'completed', 'archived'].map(f => (
+            {[
+              { key: 'all', icon: null, label: 'All' },
+              { key: 'favorites', icon: Heart, label: 'Favorites' },
+              { key: 'completed', icon: CheckCircle, label: 'Completed' },
+              { key: 'archived', icon: Archive, label: 'Archived' }
+            ].map(({ key, icon: Icon, label }) => (
               <button 
-                key={f} 
-                className={`filter-pill ${filter === f ? 'active' : ''}`}
-                onClick={() => setFilter(f)}
+                key={key} 
+                className={`filter-pill ${filter === key ? 'active' : ''}`}
+                onClick={() => setFilter(key)}
               >
-                {f === 'favorites' && <Heart size={14} />}
-                {f.charAt(0).toUpperCase() + f.slice(1)}
+                {Icon && <Icon size={14} />}
+                {label}
+                {key === 'favorites' && favorites.length > 0 && (
+                  <span className="count-badge">{favorites.length}</span>
+                )}
               </button>
             ))}
           </div>
 
           <div className="view-switch">
-            <button className={viewMode === 'grid' ? 'active' : ''} onClick={() => setViewMode('grid')}>
+            <button 
+              className={viewMode === 'grid' ? 'active' : ''} 
+              onClick={() => setViewMode('grid')}
+              title="Grid view"
+            >
               <LayoutGrid size={18} />
             </button>
-            <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}>
+            <button 
+              className={viewMode === 'list' ? 'active' : ''} 
+              onClick={() => setViewMode('list')}
+              title="List view"
+            >
               <List size={18} />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Projects Grid */}
-      {filteredProjects.length === 0 ? (
+      {/* Loading State */}
+      {isLoading ? (
+        <div className={`projects-grid ${viewMode}`}>
+          {[1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} />)}
+        </div>
+      ) : filteredProjects.length === 0 ? (
         <div className="empty-state-v3">
-          <div className="empty-icon"><Folder size={48} /></div>
-          <h3>{searchQuery ? 'No matches found' : 'No projects yet'}</h3>
-          <p>{searchQuery ? `Nothing matches "${searchQuery}"` : 'Start creating your first project'}</p>
-          {!searchQuery && (
-            <button className="btn-create-new" onClick={() => setShowNewProjectModal(true)}>
-              <Plus size={18} /> Create Project
-            </button>
+          {searchQuery ? (
+            <>
+              <div className="empty-icon search-empty">
+                <Search size={48} />
+              </div>
+              <h3>No matches found</h3>
+              <p>Nothing matches "{searchQuery}"</p>
+              <button className="btn-secondary" onClick={() => setSearchQuery('')}>
+                <X size={16} /> Clear Search
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="empty-illustration">
+                <div className="floating-elements">
+                  <div className="float-item item-1"><Music size={24} /></div>
+                  <div className="float-item item-2"><Image size={24} /></div>
+                  <div className="float-item item-3"><Video size={24} /></div>
+                  <div className="float-item item-4"><FileText size={24} /></div>
+                </div>
+                <div className="empty-icon main-icon">
+                  <Sparkles size={48} />
+                </div>
+              </div>
+              <h3>Ready to create something amazing?</h3>
+              <p>Start your first project and bring your ideas to life with AI-powered tools</p>
+              
+              <div className="quick-start-options">
+                <button className="btn-create-new primary-cta" onClick={() => setShowNewProjectModal(true)}>
+                  <Plus size={18} /> Create Project
+                  <span className="shortcut-hint">⌘N</span>
+                </button>
+              </div>
+              
+              <div className="template-suggestions">
+                <p className="template-label">Quick start with templates:</p>
+                <div className="template-chips">
+                  <button className="template-chip" onClick={() => {
+                    setShowNewProjectModal(true);
+                  }}>
+                    <Wand2 size={14} /> Music Video
+                  </button>
+                  <button className="template-chip" onClick={() => {
+                    setShowNewProjectModal(true);
+                  }}>
+                    <TrendingUp size={14} /> Social Clip
+                  </button>
+                  <button className="template-chip" onClick={() => {
+                    setShowNewProjectModal(true);
+                  }}>
+                    <Star size={14} /> Podcast
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       ) : (
@@ -263,24 +461,34 @@ function ProjectHubV3({
                 <Plus size={32} />
               </div>
               <span>Create New Project</span>
+              <p className="new-project-hint">or press ⌘N</p>
             </div>
           </div>
 
           {/* Project Cards */}
-          {filteredProjects.map(project => {
+          {filteredProjects.map((project, index) => {
             const thumbnail = getProjectThumbnail(project);
             const assetIcons = getAssetIcons(project);
             const audioUrl = getAudioUrl(project);
             const isHovered = hoveredProject === project.id;
             const isEditing = editingId === project.id;
+            const isDragOver = dragOverProject === project.id;
+            const progress = project.progress || 0;
 
             return (
               <div
                 key={project.id}
-                className={`project-card ${isHovered ? 'hovered' : ''}`}
+                className={`project-card ${isHovered ? 'hovered' : ''} ${isDragOver ? 'drag-over' : ''}`}
+                draggable={!isEditing}
+                onDragStart={(e) => handleDragStart(e, project)}
+                onDragEnd={handleDragEnd}
+                onDragOver={(e) => handleDragOver(e, project)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, project)}
                 onMouseEnter={() => setHoveredProject(project.id)}
                 onMouseLeave={() => setHoveredProject(null)}
                 onClick={() => !isEditing && onSelectProject?.(project)}
+                style={{ '--card-index': index }}
               >
                 {/* Thumbnail */}
                 <div 
@@ -292,31 +500,48 @@ function ProjectHubV3({
                       <Sparkles size={32} />
                     </div>
                   )}
+                  
+                  {/* Progress bar */}
+                  {progress > 0 && (
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
+                        style={{ 
+                          width: `${progress}%`,
+                          background: getProgressColor(progress)
+                        }} 
+                      />
+                    </div>
+                  )}
 
                   {/* Hover Overlay */}
                   <div className={`card-overlay ${isHovered ? 'visible' : ''}`}>
                     <div className="overlay-actions">
                       {audioUrl && (
                         <button 
-                          className="action-btn play-btn"
+                          className={`action-btn ${playingAudio === audioUrl ? 'playing' : ''}`}
                           onClick={e => playAudio(audioUrl, e)}
+                          title={playingAudio === audioUrl ? 'Pause' : 'Play audio'}
                         >
-                          <Play size={20} fill={playingAudio === audioUrl ? '#fff' : 'none'} />
+                          {playingAudio === audioUrl ? <Pause size={20} /> : <Play size={20} />}
                         </button>
                       )}
                       <button 
-                        className="action-btn"
-                        onClick={e => { e.stopPropagation(); onSelectProject?.(project); }}
+                        className="action-btn primary"
+                        onClick={e => handleQuickOpen(project, e)}
+                        title="Open project"
                       >
-                        <ChevronRight size={20} />
+                        <Zap size={20} />
                       </button>
                     </div>
+                    <p className="overlay-hint">Click to open • Drag to reorder</p>
                   </div>
 
                   {/* Favorite Badge */}
                   <button 
                     className={`fav-btn ${favorites.includes(project.id) ? 'active' : ''}`}
                     onClick={e => toggleFavorite(project.id, e)}
+                    title={favorites.includes(project.id) ? 'Remove from favorites' : 'Add to favorites'}
                   >
                     <Heart size={16} fill={favorites.includes(project.id) ? 'currentColor' : 'none'} />
                   </button>
@@ -324,10 +549,10 @@ function ProjectHubV3({
                   {/* Asset Type Badges */}
                   {assetIcons.length > 0 && (
                     <div className="asset-badges">
-                      {assetIcons.includes('audio') && <span className="badge audio"><Music size={12} /></span>}
-                      {assetIcons.includes('image') && <span className="badge image"><Image size={12} /></span>}
-                      {assetIcons.includes('video') && <span className="badge video"><Video size={12} /></span>}
-                      {assetIcons.includes('text') && <span className="badge text"><FileText size={12} /></span>}
+                      {assetIcons.includes('audio') && <span className="badge audio" title="Has audio"><Music size={12} /></span>}
+                      {assetIcons.includes('image') && <span className="badge image" title="Has images"><Image size={12} /></span>}
+                      {assetIcons.includes('video') && <span className="badge video" title="Has video"><Video size={12} /></span>}
+                      {assetIcons.includes('text') && <span className="badge text" title="Has text"><FileText size={12} /></span>}
                     </div>
                   )}
                 </div>
@@ -456,6 +681,12 @@ function ProjectHubV3({
           padding: 24px;
           max-width: 1400px;
           margin: 0 auto;
+          animation: fadeIn 0.4s ease;
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         .hub-header-v3 {
@@ -468,17 +699,39 @@ function ProjectHubV3({
           align-items: center;
           margin-bottom: 24px;
         }
-
-        .hub-title-row h1 {
+        
+        .title-section h1 {
           font-size: 2rem;
           font-weight: 700;
           margin: 0;
+          background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
 
         .hub-subtitle {
           color: var(--text-secondary);
           font-size: 0.9rem;
           margin: 4px 0 0;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .filter-badge {
+          padding: 2px 8px;
+          background: rgba(139, 92, 246, 0.2);
+          border-radius: 4px;
+          font-size: 0.75rem;
+          color: var(--color-purple);
+          text-transform: capitalize;
+        }
+        
+        .header-actions {
+          display: flex;
+          gap: 12px;
+          align-items: center;
         }
 
         .btn-create-new {
@@ -493,12 +746,49 @@ function ProjectHubV3({
           font-weight: 600;
           font-size: 0.95rem;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .btn-create-new::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+          opacity: 0;
+          transition: opacity 0.3s;
         }
 
         .btn-create-new:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+          transform: translateY(-3px) scale(1.02);
+          box-shadow: 0 12px 32px rgba(139, 92, 246, 0.5);
+        }
+        
+        .btn-create-new:hover::before {
+          opacity: 1;
+        }
+        
+        .btn-create-new:active {
+          transform: translateY(-1px) scale(0.98);
+        }
+        
+        .shortcut-hint {
+          padding: 2px 6px;
+          background: rgba(255,255,255,0.2);
+          border-radius: 4px;
+          font-size: 0.7rem;
+          font-family: monospace;
+          margin-left: 4px;
+        }
+        
+        .count-badge {
+          padding: 0 6px;
+          background: var(--color-purple);
+          border-radius: 10px;
+          font-size: 0.7rem;
+          min-width: 18px;
+          text-align: center;
         }
 
         .hub-controls {
@@ -647,6 +937,160 @@ function ProjectHubV3({
           transform: translateY(-4px);
           box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
           border-color: var(--color-purple);
+        }
+        
+        /* Drag & Drop States */
+        .project-card.dragging {
+          opacity: 0.5;
+          transform: scale(0.95);
+          border: 2px dashed var(--color-purple);
+        }
+        
+        .project-card.drag-over {
+          transform: translateY(-8px) scale(1.02);
+          box-shadow: 0 20px 60px rgba(139, 92, 246, 0.4);
+          border-color: var(--color-cyan);
+          background: rgba(139, 92, 246, 0.1);
+        }
+        
+        /* Staggered Animation for Cards */
+        @keyframes cardEnter {
+          from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        
+        .project-card {
+          animation: cardEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+        }
+        
+        .project-card:nth-child(1) { animation-delay: 0.05s; }
+        .project-card:nth-child(2) { animation-delay: 0.1s; }
+        .project-card:nth-child(3) { animation-delay: 0.15s; }
+        .project-card:nth-child(4) { animation-delay: 0.2s; }
+        .project-card:nth-child(5) { animation-delay: 0.25s; }
+        .project-card:nth-child(6) { animation-delay: 0.3s; }
+        .project-card:nth-child(7) { animation-delay: 0.35s; }
+        .project-card:nth-child(8) { animation-delay: 0.4s; }
+        
+        /* Skeleton Loading */
+        .skeleton-card {
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          border-radius: 16px;
+          overflow: hidden;
+          min-height: 280px;
+        }
+        
+        .skeleton-thumb {
+          height: 180px;
+          background: linear-gradient(90deg, 
+            var(--bg-tertiary) 0%, 
+            rgba(255,255,255,0.1) 50%, 
+            var(--bg-tertiary) 100%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+        }
+        
+        .skeleton-info {
+          padding: 16px;
+        }
+        
+        .skeleton-line {
+          height: 16px;
+          background: linear-gradient(90deg, 
+            var(--bg-tertiary) 0%, 
+            rgba(255,255,255,0.1) 50%, 
+            var(--bg-tertiary) 100%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+          border-radius: 4px;
+          margin-bottom: 12px;
+        }
+        
+        .skeleton-line.short {
+          width: 60%;
+        }
+        
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        
+        /* Progress Bar */
+        .progress-bar-container {
+          margin-top: 12px;
+        }
+        
+        .progress-label {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+          margin-bottom: 6px;
+        }
+        
+        .progress-bar {
+          height: 4px;
+          background: var(--bg-tertiary);
+          border-radius: 2px;
+          overflow: hidden;
+        }
+        
+        .progress-fill {
+          height: 100%;
+          border-radius: 2px;
+          transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+        }
+        
+        .progress-fill::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+          animation: progressShine 2s infinite;
+        }
+        
+        @keyframes progressShine {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        
+        /* Overlay Hint */
+        .overlay-hint {
+          position: absolute;
+          bottom: 16px;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 0.75rem;
+          color: rgba(255,255,255,0.7);
+          background: rgba(0,0,0,0.5);
+          padding: 4px 12px;
+          border-radius: 12px;
+          white-space: nowrap;
+        }
+        
+        /* New Project Hint */
+        .new-project-hint {
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+          margin-top: 4px;
+        }
+        
+        .new-project-hint kbd {
+          display: inline-block;
+          padding: 2px 6px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 4px;
+          font-family: monospace;
+          font-size: 0.7rem;
         }
 
         .project-card.new-project-card {
@@ -918,13 +1362,86 @@ function ProjectHubV3({
         .empty-state-v3 {
           text-align: center;
           padding: 80px 24px;
+          animation: fadeIn 0.5s ease;
         }
-
-        .empty-icon {
+        
+        .empty-illustration {
+          position: relative;
+          width: 200px;
+          height: 200px;
+          margin: 0 auto 32px;
+        }
+        
+        .floating-elements {
+          position: absolute;
+          inset: 0;
+        }
+        
+        .float-item {
+          position: absolute;
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: float 3s ease-in-out infinite;
+        }
+        
+        .float-item.item-1 {
+          top: 10px;
+          left: 20px;
+          background: linear-gradient(135deg, var(--color-purple) 0%, #a855f7 100%);
+          animation-delay: 0s;
+        }
+        
+        .float-item.item-2 {
+          top: 20px;
+          right: 10px;
+          background: linear-gradient(135deg, var(--color-pink) 0%, #f472b6 100%);
+          animation-delay: 0.5s;
+        }
+        
+        .float-item.item-3 {
+          bottom: 30px;
+          left: 10px;
+          background: linear-gradient(135deg, var(--color-cyan) 0%, #22d3ee 100%);
+          animation-delay: 1s;
+        }
+        
+        .float-item.item-4 {
+          bottom: 10px;
+          right: 30px;
+          background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+          animation-delay: 1.5s;
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-10px) rotate(5deg); }
+        }
+        
+        .empty-icon.main-icon {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 100px;
+          height: 100px;
+          background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(6, 182, 212, 0.3) 100%);
+          border-radius: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          box-shadow: 0 20px 60px rgba(139, 92, 246, 0.3);
+        }
+        
+        .empty-icon.search-empty {
           width: 100px;
           height: 100px;
           margin: 0 auto 24px;
-          background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%);
+          background: rgba(255,255,255,0.05);
           border-radius: 24px;
           display: flex;
           align-items: center;
@@ -933,13 +1450,89 @@ function ProjectHubV3({
         }
 
         .empty-state-v3 h3 {
-          font-size: 1.5rem;
-          margin: 0 0 8px;
+          font-size: 1.75rem;
+          font-weight: 700;
+          margin: 0 0 12px;
+          background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.8) 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
 
         .empty-state-v3 p {
           color: var(--text-secondary);
-          margin: 0 0 24px;
+          margin: 0 0 32px;
+          font-size: 1rem;
+          max-width: 400px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+        
+        .quick-start-options {
+          margin-bottom: 40px;
+        }
+        
+        .primary-cta {
+          font-size: 1.1rem;
+          padding: 16px 32px;
+        }
+        
+        .template-suggestions {
+          max-width: 400px;
+          margin: 0 auto;
+        }
+        
+        .template-label {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          margin-bottom: 16px !important;
+        }
+        
+        .template-chips {
+          display: flex;
+          gap: 12px;
+          justify-content: center;
+          flex-wrap: wrap;
+        }
+        
+        .template-chip {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 16px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          border-radius: 20px;
+          color: var(--text-secondary);
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .template-chip:hover {
+          border-color: var(--color-purple);
+          color: white;
+          background: rgba(139, 92, 246, 0.1);
+          transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 24px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          border-radius: 12px;
+          color: white;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        
+        .btn-secondary:hover {
+          border-color: var(--color-purple);
+          background: rgba(139, 92, 246, 0.1);
         }
 
         /* Modal */

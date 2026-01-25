@@ -819,6 +819,38 @@ const generationLimiter = rateLimit({
   skipSuccessfulRequests: false
 });
 
+// 🔐 AUTH-SPECIFIC RATE LIMITING - Brute force protection
+// Strict limits for authentication-related endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Only 10 auth attempts per 15 minutes per IP
+  keyGenerator: (req) => {
+    // Use IP + user agent for auth attempts (before we have userId)
+    const ip = ipKeyGenerator(req);
+    const ua = req.headers['user-agent'] || 'unknown';
+    return crypto.createHash('md5').update(`${ip}-${ua}`).digest('hex');
+  },
+  handler: (req, res) => {
+    logger.warn('🚫 Auth rate limit exceeded - potential brute force', {
+      ip: req.ip,
+      path: req.path,
+      userAgent: req.headers['user-agent']
+    });
+    res.status(429).json({
+      error: 'Too many authentication attempts',
+      message: 'Please wait 15 minutes before trying again.',
+      retryAfter: 900 // 15 minutes in seconds
+    });
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true // Don't count successful logins
+});
+
+// Apply auth rate limiting to sensitive endpoints
+app.use('/api/user/session', authLimiter);
+app.use('/api/admin', authLimiter);
+
 //  API KEY VALIDATION
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {

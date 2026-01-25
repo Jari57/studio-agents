@@ -1,5 +1,5 @@
 /* eslint-disable no-use-before-define */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Sparkles, Mic, MicOff, FileText, Video, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
@@ -1819,14 +1819,14 @@ export default function StudioOrchestratorV2({
     setSpeakingSlot(slot);
   };
 
-  // Get auth headers
-  const getHeaders = async () => {
+  // Get auth headers - wrapped in useCallback to avoid stale closure on authToken prop
+  const getHeaders = useCallback(async () => {
     const headers = { 'Content-Type': 'application/json' };
     if (authToken) {
       headers['Authorization'] = `Bearer ${authToken}`;
     }
     return headers;
-  };
+  }, [authToken]);
 
   // Main generation function
   const handleGenerate = async () => {
