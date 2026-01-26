@@ -62,6 +62,81 @@ const safeMediaUrl = (url) => {
   return `data:image/png;base64,${url}`;
 };
 
+// Helper: Sanitize project data from Firebase to prevent crashes
+const sanitizeProject = (project) => {
+  if (!project || typeof project !== 'object') return null;
+  
+  return {
+    ...project,
+    id: project.id || `proj_${Date.now()}`,
+    title: typeof project.title === 'string' ? project.title : 'Untitled Project',
+    assets: Array.isArray(project.assets) 
+      ? project.assets.filter(a => a && typeof a === 'object')
+      : [],
+    agents: Array.isArray(project.agents) ? project.agents : [],
+    tags: Array.isArray(project.tags) ? project.tags : [],
+    createdAt: project.createdAt || new Date().toISOString(),
+  };
+};
+
+// Helper: Sanitize array of projects
+const sanitizeProjects = (projects) => {
+  if (!Array.isArray(projects)) return [];
+  return projects.map(sanitizeProject).filter(Boolean);
+};
+
+// Section-level Error Boundary for isolating crashes
+class SectionErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error(`[SectionErrorBoundary] ${this.props.name || 'Section'} crashed:`, error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          padding: '24px',
+          background: 'rgba(239, 68, 68, 0.1)',
+          border: '1px solid rgba(239, 68, 68, 0.3)',
+          borderRadius: '12px',
+          textAlign: 'center'
+        }}>
+          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⚠️</div>
+          <h3 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>
+            {this.props.name || 'Section'} Error
+          </h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            Something went wrong loading this section.
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-secondary)',
+              color: 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Simple inline fallback for lazy components
 const LazyFallback = () => (
   <div style={{ 
@@ -3522,7 +3597,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       try {
         const parsed = JSON.parse(savedProjects);
         if (Array.isArray(parsed)) {
-          localProjects = parsed;
+          localProjects = sanitizeProjects(parsed);
         }
       } catch (e) {
         console.error("Failed to parse projects", e);
@@ -3556,8 +3631,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           const data = await res.json();
           
           if (data.projects) {
-            // Merge local and remote
-            const allProjects = [...data.projects, ...localProjects];
+            // Merge local and remote - sanitize remote data
+            const remoteProjects = sanitizeProjects(data.projects);
+            const allProjects = [...remoteProjects, ...localProjects];
             const uniqueProjects = Array.from(new Map(allProjects.map(item => [item.id, item])).values());
             // Sort by updatedAt/createdAt descending (newest first)
             uniqueProjects.sort((a, b) => {
