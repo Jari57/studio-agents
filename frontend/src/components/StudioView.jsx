@@ -173,7 +173,9 @@ import {
   sendPasswordResetEmail,
   doc,
   getDoc,
-  setDoc
+  setDoc,
+  uploadFile,
+  uploadBase64
   // Note: collection, getDocs, query, orderBy, deleteDoc moved to backend API
 } from '../firebase';
 import { AGENTS, BACKEND_URL } from '../constants';
@@ -3178,6 +3180,58 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       if (isLoggedIn) {
         const uid = localStorage.getItem('studio_user_id');
         if (uid) {
+          // Upload media files to Firebase Storage (if they are base64 or blob URLs)
+          try {
+            // Upload image if it's base64
+            if (itemToSave.imageUrl && (itemToSave.imageUrl.startsWith('data:') || itemToSave.imageUrl.startsWith('blob:'))) {
+              console.log('📤 Uploading image to Firebase Storage...');
+              if (itemToSave.imageUrl.startsWith('data:')) {
+                const result = await uploadBase64(itemToSave.imageUrl, uid, 'images', 'image/png');
+                itemToSave.imageUrl = result.url;
+                itemToSave.imageStoragePath = result.path;
+              } else if (itemToSave.imageUrl.startsWith('blob:')) {
+                const response = await fetch(itemToSave.imageUrl);
+                const blob = await response.blob();
+                const result = await uploadFile(blob, uid, 'images', `${Date.now()}.png`);
+                itemToSave.imageUrl = result.url;
+                itemToSave.imageStoragePath = result.path;
+              }
+            }
+            // Upload audio if it's base64 or blob
+            if (itemToSave.audioUrl && (itemToSave.audioUrl.startsWith('data:') || itemToSave.audioUrl.startsWith('blob:'))) {
+              console.log('📤 Uploading audio to Firebase Storage...');
+              if (itemToSave.audioUrl.startsWith('data:')) {
+                const result = await uploadBase64(itemToSave.audioUrl, uid, 'audio', 'audio/mp3');
+                itemToSave.audioUrl = result.url;
+                itemToSave.audioStoragePath = result.path;
+              } else if (itemToSave.audioUrl.startsWith('blob:')) {
+                const response = await fetch(itemToSave.audioUrl);
+                const blob = await response.blob();
+                const result = await uploadFile(blob, uid, 'audio', `${Date.now()}.mp3`);
+                itemToSave.audioUrl = result.url;
+                itemToSave.audioStoragePath = result.path;
+              }
+            }
+            // Upload video if it's base64 or blob
+            if (itemToSave.videoUrl && (itemToSave.videoUrl.startsWith('data:') || itemToSave.videoUrl.startsWith('blob:'))) {
+              console.log('📤 Uploading video to Firebase Storage...');
+              if (itemToSave.videoUrl.startsWith('data:')) {
+                const result = await uploadBase64(itemToSave.videoUrl, uid, 'video', 'video/mp4');
+                itemToSave.videoUrl = result.url;
+                itemToSave.videoStoragePath = result.path;
+              } else if (itemToSave.videoUrl.startsWith('blob:')) {
+                const response = await fetch(itemToSave.videoUrl);
+                const blob = await response.blob();
+                const result = await uploadFile(blob, uid, 'video', `${Date.now()}.mp4`);
+                itemToSave.videoUrl = result.url;
+                itemToSave.videoStoragePath = result.path;
+              }
+            }
+          } catch (uploadErr) {
+            console.warn('Media upload to Firebase Storage failed, using original URLs:', uploadErr);
+            // Continue with original URLs - don't block save
+          }
+
           const saveHeaders = { 'Content-Type': 'application/json' };
           if (auth?.currentUser) {
             try {
