@@ -746,6 +746,32 @@ if (fs.existsSync(dashboardPath)) {
 
 // Only serve static files in production (Railway)
 if (!isDevelopment && fs.existsSync(staticDir)) {
+  // Serve pre-compressed files (brotli/gzip) when available
+  app.use('/assets', (req, res, next) => {
+    const acceptEncoding = req.headers['accept-encoding'] || '';
+    const filePath = path.join(staticDir, 'assets', req.path);
+    
+    // Try brotli first (better compression)
+    if (acceptEncoding.includes('br') && fs.existsSync(filePath + '.br')) {
+      res.setHeader('Content-Encoding', 'br');
+      res.setHeader('Vary', 'Accept-Encoding');
+      if (req.path.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript');
+      if (req.path.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
+      return res.sendFile(filePath + '.br');
+    }
+    
+    // Fall back to gzip
+    if (acceptEncoding.includes('gzip') && fs.existsSync(filePath + '.gz')) {
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Vary', 'Accept-Encoding');
+      if (req.path.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript');
+      if (req.path.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
+      return res.sendFile(filePath + '.gz');
+    }
+    
+    next();
+  });
+  
   app.use(express.static(staticDir));
   
   // In production, serve index.html at root
