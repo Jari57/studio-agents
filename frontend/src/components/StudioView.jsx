@@ -757,6 +757,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image'|'text', url, title, asset, assets, currentIndex }
   const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max toggle for preview modal
   const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
+  const [previewSaveMode, setPreviewSaveMode] = useState(false); // Toggle save options view in preview modal
+  const [newProjectNameInPreview, setNewProjectNameInPreview] = useState(''); // New project name input in preview modal
   
   // Safe preview data access (prevents TDZ/null errors)
   const safePreview = showPreview || {};
@@ -3140,11 +3142,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   handleGenerateRef.current = handleGenerate;
 
   // Save the previewed item to projects with timeout and loading feedback
-  const handleSavePreview = async (destination = 'hub') => {
+  // targetProject can be: 'hub' (just save to hub), project object (save to specific project), or 'new:ProjectName' (create new project)
+  const handleSavePreview = async (destination = 'hub', targetProject = null) => {
     if (!previewItem) return;
     if (isSaving) return; // Prevent double-save
     
     setIsSaving(true);
+    setPreviewSaveMode(false); // Close save options view
     const toastId = toast.loading('Syncing to cloud...', { icon: '☁️' });
     
     // 3-minute timeout
@@ -3164,11 +3168,34 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       // Update local state immediately
       setProjects(prev => Array.isArray(prev) ? [itemToSave, ...prev] : [itemToSave]);
 
-      // If we are working inside a project context, add this artifact to the project assets
-      if (selectedProject) {
-        const safeAssets = Array.isArray(selectedProject.assets) ? selectedProject.assets : [];
+      // Determine which project to save to
+      let projectToUpdate = targetProject || selectedProject;
+      
+      // Handle "new:ProjectName" format - create new project
+      if (typeof targetProject === 'string' && targetProject.startsWith('new:')) {
+        const newProjectName = targetProject.substring(4);
+        const newProject = {
+          id: String(Date.now()),
+          name: newProjectName,
+          category: 'Music Creation',
+          description: '',
+          agents: [],
+          workflow: 'custom',
+          date: new Date().toLocaleDateString(),
+          status: 'Active',
+          progress: 0,
+          assets: [itemToSave],
+          createdAt: new Date().toISOString()
+        };
+        setProjects(prev => [newProject, ...prev]);
+        setSelectedProject(newProject);
+        projectToUpdate = newProject;
+        toast.success(`Project "${newProjectName}" created!`);
+      } else if (projectToUpdate) {
+        // Add to existing project
+        const safeAssets = Array.isArray(projectToUpdate.assets) ? projectToUpdate.assets : [];
         const updatedProject = {
-          ...selectedProject,
+          ...projectToUpdate,
           assets: [itemToSave, ...safeAssets]
         };
         setSelectedProject(updatedProject);
@@ -3176,10 +3203,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           const safePrev = Array.isArray(prev) ? prev : [];
           return [itemToSave, ...safePrev.map(p => p?.id === updatedProject.id ? updatedProject : p)];
         });
-      } else {
-        // No project selected - show "Add to Project" modal
-        setAddToProjectAsset(itemToSave);
+        projectToUpdate = updatedProject;
       }
+      // If no project selected and no targetProject, just save to hub (no modal needed)
 
       // Save to Backend if logged in
       if (isLoggedIn) {
@@ -3328,6 +3354,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const handleDiscardPreview = () => {
     setPreviewItem(null);
     setPreviewPrompt('');
+    setPreviewSaveMode(false);
+    setNewProjectNameInPreview('');
     // Only show discard toast if it was a new generation, not viewing existing asset
     // toast('Discarded. Try again!', { icon: '🔄' });
   };
@@ -10693,6 +10721,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             // Clear any media errors and reset transition guard
             setMediaLoadError(null);
             isModalTransitioning.current = false;
+            setPreviewSaveMode(false);
+            setNewProjectNameInPreview('');
             setPreviewItem(null);
           }}>
             <div className="modal-content animate-fadeInUp" onClick={(e) => {
@@ -10704,6 +10734,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   e.stopPropagation();
                   setMediaLoadError(null);
                   isModalTransitioning.current = false;
+                  setPreviewSaveMode(false);
+                  setNewProjectNameInPreview('');
                   setPreviewItem(null);
                 }}
                 style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 9999 }}
@@ -10722,6 +10754,190 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 </p>
               </div>
               <div className="modal-body" style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
+                {/* Save Options Panel - Shows when previewSaveMode is true */}
+                {previewSaveMode && !previewItem.isExistingAsset ? (
+                  <div style={{ padding: '1rem' }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.5rem', 
+                      marginBottom: '1.5rem',
+                      paddingBottom: '1rem',
+                      borderBottom: '1px solid var(--border-color)'
+                    }}>
+                      <button 
+                        onClick={() => setPreviewSaveMode(false)}
+                        style={{
+                          padding: '8px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-color)',
+                          background: 'transparent',
+                          cursor: 'pointer',
+                          color: 'var(--text-secondary)'
+                        }}
+                      >
+                        <ArrowLeft size={18} />
+                      </button>
+                      <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Save to...</h3>
+                    </div>
+                    
+                    {/* Quick Save to Hub */}
+                    <button
+                      onClick={() => handleSavePreview('hub', null)}
+                      disabled={isSaving}
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        border: '2px solid var(--border-color)',
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        marginBottom: '1rem',
+                        textAlign: 'left',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--color-green)'}
+                      onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}
+                    >
+                      <div style={{ 
+                        width: '40px', 
+                        height: '40px', 
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Cloud size={20} color="white" />
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Save to Hub Only</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Quick save without adding to a project</div>
+                      </div>
+                    </button>
+
+                    {/* Create New Project with this asset */}
+                    <div style={{ 
+                      padding: '16px', 
+                      borderRadius: '12px',
+                      border: '2px solid var(--border-color)',
+                      marginBottom: '1rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                        <div style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          borderRadius: '10px',
+                          background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Plus size={20} color="white" />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Create New Project</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Start a new project with this asset</div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <input
+                          type="text"
+                          value={newProjectNameInPreview}
+                          onChange={(e) => setNewProjectNameInPreview(e.target.value)}
+                          placeholder="Enter project name..."
+                          style={{
+                            flex: 1,
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-color)',
+                            background: 'var(--bg-secondary)',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.9rem'
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && newProjectNameInPreview.trim()) {
+                              handleSavePreview('hub', `new:${newProjectNameInPreview.trim()}`);
+                              setNewProjectNameInPreview('');
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => {
+                            if (newProjectNameInPreview.trim()) {
+                              handleSavePreview('hub', `new:${newProjectNameInPreview.trim()}`);
+                              setNewProjectNameInPreview('');
+                            }
+                          }}
+                          disabled={!newProjectNameInPreview.trim() || isSaving}
+                          className="cta-button-premium"
+                          style={{ 
+                            padding: '10px 16px',
+                            opacity: (!newProjectNameInPreview.trim() || isSaving) ? 0.5 : 1
+                          }}
+                        >
+                          Create
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Existing Projects */}
+                    {Array.isArray(projects) && projects.filter(p => p && p.name && p.id).length > 0 && (
+                      <div>
+                        <div style={{ 
+                          fontSize: '0.85rem', 
+                          color: 'var(--text-secondary)', 
+                          marginBottom: '12px',
+                          fontWeight: '600' 
+                        }}>
+                          Or add to existing project:
+                        </div>
+                        <div style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          gap: '8px',
+                          maxHeight: '200px',
+                          overflowY: 'auto'
+                        }}>
+                          {projects.filter(p => p && p.name && p.id).slice(0, 10).map(project => (
+                            <button
+                              key={project.id}
+                              onClick={() => handleSavePreview('hub', project)}
+                              disabled={isSaving}
+                              style={{
+                                width: '100%',
+                                padding: '12px 16px',
+                                borderRadius: '10px',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-secondary)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(139, 92, 246, 0.15)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <Folder size={18} style={{ color: 'var(--color-purple)' }} />
+                                <span style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{project.name}</span>
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                {project.assets?.length || 0} assets
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Original Preview Content */
+                  <>
                 {/* Metadata Bar - More info displayed */}
                 <div style={{ 
                   display: 'flex', 
@@ -11108,6 +11324,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     </div>
                   )}
                 </div>
+                </>
+                )}
               </div>
 
               {/* Action Buttons */}
@@ -11315,7 +11533,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       )}
                     </button>
                     <button 
-                      onClick={() => handleSavePreview('hub')}
+                      onClick={() => setPreviewSaveMode(true)}
                       disabled={isSaving}
                       className="cta-button-premium"
                       style={{ 
@@ -11336,7 +11554,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         </>
                       ) : (
                         <>
-                          <Save size={16} /> {selectedProject ? 'Save to Project' : 'Save to Hub'}
+                          <Save size={16} /> Save
                         </>
                       )}
                     </button>
