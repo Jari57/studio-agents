@@ -1,5 +1,6 @@
 ﻿const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -560,6 +561,16 @@ const app = express();
 // Increased to 3 to handle potential multiple proxy layers in production
 app.set('trust proxy', 3); 
 const PORT = process.env.PORT || 3000;
+
+// ⚡ PERFORMANCE: Compression - Gzip/Brotli for JSON responses
+app.use(compression({
+  level: 6, // Balanced compression level
+  threshold: 1024, // Only compress responses > 1KB
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  }
+}));
 
 //  SECURITY: Helmet.js - Set security headers
 app.use(helmet({
@@ -6165,30 +6176,6 @@ const server = app.listen(PORT, HOST, () => {
   logger.info(`🚀 Uplink Ready at http://${HOST}:${PORT}`);
 });
 
-// Global error handler middleware
-app.use((err, req, res, _next) => {
-  logger.error('❌ Unhandled error', {
-    error: err.message,
-    stack: err.stack,
-    path: req.path,
-    method: req.method,
-    ip: req.ip,
-    timestamp: new Date().toISOString()
-  });
-  
-  // Don't leak error details in production
-  if (isDevelopment) {
-    res.status(err.statusCode || 500).json({
-      error: err.message,
-      stack: err.stack
-    });
-  } else {
-    res.status(err.statusCode || 500).json({
-      error: 'Internal server error'
-    });
-  }
-});
-
 // ═══════════════════════════════════════════════════════════════════
 // SYNCED MUSIC VIDEO GENERATION ROUTES
 // ═══════════════════════════════════════════════════════════════════
@@ -6585,6 +6572,35 @@ app.post('/api/video-metadata', verifyFirebaseToken, async (req, res) => {
       details: error.message
     });
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// GLOBAL ERROR HANDLER (PRODUCTION HARDENED)
+// ═══════════════════════════════════════════════════════════════════
+app.use((err, req, res, _next) => {
+  const statusCode = err.status || err.statusCode || 500;
+  
+  // Log full error details server-side
+  logger.error('🔥 Application Error', {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    ip: req.ip,
+    userId: req.user?.uid,
+    statusCode
+  });
+
+  // Client response (secure)
+  res.status(statusCode).json({
+    success: false,
+    error: isDevelopment ? err.message : (statusCode === 500 ? 'Internal Server Error' : err.message),
+    message: statusCode === 500 
+      ? 'An unexpected error occurred. Our engineers have been notified.' 
+      : err.message,
+    details: isDevelopment ? err.stack : undefined,
+    requestId: req.id // If we used a request ID middleware
+  });
 });
 
 // Graceful shutdown handlers

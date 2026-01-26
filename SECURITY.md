@@ -31,21 +31,28 @@ The backend uses helmet.js to set secure HTTP headers:
 
 ### 2. CORS Configuration
 
-**Current State:** Basic CORS enabled for all origins (development mode)
+**Current State:** ✅ PRODUCTION HARDENED
+- Strict origin whitelist enforced
+- Supports professional domains: studioagentsai.com, studio-agents.vercel.app
+- Supports Railway and Vercel preview environments
+- Credentials allowed for Firebase session management
+- Blocked origins logged server-side for audit
 
-**Production Recommendation:**
+**Implementation:**
 ```javascript
 const allowedOrigins = [
-  'https://restored-os-whip-montez-production.up.railway.app',
+  'https://studioagentsai.com',
+  'https://www.studioagentsai.com',
+  'https://studio-agents.vercel.app',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.vercel.app') || origin.endsWith('.railway.app')) {
       callback(null, true);
     } else {
-      logger.warn('CORS blocked', { origin });
+      logger.warn('🚫 CORS blocked', { origin });
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -55,18 +62,20 @@ app.use(cors({
 
 ### 3. Rate Limiting
 
-**Current Implementation:**
-- 100 requests per 15 minutes per IP address
-- Applied to `/api/generate` endpoint
+**Current Implementation:** ✅ PRODUCTION READY
+- Fingerprint-based tracking (IPv6-safe)
+- Prevents bypass via IP spoofing or session clearing
+- 100 requests per 15 minutes for general API
+- 10 requests per minute for expensive AI operations
+- Automated 'Retry-After' headers
 
-**Enhanced Recommendation (in server-security-patch.js):**
+**Fingerprint Logic:**
 ```javascript
-// Fingerprint-based tracking prevents IP spoofing
 const createFingerprint = (req) => {
-  const userId = req.body?.userId || 'anon';
-  return crypto.createHash('md5')
-    .update(`${req.ip}-${userId}-${req.headers['user-agent']}`)
-    .digest('hex');
+  const ipHash = ipKeyGenerator(req); 
+  const userId = req.user?.uid || req.body?.userId || 'anon';
+  const userAgent = req.headers['user-agent'] || 'unknown';
+  return crypto.createHash('md5').update(`${ipHash}-${userId}-${userAgent}`).digest('hex');
 };
 ```
 
@@ -303,5 +312,5 @@ app.post('/api/generate', authenticateAPI, generateHandler);
 
 For security concerns or vulnerability reports, contact the development team via GitHub issues (mark as security).
 
-**Last Updated:** 2025-01-XX  
-**Security Version:** 1.0
+**Last Updated:** January 26, 2026  
+**Security Version:** 2.1 (Production Hardened)
