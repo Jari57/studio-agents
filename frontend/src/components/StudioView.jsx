@@ -10564,10 +10564,70 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
                   <Cloud size={24} color="white" />
                 </div>
-                <h2>Save to Personal Storage</h2>
-                <p>Connect your cloud storage to save your creations permanently.</p>
+                <h2>Save to Cloud</h2>
+                <p>Sync your projects to the Studio Agents cloud or connect external storage.</p>
               </div>
               <div className="modal-body">
+                {/* Studio Cloud Save - Primary Option */}
+                <div style={{ marginBottom: '20px' }}>
+                  <button 
+                    className="storage-btn"
+                    style={{ 
+                      width: '100%', 
+                      padding: '16px 20px', 
+                      background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                      border: 'none',
+                      justifyContent: 'center',
+                      gap: '12px',
+                      fontSize: '1rem',
+                      fontWeight: '600'
+                    }}
+                    onClick={async () => {
+                      if (!user?.uid) {
+                        toast.error('Please sign in to save to cloud');
+                        setShowExternalSaveModal(false);
+                        return;
+                      }
+                      
+                      const toastId = toast.loading('Syncing projects to cloud...');
+                      try {
+                        let successCount = 0;
+                        const projectsToSync = projects.filter(p => p && p.id);
+                        
+                        for (const project of projectsToSync) {
+                          try {
+                            const success = await saveProjectToCloud(user.uid, project);
+                            if (success) successCount++;
+                          } catch (err) {
+                            console.error(`Failed to sync project ${project.id}:`, err);
+                          }
+                        }
+                        
+                        if (successCount > 0) {
+                          toast.success(`✅ Synced ${successCount} project${successCount > 1 ? 's' : ''} to cloud!`, { id: toastId });
+                          setLastSyncTime(new Date());
+                        } else {
+                          toast.error('No projects to sync', { id: toastId });
+                        }
+                      } catch (err) {
+                        console.error('Cloud sync failed:', err);
+                        toast.error('Failed to sync to cloud', { id: toastId });
+                      }
+                      setShowExternalSaveModal(false);
+                    }}
+                  >
+                    <Database size={20} />
+                    <span>Save to Studio Agents Cloud</span>
+                  </button>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '8px' }}>
+                    {user ? `Signed in as ${user.email || user.displayName}` : 'Sign in to enable cloud sync'}
+                  </p>
+                </div>
+                
+                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '16px 0' }}>
+                  — or connect external storage —
+                </div>
+                
                 <div className="external-storage-grid">
                   <button className="storage-btn" onClick={() => { 
                     // Simulate connection
