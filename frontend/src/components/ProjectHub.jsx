@@ -82,6 +82,14 @@ function ProjectHub({
     localStorage.setItem('studio_recent_projects', JSON.stringify(recentProjects));
   }, [recentProjects]);
 
+  // Cleanup audio when preview closes to prevent race conditions
+  useEffect(() => {
+    if (!previewAsset && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+    }
+  }, [previewAsset]);
+
   // Track project access (add to recents)
   const trackRecentProject = (projectId) => {
     setRecentProjects(prev => {

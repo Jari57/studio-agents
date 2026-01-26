@@ -727,11 +727,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   }, [showPreview]);
   
   // Helper: Safely open preview with debouncing and validation
+  // IMPORTANT: This is the ONLY function that should open previews to prevent race conditions
   const safeOpenPreview = (asset, allAssets) => {
     // Clear any pending preview opens
     if (previewDebounceTimer.current) {
       clearTimeout(previewDebounceTimer.current);
     }
+    
+    // MUTUAL EXCLUSION: Close any other preview modals first
+    // This prevents race conditions between overlapping preview systems
+    setPreviewItem(null);
     
     // Debounce to prevent rapid clicks
     previewDebounceTimer.current = setTimeout(() => {
@@ -825,6 +830,19 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         isModalTransitioning.current = false;
       }
     }, 100); // 100ms debounce
+  };
+  
+  // Helper: Safely open generation preview with mutual exclusion
+  // This is for AI generation previews (previewItem modal)
+  const safeOpenGenerationPreview = (item) => {
+    if (!item) return;
+    // MUTUAL EXCLUSION: Close asset preview modal first
+    setShowPreview(null);
+    setPreviewMaximized(false);
+    // Small delay to ensure state updates don't conflict
+    setTimeout(() => {
+      setPreviewItem(item);
+    }, 50);
   };
   
   // Audio refs to prevent re-render interruption
@@ -2501,7 +2519,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             createdAt: new Date().toISOString()
           };
 
-          setPreviewItem(vocalItem);
+          safeOpenGenerationPreview(vocalItem);
           toast.success('AI vocal created!', { id: toastId });
           return vocalItem;
         }
@@ -3098,7 +3116,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         keys: Object.keys(newItem)
       });
       setMediaLoadError(null); // Clear any previous media errors
-      setPreviewItem(newItem);
+      safeOpenGenerationPreview(newItem);
       setPreviewPrompt(prompt);
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
       setAgentPreviews(prev => ({ ...prev, [selectedAgent.id]: newItem }));
@@ -10578,16 +10596,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         {previewItem && (
           <div className="modal-overlay" onClick={() => {
             console.log('[Preview] Overlay clicked, closing preview');
+            // Clear any media errors and reset transition guard
+            setMediaLoadError(null);
+            isModalTransitioning.current = false;
             setPreviewItem(null);
           }}>
             <div className="modal-content animate-fadeInUp" onClick={(e) => {
-              console.log('[Preview] Modal content clicked, stopping propagation');
               e.stopPropagation();
             }} style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
               <button 
                 className="modal-close" 
                 onClick={(e) => {
                   e.stopPropagation();
+                  setMediaLoadError(null);
+                  isModalTransitioning.current = false;
                   setPreviewItem(null);
                 }}
                 style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 9999 }}
@@ -13164,7 +13186,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       {showPreview && (
         <div 
           className="modal-overlay animate-fadeIn" 
-          onClick={() => { setShowPreview(null); setPreviewMaximized(false); }} 
+          onClick={() => { 
+            // Cleanup audio before closing to prevent race conditions
+            if (previewAudioRef.current) {
+              previewAudioRef.current.pause();
+              previewAudioRef.current.src = '';
+            }
+            setShowPreview(null); 
+            setPreviewMaximized(false); 
+          }} 
           style={{ 
             zIndex: 2000,
             position: 'fixed',
@@ -13423,7 +13453,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     Use in Orchestrator
                   </button>
                 )}
-                <button className="modal-close" onClick={() => { setShowPreview(null); setPreviewMaximized(false); }} style={{ 
+                <button className="modal-close" onClick={() => { 
+                  // Cleanup before closing
+                  if (previewAudioRef.current) {
+                    previewAudioRef.current.pause();
+                    previewAudioRef.current.src = '';
+                  }
+                  isModalTransitioning.current = false;
+                  setShowPreview(null); 
+                  setPreviewMaximized(false); 
+                }} style={{ 
                   color: '#fff',
                   background: 'rgba(255,255,255,0.1)',
                   border: 'none',
