@@ -6008,6 +6008,71 @@ app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// PUT /api/projects/:id - Update a project with conflict detection
+app.put('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
+  const projectId = req.params.id;
+  const { userId, project, lastUpdatedAt } = req.body;
+  
+  // Security Hardening
+  if (!isDevelopment && (!req.user || req.user.uid !== userId)) {
+    return res.status(401).json({ error: 'Unauthorized: ID mismatch or not logged in' });
+  }
+
+  const targetUserId = req.user ? req.user.uid : userId;
+
+  if (!targetUserId) {
+    return res.status(401).json({ error: 'User ID required' });
+  }
+
+  if (!project) {
+    return res.status(400).json({ error: 'Project data required' });
+  }
+
+  try {
+    const db = getFirestoreDb();
+    if (db) {
+      const projectRef = db.collection('users').doc(targetUserId).collection('projects').doc(String(projectId));
+      
+      // Conflict detection: Check if project was modified since client last fetched
+      if (lastUpdatedAt) {
+        const existingDoc = await projectRef.get();
+        if (existingDoc.exists) {
+          const existingData = existingDoc.data();
+          const serverUpdatedAt = existingData.updatedAt?.toDate?.()?.toISOString() || existingData.savedAt?.toDate?.()?.toISOString();
+          
+          if (serverUpdatedAt && serverUpdatedAt > lastUpdatedAt) {
+            logger.warn('⚠️ Conflict detected', { userId: targetUserId, projectId, serverUpdatedAt, clientUpdatedAt: lastUpdatedAt });
+            return res.status(409).json({ 
+              error: 'Conflict: Project was modified by another session',
+              serverUpdatedAt,
+              clientUpdatedAt: lastUpdatedAt
+            });
+          }
+        }
+      }
+      
+      // Perform update with server timestamp
+      const updateData = {
+        ...project,
+        id: projectId,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        savedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+      
+      await projectRef.set(updateData, { merge: true });
+      
+      logger.info('📝 Project updated', { userId: targetUserId, projectId });
+      res.json({ success: true, updatedAt: new Date().toISOString() });
+    } else {
+      logger.warn('📝 Firebase not init, skipping update');
+      res.json({ success: true, warning: 'Cloud storage not available' });
+    }
+  } catch (err) {
+    logger.error('❌ Update project error', { error: err.message });
+    res.status(500).json({ error: 'Failed to update project' });
+  }
+});
+
 // GET /api/projects - Get user projects
 app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
   const userId = req.query.userId;
