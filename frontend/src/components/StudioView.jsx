@@ -759,6 +759,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
   const [previewSaveMode, setPreviewSaveMode] = useState(false); // Toggle save options view in preview modal
   const [newProjectNameInPreview, setNewProjectNameInPreview] = useState(''); // New project name input in preview modal
+  const [isPreviewMediaLoading, setIsPreviewMediaLoading] = useState(true); // Loading state for preview media (img/video/audio)
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false); // Playback state for pulse animations
   
   // Safe preview data access (prevents TDZ/null errors)
   const safePreview = showPreview || {};
@@ -911,6 +913,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // This is for AI generation previews (previewItem modal)
   const safeOpenGenerationPreview = (item) => {
     if (!item) return;
+    // Reset loading state for new item
+    setIsPreviewMediaLoading(true);
     // MUTUAL EXCLUSION: Close asset preview modal first
     setShowPreview(null);
     setPreviewMaximized(false);
@@ -1059,8 +1063,38 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       if (!canvasPreviewAsset && safeAssets.length > 0 && safeAssets[0]) {
         setCanvasPreviewAsset(safeAssets[0]);
       }
+    } else if (activeTab !== 'project_canvas') {
+      // Pause canvas audio if we switch tabs
+      if (canvasAudioRef.current) {
+        canvasAudioRef.current.pause();
+      }
+      // Also stop any other canvas media if needed
+      const canvasVideo = document.querySelector('.studio-monitor-panel video');
+      if (canvasVideo) canvasVideo.pause();
     }
   }, [activeTab, selectedAgent, selectedProject, canvasPreviewAsset]);
+
+  // Keyboard shortcut: Space to play/pause preview media
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      // Toggle play/pause on Space (if not typing in input)
+      if (e.code === 'Space' && previewItem && !previewSaveMode) {
+        const tag = e.target.tagName.toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+        
+        e.preventDefault();
+        const mediaElement = document.querySelector('.modal-content video') || 
+                            document.querySelector('.modal-content audio');
+        if (mediaElement) {
+          if (mediaElement.paused) mediaElement.play().catch(() => {});
+          else mediaElement.pause();
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [previewItem, previewSaveMode]);
 
   const [newProjectData, setNewProjectData] = useState({
     name: '',
@@ -11091,13 +11125,33 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   overflow: 'auto',
                   display: 'flex',
                   justifyContent: 'center',
-                  alignItems: 'flex-start'
+                  alignItems: 'center', // Center for all media types
+                  position: 'relative',
+                  minHeight: '260px' // Slightly taller default
                 }}>
+                  {/* Loading Spinner Overlays */}
+                  {isPreviewMediaLoading && !mediaLoadError && !previewSaveMode && (
+                    <div style={{ 
+                      position: 'absolute', 
+                      inset: 0, 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      background: 'rgba(0,0,0,0.4)', 
+                      zIndex: 10,
+                      borderRadius: '12px'
+                    }}>
+                      <Loader2 size={32} className="animate-spin" color="var(--color-purple)" />
+                      <span style={{ marginTop: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Loading media...</span>
+                    </div>
+                  )}
                   {previewItem.type === 'image' && previewItem.imageUrl ? (
                     <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
                       <img 
                         src={previewItem.imageUrl} 
                         alt="Generated" 
+                        onLoad={() => setIsPreviewMediaLoading(false)}
                         onClick={(e) => {
                           // Toggle full size on click
                           if (e.target.style.maxHeight === '90vh') {
@@ -11116,17 +11170,22 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           borderRadius: '8px',
                           objectFit: 'contain',
                           cursor: 'zoom-in',
-                          transition: 'max-height 0.3s ease'
+                          transition: 'max-height 0.3s ease',
+                          opacity: isPreviewMediaLoading ? 0 : 1
                         }}
                         title="Click to expand"
                         onError={(e) => {
                           console.error('Image failed to load:', previewItem.imageUrl?.substring(0, 100));
                           e.target.style.display = 'none';
+                          setIsPreviewMediaLoading(false);
+                          setMediaLoadError({ type: 'image', url: previewItem.imageUrl });
                         }}
                       />
-                      <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.6)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', pointerEvents: 'none' }}>
-                        Click to zoom
-                      </div>
+                      {!isPreviewMediaLoading && (
+                        <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.6)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', pointerEvents: 'none' }}>
+                          Click to zoom
+                        </div>
+                      )}
                     </div>
                   ) : previewItem.type === 'audio' && previewItem.audioUrl ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
@@ -11161,23 +11220,42 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           </button>
                         </div>
                       ) : (
-                        <>
+                        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+                          <div style={{ 
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '50%',
+                            background: isPreviewPlaying ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(255,255,255,0.05)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            animation: isPreviewPlaying ? 'pulse 2s infinite' : 'none',
+                            boxShadow: isPreviewPlaying ? '0 0 30px rgba(245, 158, 11, 0.3)' : 'none',
+                            transition: 'all 0.3s ease'
+                          }}>
+                            <Music size={40} color={isPreviewPlaying ? 'white' : 'var(--text-secondary)'} />
+                          </div>
                           <audio 
                             controls 
                             src={previewItem.audioUrl} 
-                            style={{ width: '100%' }}
+                            style={{ width: '100%', opacity: isPreviewMediaLoading ? 0 : 1 }}
+                            onLoadedData={() => setIsPreviewMediaLoading(false)}
+                            onCanPlay={() => setIsPreviewMediaLoading(false)}
+                            onPlay={() => setIsPreviewPlaying(true)}
+                            onPause={() => setIsPreviewPlaying(false)}
+                            onEnded={() => setIsPreviewPlaying(false)}
                             onError={(e) => {
                               console.error('Audio failed to load:', e.target.error?.message, previewItem.audioUrl?.substring(0, 100));
                               setMediaLoadError({ type: 'audio', url: previewItem.audioUrl });
+                              setIsPreviewMediaLoading(false);
                             }}
-                            onCanPlay={() => console.log('Audio ready to play')}
                           />
                           {previewItem.audioUrl?.startsWith('http') && (
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
                               🔗 External audio URL (may expire)
                             </p>
                           )}
-                        </>
+                        </div>
                       )}
                     </div>
                   ) : previewItem.type === 'video' && previewItem.videoUrl ? (
@@ -11189,27 +11267,49 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           </div>
                           <video 
                             controls 
+                            muted={!!previewItem.audioUrl} // Mute video if we have a separate high-quality audio track
                             src={previewItem.videoUrl} 
-                            style={{ width: '100%', borderRadius: '8px' }}
+                            style={{ width: '100%', borderRadius: '8px', background: '#000', opacity: isPreviewMediaLoading ? 0 : 1 }}
+                            onLoadedData={() => setIsPreviewMediaLoading(false)}
+                            onCanPlay={() => setIsPreviewMediaLoading(false)}
                             onPlay={(e) => {
+                              setIsPreviewPlaying(true);
                               const container = e.target.parentElement;
                               const audio = container.querySelector('.sync-audio');
                               if (audio) {
                                 audio.currentTime = e.target.currentTime;
-                                audio.play();
+                                audio.volume = e.target.volume;
+                                audio.play().catch(err => console.warn('Audio sync play failed:', err));
                               }
                             }}
                             onPause={(e) => {
+                              setIsPreviewPlaying(false);
                               const container = e.target.parentElement;
                               const audio = container.querySelector('.sync-audio');
                               if (audio) audio.pause();
                             }}
+                            onEnded={() => setIsPreviewPlaying(false)}
+                            onVolumeChange={(e) => {
+                              const container = e.target.parentElement;
+                              const audio = container.querySelector('.sync-audio');
+                              if (audio) audio.volume = e.target.volume;
+                            }}
                             onTimeUpdate={(e) => {
                               const container = e.target.parentElement;
                               const audio = container.querySelector('.sync-audio');
-                              if (audio && Math.abs(audio.currentTime - e.target.currentTime) > 0.5) {
+                              if (audio && Math.abs(audio.currentTime - e.target.currentTime) > 0.3) {
                                 audio.currentTime = e.target.currentTime;
                               }
+                            }}
+                            onSeeking={(e) => {
+                              const container = e.target.parentElement;
+                              const audio = container.querySelector('.sync-audio');
+                              if (audio) audio.currentTime = e.target.currentTime;
+                            }}
+                            onError={(e) => {
+                              console.error('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100));
+                              setMediaLoadError({ type: 'video', url: previewItem.videoUrl });
+                              setIsPreviewMediaLoading(false);
                             }}
                           />
                           <audio className="sync-audio" src={previewItem.audioUrl} style={{ display: 'none' }} />
@@ -11218,10 +11318,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         <video 
                           controls 
                           src={previewItem.videoUrl} 
-                          style={{ width: '100%', borderRadius: '8px' }}
+                          style={{ width: '100%', borderRadius: '8px', background: '#000', opacity: isPreviewMediaLoading ? 0 : 1 }}
+                          onLoadedData={() => setIsPreviewMediaLoading(false)}
+                          onCanPlay={() => setIsPreviewMediaLoading(false)}
+                          onPlay={() => setIsPreviewPlaying(true)}
+                          onPause={() => setIsPreviewPlaying(false)}
+                          onEnded={() => setIsPreviewPlaying(false)}
                           onError={(e) => {
                             console.error('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100));
                             setMediaLoadError({ type: 'video', url: previewItem.videoUrl });
+                            setIsPreviewMediaLoading(false);
                           }}
                         />
                       )}
@@ -11238,16 +11344,38 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         <div style={{ 
                           background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1))', 
                           borderRadius: '12px', 
-                          padding: '12px',
-                          border: '1px solid rgba(139, 92, 246, 0.2)'
+                          padding: '24px', // More padding for consolidated view
+                          border: '1px solid rgba(139, 92, 246, 0.2)',
+                          width: '100%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '16px',
+                          boxShadow: isPreviewPlaying ? '0 0 20px rgba(139, 92, 246, 0.2)' : 'none',
+                          transition: 'all 0.3s ease'
                         }}>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--color-pink)', marginBottom: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Mic size={14} /> AI Vocal Created
+                          <div style={{ 
+                            width: '64px',
+                            height: '64px',
+                            borderRadius: '50%',
+                            background: isPreviewPlaying ? 'linear-gradient(135deg, #8b5cf6, #ec4899)' : 'rgba(255,255,255,0.05)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            animation: isPreviewPlaying ? 'pulse 2s infinite' : 'none'
+                          }}>
+                            <Mic size={32} color={isPreviewPlaying ? 'white' : 'var(--text-secondary)'} />
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: isPreviewPlaying ? 'var(--color-pink)' : 'var(--text-secondary)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {isPreviewPlaying ? 'Playing AI Vocal...' : 'AI Vocal Ready'}
                           </div>
                           <audio 
                             controls 
                             src={previewItem.audioUrl} 
                             style={{ width: '100%', height: '40px' }}
+                            onPlay={() => setIsPreviewPlaying(true)}
+                            onPause={() => setIsPreviewPlaying(false)}
+                            onEnded={() => setIsPreviewPlaying(false)}
                           />
                         </div>
                       )}
