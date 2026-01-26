@@ -112,10 +112,10 @@ class SectionErrorBoundary extends React.Component {
         }}>
           <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⚠️</div>
           <h3 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>
-            {this.props.name || 'Section'} Error
+            {this.props.name || 'Section'} temporarily unavailable
           </h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            Something went wrong loading this section.
+            This section encountered an issue. Click below to reload it.
           </p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}
@@ -426,11 +426,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         setLastSyncTime(new Date());
         console.log(`Synced ${successCount}/${projectsToSync.length} projects to cloud via API`);
       } else if (projectsToSync.length > 0) {
-        toast.error('Failed to sync projects - check your connection');
+        toast.error('Sync failed - check your internet connection');
       }
     } catch (err) {
       console.error('Sync failed:', err);
-      toast.error('Failed to sync projects');
+      toast.error('Cloud sync failed. Projects saved locally.');
     } finally {
       setProjectsSyncing(false);
     }
@@ -857,7 +857,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             });
           } else {
             console.error('[SafePreview] Asset at index', safeIndex, 'does not exist');
-            toast.error('Preview data unavailable');
+            toast.error('Asset not found. Try refreshing the page.');
             isModalTransitioning.current = false;
             return;
           }
@@ -867,7 +867,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           
           if (previewableAssets.length === 0) {
             console.warn('[SafePreview] No previewable media assets found');
-            toast.error('No previewable content found');
+            toast.error('No media content to preview. Generate some assets first.');
             isModalTransitioning.current = false;
             return;
           }
@@ -889,7 +889,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             });
           } else {
             console.error('[SafePreview] Asset at index', safeIndex, 'does not exist in previewable list');
-            toast.error('Preview data unavailable');
+            toast.error('Media asset not found. It may have been moved or deleted.');
             isModalTransitioning.current = false;
             return;
           }
@@ -899,7 +899,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         setTimeout(() => { isModalTransitioning.current = false; }, 500);
       } catch (err) {
         console.error('[SafePreview] Error:', err);
-        toast.error('Preview failed: ' + err.message);
+        toast.error('Preview failed: asset data is missing or corrupted. Try refreshing the page.');
         isModalTransitioning.current = false;
       }
     }, 100); // 100ms debounce
@@ -3090,18 +3090,23 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         newItem.snippet = data.description || data.message;
         newItem.type = 'text';
       } else {
-        // Fallback or Error
-        if (data.error) throw new Error(data.error);
-        
-        // Last resort: if we have ANY data, try to stringify it
-        if (Object.keys(data).length > 0) {
+        // Fallback handling - avoid throwing, provide graceful fallback
+        if (data.error) {
+          console.warn('API returned error:', data.error);
+          newItem.snippet = `Unable to generate content: ${data.error}. Please try again with a different prompt.`;
+          newItem.type = 'text';
+          newItem.isError = true;
+        } else if (Object.keys(data).length > 0) {
+           // Last resort: if we have ANY data, try to stringify it
            console.warn('Using generic fallback for unknown format:', data);
            newItem.snippet = JSON.stringify(data, null, 2);
            newItem.type = 'text';
         } else {
-           // Log what we actually got for debugging
-           console.warn('Unexpected AI response format:', JSON.stringify(data).substring(0, 200));
-           throw new Error(`Unknown response format from AI. Keys: ${Object.keys(data).join(', ')}`);
+           // Empty response - provide helpful message instead of crashing
+           console.warn('Empty AI response received');
+           newItem.snippet = 'The AI returned an empty response. Please try again with a more detailed prompt.';
+           newItem.type = 'text';
+           newItem.isError = true;
         }
       }
 
@@ -3124,7 +3129,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
     } catch (error) {
       console.error("Generation error", error);
-      toast.error(error.message || 'Generation failed', { id: toastId });
+      toast.error(error.message || 'Generation failed. Check your connection and try again.', { id: toastId });
       Analytics.errorOccurred('generation_failed', error.message);
     } finally {
       setIsGenerating(false);
@@ -3307,9 +3312,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     } catch (error) {
       console.error('Save error:', error);
       if (error.message.includes('timed out')) {
-        toast.error('Save timed out. Your work is saved locally.', { id: toastId });
+        toast.error('Save timed out after 3 minutes. Your work is saved locally - it will sync when connection improves.', { id: toastId });
       } else {
-        toast.error(`Save failed: ${error.message}`, { id: toastId });
+        toast.error(`Save failed: ${error.message}. Your work is saved locally.`, { id: toastId });
       }
       // Still close the modal - local save succeeded
       setPreviewItem(null);
@@ -3444,7 +3449,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             toast(`No results for "${newsSearch.trim()}"`, { id: toastId, icon: '🔍' });
           }
         } else {
-          toast.error('Search failed', { id: toastId });
+          toast.error('Search failed. Check your connection and try again.', { id: toastId });
         }
       } else if (activeTab === 'news' && !newsSearch.trim() && newsArticles.length === 0) {
         fetchNews(1);
@@ -3647,13 +3652,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           if (data.configured) {
             window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
           } else {
-            toast.error('Twitter not configured on server');
+            toast.error('Twitter/X integration not yet configured. Contact support.');
           }
         } else {
            window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
         }
       } catch (_e) {
-        toast.error('Could not connect to backend server');
+        toast.error('Cannot connect to server. Please check your internet connection.');
       }
       return;
     }
@@ -3710,7 +3715,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         }
       } catch (err) {
         console.error("Failed to delete from cloud:", err);
-        toast.error('Cloud delete failed, removed locally');
+        toast.error('Could not delete from cloud, but removed from this device');
       }
     } else {
       toast.success('Project deleted');
@@ -3967,7 +3972,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                            toast.success('Download started');
                          } catch (err) {
                            console.error('[AssetDownload] Error:', err);
-                           toast.error('Download failed');
+                           toast.error('Download failed. Try right-clicking and saving directly.');
                          }
                        }}
                        className="btn-icon-circle glass"
@@ -4162,7 +4167,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             };
                             const updated = { ...selectedProject, assets: [newAsset, ...(selectedProject.assets || [])] };
                             setSelectedProject(updated);
-                            setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                            setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
                           }
                         }}
                       />
@@ -4440,7 +4445,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                const updatedAssets = currentAssets.filter((_, i) => i !== idx);
                                const updated = { ...selectedProject, assets: updatedAssets, updatedAt: new Date().toISOString() };
                                setSelectedProject(updated);
-                               setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                               setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
                                // Clear preview if we deleted the currently previewed asset
                                if (canvasPreviewAsset?.id === asset.id) {
                                  setCanvasPreviewAsset(updatedAssets[0] || null);
@@ -4449,7 +4454,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                              }
                            } catch (err) {
                              console.error('[AssetDelete] Error:', err);
-                             toast.error('Could not delete asset');
+                             toast.error('Could not delete asset. Please try again.');
                            }
                          }}
                          className="btn-icon-sm"
@@ -10244,7 +10249,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                        lastModified: Date.now()
                      };
                      setSelectedProject(updatedProject);
-                     setProjects(projects.map(p => p.id === updatedProject.id ? updatedProject : p));
+                     setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updatedProject.id ? updatedProject : p) : [updatedProject]);
                      handleTextToVoice("Project session saved.");
                      toast.success('Session saved!');
                    }}
@@ -10404,7 +10409,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                        // Update project with master asset
                        const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets] };
                        setSelectedProject(updated);
-                       setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                       setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
                        
                        // Also save to cloud
                        if (isLoggedIn) {
@@ -10427,7 +10432,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                      } catch (err) {
                        console.error('AMO Orchestration error:', err);
                        toast.dismiss('amo-render');
-                       toast.error(err.message || 'Orchestration failed. Please try again.');
+                       toast.error(err.message || 'Orchestration failed. Check your internet connection and try again.');
                        handleTextToVoice("Orchestration failed. Please try again.");
                      }
                    }}
@@ -10495,7 +10500,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         }
                       } catch (err) {
                         console.error('Cloud sync failed:', err);
-                        toast.error('Failed to sync to cloud', { id: toastId });
+                        toast.error('Cloud sync failed - check your connection', { id: toastId });
                       }
                       setShowExternalSaveModal(false);
                     }}
@@ -13927,7 +13932,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       }
                     };
                     setSelectedProject(updated);
-                    setProjects(projects.map(p => p.id === updated.id ? updated : p));
+                    setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
                   }
                   setShowPreview(null);
                   setPreviewMaximized(false);
@@ -14534,11 +14539,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       toast.success(`Exported for ${exportPreset}!`, { id: exportToast });
                       setShowExportModal(null);
                     } else {
-                      throw new Error(data.error || 'Export failed');
+                      throw new Error(data.error || 'Export failed - no audio URL returned');
                     }
                   } catch (err) {
                     console.error('Export error:', err);
-                    toast.error('Export failed: ' + err.message, { id: exportToast });
+                    toast.error('Export failed: ' + (err.message || 'Check your connection'), { id: exportToast });
                   } finally {
                     setIsExporting(false);
                   }
