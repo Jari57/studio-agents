@@ -3332,8 +3332,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
 
-  const fetchNews = async (page = 1, searchQuery = '') => {
-    if (isLoadingNews || (!hasMoreNews && page !== 1)) return { success: false };
+  const fetchNews = async (page = 1, searchQuery = '', forceRefresh = false) => {
+    if (!forceRefresh && (isLoadingNews || (!hasMoreNews && page !== 1))) return { success: false };
     
     setIsLoadingNews(true);
     try {
@@ -3673,7 +3673,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   }, [activeTab, newsArticles, newsSearch]);
 
   const handleRefreshNews = () => {
-    fetchNews(1);
+    // Reset state before refreshing
+    setHasMoreNews(true);
+    setNewsPage(1);
+    setNewsSearch(''); // Clear any search to get fresh results
+    fetchNews(1, '', true); // Force refresh
+    toast.success('Refreshing news...', { icon: '🔄', duration: 1500 });
   };
 
   const renderContent = () => {
