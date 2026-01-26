@@ -212,57 +212,6 @@ const goalOptions = [
   { id: 'explore', label: "Just exploring", description: "Discover what's possible", icon: Sparkles, agents: [] }
 ];
 
-const _agentDetails = {
-  ghost: {
-    title: "GHOSTWRITER",
-    subtitle: "AI Lyric Engine",
-    tagline: "Finish what you started.",
-    description: "In the early 2000s, countless verses were lost to crashed hard drives, stolen notebooks, and fading memories. The Ghostwriter was built to resurrect that energy—to help creators who have melodies without words, hooks without verses, ideas without execution. Speak your concept, hum your flow, or type your fragments. The AI completes your thought while preserving your voice. This isn't about replacing creativity—it's about unlocking what's already inside you. Perfect for creators who know what they want to say but can't find the words, or those who need a writing partner at 3 AM when no one else is awake.",
-    whoFor: "Creators with unfinished ideas, vocalists who think in melodies, writers fighting creative blocks.",
-    howTo: "Speak or type your concept. The AI analyzes your style and generates completions that match your voice."
-  },
-  beat: {
-    title: "BEAT LAB",
-    subtitle: "Production Suite",
-    tagline: "Find the sounds they haven't found yet.",
-    description: "Every classic hip-hop beat started with a discovery—a forgotten soul record, an obscure jazz session, a B-side that became a foundation. Beat Lab brings that experience digital. Tell it what you're looking for—a mood, an era, a genre, a feeling—and it surfaces samples and patterns you've never heard. Get BPM, key information, and historical context. Understand the story behind the sound before you flip it. This tool doesn't replace the hunt; it expands your crates beyond what any physical collection could offer.",
-    whoFor: "Producers seeking sample inspiration, beatmakers exploring new genres, DJs building setlists.",
-    howTo: "Describe the vibe you're chasing. Receive curated sample suggestions and MIDI patterns."
-  },
-  release: {
-    title: "RELEASE STRATEGIST",
-    subtitle: "Creator Development",
-    tagline: "See your music through their eyes.",
-    description: "A&R executives decide careers. They listen to hundreds of songs daily, looking for that undefinable 'it factor' that separates a demo from a deal. The Release Strategist gives you access to that perspective before you submit. Upload your track and receive analysis on commercial viability, production quality, market positioning, and competitive landscape. Understand how your music stacks up against current releases. Identify your unique selling points and potential weaknesses. This isn't about changing your art to fit the market—it's about understanding the market so you can navigate it strategically.",
-    whoFor: "Creators preparing for label meetings, independent releases seeking market fit, managers evaluating talent.",
-    howTo: "Describe your track or upload details. Receive a comprehensive analysis with actionable insights."
-  },
-  album: {
-    title: "ALBUM ARTIST",
-    subtitle: "Visual Generator",
-    tagline: "See what your sound looks like.",
-    description: "The cover is the first impression. Before anyone presses play, they see your visual identity—and they make assumptions. Does the art match the music? Does it communicate who you are? In the era of thumbnail scrolling, your album art works overtime. The Album Artist generator transforms your concepts into visual directions. Describe your project's mood, themes, and aesthetic references. Receive AI-generated concepts that capture your vision. Use them as inspiration for final artwork, or as communication tools when briefing designers. Your music has a look—this tool helps you find it before you finalize it.",
-    whoFor: "Creators developing visual identity, designers seeking inspiration, anyone releasing music.",
-    howTo: "Describe your project's themes, mood, and visual references. Generate concepts to guide your final artwork."
-  },
-  'video-creator': {
-    title: "VIDEO CREATOR",
-    subtitle: "Content Generator",
-    tagline: "Motion for the feed.",
-    description: "Music lives on video platforms now. If you don't have visuals, you don't have a release. Video Creator is your instant content team. Generate visualizers, lyric videos, and promotional clips that match your track's energy. Describe the scene, the movement, the style. Create loops for Spotify Canvas, teasers for TikTok, or full visualizers for YouTube. You don't need a film crew or a budget to have professional visuals. You just need a vision.",
-    whoFor: "Creators needing social content, producers showcasing beats, anyone releasing music online.",
-    howTo: "Describe the scene and style. Generate video loops and clips to accompany your music."
-  },
-  trend: {
-    title: "TREND HUNTER",
-    subtitle: "Market Intelligence",
-    tagline: "Ride the wave before it breaks.",
-    description: "The music industry moves fast. Trends explode and vanish in days. Trend Hunter gives you the data to move with speed. Analyze what's working right now on TikTok, Spotify, and YouTube. Identify rising sub-genres, viral sounds, and content formats. This isn't about copying—it's about awareness. Know the conversation so you can add your voice to it. Spot the wave early enough to ride it, or understand it well enough to counter it.",
-    whoFor: "Creators planning releases, managers looking for opportunities, content creators seeking growth.",
-    howTo: "Ask about current trends in your genre. Get data-backed insights on what's working now."
-  }
-};
-
 // Helper: Get relative time since date
 const getTimeSince = (date) => {
   const now = new Date();
@@ -331,7 +280,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showWhitepapersModal, setShowWhitepapersModal] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState(false);
   const [newsSearch, setNewsSearch] = useState('');
-  // Reserved for future use: const [isRefreshingNews, setIsRefreshingNews] = useState(false);
+
   const [projects, setProjects] = useState(() => {
     try {
       const saved = localStorage.getItem('studio_agents_projects');
@@ -672,11 +621,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [expandedHelp, setExpandedHelp] = useState(null);
   const [helpSearch, setHelpSearch] = useState('');
   const [showNudge, setShowNudge] = useState(true);
-  // Reserved for future use: const [hubFilter, setHubFilter] = useState('All');
+
   const [playingItem, setPlayingItem] = useState(null);
   
   // Preview Modal State (for reviewing AI generations before saving)
-  // Reserved for future use: const [showPreviewModal, setShowPreviewModal] = useState(false);
+
   const [previewItem, setPreviewItem] = useState(null);
   const [previewPrompt, setPreviewPrompt] = useState('');
   const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt'
@@ -773,7 +722,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showAgentHelpModal, setShowAgentHelpModal] = useState(null); // Stores the agent object for the help modal
   const [showAddAgentModal, setShowAddAgentModal] = useState(false);
   const [quickWorkflowAgent, setQuickWorkflowAgent] = useState(null); // Streamlined agent workflow modal
-  // Reserved for future use: const [expandedWelcomeFeature, setExpandedWelcomeFeature] = useState(null);
+
   const [autoStartVoice, setAutoStartVoice] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [pendingProjectNav, setPendingProjectNav] = useState(false); // Flag to safely navigate after project selection
@@ -792,7 +741,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [_onboardingStep, setOnboardingStep] = useState(0);
   const [_selectedPath, _setSelectedPath] = useState(null);
-  // Reserved for future use: const [showHelpPanel, setShowHelpPanel] = useState(false);
+
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
   const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
   const [maintenanceDismissed, setMaintenanceDismissed] = useState(false);
@@ -1006,21 +955,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', description: 'Cost-effective reasoning', tier: 'free', speed: '⚡⚡⚡', quality: '★★★★' },
     { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Multilingual excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' }
   ];
-
-  // Get recommendation based on selected path
-  const _getRecommendedAgents = () => {
-    if (!_selectedPath) return [];
-    const goal = goalOptions.find(g => g.id === _selectedPath);
-    return goal?.agents || [];
-  };
-
-  // Get primary recommendation (first agent for selected path)
-  const _getRecommendation = () => {
-    if (!_selectedPath) return null;
-    const goal = goalOptions.find(g => g.id === _selectedPath);
-    if (!goal || !goal.agents || goal.agents.length === 0) return null;
-    return goal.agents[0]; // Primary recommendation
-  };
 
   // Check for first visit
   useEffect(() => {
@@ -1302,12 +1236,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     safeVoiceAnnounce(`Quick project created.`);
   };
 
-  // Reserved for future use
-  const _handleManualCreate = () => {
-    handleSkipWizard('agents');
-    // Go straight to agents page - user can pick any agent to start creating
-  };
-
   // Open agent whitepaper modal for any agent
   const openAgentWhitepaper = (agent) => {
     setShowAgentWhitePaper({
@@ -1335,22 +1263,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         setSaveStatus('idle');
       }, 3000);
     }
-  }, []);
-  
-  // Guard against double-clicks and overlapping operations
-  const _withOperationGuard = useCallback((operationId, asyncFn) => {
-    return async (...args) => {
-      if (pendingOperationsRef.current.has(operationId)) {
-        console.log(`[Guard] Operation "${operationId}" already in progress, skipping`);
-        return;
-      }
-      pendingOperationsRef.current.add(operationId);
-      try {
-        return await asyncFn(...args);
-      } finally {
-        pendingOperationsRef.current.delete(operationId);
-      }
-    };
   }, []);
   
   // Provide haptic feedback (if available)
@@ -1935,13 +1847,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
 
-  // Reserved for future use: Legacy handler for compatibility
-  // const handleLogin = handleGoogleLogin;
-
   // --- LOGOUT HANDLER ---
   // Use handleSecureLogout defined above for all logout operations
-  // Legacy alias for compatibility with existing code
-  const _handleLogout = handleSecureLogout;
 
   // Dashboard State
   const [dashboardTab, setDashboardTab] = useState('overview');
@@ -2134,18 +2041,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     { id: 1, title: 'Welcome to Studio Agents', message: 'Start creating your first track!', time: 'Just now', read: false },
     { id: 2, title: 'Pro Tip', message: 'Try the Ghostwriter agent for lyrics.', time: '2m ago', read: false }
   ]);
-
-  // Reserved for future use:
-  const _addNotification = (title, message) => {
-    const newNotif = {
-      id: Date.now(),
-      title,
-      message,
-      time: 'Just now',
-      read: false
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-  };
 
   // Persist payment state
   useEffect(() => {
@@ -2670,13 +2565,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
 
-  // Reserved for future use:
-  const _handleEditPayment = (item, type) => {
-    setEditingPayment({ item, type });
-    setPaymentType(type);
-    setShowAddPaymentModal(true);
-  };
-
   const handleSavePayment = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -2730,24 +2618,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setEditingPayment(null);
   };
 
-  // Reserved for future use:
-  const _handleProviderClick = (provider) => {
-    const confirm = window.confirm(`Connect your ${provider} account?`);
-    if (confirm) {
-      handleTextToVoice(`Connecting to ${provider}...`);
-      setTimeout(() => {
-        handleTextToVoice(`Successfully connected ${provider}.`);
-        const newPM = {
-            id: `pm_${Date.now()}`,
-            type: provider,
-            last4: 'Linked',
-            expiry: 'N/A',
-            isDefault: false
-        };
-        setPaymentMethods(prev => [...prev, newPM]);
-      }, 1500);
-    }
-  };
+
+
+  // Connect social accounts handler
 
   const handleTranslatePrompt = async () => {
     const textarea = textareaRef.current || document.querySelector('.studio-textarea');
@@ -3407,13 +3280,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     toast.success('Welcome! Sign in anytime to save your work.', { icon: '👋' });
   };
 
-  // Exit guest mode (user wants to log in)
-  const _exitGuestMode = () => {
-    setIsGuestMode(false);
-    localStorage.removeItem('studio_guest_mode');
-    setShowLoginModal(true);
-  };
-
   // Regenerate with the same prompt
   const handleRegeneratePreview = () => {
     if (!previewPrompt) {
@@ -3715,28 +3581,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setPlayingItem(null);
   };
 
-  // Share to Twitter/X
-  // Reserved for future use:
-  const _handleShareToTwitter = (item) => {
-    if (!item) return;
-    
-    // Create tweet text with snippet preview
-    const snippet = item.snippet ? item.snippet.substring(0, 180) : '';
-    const agentName = item.agent || 'Studio Agents';
-    const hashtags = ['StudioAgents', 'AIMusic', 'MusicCreator'].join(',');
-    
-    // Build tweet content
-    let tweetText = `🎵 Just created with ${agentName}:\n\n"${snippet}"\n\n`;
-    tweetText += `Try it yourself at studioagentsai.com`;
-    
-    // Twitter Web Intent URL (works without OAuth)
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&hashtags=${hashtags}`;
-    
-    // Open in new window
-    window.open(twitterUrl, '_blank', 'width=550,height=420');
-    toast.success('Opening Twitter to share!');
-  };
-
   const handleConnectSocial = async (platform) => {
     const returnUrl = encodeURIComponent(window.location.href);
 
@@ -3830,27 +3674,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   const handleRefreshNews = () => {
     fetchNews(1);
-  };
-
-  // Reserved for future use:
-  const _toggleNewsExpansion = (id) => {
-    const newExpanded = new Set(expandedNews);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedNews(newExpanded);
-  };
-
-  // Reserved for future use:
-  const _toggleAllNews = () => {
-    if (allNewsExpanded) {
-      setExpandedNews(new Set());
-    } else {
-      setExpandedNews(new Set(filteredNews.map(n => n.id)));
-    }
-    setAllNewsExpanded(!allNewsExpanded);
   };
 
   const renderContent = () => {
