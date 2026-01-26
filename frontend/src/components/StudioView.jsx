@@ -3693,16 +3693,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
 
       return (
+        <SectionErrorBoundary name="Project Canvas">
         <div className="project-canvas-view animate-fadeIn">
           <div className="canvas-header">
             <button onClick={() => setActiveTab('hub')} className="btn-icon-circle back-btn">
               <ArrowLeft size={20} />
             </button>
             <div>
-              <h1 className="project-title">{selectedProject.name}</h1>
+              <h1 className="project-title">{selectedProject.name || 'Untitled Project'}</h1>
               <div className="project-meta">
-                <span className="badge">{selectedProject.category}</span>
-                <span className="date">Created {selectedProject.date}</span>
+                <span className="badge">{selectedProject.category || 'General'}</span>
+                <span className="date">Created {selectedProject.date || 'Just now'}</span>
               </div>
             </div>
             <div className="header-actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -4429,6 +4430,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
              )}
           </div>
         </div>
+        </SectionErrorBoundary>
       );
     }
 
@@ -10624,7 +10626,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         )}
 
         {/* Preview Modal - Review AI Generation Before Saving */}
-        {previewItem && (
+        {/* DEFENSIVE: Ensure previewItem is a valid object before rendering */}
+        {previewItem && typeof previewItem === 'object' && (
+          <SectionErrorBoundary name="Preview Modal">
           <div className="modal-overlay" onClick={() => {
             console.log('[Preview] Overlay clicked, closing preview');
             // Clear any media errors and reset transition guard
@@ -10743,7 +10747,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   </span>
                   
                   {/* Text Stats (for text content) */}
-                  {previewItem.snippet && (
+                  {previewItem.snippet && typeof previewItem.snippet === 'string' && (
                     <>
                       <span style={{ 
                         display: 'flex', 
@@ -10756,7 +10760,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         color: 'var(--color-emerald)'
                       }}>
                         <FileText size={12} />
-                        {previewItem.snippet.split(/\s+/).filter(w => w).length} words
+                        {(previewItem.snippet || '').split(/\s+/).filter(w => w).length} words
                       </span>
                       <span style={{ 
                         display: 'flex', 
@@ -10768,7 +10772,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         fontSize: '0.75rem',
                         color: 'var(--color-orange)'
                       }}>
-                        {previewItem.snippet.length} chars
+                        {(previewItem.snippet || '').length} chars
                       </span>
                       <span style={{ 
                         display: 'flex', 
@@ -10780,7 +10784,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         fontSize: '0.75rem',
                         color: 'var(--color-pink)'
                       }}>
-                        {previewItem.snippet.split('\n').filter(l => l.trim()).length} lines
+                        {(previewItem.snippet || '').split('\n').filter(l => l.trim()).length} lines
                       </span>
                     </>
                   )}
@@ -11282,6 +11286,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               </div>
             </div>
           </div>
+          </SectionErrorBoundary>
         )}
 
         {/* Studio Orchestrator (New Clean Interface) */}

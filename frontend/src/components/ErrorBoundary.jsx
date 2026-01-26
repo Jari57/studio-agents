@@ -4,7 +4,7 @@ import { captureException } from '../utils/errorMonitoring';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null };
+    this.state = { hasError: false, error: null, errorInfo: null, showDetails: false };
   }
 
   static getDerivedStateFromError(_error) {
@@ -13,13 +13,37 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     this.setState({ error, errorInfo });
-    console.error("Uncaught error:", error, errorInfo);
     
-    // Report to error monitoring
+    // Extract crash location from stack
+    const crashLocation = this.extractCrashLocation(error?.stack);
+    
+    console.error("🚨 Uncaught error:", {
+      message: error?.message,
+      crashLocation,
+      componentStack: errorInfo?.componentStack?.slice(0, 500),
+      fullStack: error?.stack
+    });
+    
+    // Report to error monitoring with more context
     captureException(error, {
       component: this.props.name || 'Unknown',
       componentStack: errorInfo?.componentStack,
+      crashLocation,
     });
+  }
+  
+  extractCrashLocation = (stack) => {
+    if (!stack) return 'Unknown location';
+    const lines = stack.split('\n');
+    // Find first line that points to app code (not node_modules)
+    for (const line of lines) {
+      if (line.includes('.jsx') || line.includes('.js')) {
+        if (!line.includes('node_modules') && !line.includes('chunk-')) {
+          return line.trim();
+        }
+      }
+    }
+    return lines[1]?.trim() || 'Unknown location';
   }
 
   handleRetry = () => {
@@ -134,36 +158,72 @@ class ErrorBoundary extends React.Component {
             </button>
           </div>
 
-          {/* Technical details (collapsible, for developers) */}
-          {process.env.NODE_ENV === 'development' && this.state.error && (
-            <details style={{
-              marginTop: '40px',
-              padding: '16px',
-              background: 'rgba(0, 0, 0, 0.3)',
-              borderRadius: '8px',
-              maxWidth: '600px',
-              width: '100%',
-              textAlign: 'left',
-            }}>
-              <summary style={{
-                cursor: 'pointer',
-                color: 'rgba(255, 255, 255, 0.5)',
-                fontSize: '12px',
-                marginBottom: '12px',
-              }}>
-                Technical Details (Dev Only)
-              </summary>
-              <pre style={{
-                fontSize: '11px',
-                color: '#f87171',
-                overflow: 'auto',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}>
-                {this.state.error.toString()}
-                {this.state.errorInfo?.componentStack}
-              </pre>
-            </details>
+          {/* Technical details (collapsible - available in prod for troubleshooting) */}
+          {this.state.error && (
+            <div style={{ marginTop: '40px', width: '100%', maxWidth: '600px' }}>
+              <button
+                onClick={() => this.setState(prev => ({ showDetails: !prev.showDetails }))}
+                style={{
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '8px',
+                  padding: '10px 16px',
+                  color: 'rgba(255, 255, 255, 0.5)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  width: '100%',
+                  textAlign: 'left',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <span>📋 Error Details (for support)</span>
+                <span>{this.state.showDetails ? '▼' : '▶'}</span>
+              </button>
+              {this.state.showDetails && (
+                <div style={{
+                  marginTop: '8px',
+                  padding: '16px',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  borderRadius: '8px',
+                  textAlign: 'left',
+                }}>
+                  <div style={{ 
+                    fontSize: '12px', 
+                    color: '#f87171', 
+                    marginBottom: '12px',
+                    padding: '8px 12px',
+                    background: 'rgba(248, 113, 113, 0.1)',
+                    borderRadius: '6px',
+                    fontFamily: 'monospace'
+                  }}>
+                    {this.state.error.toString()}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginBottom: '8px' }}>
+                    Location: {this.extractCrashLocation(this.state.error?.stack)}
+                  </div>
+                  <button
+                    onClick={() => {
+                      const errorText = `Error: ${this.state.error?.message}\nLocation: ${this.extractCrashLocation(this.state.error?.stack)}\nStack: ${this.state.error?.stack?.slice(0, 500)}`;
+                      navigator.clipboard?.writeText(errorText);
+                      alert('Error details copied to clipboard!');
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '11px',
+                      background: 'rgba(99, 102, 241, 0.2)',
+                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                      borderRadius: '6px',
+                      color: '#a5b4fc',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Copy Error Details
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       );
