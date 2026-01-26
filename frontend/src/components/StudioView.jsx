@@ -15,6 +15,53 @@ const QuickWorkflow = lazy(() => import('./QuickWorkflow'));
 const ProjectHub = lazy(() => import('./ProjectHubV3')); // CapCut/Captions-style design
 const NewsHub = lazy(() => import('./NewsHub'));
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SAFE ASSET WRAPPER - Prevents crashes from malformed asset data
+// ═══════════════════════════════════════════════════════════════════════════════
+const SafeAssetWrapper = ({ children, asset, fallback = null }) => {
+  try {
+    // Validate asset is a proper object
+    if (!asset || typeof asset !== 'object') {
+      console.warn('[SafeAssetWrapper] Invalid asset:', asset);
+      return fallback || (
+        <div style={{ padding: '12px', background: 'rgba(239,68,68,0.1)', borderRadius: '8px', color: 'rgba(239,68,68,0.8)', fontSize: '0.8rem' }}>
+          Invalid asset data
+        </div>
+      );
+    }
+    return children;
+  } catch (err) {
+    console.error('[SafeAssetWrapper] Render error:', err);
+    return fallback || (
+      <div style={{ padding: '12px', background: 'rgba(239,68,68,0.1)', borderRadius: '8px', color: 'rgba(239,68,68,0.8)', fontSize: '0.8rem' }}>
+        Failed to render asset
+      </div>
+    );
+  }
+};
+
+// Helper: Safely get asset property with fallback
+const safeAssetProp = (asset, prop, fallback = '') => {
+  try {
+    if (!asset || typeof asset !== 'object') return fallback;
+    const value = asset[prop];
+    if (value === null || value === undefined) return fallback;
+    return value;
+  } catch {
+    return fallback;
+  }
+};
+
+// Helper: Safely format media URL (handles string check)
+const safeMediaUrl = (url) => {
+  if (!url || typeof url !== 'string') return null;
+  if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  // Assume raw base64 for images
+  return `data:image/png;base64,${url}`;
+};
+
 // Simple inline fallback for lazy components
 const LazyFallback = () => (
   <div style={{ 
@@ -4198,9 +4245,19 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
              
              {selectedProject.assets && selectedProject.assets.length > 0 ? (
                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
-                 {selectedProject.assets.filter(Boolean).map((asset, idx) => (
+                 {selectedProject.assets.filter(Boolean).map((asset, idx) => {
+                   // DEFENSIVE: Skip invalid assets to prevent crashes
+                   if (!asset || typeof asset !== 'object') {
+                     console.warn('[AssetGrid] Skipping invalid asset at index', idx);
+                     return null;
+                   }
+                   const assetId = safeAssetProp(asset, 'id', `asset-${idx}`);
+                   const assetTitle = safeAssetProp(asset, 'title', 'Untitled');
+                   const assetType = safeAssetProp(asset, 'type', 'text');
+                   
+                   return (
+                   <SafeAssetWrapper key={assetId} asset={asset}>
                    <div 
-                     key={idx} 
                      className="asset-card-canvas"
                      style={{
                        background: 'rgba(255,255,255,0.03)',
@@ -4444,7 +4501,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                        </button>
                      </div>
                    </div>
-                 ))}
+                   </SafeAssetWrapper>
+                   );
+                 })}
                </div>
              ) : (
                <div style={{ 
@@ -5888,7 +5947,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       </div>
                       
                       {currentPreview.type === 'image' && currentPreview.imageUrl ? (
-                        <img src={currentPreview.imageUrl} alt="Preview" style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(currentPreview)} />
+                        <img 
+                          src={typeof currentPreview.imageUrl === 'string' ? currentPreview.imageUrl : ''} 
+                          alt="Preview" 
+                          style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} 
+                          onClick={() => setPreviewItem(currentPreview)} 
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
                       ) : currentPreview.type === 'video' && currentPreview.videoUrl ? (
                         <div style={{ position: 'relative' }}>
                           <video src={currentPreview.videoUrl} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(currentPreview)} />
@@ -7442,6 +7507,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       if (!asset || typeof asset !== 'object') return null;
                       
                       return (
+                      <SafeAssetWrapper key={`hub-asset-${asset?.id || idx}`} asset={asset}>
                       <div 
                         key={asset.id || idx}
                         className="asset-card"
@@ -7574,6 +7640,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           </div>
                         </div>
                       </div>
+                      </SafeAssetWrapper>
                     );
                     })}
                   </div>
