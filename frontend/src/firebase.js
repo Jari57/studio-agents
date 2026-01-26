@@ -7,21 +7,15 @@ import {
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  getIdToken
 } from 'firebase/auth';
 import { 
   getFirestore, 
   doc, 
   getDoc, 
   setDoc, 
-  updateDoc, 
-  increment,
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  deleteDoc,
-  writeBatch
+  updateDoc
 } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -57,15 +51,9 @@ export {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  getIdToken,
   doc,
   getDoc,
   setDoc,
-  updateDoc,
-  increment,
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  deleteDoc,
-  writeBatch
+  updateDoc
 };

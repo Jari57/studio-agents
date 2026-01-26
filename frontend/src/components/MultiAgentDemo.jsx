@@ -3,8 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, FolderPlus, Lightbulb } from 'lucide-react';
 import { BACKEND_URL } from '../constants';
 import { useLazyLoadImages } from '../hooks/useLazyLoadImages';
-import { auth } from '../firebase';
-import { getIdToken } from 'firebase/auth';
+import { auth, getIdToken } from '../firebase';
 
 // Streaming text effect hook
 function useTypewriter(text, speed = 20, trigger = false) {
