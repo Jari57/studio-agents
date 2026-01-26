@@ -8422,7 +8422,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           <div className="studio-profile-view animate-fadeInUp" style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
             <div className="profile-header" style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '32px' }}>
               <div className="profile-avatar-large" style={{ width: '100px', height: '100px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--color-purple)', position: 'relative' }}>
-                {user?.photoURL ? <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
+                {user?.photoURL ? <img src={user.photoURL} alt="User" loading="lazy" style={{ width: '100%', height: '100%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
                 <button style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.6)', border: 'none', color: 'white', fontSize: '0.7rem', padding: '4px', cursor: 'pointer' }}>Edit</button>
               </div>
               <div>
@@ -9453,7 +9453,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             style={{ cursor: 'pointer' }}
           >
             <div className="user-avatar">
-              {user?.photoURL ? <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%', borderRadius: '50%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
+              {user?.photoURL ? <img src={user.photoURL} alt="User" loading="lazy" style={{ width: '100%', height: '100%', borderRadius: '50%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
             </div>
             <div className="user-info">
               <p className="user-name">{isLoggedIn ? (user?.displayName || 'Pro Creator') : 'Guest Creator'}</p>
@@ -9580,7 +9580,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               </button>
             ) : (
               <div className="user-avatar-header" style={{ width: '32px', height: '32px', borderRadius: '50%', overflow: 'hidden', marginLeft: '0.5rem', border: '1px solid var(--border-color)' }}>
-                 {user?.photoURL ? <img src={user.photoURL} alt="User" style={{ width: '100%', height: '100%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
+                 {user?.photoURL ? <img src={user.photoURL} alt="User" loading="lazy" style={{ width: '100%', height: '100%' }} /> : <div style={{ width: '100%', height: '100%', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem' }}>{user?.displayName?.charAt(0) || 'U'}</div>}
               </div>
             )}
             
@@ -10262,7 +10262,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         )
                       ) : sessionTracks.visualOutputType === 'image' ? (
                         sessionTracks.visual.imageUrl ? (
-                          <img src={sessionTracks.visual.imageUrl} alt="Visual" style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '6px' }} />
+                          <img src={sessionTracks.visual.imageUrl} alt="Visual" loading="lazy" style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '6px' }} />
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-pink)', fontSize: '0.85rem' }}>
                             <ImageIcon size={24} />
