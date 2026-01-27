@@ -2686,6 +2686,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   };
 
   const handleGenerate = async () => {
+    // CAPTURE CONTEXT IMMEDIATELY (Prevent race conditions if user switches projects)
+    const targetProjectSnapshot = selectedProject;
+
     // Guard: Ensure agent is selected
     if (!selectedAgent) {
       toast.error("Please select an agent first.");
@@ -2919,7 +2922,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         agent: selectedAgent?.name || 'Unknown Agent',
         date: 'Just now',
         color: selectedAgent?.colorClass || '',
-        snippet: prompt // Default snippet is the prompt
+        snippet: prompt, // Default snippet is the prompt
+        projectSnapshot: targetProjectSnapshot // Preserve context for saving
       };
 
       if (data._isFallback && data.output) {
@@ -3202,8 +3206,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       // Update local state immediately
       setProjects(prev => Array.isArray(prev) ? [itemToSave, ...prev] : [itemToSave]);
 
-      // Determine which project to save to
-      let projectToUpdate = targetProject || selectedProject;
+      // Determine which project to save to (Priority: Manual Target > Generation Context > Current State)
+      let projectToUpdate = targetProject || previewItem.projectSnapshot || selectedProject;
       
       // Handle "new:ProjectName" format - create new project
       if (typeof targetProject === 'string' && targetProject.startsWith('new:')) {
@@ -7308,6 +7312,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               setSelectedAgent={setSelectedAgent}
               setQuickWorkflowAgent={setQuickWorkflowAgent}
               setPreviewItem={setPreviewItem}
+              setPlayingItem={setPlayingItem}
             />
           </Suspense>
         );
@@ -8077,14 +8082,33 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 >
                   {/* Card Media */}
                   {item.imageUrl && (
-                    <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
+                    <div className="media-overlay-container" style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
                       <img 
                         src={item.imageUrl} 
                         alt={item.title}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         loading="lazy"
                       />
-                      {item.isVideo && (
+                      
+                      {/* Unified Hover Overlay */}
+                      <div className="media-overlay">
+                         <button 
+                          className="preview-indicator"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPlayingItem({
+                              ...item,
+                              type: item.isVideo ? 'video' : 'image',
+                              url: item.videoUrl || item.imageUrl || item.url
+                            });
+                          }}
+                        >
+                          <Eye size={20} />
+                          <span>Quick Preview</span>
+                        </button>
+                      </div>
+
+                      {item.isVideo && !item.imageUrl && (
                         <div style={{
                           position: 'absolute',
                           top: '50%',
@@ -8102,6 +8126,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           <PlayCircle size={28} color="white" />
                         </div>
                       )}
+                      
                       {/* Type Badge */}
                       <div style={{
                         position: 'absolute',
@@ -8118,7 +8143,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         textTransform: 'uppercase',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px'
+                        gap: '6px',
+                        zIndex: 2
                       }}>
                         {item.type === 'youtube' && <PlayCircle size={12} />}
                         {item.type === 'reddit' && <MessageSquare size={12} />}
@@ -8366,6 +8392,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               onRefresh={handleRefreshNews}
               hasMoreNews={hasMoreNews}
               onLoadMore={() => fetchNews(newsPage + 1)}
+              setPlayingItem={setPlayingItem}
             />
           </Suspense>
         );

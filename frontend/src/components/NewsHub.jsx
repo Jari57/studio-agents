@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Search, RefreshCw, ChevronUp, ChevronRight, ExternalLink,
   Zap, TrendingUp, Flame, Clock, PlayCircle, Share2, Bookmark,
-  Twitter, Globe, Newspaper, Radio, Mic, Video, X
+  Twitter, Globe, Newspaper, Radio, Mic, Video, X, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -17,7 +17,8 @@ function NewsHub({
   isLoadingNews,
   onRefresh,
   hasMoreNews,
-  onLoadMore
+  onLoadMore,
+  setPlayingItem
 }) {
   const [activeCategory, setActiveCategory] = useState('all');
   const [expandedNews, setExpandedNews] = useState(new Set());
@@ -317,15 +318,14 @@ function NewsHub({
 
                 {/* Media Preview - Video */}
                 {item.hasVideo && item.videoUrl && (
-                  <a 
-                    href={item.videoUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
+                  <div 
+                    className="media-overlay-container" 
                     style={{
                       position: 'relative',
                       display: 'block',
                       height: '180px',
-                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.2))'
+                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.2))',
+                      overflow: 'hidden'
                     }}
                   >
                     {item.imageUrl ? (
@@ -337,13 +337,33 @@ function NewsHub({
                         onError={(e) => { e.target.style.display = 'none'; }}
                       />
                     ) : null}
+
+                    {/* Unified Hover Overlay */}
+                    <div className="media-overlay">
+                       <button 
+                        className="preview-indicator"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPlayingItem?.({
+                            ...item,
+                            type: 'video',
+                            url: item.videoUrl
+                          });
+                        }}
+                      >
+                        <Eye size={20} />
+                        <span>Quick Preview</span>
+                      </button>
+                    </div>
+
                     <div style={{
                       position: 'absolute',
                       inset: 0,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: 'rgba(0,0,0,0.4)'
+                      background: 'rgba(0,0,0,0.2)',
+                      pointerEvents: 'none'
                     }}>
                       <div style={{
                         width: '60px',
@@ -366,16 +386,18 @@ function NewsHub({
                       borderRadius: '6px',
                       fontSize: '0.7rem',
                       fontWeight: '600',
-                      color: 'white'
+                      color: 'white',
+                      zIndex: 2
                     }}>
                       VIDEO
                     </div>
-                  </a>
+                  </div>
                 )}
 
                 {/* Media Preview - Image (only if no video) */}
                 {!item.hasVideo && item.hasImage && item.imageUrl && (
-                  <div style={{
+                  <div className="media-overlay-container" style={{
+                    position: 'relative',
                     height: '180px',
                     background: 'var(--color-bg-tertiary)',
                     overflow: 'hidden'
@@ -386,9 +408,25 @@ function NewsHub({
                       loading="lazy"
                       style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
                       onError={(e) => { e.target.parentElement.style.display = 'none'; }}
-                      onMouseOver={(e) => e.target.style.transform = 'scale(1.05)'}
-                      onMouseOut={(e) => e.target.style.transform = 'scale(1)'}
                     />
+                    
+                    {/* Unified Hover Overlay */}
+                    <div className="media-overlay">
+                       <button 
+                        className="preview-indicator"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPlayingItem?.({
+                            ...item,
+                            type: 'image',
+                            url: item.imageUrl
+                          });
+                        }}
+                      >
+                        <Eye size={20} />
+                        <span>Quick Preview</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 

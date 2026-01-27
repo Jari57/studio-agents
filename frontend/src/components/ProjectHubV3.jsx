@@ -20,7 +20,8 @@ function ProjectHubV3({
   onDeleteProject,
   onSaveProject,
   setActiveTab: _setActiveTab,
-  setPreviewItem
+  setPreviewItem,
+  setPlayingItem
 }) {
   const [viewMode, setViewMode] = useState('grid');
   const [filter, setFilter] = useState('all');
@@ -296,10 +297,18 @@ function ProjectHubV3({
     if (assets.length === 0) return;
     
     const asset = assets[assets.length - 1];
-    setPreviewItem?.({
-      ...asset,
-      isExistingAsset: true
-    });
+    if (setPlayingItem && (asset.imageUrl || asset.videoUrl || asset.audioUrl)) {
+      setPlayingItem?.({
+        ...asset,
+        url: asset.videoUrl || asset.imageUrl || asset.audioUrl,
+        type: asset.videoUrl ? 'video' : asset.imageUrl ? 'image' : 'audio'
+      });
+    } else {
+      setPreviewItem?.({
+        ...asset,
+        isExistingAsset: true
+      });
+    }
   };
 
   // Get first audio asset
@@ -316,10 +325,18 @@ function ProjectHubV3({
       return false;
     });
     if (asset) {
-      setPreviewItem?.({
-        ...asset,
-        isExistingAsset: true
-      });
+      if (setPlayingItem && (asset.imageUrl || asset.videoUrl || asset.audioUrl)) {
+        setPlayingItem?.({
+          ...asset,
+          url: asset.videoUrl || asset.imageUrl || asset.audioUrl,
+          type: asset.videoUrl ? 'video' : asset.imageUrl ? 'image' : 'audio'
+        });
+      } else {
+        setPreviewItem?.({
+          ...asset,
+          isExistingAsset: true
+        });
+      }
     } else {
       toast.error(`No ${type} assets found in this project`);
     }
