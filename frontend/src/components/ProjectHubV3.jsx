@@ -4,7 +4,7 @@ import {
   Play, Trash2, Edit3, Copy, Heart, Clock, Folder as _Folder,
   Music, Video, Image, Mic as _Mic, FileText, X, Sparkles,
   ChevronRight, Download as _Download, Share2 as _Share2, CheckCircle, Archive,
-  Pause, Upload as _Upload, Wand2, Zap, TrendingUp, Star
+  Pause, Upload as _Upload, Wand2, Zap, TrendingUp, Star, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, createProjectFromTemplate } from '../data/projectTemplates';
@@ -19,7 +19,8 @@ function ProjectHubV3({
   onSelectProject,
   onDeleteProject,
   onSaveProject,
-  setActiveTab: _setActiveTab
+  setActiveTab: _setActiveTab,
+  setPreviewItem
 }) {
   const [viewMode, setViewMode] = useState('grid');
   const [filter, setFilter] = useState('all');
@@ -282,8 +283,47 @@ function ProjectHubV3({
     }
   };
 
+  // Quick Preview for the latest asset
+  const handlePreviewLatest = (project, e) => {
+    e?.stopPropagation();
+    if (!project.assets || project.assets.length === 0) {
+      toast.error("No assets in this project to preview");
+      return;
+    }
+    
+    // Find latest asset with media or content
+    const assets = [...project.assets].filter(Boolean);
+    if (assets.length === 0) return;
+    
+    const asset = assets[assets.length - 1];
+    setPreviewItem?.({
+      ...asset,
+      isExistingAsset: true
+    });
+  };
+
   // Get first audio asset
   const getAudioUrl = (project) => project.assets?.find(a => a.audioUrl)?.audioUrl;
+
+  const handlePreviewAssetType = (project, type, e) => {
+    e?.stopPropagation();
+    if (!project.assets) return;
+    const asset = project.assets.find(a => {
+      if (type === 'audio') return a.audioUrl;
+      if (type === 'video') return a.videoUrl;
+      if (type === 'image') return a.imageUrl;
+      if (type === 'text') return a.content || a.lyrics;
+      return false;
+    });
+    if (asset) {
+      setPreviewItem?.({
+        ...asset,
+        isExistingAsset: true
+      });
+    } else {
+      toast.error(`No ${type} assets found in this project`);
+    }
+  };
 
   // Skeleton card for loading state
   const SkeletonCard = () => (
@@ -517,6 +557,13 @@ function ProjectHubV3({
                   {/* Hover Overlay */}
                   <div className={`card-overlay ${isHovered ? 'visible' : ''}`}>
                     <div className="overlay-actions">
+                      <button 
+                        className="action-btn"
+                        onClick={e => handlePreviewLatest(project, e)}
+                        title="Quick Preview"
+                      >
+                        <Eye size={20} />
+                      </button>
                       {audioUrl && (
                         <button 
                           className={`action-btn ${playingAudio === audioUrl ? 'playing' : ''}`}
@@ -549,10 +596,10 @@ function ProjectHubV3({
                   {/* Asset Type Badges */}
                   {assetIcons.length > 0 && (
                     <div className="asset-badges">
-                      {assetIcons.includes('audio') && <span className="badge audio" title="Has audio"><Music size={12} /></span>}
-                      {assetIcons.includes('image') && <span className="badge image" title="Has images"><Image size={12} /></span>}
-                      {assetIcons.includes('video') && <span className="badge video" title="Has video"><Video size={12} /></span>}
-                      {assetIcons.includes('text') && <span className="badge text" title="Has text"><FileText size={12} /></span>}
+                      {assetIcons.includes('audio') && <span className="badge audio" title="Preview Audio" onClick={e => handlePreviewAssetType(project, 'audio', e)}><Music size={12} /></span>}
+                      {assetIcons.includes('image') && <span className="badge image" title="Preview Image" onClick={e => handlePreviewAssetType(project, 'image', e)}><Image size={12} /></span>}
+                      {assetIcons.includes('video') && <span className="badge video" title="Preview Video" onClick={e => handlePreviewAssetType(project, 'video', e)}><Video size={12} /></span>}
+                      {assetIcons.includes('text') && <span className="badge text" title="Preview Text" onClick={e => handlePreviewAssetType(project, 'text', e)}><FileText size={12} /></span>}
                     </div>
                   )}
                 </div>
@@ -606,6 +653,9 @@ function ProjectHubV3({
                     <div className="context-menu" onClick={e => e.stopPropagation()}>
                       <button onClick={() => { onSelectProject?.(project); setShowContextMenu(null); }}>
                         <ChevronRight size={16} /> Open
+                      </button>
+                      <button onClick={e => handlePreviewLatest(project, e)}>
+                        <Eye size={16} /> Quick Preview
                       </button>
                       <button onClick={e => startRename(project, e)}>
                         <Edit3 size={16} /> Rename
@@ -1235,6 +1285,16 @@ function ProjectHubV3({
           align-items: center;
           justify-content: center;
           backdrop-filter: blur(8px);
+          cursor: pointer;
+          transition: all 0.2s ease;
+          color: white;
+        }
+
+        .badge:hover {
+          transform: scale(1.1) translateY(-2px);
+          filter: brightness(1.2);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          z-index: 10;
         }
 
         .badge.audio { background: rgba(139, 92, 246, 0.8); }

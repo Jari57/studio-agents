@@ -7307,6 +7307,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               setActiveTab={setActiveTab}
               setSelectedAgent={setSelectedAgent}
               setQuickWorkflowAgent={setQuickWorkflowAgent}
+              setPreviewItem={setPreviewItem}
             />
           </Suspense>
         );
