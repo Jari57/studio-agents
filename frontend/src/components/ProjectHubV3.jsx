@@ -572,7 +572,7 @@ function ProjectHubV3({
                   )}
 
                   {/* Hover Overlay */}
-                  <div className={`card-overlay ${isHovered ? 'visible' : ''}`}>
+                  <div className={`media-overlay ${isHovered ? 'visible' : ''}`}>
                     <div className="overlay-actions">
                       <button 
                         className="action-btn"
@@ -1217,7 +1217,7 @@ function ProjectHubV3({
           opacity: 0.5;
         }
 
-        .card-overlay {
+        .media-overlay {
           position: absolute;
           inset: 0;
           background: rgba(0, 0, 0, 0.6);
@@ -1228,7 +1228,7 @@ function ProjectHubV3({
           transition: opacity 0.3s;
         }
 
-        .card-overlay.visible {
+        .media-overlay.visible {
           opacity: 1;
         }
 
@@ -1891,11 +1891,11 @@ function ProjectHubV3({
           }
           
           /* Make overlay always visible on touch devices */
-          .card-overlay {
+          .media-overlay {
             opacity: 0;
           }
           
-          .project-card:active .card-overlay {
+          .project-card:active .media-overlay {
             opacity: 1;
           }
           
@@ -1993,7 +1993,7 @@ function ProjectHubV3({
             transform: scale(0.98);
           }
           
-          .card-overlay {
+          .media-overlay {
             display: none;
           }
           

@@ -3228,9 +3228,10 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           const prediction = await response.json();
           logger.info('🎤 Bark prediction started - waiting for AI voice generation', { id: prediction.id, speaker: speakerHistory });
           
-          // Bark cold start can take 2-3 minutes, so we poll for up to 4 minutes
+          // Bark cold start can take 2-3 minutes, but we poll for up to 90 seconds
+          // to avoid proxy timeouts and indefinite clocking in the frontend.
           let attempts = 0;
-          const maxAttempts = 120; // 120 × 2 seconds = 4 minutes max wait
+          const maxAttempts = 45; // 45 × 2 seconds = 90 seconds max wait
           while (attempts < maxAttempts) {
             await new Promise(r => setTimeout(r, 2000));
             
@@ -3241,8 +3242,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             if (statusResponse.ok) {
               const status = await statusResponse.json();
               
-              // Log progress every 10 attempts (20 seconds)
-              if (attempts % 10 === 0) {
+              // Log progress every 5 attempts (10 seconds)
+              if (attempts % 5 === 0) {
                 logger.info('⏳ Bark generation in progress', { 
                   attempt: attempts, 
                   maxAttempts,
@@ -3717,9 +3718,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
         const prediction = await startResponse.json();
         logger.info('Replicate prediction started', { id: prediction.id });
 
-        // Poll for completion (max 3 minutes)
+        // Poll for completion (max 90 seconds to avoid proxy timeouts)
         let result = prediction;
-        const maxAttempts = 90;
+        const maxAttempts = 45; // 45 * 2s = 90s
         for (let i = 0; i < maxAttempts && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
           await new Promise(r => setTimeout(r, 2000));
           
@@ -4084,8 +4085,8 @@ async function handleVeoOperation(operationData, apiKey, res) {
   
   logger.info('Video generation operation started', { operationName: operationData.name });
 
-  // Poll for completion (max 6 minutes with 10s intervals)
-  const maxAttempts = 36;
+  // Poll for completion (max 90 seconds with 10s intervals to avoid proxy timeouts)
+  const maxAttempts = 9; // 9 * 10s = 90s
   let attempts = 0;
   
   while (attempts < maxAttempts) {

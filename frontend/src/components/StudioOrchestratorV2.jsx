@@ -1603,6 +1603,7 @@ export default function StudioOrchestratorV2({
   isOpen, 
   onClose, 
   onCreateProject,
+  onSaveToProject,
   authToken = null,
   existingProject = null
   // onUpdateCreations - reserved for future use
@@ -2288,7 +2289,11 @@ export default function StudioOrchestratorV2({
     
     setGeneratingVocal(true);
     console.log('[handleGenerateLyricsVocal] Starting vocal generation with:', { voiceStyle, rapStyle });
-    toast.loading('Creating vocal performance (~20 seconds)...', { id: 'gen-vocal' });
+    toast.loading('Creating vocal performance (~60s)...', { id: 'gen-vocal' });
+    
+    // Capture project context immediately to prevent race conditions during long AI wait
+    // eslint-disable-next-line no-unused-vars
+    const targetProjectSnapshot = existingProject;
     
     try {
       const headers = await getHeaders();
@@ -2342,6 +2347,27 @@ export default function StudioOrchestratorV2({
             ...prev, 
             lyricsVocal: data.audioUrl 
           }));
+          
+          // Also sync to project if we have a target project
+          if (targetProjectSnapshot && onSaveToProject) {
+            console.log(`[handleGenerateLyricsVocal] Syncing vocal to project: ${targetProjectSnapshot.id}`);
+            onSaveToProject({
+              ...targetProjectSnapshot,
+              assets: [
+                {
+                  id: `vocal-${Date.now()}`,
+                  type: 'vocal',
+                  agent: 'Vocal Architect',
+                  audioUrl: data.audioUrl,
+                  mimeType: data.mimeType || 'audio/wav',
+                  snippet: `🎤 AI Vocal: "${performanceText.substring(0, 50)}..."`,
+                  createdAt: new Date().toISOString()
+                },
+                ...(targetProjectSnapshot.assets || [])
+              ]
+            });
+          }
+          
           toast.success(`${rapStyle} ${voiceStyle} vocal created!`, { id: 'gen-vocal' });
         } else if (data.error) {
           console.error('Vocal API error:', data.error);

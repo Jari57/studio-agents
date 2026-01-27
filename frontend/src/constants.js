@@ -122,10 +122,10 @@ export const AGENTS = [
       icon: UsersIcon, 
       tier: 'pro', // PRO TIER
       isBeta: true,
-      comingSoon: true,
+      comingSoon: false,
       colorClass: 'agent-purple', 
       isPro: true,
-      description: '🚧 COMING SOON - AI vocal synthesis and harmony generation',
+      description: 'AI vocal synthesis and harmony generation',
       capabilities: ['Vocal Synthesis', 'Harmony Logic', 'Ad-lib Generation', 'Tuning & Correction'],
       examples: ['Generate a 3-part harmony for this vocal line', 'Create a soulful vocal ad-lib for the chorus'],
       howToUse: 'Input your lyrics and melody. The AI will generate a vocal performance with customizable tone and expression.',

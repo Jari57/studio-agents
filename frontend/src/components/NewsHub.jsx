@@ -319,7 +319,7 @@ function NewsHub({
                 {/* Media Preview - Video */}
                 {item.hasVideo && item.videoUrl && (
                   <div 
-                    className="media-overlay-container" 
+                    className="news-media-preview" 
                     style={{
                       position: 'relative',
                       display: 'block',
@@ -396,7 +396,7 @@ function NewsHub({
 
                 {/* Media Preview - Image (only if no video) */}
                 {!item.hasVideo && item.hasImage && item.imageUrl && (
-                  <div className="media-overlay-container" style={{
+                  <div className="news-media-preview" style={{
                     position: 'relative',
                     height: '180px',
                     background: 'var(--color-bg-tertiary)',

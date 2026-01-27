@@ -2504,8 +2504,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       return;
     }
 
+    // Capture project context immediately to prevent race conditions during long AI wait
+    const targetProjectSnapshot = selectedProject;
+
     setIsCreatingVocal(true);
-    const toastId = toast.loading('Creating AI vocal...');
+    const toastId = toast.loading('Creating AI vocal (~60s)...');
 
     try {
       // Build headers with auth token if logged in
@@ -2548,6 +2551,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             mimeType: data.mimeType || 'audio/wav',
             type: 'vocal', // Upgrade type to vocal (has both text + audio)
             vocalSnippet: `🎤 AI Vocal created from lyrics`,
+            projectSnapshot: targetProjectSnapshot, // Preserve context
             updatedAt: new Date().toISOString()
           };
 
@@ -2571,6 +2575,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             audioUrl: data.audioUrl,
             mimeType: data.mimeType || 'audio/wav',
             snippet: `🎤 AI Vocal: "${textToSpeak.substring(0, 50)}..."`,
+            projectSnapshot: targetProjectSnapshot, // Preserve context
             createdAt: new Date().toISOString()
           };
 
@@ -2692,6 +2697,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     // Guard: Ensure agent is selected
     if (!selectedAgent) {
       toast.error("Please select an agent first.");
+      return;
+    }
+
+    // CHECK: Block generation for "Coming Soon" agents
+    if (selectedAgent.comingSoon) {
+      toast.error(`${selectedAgent.name} is coming soon! Try Ghostwriter or Beat Maker instead.`, { icon: '🚧' });
       return;
     }
     
@@ -6779,6 +6790,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             setDashboardTab('subscription');
                             setActiveTab('mystudio');
                           }
+                        } else if (agent.comingSoon) {
+                          toast.error(`${agent.name} is coming soon!`, { icon: '🚧' });
                         } else {
                           setSelectedAgent(agent);
                           Analytics.agentUsed(agent.id);
@@ -6825,6 +6838,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             setDashboardTab('subscription');
                             setActiveTab('mystudio');
                           }
+                        } else if (agent.comingSoon) {
+                          toast.error(`${agent.name} is coming soon!`, { icon: '🚧' });
                         } else {
                           setSelectedAgent(agent);
                           Analytics.agentUsed(agent.id);
@@ -6871,6 +6886,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             setDashboardTab('subscription');
                             setActiveTab('mystudio');
                           }
+                        } else if (agent.comingSoon) {
+                          toast.error(`${agent.name} is coming soon!`, { icon: '🚧' });
                         } else {
                           setSelectedAgent(agent);
                           Analytics.agentUsed(agent.id);
@@ -8082,7 +8099,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 >
                   {/* Card Media */}
                   {item.imageUrl && (
-                    <div className="media-overlay-container" style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
+                    <div className="activity-media-preview" style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
                       <img 
                         src={item.imageUrl} 
                         alt={item.title}
@@ -11015,7 +11032,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   {/* Type Badge */}
                   <span style={{ 
                     background: previewItem.type === 'image' ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 
-                                previewItem.type === 'audio' ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
+                                (previewItem.type === 'audio' || previewItem.type === 'vocal') ? 'linear-gradient(135deg, #f59e0b, #d97706)' :
                                 previewItem.type === 'video' ? 'linear-gradient(135deg, #ef4444, #dc2626)' :
                                 'linear-gradient(135deg, #3b82f6, #2563eb)',
                     padding: '0.25rem 0.75rem', 
@@ -11215,7 +11232,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         </div>
                       )}
                     </div>
-                  ) : previewItem.type === 'audio' && previewItem.audioUrl ? (
+                  ) : (previewItem.type === 'audio' || previewItem.type === 'vocal') && previewItem.audioUrl ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
                       {mediaLoadError?.type === 'audio' ? (
                         <div style={{ 
@@ -11729,6 +11746,37 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             onClose={() => setShowOrchestrator(false)}
             authToken={userToken}
             existingProject={selectedProject}
+            onSaveToProject={(project) => {
+              const traceId = `SYNC-${Date.now()}`;
+              console.log(`[TRACE:${traceId}] onSaveToProject RECEIVED (Syncing artifacts)`, {
+                projectId: project.id,
+                assetCount: project.assets?.length
+              });
+              
+              // Find if project already exists
+              const existingIndex = projects.findIndex(p => p.id === project.id);
+              if (existingIndex >= 0) {
+                const existingProject = projects[existingIndex];
+                const existingAssetIds = new Set((existingProject.assets || []).map(a => a.id));
+                const newAssets = (project.assets || []).filter(a => !existingAssetIds.has(a.id));
+                
+                const finalProject = {
+                  ...existingProject,
+                  ...project,
+                  assets: [...(existingProject.assets || []), ...newAssets],
+                  updatedAt: new Date().toISOString()
+                };
+                
+                const newProjects = [...projects];
+                newProjects[existingIndex] = finalProject;
+                setProjects(newProjects);
+                setSelectedProject(finalProject);
+                
+                if (isLoggedIn && user) {
+                  saveProjectToCloud(user.uid, finalProject);
+                }
+              }
+            }}
             onCreateProject={(project) => {
               const traceId = `CREATE-${Date.now()}`;
               console.log(`[TRACE:${traceId}] onCreateProject RECEIVED`, {
