@@ -494,8 +494,8 @@ const checkCreditsFor = (featureType) => {
         const doc = await t.get(userRef);
         
         if (!doc.exists) {
-          // Initialize new user with 10 trial credits (new users get more to try features)
-          const initialCredits = 10;
+          // Initialize new user with 25 trial credits (allows trying expensive features like video)
+          const initialCredits = 25;
           if (creditCost > initialCredits) {
             throw new Error('INSUFFICIENT_CREDITS');
           }
@@ -2573,31 +2573,58 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
         requestedModel: requestedModel || 'default'
       });
     } catch (primaryError) {
-      // Fallback logic for 429 (Quota) or 404 (Model Not Found)
+      // Fallback logic for 429 (Quota) or 404 (Model Not Found) or 500
       const isQuotaError = String(primaryError).includes('429');
       const isNotFoundError = String(primaryError).includes('404') || String(primaryError).includes('not found');
+      const isFallbackCandidate = isQuotaError || isNotFoundError || String(primaryError).includes('500');
       
-      if ((isQuotaError || isNotFoundError) && desiredModel !== 'gemini-2.0-flash') {
-        logger.warn(`Primary model ${desiredModel} failed (${isQuotaError ? 'Quota' : 'Not Found'}). Falling back to gemini-2.0-flash.`);
+      if (isFallbackCandidate && desiredModel !== 'gemini-1.5-flash') {
+        // Try gemini-2.0-flash if it wasn't the first attempt
+        const tryModel = desiredModel === 'gemini-2.0-flash' ? 'gemini-1.5-flash' : 'gemini-2.0-flash';
         
-        const fallbackModel = genAI.getGenerativeModel({ 
-          model: 'gemini-2.0-flash',
-          systemInstruction: sanitizedSystemInstruction || undefined
+        logger.warn(`Primary model ${desiredModel} failed. Falling back to ${tryModel}.`, { 
+          error: primaryError.message 
         });
+        
+        try {
+          const fallbackModel = genAI.getGenerativeModel({ 
+            model: tryModel,
+            systemInstruction: sanitizedSystemInstruction || undefined
+          });
 
-        const startTime = Date.now();
-        const result = await fallbackModel.generateContent(sanitizedPrompt);
-        const response = await result.response;
-        text = response.text();
-        usedModel = 'gemini-2.0-flash';
-        
-        logger.info('Fallback generation successful', { 
-          ip: req.ip,
-          duration: `${Date.now() - startTime}ms`,
-          model: 'gemini-2.0-flash'
-        });
+          const startTime = Date.now();
+          const result = await fallbackModel.generateContent(sanitizedPrompt);
+          const response = await result.response;
+          text = response.text();
+          usedModel = tryModel;
+          
+          logger.info('Fallback generation successful', { 
+            ip: req.ip,
+            duration: `${Date.now() - startTime}ms`,
+            model: tryModel
+          });
+        } catch (secondaryError) {
+          // Final fallback to gemini-1.5-flash (most robust) if secondary attempt failed
+          if (tryModel !== 'gemini-1.5-flash') {
+            logger.warn(`Secondary model ${tryModel} failed. Final fallback to gemini-1.5-flash.`);
+            
+            const finalModel = genAI.getGenerativeModel({ 
+              model: 'gemini-1.5-flash',
+              systemInstruction: sanitizedSystemInstruction || undefined
+            });
+
+            const result = await finalModel.generateContent(sanitizedPrompt);
+            const response = await result.response;
+            text = response.text();
+            usedModel = 'gemini-1.5-flash';
+            
+            logger.info('Final fallback successful', { model: 'gemini-1.5-flash' });
+          } else {
+            throw secondaryError;
+          }
+        }
       } else {
-        throw primaryError; // Re-throw if not recoverable or already using fallback
+        throw primaryError; 
       }
     }
 
@@ -3228,10 +3255,10 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           const prediction = await response.json();
           logger.info('🎤 Bark prediction started - waiting for AI voice generation', { id: prediction.id, speaker: speakerHistory });
           
-          // Bark cold start can take 2-3 minutes, but we poll for up to 90 seconds
-          // to avoid proxy timeouts and indefinite clocking in the frontend.
+          // Bark cold start can take 2-3 minutes, and generation itself takes 45-60s.
+          // We poll for up to 180 seconds to ensure we don't timeout prematurely.
           let attempts = 0;
-          const maxAttempts = 45; // 45 × 2 seconds = 90 seconds max wait
+          const maxAttempts = 90; // 90 × 2 seconds = 180 seconds (3 minutes) max wait
           while (attempts < maxAttempts) {
             await new Promise(r => setTimeout(r, 2000));
             
@@ -3242,8 +3269,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             if (statusResponse.ok) {
               const status = await statusResponse.json();
               
-              // Log progress every 5 attempts (10 seconds)
-              if (attempts % 5 === 0) {
+              // Log progress every 10 attempts (20 seconds)
+              if (attempts % 10 === 0) {
                 logger.info('⏳ Bark generation in progress', { 
                   attempt: attempts, 
                   maxAttempts,
@@ -3253,8 +3280,14 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
               }
               
               if (status.status === 'succeeded') {
-                const outputUrl = status.output?.audio_out || status.output;
-                if (outputUrl) {
+                // Handle different Replicate output formats (string, array, or object)
+                let outputUrl = status.output;
+                if (Array.isArray(outputUrl)) outputUrl = outputUrl[0];
+                if (typeof outputUrl === 'object' && outputUrl?.audio_out) outputUrl = outputUrl.audio_out;
+                
+                logger.info('🎤 Bark generation finished, fetching results', { outputType: typeof outputUrl });
+                
+                if (outputUrl && typeof outputUrl === 'string') {
                   const audioResponse = await fetch(outputUrl);
                   if (audioResponse.ok) {
                     const audioBuffer = await audioResponse.arrayBuffer();
@@ -3278,14 +3311,59 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           }
           
           if (attempts >= maxAttempts && !audioUrl) {
-            logger.warn('⏰ Bark timeout after 4 minutes - falling back to TTS');
+            logger.warn('⏰ Bark timeout after 3 minutes - falling back to next provider');
           }
         } else {
           const errText = await response.text();
           logger.warn('Bark API error, trying next fallback', { status: response.status, error: errText.substring(0, 200) });
         }
       } catch (barkError) {
-        logger.warn('Bark error, trying TTS fallback', { error: barkError.message });
+        logger.warn('Bark error, trying fallback', { error: barkError.message });
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PRIORITY 2: Gemini TTS (Robust & High Quality)
+    // ═══════════════════════════════════════════════════════════════
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!audioUrl && geminiKey) {
+      try {
+        logger.info('🎤 Using Gemini TTS as high-quality fallback');
+        
+        let geminiVoice = 'Kore'; // Default male
+        if (style === 'rapper-female' || style === 'singer-female') geminiVoice = 'Puck'; // Or 'Charon'
+        
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+        
+        const geminiResponse = await fetch(geminiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: geminiVoice }
+                }
+              }
+            }
+          })
+        });
+
+        if (geminiResponse.ok) {
+          const data = await geminiResponse.json();
+          const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+          const mimeType = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/wav';
+          
+          if (audioData) {
+            audioUrl = `data:${mimeType};base64,${audioData}`;
+            provider = 'gemini-tts';
+            logger.info('✅ Gemini TTS generated vocal fallback');
+          }
+        }
+      } catch (geminiError) {
+        logger.warn('Gemini TTS error', { error: geminiError.message });
       }
     }
 
@@ -3387,6 +3465,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
+            speech: prompt.substring(0, 2000), // Handle both property name variants
             text: prompt.substring(0, 2000),
             voice: selectedVoice
           })
@@ -3394,12 +3473,14 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         
         if (response.ok) {
           const data = await response.json();
-          if (data.audio_url) {
-            const audioResponse = await fetch(data.audio_url);
+          if (data.audio_url || data.url) {
+            const vocalUrl = data.audio_url || data.url;
+            const audioResponse = await fetch(vocalUrl);
             if (audioResponse.ok) {
               const audioBuffer = await audioResponse.arrayBuffer();
               const base64Audio = Buffer.from(audioBuffer).toString('base64');
-              audioUrl = `data:audio/mp3;base64,${base64Audio}`;
+              const contentType = audioResponse.headers.get('content-type') || 'audio/mp3';
+              audioUrl = `data:${contentType};base64,${base64Audio}`;
               provider = 'uberduck-tts';
               logger.info('✅ Uberduck TTS fallback used');
             }
@@ -3468,7 +3549,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         details: 'Check API key configuration in backend/.env',
         requiredKeys: {
           UBERDUCK_API_KEY: !!uberduckKey,
-          REPLICATE_API_KEY: !!replicateKey
+          REPLICATE_API_KEY: !!replicateKey,
+          GEMINI_API_KEY: !!geminiKey
         },
         setupGuide: {
           uberduck: 'Get API key at https://uberduck.ai/account/manage-api',
@@ -3595,21 +3677,22 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
       try {
         logger.info('Using Stability AI Stable Audio 2.5 for professional audio generation');
         
+        // Use FormData for Stability AI API (multipart/form-data)
+        const formData = new FormData();
+        formData.append('prompt', musicPrompt);
+        formData.append('duration', Math.min(durationSeconds, 190).toString());
+        formData.append('model', 'stable-audio-2.5');
+        formData.append('output_format', 'mp3');
+        formData.append('steps', '8');
+
         const stableAudioResponse = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${stabilityKey}`,
-            'Accept': 'application/json', // Get base64 JSON response
-            'Content-Type': 'multipart/form-data',
+            'Accept': 'application/json', // Can be audio/mpeg or application/json for base64
             'stability-client-id': 'studio-agents'
           },
-          body: new URLSearchParams({
-            prompt: musicPrompt,
-            duration: Math.min(durationSeconds, 190), // Max 190 seconds
-            model: 'stable-audio-2.5', // Latest model
-            output_format: 'mp3',
-            steps: 8, // Stable Audio 2.5 uses 4-8 steps (fast)
-          })
+          body: formData
         });
 
         if (stableAudioResponse.ok) {
@@ -3720,7 +3803,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
 
         // Poll for completion (max 90 seconds to avoid proxy timeouts)
         let result = prediction;
-        const maxAttempts = 45; // 45 * 2s = 90s
+        const maxAttempts = 60; // 60 * 2s = 120s (2 minutes)
         for (let i = 0; i < maxAttempts && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
           await new Promise(r => setTimeout(r, 2000));
           
@@ -3729,14 +3812,18 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
           });
           result = await pollResponse.json();
           
-          if (i % 5 === 0) {
-            logger.info('Polling Replicate...', { status: result.status, attempt: i + 1 });
+          if (i % 10 === 0) {
+            logger.info('Polling Replicate MusicGen...', { status: result.status, attempt: i + 1 });
           }
         }
 
         if (result.status === 'succeeded' && result.output) {
+          // Handle Replicate output (might be string or array)
+          let audioOutput = result.output;
+          if (Array.isArray(audioOutput)) audioOutput = audioOutput[0];
+
           logger.info('MusicGen audio generated successfully', { 
-            audioUrl: result.output.substring(0, 80),
+            audioUrl: (typeof audioOutput === 'string' ? audioOutput.substring(0, 80) : 'complex-object'),
             duration: durationSeconds
           });
           
@@ -3749,7 +3836,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
             if (bucket) {
               try {
                 const fileName = `beat_${genre || 'instrumental'}_${Date.now()}.mp3`;
-                const uploadResult = await downloadAndUploadToStorage(result.output, req.user.uid, fileName);
+                const uploadResult = await downloadAndUploadToStorage(audioOutput, req.user.uid, fileName);
                 permanentUrl = uploadResult.url;
                 storagePath = uploadResult.path;
                 logger.info('📤 Beat saved to cloud storage', { path: storagePath });
@@ -3780,8 +3867,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
           }
           
           return res.json({
-            audioUrl: permanentUrl || result.output,
-            temporaryUrl: permanentUrl ? result.output : null,
+            audioUrl: permanentUrl || audioOutput,
+            temporaryUrl: permanentUrl ? audioOutput : null,
             storagePath,
             mimeType: 'audio/mpeg',
             duration: durationSeconds,

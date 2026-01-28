@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Download, Copy, Check } from 'lucide-react';
+import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
 /**
  * PreviewModal - Display full-size previews of generated assets
@@ -208,7 +209,7 @@ export function PreviewModal({
         >
           {mediaType === 'image' && mediaUrl && (
             <img
-              src={mediaUrl.startsWith('http') || mediaUrl.startsWith('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
+              src={formatImageSrc(mediaUrl)}
               alt={title || 'Preview'}
               style={{
                 maxWidth: '100%',
@@ -225,7 +226,7 @@ export function PreviewModal({
           )}
           {mediaType === 'video' && mediaUrl && (
             <video
-              src={mediaUrl}
+              src={formatVideoSrc(mediaUrl)}
               controls
               autoPlay
               style={{
@@ -293,7 +294,7 @@ export function PreviewModal({
                 border: '1px solid rgba(255,255,255,0.1)'
               }}>
                 <audio
-                  src={mediaUrl}
+                  src={formatAudioSrc(mediaUrl)}
                   controls
                   autoPlay
                   style={{

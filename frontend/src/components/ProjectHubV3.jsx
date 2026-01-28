@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, createProjectFromTemplate } from '../data/projectTemplates';
+import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
 /**
  * ProjectHubV3 - CapCut/Captions-inspired modern project management
@@ -112,7 +113,7 @@ function ProjectHubV3({
   const getProjectThumbnail = (project) => {
     if (!project.assets?.length) return null;
     const imageAsset = project.assets.find(a => a.imageUrl);
-    if (imageAsset) return imageAsset.imageUrl;
+    if (imageAsset) return formatImageSrc(imageAsset.imageUrl);
     const videoAsset = project.assets.find(a => a.videoUrl);
     if (videoAsset) return videoAsset.thumbnailUrl || null;
     return null;
@@ -312,7 +313,10 @@ function ProjectHubV3({
   };
 
   // Get first audio asset
-  const getAudioUrl = (project) => project.assets?.find(a => a.audioUrl)?.audioUrl;
+  const getAudioUrl = (project) => {
+    const asset = project.assets?.find(a => a.audioUrl);
+    return asset ? formatAudioSrc(asset.audioUrl) : null;
+  };
 
   const handlePreviewAssetType = (project, type, e) => {
     e?.stopPropagation();

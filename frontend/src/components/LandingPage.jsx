@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock, LayoutGrid } from 'lucide-react';
 import { AGENTS } from '../constants';
-import { auth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from '../firebase';
+import { auth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
 import MultiAgentDemo from './MultiAgentDemo';
 
 // Comprehensive Agent Whitepaper Data
@@ -441,9 +441,37 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     setAuthError('');
     try {
       if (authMode === 'signup') {
-        await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+        const result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+        // 📧 Send email verification and sign out until verified
+        try {
+          await sendEmailVerification(result.user);
+          setAuthError('Account created! Please verify your email to log in. Check your inbox.');
+          await signOut(auth);
+          setAuthLoading(false);
+          setAuthMode('login');
+          return;
+        } catch (verifyErr) {
+          console.error('Verification email failed', verifyErr);
+          setAuthError('Account created, but could not send verification email. Try logging in.');
+          await signOut(auth);
+          setAuthLoading(false);
+          return;
+        }
       } else {
-        await signInWithEmailAndPassword(auth, authEmail, authPassword);
+        const result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
+        
+        // 📧 Check if email is verified
+        if (!result.user.emailVerified) {
+          setAuthError('Email not verified. A new verification link has been sent to your inbox.');
+          try {
+            await sendEmailVerification(result.user);
+          } catch (resendErr) {
+            console.warn('Could not resend verification email', resendErr);
+          }
+          await signOut(auth);
+          setAuthLoading(false);
+          return;
+        }
       }
 
       setIsTransitioning(true);

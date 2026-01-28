@@ -8,6 +8,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   getIdToken
 } from 'firebase/auth';
 import { 
@@ -147,6 +148,7 @@ export {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   getIdToken,
   doc,
   getDoc,

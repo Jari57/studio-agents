@@ -8,6 +8,7 @@ import {
 import { BACKEND_URL, AGENTS } from '../constants';
 import toast from 'react-hot-toast';
 import PreviewModal from './PreviewModal';
+import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
 // Generator Card Component - Agent-page style with full actions
 function GeneratorCard({ 
@@ -37,6 +38,14 @@ function GeneratorCard({
   const [editText, setEditText] = useState(output || '');
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // 📱 Device responsiveness
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Sync editText when output prop changes - intentional setState in effect for prop sync
   const prevOutputRef = useRef(output);
   useEffect(() => {
@@ -63,9 +72,6 @@ function GeneratorCard({
   };
 
   const agent = AGENTS.find(a => a.id === agentId);
-  
-  // Check if mobile
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
     <div className="generator-card-unified" style={{
@@ -97,19 +103,25 @@ function GeneratorCard({
           {/* Render icon component */}
           {React.createElement(icon, { size: isMobile ? 20 : 24 })}
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h3 style={{ 
             margin: 0, 
             fontSize: isMobile ? '0.95rem' : '1.125rem', 
             fontWeight: '700',
-            color: 'white'
+            color: 'white',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
           }}>
             {title}
           </h3>
           <p style={{ 
             margin: '2px 0 0', 
             fontSize: '0.75rem', 
-            color: 'var(--text-secondary)' 
+            color: 'var(--text-secondary)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
           }}>
             {agent?.name || subtitle}
           </p>
@@ -209,7 +221,7 @@ function GeneratorCard({
                   flex: 1,
                   overflow: 'auto',
                   cursor: 'pointer',
-                  maxHeight: isExpanded ? (isMobile ? '200px' : '400px') : (isMobile ? '80px' : '280px'),
+                  maxHeight: isExpanded ? (isMobile ? '300px' : '400px') : (isMobile ? '150px' : '280px'),
                   transition: 'max-height 0.3s ease'
                 }}
               >
@@ -309,16 +321,16 @@ function GeneratorCard({
                         <Music size={18} color="white" />
                       </div>
                       <audio 
-                        src={mediaUrl}
+                        src={formatAudioSrc(mediaUrl)}
                         controls
                         style={{ flex: 1, height: '32px' }}
                       />
                     </div>
                   )}
-                  {mediaType === 'image' && mediaUrl && typeof mediaUrl === 'string' && (
+                  {mediaType === 'image' && mediaUrl && (
                     <div style={{ position: 'relative' }}>
                       <img 
-                        src={mediaUrl.startsWith?.('http') || mediaUrl.startsWith?.('data:') ? mediaUrl : `data:image/png;base64,${mediaUrl}`}
+                        src={formatImageSrc(mediaUrl)}
                         alt="Generated"
                         style={{ 
                           width: '100%', 
@@ -349,7 +361,7 @@ function GeneratorCard({
                   )}
                   {mediaType === 'video' && mediaUrl && (
                     <video 
-                      src={mediaUrl}
+                      src={formatVideoSrc(mediaUrl)}
                       style={{ 
                         width: '100%', 
                         maxHeight: '120px', 
@@ -966,7 +978,7 @@ function FinalMixSection({
                   marginBottom: '12px'
                 }}>
                   <video
-                    src={musicVideoUrl}
+                    src={formatVideoSrc(musicVideoUrl)}
                     controls
                     style={{
                       width: '100%',
@@ -1145,30 +1157,33 @@ function FinalMixSection({
             borderRadius: '10px',
             padding: '8px',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: '80px',
-            maxHeight: '150px',
+            position: 'relative',
             overflow: 'hidden'
           }}>
             {visualType === 'image' && hasImage ? (
               <img 
-                src={mediaUrls.image} 
+                src={formatImageSrc(mediaUrls.image)} 
                 alt="Selected cover" 
                 style={{ 
-                  maxHeight: '140px', 
+                  maxHeight: '180px', 
                   borderRadius: '8px',
-                  objectFit: 'contain'
+                  objectFit: 'contain',
+                  width: '100%'
                 }} 
               />
             ) : visualType === 'video' && hasVideoMedia ? (
               <video 
-                src={mediaUrls.video} 
+                src={formatVideoSrc(mediaUrls.video)} 
                 style={{ 
-                  maxHeight: '140px', 
-                  borderRadius: '8px'
+                  maxHeight: '180px', 
+                  borderRadius: '8px',
+                  width: '100%'
                 }} 
-                muted 
+                muted={!musicVideoUrl} // Only mute if it's the loop video, professional video has its own audio
                 loop 
                 autoPlay
                 playsInline
@@ -1177,9 +1192,34 @@ function FinalMixSection({
               <div style={{ 
                 color: 'rgba(255,255,255,0.4)', 
                 fontSize: '0.85rem',
-                fontStyle: 'italic'
+                fontStyle: 'italic',
+                padding: '20px'
               }}>
                 {visualType === 'image' ? 'No cover image generated yet' : 'No video generated yet'}
+              </div>
+            )}
+            
+            {/* Overlay audio player if we have a beat but no pro video yet */}
+            {hasBeatAudio && !musicVideoUrl && (visualType === 'image' || visualType === 'video') && (
+              <div style={{
+                position: 'absolute',
+                bottom: '10px',
+                left: '10px',
+                right: '10px',
+                background: 'rgba(0,0,0,0.6)',
+                padding: '6px',
+                borderRadius: '8px',
+                backdropFilter: 'blur(4px)',
+                border: '1px solid rgba(255,255,255,0.1)'
+              }}>
+                <audio 
+                  src={formatAudioSrc(mediaUrls.audio)} 
+                  controls 
+                  style={{ width: '100%', height: '28px' }} 
+                />
+                <div style={{ fontSize: '0.65rem', textAlign: 'center', marginTop: '4px', color: 'rgba(255,255,255,0.6)' }}>
+                  Previewing visual with beat
+                </div>
               </div>
             )}
           </div>
@@ -1688,15 +1728,56 @@ export default function StudioOrchestratorV2({
   };
   
   // Helper to format image data for display
-  // Handles: URLs (http/https), data URLs, and raw base64
+  // Handles: URLs (http/https), data URLs, raw base64, and objects {url: "..."}
   const formatImageSrc = (imageData) => {
-    if (!imageData || typeof imageData !== 'string') return null;
+    if (!imageData) return null;
+    
+    // Handle object return from some APIs
+    if (typeof imageData === 'object' && imageData.url) {
+      return imageData.url;
+    }
+    
+    // Handle array return (Replicate/Flux)
+    if (Array.isArray(imageData) && imageData.length > 0) {
+      return formatImageSrc(imageData[0]);
+    }
+    
+    if (typeof imageData !== 'string') return null;
+    
     // Already a URL or data URL
     if (imageData.startsWith('http') || imageData.startsWith('data:')) {
       return imageData;
     }
+    
     // Raw base64 - add data URL prefix
     return `data:image/png;base64,${imageData}`;
+  };
+
+  // Helper to format audio data for display
+  const formatAudioSrc = (src) => {
+    if (!src) return '';
+    if (typeof src === 'string') return src;
+    if (typeof src === 'object') {
+      if (src.url) return src.url;
+      if (src.audio) return src.audio;
+      if (Array.isArray(src) && src[0]) {
+        return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].audio || '');
+      }
+    }
+    return '';
+  };
+
+  const formatVideoSrc = (src) => {
+    if (!src) return '';
+    if (typeof src === 'string') return src;
+    if (typeof src === 'object') {
+      if (src.url) return src.url;
+      if (src.video) return src.video;
+      if (Array.isArray(src) && src[0]) {
+        return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].video || '');
+      }
+    }
+    return '';
   };
   
   const EXAMPLE_IDEAS = [
@@ -1878,12 +1959,17 @@ export default function StudioOrchestratorV2({
         console.log(`[handleGenerate] Generating ${slot} with agent:`, agent.name);
         
         try {
+          const modelId = model === 'Gemini 2.0 Flash' ? 'gemini-2.0-flash' : 
+                        model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.0-flash-exp' : 
+                        model === 'Gemini 1.5 Pro' ? 'gemini-1.5-pro' : 'gemini-2.0-flash';
+          
           const response = await fetch(`${BACKEND_URL}/api/generate`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
               prompt: `Create ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
-              systemInstruction: systemPrompt
+              systemInstruction: systemPrompt,
+              model: modelId
             })
           });
           
@@ -1942,12 +2028,17 @@ export default function StudioOrchestratorV2({
       const headers = await getHeaders();
       const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
       
+      const modelId = model === 'Gemini 2.0 Flash' ? 'gemini-2.0-flash' : 
+                     model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.0-flash-exp' : 
+                     model === 'Gemini 1.5 Pro' ? 'gemini-1.5-pro' : 'gemini-2.0-flash';
+
       const response = await fetch(`${BACKEND_URL}/api/generate`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
           prompt: `Create fresh ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
-          systemInstruction: `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.`
+          systemInstruction: `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.`,
+          model: modelId
         })
       });
       
@@ -2104,10 +2195,10 @@ export default function StudioOrchestratorV2({
         // 3. Legacy format: { imageData: "base64data..." }
         let imageData = null;
         
-        if (data.output && typeof data.output === 'string') {
-          // URL from Replicate - use directly
+        if (data.output) {
+          // URL from Replicate or other provider (can be string, array, or object)
           imageData = data.output;
-          console.log('[Orchestrator] Got image URL from Replicate');
+          console.log('[Orchestrator] Got image from .output field');
         } else if (data.images && data.images.length > 0) {
           // Base64 from Gemini/Imagen - store raw base64
           imageData = data.images[0];
@@ -2532,9 +2623,16 @@ export default function StudioOrchestratorV2({
     
     // Also download media if available
     const mediaMap = { audio: mediaUrls.audio, visual: mediaUrls.image, video: mediaUrls.video };
-    if (mediaMap[slot]) {
+    const mediaUrl = mediaMap[slot];
+    
+    if (mediaUrl) {
+      let formattedUrl = mediaUrl;
+      if (slot === 'visual') formattedUrl = formatImageSrc(mediaUrl);
+      if (slot === 'audio') formattedUrl = formatAudioSrc(mediaUrl);
+      if (slot === 'video') formattedUrl = formatVideoSrc(mediaUrl);
+      
       const a = document.createElement('a');
-      a.href = mediaMap[slot];
+      a.href = formattedUrl;
       a.download = `${songIdea || 'media'}-${slot}`;
       a.click();
     }
@@ -2978,7 +3076,7 @@ export default function StudioOrchestratorV2({
             {/* Quick Presets */}
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               <button
-                onClick={() => setSelectedAgents({ lyrics: 'vibe-architect', audio: null, visual: null, video: null })}
+                onClick={() => setSelectedAgents({ lyrics: 'ghost', audio: null, visual: null, video: null })}
                 style={{
                   padding: '4px 10px',
                   borderRadius: '8px',
@@ -2993,7 +3091,7 @@ export default function StudioOrchestratorV2({
                 📝 Lyrics Only
               </button>
               <button
-                onClick={() => setSelectedAgents({ lyrics: 'vibe-architect', audio: 'vibe-architect', visual: null, video: null })}
+                onClick={() => setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: null, video: null })}
                 style={{
                   padding: '4px 10px',
                   borderRadius: '8px',
@@ -3008,7 +3106,7 @@ export default function StudioOrchestratorV2({
                 🎵 Lyrics + Beat
               </button>
               <button
-                onClick={() => setSelectedAgents({ lyrics: 'vibe-architect', audio: 'vibe-architect', visual: 'vibe-architect', video: null })}
+                onClick={() => setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: null })}
                 style={{
                   padding: '4px 10px',
                   borderRadius: '8px',
@@ -3023,7 +3121,7 @@ export default function StudioOrchestratorV2({
                 🖼️ + Cover Art
               </button>
               <button
-                onClick={() => setSelectedAgents({ lyrics: 'vibe-architect', audio: 'vibe-architect', visual: 'vibe-architect', video: 'vibe-architect' })}
+                onClick={() => setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' })}
                 style={{
                   padding: '4px 10px',
                   borderRadius: '8px',
@@ -3201,7 +3299,7 @@ export default function StudioOrchestratorV2({
                     flex: 1
                   }}>
                     <audio 
-                      src={mediaUrls.lyricsVocal}
+                      src={formatAudioSrc(mediaUrls.lyricsVocal)}
                       controls
                       style={{ 
                         width: '100%',
@@ -4160,8 +4258,8 @@ export default function StudioOrchestratorV2({
             {/* Content Grid */}
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: previewMaximized ? 'repeat(2, 1fr)' : 'repeat(2, 1fr)', 
-              gap: previewMaximized ? '32px' : '24px', 
+              gridTemplateColumns: isMobile ? '1fr' : (previewMaximized ? 'repeat(2, 1fr)' : 'repeat(2, 1fr)'), 
+              gap: isMobile ? '16px' : (previewMaximized ? '32px' : '24px'), 
               marginBottom: '24px' 
             }}>
               {/* Lyrics Preview - Always safe */}
@@ -4239,7 +4337,7 @@ export default function StudioOrchestratorV2({
                       <audio
                         controls
                         style={{ width: '100%', marginBottom: '12px' }}
-                        src={safeMediaUrls.audio}
+                        src={formatAudioSrc(safeMediaUrls.audio)}
                         onError={(e) => console.warn('[Preview] Audio load error:', e)}
                       />
                       <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -4357,7 +4455,7 @@ export default function StudioOrchestratorV2({
                 }}>
                   {safeMediaUrls.video ? (
                     <video
-                      src={safeMediaUrls.video}
+                      src={formatVideoSrc(safeMediaUrls.video)}
                       controls
                       style={{
                         width: '100%',

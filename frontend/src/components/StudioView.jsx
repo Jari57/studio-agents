@@ -52,9 +52,22 @@ const safeAssetProp = (asset, prop, fallback = '') => {
   }
 };
 
-// Helper: Safely format media URL (handles string check)
+// Helper: Safely format media URL (handles string check, objects, and arrays)
 const safeMediaUrl = (url) => {
-  if (!url || typeof url !== 'string') return null;
+  if (!url) return null;
+  
+  // Handle object return from some APIs
+  if (typeof url === 'object' && url.url) {
+    return url.url;
+  }
+  
+  // Handle array return (Replicate/Flux)
+  if (Array.isArray(url) && url.length > 0) {
+    return safeMediaUrl(url[0]);
+  }
+  
+  if (typeof url !== 'string') return null;
+  
   if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) {
     return url;
   }
@@ -171,6 +184,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   doc,
   getDoc,
   setDoc,
@@ -181,6 +195,7 @@ import {
 import { AGENTS, BACKEND_URL } from '../constants';
 import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
 import { Analytics, trackPageView } from '../utils/analytics';
+import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
 // --- CONSTANTS FOR ONBOARDING & SUPPORT ---
 
@@ -300,6 +315,18 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       return [];
     }
   });
+
+  // Persist projects to localStorage whenever they change
+  useEffect(() => {
+    if (projects && Array.isArray(projects)) {
+      try {
+        localStorage.setItem('studio_agents_projects', JSON.stringify(projects));
+        console.log('[StudioView] Projects persisted to localStorage:', projects.length);
+      } catch (err) {
+        console.error('[StudioView] Failed to persist projects to localStorage:', err);
+      }
+    }
+  }, [projects]);
   
   // Cloud sync state
   const [_projectsSyncing, setProjectsSyncing] = useState(false);
@@ -1436,7 +1463,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setUserCredits(prev => prev - PROJECT_CREDIT_COST);
     toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
-    setProjects(prev => [newProject, ...prev]);
+    setProjects(prev => {
+      // Check if project with same name was created in last 10s
+      const duplicate = prev.find(p => p.name === newProject.name && (Date.now() - parseInt(p.id)) < 10000);
+      if (duplicate) return prev;
+      return [newProject, ...prev];
+    });
     setSelectedProject(newProject);
 
     // Save to cloud if logged in
@@ -1490,9 +1522,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     if (auth) {
       const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         if (currentUser) {
+          // 📧 Lock password-based accounts that haven't verified their email
+          // Google/Social accounts are usually pre-verified by the provider
+          const isPasswordProvider = currentUser.providerData.some(p => p.providerId === 'password');
+          if (isPasswordProvider && !currentUser.emailVerified) {
+            console.log('📧 User detected as unverified, signing out.');
+            await signOut(auth);
+            localStorage.removeItem('studio_user_id');
+            setIsLoggedIn(false);
+            setUser(null);
+            setAuthChecking(false);
+            return;
+          }
+
           // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
-          // where isLoggedIn=true but user=null
-          setUser(currentUser);
           localStorage.setItem('studio_user_id', currentUser.uid);
           setIsLoggedIn(true); // Set this LAST after user is set
           setAuthChecking(false); // Auth check complete
@@ -1832,10 +1875,42 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       let result;
       if (authMode === 'signup') {
         result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
-        toast.success('Account created successfully!');
+        // 📧 Send email verification and sign out until verified
+        try {
+          await sendEmailVerification(result.user);
+          toast.success('Account created! Please check your inbox and verify your email to log in.', { duration: 8000 });
+          await signOut(auth);
+          setAuthLoading(false);
+          setAuthMode('login'); // Switch to login so they can try again after verifying
+          return;
+        } catch (verifyErr) {
+          console.error('Verification email failed', verifyErr);
+          toast.error('Account created, but could not send verification email. Please try logging in to resend.');
+          await signOut(auth);
+          setAuthLoading(false);
+          return;
+        }
         Analytics.signUp('email');
       } else {
         result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
+        
+        // 📧 Check if email is verified
+        if (!result.user.emailVerified) {
+          toast.error('Please verify your email address before logging in.', { duration: 4000 });
+          
+          // 📧 Automatically resend verification email on failed login attempt
+          try {
+            await sendEmailVerification(result.user);
+            toast.success('A new verification link has been sent to your inbox.', { duration: 5000 });
+          } catch (resendErr) {
+            console.warn('Could not resend verification email', resendErr);
+          }
+          
+          await signOut(auth);
+          setAuthLoading(false);
+          return;
+        }
+        
         toast.success('Welcome back!');
         Analytics.login('email');
       }
@@ -3214,9 +3289,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         savedAt: new Date().toISOString()
       };
       
-      // Update local state immediately
-      setProjects(prev => Array.isArray(prev) ? [itemToSave, ...prev] : [itemToSave]);
-
       // Determine which project to save to (Priority: Manual Target > Generation Context > Current State)
       let projectToUpdate = targetProject || previewItem.projectSnapshot || selectedProject;
       
@@ -3245,14 +3317,33 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         const safeAssets = Array.isArray(projectToUpdate.assets) ? projectToUpdate.assets : [];
         const updatedProject = {
           ...projectToUpdate,
-          assets: [itemToSave, ...safeAssets]
+          assets: [itemToSave, ...safeAssets.filter(a => a.id !== itemToSave.id)]
         };
         setSelectedProject(updatedProject);
         setProjects(prev => {
           const safePrev = Array.isArray(prev) ? prev : [];
-          return [itemToSave, ...safePrev.map(p => p?.id === updatedProject.id ? updatedProject : p)];
+          // Replace the old project with the updated one
+          return safePrev.map(p => p?.id === updatedProject.id ? updatedProject : p);
         });
         projectToUpdate = updatedProject;
+      } else {
+        // No project context - save as a "Standalone" project so it shows in Hub
+        const standloneProject = {
+          id: String(Date.now()),
+          name: itemToSave.title || `Asset: ${itemToSave.agent}`,
+          category: itemToSave.agent || 'AI Generated',
+          description: itemToSave.prompt || '',
+          agents: [itemToSave.agent],
+          workflow: 'standalone',
+          date: new Date().toLocaleDateString(),
+          status: 'Completed',
+          progress: 100,
+          assets: [itemToSave],
+          createdAt: new Date().toISOString()
+        };
+        setProjects(prev => [standloneProject, ...prev]);
+        toast.success('Saved to your collection');
+        projectToUpdate = standloneProject;
       }
       // If no project selected and no targetProject, just save to hub (no modal needed)
 
@@ -3888,7 +3979,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                  <>
                    {canvasPreviewAsset.type === 'Video' && canvasPreviewAsset.videoUrl && (
                      <video 
-                       src={canvasPreviewAsset.videoUrl} 
+                       src={formatVideoSrc(canvasPreviewAsset.videoUrl)} 
                        controls 
                        style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }}
                        onError={(e) => {
@@ -3900,7 +3991,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                    )}
                    {canvasPreviewAsset.type === 'Image' && canvasPreviewAsset.imageUrl && (
                      <img 
-                       src={canvasPreviewAsset.imageUrl} 
+                       src={formatImageSrc(canvasPreviewAsset.imageUrl)} 
                        alt={canvasPreviewAsset.title || 'Asset'}
                        style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }}
                        onError={(e) => {
@@ -3926,7 +4017,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                        <audio 
                          ref={canvasAudioRef}
                          key={canvasPreviewAsset.id || canvasPreviewAsset.audioUrl}
-                         src={canvasPreviewAsset.audioUrl} 
+                         src={formatAudioSrc(canvasPreviewAsset.audioUrl)} 
                          controls 
                          style={{ width: '100%', maxWidth: '600px' }}
                          onError={() => {
@@ -4345,7 +4436,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                      >
                        {asset.imageUrl ? (
                          <img 
-                           src={asset.imageUrl}
+                           src={formatImageSrc(asset.imageUrl)}
                            alt={asset.title || 'Asset image'}
                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                            onError={(e) => {
@@ -4356,7 +4447,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                        ) : asset.videoUrl ? (
                          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                            <video 
-                             src={asset.videoUrl}
+                             src={formatVideoSrc(asset.videoUrl)}
                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                              muted
                              preload="metadata"
@@ -5990,7 +6081,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       
                       {currentPreview.type === 'image' && currentPreview.imageUrl ? (
                         <img 
-                          src={typeof currentPreview.imageUrl === 'string' ? currentPreview.imageUrl : ''} 
+                          src={formatImageSrc(currentPreview.imageUrl)} 
                           alt="Preview" 
                           style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} 
                           onClick={() => setPreviewItem(currentPreview)} 
@@ -5998,7 +6089,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         />
                       ) : currentPreview.type === 'video' && currentPreview.videoUrl ? (
                         <div style={{ position: 'relative' }}>
-                          <video src={currentPreview.videoUrl} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(currentPreview)} />
+                          <video src={formatVideoSrc(currentPreview.videoUrl)} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(currentPreview)} />
                           {currentPreview.audioUrl && (
                             <div style={{ position: 'absolute', bottom: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <Music size={10} /> Synced
@@ -6012,7 +6103,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                width: '48px',
                                height: '48px',
                                borderRadius: '6px',
-                               background: `url(${currentPreview.imageUrl}) center/cover`,
+                               background: `url(${formatImageSrc(currentPreview.imageUrl)}) center/cover`,
                                flexShrink: 0
                              }} />
                            )}
@@ -6022,7 +6113,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                  <div style={{ fontSize: '0.65rem', color: 'var(--color-pink)', marginBottom: '2px', fontWeight: 'bold' }}>Synced Vocals</div>
                                  <audio 
                                    controls 
-                                   src={currentPreview.audioUrl} 
+                                   src={formatAudioSrc(currentPreview.audioUrl)} 
                                    style={{ width: '100%', height: '32px', marginBottom: '4px' }}
                                    onPlay={(e) => {
                                       const container = e.target.parentElement;
@@ -6045,10 +6136,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                       }
                                    }}
                                  />
-                                 <audio className="preview-backing-audio" src={currentPreview.backingTrackUrl} style={{ display: 'none' }} />
+                                 <audio className="preview-backing-audio" src={formatAudioSrc(currentPreview.backingTrackUrl)} style={{ display: 'none' }} />
                                </>
                              ) : (
-                               <audio controls src={currentPreview.audioUrl} style={{ width: '100%', height: '32px', marginBottom: '4px' }} />
+                               <audio controls src={formatAudioSrc(currentPreview.audioUrl)} style={{ width: '100%', height: '32px', marginBottom: '4px' }} />
                              )}
                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                {currentPreview.snippet}
@@ -7294,11 +7385,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   return newCredits;
                 });
                 
-                // Add to projects
+                // Add or Update projects
                 setProjects(prev => {
-                  const newProjects = [project, ...prev];
-                  console.log('[StudioView] Orchestrator: Project added. Total:', newProjects.length);
-                  return newProjects;
+                  const exists = prev.some(p => p.id === project.id);
+                  if (exists) {
+                    console.log('[StudioView] Orchestrator: Updating existing project:', project.id);
+                    return prev.map(p => p.id === project.id ? project : p);
+                  }
+                  console.log('[StudioView] Orchestrator: Adding new project. Total:', prev.length + 1);
+                  return [project, ...prev];
                 });
                 
                 // Save to cloud if logged in (uses backend API now)
@@ -7574,7 +7669,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           style={{ 
                             height: '160px', 
                             background: asset.imageUrl 
-                              ? `url(${asset.imageUrl}) center/cover` 
+                              ? `url(${formatImageSrc(asset.imageUrl)}) center/cover` 
                               : 'linear-gradient(135deg, #1e1e2e, #2d2d44)',
                             position: 'relative',
                             display: 'flex',
@@ -11194,7 +11289,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   {previewItem.type === 'image' && previewItem.imageUrl ? (
                     <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center' }}>
                       <img 
-                        src={previewItem.imageUrl} 
+                        src={formatImageSrc(previewItem.imageUrl)} 
                         alt="Generated" 
                         onLoad={() => setIsPreviewMediaLoading(false)}
                         onClick={(e) => {
@@ -11282,7 +11377,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           </div>
                           <audio 
                             controls 
-                            src={previewItem.audioUrl} 
+                            src={formatAudioSrc(previewItem.audioUrl)} 
                             style={{ width: '100%', opacity: isPreviewMediaLoading ? 0 : 1 }}
                             onLoadedData={() => setIsPreviewMediaLoading(false)}
                             onCanPlay={() => setIsPreviewMediaLoading(false)}
@@ -11313,7 +11408,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           <video 
                             controls 
                             muted={!!previewItem.audioUrl} // Mute video if we have a separate high-quality audio track
-                            src={previewItem.videoUrl} 
+                            src={formatVideoSrc(previewItem.videoUrl)} 
                             style={{ width: '100%', borderRadius: '8px', background: '#000', opacity: isPreviewMediaLoading ? 0 : 1 }}
                             onLoadedData={() => setIsPreviewMediaLoading(false)}
                             onCanPlay={() => setIsPreviewMediaLoading(false)}
@@ -11357,12 +11452,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                               setIsPreviewMediaLoading(false);
                             }}
                           />
-                          <audio className="sync-audio" src={previewItem.audioUrl} style={{ display: 'none' }} />
+                          <audio className="sync-audio" src={formatAudioSrc(previewItem.audioUrl)} style={{ display: 'none' }} />
                         </>
                       ) : (
                         <video 
                           controls 
-                          src={previewItem.videoUrl} 
+                          src={formatVideoSrc(previewItem.videoUrl)} 
                           style={{ width: '100%', borderRadius: '8px', background: '#000', opacity: isPreviewMediaLoading ? 0 : 1 }}
                           onLoadedData={() => setIsPreviewMediaLoading(false)}
                           onCanPlay={() => setIsPreviewMediaLoading(false)}
@@ -14234,7 +14329,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       try {
                         setShowPreview({
                           type: getAssetPreviewType(targetAsset),
-                          url: targetAsset.audioUrl || targetAsset.videoUrl || targetAsset.imageUrl || null,
+                          url: formatAudioSrc(targetAsset.audioUrl) || formatVideoSrc(targetAsset.videoUrl) || formatImageSrc(targetAsset.imageUrl) || null,
                           content: targetAsset.content || targetAsset.snippet || targetAsset.output || null,
                           title: targetAsset.title || 'Untitled',
                           asset: targetAsset,
@@ -14255,7 +14350,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         ? '2px solid var(--color-purple)' 
                         : '2px solid transparent',
                       background: asset.imageUrl 
-                        ? `url(${asset.imageUrl}) center/cover`
+                        ? `url(${formatImageSrc(asset.imageUrl)}) center/cover`
                         : 'rgba(255,255,255,0.1)',
                       cursor: 'pointer',
                       flexShrink: 0,
@@ -14271,7 +14366,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     {/* Video thumbnail with frame */}
                     {asset.videoUrl && !asset.imageUrl && (
                       <video 
-                        src={asset.videoUrl}
+                        src={formatVideoSrc(asset.videoUrl)}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         muted
                         preload="metadata"
