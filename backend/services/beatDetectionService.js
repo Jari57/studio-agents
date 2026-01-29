@@ -65,12 +65,15 @@ function detectBeatMarkers(audioBuffer, sampleRate, targetDurationMs) {
     const energyRange = maxEnergy - minEnergy || 1;
     const normalizedEnergies = frameEnergies.map(e => (e - minEnergy) / energyRange);
     
-    // Detect peaks (beats) in energy
+    // Detect peaks (beats) in energy with adaptive threshold
+    const avgEnergy = normalizedEnergies.reduce((a, b) => a + b, 0) / normalizedEnergies.length;
+    const peakThreshold = Math.max(0.15, Math.min(0.4, avgEnergy * 1.8));
+    
     const beatFrameIndices = [];
     for (let i = 1; i < normalizedEnergies.length - 1; i++) {
       if (normalizedEnergies[i] > normalizedEnergies[i - 1] &&
           normalizedEnergies[i] > normalizedEnergies[i + 1] &&
-          normalizedEnergies[i] > ENERGY_THRESHOLD) {
+          normalizedEnergies[i] > peakThreshold) {
         beatFrameIndices.push(i);
       }
     }

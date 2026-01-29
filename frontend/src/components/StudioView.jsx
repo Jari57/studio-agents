@@ -188,6 +188,8 @@ import {
   doc,
   getDoc,
   setDoc,
+  updateDoc,
+  increment,
   uploadFile,
   uploadBase64
   // Note: collection, getDocs, query, orderBy, deleteDoc moved to backend API
@@ -243,21 +245,53 @@ const getTimeSince = (date) => {
 };
 
 function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan, initialTab }) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Helper to get tab from hash
   const getTabFromHash = () => {
     const hash = window.location.hash;
     if (hash.startsWith('#/studio/')) {
       return hash.split('/')[2];
     }
+    // FALLBACK: Check localStorage for last active tab before defaulting to 'agents'
+    const lastTab = localStorage.getItem('studio_active_tab');
+    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'].includes(lastTab)) {
+      return lastTab;
+    }
     return 'agents';
   };
 
-  const [activeTab, _setActiveTab] = useState(getTabFromHash());
+  const [activeTab, _setActiveTab] = useState(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#/studio/')) return hash.split('/')[2];
+    
+    // Use namespaced key
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    const lastTab = localStorage.getItem(`studio_tab_${uid}`);
+    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'].includes(lastTab)) {
+      return lastTab;
+    }
+    return 'agents';
+  });
+
+  // Persist activeTab to localStorage whenever it changes
+  useEffect(() => {
+    if (activeTab) {
+      const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+      localStorage.setItem(`studio_tab_${uid}`, activeTab);
+    }
+  }, [activeTab, user?.uid]);
 
   // Sync state with hash (Browser Back/Forward)
   useEffect(() => {
     const handleHashChange = () => {
-      const newTab = getTabFromHash();
+      const hash = window.location.hash;
+      const newTab = hash.startsWith('#/studio/') ? hash.split('/')[2] : 'agents';
       if (newTab !== activeTab) {
         _setActiveTab(newTab);
       }
@@ -270,6 +304,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const setActiveTab = (tab) => {
     if (tab !== activeTab) {
       _setActiveTab(tab);
+      const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+      localStorage.setItem(`studio_tab_${uid}`, tab);
       window.location.hash = `#/studio/${tab}`;
       // Track page view for tab change
       trackPageView(`/studio/${tab}`, `Studio - ${tab.charAt(0).toUpperCase() + tab.slice(1)}`);
@@ -283,7 +319,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setActiveTab
   );
   const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
-  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [selectedAgent, setSelectedAgent] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    const savedId = localStorage.getItem(`studio_agent_${uid}`);
+    if (savedId && AGENTS) {
+      return AGENTS.find(a => a.id === savedId) || null;
+    }
+    return null;
+  });
   const [backingTrack, setBackingTrack] = useState(null); // For vocal sync
   const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
   // Initialize isLoggedIn from localStorage to avoid login gate while Firebase is checking
@@ -294,13 +337,35 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showWhitepapersModal, setShowWhitepapersModal] = useState(false);
-  const [showLegalModal, setShowLegalModal] = useState(false);
-  const [newsSearch, setNewsSearch] = useState('');
+  const [newsSearch, setNewsSearch] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_news_${uid}`) || '';
+  });
+
+  // Persistence Effects
+  useEffect(() => {
+    localStorage.setItem('studio_theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+    if (selectedAgent?.id) {
+      localStorage.setItem(`studio_agent_${uid}`, selectedAgent.id);
+    } else {
+      localStorage.removeItem(`studio_agent_${uid}`);
+    }
+  }, [selectedAgent, user?.uid]);
+
+  useEffect(() => {
+    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+    localStorage.setItem(`studio_news_${uid}`, newsSearch);
+  }, [newsSearch, user?.uid]);
 
   const [projects, setProjects] = useState(() => {
     try {
-      const saved = localStorage.getItem('studio_agents_projects');
+      // Use user-specific project key if available, otherwise fallback to guest/legacy
+      const uid = localStorage.getItem('studio_user_id') || 'guest';
+      const saved = localStorage.getItem(`studio_projects_${uid}`) || localStorage.getItem('studio_agents_projects');
       if (saved) {
         const parsed = JSON.parse(saved);
         // Sort by updatedAt/createdAt descending (newest first)
@@ -320,13 +385,50 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   useEffect(() => {
     if (projects && Array.isArray(projects)) {
       try {
+        const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+        localStorage.setItem(`studio_projects_${uid}`, JSON.stringify(projects));
+        // Also keep legacy key updated for now to prevent breakage during transition
         localStorage.setItem('studio_agents_projects', JSON.stringify(projects));
-        console.log('[StudioView] Projects persisted to localStorage:', projects.length);
       } catch (err) {
         console.error('[StudioView] Failed to persist projects to localStorage:', err);
       }
     }
-  }, [projects]);
+  }, [projects, user?.uid]);
+
+  // Handle cross-user transition (Ensure isolation)
+  useEffect(() => {
+    const lastUid = localStorage.getItem('studio_last_isolated_uid');
+    const currentUid = user?.uid || 'guest';
+
+    if (lastUid && lastUid !== currentUid) {
+      console.log(`[Isolation] User mismatch detected (${lastUid} vs ${currentUid}). Resetting transient state.`);
+      
+      // If we switched users and the new user isn't special guest mode,
+      // we should clear the state to ensure User B doesn't see User A's session residue
+      if (currentUid !== 'guest') {
+        const savedProjects = localStorage.getItem(`studio_projects_${currentUid}`);
+        if (savedProjects) {
+          try {
+            setProjects(JSON.parse(savedProjects));
+          } catch(_e) {
+            setProjects([]);
+          }
+        } else {
+          setProjects([]);
+        }
+        
+        // Clear other residue
+        setNewsSearch('');
+        setHelpSearch('');
+        setPreviewPrompt('');
+        setVoiceTranscript('');
+        setSelectedAgent(null);
+        setSelectedProject(null);
+      }
+    }
+    
+    localStorage.setItem('studio_last_isolated_uid', currentUid);
+  }, [user?.uid]);
   
   // Cloud sync state
   const [_projectsSyncing, setProjectsSyncing] = useState(false);
@@ -648,7 +750,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [expandedNews, setExpandedNews] = useState(new Set());
   const [allNewsExpanded, setAllNewsExpanded] = useState(false);
   const [expandedHelp, setExpandedHelp] = useState(null);
-  const [helpSearch, setHelpSearch] = useState('');
+  const [helpSearch, setHelpSearch] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_help_${uid}`) || '';
+  });
+
+  // Persist helpSearch
+  useEffect(() => {
+    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+    localStorage.setItem(`studio_help_${uid}`, helpSearch);
+  }, [helpSearch, user?.uid]);
   const [showNudge, setShowNudge] = useState(true);
 
   const [playingItem, setPlayingItem] = useState(null);
@@ -656,7 +767,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Preview Modal State (for reviewing AI generations before saving)
 
   const [previewItem, setPreviewItem] = useState(null);
-  const [previewPrompt, setPreviewPrompt] = useState('');
+  const [previewPrompt, setPreviewPrompt] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_prompt_${uid}`) || '';
+  });
+  
+  // Persist previewPrompt
+  useEffect(() => {
+    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+    localStorage.setItem(`studio_prompt_${uid}`, previewPrompt);
+  }, [previewPrompt, user?.uid]);
+
   const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt'
   const [mediaLoadError, setMediaLoadError] = useState(null); // Track media load failures toggle
   const [isSaving, setIsSaving] = useState(false); // Saving/syncing state with animated loader
@@ -675,7 +796,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [showVoiceHelp, setShowVoiceHelp] = useState(false);
   const [showVoiceCommandPalette, setShowVoiceCommandPalette] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceTranscript, setVoiceTranscript] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_transcript_${uid}`) || '';
+  });
+
+  // Persist voiceTranscript
+  useEffect(() => {
+    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+    localStorage.setItem(`studio_transcript_${uid}`, voiceTranscript);
+  }, [voiceTranscript, user?.uid]);
+
   const [lastVoiceCommand, setLastVoiceCommand] = useState(null);
   const [voiceSettings, setVoiceSettings] = useState({
     gender: 'male',
@@ -733,9 +864,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Check if user can generate (has free uses left or is subscribed)
   const canGenerate = () => {
     if (isAdmin) return true; // Admins always have access
-    const plan = userPlan.toLowerCase();
-    if (plan === 'monthly' || plan === 'pro' || plan === 'lifetime access') return true;
-    if (isLoggedIn && userCredits > 0) return true;
+    
+    // If logged in, prioritize credits
+    if (isLoggedIn) {
+      if (userCredits > 0) return true;
+      
+      // Some plans might have unlimited access, but for monetization,
+      // we prefer a credit-based system.
+      const plan = userPlan.toLowerCase();
+      if (plan === 'pro' || plan === 'lifetime access') return true;
+      
+      return false;
+    }
+    
+    // Guests get limited free uses
     return freeGenerationsUsed < FREE_GENERATION_LIMIT;
   };
   
@@ -753,7 +895,33 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [quickWorkflowAgent, setQuickWorkflowAgent] = useState(null); // Streamlined agent workflow modal
 
   const [autoStartVoice, setAutoStartVoice] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    const savedId = localStorage.getItem(`studio_project_id_${uid}`);
+    // We'll need the projects already initialized to find it
+    // But projects is defined later. I'll move this or use an effect.
+    return null;
+  });
+
+  // Effect to rehydrate selectedProject once projects are loaded
+  useEffect(() => {
+    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+    const savedId = localStorage.getItem(`studio_project_id_${uid}`);
+    if (savedId && projects && !selectedProject) {
+      const found = projects.find(p => p.id === savedId);
+      if (found) setSelectedProject(found);
+    }
+  }, [projects, user?.uid]);
+
+  // Persist selectedProject ID
+  useEffect(() => {
+    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+    if (selectedProject?.id) {
+      localStorage.setItem(`studio_project_id_${uid}`, selectedProject.id);
+    } else {
+      localStorage.removeItem(`studio_project_id_${uid}`);
+    }
+  }, [selectedProject, user?.uid]);
   const [pendingProjectNav, setPendingProjectNav] = useState(false); // Flag to safely navigate after project selection
 
   // Effect to safely navigate to project_canvas after selectedProject is set
@@ -1537,6 +1705,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
           // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
           localStorage.setItem('studio_user_id', currentUser.uid);
+          setUser(currentUser); // Immediately trigger state isolation effect
           setIsLoggedIn(true); // Set this LAST after user is set
           setAuthChecking(false); // Auth check complete
           
@@ -1761,6 +1930,25 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     localStorage.removeItem('studio_user_plan');
     localStorage.removeItem('studio_guest_mode');
     
+    // Clear ALL project and session data
+    localStorage.removeItem('studio_agents_projects');
+    localStorage.removeItem('studio_active_tab');
+    localStorage.removeItem('studio_dashboard_tab');
+    localStorage.removeItem('studio_selected_agent_id');
+    localStorage.removeItem('studio_news_search');
+    localStorage.removeItem('studio_help_search');
+    localStorage.removeItem('studio_preview_prompt');
+    localStorage.removeItem('studio_voice_transcript');
+    localStorage.removeItem('studio_selected_project_id');
+    
+    // Clear per-agent workflow data
+    if (AGENTS && Array.isArray(AGENTS)) {
+      AGENTS.forEach(agent => {
+        localStorage.removeItem(`studio_workflow_prompt_${agent.id}`);
+        localStorage.removeItem(`studio_workflow_output_${agent.id}`);
+      });
+    }
+    
     // Clear session storage too
     sessionStorage.clear();
     
@@ -1800,6 +1988,45 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
     } catch (err) {
       console.error('Failed to fetch credits:', err);
+    }
+  };
+
+  // 💰 PURCHASE CREDITS - Revenue engine for top-ups
+  const buyCreditPack = async (amount, price) => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    const toastId = toast.loading(`Processing your purchase of ${amount} credits...`);
+    
+    try {
+      // 1. Simulate payment processing (placeholder for Stripe/etc)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // 2. Update Firestore (the only source of truth)
+      if (db) {
+        const userRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userRef);
+        const currentCredits = userDoc.exists() ? (userDoc.data().credits || 0) : 0;
+        const newTotal = currentCredits + amount;
+        
+        await updateDoc(userRef, { 
+          credits: newTotal,
+          lastPurchaseDate: new Date().toISOString(),
+          totalPurchasedCredits: increment(amount)
+        });
+      }
+      
+      // 3. Update local state
+      setUserCredits(prev => prev + amount);
+      setUserProfile(prev => ({ ...prev, credits: (prev.credits || 0) + amount }));
+      
+      toast.success(`Success! ${amount} credits added to your studio.`, { id: toastId, icon: '💰' });
+      triggerHapticFeedback('success');
+    } catch (err) {
+      console.error('Purchase failed:', err);
+      toast.error('Purchase failed. Please try again or contact support.', { id: toastId });
     }
   };
 
@@ -1964,7 +2191,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Use handleSecureLogout defined above for all logout operations
 
   // Dashboard State
-  const [dashboardTab, setDashboardTab] = useState('overview');
+  const [dashboardTab, setDashboardTab] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_dash_${uid}`) || 'overview';
+  });
+
+  // Persist dashboardTab
+  useEffect(() => {
+    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+    localStorage.setItem(`studio_dash_${uid}`, dashboardTab);
+  }, [dashboardTab, user?.uid]);
   const [managedAgents, setManagedAgents] = useState(() => {
     try {
       const saved = localStorage.getItem('studio_managed_agents');
@@ -2829,18 +3065,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         toast.error(`You've used your ${FREE_GENERATION_LIMIT} free generations! Sign in to continue.`);
         setShowLoginModal(true);
       } else {
-        toast.error("Out of credits! Please upgrade your plan.");
+        toast.error("Out of credits! Please purchase more or upgrade.");
         setDashboardTab('subscription');
         setActiveTab('mystudio');
       }
-      return;
-    }
-
-    // Check credits for logged-in users with paid plans
-    if (isLoggedIn && userCredits <= 0 && userPlan.toLowerCase() === 'free') {
-      toast.error("Out of credits! Please upgrade your plan.");
-      setDashboardTab('subscription');
-      setActiveTab('mystudio');
       return;
     }
 
@@ -2848,6 +3076,27 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const toastId = toast.loading(`${selectedAgent.name} is working...`);
     
     try {
+      // DEDUCT CREDIT / TRACK FREE USE
+      if (isLoggedIn && !isAdmin) {
+        try {
+          const userRef = doc(db, "users", user.uid);
+          await updateDoc(userRef, {
+            credits: increment(-1)
+          });
+          setUserCredits(prev => Math.max(0, prev - 1));
+          console.log("[Credits] Deducted 1 credit for generation");
+        } catch (creditErr) {
+          console.error("Failed to deduct credit:", creditErr);
+          // Continue anyway but log it
+        }
+      } else if (!isLoggedIn) {
+        setFreeGenerationsUsed(prev => {
+          const newVal = prev + 1;
+          localStorage.setItem('studio_free_uses', newVal);
+          return newVal;
+        });
+      }
+
       let prompt = textarea.value;
 
       // Auto-translate if not English
@@ -4712,74 +4961,330 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   <Settings size={18} /> App Settings
                 </button>
               </nav>
+
+              {isLoggedIn && (
+                <div style={{ marginTop: 'auto', padding: '16px', borderTop: '1px solid var(--glass-border)' }}>
+                  <div style={{ 
+                    background: 'rgba(250, 204, 21, 0.05)', 
+                    border: '1px solid rgba(250, 204, 21, 0.1)', 
+                    borderRadius: '12px', 
+                    padding: '12px' 
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Credits</span>
+                      <span style={{ fontSize: '0.875rem', color: '#facc15', fontWeight: '800' }}>{userCredits}</span>
+                    </div>
+                    <button 
+                      onClick={() => setShowCreditsModal(true)}
+                      style={{ 
+                        width: '100%', 
+                        padding: '8px', 
+                        borderRadius: '8px', 
+                        background: '#eab308', 
+                        color: '#000', 
+                        border: 'none', 
+                        fontSize: '0.75rem', 
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Zap size={14} fill="currentColor" /> Top Up
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Dashboard Content Area */}
             <div className="dashboard-main-content">
               {dashboardTab === 'overview' && (
                 <div className="dashboard-view-overview animate-fadeIn">
-                  {/* Artist Profile Header */}
-                  <div className="artist-profile-header" style={{ 
+                  {/* Artist Profile & Command Center */}
+                  <div className="artist-profile-header animate-fadeInDown" style={{ 
                     background: 'linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%)',
-                    borderRadius: '16px',
-                    padding: '24px',
+                    borderRadius: '24px',
+                    padding: '32px',
                     marginBottom: '24px',
                     border: '1px solid var(--border-color)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '20px'
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+                    position: 'relative'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                      <div className="profile-avatar" style={{ 
-                        width: '80px', 
-                        height: '80px', 
-                        borderRadius: '50%', 
-                        background: 'var(--color-purple)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '2rem',
-                        color: 'white',
-                        boxShadow: '0 4px 20px rgba(168, 85, 247, 0.3)'
-                      }}>
-                        {user?.photoURL ? <img src={user.photoURL} alt="Profile" loading="lazy" style={{width: '100%', height: '100%', borderRadius: '50%'}} /> : <User size={40} />}
-                      </div>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-                          <h1 style={{ fontSize: '1.8rem', margin: 0, fontWeight: '700' }}>{user?.displayName || 'Guest Creator'}</h1>
-                          {isLoggedIn && <span className="pro-badge">PRO</span>}
-                        </div>
-                        <p style={{ color: 'var(--text-secondary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {user?.email || 'Sign in to save your work'}
-                        </p>
-                        {selectedProject && (
-                          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: 'var(--color-cyan)' }}>
-                            <Disc size={14} />
-                            <span>Current Session: <strong>{selectedProject.name}</strong></span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '32px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+                        <div className="profile-avatar-wrapper" style={{ position: 'relative' }}>
+                          <div className="profile-avatar" style={{ 
+                            width: '96px', 
+                            height: '96px', 
+                            borderRadius: '50%', 
+                            background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                            padding: '3px',
+                            boxShadow: '0 8px 16px rgba(168, 85, 247, 0.4)'
+                          }}>
+                            <div style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              borderRadius: '50%', 
+                              background: 'var(--color-bg-primary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              overflow: 'hidden'
+                            }}>
+                              {user?.photoURL ? (
+                                <img src={user.photoURL} alt="Profile" loading="lazy" style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                              ) : (
+                                <User size={48} color="var(--text-secondary)" />
+                              )}
+                            </div>
                           </div>
-                        )}
+                          {isLoggedIn && (
+                            <div style={{ 
+                              position: 'absolute', 
+                              bottom: '0', 
+                              right: '0', 
+                              background: 'var(--color-emerald)', 
+                              width: '24px', 
+                              height: '24px', 
+                              borderRadius: '50%', 
+                              border: '4px solid var(--color-bg-secondary)',
+                              boxShadow: '0 0 10px var(--color-emerald)'
+                            }} title="Online" />
+                          )}
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                            <h1 style={{ fontSize: '2rem', margin: 0, fontWeight: '800', letterSpacing: '-0.5px' }}>{user?.displayName || 'Guest Creator'}</h1>
+                            <span className="pro-badge" style={{ 
+                              background: 'linear-gradient(90deg, #facc15, #f59e0b)',
+                              color: '#000',
+                              fontWeight: '800',
+                              fontSize: '0.7rem',
+                              padding: '4px 10px',
+                              borderRadius: '20px',
+                              textTransform: 'uppercase'
+                            }}>
+                              {userPlan || 'Artist'} Tier
+                            </span>
+                          </div>
+                          <p style={{ color: 'var(--text-secondary)', margin: '0 0 12px 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Mail size={16} /> {user?.email || 'studio.access@whip.ai'}
+                          </p>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '6px 12px' }} onClick={() => setActiveTab('profile')}>
+                              <Settings size={14} /> Account Settings
+                            </button>
+                            <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '6px 12px' }} onClick={() => setDashboardTab('billing')}>
+                              <Landmark size={14} /> Wallet
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="studio-vital-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', minWidth: '320px' }}>
+                        <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                          <Folder size={18} color="var(--color-cyan)" style={{ marginBottom: '8px' }} />
+                          <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)' }}>{projects.length}</div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Projects</div>
+                        </div>
+                        <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                          <Zap size={18} color="#facc15" fill="#facc15" style={{ marginBottom: '8px' }} />
+                          <div style={{ fontSize: '1.4rem', fontWeight: '800', color: '#facc15' }}>{userCredits}</div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Avail. Credits</div>
+                        </div>
+                        <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+                          <UsersIcon size={18} color="var(--color-purple)" style={{ marginBottom: '8px' }} />
+                          <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--color-purple)' }}>{managedAgents.filter(a => a.visible).length}</div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Agents</div>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="profile-stats" style={{ display: 'flex', gap: '24px' }}>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--text-primary)' }}>{projects.length}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Projects</div>
+                    {/* Quick Session Indicator */}
+                    {selectedProject && (
+                      <div style={{ 
+                        marginTop: '24px', 
+                        background: 'rgba(6, 182, 212, 0.05)', 
+                        padding: '12px 20px', 
+                        borderRadius: '12px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        border: '1px dashed rgba(6, 182, 212, 0.2)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-cyan)', fontSize: '0.9rem' }}>
+                          <div className="pulse-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-cyan)' }} />
+                          <span>Active Session: <strong>{selectedProject.name}</strong></span>
+                        </div>
+                        <button className="text-button" onClick={() => setActiveTab('hub')} style={{ fontSize: '0.8rem', color: 'var(--color-cyan)', fontWeight: '600' }}>
+                          Switch Project <ArrowRight size={14} />
+                        </button>
                       </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-cyan)' }}>{userProfile.credits}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Credits</div>
+                    )}
+                  </div>
+
+                  {/* Feature Utilization & Smart Insights */}
+                  <div className="dashboard-grid-two-cols" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+                    <div className="dashboard-card usage-insights-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <Activity size={20} className="text-purple" /> Studio Utilization
+                        </h3>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>This Month</span>
                       </div>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-purple)' }}>{managedAgents.filter(a => a.visible).length}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Agents</div>
+                      
+                      <div className="usage-stat-group" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div className="usage-item">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>AI Generations</span>
+                            <span>{isLoggedIn ? 'Unlimited' : `${freeGenerationsUsed}/${FREE_GENERATION_LIMIT}`}</span>
+                          </div>
+                          <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ 
+                              width: isLoggedIn ? '85%' : `${(freeGenerationsUsed/FREE_GENERATION_LIMIT)*100}%`, 
+                              height: '100%', 
+                              background: 'var(--color-purple)',
+                              boxShadow: '0 0 10px var(--color-purple)'
+                            }} />
+                          </div>
+                        </div>
+
+                        <div className="usage-item">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Cloud Storage</span>
+                            <span>{Math.round(projects.length * 1.2)}MB / 500MB</span>
+                          </div>
+                          <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ 
+                              width: `${(projects.length * 1.2 / 500) * 100}%`, 
+                              height: '100%', 
+                              background: 'var(--color-cyan)',
+                              boxShadow: '0 0 10px var(--color-cyan)'
+                            }} />
+                          </div>
+                        </div>
+
+                        <div className="usage-item">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Agent Slots</span>
+                            <span>{managedAgents.filter(a => a.visible).length} / 16 Used</span>
+                          </div>
+                          <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ 
+                              width: `${(managedAgents.filter(a => a.visible).length / 16) * 100}%`, 
+                              height: '100%', 
+                              background: 'var(--color-pink)',
+                              boxShadow: '0 0 10px var(--color-pink)'
+                            }} />
+                          </div>
+                        </div>
+
+                        {/* Plan Features Checklist */}
+                        <div style={{ 
+                          marginTop: '12px', 
+                          paddingTop: '16px', 
+                          borderTop: '1px solid rgba(255,255,255,0.05)',
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '8px'
+                        }}>
+                          {[
+                            { name: '4K Rendering', active: userPlan.toLowerCase() !== 'free' },
+                            { name: 'Stem Export', active: userPlan.toLowerCase() !== 'free' },
+                            { name: 'Commercial Rights', active: userPlan.toLowerCase() === 'pro' || userPlan.toLowerCase() === 'lifetime' },
+                            { name: 'Priority API', active: userPlan.toLowerCase() === 'pro' || userPlan.toLowerCase() === 'lifetime' }
+                          ].map((feat, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: feat.active ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                              {feat.active ? <Check size={10} color="var(--color-emerald)" /> : <Lock size={10} />}
+                              <span>{feat.name}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="dashboard-card platform-integration-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <Globe size={20} className="text-cyan" /> Cloud Integrations
+                        </h3>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-emerald)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '10px' }}>
+                          {Object.values(socialConnections).filter(Boolean).length} Linked
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        {[
+                          { name: 'X / Twitter', icon: Twitter, connected: socialConnections.twitter },
+                          { name: 'Instagram', icon: Instagram, connected: socialConnections.instagram },
+                          { name: 'Spotify', icon: Music, connected: false },
+                          { name: 'YouTube', icon: Tv, connected: false }
+                        ].map((platform, i) => (
+                          <div key={i} style={{ 
+                            background: 'rgba(255,255,255,0.02)', 
+                            padding: '12px', 
+                            borderRadius: '16px', 
+                            border: '1px solid rgba(255,255,255,0.05)', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <platform.icon size={18} color={platform.connected ? 'var(--text-primary)' : 'var(--text-secondary)'} />
+                              <span style={{ fontSize: '0.85rem', color: platform.connected ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{platform.name}</span>
+                            </div>
+                            {platform.connected ? (
+                              <CheckCircle size={14} color="var(--color-emerald)" />
+                            ) : (
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)' }} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <button 
+                        className="text-button" 
+                        onClick={() => setDashboardTab('settings')}
+                        style={{ width: '100%', marginTop: '16px', justifyContent: 'center', fontSize: '0.85rem', color: 'var(--color-purple)' }}
+                      >
+                        Manage All Connections <ArrowRight size={14} />
+                      </button>
                     </div>
                   </div>
 
-                  {/* Profile Completion Nudge */}
+                  {/* Audience Insights (Advanced) */}
+                  <div className="audience-overview" style={{ marginBottom: '24px' }}>
+                    {[
+                      { label: 'Monthly Listeners', value: performanceStats.listeners.toLocaleString(), icon: UsersIcon, color: 'var(--color-blue)', trend: '+5.4%' },
+                      { label: 'Total Streams', value: performanceStats.streams.toLocaleString(), icon: PlayCircle, color: 'var(--color-emerald)', trend: '+12.1%' },
+                      { label: 'Followers', value: performanceStats.followers.toLocaleString(), icon: Crown, color: 'var(--color-purple)', trend: '+2.3%' },
+                      { label: 'Engagement Rate', value: '4.8%', icon: TrendingUp, color: 'var(--color-cyan)', trend: '+0.8%' }
+                    ].map((stat, i) => (
+                      <div key={i} className="audience-stat-card" style={{ position: 'relative', overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <div className="audience-stat-icon" style={{ 
+                            background: `${stat.color}15`, 
+                            color: stat.color,
+                            minWidth: '44px', height: '44px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                            <stat.icon size={22} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '1.4rem', fontWeight: '800', fontFamily: 'monospace' }}>{stat.value}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{stat.label}</div>
+                          </div>
+                        </div>
+                        <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '0.7rem', color: 'var(--color-emerald)', fontWeight: 'bold' }}>
+                          {stat.trend}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Profile Completion Pulse (Optional) */}
                   {!userProfile.stageName && (
                     <div className="profile-nudge-card animate-fadeInUp" style={{ 
                       background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.2) 0%, rgba(168, 85, 247, 0.05) 100%)',
@@ -4810,29 +5315,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       </button>
                     </div>
                   )}
-
-                  {/* Audience Overview (Simulated) */}
-                  <div className="audience-overview">
-                    {[
-                      { label: 'Monthly Listeners', value: performanceStats.listeners.toLocaleString(), icon: UsersIcon, color: 'var(--color-blue)' },
-                      { label: 'Total Streams', value: performanceStats.streams.toLocaleString(), icon: PlayCircle, color: 'var(--color-emerald)' },
-                      { label: 'Followers', value: performanceStats.followers.toLocaleString(), icon: Crown, color: 'var(--color-purple)' },
-                      { label: 'Growth', value: performanceStats.growth, icon: TrendingUp, color: 'var(--color-cyan)' }
-                    ].map((stat, i) => (
-                      <div key={i} className="audience-stat-card">
-                        <div className="audience-stat-icon" style={{ 
-                          background: `${stat.color}20`, 
-                          color: stat.color
-                        }}>
-                          <stat.icon size={20} />
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{stat.value}</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{stat.label}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
 
                   {/* AI Production Pipeline Card - NEW PRIMARY ACTION */}
                   <div className="dashboard-card orchestrator-promo-card animate-fadeInUp" style={{ 
@@ -5362,14 +5844,82 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   </div>
 
                   {/* Wallet Balance Card */}
-                  <div className="wallet-balance-card">
-                    <div className="balance-info">
-                      <div className="balance-label">Current Balance</div>
-                      <div className="balance-amount">500 <span className="currency">Credits</span></div>
+                  <div className="wallet-balance-card" style={{ 
+                    background: 'linear-gradient(135deg, rgba(250, 204, 21, 0.15), rgba(0, 0, 0, 0.4))',
+                    border: '1px solid rgba(250, 204, 21, 0.3)',
+                    padding: '24px',
+                    borderRadius: '20px',
+                    marginBottom: '2rem',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1 }}>
+                      <Zap size={120} color="#facc15" fill="#facc15" />
                     </div>
-                    <button className="btn-pill primary" onClick={() => setShowCreditsModal(true)}>
-                      <Plus size={16} /> Top Up Wallet
-                    </button>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+                      <div className="balance-info">
+                        <div className="balance-label" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '4px' }}>Studio Balance</div>
+                        <div className="balance-amount" style={{ fontSize: '2.5rem', fontWeight: '800', color: '#facc15', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                          {userCredits} <span className="currency" style={{ fontSize: '1rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>Credits</span>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <button className="btn-pill primary" onClick={() => setShowCreditsModal(true)} style={{ boxShadow: '0 4px 15px rgba(250, 204, 21, 0.3)' }}>
+                          <Plus size={16} /> Purchase Packs
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Top-up Packs Direct Access */}
+                  <div className="topup-packs-section" style={{ marginBottom: '2.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                      <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Zap size={20} color="#facc15" /> Buy Credit Packs
+                      </h3>
+                      <span style={{ fontSize: '0.8rem', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '4px' }}>Instant Delivery</span>
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
+                      {[
+                        { amount: 10, price: '$0.99', desc: 'Single session' },
+                        { amount: 50, price: '$3.99', desc: 'Project creator', popular: true },
+                        { amount: 150, price: '$9.99', desc: 'Album starter' },
+                        { amount: 500, price: '$24.99', desc: 'Label power' }
+                      ].map((pack) => (
+                        <div 
+                          key={pack.amount}
+                          className={`pricing-mini-card ${pack.popular ? 'popular' : ''}`}
+                          onClick={() => buyCreditPack(pack.amount, pack.price)}
+                          style={{
+                            background: 'var(--glass-bg)',
+                            border: pack.popular ? '1px solid #facc15' : '1px solid var(--glass-border)',
+                            padding: '20px',
+                            borderRadius: '16px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            position: 'relative'
+                          }}
+                        >
+                          {pack.popular && (
+                            <div style={{ 
+                              position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)',
+                              background: '#facc15', color: '#000', fontSize: '0.65rem', fontWeight: 'bold',
+                              padding: '2px 8px', borderRadius: '40px', textTransform: 'uppercase'
+                            }}>Best Value</div>
+                          )}
+                          <div style={{ fontWeight: '800', fontSize: '1.5rem', color: '#facc15', marginBottom: '4px' }}>{pack.amount}</div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '4px' }}>{pack.price}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{pack.desc}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                      Note: Purchased credits never expire and are used after your monthly plan credits.
+                    </p>
                   </div>
                   
                   <div className="payment-methods-container">
@@ -6023,6 +6573,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     ref={textareaRef}
                     placeholder={`Describe what you want ${selectedAgent.name} to create...`}
                     className="studio-textarea"
+                    style={{
+                      minHeight: isMobile ? '100px' : '120px',
+                      padding: isMobile ? '12px' : '20px'
+                    }}
                   ></textarea>
                   
                   <div className="generation-actions">
@@ -6159,13 +6713,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           onClick={() => {
                             if (selectedProject) {
                               handleSaveAssetToProject(selectedProject.id, currentPreview);
-                              toast.success(`Saved to ${selectedProject.name}`);
+                              toast.success(`Saved to Hub`);
                             } else {
                               handleCreateProjectWithAsset(`New ${selectedAgent?.name || 'AI'} Project`, currentPreview);
                             }
                           }}
                         >
-                          <FolderPlus size={14} /> Save to Project
+                          <FolderPlus size={14} /> Save to Hub
                         </button>
                         {/* TTS Preview - Read text aloud (uses AI voices when style is rapper/singer) */}
                         {currentPreview.snippet && !currentPreview.audioUrl && (
@@ -6706,6 +7260,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         ref={textareaRef}
                         placeholder={`Describe what you want ${selectedAgent.name} to create...`}
                         className="studio-textarea"
+                        style={{
+                          minHeight: isMobile ? '100px' : '120px',
+                          padding: isMobile ? '12px' : '20px'
+                        }}
                       ></textarea>
                       
                       <div className="generation-actions" style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
@@ -7021,7 +7579,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     </div>
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <button
-                        onClick={() => setShowWhitepapersModal(true)}
+                        onClick={() => window.location.hash = '#/whitepapers'}
                         className="btn-pill glass haptic-press"
                         style={{ 
                           display: 'flex', 
@@ -7037,7 +7595,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         Whitepapers
                       </button>
                       <button
-                        onClick={() => setShowLegalModal(true)}
+                        onClick={() => window.location.hash = '#/legal'}
                         className="btn-pill glass haptic-press"
                         style={{ 
                           display: 'flex', 
@@ -9868,7 +10426,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
         {/* Studio Session Overlay (Global Mechanism) */}
         {showStudioSession && (
-          <div className="studio-session-overlay animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.95)', zIndex: 2000, display: 'flex', flexDirection: 'column' }}>
+          <div className="studio-session-overlay animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -10776,7 +11334,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 }}>
                   <FolderPlus size={28} color="white" />
                 </div>
-                <h2 style={{ textAlign: 'center', marginBottom: '8px' }}>Save to Project</h2>
+                <h2 style={{ textAlign: 'center', marginBottom: '8px' }}>Save to Hub</h2>
                 <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
                   Add <strong>"{addToProjectAsset.title || addToProjectAsset.snippet?.substring(0, 30) + '...'}"</strong> to a project
                 </p>
@@ -10902,21 +11460,29 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             <div className="modal-content animate-fadeInUp" onClick={(e) => {
               e.stopPropagation();
             }} style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-              <button 
-                className="modal-close" 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMediaLoadError(null);
-                  isModalTransitioning.current = false;
-                  setPreviewSaveMode(false);
-                  setNewProjectNameInPreview('');
-                  setPreviewItem(null);
-                }}
-                style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 9999 }}
-              >
-                <X size={20} />
-              </button>
-              <div className="modal-header" style={{ flexShrink: 0, paddingBottom: '0.5rem' }}>
+              <div className="modal-header" style={{ flexShrink: 0, paddingBottom: '0.5rem', position: 'relative' }}>
+                <button 
+                  className="modal-close" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMediaLoadError(null);
+                    isModalTransitioning.current = false;
+                    setPreviewSaveMode(false);
+                    setNewProjectNameInPreview('');
+                    setPreviewItem(null);
+                  }}
+                  style={{ 
+                    position: 'absolute', 
+                    top: '-0.5rem', 
+                    right: '-0.5rem', 
+                    zIndex: 9999,
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(5px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                  }}
+                >
+                  <X size={20} />
+                </button>
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem', background: previewItem.isExistingAsset ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 'linear-gradient(135deg, #10b981, #059669)' }}>
                   <Eye size={24} color="white" />
                 </div>
@@ -11822,7 +12388,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         </>
                       ) : (
                         <>
-                          <Save size={16} /> Save
+                          <Save size={16} /> Save to Hub
                         </>
                       )}
                     </button>
@@ -12108,180 +12674,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               </div>
               <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
                 <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>By continuing, you agree to our Terms of Service.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Whitepapers Modal */}
-        {showWhitepapersModal && (
-          <div className="modal-overlay" onClick={() => setShowWhitepapersModal(false)}>
-            <div 
-              className="modal-content animate-fadeInUp" 
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '900px', width: '95%', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-            >
-              <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)', padding: '12px', borderRadius: '12px' }}>
-                    <FileText size={24} color="white" />
-                  </div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Agent Whitepapers</h2>
-                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Technical documentation for each AI agent</p>
-                  </div>
-                </div>
-                <button className="modal-close" onClick={() => setShowWhitepapersModal(false)}><X size={20} /></button>
-              </div>
-              <div className="modal-body" style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
-                  {AGENTS.map((agent) => {
-                    const Icon = agent.icon;
-                    const tierColor = agent.tier === 'free' ? '#22c55e' : agent.tier === 'monthly' ? '#fbbf24' : '#a855f7';
-                    return (
-                      <div 
-                        key={agent.id}
-                        className="resource-card whitepaper haptic-press"
-                        style={{ 
-                          padding: '20px',
-                          background: 'var(--color-bg-tertiary)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '16px',
-                          cursor: 'pointer',
-                          position: 'relative'
-                        }}
-                        onClick={() => {
-                          setShowWhitepapersModal(false);
-                          openAgentWhitepaper(agent);
-                        }}
-                      >
-                        <div style={{
-                          position: 'absolute',
-                          top: '12px',
-                          right: '12px',
-                          padding: '3px 8px',
-                          background: `${tierColor}20`,
-                          color: tierColor,
-                          borderRadius: '6px',
-                          fontSize: '0.65rem',
-                          fontWeight: '700',
-                          textTransform: 'uppercase'
-                        }}>
-                          {agent.tier}
-                        </div>
-                        <div style={{ 
-                          width: '48px', 
-                          height: '48px', 
-                          borderRadius: '12px', 
-                          background: `${tierColor}20`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          marginBottom: '12px'
-                        }}>
-                          <Icon size={24} style={{ color: tierColor }} />
-                        </div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '6px' }}>{agent.name}</h3>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '12px' }}>
-                          {agent.description || agent.desc}
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#06b6d4', fontSize: '0.8rem', fontWeight: '600' }}>
-                          <FileText size={14} />
-                          View Whitepaper
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Legal Resources Modal */}
-        {showLegalModal && (
-          <div className="modal-overlay" onClick={() => setShowLegalModal(false)}>
-            <div 
-              className="modal-content animate-fadeInUp" 
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '900px', width: '95%', maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
-            >
-              <div className="modal-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexShrink: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', padding: '12px', borderRadius: '12px' }}>
-                    <Shield size={24} color="white" />
-                  </div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: '1.4rem' }}>Legal & Business</h2>
-                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Protect your art. Understand your rights.</p>
-                  </div>
-                </div>
-                <button className="modal-close" onClick={() => setShowLegalModal(false)}><X size={20} /></button>
-              </div>
-              <div className="modal-body" style={{ overflowY: 'auto', padding: '24px', flex: 1 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                  {[
-                    { title: 'Music Copyright 101', desc: 'Understanding your rights as a creator - ownership, registration, and protection.', icon: Shield, type: 'Guide' },
-                    { title: 'Split Sheet Template', desc: 'Standard agreement for co-writing sessions. Define ownership before you create.', icon: FileText, type: 'Template' },
-                    { title: 'Sync Licensing Guide', desc: 'Step-by-step guide to getting your music placed in TV, Film & Ads.', icon: Tv, type: 'Guide' },
-                    { title: 'AI & IP Rights', desc: 'Navigating the legal landscape of AI-assisted music creation.', icon: Lock, type: 'Whitepaper' },
-                    { title: 'Label Deal Breakdown', desc: 'Understanding record deals, advances, recoupment, and points.', icon: FileText, type: 'Guide' },
-                    { title: 'Publishing 101', desc: 'PROs, mechanical royalties, sync fees, and how to collect what you are owed.', icon: CreditCard, type: 'Guide' }
-                  ].map((item, i) => (
-                    <div 
-                      key={i}
-                      className="resource-card legal haptic-press"
-                      style={{ 
-                        padding: '20px',
-                        background: 'var(--color-bg-tertiary)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '16px',
-                        cursor: 'pointer',
-                        position: 'relative'
-                      }}
-                      onClick={() => {
-                        setShowLegalModal(false);
-                        setActiveTab('resources');
-                        toast.success(`Opening ${item.title}...`);
-                      }}
-                    >
-                      <div style={{
-                        position: 'absolute',
-                        top: '12px',
-                        right: '12px',
-                        padding: '3px 8px',
-                        background: item.type === 'Whitepaper' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(6, 182, 212, 0.2)',
-                        color: item.type === 'Whitepaper' ? '#a855f7' : '#06b6d4',
-                        borderRadius: '6px',
-                        fontSize: '0.65rem',
-                        fontWeight: '700',
-                        textTransform: 'uppercase'
-                      }}>
-                        {item.type}
-                      </div>
-                      <div style={{ 
-                        width: '48px', 
-                        height: '48px', 
-                        borderRadius: '12px', 
-                        background: 'rgba(139, 92, 246, 0.15)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '12px'
-                      }}>
-                        <item.icon size={24} style={{ color: '#a855f7' }} />
-                      </div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: '700', marginBottom: '6px' }}>{item.title}</h3>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '12px' }}>
-                        {item.desc}
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#a855f7', fontSize: '0.8rem', fontWeight: '600' }}>
-                        <Shield size={14} />
-                        Read {item.type}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
@@ -12789,35 +13181,34 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 <h4 style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quick Add Credits</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
                   {[
-                    { amount: 5, price: '$0.99' },
-                    { amount: 25, price: '$3.99' },
-                    { amount: 50, price: '$6.99' },
-                    { amount: 100, price: '$9.99' }
-                  ].map(({ amount, price }) => (
+                    { amount: 10, price: '$0.99', label: 'Starter' },
+                    { amount: 50, price: '$3.99', label: 'Power' },
+                    { amount: 150, price: '$9.99', label: 'Studio' },
+                    { amount: 500, price: '$24.99', label: 'Pro' }
+                  ].map(({ amount, price, label }) => (
                     <button
                       key={amount}
-                      onClick={() => {
-                        setUserCredits(prev => prev + amount);
-                        toast.success(`+${amount} credits added!`);
-                      }}
+                      onClick={() => buyCreditPack(amount, price)}
                       style={{
-                        padding: '0.75rem 0.5rem',
+                        padding: '1rem 0.5rem',
                         background: 'var(--glass-bg)',
                         border: '1px solid var(--glass-border)',
-                        borderRadius: '10px',
+                        borderRadius: '12px',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        gap: '2px',
-                        transition: 'all 0.2s ease',
-                        color: 'var(--text-primary)'
+                        gap: '4px',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        color: 'var(--text-primary)',
+                        position: 'relative',
+                        overflow: 'hidden'
                       }}
-                      onMouseOver={e => { e.currentTarget.style.borderColor = '#facc15'; e.currentTarget.style.background = 'rgba(250, 204, 21, 0.1)'; }}
-                      onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.background = 'var(--glass-bg)'; }}
+                      className="credit-pack-btn"
                     >
-                      <span style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#facc15' }}>+{amount}</span>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{price}</span>
+                      <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</span>
+                      <span style={{ fontWeight: '800', fontSize: '1.25rem', color: '#facc15' }}>{amount}</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{price}</span>
                     </button>
                   ))}
                 </div>
@@ -13344,7 +13735,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
       {/* Onboarding Modal - Simple Welcome */}
       {showOnboarding && (
-        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="modal-content onboarding-modal" style={{ maxWidth: '500px', width: '90%', padding: '40px', textAlign: 'center' }}>
             <button 
               onClick={handleSkipOnboarding}
@@ -13394,7 +13785,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
       {/* Project Type Choice Modal - Studio Creation vs AI Pipeline */}
       {showProjectTypeChoice && (
-        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectTypeChoice(false)} style={{ zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectTypeChoice(false)} style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px', width: '90%', padding: '32px' }}>
             <button 
               onClick={() => setShowProjectTypeChoice(false)}
@@ -13506,7 +13897,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
       {/* Agent White Paper Modal */}
       {showAgentWhitePaper && (
-        <div className="modal-overlay animate-fadeIn" onClick={() => setShowAgentWhitePaper(null)} style={{ zIndex: 2000 }}>
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowAgentWhitePaper(null)} style={{ zIndex: 10000 }}>
           <div 
             className="modal-content whitepaper-modal" 
             onClick={e => e.stopPropagation()} 
@@ -13718,7 +14109,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
       {/* Legal & Business Resource Content Modal */}
       {showResourceContent && (
-        <div className="modal-overlay animate-fadeIn" onClick={() => setShowResourceContent(null)} style={{ zIndex: 2000 }}>
+        <div className="modal-overlay animate-fadeIn" onClick={() => setShowResourceContent(null)} style={{ zIndex: 10000 }}>
           <div 
             className="modal-content" 
             onClick={e => e.stopPropagation()} 
@@ -13808,7 +14199,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             setPreviewMaximized(false); 
           }} 
           style={{ 
-            zIndex: 2000,
+            zIndex: 10000,
             position: 'fixed',
             top: 0,
             left: 0,
@@ -14530,21 +14921,55 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             
             <div className="modal-body help-modal-body">
               <div className="help-section">
-                <h3><Zap size={16} className="text-cyan" /> How to Use</h3>
-                <p>{showAgentHelpModal.howToUse}</p>
+                <p style={{ fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '16px', lineHeight: '1.6' }}>
+                  {showAgentHelpModal.description}
+                </p>
+                <div style={{ padding: '16px', background: 'rgba(6, 182, 212, 0.05)', borderRadius: '12px', borderLeft: '4px solid var(--color-cyan)' }}>
+                  <h3 style={{ marginTop: 0, fontSize: '0.9rem' }}><Zap size={16} className="text-cyan" /> How to Use</h3>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>{showAgentHelpModal.howToUse}</p>
+                </div>
               </div>
+
+              {showAgentHelpModal.capabilities && (
+                <div className="help-section">
+                  <h3><Shield size={16} className="text-purple" /> Expertise & Capabilities</h3>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {showAgentHelpModal.capabilities.map((cap, i) => (
+                      <span key={i} style={{ 
+                        padding: '6px 12px', 
+                        background: 'rgba(168, 85, 247, 0.1)', 
+                        border: '1px solid rgba(168, 85, 247, 0.2)', 
+                        borderRadius: '20px', 
+                        fontSize: '0.75rem',
+                        color: 'var(--color-purple)'
+                      }}>
+                        {cap}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {showAgentHelpModal.onboarding && (
                 <div className="help-section">
-                  <h3><Rocket size={16} className="text-purple" /> Quick Start Steps</h3>
+                  <h3><Rocket size={16} className="text-cyan" /> Quick Start Steps</h3>
                   <div className="onboarding-steps-list">
                     {showAgentHelpModal.onboarding.map((step, idx) => (
-                      <div key={idx} className="onboarding-step-item">
-                        <span className="step-number">{idx + 1}</span>
-                        <p>{step}</p>
+                      <div key={idx} className="onboarding-step-item" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <span className="step-number" style={{ background: 'var(--color-purple)', color: 'white', borderColor: 'transparent' }}>{idx + 1}</span>
+                        <p style={{ fontSize: '0.85rem', textAlign: 'left', margin: 0 }}>{step}</p>
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {showAgentHelpModal.explanation && (
+                <div className="help-section" style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.8rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Cpu size={14} /> Technical Architecture
+                  </h4>
+                  <p style={{ margin: 0, lineHeight: '1.5' }}>{showAgentHelpModal.explanation}</p>
                 </div>
               )}
 
@@ -14556,20 +14981,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       <button key={idx} className="example-chip" onClick={() => {
                         // Copy to clipboard
                         navigator.clipboard.writeText(ex);
-                        handleTextToVoice("Copied to clipboard");
-                      }}>
+                        toast.success("Example copied to clipboard!");
+                      }} style={{ textAlign: 'left', width: '100%', marginBottom: '4px' }}>
                         "{ex}"
                       </button>
                     ))}
                   </div>
-                  <p className="tiny-hint">Click an example to copy</p>
+                  <p className="tiny-hint">Click an example to copy and use</p>
                 </div>
               )}
 
               {showAgentHelpModal.helpTips && (
-                <div className="help-section pro-tip-box">
-                  <h3><Crown size={16} className="text-yellow" /> Pro Tip</h3>
-                  <p>{showAgentHelpModal.helpTips}</p>
+                <div className="help-section pro-tip-box" style={{ background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.1), transparent)', border: '1px solid rgba(234, 179, 8, 0.2)' }}>
+                  <h3 style={{ color: '#eab308' }}><Crown size={16} /> Pro Tip</h3>
+                  <p style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>{showAgentHelpModal.helpTips}</p>
                 </div>
               )}
             </div>
@@ -14596,14 +15021,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             onSaveToProject={handleSaveAssetToProject}
             onCreateProject={handleCreateProjectWithAsset}
             user={user}
+            userCredits={userCredits}
+            setUserCredits={setUserCredits}
+            isAdmin={isAdmin}
           />
         </Suspense>
       )}
 
       {/* Add Agent Modal - Uses same styling as Agents page */}
       {showAddAgentModal && (
-        <div className="modal-overlay animate-fadeIn" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }} onClick={() => setShowAddAgentModal(false)}>
-          <div className="modal-content" style={{ maxWidth: 'min(92vw, 700px)', width: '100%', margin: '1rem auto' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay animate-fadeIn" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'center', padding: '1rem' }} onClick={() => setShowAddAgentModal(false)}>
+          <div className="modal-content" style={{ maxWidth: 'min(92vw, 700px)', width: '100%', margin: 'auto' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <UsersIcon size={20} className="text-purple" />

@@ -17,6 +17,7 @@ import {
   getDoc, 
   setDoc, 
   updateDoc,
+  increment,
   enableIndexedDbPersistence
 } from 'firebase/firestore';
 import { 

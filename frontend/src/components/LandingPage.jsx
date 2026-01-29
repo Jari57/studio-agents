@@ -701,19 +701,19 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             </div>
           </div>
 
-          {/* Main Title - Short & Punchy */}
-          <h1 className="hero-title">
-            <span className="gradient-text-vibrant">
-              YOUR LABEL. YOUR POCKET.
+          {/* Main Title - Industry Disruptive */}
+          <h1 className="hero-title" style={{ marginBottom: '16px', lineHeight: '1.1' }}>
+            <span className="gradient-text-vibrant" style={{ fontSize: '1.15em', letterSpacing: '-1.5px', fontWeight: '900' }}>
+              STOP PITCHING. START RELEASING.
             </span>
           </h1>
 
-          {/* Subtitle - Value Prop */}
-          <p className="hero-subtitle" style={{ maxWidth: '360px', margin: '0 auto 20px' }}>
-            16 AI agents. One studio. Zero gatekeepers.
+          {/* Subtitle - Professional Value Prop */}
+          <p className="hero-subtitle" style={{ maxWidth: '420px', margin: '0 auto 24px', fontSize: '1.1rem', lineHeight: '1.5', color: 'white' }}>
+            The world’s first AI Record Label in your pocket. 
             <br />
-            <span style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>
-              Drop tracks in hours, not months.
+            <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', fontWeight: '400' }}>
+              16 Expert Agents. One Full-Suite Studio. Zero Gatekeepers.
             </span>
           </p>
 
@@ -735,8 +735,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             </div>
           </div>
 
-          {/* CTA Buttons - Simplified */}
-          <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '400px' }}>
+          {/* CTA Buttons - High Conversion & Professional */}
+          <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '440px', marginTop: '12px' }}>
             
             <button
               onClick={() => handleCtaClick('start', 'agents')}
@@ -744,18 +744,23 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               style={{ 
                 width: '100%', 
                 justifyContent: 'center', 
-                padding: '18px 24px',
-                borderRadius: '16px',
+                padding: '22px 24px',
+                borderRadius: '24px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px',
-                fontSize: '1.1rem',
-                fontWeight: '700'
+                gap: '12px',
+                fontSize: '1.25rem',
+                fontWeight: '900',
+                background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 50%, #d946ef 100%)',
+                boxShadow: '0 20px 40px rgba(124, 58, 237, 0.4), inset 0 2px 0 rgba(255,255,255,0.2)',
+                border: 'none',
+                color: 'white',
+                letterSpacing: '-0.3px'
               }}
             >
-              <Zap size={20} />
-              Start Free
-              <ArrowRight size={18} />
+              <Music size={22} fill="currentColor" />
+              Launch Your Studio — Free
+              <ArrowRight size={22} />
             </button>
 
             <button
@@ -764,17 +769,22 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               style={{ 
                 width: '100%', 
                 justifyContent: 'center', 
-                padding: '14px 24px',
-                background: 'transparent',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '16px',
+                padding: '18px 24px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                backdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '24px',
                 color: 'white',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px'
+                gap: '10px',
+                fontSize: '1rem',
+                fontWeight: '600',
+                transition: 'all 0.3s ease'
               }}
             >
-              <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>See What's Possible →</span>
+              <Play size={18} fill="currentColor" />
+              <span>Watch AI Orchestration in Action</span>
             </button>
 
           </div>
@@ -1487,14 +1497,32 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       {/* Footer CTA */}
       <section className="footer-cta">
         <h2 className="footer-cta-title">
-          Ready to create something <span className="gradient-text-purple-pink">amazing?</span>
+        <h2 className="section-title" style={{ color: 'white', fontSize: '2.8rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '16px' }}>
+          Stop Waiting for <span className="gradient-text-purple-pink">Permission.</span>
         </h2>
+        <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.2rem', marginBottom: '32px', fontWeight: '500' }}>
+          Your global rollout starts here. No major label required.
+        </p>
         <button
           onClick={() => handleCtaClick('start')}
           className="cta-button-premium haptic-press"
+          style={{
+            padding: '24px 48px',
+            borderRadius: '28px',
+            fontSize: '1.4rem',
+            fontWeight: '900',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            boxShadow: '0 25px 50px rgba(168, 85, 247, 0.4)',
+            border: 'none',
+            background: 'linear-gradient(135deg, #a855f7 0%, #d946ef 100%)',
+            color: 'white',
+            cursor: 'pointer'
+          }}
         >
-          <span>Launch Studio Now</span>
-          <ArrowRight size={24} />
+          <span>Launch Studio Suite</span>
+          <ArrowRight size={28} />
         </button>
       </section>
 
@@ -1549,9 +1577,15 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
 
       {/* Mobile Sticky Bottom CTA */}
       <div className="mobile-sticky-cta">
-        <button onClick={() => handleCtaClick('start')} className="sticky-cta-btn haptic-press">
-          <span>Launch Studio</span>
-          <ArrowRight size={20} />
+        <button onClick={() => handleCtaClick('start')} className="sticky-cta-btn haptic-press" style={{ 
+          background: 'linear-gradient(135deg, #a855f7, #7c3aed)', 
+          borderRadius: '20px',
+          boxShadow: '0 10px 30px rgba(124, 58, 237, 0.4)',
+          border: '1px solid rgba(255,255,255,0.2)'
+        }}>
+          <Music size={18} fill="white" />
+          <span style={{ fontWeight: '800', letterSpacing: '0.5px' }}>LAUNCH STUDIO</span>
+          <ChevronRight size={18} />
         </button>
       </div>
 

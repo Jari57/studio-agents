@@ -49,6 +49,14 @@
 
 /* --- Variables --- */
 :root {
+  --color-primary: #a855f7;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+:root {
   --color-bg-primary: #0a0a0c;
   --color-bg-secondary: #121216;
   --color-bg-tertiary: #1a1a22;
@@ -5950,13 +5958,13 @@ select optgroup {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.85); /* Slightly darker for better focus */
+  backdrop-filter: blur(12px); /* Increased blur */
   display: flex;
-  align-items: flex-start;
+  align-items: center; /* Centered vertically by default */
   justify-content: center;
-  z-index: 2000;
-  padding: 2rem 1rem;
+  z-index: 10000 !important; /* Force to top above everything */
+  padding: 1rem;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -8849,13 +8857,13 @@ html, body {
 
 /* Agent Help Modal Styles */
 .agent-help-modal {
-  max-width: 560px !important;
-  width: 92%;
-  max-height: 85vh;
+  max-width: 600px !important;
+  width: 95%;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: visible;
-  margin-left: -25px; /* Shift slightly left for better visual center on desktop */
+  margin: auto; /* Center properly */
 }
 
 .agent-help-modal .modal-header {
@@ -9997,6 +10005,8 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   
   .studio-textarea {
     min-height: 100px; /* Slightly smaller min-height on mobile */
+    padding: 0.75rem; /* Reduced padding on mobile */
+    font-size: 0.95rem;
   }
 }
 

@@ -230,14 +230,22 @@ async function generateSyncedMusicVideo(
       confidence: beatAnalysis.confidence
     });
 
+    // Download audio for sync
+    const localAudioPath = path.join(tempDir, `audio_${Date.now()}.mp3`);
+    try {
+      if (logger) logger.info('Downloading audio for sync...', { url: audioUrl.substring(0, 50) });
+      await downloadFile(audioUrl, localAudioPath);
+    } catch (audioDlError) {
+      if (logger) logger.warn('Failed to download audio, sync may lack audio', { error: audioDlError.message });
+    }
+
     // Step 2: Determine video segmentation strategy
     let videoSegments = [];
     const numSegments = Math.ceil(requestedDuration / 5); // Each segment is max 5s
 
     if (logger) logger.info('Step 2: Generating video segments', {
       totalDuration: requestedDuration,
-      numSegments,
-      segmentDuration: Math.ceil(requestedDuration / numSegments)
+      numSegments
     });
 
     // Generate prompts for each segment (beat-aware)
@@ -267,19 +275,26 @@ async function generateSyncedMusicVideo(
     // Download video segments for local composition
     const downloadedSegments = [];
     for (let i = 0; i < videoSegments.length; i++) {
-     // const segPath = path.join(tempDir, `segment_${i}_${Date.now()}.mp4`);
+       const segPath = path.join(tempDir, `segment_${i}_${Date.now()}.mp4`);
       
       try {
-        // Note: In production, you'd download these files
-        // For now, we'll create placeholder or use directly if available
+        if (logger) logger.info(`Downloading segment ${i+1}/${videoSegments.length}...`);
+        await downloadFile(videoSegments[i].url, segPath);
+        
         downloadedSegments.push({
-          path: videoSegments[i].url,
+          path: segPath,
           duration: videoSegments[i].duration,
           beatMarkers: alignBeatsToSegment(beatAnalysis.beats, i, numSegments)
         });
       } catch (dlError) {
         if (logger) logger.warn(`Failed to download segment ${i}`, {
           error: dlError.message
+        });
+        // Try fallback to URL
+        downloadedSegments.push({
+          path: videoSegments[i].url,
+          duration: videoSegments[i].duration,
+          beatMarkers: alignBeatsToSegment(beatAnalysis.beats, i, numSegments)
         });
       }
     }
@@ -288,11 +303,11 @@ async function generateSyncedMusicVideo(
     let finalVideoUrl = videoSegments[0].url; // Use first segment as base for now
     
     // If multiple segments, try to compose
-    if (downloadedSegments.length > 1) {
+    if (downloadedSegments.length > 0) {
       try {
         const composed = await composeVideoWithBeats(
           downloadedSegments,
-          null, // Audio will be added in next step
+          fs.existsSync(localAudioPath) ? localAudioPath : null,
           outputVideoPath,
           beatAnalysis.beats,
           logger
@@ -303,7 +318,7 @@ async function generateSyncedMusicVideo(
           output: finalVideoUrl
         });
       } catch (composeError) {
-        if (logger) logger.warn('Video composition failed, using first segment', {
+        if (logger) logger.error('Video composition failed', {
           error: composeError.message
         });
         // Fall back to first segment
@@ -321,8 +336,8 @@ async function generateSyncedMusicVideo(
     try {
       const synced = await createBeatSyncedVideo(
         finalVideoUrl,
-        null, // Audio URL would go here
-        beatAnalysis.beats.slice(0, 10), // Use first 10 beats for effects
+        fs.existsSync(localAudioPath) ? localAudioPath : null,
+        beatAnalysis.beats,
         syncedVideoPath,
         logger
       );
@@ -384,16 +399,17 @@ async function generateSyncedMusicVideo(
 function generateSegmentedPrompts(basePrompt, numSegments, bpm, logger) {
   const prompts = [];
   const transitions = [
-    'intro',
-    'build-up',
-    'climax',
-    'resolution',
-    'outro'
+    'energetic intro',
+    'build-up sequence',
+    'main climax drop',
+    'dynamic resolution',
+    'outro fade'
   ];
 
   for (let i = 0; i < numSegments; i++) {
     const transitionType = transitions[Math.min(i, transitions.length - 1)];
-    const prompt = `${basePrompt} (${transitionType} section, BPM ${bpm}, segment ${i + 1}/${numSegments}, 16:9)`;
+    const styleModifier = bpm > 110 ? 'strobe lights, clubbing atmosphere, high energy' : 'smooth cinematic motion, slow pan';
+    const prompt = `${basePrompt} (${transitionType}, ${styleModifier}, BPM ${bpm}, segment ${i + 1}/${numSegments}, 16:9)`;
     prompts.push(prompt);
 
     if (logger) logger.debug(`Segment ${i + 1} prompt:`, { prompt: prompt.substring(0, 80) });

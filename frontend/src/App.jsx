@@ -3,6 +3,7 @@ import LandingPage from './components/LandingPage';
 import './App.css';
 import './mobile-fixes.css';
 import { suppressExtensionErrors } from './utils/suppressExtensionErrors';
+import { AGENTS } from './agentsData';
 
 // Lazy load heavy components
 const StudioView = lazy(() => import('./components/StudioView'));
@@ -107,7 +108,7 @@ function App() {
     <div className="app-container">
       {isWhitepapers ? (
         <Suspense fallback={<StudioLoadingFallback />}>
-          <WhitepapersPage onBack={handleBackToLanding} />
+          <WhitepapersPage onBack={handleBackToLanding} agents={AGENTS} />
         </Suspense>
       ) : isLegal ? (
         <Suspense fallback={<StudioLoadingFallback />}>

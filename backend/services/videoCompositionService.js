@@ -77,9 +77,8 @@ async function composeVideoWithBeats(
       });
 
       // Build ffmpeg command
-      let cmd = ffmpeg()
-        .input(`concat:${videoSegments.map(s => s.path).join('|')}`)
-        .inputOptions(['-safe 0', '-protocol_whitelist file,http,https,tcp,tls'])
+      let cmd = ffmpeg(concatFile)
+        .inputOptions(['-f concat', '-safe 0', '-protocol_whitelist file,http,https,tcp,tls'])
         .outputOptions([
           '-c:v libx264',
           '-preset fast',
@@ -161,24 +160,25 @@ async function createBeatSyncedVideo(
       // Build complex filter for beat-synced transitions
       let filterComplex = '';
       
-      // If we have beat markers, create fade transitions at beat points
+      // If we have beat markers, create transitions at beat points
       if (beatMarkers && beatMarkers.length > 0) {
-        // Create filter for beat markers (every beat triggers a keyframe mark)
-        // This is informational for video players/editors
-        const beatFilterParts = beatMarkers.slice(0, 5).map((beat) => {
-          // Mark approximate beat positions with subtle effects
-          const beatSeconds = beat / 1000;
-          return `drawbox=enable='between(t,${beatSeconds-0.1},${beatSeconds+0.1})':x=0:y=0:w=64:h=64:color=white:thickness=1:t=fill`;
-        });
+        // limit to first 40 beats to avoid too long command lines
+        const activeBeats = beatMarkers.slice(0, 40);
+        
+        const enableExpr = activeBeats.map(beat => {
+          const t = (beat / 1000).toFixed(3);
+          return `between(t,${t},${(parseFloat(t)+0.1).toFixed(3)})`;
+        }).join('+');
 
-        if (beatFilterParts.length > 0) {
-          filterComplex = beatFilterParts.join(',');
-        }
+        // Apply brightness flash and contrast boost on beats
+        filterComplex = `eq=brightness='if(${enableExpr},0.12,0)':contrast='if(${enableExpr},1.25,1)'`;
+        
+        if (logger) logger.info('Generated beat-sync filter', { beatCount: activeBeats.length });
       }
 
       // If no beat-specific filter, use standard quality settings
       if (!filterComplex) {
-        filterComplex = 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2';
+        filterComplex = 'scale=1280:-1'; // Ensure consistent resolution
       }
 
       let cmd = ffmpeg(baseVideoPath)

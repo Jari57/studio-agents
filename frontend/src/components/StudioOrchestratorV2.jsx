@@ -950,10 +950,10 @@ function FinalMixSection({
                     fontWeight: '700',
                     marginBottom: '4px'
                   }}>
-                    🎬 PROFESSIONAL MUSIC VIDEO
+                    🎬 BEAT-SYNCED MUSIC VIDEO
                   </div>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    Sync beat with video for a beat-matched music video
+                    Auto-stitch video to match your track's BPM & transients
                   </p>
                 </div>
                 {finalMixPreview?.bpm && (
@@ -963,9 +963,12 @@ function FinalMixSection({
                     borderRadius: '8px',
                     fontSize: '0.75rem',
                     fontWeight: '600',
-                    color: '#f59e0b'
+                    color: '#f59e0b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
                   }}>
-                    ♪ {finalMixPreview.bpm} BPM
+                    <span style={{ fontSize: '1rem' }}>⚡</span> {finalMixPreview.bpm} BPM
                   </div>
                 )}
               </div>
@@ -983,18 +986,22 @@ function FinalMixSection({
                     style={{
                       width: '100%',
                       maxHeight: '280px',
-                      borderRadius: '8px'
+                      borderRadius: '8px',
+                      border: '1px solid rgba(245, 158, 11, 0.3)'
                     }}
                   />
                   <div style={{
                     marginTop: '10px',
                     fontSize: '0.8rem',
-                    color: '#10b981',
+                    color: '#f59e0b',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px'
+                    justifyContent: 'space-between'
                   }}>
-                    ✓ Beat-synced music video ready
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ color: '#22c55e' }}>✓</span> Beat-matched successfully
+                    </div>
+                    {finalMixPreview?.beatCount && <div style={{ opacity: 0.7 }}>{finalMixPreview.beatCount} hitpoints synced</div>}
                   </div>
                 </div>
               )}
@@ -1007,24 +1014,38 @@ function FinalMixSection({
                     flex: 1,
                     padding: '12px',
                     borderRadius: '10px',
-                    background: generatingMusicVideo ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.4)',
-                    border: '1px solid rgba(245, 158, 11, 0.6)',
+                    background: generatingMusicVideo ? 'rgba(245, 158, 11, 0.2)' : 'rgba(245, 158, 11, 0.5)',
+                    border: '1px solid rgba(245, 158, 11, 0.8)',
                     color: '#f59e0b',
-                    fontWeight: '600',
+                    fontWeight: '700',
                     fontSize: '0.85rem',
                     cursor: generatingMusicVideo ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px'
+                    gap: '8px',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.1)'
                   }}
                 >
                   {generatingMusicVideo ? (
-                    <>⏳ Syncing...</>
+                    <>
+                      <span style={{ 
+                        display: 'inline-block',
+                        width: '14px', 
+                        height: '14px', 
+                        border: '2px solid rgba(245, 158, 11, 0.3)', 
+                        borderTopColor: '#f59e0b', 
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        marginRight: '6px'
+                      }} />
+                      Syncing Audio & Visuals...
+                    </>
                   ) : musicVideoUrl ? (
-                    <>🔄 Regenerate Video</>
+                    <>🔄 Re-Sync Beat</>
                   ) : (
-                    <>🎬 Generate Music Video</>
+                    <>🎬 Sync Video to Beat</>
                   )}
                 </button>
 
@@ -1287,7 +1308,7 @@ function FinalMixSection({
           )}
         </button>
 
-        {/* Save to Project Button */}
+        {/* Save to Hub Button */}
         <button
           onClick={handleCreateProject}
           disabled={!hasAnyOutput}
@@ -1298,7 +1319,7 @@ function FinalMixSection({
               ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.5), rgba(139, 92, 246, 0.4))' 
               : 'rgba(100,100,100,0.1)',
             border: `1px solid ${hasAnyOutput ? 'rgba(168, 85, 247, 0.6)' : 'rgba(100,100,100,0.2)'}`,
-            color: hasAnyOutput ? '#a855f7' : 'rgba(255,255,255,0.3)',
+            color: hasAnyOutput ? 'white' : 'rgba(255,255,255,0.3)',
             fontWeight: '700',
             fontSize: '0.95rem',
             cursor: hasAnyOutput ? 'pointer' : 'not-allowed',
@@ -1309,7 +1330,7 @@ function FinalMixSection({
             boxShadow: hasAnyOutput ? '0 4px 20px rgba(168, 85, 247, 0.2)' : 'none'
           }}
         >
-          💾 Save to Project
+          💾 Save to Hub
         </button>
 
         {/* Export Mix (when final mix exists) */}
@@ -1648,8 +1669,13 @@ export default function StudioOrchestratorV2({
   existingProject = null
   // onUpdateCreations - reserved for future use
 }) {
-  // Check if mobile for responsive adjustments
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  // 📱 Device responsiveness
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   const [songIdea, setSongIdea] = useState(existingProject?.name || '');
   const [language, setLanguage] = useState('English');
@@ -2764,16 +2790,17 @@ export default function StudioOrchestratorV2({
         top: 0,
         left: 0,
         right: 0,
-        bottom: 0,
+        height: '100dvh',
         background: 'linear-gradient(180deg, rgba(0,0,0,0.98) 0%, rgba(10,10,20,0.98) 100%)',
-        zIndex: 2000,
+        zIndex: 10000,
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        overflow: 'hidden'
       }}
     >
       {/* Header */}
       <div style={{ 
-        padding: '16px 24px', 
+        padding: isMobile ? '12px 16px' : '16px 24px', 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
@@ -2786,8 +2813,8 @@ export default function StudioOrchestratorV2({
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{
-            width: '48px',
-            height: '48px',
+            width: isMobile ? '40px' : '48px',
+            height: isMobile ? '40px' : '48px',
             borderRadius: '14px',
             background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
             display: 'flex',
@@ -2795,11 +2822,11 @@ export default function StudioOrchestratorV2({
             justifyContent: 'center',
             boxShadow: '0 4px 20px rgba(139, 92, 246, 0.3)'
           }}>
-            <Zap size={26} color="white" />
+            <Zap size={isMobile ? 22 : 26} color="white" />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '700' }}>Studio Orchestrator</h2>
-            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <h2 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.4rem', fontWeight: '700' }}>Studio Orchestrator</h2>
+            <p style={{ margin: 0, fontSize: isMobile ? '0.75rem' : '0.8rem', color: 'var(--text-secondary)' }}>
               4 AI Generators • One Unified Pipeline
             </p>
           </div>
@@ -2810,8 +2837,8 @@ export default function StudioOrchestratorV2({
             background: 'rgba(255,255,255,0.1)', 
             border: 'none', 
             borderRadius: '12px',
-            width: '44px',
-            height: '44px',
+            width: isMobile ? '38px' : '44px',
+            height: isMobile ? '38px' : '44px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -2819,14 +2846,14 @@ export default function StudioOrchestratorV2({
             transition: 'all 0.2s'
           }}
         >
-          <X size={22} color="white" />
+          <X size={20} color="white" />
         </button>
       </div>
 
       {/* Main Content - Scrollable area */}
       <div style={{ 
         flex: 1, 
-        padding: '16px', 
+        padding: isMobile ? '12px 10px' : '16px', 
         maxWidth: '1200px', 
         margin: '0 auto', 
         width: '100%',
@@ -2839,33 +2866,41 @@ export default function StudioOrchestratorV2({
         <div style={{ 
           background: 'rgba(255,255,255,0.03)',
           borderRadius: '16px',
-          padding: '16px',
-          marginBottom: '20px',
+          padding: isMobile ? '10px' : '16px',
+          marginBottom: isMobile ? '12px' : '20px',
           border: '1px solid rgba(255,255,255,0.06)'
         }}>
           {/* Song Idea Input - Stacks on mobile */}
           <div style={{ 
             display: 'flex', 
             flexDirection: 'column',
-            gap: '12px', 
-            marginBottom: '16px' 
+            gap: isMobile ? '8px' : '12px', 
+            marginBottom: isMobile ? '12px' : '16px' 
           }}>
-            <input
-              type="text"
+            <textarea
               value={songIdea}
               onChange={(e) => setSongIdea(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleGenerate();
+                }
+              }}
               placeholder="Describe your song idea, vibe, or concept..."
+              rows={isMobile ? 3 : 2}
               style={{
                 width: '100%',
-                padding: '16px 20px',
+                padding: isMobile ? '10px 12px' : '16px 20px',
                 borderRadius: '12px',
                 background: 'rgba(0,0,0,0.5)',
                 border: '1px solid rgba(255,255,255,0.15)',
                 color: 'white',
-                fontSize: '1rem',
+                fontSize: isMobile ? '0.9rem' : '1rem',
                 outline: 'none',
-                minHeight: '56px'
+                minHeight: isMobile ? '100px' : '56px',
+                resize: 'none',
+                fontFamily: 'inherit',
+                lineHeight: '1.5'
               }}
             />
             
@@ -3038,22 +3073,23 @@ export default function StudioOrchestratorV2({
         <div style={{
           background: 'rgba(255,255,255,0.03)',
           borderRadius: '16px',
-          padding: '20px',
+          padding: isMobile ? '16px' : '20px',
           border: '1px solid rgba(255,255,255,0.06)',
           marginBottom: '24px'
         }}>
           <div style={{ 
             display: 'flex', 
-            alignItems: 'center', 
+            alignItems: isMobile ? 'flex-start' : 'center', 
             justifyContent: 'space-between',
             gap: '8px', 
             marginBottom: '16px',
-            flexWrap: 'wrap'
+            flexWrap: 'wrap',
+            flexDirection: isMobile ? 'column' : 'row'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users size={16} color="var(--text-secondary)" />
+              <Users size={isMobile ? 14 : 16} color="var(--text-secondary)" />
               <span style={{ 
-                fontSize: '0.8rem', 
+                fontSize: isMobile ? '0.75rem' : '0.8rem', 
                 color: 'var(--text-secondary)', 
                 fontWeight: '600',
                 textTransform: 'uppercase',
@@ -3071,71 +3107,6 @@ export default function StudioOrchestratorV2({
               }}>
                 {Object.values(selectedAgents).filter(Boolean).length} / 4 active
               </span>
-            </div>
-            
-            {/* Quick Presets */}
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setSelectedAgents({ lyrics: 'ghost', audio: null, visual: null, video: null })}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '8px',
-                  background: 'rgba(139, 92, 246, 0.15)',
-                  border: '1px solid rgba(139, 92, 246, 0.3)',
-                  color: '#a78bfa',
-                  fontSize: '0.7rem',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                📝 Lyrics Only
-              </button>
-              <button
-                onClick={() => setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: null, video: null })}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '8px',
-                  background: 'rgba(6, 182, 212, 0.15)',
-                  border: '1px solid rgba(6, 182, 212, 0.3)',
-                  color: '#22d3ee',
-                  fontSize: '0.7rem',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                🎵 Lyrics + Beat
-              </button>
-              <button
-                onClick={() => setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: null })}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '8px',
-                  background: 'rgba(236, 72, 153, 0.15)',
-                  border: '1px solid rgba(236, 72, 153, 0.3)',
-                  color: '#f472b6',
-                  fontSize: '0.7rem',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                🖼️ + Cover Art
-              </button>
-              <button
-                onClick={() => setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' })}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(236, 72, 153, 0.2))',
-                  border: '1px solid rgba(168, 85, 247, 0.4)',
-                  color: '#e879f9',
-                  fontSize: '0.7rem',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                🚀 Full Package
-              </button>
             </div>
           </div>
           
