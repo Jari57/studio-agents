@@ -75,7 +75,6 @@ body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   background: var(--color-bg-primary);
-  overscroll-behavior: none; /* Prevent bounce effect */
 }
 
 /* Premium Typography */
