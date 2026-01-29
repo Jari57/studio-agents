@@ -114,7 +114,8 @@ const ADMIN_EMAILS = [
   'demo@studioagents.ai',          // Demo account for presentations
   'test@studioagents.ai',          // QA testing account
   'support@studioagents.ai',       // Support team access
-  'dev@studioagents.ai'            // Developer testing account
+  'dev@studioagents.ai',           // Developer testing account
+  'info@studioagentsai.com'        // Support/Info account
 ];
 
 // Demo accounts with pre-loaded credits for testing
