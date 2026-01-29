@@ -674,11 +674,6 @@ function QuickWorkflow({
           )}
         </div>
       </div>
-
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
