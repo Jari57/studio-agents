@@ -678,7 +678,7 @@ ${agent.name} gets smarter over time:
             borderRadius: '16px',
             marginBottom: '24px'
           }}>
-            <FileText size={40} color=white />
+            <FileText size={40} color="white" />
           </div>
           <h2 style={{
             fontSize: 'clamp(2rem, 5vw, 3rem)',

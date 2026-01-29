@@ -1612,7 +1612,7 @@ Publishing is complex, but it's YOUR money. Don't leave it uncollected.`
             borderRadius: '16px',
             marginBottom: '24px'
           }}>
-            <Shield size={40} color=white />
+            <Shield size={40} color="white" />
           </div>
           <h2 style={{
             fontSize: 'clamp(2rem, 5vw, 3rem)',

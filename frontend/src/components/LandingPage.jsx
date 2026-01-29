@@ -1496,7 +1496,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
 
       {/* Footer CTA */}
       <section className="footer-cta">
-        <h2 className="footer-cta-title">
         <h2 className="section-title" style={{ color: 'white', fontSize: '2.8rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '16px' }}>
           Stop Waiting for <span className="gradient-text-purple-pink">Permission.</span>
         </h2>

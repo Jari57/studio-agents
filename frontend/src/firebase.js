@@ -155,6 +155,7 @@ export {
   getDoc,
   setDoc,
   updateDoc,
+  increment,
   ref,
   getDownloadURL
 };

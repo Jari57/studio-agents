@@ -3,7 +3,7 @@ import LandingPage from './components/LandingPage';
 import './App.css';
 import './mobile-fixes.css';
 import { suppressExtensionErrors } from './utils/suppressExtensionErrors';
-import { AGENTS } from './agentsData';
+import { AGENTS } from './constants';
 
 // Lazy load heavy components
 const StudioView = lazy(() => import('./components/StudioView'));
