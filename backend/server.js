@@ -719,6 +719,27 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '50mb' }));
+
+/**
+ * Handle JSON parsing errors
+ * Prevents server from crashing or logging massive stacks when clients send malformed data
+ */
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    logger.error('❌ JSON Syntax Error', { 
+      message: err.message, 
+      path: req.path,
+      method: req.method,
+      ip: req.ip 
+    });
+    return res.status(400).json({ 
+      error: 'Invalid JSON payload', 
+      details: 'Check for trailing commas, malformed quotes, or invalid characters.' 
+    });
+  }
+  next();
+});
+
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Serve static frontend build copied into backend/public (Railway release)
@@ -2579,9 +2600,9 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
       const isNotFoundError = String(primaryError).includes('404') || String(primaryError).includes('not found');
       const isFallbackCandidate = isQuotaError || isNotFoundError || String(primaryError).includes('500');
       
-      if (isFallbackCandidate && desiredModel !== 'gemini-1.5-flash') {
-        // Try gemini-2.0-flash if it wasn't the first attempt
-        const tryModel = desiredModel === 'gemini-2.0-flash' ? 'gemini-1.5-flash' : 'gemini-2.0-flash';
+      if (isFallbackCandidate && desiredModel !== 'gemini-1.5-flash-latest') {
+        // Try stable latest if it wasn't the first attempt
+        const tryModel = desiredModel === 'gemini-2.0-flash' ? 'gemini-1.5-flash-latest' : 'gemini-2.0-flash';
         
         logger.warn(`Primary model ${desiredModel} failed. Falling back to ${tryModel}.`, { 
           error: primaryError.message 
@@ -2605,23 +2626,27 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
             model: tryModel
           });
         } catch (secondaryError) {
-          // Final fallback to gemini-1.5-flash (most robust) if secondary attempt failed
-          if (tryModel !== 'gemini-1.5-flash') {
-            logger.warn(`Secondary model ${tryModel} failed. Final fallback to gemini-1.5-flash.`);
+          // Final fallback to gemini-1.5-flash-8b (cheapest/most likely up) if secondary attempt failed
+          if (tryModel !== 'gemini-1.5-flash-8b') {
+            logger.warn(`Secondary model ${tryModel} failed. Final fallback to gemini-1.5-flash-8b.`);
             
-            const finalModel = genAI.getGenerativeModel({ 
-              model: 'gemini-1.5-flash',
-              systemInstruction: sanitizedSystemInstruction || undefined
-            });
-
-            const result = await finalModel.generateContent(sanitizedPrompt);
-            const response = await result.response;
-            text = response.text();
-            usedModel = 'gemini-1.5-flash';
-            
-            logger.info('Final fallback successful', { model: 'gemini-1.5-flash' });
+            try {
+              const thirdModel = genAI.getGenerativeModel({ 
+                model: 'gemini-1.5-flash-8b',
+                systemInstruction: sanitizedSystemInstruction || undefined
+              });
+              
+              const result = await thirdModel.generateContent(sanitizedPrompt);
+              const response = await result.response;
+              text = response.text();
+              usedModel = 'gemini-1.5-flash-8b';
+              logger.info('Final fallback successful', { model: 'gemini-1.5-flash-8b' });
+            } catch (thirdError) {
+              logger.error('Triple model failure. Returning original error.', { error: thirdError.message });
+              throw primaryError; 
+            }
           } else {
-            throw secondaryError;
+            throw primaryError;
           }
         }
       } else {
@@ -4264,7 +4289,7 @@ app.post('/api/amo/orchestrate', verifyFirebaseToken, apiLimiter, async (req, re
         if (masterSettings?.renderMode === 'text' || outputType === 'text') {
           const systemInstruction = getAgentSystemPrompt(agent, session);
           const model = genAI.getGenerativeModel({ 
-            model: process.env.GENERATIVE_MODEL || "gemini-1.5-flash",
+            model: process.env.GENERATIVE_MODEL || "gemini-2.0-flash",
             systemInstruction 
           });
           
