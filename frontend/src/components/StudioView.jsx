@@ -3223,7 +3223,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           bpm: 90, // Could add UI controls for this
           genre: agentId === 'beat' ? 'hip-hop' : 'sample',
           mood: 'creative',
-          durationSeconds: 15
+          durationSeconds: 8
         };
       } else if (isSpeechAgent) {
         endpoint = '/api/generate-speech';
@@ -3253,13 +3253,31 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
 
       // Call Backend with auth headers
-      const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body)
-      });
+      let response;
+      try {
+        response = await fetch(`${BACKEND_URL}${endpoint}`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body)
+        });
+      } catch (networkErr) {
+        console.error('Network failure:', networkErr);
+        throw new Error('Connection failed. Please check your internet and make sure the server is online.');
+      }
 
-      let data = await response.json();
+      // Safely parse JSON
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Expected JSON but got:', text.substring(0, 100));
+        if (response.status >= 500) {
+          throw new Error(`Server Error (${response.status}): The AI service is currently overloaded or undergoing maintenance. Please try again in a few minutes.`);
+        }
+        throw new Error(`Invalid response format from server (Status ${response.status})`);
+      }
       
       // Debug logging
       console.log('API Response:', { 
@@ -3289,7 +3307,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           headers,
           body: JSON.stringify(fallbackBody)
         });
-        data = await fallbackResponse.json();
+        
+        if (fallbackResponse.headers.get('content-type')?.includes('application/json')) {
+          data = await fallbackResponse.json();
+        } else {
+          throw new Error(`Visual fallback failed (${fallbackResponse.status})`);
+        }
         
         // Mark this as a fallback text response
         data._isFallback = true;
@@ -3305,12 +3328,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           systemInstruction: `You are a music producer providing detailed audio descriptions.`
         };
         
-        const fallbackResponse = await fetch(`${BACKEND_URL}/api/generate`, {
+        const fallbackResponseAudio = await fetch(`${BACKEND_URL}/api/generate`, {
           method: 'POST',
           headers,
           body: JSON.stringify(fallbackBody)
         });
-        data = await fallbackResponse.json();
+
+        if (fallbackResponseAudio.headers.get('content-type')?.includes('application/json')) {
+          data = await fallbackResponseAudio.json();
+        } else {
+          throw new Error(`Audio fallback failed (${fallbackResponseAudio.status})`);
+        }
         data._isFallback = true;
         data._fallbackType = 'audio';
       }
@@ -4167,7 +4195,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
     // Optimistic UI update - remove from local state
     // The useEffect for projects will automatically update localStorage (studio_agents_projects)
-    setProjects(safeProjects.filter(p => p?.id !== projectId));
+    setProjects(prev => (prev || []).filter(p => p?.id !== projectId));
 
     // Delete from cloud via backend API (uses Admin SDK, bypasses security rules)
     if (isLoggedIn && user) {

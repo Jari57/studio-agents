@@ -4059,7 +4059,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
                 instances: [{ prompt: prompt }],
                 parameters: {
                   aspectRatio: "16:9",
-                  durationSeconds: 5,
+                  durationSeconds: 8,
                   sampleCount: 1
                 }
               })
@@ -4084,7 +4084,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
                   instances: [{ prompt: prompt }],
                   parameters: {
                     aspectRatio: "16:9",
-                    durationSeconds: 5,
+                    durationSeconds: 8,
                     sampleCount: 1
                   }
                 })

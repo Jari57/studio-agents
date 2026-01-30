@@ -2068,13 +2068,18 @@ export default function StudioOrchestratorV2({
         })
       });
       
+      let data;
+      if (response.headers.get('content-type')?.includes('application/json')) {
+        data = await response.json();
+      } else {
+        throw new Error(`Invalid server response (${response.status})`);
+      }
+
       if (response.ok) {
-        const data = await response.json();
         setOutputs(prev => ({ ...prev, [slot]: data.output }));
         toast.success(`${slotConfig.title} regenerated!`);
       } else {
-        const errData = await response.json().catch(() => ({}));
-        toast.error(errData.error || `Failed to regenerate ${slotConfig.title}`);
+        toast.error(data.error || `Failed to regenerate ${slotConfig.title}`);
       }
     } catch {
       toast.error('Regeneration failed');
@@ -2102,12 +2107,18 @@ export default function StudioOrchestratorV2({
           genre: style || 'hip-hop',
           mood: 'energetic',
           bpm: 90,
-          durationSeconds: 15
+          durationSeconds: 8
         })
       });
       
+      let data;
+      if (response.headers.get('content-type')?.includes('application/json')) {
+        data = await response.json();
+      } else {
+        throw new Error(`Invalid audio response (${response.status})`);
+      }
+
       if (response.ok) {
-        const data = await response.json();
         console.log('[Orchestrator] Audio generation response:', { 
           hasUrl: !!data.audioUrl, 
           isReal: data.isRealGeneration,
@@ -2211,8 +2222,14 @@ export default function StudioOrchestratorV2({
         })
       });
       
+      let data;
+      if (response.headers.get('content-type')?.includes('application/json')) {
+        data = await response.json();
+      } else {
+        throw new Error(`Invalid image response (${response.status})`);
+      }
+
       if (response.ok) {
-        const data = await response.json();
         console.log('[Orchestrator] Image generation response:', Object.keys(data));
         
         // Handle different response formats from backend:
