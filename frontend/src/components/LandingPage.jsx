@@ -528,6 +528,21 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   // Handle CTA button clicks - show auth modal (with guard)
   const handleCtaClick = (action = 'start', targetTab = null) => {
     if (isTransitioning) return; // Prevent clicks during transition
+    
+    // 🚀 Check if already logged in via Firebase OR localStorage
+    const hasUserId = localStorage.getItem('studio_user_id');
+    const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
+    
+    if (auth.currentUser || hasUserId || isGuest) {
+      console.log('[LandingPage] User already recognized, entering studio directly');
+      setIsTransitioning(true);
+      setTimeout(() => {
+        onEnter(action === 'start', false, targetTab);
+        setIsTransitioning(false);
+      }, 100);
+      return;
+    }
+    
     setPendingAction(action);
     setPendingTargetTab(targetTab);
     setShowAuthModal(true);
@@ -1279,7 +1294,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 </button>
                 
                 <div className="agent-studio-icon">
-                  <Icon size={24} />
+                  {Icon ? <Icon size={24} /> : <Sparkles size={24} />}
                 </div>
                 <div className="agent-studio-info">
                   <h3>{agent.name}</h3>
@@ -2335,7 +2350,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          <Icon size={16} style={{ color: 'var(--color-purple)' }} />
+                          {Icon ? <Icon size={16} style={{ color: 'var(--color-purple)' }} /> : <Sparkles size={16} style={{ color: 'var(--color-purple)' }} />}
                         </div>
                         <div style={{ flex: 1 }}>
                           <span style={{ fontWeight: '600', color: 'white', marginRight: '8px' }}>{agent.name}</span>

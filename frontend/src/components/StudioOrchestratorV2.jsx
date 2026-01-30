@@ -10,9 +10,52 @@ import toast from 'react-hot-toast';
 import PreviewModal from './PreviewModal';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
+// Helper to split intro/narrative from creative content
+const splitCreativeContent = (text) => {
+  if (!text) return { intro: '', content: '' };
+  
+  // Look for common content markers indicating the start of the "creative" part
+  const markers = [
+    /\[Verse/i,
+    /\[Chorus/i,
+    /\[Hook/i,
+    /\[Bridge/i,
+    /\[Intro\]/i,
+    /Verse 1:/i,
+    /Chorus:/i,
+    /\(Verse/i
+  ];
+  
+  let firstMarkerIndex = -1;
+  for (const marker of markers) {
+    const match = text.match(marker);
+    if (match && (firstMarkerIndex === -1 || match.index < firstMarkerIndex)) {
+      firstMarkerIndex = match.index;
+    }
+  }
+  
+  if (firstMarkerIndex !== -1) {
+    return {
+      intro: text.substring(0, firstMarkerIndex).trim(),
+      content: text.substring(firstMarkerIndex).trim()
+    };
+  }
+  
+  // Check for "Summary:" or similar as well
+  if (text.includes('Summary:')) {
+    const parts = text.split('Summary:');
+    return { 
+      intro: parts[0].trim(), 
+      content: ('Summary: ' + parts[1]).trim() 
+    };
+  }
+
+  return { intro: '', content: text };
+};
+
 // Generator Card Component - Agent-page style with full actions
 function GeneratorCard({ 
-  // slot, - destructured but unused
+  slot,
   agentId,
   icon, 
   title, 
@@ -37,6 +80,14 @@ function GeneratorCard({
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(output || '');
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showIntro, setShowIntro] = useState(false);
+
+  const { intro, content } = splitCreativeContent(output);
+  const displayContent = showIntro ? intro : content;
+  const [showIntro, setShowIntro] = useState(false);
+
+  const { intro, content } = splitCreativeContent(output);
+  const displayContent = showIntro ? intro : content;
 
   // 📱 Device responsiveness
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
@@ -59,8 +110,10 @@ function GeneratorCard({
 
   const handleCopy = () => {
     if (output) {
-      navigator.clipboard.writeText(output);
-      toast.success('Copied to clipboard');
+      // If lyrics slot, copy just the content/lyrics by default unless intro is showing
+      const textToCopy = (slot === 'lyrics' && !showIntro) ? content : output;
+      navigator.clipboard.writeText(textToCopy);
+      toast.success(slot === 'lyrics' && !showIntro ? 'Lyrics copied' : 'Copied to clipboard');
     }
   };
 
@@ -222,9 +275,40 @@ function GeneratorCard({
                   overflow: 'auto',
                   cursor: 'pointer',
                   maxHeight: isExpanded ? (isMobile ? '300px' : '400px') : (isMobile ? '150px' : '280px'),
-                  transition: 'max-height 0.3s ease'
+                  transition: 'max-height 0.3s ease',
+                  position: 'relative'
                 }}
               >
+                {/* Intro/Summary Toggle */}
+                {intro && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowIntro(!showIntro);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: showIntro ? color : 'rgba(255,255,255,0.1)',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      fontSize: '0.65rem',
+                      fontWeight: '700',
+                      color: 'white',
+                      zIndex: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      boxShadow: showIntro ? `0 2px 8px ${color}44` : 'none'
+                    }}
+                  >
+                    {showIntro ? <FileText size={10} /> : <Lightbulb size={10} />}
+                    {showIntro ? 'SHOW LYRICS' : 'SHOW PROMPT'}
+                  </button>
+                )}
+
                 <p style={{ 
                   fontSize: isMobile ? '0.85rem' : '1rem', 
                   lineHeight: isMobile ? '1.5' : '1.8', 
@@ -235,8 +319,8 @@ function GeneratorCard({
                   letterSpacing: '0.01em'
                 }}>
                   {/* Format output as stanzas - add extra line breaks between sections */}
-                  {output?.split(/\n\n+/).map((stanza, i) => (
-                    <span key={i} style={{ display: 'block', marginBottom: i < output.split(/\n\n+/).length - 1 ? '1em' : 0 }}>
+                  {displayContent?.split(/\n\n+/).map((stanza, i) => (
+                    <span key={i} style={{ display: 'block', marginBottom: i < displayContent.split(/\n\n+/).length - 1 ? '1em' : 0 }}>
                       {stanza}
                     </span>
                   ))}
@@ -397,14 +481,14 @@ function GeneratorCard({
                 {isGeneratingMedia ? (
                   <>
                     <Loader2 size={16} className="spin" />
-                    Creating {mediaType}...
+                    {slot === 'lyrics' ? 'Generating Vocals...' : `Creating ${mediaType}...`}
                   </>
                 ) : (
                   <>
                     {mediaType === 'audio' && <Music size={16} />}
                     {mediaType === 'image' && <ImageIcon size={16} />}
                     {mediaType === 'video' && <Video size={16} />}
-                    Generate {mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}
+                    {slot === 'lyrics' ? 'Create AI Vocals' : `Generate ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`}
                   </>
                 )}
               </button>
@@ -1503,6 +1587,38 @@ function FinalMixSection({
               </button>
             )}
 
+            {/* Download Vocals */}
+            {mediaUrls.vocals && (
+              <button
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = mediaUrls.vocals;
+                  a.download = `${songIdea || 'vocals'}-acapella.wav`;
+                  a.click();
+                  toast.success('Vocals downloading...');
+                }}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: 'rgba(139, 92, 246, 0.2)',
+                  border: '1px solid rgba(139, 92, 246, 0.4)',
+                  color: '#8b5cf6',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>🎙️</span>
+                <span>Vocal Stems</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>AI Acapella</span>
+              </button>
+            )}
+
             {/* Download Music Video (if synced) */}
             {musicVideoUrl && (
               <button
@@ -1561,13 +1677,21 @@ function FinalMixSection({
                     a.click();
                   }
                 }, 1000);
+                if (mediaUrls.vocals) {
+                  setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = mediaUrls.vocals;
+                    a.download = `${songIdea || 'vocals'}-acapella.wav`;
+                    a.click();
+                  }, 1500);
+                }
                 if (musicVideoUrl) {
                   setTimeout(() => {
                     const a = document.createElement('a');
                     a.href = musicVideoUrl;
                     a.download = `${songIdea || 'music-video'}-synced.mp4`;
                     a.click();
-                  }, 1500);
+                  }, 2000);
                 }
                 toast.success('Downloading all media files...');
               }}
@@ -1701,13 +1825,15 @@ export default function StudioOrchestratorV2({
   const [mediaUrls, setMediaUrls] = useState({
     audio: null,
     image: null,
-    video: null
+    video: null,
+    vocals: null
   });
   
   const [generatingMedia, setGeneratingMedia] = useState({
     audio: false,
     image: false,
-    video: false
+    video: false,
+    vocals: false
   });
   
   const [speakingSlot, setSpeakingSlot] = useState(null);
@@ -1733,6 +1859,7 @@ export default function StudioOrchestratorV2({
   
   // const speechSynthRef = useRef(null); - removed (unused)
   const recognitionRef = useRef(null);
+  const vocalAudioRef = useRef(null);
   
   // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
   const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
@@ -1790,7 +1917,7 @@ export default function StudioOrchestratorV2({
         return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].audio || '');
       }
     }
-    return '';
+    return '';'audio'
   };
 
   const formatVideoSrc = (src) => {
@@ -1821,7 +1948,7 @@ export default function StudioOrchestratorV2({
       subtitle: 'Song writing', 
       icon: FileText, 
       color: '#8b5cf6',
-      mediaType: null 
+      mediaType: 'audio' 
     },
     { 
       key: 'audio', 
@@ -1886,10 +2013,42 @@ export default function StudioOrchestratorV2({
   const speakText = (text, slot) => {
     if (speakingSlot === slot) {
       window.speechSynthesis.cancel();
+      if (vocalAudioRef.current) {
+        vocalAudioRef.current.pause();
+        vocalAudioRef.current.currentTime = 0;
+      }
       setSpeakingSlot(null);
       return;
     }
     
+    // Check if we have AI vocals generated for this slot
+    if (slot === 'lyrics' && mediaUrls.vocals) {
+      try {
+        if (vocalAudioRef.current) {
+          vocalAudioRef.current.pause();
+        }
+        window.speechSynthesis.cancel();
+        
+        const audio = new Audio(formatAudioSrc(mediaUrls.vocals));
+        vocalAudioRef.current = audio;
+        audio.play().catch(err => {
+          console.error("Audio playback failed:", err);
+          // Fallback to TTS if audio fails
+          speakRoboticText(text, slot);
+        });
+        audio.onended = () => setSpeakingSlot(null);
+        setSpeakingSlot(slot);
+        return;
+      } catch (err) {
+        console.error("Vocal playback error:", err);
+      }
+    }
+    
+    speakRoboticText(text, slot);
+  };
+
+  // Original TTS as fallback
+  const speakRoboticText = (text, slot) => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     
@@ -2153,6 +2312,42 @@ export default function StudioOrchestratorV2({
       toast.error('Audio generation failed', { id: 'gen-audio' });
     } finally {
       setGeneratingMedia(prev => ({ ...prev, audio: false }));
+    }
+  };
+
+  const handleGenerateVocals = async () => {
+    console.log('[handleGenerateVocals] Called, outputs.lyrics:', !!outputs.lyrics);
+    if (!outputs.lyrics) {
+      toast.error('Generate lyrics first');
+      return;
+    }
+    setGeneratingMedia(prev => ({ ...prev, vocals: true }));
+    toast.loading('Generating AI Vocals (~45 seconds)...', { id: 'gen-vocals' });
+    
+    try {
+      const headers = await getHeaders();
+      const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          text: outputs.lyrics.substring(0, 500),
+          style: 'rapper',
+          rapStyle: style || 'hip-hop'
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.audioUrl) {
+        setMediaUrls(prev => ({ ...prev, vocals: data.audioUrl }));
+        toast.success('AI Vocals generated!', { id: 'gen-vocals' });
+      } else {
+        toast.error(data.details || 'Vocal generation failed', { id: 'gen-vocals' });
+      }
+    } catch (err) {
+      console.error('[Orchestrator] Vocal generation error:', err);
+      toast.error('Vocal generation failed', { id: 'gen-vocals' });
+    } finally {
+      setGeneratingMedia(prev => ({ ...prev, vocals: false }));
     }
   };
 
@@ -3562,16 +3757,22 @@ export default function StudioOrchestratorV2({
               mediaType={slot.mediaType}
               mediaUrl={
                 slot.key === 'audio' ? mediaUrls.audio :
+                slot.key === 'lyrics' ? mediaUrls.vocals :
                 slot.key === 'visual' ? mediaUrls.image :
                 slot.key === 'video' ? mediaUrls.video : null
               }
               onGenerateMedia={
                 slot.key === 'audio' ? handleGenerateAudio :
+                slot.key === 'lyrics' ? handleGenerateVocals :
                 slot.key === 'visual' ? handleGenerateImage :
                 slot.key === 'video' ? handleGenerateVideo : null
               }
               isGeneratingMedia={
                 slot.key === 'audio' ? generatingMedia.audio :
+                slot.key === 'lyrics' ? generatingMedia.vocals
+              isGeneratingMedia={
+                slot.key === 'audio' ? generatingMedia.audio :
+                slot.key === 'lyrics' ? generatingMedia.vocals :
                 slot.key === 'visual' ? generatingMedia.image :
                 slot.key === 'video' ? generatingMedia.video : false
               }
@@ -3699,16 +3900,22 @@ export default function StudioOrchestratorV2({
                     mediaType={slot.mediaType}
                     mediaUrl={
                       slot.key === 'audio' ? mediaUrls.audio :
+                      slot.key === 'lyrics' ? mediaUrls.vocals :
                       slot.key === 'visual' ? mediaUrls.image :
                       slot.key === 'video' ? mediaUrls.video : null
                     }
                     onGenerateMedia={
                       slot.key === 'audio' ? handleGenerateAudio :
+                      slot.key === 'lyrics' ? handleGenerateVocals :
                       slot.key === 'visual' ? handleGenerateImage :
                       slot.key === 'video' ? handleGenerateVideo : null
                     }
                     isGeneratingMedia={
                       slot.key === 'audio' ? generatingMedia.audio :
+                      slot.key === 'lyrics' ? generatingMedia.vocals
+                    isGeneratingMedia={
+                      slot.key === 'audio' ? generatingMedia.audio :
+                      slot.key === 'lyrics' ? generatingMedia.vocals :
                       slot.key === 'visual' ? generatingMedia.image :
                       slot.key === 'video' ? generatingMedia.video : false
                     }

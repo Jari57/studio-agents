@@ -1,8 +1,104 @@
 ﻿import React, { useState } from 'react';
 import { 
   FileText, ChevronRight, Book, Lightbulb,
-  Zap, ArrowLeft
+  Zap, ArrowLeft, CheckCircle, Info, AlertTriangle, 
+  Target, Shield, Code, TrendingUp, Sparkles, Star
 } from 'lucide-react';
+
+const FormattedContent = ({ content, accentColor = '#8b5cf6' }) => {
+  if (!content) return null;
+
+  const lines = content.split('\n');
+  
+  return (
+    <div className="formatted-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} style={{ height: '8px' }} />;
+
+        // Handle Sections / Sub-headings (e.g., "What Makes Studio Agents Different:")
+        if (trimmed.endsWith(':') && (trimmed.length < 50 || trimmed.includes('**'))) {
+          return (
+            <h4 key={idx} style={{ 
+              fontSize: '1.25rem', 
+              fontWeight: '700', 
+              color: 'var(--text-primary)',
+              marginTop: '12px',
+              marginBottom: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <div style={{ width: '4px', height: '20px', background: accentColor, borderRadius: '2px' }} />
+              {trimmed.replace(/\*\*/g, '')}
+            </h4>
+          );
+        }
+
+        // Handle Bullet Points (•)
+        if (trimmed.startsWith('•')) {
+          return (
+            <div key={idx} style={{ 
+              display: 'flex', 
+              gap: '12px', 
+              alignItems: 'flex-start',
+              paddingLeft: '8px',
+              color: 'var(--text-secondary)'
+            }}>
+              <div style={{ marginTop: '6px' }}>
+                <CheckCircle size={14} style={{ color: accentColor }} />
+              </div>
+              <span style={{ fontSize: '1.05rem', lineHeight: '1.6' }}>
+                {trimmed.slice(1).trim().split('**').map((part, i) => 
+                  i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{part}</strong> : part
+                )}
+              </span>
+            </div>
+          );
+        }
+
+        // Handle Alert/Problem Points ("")
+        if (trimmed.startsWith('""')) {
+          return (
+            <div key={idx} style={{ 
+              display: 'flex', 
+              gap: '12px', 
+              alignItems: 'flex-start',
+              padding: '12px 16px',
+              background: 'rgba(239, 68, 68, 0.05)',
+              borderLeft: '4px solid #ef4444',
+              borderRadius: '4px',
+              color: 'var(--text-secondary)'
+            }}>
+              <div style={{ marginTop: '2px' }}>
+                <AlertTriangle size={16} style={{ color: '#ef4444' }} />
+              </div>
+              <span style={{ fontSize: '1rem', lineHeight: '1.5' }}>
+                {trimmed.slice(2).trim().split('**').map((part, i) => 
+                  i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)' }}>{part}</strong> : part
+                )}
+              </span>
+            </div>
+          );
+        }
+
+        // Standard Text Block
+        return (
+          <p key={idx} style={{ 
+            fontSize: '1.1rem', 
+            lineHeight: '1.7', 
+            color: 'var(--text-secondary)',
+            margin: 0
+          }}>
+            {trimmed.split('**').map((part, i) => 
+              i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)', fontWeight: '600' }}>{part}</strong> : part
+            )}
+          </p>
+        );
+      })}
+    </div>
+  );
+};
 
 const WhitepapersPage = ({ onBack, onSelectAgent: _onSelectAgent, agents }) => {
   const [selectedWhitepaper, setSelectedWhitepaper] = useState(null);
@@ -521,41 +617,57 @@ ${agent.name} gets smarter over time:
           {/* Sections */}
           {selectedWhitepaper.sections.map((section, idx) => (
             <div key={idx} style={{
-              marginBottom: '48px'
+              marginBottom: '64px',
+              padding: '32px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              borderRadius: '24px',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              position: 'relative',
+              overflow: 'hidden'
             }}>
+              {/* Decorative background element */}
+              <div style={{
+                position: 'absolute',
+                top: '-20%',
+                right: '-10%',
+                width: '300px',
+                height: '300px',
+                background: `radial-gradient(circle, ${selectedWhitepaper.color}05 0%, transparent 70%)`,
+                pointerEvents: 'none'
+              }} />
+
               <h2 style={{
-                fontSize: '1.75rem',
-                fontWeight: '700',
-                marginBottom: '20px',
+                fontSize: '2rem',
+                fontWeight: '800',
+                marginBottom: '28px',
                 color: 'var(--text-primary)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '16px',
+                letterSpacing: '-0.02em'
               }}>
                 <span style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  background: `${selectedWhitepaper.color}20`,
-                  color: selectedWhitepaper.color,
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '12px',
+                  background: `linear-gradient(135deg, ${selectedWhitepaper.color}, ${selectedWhitepaper.color}dd)`,
+                  color: 'white',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '0.9rem',
-                  fontWeight: '700'
+                  fontSize: '1.1rem',
+                  fontWeight: '800',
+                  boxShadow: `0 8px 20px ${selectedWhitepaper.color}30`
                 }}>
                   {idx + 1}
                 </span>
                 {section.heading}
               </h2>
-              <div style={{
-                fontSize: '1rem',
-                lineHeight: '1.8',
-                color: 'var(--text-secondary)',
-                whiteSpace: 'pre-line'
-              }}>
-                {section.content}
-              </div>
+              
+              <FormattedContent 
+                content={section.content} 
+                accentColor={selectedWhitepaper.color} 
+              />
             </div>
           ))}
 

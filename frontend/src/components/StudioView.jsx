@@ -13969,7 +13969,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             justifyContent: 'center',
                             color: isSelected ? 'white' : 'var(--text-secondary)'
                           }}>
-                            <agent.icon size={16} />
+                            {typeof agent.icon === 'function' ? <agent.icon size={16} /> : <Sparkles size={16} />}
                           </div>
                           <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>{agent.name}</span>
                           {isSelected && <CheckCircle size={14} className="text-purple" style={{ position: 'absolute', top: '8px', right: '8px' }} />}

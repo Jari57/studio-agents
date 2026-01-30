@@ -1,8 +1,130 @@
 ﻿import React, { useState } from 'react';
 import { 
   Shield, ChevronRight, FileText, Tv, CreditCard,
-  ArrowLeft, BookOpen
+  ArrowLeft, BookOpen, CheckCircle, AlertCircle, Scale,
+  Gavel, HelpCircle, FileCheck, Info, Clock, AlertTriangle
 } from 'lucide-react';
+
+const FormattedLegalContent = ({ content, accentColor = '#8b5cf6' }) => {
+  if (!content) return null;
+
+  const lines = content.split('\n');
+  
+  return (
+    <div className="formatted-legal-content" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} style={{ height: '10px' }} />;
+
+        // Subheaders
+        if (trimmed.endsWith(':') && (trimmed.length < 60 || trimmed.includes('**'))) {
+          const text = trimmed.replace(/\*\*/g, '').replace(/:$/, '');
+          return (
+            <h4 key={idx} style={{ 
+              fontSize: '1.3rem', 
+              fontWeight: '800', 
+              color: 'var(--text-primary)',
+              marginTop: '16px',
+              marginBottom: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <span style={{ 
+                height: '4px', 
+                width: '24px', 
+                background: accentColor, 
+                borderRadius: '10px',
+                opacity: 0.8
+              }} />
+              {text}
+            </h4>
+          );
+        }
+
+        // Checklist Items (•)
+        if (trimmed.startsWith('•')) {
+          return (
+            <div key={idx} style={{ 
+              display: 'flex', 
+              gap: '14px', 
+              alignItems: 'flex-start',
+              padding: '12px 16px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.04)'
+            }}>
+              <CheckCircle size={16} style={{ color: accentColor, marginTop: '4px', flexShrink: 0 }} />
+              <span style={{ fontSize: '1.05rem', lineHeight: '1.6', color: 'var(--text-secondary)' }}>
+                {trimmed.slice(1).trim().split('**').map((part, i) => 
+                  i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)', fontWeight: '700' }}>{part}</strong> : part
+                )}
+              </span>
+            </div>
+          );
+        }
+
+        // Warnings / Prohibitions ("")
+        if (trimmed.startsWith('""')) {
+          return (
+            <div key={idx} style={{ 
+              display: 'flex', 
+              gap: '14px', 
+              alignItems: 'flex-start',
+              padding: '16px 20px',
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.2)',
+              borderRadius: '12px',
+              color: 'var(--text-secondary)'
+            }}>
+              <AlertTriangle size={18} style={{ color: '#ef4444', marginTop: '2px', flexShrink: 0 }} />
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: '800', color: '#ef4444', fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Legal Caution</span>
+                <span style={{ fontSize: '1rem', lineHeight: '1.5' }}>
+                  {trimmed.slice(2).trim().split('**').map((part, i) => 
+                    i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)' }}>{part}</strong> : part
+                  )}
+                </span>
+              </div>
+            </div>
+          );
+        }
+
+        // Step indicator (Step 1, Step 2, etc.)
+        if (trimmed.toLowerCase().startsWith('step ')) {
+          return (
+            <div key={idx} style={{ 
+              background: 'linear-gradient(90deg, var(--color-bg-elevated), transparent)',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              borderLeft: `4px solid ${accentColor}`,
+              fontSize: '1.1rem',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              marginTop: '10px'
+            }}>
+              {trimmed}
+            </div>
+          );
+        }
+
+        // Paragraphs
+        return (
+          <p key={idx} style={{ 
+            fontSize: '1.1rem', 
+            lineHeight: '1.8', 
+            color: 'var(--text-secondary)',
+            margin: 0
+          }}>
+            {trimmed.split('**').map((part, i) => 
+              i % 2 === 1 ? <strong key={i} style={{ color: 'var(--text-primary)', fontWeight: '700' }}>{part}</strong> : part
+            )}
+          </p>
+        );
+      })}
+    </div>
+  );
+};
 
 const LegalResourcesPage = ({ onBack }) => {
   const [selectedResource, setSelectedResource] = useState(null);
@@ -1454,40 +1576,58 @@ Publishing is complex, but it's YOUR money. Don't leave it uncollected.`
           {/* Sections */}
           {selectedResource.sections.map((section, idx) => (
             <div key={idx} style={{
-              marginBottom: '48px'
+              marginBottom: '40px',
+              padding: '32px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              borderRadius: '24px',
+              border: '1px solid var(--border-color)',
+              position: 'relative',
+              overflow: 'hidden'
             }}>
+              {/* Decorative Subtle Background Glow */}
+              <div style={{
+                position: 'absolute',
+                top: '-50px',
+                right: '-50px',
+                width: '150px',
+                height: '150px',
+                background: `radial-gradient(circle, ${selectedResource.color}15 0%, transparent 70%)`,
+                pointerEvents: 'none'
+              }} />
+
               <h2 style={{
                 fontSize: '1.75rem',
-                fontWeight: '700',
-                marginBottom: '20px',
+                fontWeight: '800',
+                marginBottom: '24px',
                 color: 'var(--text-primary)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '16px',
+                letterSpacing: '-0.5px'
               }}>
                 <span style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
                   background: `${selectedResource.color}20`,
                   color: selectedResource.color,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '0.9rem',
-                  fontWeight: '700'
+                  fontSize: '1rem',
+                  fontWeight: '800',
+                  boxShadow: `0 4px 12px ${selectedResource.color}15`
                 }}>
                   {idx + 1}
                 </span>
                 {section.heading}
               </h2>
               <div style={{
-                fontSize: '1rem',
+                fontSize: '1.05rem',
                 lineHeight: '1.8',
-                color: 'var(--text-secondary)',
-                whiteSpace: 'pre-line'
+                color: 'var(--text-secondary)'
               }}>
-                {section.content}
+                <FormattedLegalContent content={section.content} accentColor={selectedResource.color} />
               </div>
             </div>
           ))}
@@ -1636,7 +1776,7 @@ Publishing is complex, but it's YOUR money. Don't leave it uncollected.`
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-          gap: '24px'
+          gap: '32px'
         }}>
           {legalResources.map((resource) => {
             const Icon = resource.icon;
@@ -1646,78 +1786,131 @@ Publishing is complex, but it's YOUR money. Don't leave it uncollected.`
                 className="resource-card haptic-press"
                 onClick={() => setSelectedResource(resource)}
                 style={{
-                  padding: '28px',
+                  padding: '32px',
                   background: 'var(--color-bg-elevated)',
                   border: '1px solid var(--border-color)',
-                  borderRadius: '16px',
+                  borderRadius: '24px',
                   cursor: 'pointer',
-                  transition: 'all 0.3s ease',
+                  transition: 'all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1)',
                   position: 'relative',
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px'
                 }}
               >
+                {/* Background Accent */}
                 <div style={{
                   position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  padding: '4px 10px',
-                  background: `${resource.color}20`,
-                  color: resource.color,
-                  borderRadius: '6px',
-                  fontSize: '0.7rem',
-                  fontWeight: '700',
-                  textTransform: 'uppercase'
-                }}>
-                  {resource.readTime}
-                </div>
-                <div style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '14px',
-                  background: `${resource.color}20`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: '20px'
-                }}>
-                  <Icon size={28} style={{ color: resource.color }} />
-                </div>
-                <div style={{
-                  fontSize: '0.75rem',
-                  color: resource.color,
-                  fontWeight: '600',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                  marginBottom: '8px'
-                }}>
-                  {resource.category}
-                </div>
-                <h4 style={{
-                  fontSize: '1.2rem',
-                  fontWeight: '700',
-                  marginBottom: '12px',
-                  lineHeight: '1.3'
-                }}>
-                  {resource.title}
-                </h4>
-                <p style={{
-                  fontSize: '0.95rem',
-                  color: 'var(--text-secondary)',
-                  lineHeight: '1.6',
-                  marginBottom: '20px'
-                }}>
-                  {resource.summary}
-                </p>
+                  top: '-30px',
+                  right: '-30px',
+                  width: '120px',
+                  height: '120px',
+                  background: `radial-gradient(circle, ${resource.color}15 0%, transparent 70%)`,
+                  pointerEvents: 'none'
+                }} />
+
                 <div style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  color: resource.color,
-                  fontSize: '0.9rem',
-                  fontWeight: '600'
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start'
                 }}>
-                  Read {resource.type}
-                  <ChevronRight size={16} />
+                  <div style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '16px',
+                    background: `${resource.color}20`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: `0 8px 16px ${resource.color}10`
+                  }}>
+                    <Icon size={30} style={{ color: resource.color }} />
+                  </div>
+                  <div style={{
+                    padding: '6px 12px',
+                    background: `${resource.color}20`,
+                    color: resource.color,
+                    borderRadius: '8px',
+                    fontSize: '0.7rem',
+                    fontWeight: '800',
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px'
+                  }}>
+                    {resource.readTime}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{
+                    fontSize: '0.75rem',
+                    color: resource.color,
+                    fontWeight: '800',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    marginBottom: '8px'
+                  }}>
+                    {resource.category}
+                  </div>
+                  <h4 style={{
+                    fontSize: '1.4rem',
+                    fontWeight: '800',
+                    marginBottom: '12px',
+                    lineHeight: '1.3',
+                    color: 'var(--text-primary)',
+                    letterSpacing: '-0.3px'
+                  }}>
+                    {resource.title}
+                  </h4>
+                  <p style={{
+                    fontSize: '1rem',
+                    color: 'var(--text-secondary)',
+                    lineHeight: '1.6',
+                    marginBottom: '20px',
+                    display: '-webkit-box',
+                    WebkitLineClamp: '3',
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden'
+                  }}>
+                    {resource.summary}
+                  </p>
+                </div>
+
+                <div style={{
+                  marginTop: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingTop: '20px',
+                  borderTop: '1px solid var(--border-color)'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-secondary)',
+                    fontWeight: '600'
+                  }}>
+                    <span style={{ color: resource.color }}>{resource.type}</span>
+                    <span style={{
+                      width: '4px',
+                      height: '4px',
+                      borderRadius: '50%',
+                      background: 'var(--border-color)'
+                    }} />
+                    <span>{resource.sections.length} Chapters</span>
+                  </div>
+                  <div style={{
+                    color: resource.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontWeight: '700',
+                    fontSize: '0.9rem'
+                  }}>
+                    Read Now <ChevronRight size={16} />
+                  </div>
                 </div>
               </div>
             );

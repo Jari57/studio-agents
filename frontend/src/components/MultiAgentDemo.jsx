@@ -90,7 +90,7 @@ function AgentOutputCard({ icon: Icon, title, color, output, isLoading, delay = 
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          <Icon size={16} color={color} />
+          {Icon ? <Icon size={16} color={color} /> : <Sparkles size={16} color={color} />}
         </div>
         <span style={{ 
           fontSize: '0.8rem', 

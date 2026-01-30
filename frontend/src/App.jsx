@@ -62,6 +62,17 @@ function App() {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
+  // AUTO-REDIRECT: If already logged in or in guest mode, skip landing page on refresh
+  useEffect(() => {
+    const hasUserId = localStorage.getItem('studio_user_id');
+    const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
+    if ((hasUserId || isGuest) && currentHash === '#/') {
+      console.log('[App] Session detected, skipping landing page');
+      setCurrentHash('#/studio');
+      window.location.hash = '#/studio';
+    }
+  }, [currentHash]);
+
   const [initialTab, setInitialTab] = useState(null);
 
   const handleEnterStudio = (shouldStartWizard = false, startOrchestrator = false, targetTab = null) => {
