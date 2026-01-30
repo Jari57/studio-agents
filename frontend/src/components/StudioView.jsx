@@ -249,6 +249,17 @@ const getTimeSince = (date) => {
 };
 
 function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan, initialTab }) {
+  // --- CORE AUTH & USER STATE ---
+  // Must be first because other hooks (activeTab, newsSearch) depend on user / uid
+  const [user, setUser] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('studio_user_id'));
+  const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('studio_guest_mode') === 'true');
+  const [authChecking, setAuthChecking] = useState(true);
+  const [authRetryCount, setAuthRetryCount] = useState(0);
+  const [userToken, setUserToken] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -332,15 +343,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return null;
   });
   const [backingTrack, setBackingTrack] = useState(null); // For vocal sync
-  const [user, setUser] = useState(null); // Moved up - needed before cloud sync useEffect
-  // Initialize isLoggedIn from localStorage to avoid login gate while Firebase is checking
-  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('studio_user_id'));
-  const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('studio_guest_mode') === 'true');
-  const [authChecking, setAuthChecking] = useState(true); // Track if we're still checking auth state
-  const [authRetryCount, setAuthRetryCount] = useState(0); // Track auth retry attempts
-  const [userToken, setUserToken] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false); // Admin access flag
-  const [showLoginModal, setShowLoginModal] = useState(false);
+
   const [newsSearch, setNewsSearch] = useState(() => {
     const uid = localStorage.getItem('studio_user_id') || 'guest';
     return localStorage.getItem(`studio_news_${uid}`) || '';
@@ -368,6 +371,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [projects, setProjects] = useState(() => {
     try {
       // Use user-specific project key if available, otherwise fallback to guest/legacy
+      // Note: We avoid using authChecking here to keep initialization fast
       const uid = localStorage.getItem('studio_user_id') || 'guest';
       const saved = localStorage.getItem(`studio_projects_${uid}`) || localStorage.getItem('studio_agents_projects');
       if (saved) {
@@ -384,6 +388,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       return [];
     }
   });
+
+  // Handle cross-tab or cross-session state sync for projects
+  useEffect(() => {
+    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+    if (projects.length > 0) {
+      localStorage.setItem(`studio_projects_${uid}`, JSON.stringify(projects));
+    }
+  }, [projects, user?.uid]);
 
   // Persist projects to localStorage whenever they change
   useEffect(() => {
