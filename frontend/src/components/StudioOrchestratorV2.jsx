@@ -84,10 +84,6 @@ function GeneratorCard({
 
   const { intro, content } = splitCreativeContent(output);
   const displayContent = showIntro ? intro : content;
-  const [showIntro, setShowIntro] = useState(false);
-
-  const { intro, content } = splitCreativeContent(output);
-  const displayContent = showIntro ? intro : content;
 
   // 📱 Device responsiveness
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
@@ -3769,9 +3765,6 @@ export default function StudioOrchestratorV2({
               }
               isGeneratingMedia={
                 slot.key === 'audio' ? generatingMedia.audio :
-                slot.key === 'lyrics' ? generatingMedia.vocals
-              isGeneratingMedia={
-                slot.key === 'audio' ? generatingMedia.audio :
                 slot.key === 'lyrics' ? generatingMedia.vocals :
                 slot.key === 'visual' ? generatingMedia.image :
                 slot.key === 'video' ? generatingMedia.video : false
@@ -3910,9 +3903,6 @@ export default function StudioOrchestratorV2({
                       slot.key === 'visual' ? handleGenerateImage :
                       slot.key === 'video' ? handleGenerateVideo : null
                     }
-                    isGeneratingMedia={
-                      slot.key === 'audio' ? generatingMedia.audio :
-                      slot.key === 'lyrics' ? generatingMedia.vocals
                     isGeneratingMedia={
                       slot.key === 'audio' ? generatingMedia.audio :
                       slot.key === 'lyrics' ? generatingMedia.vocals :
