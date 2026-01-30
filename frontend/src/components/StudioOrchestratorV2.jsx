@@ -508,7 +508,7 @@ function GeneratorCard({
           {/* TTS Button */}
           <button
             onClick={onSpeak}
-            title={isSpeaking ? "Stop Speaking" : "Text to Speech"}
+            title={isSpeaking ? "Stop" : (slot === 'lyrics' && mediaUrl) ? "Play AI Vocals" : "Text to Speech"}
             style={{
               padding: isMobile ? '8px 10px' : '8px 12px',
               borderRadius: isMobile ? '8px' : '8px',
@@ -527,7 +527,7 @@ function GeneratorCard({
             }}
           >
             {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
-            {!isMobile && (isSpeaking ? 'Stop' : 'TTS')}
+            {!isMobile && (isSpeaking ? 'Stop' : (slot === 'lyrics' && mediaUrl) ? 'Hear Vocals' : 'TTS')}
           </button>
 
           {/* Copy Button */}
