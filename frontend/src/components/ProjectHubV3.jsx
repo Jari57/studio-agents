@@ -135,12 +135,25 @@ function ProjectHubV3({
   // Format relative time
   const formatRelativeTime = (dateStr) => {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
+    
+    // Handle Firebase Timestamps
+    let date;
+    if (typeof dateStr === 'object' && dateStr.seconds) {
+      date = new Date(dateStr.seconds * 1000);
+    } else if (typeof dateStr === 'object' && dateStr._seconds) {
+      date = new Date(dateStr._seconds * 1000);
+    } else {
+      date = new Date(dateStr);
+    }
+    
+    if (isNaN(date.getTime())) return 'Recently';
+    
     const now = new Date();
     const diff = now - date;
     const mins = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
+    
     if (mins < 1) return 'Just now';
     if (mins < 60) return `${mins}m ago`;
     if (hours < 24) return `${hours}h ago`;

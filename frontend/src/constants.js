@@ -1,6 +1,6 @@
 import { Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, Book } from 'lucide-react';
 
-export const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') 
+export const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.port === '5173') 
   ? 'http://localhost:3000' 
   : 'https://web-production-b5922.up.railway.app';
 

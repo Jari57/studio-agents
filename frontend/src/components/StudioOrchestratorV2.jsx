@@ -2116,7 +2116,7 @@ export default function StudioOrchestratorV2({
     
     setIsGenerating(true);
     toast.loading('Generating content...', { id: 'gen-all' });
-    const newOutputs = { lyrics: null, audio: null, visual: null, video: null };
+    const newOutputs = { lyrics: null, vocals: null, audio: null, visual: null, video: null };
     
     try {
       const headers = await getHeaders();
@@ -2133,6 +2133,7 @@ export default function StudioOrchestratorV2({
         Create content for a ${style} song about: "${songIdea}" in ${language}.
         Be creative, professional, and match the genre's style.
         ${slot === 'lyrics' ? 'Write a catchy hook and verse lyrics.' : ''}
+        ${slot === 'vocals' ? 'Describe the vocal performance style, tone, and character in detail (e.g., "Energetic female vocal with a soulful grit and rapid-fire delivery in the verses").' : ''}
         ${slot === 'audio' ? 'Describe a detailed beat/instrumental concept with BPM, key, and production elements.' : ''}
         ${slot === 'visual' ? 'Describe a striking album cover or visual concept in detail for image generation.' : ''}
         ${slot === 'video' ? 'Write a creative music video concept/storyboard with scene descriptions.' : ''}`;
@@ -2335,6 +2336,11 @@ export default function StudioOrchestratorV2({
       const data = await response.json();
       if (response.ok && data.audioUrl) {
         setMediaUrls(prev => ({ ...prev, vocals: data.audioUrl }));
+        // Ensure outputs.vocals is set so the asset is included in the project save
+        setOutputs(prev => ({ 
+          ...prev, 
+          vocals: prev.vocals || `AI Vocal Performance generated for "${songIdea || 'song'}"`
+        }));
         toast.success('AI Vocals generated!', { id: 'gen-vocals' });
       } else {
         toast.error(data.details || 'Vocal generation failed', { id: 'gen-vocals' });
@@ -2923,7 +2929,7 @@ export default function StudioOrchestratorV2({
           agent: agent?.name || slot.subtitle,
           content: contentStr,
           snippet: contentStr.substring(0, 100),
-          audioUrl: slot.key === 'audio' ? (mediaUrls.audio || null) : null,
+          audioUrl: slot.key === 'audio' ? (mediaUrls.audio || null) : (slot.key === 'vocals' ? (mediaUrls.vocals || null) : null),
           imageUrl: slot.key === 'visual' ? (formatImageSrc(mediaUrls.image) || null) : null,
           videoUrl: slot.key === 'video' ? (mediaUrls.video || null) : null,
           date: new Date().toLocaleDateString(),

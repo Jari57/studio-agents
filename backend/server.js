@@ -6222,7 +6222,17 @@ app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
         .get();
       
       const projects = [];
-      snapshot.forEach(doc => projects.push(doc.data()));
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        projects.push({ 
+          id: doc.id, 
+          ...data,
+          // Convert Firestore Timestamp to ISO string for frontend compatibility
+          savedAt: data.savedAt && typeof data.savedAt.toDate === 'function' 
+            ? data.savedAt.toDate().toISOString() 
+            : data.savedAt
+        });
+      });
       
       res.json({ projects });
     } else {

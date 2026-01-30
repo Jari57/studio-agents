@@ -4071,10 +4071,18 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             const remoteProjects = sanitizeProjects(data.projects);
             const allProjects = [...remoteProjects, ...localProjects];
             const uniqueProjects = Array.from(new Map(allProjects.map(item => [item.id, item])).values());
-            // Sort by updatedAt/createdAt descending (newest first)
+            // Sort by updatedAt/savedAt/createdAt descending (newest first)
             uniqueProjects.sort((a, b) => {
-              const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
-              const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+              const parseDate = (d) => {
+                if (!d) return 0;
+                // Handle Firebase Timestamps if any leak through
+                if (typeof d === 'object' && d.seconds) return d.seconds * 1000;
+                if (typeof d === 'object' && d._seconds) return d._seconds * 1000;
+                const time = new Date(d).getTime();
+                return isNaN(time) ? 0 : time;
+              };
+              const aTime = parseDate(a.updatedAt || a.savedAt || a.createdAt);
+              const bTime = parseDate(b.updatedAt || b.savedAt || b.createdAt);
               return bTime - aTime;
             });
             setProjects(uniqueProjects);
@@ -4521,9 +4529,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 {selectedProject.agents && selectedProject.agents.length > 0 ? (
                   selectedProject.agents.filter(Boolean).map((agentItem, idx) => {
                     // Agent might be stored as object or as ID string - handle both
-                    const agent = typeof agentItem === 'object' && agentItem?.id 
-                      ? agentItem 
-                      : (AGENTS.find(a => a.id === agentItem || a.name === agentItem) || AGENTS[0] || null);
+                    // CRITICAL: Always re-map to AGENTS constant if possible to restore React component icons
+                    const agentId = typeof agentItem === 'object' ? (agentItem.id || agentItem.name) : agentItem;
+                    const agent = AGENTS.find(a => a.id === agentId || a.name === agentId) || (typeof agentItem === 'object' ? agentItem : AGENTS[0] || null);
+                    
                     if (!agent) return null; // Skip if agent couldn't be resolved
                     return (
                       <div 
@@ -4544,8 +4553,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
                         onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}
                       >
-                        <div className="agent-avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', background: agent.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {agent.icon ? <agent.icon size={20} color="white" /> : <User size={20} color="white" />}
+                        <div className="agent-avatar" style={{ width: '40px', height: '40px', borderRadius: '50%', background: agent.color || 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {(typeof agent.icon === 'function') ? <agent.icon size={20} color="white" /> : <User size={20} color="white" />}
                         </div>
                         <div>
                           <div style={{ fontWeight: '600' }}>{agent.name}</div>
@@ -5921,7 +5930,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       <div key={idx} className={`agent-manage-row ${!agent.visible ? 'hidden-agent' : ''}`}>
                         <div className="agent-manage-info">
                           <div className={`agent-mini-icon ${agent.colorClass}`}>
-                            <agent.icon size={18} />
+                            {(typeof agent.icon === 'function') ? <agent.icon size={18} /> : <Sparkles size={18} />}
                           </div>
                           <span>{agent.name}</span>
                         </div>
@@ -10063,14 +10072,26 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     
     // If project has specific agents selected, use them as steps
     if (selectedProject.agents && selectedProject.agents.length > 0) {
-      return selectedProject.agents.map((agentId, index) => {
+      return selectedProject.agents.map((agentData, index) => {
+        // Handle both string IDs and agent objects
+        const agentId = typeof agentData === 'string' ? agentData : (agentData?.id || '');
         const agent = AGENTS.find(a => a.id === agentId);
+        
+        // DEFENSIVE: Ensure icon is a valid React component
+        // Deserialized projects from Firestore may have plain objects instead of functions
+        let SafeIcon = Zap;
+        if (agent && typeof agent.icon === 'function') {
+          SafeIcon = agent.icon;
+        } else if (agentData && typeof agentData.icon === 'function') {
+          SafeIcon = agentData.icon;
+        }
+        
         return {
           id: `step-${index}`,
-          label: agent ? `Consult ${agent.name}` : 'Agent Task',
+          label: agent ? `Consult ${agent.name}` : (typeof agentData === 'object' && agentData.name ? agentData.name : 'Agent Task'),
           desc: agent ? (agent.description || agent.category) : 'Execute task',
           agentId: agentId,
-          icon: agent ? agent.icon : Zap,
+          icon: SafeIcon,
           completed: false
         };
       });
