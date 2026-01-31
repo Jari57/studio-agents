@@ -266,7 +266,7 @@ function QuickWorkflow({
               color: agent.color || 'var(--color-purple)',
               flexShrink: 0
             }}>
-              <agent.icon size={20} />
+              {typeof agent.icon === 'function' ? <agent.icon size={20} /> : <Sparkles size={20} />}
             </div>
             <div style={{ minWidth: 0 }}>
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'white' }}>{agent.name}</h3>

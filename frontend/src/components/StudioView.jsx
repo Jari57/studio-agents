@@ -5816,7 +5816,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{i+1}. {step.label}</span>
-                                <step.icon size={16} className="text-purple" />
+                                {typeof step.icon === 'function' ? <step.icon size={16} className="text-purple" /> : <Sparkles size={16} className="text-purple" />}
                               </div>
                               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{step.desc}</p>
                               <button className="btn-pill glass" style={{ fontSize: '0.75rem', padding: '4px 12px', marginTop: 'auto' }}>Launch</button>
@@ -6527,7 +6527,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     // Show agent workspace for non-agents tabs (e.g., coming from project_canvas)
     // The agents tab now has its own split layout handling
     if (selectedAgent && activeTab !== 'agents') {
-      const Icon = selectedAgent.icon;
+      const Icon = typeof selectedAgent.icon === 'function' ? selectedAgent.icon : Sparkles;
       return (
         <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative', paddingBottom: '80px' }}>
           {/* Onboarding Nudge */}
@@ -7505,7 +7505,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         // Render the agent workspace content (used in main panel when agent is selected)
         const renderAgentWorkspace = () => {
           if (!selectedAgent) return null;
-          const Icon = selectedAgent.icon;
+          const Icon = typeof selectedAgent.icon === 'function' ? selectedAgent.icon : Sparkles;
           
           return (
             <div className="agent-workspace-content">
@@ -7760,7 +7760,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   </h5>
                 </div>
                 {AGENTS.filter(a => a.tier === 'free').map((agent) => {
-                  const Icon = agent.icon;
+                  const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                   const isActive = selectedAgent?.id === agent.id;
                   const isLocked = !availableAgents.find(a => a.id === agent.id);
                   return (
@@ -7808,7 +7808,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   </h5>
                 </div>
                 {AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
-                  const Icon = agent.icon;
+                  const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                   const isActive = selectedAgent?.id === agent.id;
                   const isLocked = !availableAgents.find(a => a.id === agent.id);
                   return (
@@ -7856,7 +7856,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   </h5>
                 </div>
                 {AGENTS.filter(a => a.tier === 'pro').map((agent) => {
-                  const Icon = agent.icon;
+                  const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                   const isActive = selectedAgent?.id === agent.id;
                   const isLocked = !availableAgents.find(a => a.id === agent.id);
                   return (
@@ -8008,7 +8008,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       gap: '12px'
                     }}>
                     {AGENTS.filter(a => a.tier === 'free').map((agent) => {
-                      const Icon = agent.icon;
+                      const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       return (
                         <div
@@ -8086,7 +8086,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       gap: '12px'
                     }}>
                     {AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
-                      const Icon = agent.icon;
+                      const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       return (
                         <div
@@ -8165,7 +8165,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       gap: '12px'
                     }}>
                     {AGENTS.filter(a => a.tier === 'pro').map((agent) => {
-                      const Icon = agent.icon;
+                      const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       return (
                         <div
@@ -14037,7 +14037,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-bg-primary)', 
                             display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--color-border)'
                           }}>
-                            <agent.icon size={16} />
+                            {typeof agent.icon === 'function' ? <agent.icon size={16} /> : <Sparkles size={16} />}
                           </div>
                         ) : null;
                       })}
@@ -14267,7 +14267,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   color: 'var(--text-primary)'
                 }}>
-                  <showAgentWhitePaper.icon size={22} />
+                  {typeof showAgentWhitePaper.icon === 'function' ? <showAgentWhitePaper.icon size={22} /> : <Sparkles size={22} />}
                 </div>
                 <div>
                   <h2 style={{ fontSize: '1.25rem', margin: 0 }}>{showAgentWhitePaper.title}</h2>
@@ -14479,7 +14479,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   color: 'var(--color-purple)'
                 }}>
-                  <showResourceContent.icon size={22} />
+                  {typeof showResourceContent.icon === 'function' ? <showResourceContent.icon size={22} /> : <Sparkles size={22} />}
                 </div>
                 <div>
                   <h2 style={{ fontSize: '1.25rem', margin: 0 }}>{showResourceContent.title}</h2>
@@ -15259,7 +15259,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             <div className="modal-header">
               <div className="modal-title-group">
                 <div className={`agent-mini-icon ${showAgentHelpModal.colorClass}`}>
-                  <showAgentHelpModal.icon size={20} />
+                  {typeof showAgentHelpModal.icon === 'function' ? <showAgentHelpModal.icon size={20} /> : <Sparkles size={20} />}
                 </div>
                 <h2>{showAgentHelpModal.name} Guide</h2>
               </div>

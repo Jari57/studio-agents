@@ -1251,7 +1251,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
 
         <div className="agents-studio-grid" style={{ maxWidth: '1200px', margin: '0 auto' }}>
           {AGENTS.filter(a => a.tier === 'free').map((agent, i) => {
-            const Icon = agent.icon;
+            const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
             const key = agent.id || agent.name;
 
             return (
@@ -2330,7 +2330,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {AGENTS.filter(a => a.tier === 'free').map((agent) => {
-                    const Icon = agent.icon;
+                    const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                     return (
                       <div key={agent.id} style={{
                         display: 'flex',
@@ -3651,7 +3651,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       {showAgentWhitepaper && selectedWhitepaperAgent && (() => {
         const agent = selectedWhitepaperAgent;
         const wp = getWhitepaperData(agent.id);
-        const Icon = agent.icon;
+        const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
         
         return (
           <div 
