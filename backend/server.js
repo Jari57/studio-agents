@@ -381,8 +381,8 @@ async function downloadAndUploadToStorage(sourceUrl, userId, fileName) {
   return uploadToStorage(buffer, userId, fileName, contentType);
 }
 
-// Firestore database helper - uses named database 'studio-agents-db'
-const FIRESTORE_DATABASE_ID = 'studio-agents-db';
+// Firestore database helper - defaults to '(default)' but can use named database via ENV
+const FIRESTORE_DATABASE_ID = process.env.FIREBASE_DATABASE_ID || '(default)';
 let firestoreDb = null;
 
 function getFirestoreDb() {
