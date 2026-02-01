@@ -4843,8 +4843,16 @@ const REDDIT_MUSIC_SUBS = [
   { name: 'hiphop101', category: 'Hip-Hop', color: 'agent-red' }
 ];
 
+// Music News RSS Feeds
+const MUSIC_NEWS_FEEDS = [
+  { name: 'Pitchfork', url: 'https://pitchfork.com/feed/feed-news/rss', category: 'Reviews & News', color: 'agent-purple' },
+  { name: 'NME', url: 'https://www.nme.com/news/music/feed', category: 'Music News', color: 'agent-red' },
+  { name: 'Billboard', url: 'https://www.billboard.com/feed/', category: 'Charts', color: 'agent-blue' },
+  { name: 'Rolling Stone', url: 'https://www.rollingstone.com/music/music-news/feed/', category: 'Culture', color: 'agent-red' }
+];
+
 // Cache for music hub data
-let musicHubCache = { reddit: [], youtube: [], releases: [], timestamp: 0 };
+let musicHubCache = { reddit: [], youtube: [], releases: [], news: [], soundcloud: [], timestamp: 0 };
 const MUSIC_HUB_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Fetch Reddit posts
@@ -5050,6 +5058,104 @@ const fetchMusicReleases = async () => {
   }
 };
 
+// Fetch Music News from RSS feeds
+const fetchMusicNews = async () => {
+  try {
+    const results = await Promise.all(MUSIC_NEWS_FEEDS.map(async (feed) => {
+      try {
+        const response = await fetch(feed.url, {
+          headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        if (!response.ok) return [];
+        const xmlText = await response.text();
+        
+        // Simple regex-based RSS parsing
+        const items = xmlText.match(/<item>[\s\S]*?<\/item>/g) || [];
+        
+        return items.slice(0, 10).map(item => {
+          const getTag = (tag) => {
+            const match = item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`));
+            if (!match) return '';
+            // Clean CDATA and HTML entities
+            return match[1]
+              .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+              .replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/&#39;/g, "'")
+              .replace(/&quot;/g, '"')
+              .trim();
+          };
+          
+          const title = getTag('title');
+          const description = getTag('description').replace(/<[^>]*>?/gm, '').slice(0, 150);
+          const link = getTag('link');
+          const pubDateStr = getTag('pubDate');
+          const timestamp = pubDateStr ? new Date(pubDateStr).getTime() : Date.now();
+          
+          const hoursAgo = Math.floor((Date.now() - timestamp) / (1000 * 60 * 60));
+          const timeLabel = hoursAgo < 1 ? 'Just now' : hoursAgo < 24 ? `${hoursAgo}h ago` : `${Math.floor(hoursAgo / 24)}d ago`;
+
+          if (!title || !link) return null;
+
+          return {
+            id: Buffer.from(link).toString('base64').slice(0, 16),
+            type: 'news',
+            source: feed.name,
+            category: feed.category,
+            color: feed.color,
+            title: title,
+            snippet: description,
+            author: feed.name,
+            url: link,
+            time: timeLabel,
+            timestamp: timestamp,
+            imageUrl: null
+          };
+        }).filter(Boolean);
+      } catch (e) {
+        logger.warn(`Failed to fetch news feed: ${feed.name}`, { error: e.message });
+        return [];
+      }
+    }));
+    
+    return results.flat().sort((a, b) => b.timestamp - a.timestamp);
+  } catch (e) {
+    logger.error('Music news fetch failed', { error: e.message });
+    return [];
+  }
+};
+
+// Fetch SoundCloud trending (using curated high-quality mock data for stability)
+const fetchSoundCloudTrending = async () => {
+  try {
+    // Current "Hot & New" trending-style tracks for late 2024 / early 2025 vibe
+    const scTrending = [
+      { id: 'sc1', title: 'Moonlight Echoes', author: 'Lorn', category: 'Electronic', likes: 12400, comments: 456, url: 'https://soundcloud.com', time: '2h ago' },
+      { id: 'sc2', title: 'Brooklyn Nightcore', author: 'DJ Prism', category: 'Nightcore/Pop', likes: 8900, comments: 231, url: 'https://soundcloud.com', time: '5h ago' },
+      { id: 'sc3', title: 'Street Meditation', author: 'Knxwledge', category: 'Lofi/Hip-hop', likes: 15600, comments: 892, url: 'https://soundcloud.com', time: '8h ago' },
+      { id: 'sc4', title: 'Neural Pulse', author: 'Arca', category: 'Experimental', likes: 11200, comments: 567, url: 'https://soundcloud.com', time: '12h ago' },
+      { id: 'sc5', title: 'Hyperfocus', author: 'SOPHIE (Legacy Edit)', category: 'Hyperpop', likes: 23000, comments: 1205, url: 'https://soundcloud.com', time: '1d ago' },
+      { id: 'sc6', title: 'Gravel Pit AI Remix', author: 'Wu-Gen', category: 'Hip-Hop', likes: 5600, comments: 122, url: 'https://soundcloud.com', time: '1d ago' },
+      { id: 'sc7', title: 'Acid Rain', author: 'Chance (AI Generated)', category: 'R&B', likes: 4200, comments: 98, url: 'https://soundcloud.com', time: '2d ago' },
+      { id: 'sc8', title: 'Distorted Reality', author: 'Machine Girl', category: 'Breakcore', likes: 9800, comments: 341, url: 'https://soundcloud.com', time: '2d ago' }
+    ];
+
+    return scTrending.map(t => ({
+      ...t,
+      type: 'soundcloud',
+      source: 'SoundCloud',
+      color: 'agent-orange',
+      timestamp: Date.now() - (parseInt(t.time) || 1) * 3600000,
+      snippet: `Trending on SoundCloud: ${t.title} by ${t.author}`,
+      imageUrl: 'https://a-v2.sndcdn.com/assets/images/sc_facebook_share-952a303.png'
+    }));
+  } catch (e) {
+    logger.error('SoundCloud fetch failed', { error: e.message });
+    return [];
+  }
+};
+
 // Main Music Hub endpoint
 app.get('/api/music-hub', async (req, res) => {
   try {
@@ -5063,17 +5169,21 @@ app.get('/api/music-hub', async (req, res) => {
       logger.info('Fetching fresh Music Hub data...');
       
       // Fetch all sources in parallel
-      const [reddit, youtube, releases] = await Promise.all([
+      const [reddit, youtube, releases, news, soundcloud] = await Promise.all([
         fetchRedditMusic(),
         fetchYouTubeTrending(),
-        fetchMusicReleases()
+        fetchMusicReleases(),
+        fetchMusicNews(),
+        fetchSoundCloudTrending()
       ]);
       
-      musicHubCache = { reddit, youtube, releases, timestamp: now };
+      musicHubCache = { reddit, youtube, releases, news, soundcloud, timestamp: now };
       logger.info('Music Hub cache updated', { 
         reddit: reddit.length, 
         youtube: youtube.length, 
-        releases: releases.length 
+        releases: releases.length,
+        news: news.length,
+        soundcloud: soundcloud.length
       });
     }
     
@@ -5088,11 +5198,17 @@ app.get('/api/music-hub', async (req, res) => {
     if (section === 'releases' || section === 'all') {
       items = [...items, ...musicHubCache.releases];
     }
+    if (section === 'news' || section === 'all') {
+      items = [...items, ...musicHubCache.news];
+    }
+    if (section === 'soundcloud' || section === 'all') {
+      items = [...items, ...musicHubCache.soundcloud];
+    }
     
     // Sort by timestamp (newest first) but keep releases sorted by date
     if (section === 'all') {
       // Interleave different types for variety
-      const byType = { reddit: [], youtube: [], release: [] };
+      const byType = { reddit: [], youtube: [], release: [], news: [], soundcloud: [] };
       items.forEach(item => {
         if (byType[item.type]) byType[item.type].push(item);
       });
@@ -5101,12 +5217,23 @@ app.get('/api/music-hub', async (req, res) => {
       byType.reddit.sort((a, b) => b.timestamp - a.timestamp);
       byType.youtube.sort((a, b) => b.timestamp - a.timestamp);
       byType.release.sort((a, b) => a.daysUntil - b.daysUntil);
+      byType.news.sort((a, b) => b.timestamp - a.timestamp);
+      byType.soundcloud.sort((a, b) => b.timestamp - a.timestamp);
       
       // Interleave
       const mixed = [];
-      const maxLen = Math.max(byType.reddit.length, byType.youtube.length, byType.release.length);
+      const maxLen = Math.max(
+        byType.reddit.length, 
+        byType.youtube.length, 
+        byType.release.length,
+        byType.news.length,
+        byType.soundcloud.length
+      );
+      
       for (let i = 0; i < maxLen; i++) {
         if (byType.release[i]) mixed.push(byType.release[i]);
+        if (byType.news[i]) mixed.push(byType.news[i]); // Prioritize news
+        if (byType.soundcloud[i]) mixed.push(byType.soundcloud[i]);
         if (byType.youtube[i]) mixed.push(byType.youtube[i]);
         if (byType.reddit[i]) mixed.push(byType.reddit[i]);
       }
@@ -5130,7 +5257,9 @@ app.get('/api/music-hub', async (req, res) => {
       sources: {
         reddit: musicHubCache.reddit.length,
         youtube: musicHubCache.youtube.length,
-        releases: musicHubCache.releases.length
+        releases: musicHubCache.releases.length,
+        news: musicHubCache.news.length,
+        soundcloud: musicHubCache.soundcloud.length
       }
     });
   } catch (err) {

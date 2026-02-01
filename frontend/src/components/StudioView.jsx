@@ -828,9 +828,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     gender: 'male',
     region: 'US',
     language: 'English',
-    style: 'rapper',           // rapper, rapper-female, singer, narrator, spoken
+    style: 'rapper',           // rapper, rapper-female, singer, narrator, spoken, cloned
     rapStyle: 'aggressive',    // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
-    voiceName: 'rapper-male-1'
+    voiceName: 'rapper-male-1',
+    speakerUrl: localStorage.getItem('studio_cloned_voice_url') || null
   });
   
   // Voice Command Definitions for Whisperer-style UI
@@ -2912,7 +2913,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           voice: voiceSettings.voiceName || 'rapper-male-1',
           style: voiceSettings.style || 'rapper',  // rapper, rapper-female, singer, singer-female
           rapStyle: voiceSettings.rapStyle || 'aggressive',  // aggressive, melodic, trap, drill, boom-bap, fast, chill, hype
-          genre: voiceSettings.genre || 'hip-hop'  // hip-hop, r&b, pop, soul, trap, drill
+          genre: voiceSettings.genre || 'hip-hop',  // hip-hop, r&b, pop, soul, trap, drill
+          speakerUrl: voiceSettings.speakerUrl
         })
       });
 
@@ -3201,7 +3203,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       const isImageAgent = agentId === 'album';
       const isVideoAgent = agentId === 'video-creator';
       const isAudioAgent = agentId === 'beat' || agentId === 'sample';
-      const isSpeechAgent = agentId === 'podcast' || agentId === 'voiceover' || agentId === 'vocal-arch';
+      const isSpeechAgent = agentId === 'podcast' || agentId === 'voiceover' || agentId === 'vocal-arch' || agentId === 'ghost';
       
       if (isImageAgent) {
         endpoint = '/api/generate-image';
@@ -3232,8 +3234,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         endpoint = '/api/generate-speech';
         body = { 
           prompt, 
-          voice: voiceSettings.voiceName || 'Kore', 
-          style: 'natural' 
+          voice: voiceSettings.voiceName || 'rapper-male-1', 
+          style: voiceSettings.style || 'spoken',
+          speakerUrl: voiceSettings.speakerUrl
         };
         
         // Add backing track info if available (for sync)
@@ -6702,7 +6705,86 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                   <option value="narrator">📢 Narrator (Deep Voice)</option>
                                   <option value="spoken">💬 Spoken Word</option>
                                 </optgroup>
+                                <optgroup label="✨ Custom/Advanced">
+                                  <option value="cloned" disabled={!voiceSettings.speakerUrl}>🧬 Cloned Voice {!voiceSettings.speakerUrl && '(Upload first)'}</option>
+                                </optgroup>
                               </select>
+                            </div>
+
+                            {/* Voice Cloning / Upload Section */}
+                            <div className="settings-group" style={{ 
+                              padding: '10px', 
+                              background: 'rgba(255,255,255,0.03)', 
+                              borderRadius: '8px',
+                              marginTop: '8px',
+                              border: '1px dashed rgba(255,255,255,0.1)'
+                            }}>
+                              <label style={{ fontSize: '0.75rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <Cloud size={14} className="text-cyan" /> 
+                                {voiceSettings.speakerUrl ? 'Voice Profile Loaded' : 'Clone Your Voice'}
+                              </label>
+                              
+                              {voiceSettings.speakerUrl ? (
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--color-green)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <Check size={12} /> Ready to use
+                                  </div>
+                                  <button 
+                                    onClick={() => {
+                                      setVoiceSettings({...voiceSettings, speakerUrl: null, style: 'rapper'});
+                                      localStorage.removeItem('studio_cloned_voice_url');
+                                    }}
+                                    style={{ background: 'none', border: 'none', color: 'var(--color-red)', fontSize: '0.7rem', cursor: 'pointer' }}
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                              ) : (
+                                <div 
+                                  onClick={() => document.getElementById('voice-upload-input').click()}
+                                  style={{ 
+                                    padding: '12px', 
+                                    textAlign: 'center', 
+                                    cursor: 'pointer',
+                                    border: '1px dashed rgba(255,255,255,0.2)',
+                                    borderRadius: '6px',
+                                    fontSize: '0.75rem',
+                                    color: 'var(--text-secondary)',
+                                    transition: 'all 0.2s'
+                                  }}
+                                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                                >
+                                  <Upload size={16} style={{ marginBottom: '4px' }} />
+                                  <div>Upload 5-10s clip (.wav/.mp3)</div>
+                                  <input 
+                                    id="voice-upload-input"
+                                    type="file" 
+                                    accept="audio/*"
+                                    hidden
+                                    onChange={async (e) => {
+                                      const file = e.target.files[0];
+                                      if (!file) return;
+                                      
+                                      const toastId = toast.loading('Uploading voice profile...');
+                                      try {
+                                        // Use existing uploadFile helper from firebase.js
+                                        const url = await uploadFile(file, `voices/${user?.uid || 'guest'}_${Date.now()}`);
+                                        setVoiceSettings({
+                                          ...voiceSettings, 
+                                          speakerUrl: url,
+                                          style: 'cloned'
+                                        });
+                                        localStorage.setItem('studio_cloned_voice_url', url);
+                                        toast.success('Voice profile cloned successfully!', { id: toastId });
+                                      } catch (err) {
+                                        console.error('Voice upload error:', err);
+                                        toast.error('Failed to upload voice. Try again.', { id: toastId });
+                                      }
+                                    }}
+                                  />
+                                </div>
+                              )}
                             </div>
                             
                             {/* Rap Style - only show for rapper voices */}
@@ -6744,15 +6826,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             )}
                             
                             <p className="settings-info" style={{ marginTop: '8px', opacity: 0.8 }}>
-                              {['rapper', 'rapper-female', 'singer', 'singer-female'].includes(voiceSettings.style) ? (
+                              {['rapper', 'rapper-female', 'singer', 'singer-female', 'cloned', 'narrator', 'spoken'].includes(voiceSettings.style) ? (
                                 <>
-                                  🚀 <strong>AI Vocals Mode</strong> — Real rapper/singer voices via Suno AI & Bark (30-60s generation time). 
+                                  🚀 <strong>AI Vocals Mode</strong> — Real AI voices via Replicate & XTTS (30-60s generation time). 
                                   {(voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female') && ` Flow: ${voiceSettings.rapStyle || 'aggressive'}`}
                                   {(voiceSettings.style === 'singer' || voiceSettings.style === 'singer-female') && ` Genre: ${voiceSettings.genre || 'r&b'}`}
                                 </>
                               ) : (
                                 <>
-                                  ⚡ <strong>Instant TTS Mode</strong> — Browser voices for quick preview. Switch to rapper/singer for real AI vocals.
+                                  ⚡ <strong>Instant TTS Mode</strong> — Browser voices for quick preview. Switch to a pro style for real AI vocals.
                                 </>
                               )}
                             </p>
@@ -9025,8 +9107,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
                   {[
                     { id: 'all', label: 'All Trends', icon: Zap },
-                    { id: 'udio', label: 'Udio', icon: Music },
-                    { id: 'suno', label: 'Suno', icon: PlayCircle },
+                    { id: 'news', label: 'Music News', icon: Globe },
+                    { id: 'soundcloud', label: 'SoundCloud', icon: Cloud },
+                    { id: 'youtube', label: 'YouTube', icon: PlayCircle },
+                    { id: 'releases', label: 'New Releases', icon: Disc },
                     { id: 'reddit', label: 'Community', icon: MessageSquare }
                   ].map(tab => (
                     <button
@@ -9144,8 +9228,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         left: '12px',
                         padding: '6px 12px',
                         borderRadius: '8px',
-                        background: item.type === 'youtube' ? 'rgba(255, 0, 0, 0.9)' : 
-                                   item.type === 'reddit' ? 'rgba(255, 69, 0, 0.9)' : 
+                        background: item.source === 'youtube' ? 'rgba(255, 0, 0, 0.9)' : 
+                                   item.source === 'reddit' ? 'rgba(255, 69, 0, 0.9)' : 
+                                   item.source === 'soundcloud' ? '#ff3300' :
+                                   item.source === 'news' ? 'rgba(0, 120, 215, 0.9)' :
                                    'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
                         color: 'white',
                         fontSize: '0.7rem',
@@ -9156,9 +9242,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         gap: '6px',
                         zIndex: 2
                       }}>
-                        {item.type === 'youtube' && <PlayCircle size={12} />}
-                        {item.type === 'reddit' && <MessageSquare size={12} />}
-                        {item.type === 'release' && <Calendar size={12} />}
+                        {item.source === 'youtube' && <PlayCircle size={12} />}
+                        {item.source === 'reddit' && <MessageSquare size={12} />}
+                        {(item.source === 'releases' || item.type === 'release') && <Calendar size={12} />}
+                        {item.source === 'soundcloud' && <Cloud size={12} />}
+                        {item.source === 'news' && <Globe size={12} />}
                         {item.source}
                       </div>
                     </div>
@@ -12547,7 +12635,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         ? (previewItem.snippet || previewItem.content || '')
                         : (previewPrompt || '');
                       // Use AI vocal for rapper/singer styles, browser TTS for narrator/spoken
-                      const aiVoiceStyles = ['rapper', 'rapper-female', 'singer', 'singer-female'];
+                      const aiVoiceStyles = ['rapper', 'rapper-female', 'singer', 'singer-female', 'cloned', 'narrator', 'spoken'];
                       if (aiVoiceStyles.includes(voiceSettings.style)) {
                         // Use actual AI vocals (Bark/Suno) for real rapper/singer voices
                         handleCreateAIVocal(text, selectedAgent?.name || 'AI');
@@ -12560,7 +12648,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         }
                       }
                     }}
-                    title={['rapper', 'rapper-female', 'singer', 'singer-female'].includes(voiceSettings.style) 
+                    title={['rapper', 'rapper-female', 'singer', 'singer-female', 'cloned', 'narrator', 'spoken'].includes(voiceSettings.style) 
                       ? `Read aloud using AI ${voiceSettings.style} voice (takes 30-60 seconds)`
                       : 'Read text aloud using browser TTS'}
                     style={{ 
