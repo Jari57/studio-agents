@@ -223,10 +223,10 @@ test.describe('Media Generation Endpoints', () => {
 
   test('Video generation endpoint exists', async ({ request }) => {
     // Video generation with Veo takes 2-3 minutes, just check endpoint exists
-    // by sending an empty prompt to avoid triggering slow generation
-    test.setTimeout(180000); // 3 minutes
+    // by sending a test prompt. We use a longer timeout for health check.
+    test.setTimeout(240000); // 4 minutes
     const response = await request.post(`${BACKEND_URL}/api/generate-video`, {
-      data: { prompt: '' }
+      data: { prompt: 'test video' }
     });
     expect([200, 400, 401, 500, 503]).toContain(response.status());
   });
