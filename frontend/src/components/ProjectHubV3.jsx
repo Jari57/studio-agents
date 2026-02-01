@@ -10,6 +10,236 @@ import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, createProjectFromTemplate } from '../data/projectTemplates';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// WAVEFORM COMPONENT (Decorative)
+// ═══════════════════════════════════════════════════════════════════════════════
+function WaveformOverlay({ color = 'var(--color-purple)' }) {
+  return (
+    <div className="waveform-container">
+      {[...Array(20)].map((_, i) => (
+        <div 
+          key={i} 
+          className="waveform-bar" 
+          style={{ 
+            height: `${20 + Math.random() * 80}%`,
+            background: color,
+            animationDelay: `${i * 0.05}s`
+          }} 
+        />
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DISCOVER FEED COMPONENT (BandLab style)
+// ═══════════════════════════════════════════════════════════════════════════════
+function DiscoverFeed({ onRemix, onPlay, playingAudio }) {
+  const trendingCreators = [
+    { id: 1, name: 'NeonVibe', avatar: 'https://i.pravatar.cc/150?u=1', followers: '12k' },
+    { id: 2, name: 'HyperPop_AI', avatar: 'https://i.pravatar.cc/150?u=2', followers: '8.4k' },
+    { id: 3, name: 'Metro_Boomin_Bot', avatar: 'https://i.pravatar.cc/150?u=3', followers: '45k' },
+    { id: 4, name: 'LoFi_Girl_X', avatar: 'https://i.pravatar.cc/150?u=4', followers: '1.2M' },
+    { id: 5, name: 'DrillMaster', avatar: 'https://i.pravatar.cc/150?u=5', followers: '3k' },
+  ];
+
+  const discoveryTracks = [
+    { 
+      id: 'd1', 
+      name: 'Cybernetic Dreams', 
+      creator: 'NeonVibe', 
+      likes: 1240, 
+      remixes: 45, 
+      tags: ['Cyberpunk', 'Synthwave'],
+      source: 'Mureaka',
+      audioUrl: 'https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a165b4.mp3',
+      thumbnail: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&q=80&w=300'
+    },
+    { 
+      id: 'd2', 
+      name: 'Midnight In Tokyo', 
+      creator: 'HyperPop_AI', 
+      likes: 890, 
+      remixes: 12, 
+      tags: ['Lo-Fi', 'Study'],
+      source: 'BandLab',
+      audioUrl: 'https://cdn.pixabay.com/audio/2022/01/21/audio_168f86067b.mp3',
+      thumbnail: 'https://images.unsplash.com/photo-1571330735066-03aaa9429d89?auto=format&fit=crop&q=80&w=300'
+    },
+    { 
+      id: 'd3', 
+      name: 'Trap Soul Sessions', 
+      creator: 'DrillMaster', 
+      likes: 3400, 
+      remixes: 156, 
+      tags: ['Trap', 'Dark'],
+      source: 'Music GPT',
+      audioUrl: 'https://cdn.pixabay.com/audio/2021/11/23/audio_0ed20b0c20.mp3',
+      thumbnail: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&q=80&w=300'
+    },
+    { 
+      id: 'd4', 
+      name: 'Ethereal Vocals', 
+      creator: 'LoFi_Girl_X', 
+      likes: 15400, 
+      remixes: 890, 
+      tags: ['Ambient', 'Vocal'],
+      source: 'Mureaka',
+      audioUrl: 'https://cdn.pixabay.com/audio/2022/10/21/audio_a16f217730.mp3',
+      thumbnail: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?auto=format&fit=crop&q=80&w=300'
+    }
+  ];
+
+  return (
+    <div className="discover-feed-container animate-fadeIn">
+      {/* Featured Banner (Social Style) */}
+      <div className="discovery-hero-banner" style={{
+        background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.4), rgba(147, 51, 234, 0.4))',
+        borderRadius: '20px',
+        padding: '30px',
+        marginBottom: '32px',
+        border: '1px solid rgba(255,255,255,0.1)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <span style={{ 
+            background: '#ef4444', 
+            color: 'white', 
+            padding: '4px 10px', 
+            borderRadius: '6px', 
+            fontSize: '0.7rem', 
+            fontWeight: '800',
+            textTransform: 'uppercase',
+            letterSpacing: '1px'
+          }}>Community</span>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: '800', marginTop: '10px' }}>Studio Agents Collaboration</h2>
+          <p style={{ color: 'rgba(255,255,255,0.8)', maxWidth: '500px' }}>
+            Fork projects shared by other Studio Agent users to collaborate, remix ideas, and learn from fellow creators.
+          </p>
+          <button 
+            className="btn-create-new" 
+            style={{ width: 'fit-content', marginTop: '10px' }}
+            onClick={() => onRemix(discoveryTracks[0])}
+          >
+            <Copy size={18} /> Fork Project
+          </button>
+        </div>
+        <div style={{
+          position: 'absolute',
+          right: '-50px',
+          top: '-20px',
+          opacity: 0.2,
+          transform: 'rotate(15deg)'
+        }}>
+          <Music size={240} />
+        </div>
+      </div>
+
+      {/* Trending Creators Bar */}
+      <section className="trending-creators">
+        <div className="section-header">
+          <h3>@Studio Agents</h3>
+          <button className="btn-text">View All <ChevronRight size={14} /></button>
+        </div>
+        <div className="creator-scroll">
+          {trendingCreators.map(creator => (
+            <div key={creator.id} className="creator-card">
+              <div className="avatar-wrapper">
+                <img src={creator.avatar} alt={creator.name} />
+                <div className="online-indicator" />
+              </div>
+              <span className="creator-name">{creator.name}</span>
+              <span className="creator-stat">Studio User</span>
+              <button className="btn-follow">View Workspace</button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Discovery Feed Grid */}
+      <section className="feed-tracks">
+        <div className="section-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <TrendingUp size={20} color="var(--color-purple)" />
+            <h3>Shared Studio Projects</h3>
+          </div>
+          <div className="feed-filters">
+            <button className="active">Trending</button>
+            <button>Top Remixes</button>
+            <button>Most Forked</button>
+            <button>All Shared</button>
+          </div>
+        </div>
+        <div className="feed-grid">
+          {discoveryTracks.map(track => (
+            <div key={track.id} className="feed-item-card">
+              <div 
+                className="track-thumb"
+                style={{ backgroundImage: `url(${track.thumbnail})` }}
+              >
+                <div className="track-overlay">
+                  <button 
+                    className={`play-circle ${playingAudio === track.audioUrl ? 'playing' : ''}`}
+                    onClick={(e) => onPlay(track.audioUrl, e)}
+                  >
+                    {playingAudio === track.audioUrl ? <Pause size={24} /> : <Play size={24} />}
+                  </button>
+                </div>
+                <div className="remix-badge">
+                   <Copy size={10} /> Fork
+                </div>
+                {track.source && (
+                  <div className="source-badge">
+                    {track.source}
+                  </div>
+                )}
+              </div>
+              <div className="track-info">
+                <div className="track-primary" style={{ width: '100%', overflow: 'hidden' }}>
+                  <h4 className="track-name" style={{ 
+                    whiteSpace: 'nowrap', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis',
+                    margin: 0
+                  }}>{track.name}</h4>
+                  <p className="track-creator" style={{ 
+                    whiteSpace: 'nowrap', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis',
+                    margin: '4px 0 0 0',
+                    opacity: 0.7,
+                    fontSize: '0.85rem'
+                  }}>@ {track.creator.toLowerCase().replace(/_|\s/g, '')}</p>
+                </div>
+                <div className="track-tags">
+                  {track.tags.map(tag => <span key={tag} className="tag">#{tag}</span>)}
+                </div>
+                <div className="track-actions">
+                  <div className="stats" style={{ display: 'flex', gap: '12px' }}>
+                    <span title="Likes" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Heart size={14} /> {track.likes}</span>
+                    <span title="Forks" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Copy size={13} /> {track.remixes}</span>
+                  </div>
+                  <button 
+                    className="btn-remix-action"
+                    onClick={() => onRemix(track)}
+                    style={{ gap: '6px', padding: '8px 12px' }}
+                  >
+                    <Plus size={14} /> FORK & EDIT
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 /**
  * ProjectHubV3 - CapCut/Captions-inspired modern project management
  * Ultra-fluid UX with smooth animations, drag-drop, and micro-interactions
@@ -24,6 +254,7 @@ function ProjectHubV3({
   setPreviewItem,
   setPlayingItem
 }) {
+  const [activeHubTab, setActiveHubTab] = useState('my-projects'); // 'my-projects' or 'discover'
   const [viewMode, setViewMode] = useState('grid');
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -384,12 +615,36 @@ function ProjectHubV3({
       
       {/* Header */}
       <header className="hub-header-v3">
+        <div className="hub-tabs-modern">
+          <button 
+            className={`hub-tab-item ${activeHubTab === 'my-projects' ? 'active' : ''}`}
+            onClick={() => setActiveHubTab('my-projects')}
+          >
+            <Folder size={18} />
+            <span>My Projects</span>
+          </button>
+          <button 
+            className={`hub-tab-item ${activeHubTab === 'discover' ? 'active' : ''}`}
+            onClick={() => setActiveHubTab('discover')}
+          >
+            <TrendingUp size={18} />
+            <span>Studio Community</span>
+            <span className="live-dot" />
+          </button>
+        </div>
+
         <div className="hub-title-row">
           <div className="title-section">
-            <h1>Your Projects</h1>
+            <h1>{activeHubTab === 'my-projects' ? 'Your Projects' : 'Shared Projects'}</h1>
             <p className="hub-subtitle">
-              {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''}
-              {filter !== 'all' && <span className="filter-badge">{filter}</span>}
+              {activeHubTab === 'my-projects' ? (
+                <>
+                  {filteredProjects.length} project{filteredProjects.length !== 1 ? 's' : ''}
+                  {filter !== 'all' && <span className="filter-badge">{filter}</span>}
+                </>
+              ) : (
+                'Projects shared by Studio Agent users'
+              )}
             </p>
           </div>
           <div className="header-actions">
@@ -464,6 +719,39 @@ function ProjectHubV3({
         <div className={`projects-grid ${viewMode}`}>
           {[1, 2, 3, 4, 5, 6].map(i => <SkeletonCard key={i} />)}
         </div>
+      ) : activeHubTab === 'discover' ? (
+        <DiscoverFeed 
+          onRemix={(track) => {
+            const newProject = {
+              id: `remix-${Date.now()}`,
+              name: `Remix: ${track.name}`,
+              idea: track.name,
+              style: track.tags[0] || 'Modern Hip-Hop',
+              assets: [
+                {
+                  id: 'ref-audio',
+                  title: `Reference: ${track.name} by ${track.creator}`,
+                  type: 'Audio',
+                  audioUrl: track.audioUrl,
+                  imageUrl: track.thumbnail,
+                  date: 'Just now'
+                }
+              ],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              progress: 25
+            };
+            setProjects?.(prev => [newProject, ...prev]);
+            toast.success(`Remixing ${track.name} - Forked to Studio!`, {
+              icon: '🍴',
+              style: { background: '#22c55e', color: 'white' }
+            });
+            onSelectProject?.(newProject);
+            setActiveHubTab('my-projects');
+          }}
+          onPlay={playAudio}
+          playingAudio={playingAudio}
+        />
       ) : filteredProjects.length === 0 ? (
         <div className="empty-state-v3">
           {searchQuery ? (
@@ -571,7 +859,11 @@ function ProjectHubV3({
                 >
                   {!thumbnail && (
                     <div className="placeholder-thumb">
-                      <Sparkles size={32} />
+                      {assetIcons.includes('audio') ? (
+                        <WaveformOverlay color={index % 2 === 0 ? 'var(--color-purple)' : 'var(--color-cyan)'} />
+                      ) : (
+                        <Sparkles size={32} />
+                      )}
                     </div>
                   )}
                   
@@ -664,8 +956,13 @@ function ProjectHubV3({
                           <Clock size={12} />
                           {formatRelativeTime(project.updatedAt || project.createdAt)}
                         </span>
-                        <span className="meta-count">
-                          {project.assets?.length || 0} asset{(project.assets?.length || 0) !== 1 ? 's' : ''}
+                        <span className="meta-visibility">
+                          {project.isPublic ? (
+                            <Globe size={12} color="var(--color-cyan)" />
+                          ) : (
+                            <Lock size={12} />
+                          )}
+                          {project.isPublic ? 'Public' : 'Private'}
                         </span>
                       </div>
                     </>
@@ -696,6 +993,17 @@ function ProjectHubV3({
                       </button>
                       <button onClick={e => handleDuplicate(project, e)}>
                         <Copy size={16} /> Duplicate
+                      </button>
+                      <button onClick={e => {
+                        e.stopPropagation();
+                        const updated = { ...project, isPublic: !project.isPublic };
+                        setProjects?.(prev => prev.map(p => p.id === project.id ? updated : p));
+                        onSaveProject?.(updated);
+                        setShowContextMenu(null);
+                        toast.success(updated.isPublic ? 'Project is now Public' : 'Project is now Private');
+                      }}>
+                        {project.isPublic ? <Lock size={16} /> : <Globe size={16} />}
+                        {project.isPublic ? 'Make Private' : 'Make Public'}
                       </button>
                       <button onClick={e => toggleFavorite(project.id, e)}>
                         <Heart size={16} /> {favorites.includes(project.id) ? 'Unfavorite' : 'Favorite'}
@@ -1364,6 +1672,17 @@ function ProjectHubV3({
           gap: 4px;
         }
 
+        .meta-visibility {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          color: var(--text-secondary);
+        }
+        
+        .meta-visibility svg {
+          opacity: 0.7;
+        }
+
         .context-btn {
           position: absolute;
           top: 16px;
@@ -1777,6 +2096,29 @@ function ProjectHubV3({
           box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
         }
 
+        /* Waveform Animation */
+        .waveform-container {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 3px;
+          height: 48px;
+          width: 100%;
+          padding: 0 20px;
+        }
+
+        .waveform-bar {
+          width: 3px;
+          border-radius: 2px;
+          animation: waveform 1.2s ease-in-out infinite;
+          opacity: 0.6;
+        }
+
+        @keyframes waveform {
+          0%, 100% { height: 20%; transform: scaleY(1); }
+          50% { height: 100%; transform: scaleY(1.2); }
+        }
+
         /* Tablet */
         @media (max-width: 1024px) {
           .projects-grid.grid {
@@ -1963,7 +2305,412 @@ function ProjectHubV3({
             font-size: 1.25rem;
           }
         }
+
+        /* ══════════════════════════════
+           BANDLAB STYLE ENHANCEMENTS 
+           ══════════════════════════════ */
         
+        .hub-tabs-modern {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 32px;
+          background: var(--bg-secondary);
+          padding: 6px;
+          border-radius: 16px;
+          border: 1px solid var(--border-color);
+          width: fit-content;
+        }
+
+        .hub-tab-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 20px;
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          font-weight: 600;
+          font-size: 0.9rem;
+          cursor: pointer;
+          border-radius: 12px;
+          transition: all 0.3s ease;
+          position: relative;
+        }
+
+        .hub-tab-item:hover {
+          color: white;
+          background: rgba(255,255,255,0.05);
+        }
+
+        .hub-tab-item.active {
+          color: white;
+          background: var(--bg-tertiary);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .live-dot {
+          width: 8px;
+          height: 8px;
+          background: #ef4444;
+          border-radius: 50%;
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+          animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+          0% { transform: scale(0.95); opacity: 0.7; }
+          70% { transform: scale(1.1); opacity: 1; }
+          100% { transform: scale(0.95); opacity: 0.7; }
+        }
+
+        /* Discover Feed */
+        .discover-feed-container {
+          display: flex;
+          flex-direction: column;
+          gap: 40px;
+          animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+
+        .section-header h3 {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: white;
+          margin: 0;
+        }
+
+        .btn-text {
+          background: none;
+          border: none;
+          color: var(--color-purple);
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        /* Trending Creators */
+        .creator-scroll {
+          display: flex;
+          gap: 16px;
+          overflow-x: auto;
+          padding: 8px 0 24px;
+          scrollbar-width: thin;
+          scrollbar-color: var(--border-color) transparent;
+        }
+
+        .creator-scroll::-webkit-scrollbar {
+          height: 4px;
+        }
+        
+        .creator-scroll::-webkit-scrollbar-thumb {
+          background: var(--border-color);
+          border-radius: 10px;
+        }
+
+        .creator-card {
+          flex: 0 0 160px;
+          background: var(--bg-secondary);
+          padding: 24px 16px;
+          border-radius: 20px;
+          border: 1px solid var(--border-color);
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.3s ease;
+        }
+
+        .creator-card:hover {
+          transform: translateY(-5px);
+          border-color: var(--color-purple);
+          background: var(--bg-tertiary);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .avatar-wrapper {
+          position: relative;
+          width: 64px;
+          height: 64px;
+          margin-bottom: 4px;
+        }
+
+        .avatar-wrapper img {
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          border: 2px solid var(--color-purple);
+          object-fit: cover;
+        }
+
+        .online-indicator {
+          position: absolute;
+          bottom: 2px;
+          right: 2px;
+          width: 14px;
+          height: 14px;
+          background: #22c55e;
+          border: 2px solid var(--bg-secondary);
+          border-radius: 50%;
+        }
+
+        .creator-name {
+          font-weight: 700;
+          font-size: 0.95rem;
+          color: white;
+        }
+
+        .creator-stat {
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+        }
+
+        .btn-follow {
+          margin-top: 8px;
+          width: 100%;
+          padding: 8px;
+          border-radius: 10px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid var(--border-color);
+          color: white;
+          font-weight: 600;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-follow:hover {
+          background: var(--color-purple);
+          border-color: var(--color-purple);
+        }
+
+        /* Feed Tracks */
+        .feed-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+          gap: 24px;
+        }
+
+        .feed-item-card {
+          background: var(--bg-secondary);
+          border-radius: 24px;
+          overflow: hidden;
+          border: 1px solid var(--border-color);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .feed-item-card:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+          border-color: rgba(255,255,255,0.2);
+        }
+
+        .track-thumb {
+          height: 180px;
+          background-size: cover;
+          background-position: center;
+          position: relative;
+        }
+
+        .track-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0,0,0,0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+
+        .feed-item-card:hover .track-overlay {
+          opacity: 1;
+        }
+
+        .play-circle {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          background: var(--color-purple);
+          border: none;
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transform: scale(0.9);
+          transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .play-circle:hover {
+          transform: scale(1.1);
+          background: var(--color-pink);
+        }
+
+        .remix-badge {
+          position: absolute;
+          top: 16px;
+          right: 16px;
+          padding: 6px 12px;
+          background: rgba(0,0,0,0.7);
+          backdrop-filter: blur(8px);
+          border-radius: 100px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          color: white;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          border: 1px solid rgba(255,255,255,0.2);
+          z-index: 2;
+        }
+
+        .source-badge {
+          position: absolute;
+          top: 16px;
+          left: 16px;
+          padding: 6px 12px;
+          background: var(--color-purple);
+          border-radius: 100px;
+          font-size: 0.75rem;
+          font-weight: 800;
+          color: white;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+          z-index: 2;
+          border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .track-info {
+          padding: 20px;
+        }
+
+        .track-name {
+          font-size: 1.125rem;
+          font-weight: 700;
+          margin: 0;
+          color: white;
+        }
+
+        .track-creator {
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          margin: 4px 0 16px;
+        }
+
+        .track-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 20px;
+        }
+
+        .tag {
+          font-size: 0.7rem;
+          color: var(--color-cyan);
+          background: rgba(6, 182, 212, 0.1);
+          padding: 4px 10px;
+          border-radius: 6px;
+          font-weight: 600;
+        }
+
+        .track-actions {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding-top: 16px;
+          border-top: 1px solid var(--border-color);
+        }
+
+        .stats {
+          display: flex;
+          gap: 16px;
+          color: var(--text-secondary);
+          font-size: 0.85rem;
+        }
+
+        .stats span {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .btn-remix-action {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 18px;
+          background: rgba(139, 92, 246, 0.1);
+          border: 1px solid rgba(139, 92, 246, 0.3);
+          border-radius: 12px;
+          color: var(--color-purple);
+          font-weight: 700;
+          font-size: 0.85rem;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .btn-remix-action:hover {
+          background: var(--color-purple);
+          color: white;
+          transform: scale(1.05);
+          box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+        }
+
+        .feed-filters {
+          display: flex;
+          gap: 16px;
+        }
+
+        .feed-filters button {
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 4px 0;
+          position: relative;
+          transition: color 0.2s;
+        }
+
+        .feed-filters button:hover {
+          color: white;
+        }
+
+        .feed-filters button.active {
+          color: white;
+        }
+
+        .feed-filters button.active::after {
+          content: '';
+          position: absolute;
+          bottom: -4px;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: var(--color-purple);
+          border-radius: 2px;
+        }
+
         /* Small phones */
         @media (max-width: 400px) {
           .project-hub-v3 {

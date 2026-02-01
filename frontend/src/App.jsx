@@ -63,15 +63,17 @@ function App() {
   }, []);
 
   // AUTO-REDIRECT: If already logged in or in guest mode, skip landing page on refresh
+  // Only runs on mount to allow explicit navigation back to landing page later
   useEffect(() => {
     const hasUserId = localStorage.getItem('studio_user_id');
     const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
     if ((hasUserId || isGuest) && currentHash === '#/') {
-      console.log('[App] Session detected, skipping landing page');
+      console.log('[App] Session detected on mount, skipping landing page');
       setCurrentHash('#/studio');
       window.location.hash = '#/studio';
     }
-  }, [currentHash]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run ONLY on mount to allow explicit navigation to #/ via handleBackToLanding
 
   const [initialTab, setInitialTab] = useState(null);
 

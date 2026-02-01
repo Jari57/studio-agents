@@ -3068,6 +3068,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   };
 
   const handleGenerate = async () => {
+    // PREVENT DUPLICATE CALLS
+    if (isGenerating) return;
+
     // CAPTURE CONTEXT IMMEDIATELY (Prevent race conditions if user switches projects)
     const targetProjectSnapshot = selectedProject;
 
@@ -7038,7 +7041,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                            </div>
                         </div>
                       ) : (
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', maxHeight: '80px', overflow: 'hidden' }}>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', maxHeight: '120px', overflowY: 'auto' }}>
                           {currentPreview.snippet}
                         </div>
                       )}
@@ -8725,11 +8728,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         const quickNavItems = [
           { id: 'agents', icon: Sparkles, label: 'AI Agents', desc: 'Your creative team', color: 'var(--color-purple)' },
           { id: 'mystudio', icon: Folder, label: 'My Studio', desc: 'Projects & assets', color: 'var(--color-cyan)' },
-          { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Reddit, YouTube & Releases', color: 'var(--color-pink)' },
+          { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-pink)' },
           { id: 'news', icon: Globe, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-emerald)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-orange)' },
           { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-yellow)' },
-          { id: 'hub', icon: FolderPlus, label: 'Project Hub', desc: 'Manage all projects', color: 'var(--color-blue)' },
+          { id: 'hub', icon: FolderPlus, label: 'Project Hub', desc: 'Shared by Studio Agent users', color: 'var(--color-blue)' },
           { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-purple)' },
         ];
 
@@ -9013,7 +9016,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       Music Hub
                     </h1>
                     <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                      Reddit • YouTube • New Releases — All things music in one place
+                      Trending AI Creations — Discover what's hot on Udio, Suno & beyond
                     </p>
                   </div>
                 </div>
@@ -9021,10 +9024,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 {/* Section Tabs */}
                 <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
                   {[
-                    { id: 'all', label: 'All', icon: Zap },
-                    { id: 'reddit', label: 'Reddit', icon: MessageSquare },
-                    { id: 'youtube', label: 'YouTube', icon: PlayCircle },
-                    { id: 'releases', label: 'New Releases', icon: Calendar }
+                    { id: 'all', label: 'All Trends', icon: Zap },
+                    { id: 'udio', label: 'Udio', icon: Music },
+                    { id: 'suno', label: 'Suno', icon: PlayCircle },
+                    { id: 'reddit', label: 'Community', icon: MessageSquare }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -9329,7 +9332,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 <Music size={48} style={{ color: 'var(--color-purple)', marginBottom: '16px', opacity: 0.6 }} />
                 <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem', color: 'var(--text-primary)' }}>No Music Content Available</h3>
                 <p style={{ margin: '0 0 20px 0', color: 'var(--text-secondary)', maxWidth: '400px' }}>
-                  Unable to load music content from Reddit, YouTube, or new releases. Make sure the backend server is running.
+                  Unable to load trending AI music from Udio and Suno. Make sure the backend server is running.
                 </p>
                 <button 
                   onClick={() => fetchActivity(1)}
@@ -9669,7 +9672,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           { keywords: ['profile', 'account', 'user', 'avatar', 'login', 'logout', 'email'], label: 'User Profile', action: () => { setActiveTab('mystudio'); setDashboardTab('overview'); } },
           { keywords: ['news', 'feed', 'updates', 'industry', 'trends', 'pulse'], label: 'Industry Pulse', action: () => setActiveTab('news') },
           { keywords: ['hub', 'projects', 'files', 'saved', 'library', 'creations'], label: 'Project Hub', action: () => setActiveTab('hub') },
-          { keywords: ['activity', 'wall', 'community', 'social', 'share', 'feed', 'music', 'hub', 'reddit', 'youtube', 'releases'], label: 'Music Hub', action: () => setActiveTab('activity') },
+          { keywords: ['activity', 'wall', 'community', 'share', 'feed', 'music', 'hub', 'trends', 'audio', 'creations'], label: 'Music Hub', action: () => setActiveTab('activity') },
           { keywords: ['agents', 'tools', 'create', 'make', 'generate'], label: 'Agent Studio', action: () => setActiveTab('agents') }
         ];
 
@@ -9867,7 +9870,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       case 'more': {
         // Mobile "More" menu with all navigation options
         const moreMenuItems = [
-          { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Reddit, YouTube & Releases', color: 'var(--color-purple)' },
+          { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-purple)' },
           { id: 'news', icon: Globe, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
           { id: 'resources', icon: Book, label: 'Resources', desc: 'Guides & tutorials', color: 'var(--color-orange)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-pink)' },
@@ -10397,7 +10400,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             className={`nav-link ${activeTab === 'mystudio' ? 'active' : ''}`}
             onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}
           >
-            <Home size={20} />
+            <Layers size={20} />
             <span>My Studio</span>
           </button>
           <button 
@@ -11368,14 +11371,19 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
                  <button 
                    className="btn-pill primary"
-                   disabled={(sessionTracks.renderCount || 0) >= 3}
-                   style={{ opacity: (sessionTracks.renderCount || 0) >= 3 ? 0.5 : 1 }}
+                   disabled={(sessionTracks.renderCount || 0) >= 3 || isGenerating}
+                   style={{ opacity: ((sessionTracks.renderCount || 0) >= 3 || isGenerating) ? 0.5 : 1 }}
                    onClick={async () => {
+                     // PREVENT DUPLICATE CALLS
+                     if (isGenerating) return;
+
                      // Check render limit
                      if ((sessionTracks.renderCount || 0) >= 3) {
                        toast.error('Maximum 3 renders reached. Pro users can reset.');
                        return;
                      }
+                     
+                     setIsGenerating(true);
                      
                      // Collect selected assets for orchestration
                      const agentOutputs = [
@@ -11543,6 +11551,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                        toast.dismiss('amo-render');
                        toast.error(err.message || 'Orchestration failed. Check your internet connection and try again.');
                        handleTextToVoice("Orchestration failed. Please try again.");
+                     } finally {
+                       setIsGenerating(false);
                      }
                    }}
                  >
@@ -12013,7 +12023,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                             >
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <Folder size={18} style={{ color: 'var(--color-purple)' }} />
-                                <span style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{project.name}</span>
+                                <span style={{ 
+                                  fontWeight: '500', 
+                                  color: 'var(--text-primary)',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  maxWidth: '180px',
+                                  display: 'inline-block'
+                                }}>{project.name}</span>
                               </div>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                 {project.assets?.length || 0} assets
@@ -13437,7 +13455,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             role="button"
             tabIndex={0}
           >
-            <Home size={22} />
+            <Layers size={22} />
             <span>Studio</span>
           </div>
           
@@ -13644,36 +13662,52 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       {/* Project Wizard Modal */}
       {showProjectWizard && (
         <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectWizard(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content project-wizard-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px', width: '100%', margin: '0 12px', boxSizing: 'border-box', maxHeight: 'none', overflow: 'visible' }}>
-            <div className="modal-header">
-              <div className="modal-title-group">
-                <div className="agent-mini-icon bg-purple">
+          <div className="modal-content project-wizard-modal" onClick={e => e.stopPropagation()} style={{ 
+            maxWidth: '600px', 
+            width: 'min(95vw, 600px)', 
+            maxHeight: 'min(90vh, 1000px)',
+            display: 'flex',
+            flexDirection: 'column',
+            margin: '0 12px', 
+            boxSizing: 'border-box', 
+            overflow: 'hidden' 
+          }}>
+            <div className="modal-header" style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="modal-title-group" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '10px', paddingRight: '80px' }}>
+                <div className="agent-mini-icon bg-purple" style={{ flexShrink: 0 }}>
                   <Rocket size={20} />
                 </div>
-                <h2>Create New Project</h2>
+                <h2 style={{ margin: 0, fontSize: '1.25rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Create New Project</h2>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <button 
-                  className="btn-text" 
-                  onClick={() => handleSkipWizard('agents')}
-                  style={{ 
-                    fontSize: '0.9rem', 
-                    color: 'var(--text-secondary)', 
-                    background: 'none', 
-                    border: 'none', 
-                    cursor: 'pointer',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Skip Wizard
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', position: 'relative', zIndex: 101 }}>
+                {!isMobile && (
+                  <button 
+                    className="btn-text" 
+                    onClick={() => handleSkipWizard('agents')}
+                    style={{ 
+                      fontSize: '0.85rem', 
+                      color: 'var(--text-secondary)', 
+                      background: 'none', 
+                      border: 'none', 
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Skip
+                  </button>
+                )}
                 <button className="modal-close" onClick={() => setShowProjectWizard(false)}>
                   <X size={20} />
                 </button>
               </div>
             </div>
 
-            <div className="modal-body" style={{ padding: '24px' }}>
+            <div className="modal-body" style={{ 
+              padding: isMobile ? '16px' : '24px',
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              flex: 1
+            }}>
               {/* Progress Bar */}
               <div className="wizard-progress" style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
                 {[1, 2, 3].map(step => (
@@ -14085,7 +14119,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       {/* Onboarding Modal - Simple Welcome */}
       {showOnboarding && (
         <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content onboarding-modal" style={{ maxWidth: '500px', width: '90%', padding: '40px', textAlign: 'center' }}>
+          <div className="modal-content onboarding-modal" style={{ 
+            maxWidth: '500px', 
+            width: '90%', 
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            padding: window.innerWidth < 768 ? '24px' : '40px', 
+            textAlign: 'center',
+            position: 'relative'
+          }}>
             <button 
               onClick={handleSkipOnboarding}
               style={{ 
@@ -14735,10 +14777,24 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   {safePreview.type === 'audio' && <Music size={18} style={{ color: 'var(--color-purple)' }} />}
                   {(safePreview.type === 'text' || safePreview.type === 'lyrics' || safePreview.type === 'hook' || safePreview.type === 'verse' || safePreview.type === 'concept') && <FileText size={18} style={{ color: 'var(--color-green)' }} />}
                 </div>
-                <div>
-                  <h2 style={{ fontSize: '1rem', margin: 0, fontWeight: '600' }}>{safePreview.title || 'Preview'}</h2>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <h2 style={{ 
+                    fontSize: '1rem', 
+                    margin: 0, 
+                    fontWeight: '600',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>{safePreview.title || 'Preview'}</h2>
                   {safePreviewAssets.length > 1 && (
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                    <p style={{ 
+                      fontSize: '0.75rem', 
+                      color: 'var(--text-secondary)', 
+                      margin: '2px 0 0',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
                       {safePreviewIndex + 1} of {safePreviewAssets.length} assets
                     </p>
                   )}
@@ -15256,14 +15312,29 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       {showAgentHelpModal && (
         <div className="modal-overlay animate-fadeIn" onClick={() => setShowAgentHelpModal(null)}>
           <div className="modal-content agent-help-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-group">
-                <div className={`agent-mini-icon ${showAgentHelpModal.colorClass}`}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', position: 'relative' }}>
+              <div className="modal-title-group" style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '12px', 
+                minWidth: 0, 
+                flex: 1,
+                paddingRight: '40px' // Make room for absolute close button
+              }}>
+                <div className={`agent-mini-icon ${showAgentHelpModal.colorClass}`} style={{ flexShrink: 0 }}>
                   {typeof showAgentHelpModal.icon === 'function' ? <showAgentHelpModal.icon size={20} /> : <Sparkles size={20} />}
                 </div>
-                <h2>{showAgentHelpModal.name} Guide</h2>
+                <h2 style={{ 
+                  margin: 0, 
+                  fontSize: '1.25rem',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  minWidth: 0,
+                  flex: 1
+                }}>{showAgentHelpModal.name} Guide</h2>
               </div>
-              <button className="modal-close" onClick={() => setShowAgentHelpModal(null)}>
+              <button className="modal-close" onClick={() => setShowAgentHelpModal(null)} style={{ flexShrink: 0 }}>
                 <X size={20} />
               </button>
             </div>
@@ -15381,9 +15452,19 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       {showAddAgentModal && (
         <div className="modal-overlay animate-fadeIn" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'center', padding: '1rem' }} onClick={() => setShowAddAgentModal(false)}>
           <div className="modal-content" style={{ maxWidth: 'min(92vw, 700px)', width: '100%', margin: 'auto' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <UsersIcon size={20} className="text-purple" />
+            <div className="modal-header" style={{ position: 'relative' }}>
+              <h2 style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px',
+                margin: 0,
+                fontSize: '1.25rem',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                paddingRight: '40px'
+              }}>
+                <UsersIcon size={20} className="text-purple" style={{ flexShrink: 0 }} />
                 Add Agent to Project
               </h2>
               <button className="modal-close" onClick={() => setShowAddAgentModal(false)}>

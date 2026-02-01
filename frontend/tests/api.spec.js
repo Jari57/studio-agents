@@ -212,10 +212,12 @@ test.describe('Media Generation Endpoints', () => {
   });
 
   test('Audio generation endpoint exists', async ({ request }) => {
+    // We send an empty prompt to verify the endpoint exists 
+    // without triggering a slow generation process
     const response = await request.post(`${BACKEND_URL}/api/generate-audio`, {
-      data: { prompt: 'test beat' }
+      data: { prompt: '' } 
     });
-    // Endpoint exists - may return 200 with error, or various error codes
+    // Endpoint exists - should return 400 for empty prompt, or other codes if auth is required
     expect([200, 400, 401, 404, 500, 503]).toContain(response.status());
   });
 

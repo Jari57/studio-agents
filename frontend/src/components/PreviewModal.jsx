@@ -115,7 +115,10 @@ export function PreviewModal({
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               flex: '1 1 auto',
-              minWidth: '80px'
+              minWidth: '80px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}
           >
             {title} Preview

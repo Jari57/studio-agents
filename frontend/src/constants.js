@@ -27,12 +27,12 @@ export const AGENTS = [
       icon: Sparkles, 
       colorClass: 'agent-purple', 
       tier: 'free', // FREE TIER
-      description: 'AI lyricist creating bars on demand',
-      capabilities: ['Full Song Structure', 'Rhyme Scheme Analysis', 'Metaphor Generator', 'Flow Mapping'],
-      examples: ['Write a 16-bar verse about Brooklyn in the style of 90s boom bap', 'Create a catchy hook for a summer pop anthem'],
-      howToUse: 'Enter your topic, mood, and preferred style. Use the "Genre" toggle to shift the vocabulary and rhythm. You can also provide a "Reference Artist" to mimic specific flow patterns.',
-      explanation: 'Ghostwriter uses a Large Language Model (LLM) fine-tuned on millions of song lyrics across all genres. It understands rhyme schemes, syllable counts, and emotional resonance to provide lyrics that feel authentic to your chosen style.',
-      helpTips: 'Pro Tip: Use the Voice-to-Text (Mic) button to dictate your ideas naturally—the AI captures the rhythm of your speech. If the lyrics feel too generic, try adding specific sensory details to your prompt.',
+      description: 'AI lyricist creating bars with Udio-style structure',
+      capabilities: ['Udio/Suno Structural Tags', 'Rhyme Scheme Analysis', 'Metaphor Generator', 'Flow Mapping'],
+      examples: ['[Intro] [Verse 1] [Chorus]: Write a summer pop anthem', 'Create a 16-bar verse about Brooklyn in the style of 90s boom bap'],
+      howToUse: 'Enter your topic and mood. Use Suno-style tags like [Bridge] or [Outro] to define the flow. The AI understands structural context for a professional songwriting experience.',
+      explanation: 'Ghostwriter 2.0 uses a Large Language Model fine-tuned on professional song structures. It recognizes structural markers and translates your prompt into rhythmic, era-accurate bars.',
+      helpTips: 'Pro Tip: Use structural tags (e.g., [Drop], [Hook]) to guide the AI. Combine with Music GPT for a full end-to-end production.',
       onboarding: [
         "Select a genre and mood to set the creative direction and vocabulary set.",
         "Provide a 'Seed Phrase' or topic for the AI to expand upon into full verses.",
@@ -45,74 +45,74 @@ export const AGENTS = [
     },
     { 
       id: 'beat', 
-      name: 'Beat Lab', 
-      category: 'Music Creation', 
+      name: 'Music GPT', 
+      category: 'Pro Producer', 
       icon: Zap, 
       colorClass: 'agent-cyan', 
       tier: 'free', // FREE TIER
-      description: 'Generate production ideas instantly',
-      capabilities: ['Drum Pattern MIDI', 'Chord Progression Logic', 'Sample Sourcing', 'BPM Matching'],
-      examples: ['Generate a dark trap drum pattern at 140 BPM', 'Suggest a jazz-infused chord progression for a lo-fi beat'],
-      howToUse: 'Select your target BPM and genre. The AI will provide MIDI patterns, instrument suggestions, and even source royalty-free samples that match your vibe.',
-      explanation: 'Beat Lab combines algorithmic composition with a massive library of curated samples. It doesn\'t just "guess" what sounds good; it follows music theory principles to ensure your drums and chords are harmonically and rhythmically locked.',
-      helpTips: 'Use the "BPM Matching" feature to ensure your generated patterns fit perfectly into your existing project. If a pattern is too busy, lower the "Intensity" slider to simplify the rhythm.',
+      description: 'The world\'s most powerful AI music engine (Enhanced MusicGen)',
+      capabilities: ['High-Fidelity Audio', 'Riffusion Spectrogram Forks', 'Seed-Persistent DNA', 'Udio-Style Musicality'],
+      examples: ['[Seed: 442152] Create a high-musicality synthwave track', 'Generate an epic cinematic loop with Riffusion spectrogram logic'],
+      howToUse: 'Music GPT is the core studio engine. Use "Seed Persistence" to lock in sounds for consistent Forks. Enable "High Musicality" for Udio-grade instrumentation and detail.',
+      explanation: 'Music GPT 2.5 integrates Meta\'s MusicGen Large with Riffusion-style seed control. This allows for deterministic generation, meaning you can Fork a community track and maintain its exact sonic quality while tweaking the prompt.',
+      helpTips: 'Pro Tip: Note down your Seeds! A Seed locks the AI\'s "imagination," allowing you to generate stems (Drums Only, Melodies) that fit perfectly with your main track.',
       onboarding: [
-        "Select your target BPM and genre to initialize the rhythmic engine.",
-        "Generate a 'Foundation' (Drums & Bass) and then layer 'Atmospherics' (Pads & Leads).",
-        "Use the 'Variation' slider to create bridge and chorus transitions automatically.",
-        "Export the MIDI and Sample pack directly to your DAW for final arrangement."
+        "Use 'Seed Control' to maintain sonic consistency across multi-track sessions.",
+        "Enable 'High Musicality' to inject nuanced production tags into the generator.",
+        "Fork community tracks from the Discover Feed to explore their unique spectrogram DNA.",
+        "Export individual stems for a full DAW-style mixing experience."
       ],
-      howTo: 'Describe the beat you want. The AI will suggest instruments and patterns.',
-      example: 'Genre: "Trap", BPM: 140',
-      getStarted: 'Make a Beat'
+      howTo: 'Define mood, structure, and seed. Perfect for DAW-ready production.',
+      example: 'Mood: "Epic", Seed: "888123"',
+      getStarted: 'AI Studio'
     },
     // === ROW 2: Visual Content ===
     { 
       id: 'album', 
-      name: 'Album Artist', 
+      name: 'Album Artist 2.0', 
       category: 'Visual Identity', 
       icon: Music, 
       colorClass: 'agent-orange', 
       tier: 'free', // FREE TIER
-      description: 'Create stunning album artwork with AI',
-      capabilities: ['Cover Art Generation', 'Social Media Kits', 'Typography Design', 'Brand Palette Creator'],
-      examples: ['Create a psychedelic cover for a synth-wave album', 'Design a minimalist logo for an indie folk artist'],
-      howToUse: 'Describe the visual mood of your music. Specify colors, textures, and artistic styles (e.g., "Oil Painting", "3D Render", "Vector Art") for more accurate results.',
-      explanation: 'Album Artist is powered by Imagen 3, Google\'s most advanced image generation model. It translates your musical descriptions into high-fidelity visual art, optimized for digital streaming platforms and physical printing.',
-      helpTips: 'Be specific about the "Lighting" and "Composition" in your prompt (e.g., "cinematic lighting", "top-down view"). Use the "Remix" button to iterate on a specific version you like.',
+      description: 'Vibe-aligned artwork with Riffusion-style color mapping',
+      capabilities: ['Style Extraction', 'Riffusion Vibe Mapping', 'Seed-Sync Visuals', 'Social Branding Kits'],
+      examples: ['Create a cover that matches the "Luminous" mood of my beat', 'Generate a visual DNA profile based on the music seed'],
+      howToUse: 'Art is synced to your sound. Use "Style Extraction" to upload an image you love, and the AI will blend its aesthetics with your music\'s unique Seed DNA.',
+      explanation: 'Album Artist 2.0 uses Riffusion-style "Audio-to-Visual" mapping. It analyzes the frequency spectrum and BPM of your track to suggest color palettes and textures that feel sonically accurate to the music.',
+      helpTips: 'Pro Tip: If you use a fixed Seed in Music GPT, use the same Seed here! This ensures the visual patterns emerge from the same "Mathematical DNA" as your sound.',
       onboarding: [
-        "Describe the visual mood and core themes of your music project.",
-        "Specify a color palette and texture (e.g., 'Grainy', 'Glossy', 'Distressed').",
-        "Generate 4 variations and use the 'Remix' tool to combine elements from different versions.",
-        "Download the 'Social Kit' which includes pre-sized assets for Instagram, Spotify, and YouTube."
+        "Select your music track to auto-extract a vibe-based color palette.",
+        "Input a style reference or 'Visual Seed' to define the aesthetic grid.",
+        "Generate 4 variations and 'Fork' the one that matches your brand's energy.",
+        "Export the 'Social Kit' including animated canvas versions for Spotify."
       ],
-      howTo: 'Describe your album concept. The AI will generate cover art.',
-      example: 'Concept: "Neon City", Style: "Cyberpunk"',
-      getStarted: 'Design Cover'
+      howTo: 'Describe your concept or sync to audio seed. AI generates cover art.',
+      example: 'Mood: "Ethereal", Seed: "88212"',
+      getStarted: 'Design Art'
     },
     { 
       id: 'video-creator', 
-      name: 'Video Creator', 
+      name: 'Video Creator 2.5', 
       category: 'Visual Identity', 
       icon: PlayCircle, 
       colorClass: 'agent-red', 
       tier: 'free', // FREE TIER
       isBeta: true,
-      description: 'Generate cinematic videos with Veo 3',
-      capabilities: ['Music Video Generation', 'Visualizer Creation', 'Cinematic Scenes', 'Style Transfer'],
-      examples: ['Create a cyberpunk city flyover for a synthwave track', 'Generate a slow-motion rain scene for a lo-fi beat'],
-      howToUse: 'Describe the scene, camera movement, and lighting. The AI will generate a high-quality video clip.',
-      explanation: 'Video Creator is powered by Veo 3, Google\'s state-of-the-art video generation model. It understands cinematic language and physics to create realistic or stylized video content.',
-      helpTips: 'Be specific about camera angles (e.g., "drone shot", "close-up") and lighting. Mention the mood and color palette.',
+      description: 'Cinematic music videos with Sora/Veo physics and beat-sync',
+      capabilities: ['Frame-Perfect Beat Sync', 'Style Persistence', 'Suno-style Lyric Overlays', '4K Cinematic Renders'],
+      examples: ['Sync a neon flyover to every 4th kick drum', 'Generate a lyric-reactive music video with glitch aesthetics'],
+      howToUse: 'Upload your beat. The AI performs "Transient Analysis" to sync camera cuts and movement to your music peaks. Use Suno-style lyric tags for reactive overlays.',
+      explanation: 'Video Creator 2.5 is a physics-aware engine. It doesn\'t just generate video; it calculates "Temporal Rhythm," ensuring that visual transitions happen exactly on the beat of your Music GPT production.',
+      helpTips: 'Pro Tip: Enable "Lyric Overlays" to have the AI automatically parse your Ghostwriter lyrics and place them stylistically within the 3D environment of the video.',
       onboarding: [
-        "Describe the scene and action.",
-        "Specify the camera movement and lighting.",
-        "Generate a video clip.",
-        "Download and use in your music video."
+        "Import your audio stems for multi-layer beat synchronization.",
+        "Choose a cinematic 'DNA' template (e.g., 'Retro VHS' or 'Future Noir').",
+        "Preview the 'Beat-Map' and adjust transition intensity.",
+        "Render in 4K for YouTube and Vertical for TikTok/Reels."
       ],
-      howTo: 'Describe a scene or upload audio. The AI will generate a video.',
-      example: 'Scene: "Car chase in 80s style"',
-      getStarted: 'Create Video'
+      howTo: 'Sync video to beat or describe a scene. AI does the rest.',
+      example: 'Scene: "Infinite Tunnel", Sync: "Heavy"',
+      getStarted: 'Sync Video'
     },
     // === ROW 3: Performers (Vocals + Instruments) ===
     { 
@@ -125,16 +125,16 @@ export const AGENTS = [
       comingSoon: false,
       colorClass: 'agent-purple', 
       isPro: true,
-      description: 'AI vocal synthesis and harmony generation',
-      capabilities: ['Vocal Synthesis', 'Harmony Logic', 'Ad-lib Generation', 'Tuning & Correction'],
-      examples: ['Generate a 3-part harmony for this vocal line', 'Create a soulful vocal ad-lib for the chorus'],
-      howToUse: 'Input your lyrics and melody. The AI will generate a vocal performance with customizable tone and expression.',
-      explanation: 'Vocal Architect is a state-of-the-art "Neural Vocoder" that can synthesize human-like singing from text and MIDI. It understands the nuances of "Breath," "Diction," and "Vibrato," allowing for incredibly realistic vocal performances.',
-      helpTips: 'Use the "Harmony Logic" tool to automatically generate backing vocals that follow your lead melody. If the vocal sounds too "clean," use the "Tuning & Correction" tool to add subtle human imperfections.',
-      onboarding: ["Input lyrics.", "Define melody.", "Synthesize vocals."],
-      howTo: 'Enter lyrics and melody. The AI will generate vocals.',
-      example: 'Voice: "Female Pop", Harmony: "3-part"',
-      getStarted: 'Generate Vocals'
+      description: 'AI vocal synthesis with Suno-style emotional tags',
+      capabilities: ['[Emotional Tagging]', 'Udio-Style Phrasing', 'Harmony Logic', 'Tuning & Correction'],
+      examples: ['[Soulful Grit] Generate a powerhouse female vocal', '[Haunting Reverb] Create a layered vocal pad'],
+      howToUse: 'Input lyrics and use tags like [Raspy], [Operatic], or [Ad-lib] to define the vocal character. The AI maps emotional intensity to your delivery style.',
+      explanation: 'Vocal Architect 2.0 uses "Neural Emotion Mapping" to align vocal delivery with lyrical sentiment. It recognizes Suno-style descriptors to adjust breathiness, grit, and vibrato in real-time.',
+      helpTips: 'Pro Tip: Layer multiple vocal takes with different tags (e.g., [Lead] + [Harmony]) to create a thick, professional vocal stack directly in the DAW timeline.',
+      onboarding: ["Input structural lyrics.", "Define emotional tags.", "Synthesize and layer."],
+      howTo: 'Enter lyrics and emotion tags. The AI generates professional vocals.',
+      example: 'Voice: "Indie Male", Tag: "[Soulful]"',
+      getStarted: 'Vocal Design'
     },
     { 
       id: 'instrument', 
@@ -249,21 +249,21 @@ export const AGENTS = [
       icon: Shield, 
       tier: 'monthly', // MONTHLY TIER
       colorClass: 'agent-purple', 
-      description: 'Professional AI audio mastering',
-      capabilities: ['LUFS Normalization', 'Stereo Widening', 'EQ Balancing', 'Multi-format Export'],
-      examples: ['Master this track for Spotify standards (-14 LUFS)', 'Add warmth and analog saturation to the master chain'],
-      howToUse: 'Upload your final mix (WAV or AIFF). Select your target platform and the AI will apply professional-grade processing tailored to that platform\'s specs.',
-      explanation: 'Mastering Lab uses a neural network trained by world-class mastering engineers. It analyzes the frequency spectrum, dynamic range, and stereo image of your mix, applying precise adjustments to ensure it sounds professional on any system.',
-      helpTips: 'Ensure your mix has at least -6dB of headroom (no clipping) before uploading. If the master sounds too "squashed," try lowering the "Intensity" slider to preserve more dynamic range.',
+      description: 'Stem-aware AI mastering with BandLab collaboration',
+      capabilities: ['Stem-aware EQ', 'Cloud-Collaboration Review', 'Stereo Widening', 'Multi-format Export'],
+      examples: ['Master stems for a transparent mix', 'Collaboratively review master chain with community creators'],
+      howToUse: 'Upload your Full Mix or individual Stems. The AI uses BandLab-style cloud logic to allow for collaborative A/B testing and precision stem-level leveling.',
+      explanation: 'Mastering Lab 2.0 isn\'t just a final limiter. It understands the relationship between your DAW stems (Drums, Bass, Vocals) and applies "Contextual Glue" to ensure your track sounds professional on everything from phone speakers to club systems.',
+      helpTips: 'Pro Tip: Upload your Stems separately for a "Stem Master." This allows the AI to apply compression to the drums without affecting the clarity of the vocals.',
       onboarding: [
-        "Upload your final mix, ensuring you have at least -6dB of headroom.",
-        "Select a 'Reference Track' to give the AI a target sonic profile.",
-        "Choose your 'Mastering Style' (e.g., 'Transparent', 'Warm', 'Aggressive').",
-        "A/B test the master against your original mix before downloading the final high-res files."
+        "Upload stems (Drums, Bass, Leads, Vocals) for granular control.",
+        "Select a sonic target (e.g., 'Modern Pop' or 'Club Heavy').",
+        "Enable 'Collaborative Mode' to invite BandLab/Mureaka creators to review your master.",
+        "Export high-fidelity WAV or MP3 files for global distribution."
       ],
-      howTo: 'Upload your track. The AI will master it for streaming.',
-      example: 'Target: "Spotify Loudness"',
-      getStarted: 'Master Track'
+      howTo: 'Upload stems or full mix. AI provides the professional finish.',
+      example: 'Mode: "Stem Master", Target: "Streaming High"',
+      getStarted: 'Pro Master'
     },
     // === ROW 7: Marketing (Trends + Social) ===
     { 

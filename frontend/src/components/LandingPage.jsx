@@ -378,6 +378,27 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [showShowcase, setShowShowcase] = useState(false);
   const [showMarketing, setShowMarketing] = useState(false);
   const [showInvestorPitch, setShowInvestorPitch] = useState(false);
+
+  // 🚀 Check if session exists (Firebase or local storage)
+  const [isLoggedMember, setIsLoggedMember] = useState(false);
+  useEffect(() => {
+    // 1. Initial check via local storage
+    const hasUserId = localStorage.getItem('studio_user_id');
+    const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
+    setIsLoggedMember(!!(auth.currentUser || hasUserId || isGuest));
+
+    // 2. Firebase Auth listener for more accuracy
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setIsLoggedMember(true);
+      } else {
+        const stillGuest = localStorage.getItem('studio_guest_mode') === 'true';
+        setIsLoggedMember(stillGuest);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
   
   // Auth modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -774,7 +795,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               }}
             >
               <Music size={22} fill="currentColor" />
-              Launch Your Studio — Free
+              {isLoggedMember ? 'Return to Your Studio' : 'Launch Your Studio — Free'}
               <ArrowRight size={22} />
             </button>
 
@@ -1614,11 +1635,14 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               backdropFilter: 'blur(20px)',
               borderRadius: '24px',
               border: '1px solid rgba(139, 92, 246, 0.3)',
-              padding: '40px',
+              padding: window.innerWidth < 768 ? '24px' : '40px',
               maxWidth: '420px',
               width: '90%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
               textAlign: 'center',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)'
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              position: 'relative'
             }}
           >
             <button 
@@ -3693,15 +3717,24 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     <Icon size={24} style={{ color: 'white' }} />
                   </div>
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2px' }}>
-                      <h2 style={{ margin: 0, fontSize: '1.4rem' }}>{wp.fullName || agent.name}</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '2px', minWidth: 0 }}>
+                      <h2 style={{ 
+                        margin: 0, 
+                        fontSize: '1.4rem',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        minWidth: 0,
+                        flex: 1
+                      }}>{wp.fullName || agent.name}</h2>
                       <span style={{ 
                         fontSize: '0.65rem', 
                         padding: '3px 8px', 
                         background: 'rgba(139, 92, 246, 0.3)',
                         borderRadius: '6px',
                         color: 'var(--color-purple)',
-                        fontWeight: '600'
+                        fontWeight: '600',
+                        flexShrink: 0
                       }}>
                         v{wp.version}
                       </span>
@@ -3712,7 +3745,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                           background: 'rgba(239, 68, 68, 0.2)',
                           borderRadius: '6px',
                           color: '#ef4444',
-                          fontWeight: '600'
+                          fontWeight: '600',
+                          flexShrink: 0
                         }}>
                           BETA
                         </span>
@@ -3776,7 +3810,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               </div>
 
               {/* Content Area */}
-              <div className="modal-body" style={{ padding: '24px', overflow: 'visible', flex: 1 }}>
+              <div className="modal-body" style={{ 
+                padding: '24px', 
+                overflowY: 'auto', 
+                WebkitOverflowScrolling: 'touch',
+                flex: 1 
+              }}>
                 
                 {/* OVERVIEW TAB */}
                 {whitepaperTab === 'overview' && (
