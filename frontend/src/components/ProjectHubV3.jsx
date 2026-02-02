@@ -4,7 +4,8 @@ import {
   Play, Trash2, Edit3, Copy, Heart, Clock, Folder,
   Music, Video as VideoIcon, Image as ImageIcon, Mic, FileText, X, Sparkles,
   ChevronRight, Download, Share2, CheckCircle, Archive,
-  Pause, Upload, Wand2, Zap, TrendingUp, Star, Eye
+  Pause, Upload, Wand2, Zap, TrendingUp, Star, Eye,
+  Globe, Lock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, createProjectFromTemplate } from '../data/projectTemplates';
