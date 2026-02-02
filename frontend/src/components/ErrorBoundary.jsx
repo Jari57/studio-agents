@@ -15,6 +15,23 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     this.setState({ error, errorInfo });
     
+    // Auto-refresh on ChunkLoadError/Dynamic Import failure
+    // This happens when a new version is deployed and the user has an old one open
+    const isChunkError = /Loading chunk|Failed to fetch dynamically imported module/.test(error?.message);
+    if (isChunkError) {
+      console.warn("🔄 Version mismatch (ChunkLoadError) detected. Refreshing for latest version...");
+      
+      // Use sessionStorage to prevent infinite reload loops if really unreachable
+      const lastReload = sessionStorage.getItem('last_version_reload');
+      const now = Date.now();
+      
+      if (!lastReload || (now - parseInt(lastReload)) > 5000) {
+        sessionStorage.setItem('last_version_reload', now.toString());
+        window.location.reload();
+        return;
+      }
+    }
+    
     // Extract crash location from stack
     const crashLocation = this.extractCrashLocation(error?.stack);
     
