@@ -1,5 +1,5 @@
 /* eslint-disable no-use-before-define */
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { 
   Sparkles, Mic, MicOff, FileText, Video, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
@@ -13,8 +13,8 @@ import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase
 import { collection, query, where, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
-// Lazy load modals and heavy sub-sections
-const PreviewModal = lazy(() => import('./PreviewModal'));
+// Lazy load modals and heavy sub-sections (standardizing to React.lazy to prevent 'lazy is not defined' error)
+const PreviewModal = React.lazy(() => import('./PreviewModal'));
 
 // Helper to split intro/narrative from creative content
 const splitCreativeContent = (text) => {

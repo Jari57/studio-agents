@@ -1,15 +1,15 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import './App.css';
 import './mobile-fixes.css';
 import { suppressExtensionErrors } from './utils/suppressExtensionErrors';
 import { AGENTS } from './constants';
 
-// Lazy load heavy components
-const LandingPage = lazy(() => import('./components/LandingPage'));
-const StudioView = lazy(() => import('./components/StudioView'));
-const WhitepapersPage = lazy(() => import('./components/WhitepapersPage'));
-const LegalResourcesPage = lazy(() => import('./components/LegalResourcesPage'));
+// Lazy load heavy components (standardizing to React.lazy to prevent 'lazy is not defined' error)
+const LandingPage = React.lazy(() => import('./components/LandingPage'));
+const StudioView = React.lazy(() => import('./components/StudioView'));
+const WhitepapersPage = React.lazy(() => import('./components/WhitepapersPage'));
+const LegalResourcesPage = React.lazy(() => import('./components/LegalResourcesPage'));
 
 // Loading fallback component
 const StudioLoadingFallback = () => (

@@ -1,18 +1,18 @@
 /* eslint-disable no-use-before-define */
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { 
   Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2, Copy, Layers
 } from 'lucide-react';
 
 const Users = UsersIcon;
-const Image = ImageIcon;
+const ImageIconComponent = ImageIcon;
 
-// Lazy load heavy sub-components
-const StudioOrchestrator = lazy(() => import('./StudioOrchestratorV2'));
-const QuickWorkflow = lazy(() => import('./QuickWorkflow'));
-const ProjectHub = lazy(() => import('./ProjectHubV3')); // CapCut/Captions-style design
-const NewsHub = lazy(() => import('./NewsHub'));
+// Lazy load heavy sub-components (standardizing to React.lazy to prevent 'lazy is not defined' error)
+const StudioOrchestrator = React.lazy(() => import('./StudioOrchestratorV2'));
+const QuickWorkflow = React.lazy(() => import('./QuickWorkflow'));
+const ProjectHub = React.lazy(() => import('./ProjectHubV3')); // CapCut/Captions-style design
+const NewsHub = React.lazy(() => import('./NewsHub'));
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SAFE ASSET WRAPPER - Prevents crashes from malformed asset data
@@ -275,7 +275,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
     // FALLBACK: Check localStorage for last active tab before defaulting to 'agents'
     const lastTab = localStorage.getItem('studio_active_tab');
-    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'].includes(lastTab)) {
+    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub'].includes(lastTab)) {
       return lastTab;
     }
     return 'resources';
@@ -288,7 +288,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     // Use namespaced key
     const uid = localStorage.getItem('studio_user_id') || 'guest';
     const lastTab = localStorage.getItem(`studio_tab_${uid}`);
-    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'].includes(lastTab)) {
+    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub'].includes(lastTab)) {
       return lastTab;
     }
     return 'resources';
@@ -10845,7 +10845,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         minHeight: '100vh',
         background: 'var(--bg-primary)'
       }}>
-        <Toaster position="top-center" />
         <div style={{
           textAlign: 'center',
           maxWidth: '420px',
@@ -11044,24 +11043,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           <span>{DEMO_BANNER_STYLES.text}</span>
         </div>
       )}
-      <Toaster 
-        position="top-center"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: theme === 'light' ? '#ffffff' : '#1a1a2e',
-            color: theme === 'light' ? '#0f172a' : '#fff',
-            border: theme === 'light' ? '1px solid rgba(15, 23, 42, 0.1)' : '1px solid rgba(139, 92, 246, 0.3)',
-            boxShadow: theme === 'light' ? '0 4px 20px rgba(0,0,0,0.1)' : 'none',
-          },
-          success: {
-            iconTheme: { primary: '#10b981', secondary: theme === 'light' ? '#fff' : '#fff' },
-          },
-          error: {
-            iconTheme: { primary: '#ef4444', secondary: theme === 'light' ? '#fff' : '#fff' },
-          },
-        }}
-      />
       <aside className="studio-nav">
         <div className="studio-nav-logo" onClick={() => onBack?.()}>
           <div className="logo-box studio-logo">

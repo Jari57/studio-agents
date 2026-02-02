@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback as _useCallbac
 import { 
   Search, Plus, LayoutGrid, List, MoreHorizontal,
   Play, Trash2, Edit3, Copy, Heart, Clock, Folder,
-  Music, Video, Image, Mic, FileText, X, Sparkles,
+  Music, Video, Image as ImageIcon, Mic, FileText, X, Sparkles,
   ChevronRight, Download, Share2, CheckCircle, Archive,
   Pause, Upload, Wand2, Zap, TrendingUp, Star, Eye
 } from 'lucide-react';
@@ -775,7 +775,7 @@ function ProjectHubV3({
               <div className="empty-illustration">
                 <div className="floating-elements">
                   <div className="float-item item-1"><Music size={24} /></div>
-                  <div className="float-item item-2"><Image size={24} /></div>
+                  <div className="float-item item-2"><ImageIcon size={24} /></div>
                   <div className="float-item item-3"><Video size={24} /></div>
                   <div className="float-item item-4"><FileText size={24} /></div>
                 </div>
@@ -928,7 +928,7 @@ function ProjectHubV3({
                   {assetIcons.length > 0 && (
                     <div className="asset-badges">
                       {assetIcons.includes('audio') && <span className="badge audio" title="Preview Audio" onClick={e => handlePreviewAssetType(project, 'audio', e)}><Music size={12} /></span>}
-                      {assetIcons.includes('image') && <span className="badge image" title="Preview Image" onClick={e => handlePreviewAssetType(project, 'image', e)}><Image size={12} /></span>}
+                      {assetIcons.includes('image') && <span className="badge image" title="Preview Image" onClick={e => handlePreviewAssetType(project, 'image', e)}><ImageIcon size={12} /></span>}
                       {assetIcons.includes('video') && <span className="badge video" title="Preview Video" onClick={e => handlePreviewAssetType(project, 'video', e)}><Video size={12} /></span>}
                       {assetIcons.includes('text') && <span className="badge text" title="Preview Text" onClick={e => handlePreviewAssetType(project, 'text', e)}><FileText size={12} /></span>}
                     </div>

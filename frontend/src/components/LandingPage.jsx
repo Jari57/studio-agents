@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock, LayoutGrid } from 'lucide-react';
 import { AGENTS } from '../constants';
 import { auth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
-import { lazy, Suspense } from 'react';
 
-// Lazy loaded complex components
-const MultiAgentDemo = lazy(() => import('./MultiAgentDemo'));
+// Lazy loaded complex components (standardizing to React.lazy to prevent 'lazy is not defined' error)
+const MultiAgentDemo = React.lazy(() => import('./MultiAgentDemo'));
 
 // Comprehensive Agent Whitepaper Data
 const AGENT_WHITEPAPER = {
