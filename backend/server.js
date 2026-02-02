@@ -3202,12 +3202,27 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
       style = 'rapper',  // rapper, rapper-female, singer, singer-female, narrator, spoken, cloned
       rapStyle = 'aggressive', // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
       genre = 'hip-hop', // hip-hop, r&b, pop, soul, trap, drill, boom-bap
+      language = 'en',   // en, es, fr, de, it, pt, ja, ko, zh
       speakerUrl = null  // Reference audio for voice cloning (XTTS)
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
 
-    logger.info('🎤 Generating REAL AI vocals (not TTS)', { textLength: prompt.length, voice, style, rapStyle, genre, hasSpeakerUrl: !!speakerUrl });
+    // Map long language names to codes for XTTS/Bark
+    const langMap = {
+      'English': 'en',
+      'Spanish': 'es',
+      'French': 'fr',
+      'German': 'de',
+      'Italian': 'it',
+      'Portuguese': 'pt',
+      'Japanese': 'ja',
+      'Korean': 'ko',
+      'Chinese': 'zh'
+    };
+    const langCode = langMap[language] || language || 'en';
+
+    logger.info('🎤 Generating REAL AI vocals (not TTS)', { textLength: prompt.length, voice, style, rapStyle, genre, language: langCode, hasSpeakerUrl: !!speakerUrl });
 
     let audioUrl = null;
     let provider = null;
@@ -3232,7 +3247,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             version: '684bc3855b37866c0c65add2ff39c78f3dea3f4ff103a436465326e0f438d55e',
             input: {
               text: prompt.substring(0, 2000),
-              language: 'en',
+              language: langCode,
               speaker: targetSpeaker
             }
           })
@@ -3289,49 +3304,47 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     // ═══════════════════════════════════════════════════════════════
     if (replicateKey && !audioUrl) {
       try {
-        logger.info('🎤 Using Bark for expressive vocal generation', { style, rapStyle, genre });
+        logger.info('🎤 Using Bark for expressive vocal generation', { style, rapStyle, genre, langCode });
         
         // Bark speaker presets for different styles
-        // Valid options: announcer, de_speaker_0-9, en_speaker_0-9, es_speaker_0-9, fr_speaker_0-9
-        // hi_speaker_0-9, it_speaker_0-9, ja_speaker_0-9, ko_speaker_0-9, pl_speaker_0-9
-        // pt_speaker_0-9, ru_speaker_0-9, tr_speaker_0-9, zh_speaker_0-9
-        // en_speaker_0: Neutral male, en_speaker_1: Young male, en_speaker_2: Middle-aged male
-        // en_speaker_3: Intense/dramatic male, en_speaker_4: Older male, en_speaker_5: Soft male
-        // en_speaker_6: Expressive male (good for singing), en_speaker_7: Deep male
-        // en_speaker_8: Energetic female, en_speaker_9: Expressive female (good for singing)
-        
-        let speakerHistory = 'en_speaker_6'; // Default: expressive male
+        // Valid options: de_speaker_0-9, en_speaker_0-9, es_speaker_0-9, fr_speaker_0-9, etc.
+        let speakerHistory = `${langCode}_speaker_6`; // Default: expressive male
         
         // Map voice style + rap style to best Bark speaker
         if (style === 'rapper-female') {
           // Female rapper - use energetic female
-          speakerHistory = rapStyle === 'chill' || rapStyle === 'melodic' ? 'en_speaker_9' : 'en_speaker_8';
+          speakerHistory = (rapStyle === 'chill' || rapStyle === 'melodic') ? `${langCode}_speaker_9` : `${langCode}_speaker_8`;
         } else if (style === 'singer-female') {
           // Female singer - use expressive female
-          speakerHistory = 'en_speaker_9';
+          speakerHistory = `${langCode}_speaker_9`;
         } else if (style === 'singer' || style === 'singer-male') {
           // Male singer - use expressive/smooth male
-          speakerHistory = 'en_speaker_6';
+          speakerHistory = `${langCode}_speaker_6`;
         } else if (style === 'rapper' || style === 'rapper-male') {
           // Male rapper - adjust based on rap style
           if (rapStyle === 'aggressive' || rapStyle === 'hype' || rapStyle === 'drill') {
-            speakerHistory = 'en_speaker_3'; // Intense male
+            speakerHistory = `${langCode}_speaker_3`; // Intense male
           } else if (rapStyle === 'chill' || rapStyle === 'melodic') {
-            speakerHistory = 'en_speaker_6'; // Smooth male
+            speakerHistory = `${langCode}_speaker_6`; // Smooth male
           } else if (rapStyle === 'fast' || rapStyle === 'trap') {
-            speakerHistory = 'en_speaker_1'; // Young energetic male
+            speakerHistory = `${langCode}_speaker_1`; // Young energetic male
           } else if (rapStyle === 'boom-bap' || rapStyle === 'oldschool') {
-            speakerHistory = 'en_speaker_7'; // Deep male
+            speakerHistory = `${langCode}_speaker_7`; // Deep male
           } else {
-            speakerHistory = 'en_speaker_2'; // Middle-aged male (default rap)
+            speakerHistory = `${langCode}_speaker_2`; // Middle-aged male (default rap)
           }
         } else if (style === 'narrator') {
           speakerHistory = 'announcer'; // Professional announcer voice
         } else if (style === 'spoken') {
-          speakerHistory = 'en_speaker_0'; // Neutral male
+          speakerHistory = `${langCode}_speaker_0`; // Neutral male
         }
         
-        logger.info('🎤 Selected Bark speaker', { speakerHistory, style, rapStyle });
+        // Fallback for languages with fewer speakers or 'announcer' not supporting target lang
+        if (langCode !== 'en' && speakerHistory === 'announcer') {
+            speakerHistory = `${langCode}_speaker_0`;
+        }
+
+        logger.info('🎤 Selected Bark speaker', { speakerHistory, style, rapStyle, langCode });
         
         // Clean the prompt text - remove any style direction markers that may have been included
         // These markers like [aggressive rap style - ...] should NOT be read aloud
@@ -3798,10 +3811,14 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
 // Video generation charges 15 credits (expensive)
 app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), generationLimiter, async (req, res) => {
   try {
-    const { prompt, referenceImage } = req.body;
+    const { prompt, referenceImage, durationSeconds = 8 } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
-    logger.info('Starting video generation', { promptLength: prompt.length, hasReference: !!referenceImage });
+    logger.info('Starting video generation', { 
+      promptLength: prompt.length, 
+      hasReference: !!referenceImage,
+      durationSeconds 
+    });
 
     // 1. Try Google Veo 3.0 Fast as PRIMARY (best quality, approved)
     const apiKey = process.env.GEMINI_API_KEY;
@@ -3815,9 +3832,6 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
             // Build instances with image if provided
             const instance = { prompt: prompt };
             if (referenceImage) {
-              // Veo typically expects base64 or a specific image structure for image-to-video
-              // For now we'll assume the API supports image_url in the prompt or instance if configured
-              // Most Gemini models allow multi-modal input
               instance.image = { image_url: referenceImage };
             }
 
@@ -3828,7 +3842,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
                 instances: [instance],
                 parameters: {
                   aspectRatio: "16:9",
-                  durationSeconds: 8, // Fixed: Veo 3.0 Fast requires 4-8 seconds
+                  durationSeconds: Math.min(durationSeconds, 8), // Veo 3.0 Fast requires 4-8 seconds
                   sampleCount: 1
                 }
               })

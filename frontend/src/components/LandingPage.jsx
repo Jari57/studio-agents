@@ -547,24 +547,28 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   };
   
   // Handle CTA button clicks - show auth modal (with guard)
-  const handleCtaClick = (action = 'start', targetTab = null) => {
+  const handleCtaClick = (action = 'start', targetTab = 'resources') => {
     if (isTransitioning) return; // Prevent clicks during transition
     
     // 🚀 Check if already logged in via Firebase OR localStorage
     const hasUserId = localStorage.getItem('studio_user_id');
     const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
+    const isActuallyLogged = !!(auth.currentUser || hasUserId || isGuest);
     
-    if (auth.currentUser || hasUserId || isGuest) {
+    // Override 'start' action for returning members to avoid re-triggering wizard
+    const finalAction = isActuallyLogged && action === 'start' ? 'return' : action;
+    
+    if (isActuallyLogged) {
       console.log('[LandingPage] User already recognized, entering studio directly');
       setIsTransitioning(true);
       setTimeout(() => {
-        onEnter(action === 'start', false, targetTab);
+        onEnter(finalAction === 'start', false, targetTab);
         setIsTransitioning(false);
       }, 100);
       return;
     }
     
-    setPendingAction(action);
+    setPendingAction(finalAction);
     setPendingTargetTab(targetTab);
     setShowAuthModal(true);
     setAuthError('');
@@ -775,7 +779,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '440px', marginTop: '12px' }}>
             
             <button
-              onClick={() => handleCtaClick('start', 'agents')}
+              onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'resources')}
               className="cta-button-primary haptic-press"
               style={{ 
                 width: '100%', 

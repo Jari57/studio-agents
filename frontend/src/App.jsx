@@ -69,23 +69,23 @@ function App() {
     const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
     if ((hasUserId || isGuest) && currentHash === '#/') {
       console.log('[App] Session detected on mount, skipping landing page');
-      setCurrentHash('#/studio');
-      window.location.hash = '#/studio';
+      setCurrentHash('#/studio/resources');
+      window.location.hash = '#/studio/resources';
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run ONLY on mount to allow explicit navigation to #/ via handleBackToLanding
 
   const [initialTab, setInitialTab] = useState(null);
 
-  const handleEnterStudio = (shouldStartWizard = false, startOrchestrator = false, targetTab = null) => {
+  const handleEnterStudio = (shouldStartWizard = false, startOrchestrator = false, targetTab = 'resources') => {
     console.log('[App] handleEnterStudio called, shouldStartWizard:', shouldStartWizard, 'startOrchestrator:', startOrchestrator, 'targetTab:', targetTab);
     setStartWizard(shouldStartWizard);
     setStartOrchestrator(startOrchestrator);
     setStartTour(false);
     setInitialPlan(null);
-    setInitialTab(targetTab);
-    console.log('[App] Setting hash to #/studio');
-    window.location.hash = '#/studio';
+    setInitialTab(targetTab || 'resources');
+    console.log('[App] Setting hash to #/studio/resources');
+    window.location.hash = targetTab && targetTab !== 'agents' ? `#/studio/${targetTab}` : '#/studio/resources';
   };
 
   const handleStartTour = () => {

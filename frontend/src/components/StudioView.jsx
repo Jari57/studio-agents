@@ -278,7 +278,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'].includes(lastTab)) {
       return lastTab;
     }
-    return 'agents';
+    return 'resources';
   };
 
   const [activeTab, _setActiveTab] = useState(() => {
@@ -291,7 +291,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'].includes(lastTab)) {
       return lastTab;
     }
-    return 'agents';
+    return 'resources';
   });
 
   // Persist activeTab to localStorage whenever it changes
@@ -306,7 +306,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
-      const newTab = hash.startsWith('#/studio/') ? hash.split('/')[2] : 'agents';
+      const newTab = hash.startsWith('#/studio/') ? hash.split('/')[2] : 'resources';
       if (newTab !== activeTab) {
         _setActiveTab(newTab);
       }
@@ -343,6 +343,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return null;
   });
   const [backingTrack, setBackingTrack] = useState(null); // For vocal sync
+  
+  // Inspiration / DNA States
+  const [visualDnaUrl, setVisualDnaUrl] = useState(null);
+  const [audioDnaUrl, setAudioDnaUrl] = useState(null);
+  const [videoDnaUrl, setVideoDnaUrl] = useState(null);
+  const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null);
+  const [voiceSampleUrl, setVoiceSampleUrl] = useState(null);
+  const [isUploadingDna, setIsUploadingDna] = useState({});
+  const [isUploadingSample, setIsUploadingSample] = useState(false);
+  const [showDnaVault, setShowDnaVault] = useState(false);
 
   const [newsSearch, setNewsSearch] = useState(() => {
     const uid = localStorage.getItem('studio_user_id') || 'guest';
@@ -440,6 +450,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         setVoiceTranscript('');
         setSelectedAgent(null);
         setSelectedProject(null);
+        
+        // Clear DNA residue
+        setVisualDnaUrl(null);
+        setAudioDnaUrl(null);
+        setVideoDnaUrl(null);
+        setLyricsDnaUrl(null);
+        setVoiceSampleUrl(null);
       }
     }
     
@@ -570,7 +587,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       if (successCount > 0) {
         setLastSyncTime(new Date());
         console.log(`Synced ${successCount}/${projectsToSync.length} projects to cloud via API`);
-      } else if (projectsToSync.length > 0) {
+      } else if (projectsToSync.length > 0 && auth?.currentUser) {
         toast.error('Sync failed - check your internet connection');
       }
     } catch (err) {
@@ -830,6 +847,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     language: 'English',
     style: 'rapper',           // rapper, rapper-female, singer, narrator, spoken, cloned
     rapStyle: 'aggressive',    // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
+    genre: 'hip-hop',          // r&b, pop, hip-hop, soul, country, rock, jazz
+    duration: 30,              // 30s, 60s, 120s, 180s
     voiceName: 'rapper-male-1',
     speakerUrl: localStorage.getItem('studio_cloned_voice_url') || null
   });
@@ -841,6 +860,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     { command: 'generate', description: 'Start generation with current prompt', example: '"Generate"', category: 'Actions' },
     { command: 'clear', description: 'Clear the prompt', example: '"Clear prompt"', category: 'Actions' },
     { command: 'read back', description: 'Read the prompt aloud', example: '"Read back"', category: 'Actions' },
+    { command: 'reference [type] DNA', description: 'Upload visual/audio/lyrics DNA', example: '"Reference visual DNA"', category: 'Creation' },
+    { command: 'set genre to [genre]', description: 'Change musical genre', example: '"Set genre to Country"', category: 'Settings' },
+    { command: 'set duration to [time]', description: 'Change generation length', example: '"Set duration to 1 minute"', category: 'Settings' },
     { command: 'switch theme', description: 'Toggle dark/light mode', example: '"Switch theme"', category: 'Settings' },
     { command: 'stop', description: 'Stop listening', example: '"Stop listening"', category: 'Voice' }
   ];
@@ -971,7 +993,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
   const [previewSaveMode, setPreviewSaveMode] = useState(false); // Toggle save options view in preview modal
   const [newProjectNameInPreview, setNewProjectNameInPreview] = useState(''); // New project name input in preview modal
-  const [isPreviewMediaLoading, setIsPreviewMediaLoading] = useState(true); // Loading state for preview media (img/video/audio)
+  const [isPreviewMediaLoading, setIsPreviewMediaLoading] = useState(false); // Loading state for preview media (img/video/audio)
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false); // Playback state for pulse animations
   
   // Safe preview data access (prevents TDZ/null errors)
@@ -1056,6 +1078,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         
         // For text-only assets
         if (!asset.audioUrl && !asset.imageUrl && !asset.videoUrl) {
+          setIsPreviewMediaLoading(false);
           const foundIndex = safeAssetsList.findIndex(a => a?.id === asset?.id);
           const safeIndex = foundIndex >= 0 && foundIndex < safeAssetsList.length ? foundIndex : 0;
           
@@ -1094,6 +1117,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           // Double-check the asset at safeIndex exists
           const targetAsset = previewableAssets[safeIndex];
           if (targetAsset) {
+            // Set loading state for media assets
+            setIsPreviewMediaLoading(true);
+            
             console.log('[SafePreview] Opening media preview at index', safeIndex, 'type:', targetAsset.audioUrl ? 'audio' : targetAsset.videoUrl ? 'video' : 'image');
             setShowPreview({
               type: targetAsset.audioUrl ? 'audio' : targetAsset.videoUrl ? 'video' : 'image',
@@ -1125,8 +1151,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // This is for AI generation previews (previewItem modal)
   const safeOpenGenerationPreview = (item) => {
     if (!item) return;
-    // Reset loading state for new item
-    setIsPreviewMediaLoading(true);
+    
+    // Only show loading if there's actual media to load
+    const hasMedia = !!(item.imageUrl || item.audioUrl || item.videoUrl || item.lyricsVocal);
+    setIsPreviewMediaLoading(hasMedia);
+    
     // MUTUAL EXCLUSION: Close asset preview modal first
     setShowPreview(null);
     setPreviewMaximized(false);
@@ -1755,6 +1784,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 setUserCredits(credits);
                 setUserProfile(prev => ({ ...prev, credits }));
                 
+                // Load User DNA / Inspiration files for persistence
+                if (userData.visualDnaUrl) setVisualDnaUrl(userData.visualDnaUrl);
+                if (userData.audioDnaUrl) setAudioDnaUrl(userData.audioDnaUrl);
+                if (userData.videoDnaUrl) setVideoDnaUrl(userData.videoDnaUrl);
+                if (userData.lyricsDnaUrl) setLyricsDnaUrl(userData.lyricsDnaUrl);
+                if (userData.voiceSampleUrl) setVoiceSampleUrl(userData.voiceSampleUrl);
+                
                 // Load subscription plan from Firestore
                 // Backend saves: tier, subscriptionTier, subscriptionStatus
                 if (userData.subscriptionStatus === 'active' && userData.tier) {
@@ -1804,7 +1840,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           const previousUserId = localStorage.getItem('studio_user_id');
           const wasGuestMode = localStorage.getItem('studio_guest_mode') === 'true';
           
-          if (previousUserId && authRetryCount < 3) {
+          if (previousUserId && authRetryCount < 5) {
             // We had a session - Firebase might just be slow
             // Wait and retry before clearing
             console.log('[Auth] Firebase returned null but we have session, retry', authRetryCount + 1);
@@ -1817,17 +1853,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             // Don't clear anything yet - give Firebase a moment
             setTimeout(() => {
               // FIXED: Use ref to get CURRENT user state (not stale closure)
-              if (!userRef.current) {
+              if (!userRef.current && authRetryCount >= 4) {
                 console.log('[Auth] Retry exhausted, clearing session');
-                setUser(null);
-                setUserToken(null);
-                setUserCredits(3);
-                localStorage.removeItem('studio_user_id');
-                setIsLoggedIn(false);
+                // Only clear if we are NOT in guest mode
+                if (localStorage.getItem('studio_guest_mode') !== 'true') {
+                  setUser(null);
+                  setUserToken(null);
+                  setUserCredits(3);
+                  localStorage.removeItem('studio_user_id');
+                  setIsLoggedIn(false);
+                }
                 setAuthChecking(false);
                 setAuthRetryCount(0);
               }
-            }, 2000);
+            }, 5000); // 5 seconds is safer for slow connections
           } else if (wasGuestMode) {
             // Guest mode - keep them in without login
             setUser(null);
@@ -2602,7 +2641,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       voiceSettings.language === 'Spanish' ? 'es-ES' :
                       voiceSettings.language === 'French' ? 'fr-FR' :
                       voiceSettings.language === 'German' ? 'de-DE' :
-                      voiceSettings.language === 'Japanese' ? 'ja-JP' : 'en-US';
+                      voiceSettings.language === 'Italian' ? 'it-IT' :
+                      voiceSettings.language === 'Portuguese' ? 'pt-PT' :
+                      voiceSettings.language === 'Japanese' ? 'ja-JP' :
+                      voiceSettings.language === 'Korean' ? 'ko-KR' :
+                      voiceSettings.language === 'Chinese' ? 'zh-CN' : 'en-US';
     
     recognition.continuous = true;
     recognition.interimResults = true;
@@ -2754,6 +2797,65 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         }
         return;
       }
+
+      // DNA Reference commands (Voice-to-DNA)
+      if (transcript.includes('reference') && (transcript.includes('dna') || transcript.includes('asset'))) {
+        if (transcript.includes('visual') || transcript.includes('image')) {
+          document.getElementById('visual-dna-input')?.click();
+          handleTextToVoice("Please select a visual reference image.");
+          return;
+        } else if (transcript.includes('audio') || transcript.includes('sound') || transcript.includes('music')) {
+          document.getElementById('audio-dna-input')?.click();
+          handleTextToVoice("Please select an audio reference file.");
+          return;
+        } else if (transcript.includes('lyrics') || transcript.includes('text') || transcript.includes('context')) {
+          document.getElementById('lyrics-dna-input')?.click();
+          handleTextToVoice("Please select a lyrics or text reference file.");
+          return;
+        } else if (transcript.includes('voice') || transcript.includes('clone')) {
+          document.getElementById('voice-dna-input')?.click();
+          handleTextToVoice("Please select a voice sample to clone.");
+          return;
+        }
+      }
+
+      // Genre selection commands
+      if (transcript.includes('set genre to') || transcript.includes('change genre to')) {
+        const genreText = transcript.replace('set genre to', '').replace('change genre to', '').trim();
+        const validGenres = ['r&b', 'pop', 'hip-hop', 'soul', 'country', 'rock', 'jazz', 'folk', 'metal', 'blues'];
+        const foundGenre = validGenres.find(g => genreText.includes(g));
+        if (foundGenre) {
+          // Normalize some synonyms
+          let targetGenre = foundGenre;
+          if (foundGenre === 'folk') targetGenre = 'country';
+          if (foundGenre === 'metal') targetGenre = 'rock';
+          if (foundGenre === 'blues') targetGenre = 'jazz';
+          
+          setVoiceSettings(prev => ({ ...prev, genre: targetGenre }));
+          toast.success(`🎶 Genre set to ${targetGenre.toUpperCase()}`);
+          handleTextToVoice(`Setting genre to ${targetGenre}.`);
+          return;
+        }
+      }
+
+      // Duration selection commands
+      if (transcript.includes('set duration to') || transcript.includes('change duration to')) {
+        const timeText = transcript.replace('set duration to', '').replace('change duration to', '').trim();
+        let seconds = 30;
+        
+        if (timeText.includes('15 seconds')) seconds = 15;
+        else if (timeText.includes('30 seconds')) seconds = 30;
+        else if (timeText.includes('1 minute') || timeText.includes('60 seconds')) seconds = 60;
+        else if (timeText.includes('2 minute') || timeText.includes('120 seconds')) seconds = 120;
+        else if (timeText.includes('3 minute') || timeText.includes('180 seconds')) seconds = 180;
+        else if (timeText.includes('short')) seconds = 15;
+        else if (timeText.includes('long')) seconds = 180;
+        
+        setVoiceSettings(prev => ({ ...prev, duration: seconds }));
+        toast.success(`⏱️ Duration set to ${seconds}s`);
+        handleTextToVoice(`Setting generation length to ${seconds} seconds.`);
+        return;
+      }
       
       // Show voice commands
       if (transcript.includes('show commands') || transcript.includes('voice commands') || transcript.includes('what can i say') || transcript.includes('help commands')) {
@@ -2820,7 +2922,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       voiceSettings.language === 'Spanish' ? 'es' :
                       voiceSettings.language === 'French' ? 'fr' :
                       voiceSettings.language === 'German' ? 'de' :
-                      voiceSettings.language === 'Japanese' ? 'ja' : 'en';
+                      voiceSettings.language === 'Italian' ? 'it' :
+                      voiceSettings.language === 'Portuguese' ? 'pt' :
+                      voiceSettings.language === 'Japanese' ? 'ja' :
+                      voiceSettings.language === 'Korean' ? 'ko' :
+                      voiceSettings.language === 'Chinese' ? 'zh' : 'en';
 
       const filteredVoices = voices.filter(v => v.lang.startsWith(langCode));
       
@@ -3069,22 +3175,176 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
 
+  const handleUploadDna = async (slot, e) => {
+    // PREVENT DUPLICATE CALLS
+    if (isUploadingDna[slot]) return;
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check size limit (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large (max 10MB)');
+      return;
+    }
+
+    setIsUploadingDna(prev => ({ ...prev, [slot]: true }));
+    const loadingId = toast.loading(`Uploading ${slot} DNA...`, { id: `upload-dna-${slot}` });
+
+    try {
+      const token = user ? await user.getIdToken() : null;
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result;
+          const response = await fetch(`${BACKEND_URL}/api/upload-asset`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              data: base64Data,
+              fileName: `${slot}-dna-${Date.now()}-${file.name.replace(/\s+/g, '-')}`,
+              mimeType: file.type,
+              assetType: (slot === 'visual' || slot === 'video') ? 'image' : 
+                         (slot === 'audio') ? 'audio' : 'document'
+            })
+          });
+
+          const result = await response.json();
+          if (response.ok && result.url) {
+            const url = result.url;
+            if (slot === 'visual') setVisualDnaUrl(url);
+            if (slot === 'audio') setAudioDnaUrl(url);
+            if (slot === 'video') setVideoDnaUrl(url);
+            if (slot === 'lyrics') setLyricsDnaUrl(url);
+            
+            // Industrial Strength Persistence: Save to User Profile
+            if (user?.uid) {
+              try {
+                const userRef = doc(db, 'users', user.uid);
+                await updateDoc(userRef, {
+                  [`${slot}DnaUrl`]: url,
+                  lastDnaUpdate: Date.now()
+                });
+                console.log(`[Studio] Persisted ${slot} DNA to profile`);
+              } catch (saveErr) {
+                console.warn(`[Studio] Failed to persist ${slot} DNA:`, saveErr);
+              }
+            }
+
+            toast.success(`${slot === 'video' ? 'Image' : slot.charAt(0).toUpperCase() + slot.slice(1)} DNA attached!`, { id: loadingId });
+          } else {
+            throw new Error(result.error || 'Upload failed');
+          }
+        } catch (err) {
+          console.error(`[Studio] ${slot} DNA upload error:`, err);
+          toast.error(`Failed to upload ${slot} DNA`, { id: loadingId });
+        } finally {
+          setIsUploadingDna(prev => ({ ...prev, [slot]: false }));
+        }
+      };
+      reader.onerror = () => {
+        toast.error('Failed to read file');
+        setIsUploadingDna(prev => ({ ...prev, [slot]: false }));
+      };
+    } catch (err) {
+      console.error(`[Studio] ${slot} DNA upload error:`, err);
+      toast.error('Upload failed', { id: loadingId });
+      setIsUploadingDna(prev => ({ ...prev, [slot]: false }));
+    }
+  };
+
+  const handleUploadVoiceSample = async (e) => {
+    if (isUploadingSample) return;
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploadingSample(true);
+    const loadingId = toast.loading('Cloning voice sample...', { id: 'voice-upload' });
+
+    try {
+      const token = user ? await user.getIdToken() : null;
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result;
+          const response = await fetch(`${BACKEND_URL}/api/upload-asset`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              data: base64Data,
+              fileName: `voice-cloned-${Date.now()}-${file.name.replace(/\s+/g, '-')}`,
+              mimeType: file.type,
+              assetType: 'audio'
+            })
+          });
+
+          const result = await response.json();
+          if (response.ok && result.url) {
+            const url = result.url;
+            setVoiceSampleUrl(url);
+            
+            // Industrial Strength Persistence: Save to User Profile
+            if (user?.uid) {
+              try {
+                const userRef = doc(db, 'users', user.uid);
+                await updateDoc(userRef, {
+                  voiceSampleUrl: url,
+                  lastVoiceUpdate: Date.now()
+                });
+                console.log('[Studio] Persisted Voice sample to profile');
+              } catch (saveErr) {
+                console.warn('[Studio] Failed to persist Voice sample:', saveErr);
+              }
+            }
+
+            toast.success('Voice cloned! Ready for speech.', { id: loadingId });
+          } else {
+            throw new Error(result.error || 'Upload failed');
+          }
+        } catch (err) {
+          console.error('[Studio] Voice upload error:', err);
+          toast.error('Voice cloning failed', { id: loadingId });
+        } finally {
+          setIsUploadingSample(false);
+        }
+      };
+    } catch (err) {
+      toast.error('Failed to read file');
+      setIsUploadingSample(false);
+    }
+  };
+
   const handleGenerate = async () => {
     // PREVENT DUPLICATE CALLS
     if (isGenerating) return;
 
-    // CAPTURE CONTEXT IMMEDIATELY (Prevent race conditions if user switches projects)
+    // CAPTURE CONTEXT IMMEDIATELY (Prevent race conditions if user switches projects/agents)
     const targetProjectSnapshot = selectedProject;
+    const targetAgentSnapshot = selectedAgent; // Immutable capture for this generation cycle
 
     // Guard: Ensure agent is selected
-    if (!selectedAgent) {
+    if (!targetAgentSnapshot) {
       toast.error("Please select an agent first.");
       return;
     }
 
+    const agentId = targetAgentSnapshot.id;
+
     // CHECK: Block generation for "Coming Soon" agents
-    if (selectedAgent.comingSoon) {
-      toast.error(`${selectedAgent.name} is coming soon! Try Ghostwriter or Beat Maker instead.`, { icon: '🚧' });
+    if (targetAgentSnapshot.comingSoon) {
+      toast.error(`${targetAgentSnapshot.name} is coming soon! Try Ghostwriter or Beat Maker instead.`, { icon: '🚧' });
       return;
     }
     
@@ -3144,7 +3404,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
 
     setIsGenerating(true);
-    const toastId = toast.loading(`${selectedAgent.name} is working...`);
+    const toastId = toast.loading(`${targetAgentSnapshot?.name || 'AI'} is working...`);
     
     try {
       // DEDUCT CREDIT / TRACK FREE USE
@@ -3191,15 +3451,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       let endpoint = '/api/generate';
       let body = {
         prompt: prompt,
-        systemInstruction: `You are ${selectedAgent?.name || 'AI Assistant'}, a professional AI agent in a high-end music studio. 
-          Category: ${selectedAgent?.category || 'General'}. 
-          Capabilities: ${(selectedAgent?.capabilities || []).join(', ')}.
-          ${selectedAgent?.explanation || ''}`,
-        model: selectedModel // Pass selected model to backend
+        systemInstruction: `You are ${targetAgentSnapshot?.name || 'AI Assistant'}, a professional AI agent in a high-end music studio. 
+          Category: ${targetAgentSnapshot?.category || 'General'}. 
+          Capabilities: ${(targetAgentSnapshot?.capabilities || []).join(', ')}.
+          ${targetAgentSnapshot?.explanation || ''}`,
+        model: selectedModel, // Pass selected model to backend
+        visualDnaUrl,
+        audioDnaUrl,
+        videoDnaUrl,
+        lyricsDnaUrl,
+        voiceSampleUrl
       };
 
       // Route to specific endpoints for Image/Video/Audio agents
-      const agentId = selectedAgent?.id || '';
+      const agentId = targetAgentSnapshot?.id || '';
       const isImageAgent = agentId === 'album';
       const isVideoAgent = agentId === 'video-creator';
       const isAudioAgent = agentId === 'beat' || agentId === 'sample';
@@ -3207,28 +3472,31 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       
       if (isImageAgent) {
         endpoint = '/api/generate-image';
-        body = { prompt, model: selectedModel };
+        body = { prompt, model: selectedModel, referenceImage: visualDnaUrl };
       } else if (isVideoAgent) {
         endpoint = '/api/generate-video';
-        body = { prompt, model: selectedModel };
+        body = { 
+          prompt, 
+          model: selectedModel, 
+          referenceVideo: videoDnaUrl,
+          durationSeconds: voiceSettings.duration || 30
+        };
         
         // Attach audio for music video generation
-        if (backingTrack) {
-           // Note: In a real app, we'd upload the file first. 
-           // Here we pass the URL if it's remote, or just metadata if local blob
-           if (!backingTrack.isUpload) {
-             body.audioUrl = backingTrack.audioUrl;
-           }
-           console.log('Attaching audio to video generation:', backingTrack.title);
+        if (backingTrack || audioDnaUrl) {
+           // Priority to explicitly uploaded audio DNA if present, else backingTrack
+           body.audioUrl = audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl);
+           console.log('Attaching audio to video generation:', audioDnaUrl ? 'Audio DNA' : backingTrack?.title);
         }
       } else if (isAudioAgent) {
         endpoint = '/api/generate-audio';
         body = { 
           prompt, 
           bpm: 90, // Could add UI controls for this
-          genre: agentId === 'beat' ? 'hip-hop' : 'sample',
+          genre: voiceSettings.genre || (agentId === 'beat' ? 'hip-hop' : 'sample'),
           mood: 'creative',
-          durationSeconds: 8
+          durationSeconds: voiceSettings.duration || 30,
+          referenceAudio: audioDnaUrl
         };
       } else if (isSpeechAgent) {
         endpoint = '/api/generate-speech';
@@ -3236,14 +3504,21 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           prompt, 
           voice: voiceSettings.voiceName || 'rapper-male-1', 
           style: voiceSettings.style || 'spoken',
-          speakerUrl: voiceSettings.speakerUrl
+          genre: voiceSettings.genre || 'hip-hop',
+          rapStyle: voiceSettings.rapStyle || 'aggressive',
+          language: voiceSettings.language || 'English',
+          duration: voiceSettings.duration || 30,
+          speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl
         };
         
         // Add backing track info if available (for sync)
-        if (backingTrack) {
-           body.backingTrackUrl = backingTrack.audioUrl;
-           body.bpm = backingTrack.bpm;
-           console.log('Attaching backing track to speech generation:', backingTrack.title);
+        if (backingTrack || audioDnaUrl) {
+          body.backingTrackUrl = audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl);
+        }
+      } else {
+        // For general text agents, also include lyrics DNA as reference if available
+        if (lyricsDnaUrl) {
+          body.referenceText = lyricsDnaUrl;
         }
       }
 
@@ -3753,9 +4028,21 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           }
 
           const saveHeaders = { 'Content-Type': 'application/json' };
-          if (auth?.currentUser) {
+          
+          // Wait for token if user is logged in but Firebase isn't ready
+          let currentAuth = auth?.currentUser;
+          if (!currentAuth && isLoggedIn) {
+            console.log('Waiting for Firebase auth state to rehydrate...');
+            for (let i = 0; i < 5; i++) {
+              await new Promise(r => setTimeout(r, 500));
+              currentAuth = auth?.currentUser;
+              if (currentAuth) break;
+            }
+          }
+
+          if (currentAuth) {
             try {
-              const token = await auth.currentUser.getIdToken();
+              const token = await currentAuth.getIdToken();
               saveHeaders['Authorization'] = `Bearer ${token}`;
             } catch (tokenErr) {
               console.warn('Could not get auth token for save:', tokenErr);
@@ -3770,7 +4057,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             fetch(`${BACKEND_URL}/api/projects`, {
               method: 'POST',
               headers: saveHeaders,
-              body: JSON.stringify({ userId: uid, project: itemToSave })
+              body: JSON.stringify({ userId: uid, project: projectToUpdate })
             }).then(res => {
               if (!res.ok) throw new Error(`Project save failed: ${res.status}`);
               return res.json();
@@ -5591,7 +5878,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                               className="project-list-item touch-feedback"
                               onClick={() => {
                                 setSelectedProject(project);
-                                setActiveTab('hub');
+                                setPendingProjectNav(true);
                               }}
                               style={{
                                 display: 'grid',
@@ -5706,17 +5993,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                               
                               {/* Quick Actions */}
                               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <button 
+                                <button
                                   className="btn-icon-sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setSelectedProject(project);
-                                    if (project.agents?.[0]) {
-                                      setSelectedAgent(project.agents[0]);
-                                      setActiveTab('agents');
-                                    }
+                                    setPendingProjectNav(true);
                                   }}
-                                  title="Open Project"
+                                  title="Open Project Summary"
                                   style={{
                                     width: '32px',
                                     height: '32px',
@@ -5730,7 +6014,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                     justifyContent: 'center'
                                   }}
                                 >
-                                  <Play size={14} />
+                                  <LayoutGrid size={14} />
                                 </button>
                               </div>
                             </div>
@@ -6821,9 +7105,76 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                   <option value="pop">🌟 Pop</option>
                                   <option value="hip-hop">🔥 Hip-Hop</option>
                                   <option value="soul">🎷 Soul / Gospel</option>
+                                  <option value="country">🎸 Country / Folk</option>
+                                  <option value="rock">🤘 Rock / Metal</option>
+                                  <option value="jazz">🎺 Jazz / Blues</option>
                                 </select>
                               </div>
                             )}
+
+                            {/* Voice Gender & Region */}
+                            <div className="settings-split" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                              <div className="settings-group" style={{ flex: 1 }}>
+                                <label>👤 Gender</label>
+                                <select 
+                                  value={voiceSettings.gender}
+                                  onChange={(e) => setVoiceSettings({...voiceSettings, gender: e.target.value})}
+                                  className="settings-select"
+                                >
+                                  <option value="male">👨 Male</option>
+                                  <option value="female">👩 Female</option>
+                                </select>
+                              </div>
+                              <div className="settings-group" style={{ flex: 1 }}>
+                                <label>📍 Region / Accent</label>
+                                <select 
+                                  value={voiceSettings.region}
+                                  onChange={(e) => setVoiceSettings({...voiceSettings, region: e.target.value})}
+                                  className="settings-select"
+                                >
+                                  <option value="US">🇺🇸 US</option>
+                                  <option value="UK">🇬🇧 UK</option>
+                                  <option value="AU">🇦🇺 AU</option>
+                                  <option value="IN">🇮🇳 IN</option>
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Language Selection */}
+                            <div className="settings-group" style={{ marginTop: '8px' }}>
+                              <label>🌐 Language (Voice & Transcription)</label>
+                              <select 
+                                value={voiceSettings.language}
+                                onChange={(e) => setVoiceSettings({...voiceSettings, language: e.target.value})}
+                                className="settings-select"
+                              >
+                                <option value="English">🇺🇸 English</option>
+                                <option value="Spanish">🇪🇸 Spanish</option>
+                                <option value="French">🇫🇷 French</option>
+                                <option value="German">🇩🇪 German</option>
+                                <option value="Italian">🇮🇹 Italian</option>
+                                <option value="Portuguese">🇵🇹 Portuguese</option>
+                                <option value="Japanese">🇯🇵 Japanese</option>
+                                <option value="Korean">🇰🇷 Korean</option>
+                                <option value="Chinese">🇨🇳 Chinese</option>
+                              </select>
+                            </div>
+
+                            {/* Duration Selection */}
+                            <div className="settings-group" style={{ marginTop: '8px' }}>
+                              <label>⏱️ Generation Duration</label>
+                              <select 
+                                value={voiceSettings.duration || 30}
+                                onChange={(e) => setVoiceSettings({...voiceSettings, duration: parseInt(e.target.value)})}
+                                className="settings-select"
+                              >
+                                <option value={15}>15 Seconds (Rapid)</option>
+                                <option value={30}>30 Seconds (Standard)</option>
+                                <option value={60}>1 Minute (Extended)</option>
+                                <option value={120}>2 Minutes (Professional)</option>
+                                <option value={180}>3 Minutes (Full Track)</option>
+                              </select>
+                            </div>
                             
                             <p className="settings-info" style={{ marginTop: '8px', opacity: 0.8 }}>
                               {['rapper', 'rapper-female', 'singer', 'singer-female', 'cloned', 'narrator', 'spoken'].includes(voiceSettings.style) ? (
@@ -6910,14 +7261,93 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     </div>
                   </div>
 
-                  {/* Reference / Attachment Input for specific agents */}
-                  {(selectedAgent?.id === 'beat' || selectedAgent?.id === 'video-creator' || selectedAgent?.id === 'video-scorer') && (
+                  {/* Universal DNA Vault - Accessible from any agent */}
+                  <div className="dna-vault-header" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '10px',
+                    padding: '0 4px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Database size={16} color="var(--color-purple)" />
+                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>Studio DNA Vault</span>
+                    </div>
+                    <button 
+                      onClick={() => setShowDnaVault(!showDnaVault)}
+                      style={{
+                        padding: '4px 8px',
+                        background: 'rgba(168, 85, 247, 0.1)',
+                        border: '1px solid rgba(168, 85, 247, 0.2)',
+                        borderRadius: '6px',
+                        fontSize: '0.7rem',
+                        color: 'var(--color-purple)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      {showDnaVault ? 'Hide Vault' : 'Open Vault'}
+                      {showDnaVault ? <ChevronUp size={12} /> : <ChevronRight size={12} />}
+                    </button>
+                  </div>
+
+                  <div className="inspiration-container" style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '8px', 
+                    marginBottom: '16px',
+                    maxHeight: showDnaVault ? 'none' : '0',
+                    overflow: 'hidden',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    {/* Visual DNA Upload */}
                     <div className="reference-upload-card" style={{
-                      marginBottom: '12px',
-                      padding: '12px',
+                      padding: '10px 12px',
                       background: 'rgba(255, 255, 255, 0.03)',
-                      borderRadius: '12px',
-                      border: '1px dashed rgba(255, 255, 255, 0.1)',
+                      borderRadius: '10px',
+                      border: (selectedAgent?.id === 'album' || selectedAgent?.id === 'video-creator') ? '1px dashed #ec489950' : '1px dashed rgba(255, 255, 255, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: 'rgba(236, 72, 153, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <ImageIcon size={16} color="#ec4899" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Visual DNA</div>
+                          <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {visualDnaUrl ? 'Image Attached' : 'Reference Image...'}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {visualDnaUrl && (
+                          <button onClick={() => setVisualDnaUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                        )}
+                        <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
+                          <input id="visual-dna-input" type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('visual', e)} />
+                          {isUploadingDna.visual ? <Loader2 size={12} className="spin" /> : 'Upload'}
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Audio DNA Upload */}
+                    <div className="reference-upload-card" style={{
+                      padding: '10px 12px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '10px',
+                      border: (selectedAgent?.id === 'beat' || selectedAgent?.id === 'sample' || selectedAgent?.id === 'video-creator') ? '1px dashed var(--color-cyan-semi)' : '1px dashed rgba(255, 255, 255, 0.1)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -6932,62 +7362,155 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          {selectedAgent?.id === 'video-creator' ? <Music size={16} color="var(--color-cyan)" /> : <Upload size={16} color="var(--color-cyan)" />}
+                          <Music size={16} color="var(--color-cyan)" />
                         </div>
                         <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {selectedAgent?.id === 'video-creator' ? 'Attach Song (for Sync)' : 'Reference Track'}
-                          </div>
-                          <div style={{ fontSize: '0.85rem', color: 'white', fontWeight: '500' }}>
-                            {backingTrack ? backingTrack.title : 'Upload Audio...'}
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Audio DNA</div>
+                          <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {audioDnaUrl ? 'Sound Attached' : backingTrack ? backingTrack.title : 'Reference Audio...'}
                           </div>
                         </div>
                       </div>
-                      
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        {backingTrack && (
-                          <button 
-                            onClick={() => setBackingTrack(null)}
-                            style={{ padding: '6px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                          >
-                            <X size={16} />
-                          </button>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {(audioDnaUrl || backingTrack) && (
+                          <button onClick={() => { setAudioDnaUrl(null); setBackingTrack(null); }} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
                         )}
-                        <label 
-                          style={{
-                            padding: '6px 12px',
-                            background: 'rgba(255, 255, 255, 0.1)',
-                            borderRadius: '6px',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            color: 'white'
-                          }}
-                        >
-                          <input 
-                            type="file" 
-                            accept="audio/*" 
-                            style={{ display: 'none' }} 
-                            onChange={(e) => {
-                              const file = e.target.files[0];
-                              if (file) {
-                                // Create a mock backing track object from the file
-                                const url = URL.createObjectURL(file);
-                                setBackingTrack({
-                                  title: file.name,
-                                  audioUrl: url,
-                                  type: 'audio',
-                                  isUpload: true
-                                });
-                                toast.success(`Attached "${file.name}"`);
-                              }
-                            }}
-                          />
-                          Select File
+                        <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
+                          <input id="audio-dna-input" type="file" accept="audio/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('audio', e)} />
+                          {isUploadingDna.audio ? <Loader2 size={12} className="spin" /> : 'Upload'}
                         </label>
                       </div>
+                    </div>
+
+                    {/* Lyrics DNA Upload */}
+                    <div className="reference-upload-card" style={{
+                      padding: '10px 12px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '10px',
+                      border: (selectedAgent?.id === 'ghost' || selectedAgent?.id === 'ghost-1') ? '1px dashed #a855f750' : '1px dashed rgba(255, 255, 255, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: 'rgba(168, 85, 247, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <FileText size={16} color="#a855f7" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lyrics DNA</div>
+                          <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {lyricsDnaUrl ? 'Context Attached' : 'Reference Text/File...'}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {lyricsDnaUrl && (
+                          <button onClick={() => setLyricsDnaUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                        )}
+                        <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
+                          <input id="lyrics-dna-input" type="file" accept=".txt,.doc,.docx,.pdf" style={{ display: 'none' }} onChange={(e) => handleUploadDna('lyrics', e)} />
+                          {isUploadingDna.lyrics ? <Loader2 size={12} className="spin" /> : 'Upload'}
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Voice Sample Upload */}
+                    <div className="reference-upload-card" style={{
+                      padding: '10px 12px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '10px',
+                      border: (selectedAgent?.id === 'podcast' || selectedAgent?.id === 'voiceover' || selectedAgent?.id === 'vocal-arch') ? '1px dashed #fbbf2450' : '1px dashed rgba(255, 255, 255, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: 'rgba(251, 191, 36, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Mic size={16} color="#fbbf24" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voice Clone</div>
+                          <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {voiceSampleUrl ? 'Voice Profile Active' : 'Sample to Clone...'}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {voiceSampleUrl && (
+                          <button onClick={() => setVoiceSampleUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                        )}
+                        <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
+                          <input id="voice-dna-input" type="file" accept="audio/*" style={{ display: 'none' }} onChange={handleUploadVoiceSample} />
+                          {isUploadingSample ? <Loader2 size={12} className="spin" /> : 'Clone'}
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Seed DNA (Video/Image Reference for Video Creation) */}
+                    <div className="reference-upload-card" style={{
+                      padding: '10px 12px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '10px',
+                      border: (selectedAgent?.id === 'video-creator') ? '1px dashed #ef444450' : '1px dashed rgba(255, 255, 255, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Video size={16} color="#ef4444" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Seed DNA</div>
+                          <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {videoDnaUrl ? 'Video Reference Ready' : 'Scene or Character...'}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {videoDnaUrl && (
+                          <button onClick={() => setVideoDnaUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                        )}
+                        <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
+                          <input type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('video', e)} />
+                          {isUploadingDna.video ? <Loader2 size={12} className="spin" /> : 'Upload'}
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Auto-show Relevant DNA as active badges if Vault is closed */}
+                  {!showDnaVault && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                      {visualDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ec489920', color: '#ec4899', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ec489940' }}><ImageIcon size={10} /> Visual DNA Active</div>}
+                      {audioDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#06b6d420', color: '#06b6d4', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #06b6d440' }}><Music size={10} /> Audio DNA Active</div>}
+                      {lyricsDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#a855f720', color: '#a855f7', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #a855f740' }}><FileText size={10} /> Lyrics DNA Active</div>}
+                      {voiceSampleUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#fbbf2420', color: '#fbbf24', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #fbbf2440' }}><Mic size={10} /> Voice Ready</div>}
+                      {videoDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ef444420', color: '#ef4444', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ef444440' }}><Video size={10} /> Seed DNA Ready</div>}
                     </div>
                   )}
 
@@ -7718,17 +8241,30 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     </div>
                   </div>
 
-                  {/* Recent Creations */}
+                  {/* Project Assets / Recent Creations */}
                   <div className="side-info-card" style={{ marginTop: '16px' }}>
                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Clock size={16} className="text-purple" />
-                      Recent Creations
+                      <LayoutGrid size={16} className="text-purple" />
+                      {selectedProject ? `Assets for ${selectedProject.name}` : 'Recent Creations'}
                     </h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
                       {(() => {
-                        const agentProjects = (projects || []).filter(p => p.agent === selectedAgent.name).slice(0, 3);
-                        if (agentProjects.length > 0) {
-                          return agentProjects.map((item, i) => (
+                        // If in a project, show assets for this project + this agent
+                        let relevantItems = [];
+                        
+                        if (selectedProject && Array.isArray(selectedProject.assets)) {
+                          relevantItems = selectedProject.assets.filter(a => 
+                            a.agent === selectedAgent.name || 
+                            a.agent === selectedAgent.id ||
+                            (a.type && selectedAgent.category && a.type.toLowerCase() === selectedAgent.category.toLowerCase())
+                          );
+                        } else {
+                          // Fallback to searching all projects for this agent's name
+                          relevantItems = (projects || []).filter(p => p.agent === selectedAgent.name).slice(0, 3);
+                        }
+                        
+                        if (relevantItems.length > 0) {
+                          return relevantItems.slice(0, 5).map((item, i) => (
                             <div
                               key={item.id || i}
                               onClick={() => setPreviewItem(item)}
@@ -7740,20 +8276,27 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                                 background: 'rgba(255, 255, 255, 0.03)',
                                 borderRadius: '10px',
                                 cursor: 'pointer',
+                                border: '1px solid rgba(255,255,255,0.05)',
                                 transition: 'all 0.2s ease'
                               }}
+                              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--color-purple)'}
+                              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'}
                             >
                               <div style={{
                                 width: '36px',
                                 height: '36px',
                                 borderRadius: '8px',
-                                background: item.imageUrl ? `url(${item.imageUrl}) center/cover` : 'rgba(139, 92, 246, 0.2)',
+                                background: item.imageUrl ? `url(${formatImageSrc(item.imageUrl)}) center/cover` : 'rgba(139, 92, 246, 0.2)',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 flexShrink: 0
                               }}>
-                                {!item.imageUrl && <FileText size={14} style={{ opacity: 0.5 }} />}
+                                {!item.imageUrl && (
+                                  item.type === 'audio' ? <Music size={14} style={{ opacity: 0.5 }} /> :
+                                  item.type === 'video' ? <Video size={14} style={{ opacity: 0.5 }} /> :
+                                  <FileText size={14} style={{ opacity: 0.5 }} />
+                                )}
                               </div>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: '0.8rem', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -7769,7 +8312,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         }
                         return (
                           <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                            No creations yet. Start generating!
+                            {selectedProject ? `No assets for this project yet.` : 'No creations yet. Start generating!'}
                           </div>
                         );
                       })()}
@@ -7779,6 +8322,30 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
                 {/* Right info panel */}
                 <div className="agent-side-panel">
+                  {selectedProject && (
+                    <div className="side-info-card" style={{ 
+                      background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <Folder size={18} className="text-purple" />
+                        <h3 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-purple)' }}>Project Context</h3>
+                      </div>
+                      <div style={{ fontWeight: '800', fontSize: '1.2rem', color: 'white', marginBottom: '4px' }}>{selectedProject.name}</div>
+                      <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        Organizing {selectedProject.assets?.length || 0} assets in this project.
+                      </p>
+                      <button 
+                         className="btn-pill glass" 
+                         style={{ width: '100%', fontSize: '0.8rem', padding: '8px', background: 'rgba(255,255,255,0.05)' }}
+                         onClick={() => setPendingProjectNav(true)}
+                       >
+                         <LayoutGrid size={14} /> View Project Canvas
+                       </button>
+                    </div>
+                  )}
+
                   <div className="side-info-card">
                     <h3>Capabilities</h3>
                     <ul className="capability-list">
