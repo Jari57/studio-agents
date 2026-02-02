@@ -28,7 +28,7 @@ function NewsHub({
   const categories = [
     { id: 'all', label: 'All News', icon: Newspaper },
     { id: 'trending', label: 'Trending', icon: TrendingUp },
-    { id: 'industry', label: 'Industry', icon: Globe },
+    { id: 'industry', label: 'Industry', icon: GlobeIcon },
     { id: 'artists', label: 'Artists', icon: Mic },
     { id: 'technology', label: 'Tech', icon: Zap },
   ];
@@ -97,7 +97,7 @@ function NewsHub({
     if (s.includes('twitter') || s.includes('x')) return Twitter;
     if (s.includes('radio') || s.includes('podcast')) return Radio;
     if (s.includes('video') || s.includes('youtube')) return VideoIcon;
-    return Globe;
+    return GlobeIcon;
   };
 
   return (

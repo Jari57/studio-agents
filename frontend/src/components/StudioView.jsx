@@ -9409,7 +9409,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           { id: 'agents', icon: Sparkles, label: 'AI Agents', desc: 'Your creative team', color: 'var(--color-purple)' },
           { id: 'mystudio', icon: Folder, label: 'My Studio', desc: 'Projects & assets', color: 'var(--color-cyan)' },
           { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-pink)' },
-          { id: 'news', icon: Globe, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-emerald)' },
+          { id: 'news', icon: GlobeIcon, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-emerald)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-orange)' },
           { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-yellow)' },
           { id: 'hub', icon: FolderPlus, label: 'Project Hub', desc: 'Shared by Studio Agent users', color: 'var(--color-blue)' },
@@ -9705,7 +9705,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
                   {[
                     { id: 'all', label: 'All Trends', icon: Zap },
-                    { id: 'news', label: 'Music News', icon: Globe },
+                    { id: 'news', label: 'Music News', icon: GlobeIcon },
                     { id: 'soundcloud', label: 'SoundCloud', icon: Cloud },
                     { id: 'youtube', label: 'YouTube', icon: PlayCircle },
                     { id: 'releases', label: 'New Releases', icon: Disc },
@@ -10557,7 +10557,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         // Mobile "More" menu with all navigation options
         const moreMenuItems = [
           { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-purple)' },
-          { id: 'news', icon: Globe, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
+          { id: 'news', icon: GlobeIcon, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
           { id: 'resources', icon: Book, label: 'Resources', desc: 'Guides & tutorials', color: 'var(--color-orange)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-pink)' },
           { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-emerald)' },

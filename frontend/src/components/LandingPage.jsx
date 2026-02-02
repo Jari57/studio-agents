@@ -2161,7 +2161,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     { icon: Music, title: '3 Lost Tapes Reconstructed', desc: 'Used Ghostwriter to complete fragmented lyrics and Beat Lab to rebuild production from corrupted stems.' },
                     { icon: Target, title: 'Y2K-Era Visual Identity', desc: 'Album Artist generated artwork that matched the aesthetic of 2001 Brooklyn hip-hop culture.' },
                     { icon: TrendingUp, title: '"What If" Career Trajectory', desc: 'Release Manager mapped a theoretical path from mixtapes to a major label deal by 2005.' },
-                    { icon: Globe, title: 'Viral Documentary', desc: 'The ARE project generated 2.4M views and proved independent artists can build legacies with AI tools.' }
+                    { icon: GlobeIcon, title: 'Viral Documentary', desc: 'The ARE project generated 2.4M views and proved independent artists can build legacies with AI tools.' }
                   ].map((item, i) => (
                     <div key={i} style={{
                       display: 'flex',
@@ -2512,7 +2512,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             }}>
               {[
                 { id: 'vision', label: 'Vision', icon: Rocket },
-                { id: 'market', label: 'Market', icon: Globe },
+                { id: 'market', label: 'Market', icon: GlobeIcon },
                 { id: 'product', label: 'Product', icon: Layers },
                 { id: 'traction', label: 'Traction', icon: TrendingUp, protected: true },
                 { id: 'roadmap', label: 'Roadmap', icon: Target, protected: true },
