@@ -14,14 +14,19 @@ import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUt
 // WAVEFORM COMPONENT (Decorative)
 // ═══════════════════════════════════════════════════════════════════════════════
 function WaveformOverlay({ color = 'var(--color-purple)' }) {
+  // Use useMemo to generate random heights once per mount to avoid "impure function" warnings
+  const heights = useMemo(() => {
+    return [...Array(20)].map(() => 20 + Math.random() * 80);
+  }, []);
+
   return (
     <div className="waveform-container">
-      {[...Array(20)].map((_, i) => (
+      {heights.map((height, i) => (
         <div 
           key={i} 
           className="waveform-bar" 
           style={{ 
-            height: `${20 + Math.random() * 80}%`,
+            height: `${height}%`,
             background: color,
             animationDelay: `${i * 0.05}s`
           }} 

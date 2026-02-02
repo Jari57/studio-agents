@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock, LayoutGrid } from 'lucide-react';
 import { AGENTS } from '../constants';
 import { auth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
-import MultiAgentDemo from './MultiAgentDemo';
+import { lazy, Suspense } from 'react';
+
+// Lazy loaded complex components
+const MultiAgentDemo = lazy(() => import('./MultiAgentDemo'));
 
 // Comprehensive Agent Whitepaper Data
 const AGENT_WHITEPAPER = {
@@ -1449,7 +1452,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           </p>
         </div>
         
-        <MultiAgentDemo />
+        <Suspense fallback={<div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
+          <MultiAgentDemo />
+        </Suspense>
         
         <div style={{ textAlign: 'center', marginTop: '48px' }}>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>

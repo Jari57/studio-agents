@@ -111,16 +111,15 @@ test.describe('Media Generation Flow', () => {
   });
 
   test('Video generation endpoint exists', async ({ request }) => {
-    // Video generation via Veo can take 2+ minutes, so use extended timeout
-    // Use test prompt to verify endpoint functionality
-    test.setTimeout(240000); // 4 minutes
-    
+    // We use an empty prompt to verify the endpoint exists without triggering
+    // a real 2-minute video generation, which saves API costs and prevents timeouts.
     const response = await request.post(`${BACKEND_URL}/api/generate-video`, {
-      data: { prompt: 'test video' }
+      data: { prompt: '' }
     });
     
-    // Accept 200, 400 (if body checks prompt) or other status codes
-    expect([200, 400, 401, 500, 503]).toContain(response.status());
+    // Existence is verified if we get 400 (Bad Request), 401 (Unauthorized), or 503 (Unavailable)
+    // rather than a 404 (Not Found)
+    expect([200, 400, 401, 503]).toContain(response.status());
   });
 
 });

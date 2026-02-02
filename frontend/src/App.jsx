@@ -1,5 +1,4 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import LandingPage from './components/LandingPage';
 import { Toaster } from 'react-hot-toast';
 import './App.css';
 import './mobile-fixes.css';
@@ -7,6 +6,7 @@ import { suppressExtensionErrors } from './utils/suppressExtensionErrors';
 import { AGENTS } from './constants';
 
 // Lazy load heavy components
+const LandingPage = lazy(() => import('./components/LandingPage'));
 const StudioView = lazy(() => import('./components/StudioView'));
 const WhitepapersPage = lazy(() => import('./components/WhitepapersPage'));
 const LegalResourcesPage = lazy(() => import('./components/LegalResourcesPage'));
@@ -31,7 +31,7 @@ const StudioLoadingFallback = () => (
       borderRadius: '50%',
       animation: 'spin 1s linear infinite'
     }} />
-    <p style={{ fontSize: '1rem', opacity: 0.8 }}>Loading Studio...</p>
+    <p style={{ fontSize: '1rem', opacity: 0.8 }}>Loading...</p>
   </div>
 );
 
@@ -141,11 +141,13 @@ function App() {
           />
         </Suspense>
       ) : (
-        <LandingPage 
-          onEnter={handleEnterStudio} 
-          onStartTour={handleStartTour}
-          onSubscribe={handleSubscribe}
-        />
+        <Suspense fallback={<StudioLoadingFallback />}>
+          <LandingPage 
+            onEnter={handleEnterStudio} 
+            onStartTour={handleStartTour}
+            onSubscribe={handleSubscribe}
+          />
+        </Suspense>
       )}
     </div>
   );

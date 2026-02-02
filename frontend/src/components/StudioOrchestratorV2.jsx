@@ -4,14 +4,17 @@ import {
   Sparkles, Mic, MicOff, FileText, Video, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
   Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, Lightbulb,
-  Settings, CheckCircle2, Lock, User, Database as DatabaseIcon, CircleHelp
+  Settings, CheckCircle2, Lock, User, Database as DatabaseIcon, CircleHelp,
+  ChevronRight, ChevronUp
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS } from '../constants';
 import toast from 'react-hot-toast';
 import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
-import PreviewModal from './PreviewModal';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
+
+// Lazy load modals and heavy sub-sections
+const PreviewModal = lazy(() => import('./PreviewModal'));
 
 // Helper to split intro/narrative from creative content
 const splitCreativeContent = (text) => {
@@ -819,14 +822,16 @@ function GeneratorCard({
       )}
 
       {/* Preview Modal */}
-      <PreviewModal
-        isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
-        mediaUrl={mediaUrl}
-        mediaType={mediaType || 'text'}
-        title={title}
-        textContent={!mediaType ? output : null}
-      />
+      <Suspense fallback={null}>
+        <PreviewModal
+          isOpen={showPreview}
+          onClose={() => setShowPreview(false)}
+          mediaUrl={mediaUrl}
+          mediaType={mediaType || 'text'}
+          title={title}
+          textContent={!mediaType ? output : null}
+        />
+      </Suspense>
 
       <style>{`
         /* Desktop-only hover effects */
@@ -1369,6 +1374,65 @@ export default function StudioOrchestratorV2({
     }
   };
   
+  // Helper to format image data for display
+  // Handles: URLs (http/https), data URLs, raw base64, and objects {url: "..."}
+  const formatImageSrc = (imageData) => {
+    if (!imageData) return null;
+    
+    // Handle object return from some APIs
+    if (typeof imageData === 'object' && imageData.url) {
+      return imageData.url;
+    }
+    
+    // Handle array return (Replicate/Flux)
+    if (Array.isArray(imageData) && imageData.length > 0) {
+      return formatImageSrc(imageData[0]);
+    }
+    
+    if (typeof imageData !== 'string') return null;
+    
+    // Already a URL or data URL
+    if (imageData.startsWith('http') || imageData.startsWith('data:')) {
+      return imageData;
+    }
+    
+    // Raw base64 - add data URL prefix
+    return `data:image/png;base64,${imageData}`;
+  };
+
+  // Helper to format audio data for display
+  const formatAudioSrc = (src) => {
+    if (!src) return '';
+    if (typeof src === 'string') return src;
+    if (typeof src === 'object') {
+      if (src.url) return src.url;
+      if (src.audio) return src.audio;
+      if (Array.isArray(src) && src[0]) {
+        return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].audio || '');
+      }
+    }
+    return '';
+  };
+
+  const formatVideoSrc = (src) => {
+    if (!src) return '';
+    if (typeof src === 'string') return src;
+    if (typeof src === 'object') {
+      if (src.url) return src.url;
+      if (src.video) return src.video;
+      if (Array.isArray(src) && src[0]) {
+        return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].video || '');
+      }
+    }
+    return '';
+  };
+  
+  const EXAMPLE_IDEAS = [
+    "Summer love in Brooklyn",
+    "Trap anthem about success", 
+    "Lo-fi study beats",
+    "Emotional R&B ballad"
+  ];
 
   // Generator slot configuration
   const GENERATOR_SLOTS = [
@@ -2674,10 +2738,13 @@ export default function StudioOrchestratorV2({
       assetTypes: project.assets.map(a => a.type)
     }, null, 2));
     
-    if (onCreateProject) {
-      console.log('[Orchestrator] Calling onCreateProject callback with project');
+    // Choose the callback: StudioView usually passes onSaveToProject
+    const saveCallback = onSaveToProject || onCreateProject;
+    
+    if (saveCallback) {
+      console.log('[Orchestrator] Calling save callback with project');
       try {
-        onCreateProject(project);
+        saveCallback(project);
         toast.success(`Saved ${project.assets.length} assets to "${project.name}"!`);
         // Mark as saved so exit check won't prompt
         setIsSaved(true);
@@ -2686,12 +2753,12 @@ export default function StudioOrchestratorV2({
         setShowSaveConfirm(true);
         return; // Don't close immediately - let user choose to preview or close
       } catch (err) {
-        console.error('[Orchestrator] onCreateProject callback error:', err);
+        console.error('[Orchestrator] save callback error:', err);
         toast.error('Save failed - callback error');
       }
     } else {
-      console.warn('[Orchestrator] No onCreateProject callback provided!');
-      toast.error('Save failed - no handler');
+      console.warn('[Orchestrator] No save callback (onSaveToProject/onCreateProject) provided!');
+      toast.error('Save failed - no backend connection');
     }
     
     setShowCreateProject(false);
