@@ -1,5 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import LandingPage from './components/LandingPage';
+import { Toaster } from 'react-hot-toast';
 import './App.css';
 import './mobile-fixes.css';
 import { suppressExtensionErrors } from './utils/suppressExtensionErrors';
@@ -119,6 +120,7 @@ function App() {
 
   return (
     <div className="app-container">
+      <Toaster position="top-right" />
       {isWhitepapers ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <WhitepapersPage onBack={handleBackToLanding} agents={AGENTS} />

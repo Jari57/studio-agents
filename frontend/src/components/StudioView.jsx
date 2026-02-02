@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2, Copy, Layers
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2, Copy, Layers
 } from 'lucide-react';
 
 const Users = UsersIcon;
@@ -2780,7 +2780,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         const textarea = textareaRef.current || document.querySelector('.studio-textarea');
         if (textarea) {
           textarea.value = '';
-          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+          try {
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+          } catch (e) {
+            const ev = document.createEvent('Event');
+            ev.initEvent('input', true, true);
+            textarea.dispatchEvent(ev);
+          }
           toast.success('🗑️ Prompt cleared');
           handleTextToVoice("Prompt cleared.");
         }
@@ -2877,7 +2883,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       if (textarea) {
         const newText = (textarea.value + ' ' + finalTranscript).trim();
         textarea.value = newText;
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        try {
+          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch (e) {
+          const ev = document.createEvent('Event');
+          ev.initEvent('input', true, true);
+          textarea.dispatchEvent(ev);
+        }
         // Brief visual feedback
         toast.success(`✏️ Added: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`, { duration: 1500 });
       }
@@ -6182,7 +6194,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     {/* Storage Connections */}
                     <section className="dashboard-card">
                       <div className="card-header">
-                        <h3><Database size={18} /> Cloud Storage</h3>
+                        <h3><DatabaseIcon size={18} /> Cloud Storage</h3>
                         <span className="storage-usage">72% Full</span>
                       </div>
                       <div className="connection-list">
@@ -7270,7 +7282,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                     padding: '0 4px'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Database size={16} color="var(--color-purple)" />
+                      <DatabaseIcon size={16} color="var(--color-purple)" />
                       <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'rgba(255,255,255,0.8)' }}>Studio DNA Vault</span>
                     </div>
                     <button 
@@ -7955,7 +7967,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                               const textarea = textareaRef.current || document.querySelector('.studio-textarea');
                               if (textarea) {
                                 textarea.value = item.snippet;
-                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                try {
+                                  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                } catch (e) {
+                                  const ev = document.createEvent('Event');
+                                  ev.initEvent('input', true, true);
+                                  textarea.dispatchEvent(ev);
+                                }
                                 toast.success('Prompt loaded!');
                               }
                             }}
@@ -8083,7 +8101,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         const textarea = textareaRef.current || document.querySelector('.studio-textarea');
                         if (textarea) {
                           textarea.value = ex;
-                          textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                          try {
+                            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                          } catch (e) {
+                            const ev = document.createEvent('Event');
+                            ev.initEvent('input', true, true);
+                            textarea.dispatchEvent(ev);
+                          }
                           // Trigger a visual flash or focus to show it worked
                           textarea.focus();
                           textarea.style.borderColor = 'var(--color-purple)';
@@ -12279,7 +12303,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       setShowExternalSaveModal(false);
                     }}
                   >
-                    <Database size={20} />
+                    <DatabaseIcon size={20} />
                     <span>Save to Studio Agents Cloud</span>
                   </button>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '8px' }}>
@@ -13428,6 +13452,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             isOpen={showOrchestrator}
             onClose={() => setShowOrchestrator(false)}
             authToken={userToken}
+            userPlan={userPlan}
             existingProject={selectedProject}
             onSaveToProject={(project) => {
               const traceId = `SYNC-${Date.now()}`;

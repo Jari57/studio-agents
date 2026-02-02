@@ -2501,13 +2501,13 @@ app.delete('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
 // GENERATION ROUTE (with optional Firebase auth) - 1 credit for text/lyrics
 app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generationLimiter, async (req, res) => {
   try {
-    const { prompt, systemInstruction, model: requestedModel, referenceUrl } = req.body;
-    
+    const { prompt, systemInstruction, model: requestedModel, referenceUrl, duration, language } = req.body;
+
     // Log auth status
     if (req.user) {
-      logger.info('🔐 Authenticated generation request', { uid: req.user.uid, hasReference: !!referenceUrl });
+      logger.info('🔐 Authenticated generation request', { uid: req.user.uid, hasReference: !!referenceUrl, duration, language });
     }
-    
+
     // 🛡️ INPUT VALIDATION & SANITIZATION
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'Invalid prompt' });
@@ -2515,12 +2515,14 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
     if (prompt.length > 10000) {
       return res.status(400).json({ error: 'Prompt too long (max 10,000 characters)' });
     }
-    
+
     // 🛡️ Sanitize inputs
     let sanitizedPrompt = sanitizeInput(prompt, 5000);
-    const sanitizedSystemInstruction = sanitizeInput(systemInstruction || '', 1000);
+    // Append duration and language to prompt if present
+    if (duration) sanitizedPrompt += `\nTarget Duration: ${duration} seconds.`;
+    if (language) sanitizedPrompt += `\nResponse Language: ${language}`;
 
-    // If a reference URL is provided (Lyrics DNA), we'll try to mention it in the prompt
+    const sanitizedSystemInstruction = sanitizeInput(systemInstruction || '', 2000);
     // For more advanced use, we could fetch the text content here
     if (referenceUrl) {
       sanitizedPrompt = `${sanitizedPrompt} (Style Reference: ${referenceUrl}). Please match the tone and structure found at this source.`;

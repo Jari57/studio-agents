@@ -4,7 +4,7 @@ import {
   Sparkles, Mic, MicOff, FileText, Video, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
   Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, Lightbulb,
-  Settings, CheckCircle2, Lock, User, Database
+  Settings, CheckCircle2, Lock, User, Database as DatabaseIcon, CircleHelp
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS } from '../constants';
 import toast from 'react-hot-toast';
@@ -60,6 +60,19 @@ const splitCreativeContent = (text) => {
 
   return { intro: '', content: text };
 };
+
+// Skeleton Loader for AI generation
+const SkeletonItem = ({ height = '14px', width = '100%', marginBottom = '8px', opacity = 0.1 }) => (
+  <div style={{
+    height,
+    width,
+    marginBottom,
+    borderRadius: '4px',
+    background: `linear-gradient(90deg, rgba(255,255,255,${opacity}) 25%, rgba(255,255,255,${opacity * 2}) 50%, rgba(255,255,255,${opacity}) 75%)`,
+    backgroundSize: '200% 100%',
+    animation: 'shimmer 2s infinite linear'
+  }} />
+);
 
 // Generator Card Component - Agent-page style with full actions
 function GeneratorCard({ 
@@ -399,19 +412,35 @@ function GeneratorCard({
           <div style={{
             flex: 1,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
             flexDirection: 'column',
-            gap: '12px'
+            gap: '12px',
+            padding: '4px'
           }}>
-            <div className="loading-dots">
-              <span style={{ background: color }} />
-              <span style={{ background: color }} />
-              <span style={{ background: color }} />
+            <SkeletonItem width="40%" height="20px" marginBottom="12px" opacity={0.15} />
+            <SkeletonItem width="100%" height="14px" />
+            <SkeletonItem width="90%" height="14px" />
+            <SkeletonItem width="95%" height="14px" />
+            <SkeletonItem width="70%" height="14px" marginBottom="20px" />
+            
+            <SkeletonItem width="100%" height="14px" />
+            <SkeletonItem width="85%" height="14px" />
+            <SkeletonItem width="40%" height="14px" />
+
+            <div style={{
+              marginTop: 'auto',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              padding: '12px',
+              background: 'rgba(255,255,255,0.02)',
+              borderRadius: '8px'
+            }}>
+              <Loader2 size={16} className="spin" color={color} />
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
+                {agent?.name ? `${agent.name} is writing...` : 'AI is thinking...'}
+              </span>
             </div>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              AI is thinking...
-            </span>
           </div>
         ) : (
           <div style={{
@@ -524,6 +553,16 @@ function GeneratorCard({
                   )}
                 </div>
               </div>
+            ) : isGeneratingMedia ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <SkeletonItem height={mediaType === 'image' || mediaType === 'video' ? '120px' : '44px'} width="100%" opacity={0.2} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px' }}>
+                  <Loader2 size={14} className="spin" color={color} />
+                  <span style={{ fontSize: '0.75rem', color, fontWeight: '600' }}>
+                    {slot === 'lyrics' ? 'Cloning vocals...' : `Synthesizing ${mediaType}...`}
+                  </span>
+                </div>
+              </div>
             ) : onGenerateMedia ? (
               <button
                 onClick={onGenerateMedia}
@@ -532,12 +571,12 @@ function GeneratorCard({
                   width: '100%',
                   padding: '12px',
                   borderRadius: '10px',
-                  background: isGeneratingMedia ? 'rgba(255,255,255,0.05)' : `${color}15`,
+                  background: 'rgba(255,255,255,0.05)',
                   border: `1px dashed ${color}50`,
                   color: color,
                   fontSize: '0.85rem',
                   fontWeight: '600',
-                  cursor: isGeneratingMedia ? 'not-allowed' : 'pointer',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -545,19 +584,10 @@ function GeneratorCard({
                   transition: 'all 0.2s'
                 }}
               >
-                {isGeneratingMedia ? (
-                  <>
-                    <Loader2 size={16} className="spin" />
-                    {slot === 'lyrics' ? 'Generating Vocals...' : `Creating ${mediaType}...`}
-                  </>
-                ) : (
-                  <>
-                    {mediaType === 'audio' && <Music size={16} />}
-                    {mediaType === 'image' && <ImageIcon size={16} />}
-                    {mediaType === 'video' && <Video size={16} />}
-                    {slot === 'lyrics' ? 'Create AI Vocals' : `Generate ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`}
-                  </>
-                )}
+                {mediaType === 'audio' && <Music size={16} />}
+                {mediaType === 'image' && <ImageIcon size={16} />}
+                {mediaType === 'video' && <Video size={16} />}
+                {slot === 'lyrics' ? 'Create AI Vocals' : `Generate ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`}
               </button>
             ) : null}
           </div>
@@ -1168,8 +1198,8 @@ export default function StudioOrchestratorV2({
   onCreateProject,
   onSaveToProject,
   authToken = null,
-  existingProject = null
-  // onUpdateCreations - reserved for future use
+  existingProject = null,
+  userPlan = 'Free'
 }) {
   // 📱 Device responsiveness
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
@@ -1233,10 +1263,21 @@ export default function StudioOrchestratorV2({
   const [songIdea, setSongIdea] = useState(existingProject?.name || '');
   const [language, setLanguage] = useState('English');
   const [style, setStyle] = useState('Modern Hip-Hop');
+  const [duration, setDuration] = useState(90);
   const [model, setModel] = useState('Gemini 2.0 Flash');
   const [musicEngine, setMusicEngine] = useState('music-gpt'); // Default to Music GPT (MusicGen)
   const [mood, setMood] = useState('Energetic'); // Beatoven-inspired
   const [structure, setStructure] = useState('Full Song'); // Structure control
+
+  // Sync duration with structure
+  useEffect(() => {
+    if (structure === 'Full Song') setDuration(90);
+    else if (structure === 'Radio Edit') setDuration(150);
+    else if (structure === 'Extended') setDuration(180);
+    else if (structure === 'Loop') setDuration(30);
+    else setDuration(15); // Intro, Verse, etc.
+  }, [structure]);
+
   const [highMusicality, setHighMusicality] = useState(true); // Udio-style musicality
   const [seed, setSeed] = useState(-1); // Riffusion/Suno-style seed (-1 for random)
   const [stemType, setStemType] = useState('Full Mix'); // Stem/Instrument isolation
@@ -1506,45 +1547,50 @@ export default function StudioOrchestratorV2({
 
   // Original TTS as fallback
   const speakRoboticText = (text, slot) => {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Get available voices and try to match style
-    const voices = window.speechSynthesis.getVoices();
-    
-    // Adjust pitch and rate based on voice style
-    if (voiceStyle === 'rapper' || voiceStyle === 'rapper-female') {
-      utterance.rate = rapStyle === 'fast' ? 1.3 : rapStyle === 'chill' ? 0.85 : 1.0;
-      utterance.pitch = voiceStyle === 'rapper-female' ? 1.2 : 0.9;
-      // Try to find a matching voice
-      const preferredVoice = voices.find(v => 
-        voiceStyle === 'rapper-female' 
-          ? (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('samantha'))
-          : (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('alex'))
-      );
-      if (preferredVoice) utterance.voice = preferredVoice;
-    } else if (voiceStyle === 'singer' || voiceStyle === 'singer-female') {
-      utterance.rate = 0.85;
-      utterance.pitch = voiceStyle === 'singer-female' ? 1.3 : 1.0;
-      const preferredVoice = voices.find(v => 
-        voiceStyle === 'singer-female'
-          ? (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira'))
-          : (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david'))
-      );
-      if (preferredVoice) utterance.voice = preferredVoice;
-    } else if (voiceStyle === 'narrator') {
-      utterance.rate = 0.9;
-      utterance.pitch = 0.8;
-      const preferredVoice = voices.find(v => v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('male'));
-      if (preferredVoice) utterance.voice = preferredVoice;
-    } else {
-      utterance.rate = 0.9;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Get available voices and try to match style
+      const voices = window.speechSynthesis.getVoices();
+      
+      // Adjust pitch and rate based on voice style
+      if (voiceStyle === 'rapper' || voiceStyle === 'rapper-female') {
+        utterance.rate = rapStyle === 'fast' ? 1.3 : rapStyle === 'chill' ? 0.85 : 1.0;
+        utterance.pitch = voiceStyle === 'rapper-female' ? 1.2 : 0.9;
+        // Try to find a matching voice
+        const preferredVoice = voices.find(v => 
+          voiceStyle === 'rapper-female' 
+            ? (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira') || v.name.toLowerCase().includes('samantha'))
+            : (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('alex'))
+        );
+        if (preferredVoice) utterance.voice = preferredVoice;
+      } else if (voiceStyle === 'singer' || voiceStyle === 'singer-female') {
+        utterance.rate = 0.85;
+        utterance.pitch = voiceStyle === 'singer-female' ? 1.3 : 1.0;
+        const preferredVoice = voices.find(v => 
+          voiceStyle === 'singer-female'
+            ? (v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('zira'))
+            : (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('david'))
+        );
+        if (preferredVoice) utterance.voice = preferredVoice;
+      } else if (voiceStyle === 'narrator') {
+        utterance.rate = 0.9;
+        utterance.pitch = 0.8;
+        const preferredVoice = voices.find(v => v.name.toLowerCase().includes('david') || v.name.toLowerCase().includes('male'));
+        if (preferredVoice) utterance.voice = preferredVoice;
+      } else {
+        utterance.rate = 0.9;
+      }
+      
+      utterance.onend = () => setSpeakingSlot(null);
+      utterance.onerror = () => setSpeakingSlot(null);
+      window.speechSynthesis.speak(utterance);
+      setSpeakingSlot(slot);
+    } catch (err) {
+      console.error('Speech synthesis error:', err);
+      setSpeakingSlot(null);
     }
-    
-    utterance.onend = () => setSpeakingSlot(null);
-    utterance.onerror = () => setSpeakingSlot(null);
-    window.speechSynthesis.speak(utterance);
-    setSpeakingSlot(slot);
   };
 
   // Get auth headers - wrapped in useCallback to avoid stale closure on authToken prop
@@ -1616,6 +1662,8 @@ export default function StudioOrchestratorV2({
               prompt: `Create ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
               systemInstruction: systemPrompt,
               model: modelId,
+              duration: duration,
+              language: language,
               referenceUrl: slot === 'lyrics' ? lyricsDnaUrl : null
             })
           });
@@ -1688,7 +1736,9 @@ export default function StudioOrchestratorV2({
         body: JSON.stringify({
           prompt: `Create fresh ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
           systemInstruction: `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.`,
-          model: modelId
+          model: modelId,
+          duration: duration,
+          language: language
         })
       });
       
@@ -1737,10 +1787,10 @@ export default function StudioOrchestratorV2({
           genre: style || 'hip-hop',
           mood: mood.toLowerCase() || 'energetic',
           bpm: projectBpm || 90,
-          durationSeconds: structure === 'Full Song' ? 90 : 
+          durationSeconds: duration || (structure === 'Full Song' ? 90 : 
                           structure === 'Radio Edit' ? 150 :
                           structure === 'Extended' ? 180 :
-                          structure === 'Loop' ? 15 : 30,
+                          structure === 'Loop' ? 15 : 30),
           referenceAudio: audioDnaUrl,
           engine: musicEngine || 'music-gpt',
           highMusicality: highMusicality, // Send Udio-style musicality flag
@@ -2212,7 +2262,8 @@ export default function StudioOrchestratorV2({
         headers,
         body: JSON.stringify({
           prompt: `Image to video: ${outputs.video.substring(0, 200)}`,
-          referenceImage: videoDnaUrl
+          referenceImage: videoDnaUrl,
+          duration: duration
         })
       });
       
@@ -2942,6 +2993,7 @@ export default function StudioOrchestratorV2({
             { label: 'Genre', value: style, setter: setStyle, options: ['Modern Hip-Hop', '90s Boom Bap', 'Trap', 'R&B / Soul', 'Pop', 'Rock', 'Electronic', 'Lo-Fi'] },
             { label: 'AI Model', value: model, setter: setModel, options: ['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Pro'] },
             { label: 'Mood', value: mood, setter: setMood, options: ['Chill', 'Energetic', 'Dark', 'Happy', 'Epic', 'Mysterious', 'Dreamy'] },
+            { label: 'Target Duration', value: duration, setter: setDuration, options: [15, 30, 60, 90, 120, 180, 240, 300] },
             { label: 'Structure', value: structure, setter: setStructure, options: ['Full Song', 'Radio Edit', 'Extended', 'Loop', 'Intro', 'Verse', 'Chorus', 'Outro'] },
             { label: 'Music Engine', value: musicEngine, setter: setMusicEngine, options: ['Music GPT (MusicGen)', 'Mureaka', 'Riffusion (Visual)', 'Stability Pro', 'Uberduck', 'Auto-Selection'] },
             { label: 'Stem Mode', value: stemType, setter: setStemType, options: ['Full Mix', 'Drums Only', 'No Drums', 'Melody Only', 'Bass Only'] }
@@ -3120,15 +3172,23 @@ export default function StudioOrchestratorV2({
           }}>
             {GENERATOR_SLOTS.map(slot => (
               <div key={slot.key}>
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '0.7rem', 
-                  color: slot.color, 
-                  marginBottom: '6px',
-                  fontWeight: '500'
-                }}>
-                  {slot.title}
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label style={{ 
+                    fontSize: '0.7rem', 
+                    color: slot.color, 
+                    fontWeight: '500'
+                  }}>
+                    {slot.title}
+                  </label>
+                  {selectedAgents[slot.key] && (
+                    <div 
+                      title={`${AGENTS.find(a => a.id === selectedAgents[slot.key])?.name} Capabilities:\n• ${AGENTS.find(a => a.id === selectedAgents[slot.key])?.capabilities?.join('\n• ')}`}
+                      style={{ color: 'rgba(255,255,255,0.3)', cursor: 'help' }}
+                    >
+                      <CircleHelp size={12} />
+                    </div>
+                  )}
+                </div>
                 <select
                   value={selectedAgents[slot.key] || ''}
                   onChange={(e) => setSelectedAgents(prev => ({ 
@@ -3148,9 +3208,19 @@ export default function StudioOrchestratorV2({
                   }}
                 >
                   <option value="" style={{ background: '#1a1a1a' }}>— None —</option>
-                  {AGENTS.filter(a => a.tier === 'free').map(agent => (
-                    <option key={agent.id} value={agent.id} style={{ background: '#1a1a1a' }}>
-                      {agent.name}
+                  {AGENTS.filter(a => {
+                    // Filter based on user tier
+                    if (userPlan === 'Pro') return true; // Pro sees all
+                    if (userPlan === 'Monthly') return a.tier === 'free' || a.tier === 'monthly';
+                    return a.tier === 'free'; // Default/Free tier
+                  }).map(agent => (
+                    <option 
+                      key={agent.id} 
+                      value={agent.id} 
+                      style={{ background: '#1a1a1a' }}
+                      disabled={agent.comingSoon}
+                    >
+                      {agent.name} {agent.comingSoon ? '(Coming Soon)' : ''}
                     </option>
                   ))}
                 </select>
@@ -3174,7 +3244,7 @@ export default function StudioOrchestratorV2({
             marginBottom: showDnaVault ? '16px' : '0'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Database size={18} color="#a855f7" />
+              <DatabaseIcon size={18} color="#a855f7" />
               <div>
                 <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700', color: 'white' }}>Studio DNA Vault</h3>
                 {!showDnaVault && (

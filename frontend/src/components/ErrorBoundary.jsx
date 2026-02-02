@@ -1,4 +1,5 @@
 import React from 'react';
+import { toast } from 'react-hot-toast';
 import { captureException } from '../utils/errorMonitoring';
 
 class ErrorBoundary extends React.Component {
@@ -207,7 +208,7 @@ class ErrorBoundary extends React.Component {
                     onClick={() => {
                       const errorText = `Error: ${this.state.error?.message}\nLocation: ${this.extractCrashLocation(this.state.error?.stack)}\nStack: ${this.state.error?.stack?.slice(0, 500)}`;
                       navigator.clipboard?.writeText(errorText);
-                      alert('Error details copied to clipboard!');
+                      toast.success('Error details copied to clipboard!');
                     }}
                     style={{
                       padding: '6px 12px',
