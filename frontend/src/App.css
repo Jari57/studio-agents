@@ -2268,7 +2268,7 @@ select optgroup {
 /* --- Pricing Section --- */
 .pricing-section {
   padding: 8rem 2rem;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   position: relative;
   z-index: 1;
@@ -7068,20 +7068,23 @@ select optgroup {
 
 .pricing-grid-native {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 1rem;
   margin-top: 2rem;
 }
 
 .pricing-card-native {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   position: relative;
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
+  height: 100%;
 }
 
 .pricing-card-native.popular {

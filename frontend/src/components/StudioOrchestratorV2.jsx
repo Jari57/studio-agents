@@ -4,7 +4,7 @@ import {
   Sparkles, Mic, MicOff, FileText, Video, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
   Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, Lightbulb,
-  Settings, CheckCircle2, Lock, User
+  Settings, CheckCircle2, Lock, User, Database
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS } from '../constants';
 import toast from 'react-hot-toast';
