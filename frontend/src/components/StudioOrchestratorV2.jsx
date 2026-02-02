@@ -1369,65 +1369,6 @@ export default function StudioOrchestratorV2({
     }
   };
   
-  // Helper to format image data for display
-  // Handles: URLs (http/https), data URLs, raw base64, and objects {url: "..."}
-  const formatImageSrc = (imageData) => {
-    if (!imageData) return null;
-    
-    // Handle object return from some APIs
-    if (typeof imageData === 'object' && imageData.url) {
-      return imageData.url;
-    }
-    
-    // Handle array return (Replicate/Flux)
-    if (Array.isArray(imageData) && imageData.length > 0) {
-      return formatImageSrc(imageData[0]);
-    }
-    
-    if (typeof imageData !== 'string') return null;
-    
-    // Already a URL or data URL
-    if (imageData.startsWith('http') || imageData.startsWith('data:')) {
-      return imageData;
-    }
-    
-    // Raw base64 - add data URL prefix
-    return `data:image/png;base64,${imageData}`;
-  };
-
-  // Helper to format audio data for display
-  const formatAudioSrc = (src) => {
-    if (!src) return '';
-    if (typeof src === 'string') return src;
-    if (typeof src === 'object') {
-      if (src.url) return src.url;
-      if (src.audio) return src.audio;
-      if (Array.isArray(src) && src[0]) {
-        return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].audio || '');
-      }
-    }
-    return '';'audio'
-  };
-
-  const formatVideoSrc = (src) => {
-    if (!src) return '';
-    if (typeof src === 'string') return src;
-    if (typeof src === 'object') {
-      if (src.url) return src.url;
-      if (src.video) return src.video;
-      if (Array.isArray(src) && src[0]) {
-        return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].video || '');
-      }
-    }
-    return '';
-  };
-  
-  const EXAMPLE_IDEAS = [
-    "Summer love in Brooklyn",
-    "Trap anthem about success", 
-    "Lo-fi study beats",
-    "Emotional R&B ballad"
-  ];
 
   // Generator slot configuration
   const GENERATOR_SLOTS = [
@@ -1469,6 +1410,12 @@ export default function StudioOrchestratorV2({
   const startListening = () => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechReg = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechReg || typeof SpeechReg !== 'function') {
+        toast.error('Voice recognition not supported');
+        return;
+      }
+      
       try {
         recognitionRef.current = new SpeechReg();
         recognitionRef.current.continuous = false;
@@ -1526,8 +1473,9 @@ export default function StudioOrchestratorV2({
         }
         window.speechSynthesis.cancel();
         
-        // Safer Audio constructor handling
-        const vocalAudio = new window.Audio(formatAudioSrc(mediaUrls.vocals));
+        // Safe creation of Audio element
+        const vocalAudio = document.createElement('audio');
+        vocalAudio.src = formatAudioSrc(mediaUrls.vocals);
         vocalAudioRef.current = vocalAudio;
         vocalAudio.play().catch(err => {
           console.error("Audio playback failed:", err);
@@ -1549,6 +1497,11 @@ export default function StudioOrchestratorV2({
   const speakRoboticText = (text, slot) => {
     try {
       window.speechSynthesis.cancel();
+      
+      if (typeof SpeechSynthesisUtterance === 'undefined') {
+        return;
+      }
+      
       const utterance = new SpeechSynthesisUtterance(text);
       
       // Get available voices and try to match style
