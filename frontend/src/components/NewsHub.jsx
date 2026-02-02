@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Search, RefreshCw, ChevronUp, ChevronRight, ExternalLink,
   Zap, TrendingUp, Flame, Clock, PlayCircle, Share2, Bookmark,
-  Twitter, Globe, Newspaper, Radio, Mic, Video, X, Eye
+  Twitter, Globe, Newspaper, Radio, Mic, Video as VideoIcon, X, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -96,7 +96,7 @@ function NewsHub({
     const s = source?.toLowerCase() || '';
     if (s.includes('twitter') || s.includes('x')) return Twitter;
     if (s.includes('radio') || s.includes('podcast')) return Radio;
-    if (s.includes('video') || s.includes('youtube')) return Video;
+    if (s.includes('video') || s.includes('youtube')) return VideoIcon;
     return Globe;
   };
 

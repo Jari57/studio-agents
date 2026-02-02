@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback as _useCallback } from 'react';
 import { 
-  Search, Plus, LayoutGrid, List, MoreHorizontal,
+  Search, Plus, LayoutGrid, List as ListIcon, MoreHorizontal,
   Play, Trash2, Edit3, Copy, Heart, Clock, Folder,
-  Music, Video, Image as ImageIcon, Mic, FileText, X, Sparkles,
+  Music, Video as VideoIcon, Image as ImageIcon, Mic, FileText, X, Sparkles,
   ChevronRight, Download, Share2, CheckCircle, Archive,
   Pause, Upload, Wand2, Zap, TrendingUp, Star, Eye
 } from 'lucide-react';
@@ -713,7 +713,7 @@ function ProjectHubV3({
               onClick={() => setViewMode('list')}
               title="List view"
             >
-              <List size={18} />
+              <ListIcon size={18} />
             </button>
           </div>
         </div>
@@ -776,7 +776,7 @@ function ProjectHubV3({
                 <div className="floating-elements">
                   <div className="float-item item-1"><Music size={24} /></div>
                   <div className="float-item item-2"><ImageIcon size={24} /></div>
-                  <div className="float-item item-3"><Video size={24} /></div>
+                  <div className="float-item item-3"><VideoIcon size={24} /></div>
                   <div className="float-item item-4"><FileText size={24} /></div>
                 </div>
                 <div className="empty-icon main-icon">
@@ -929,7 +929,7 @@ function ProjectHubV3({
                     <div className="asset-badges">
                       {assetIcons.includes('audio') && <span className="badge audio" title="Preview Audio" onClick={e => handlePreviewAssetType(project, 'audio', e)}><Music size={12} /></span>}
                       {assetIcons.includes('image') && <span className="badge image" title="Preview Image" onClick={e => handlePreviewAssetType(project, 'image', e)}><ImageIcon size={12} /></span>}
-                      {assetIcons.includes('video') && <span className="badge video" title="Preview Video" onClick={e => handlePreviewAssetType(project, 'video', e)}><Video size={12} /></span>}
+                      {assetIcons.includes('video') && <span className="badge video" title="Preview Video" onClick={e => handlePreviewAssetType(project, 'video', e)}><VideoIcon size={12} /></span>}
                       {assetIcons.includes('text') && <span className="badge text" title="Preview Text" onClick={e => handlePreviewAssetType(project, 'text', e)}><FileText size={12} /></span>}
                     </div>
                   )}

@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Mic2, FileText, Video, Hash, RefreshCw, Zap, FolderPlus, Lightbulb } from 'lucide-react';
+import { Sparkles, Mic2, FileText, Video as VideoIcon, Hash, RefreshCw, Zap, FolderPlus, Lightbulb } from 'lucide-react';
 import { BACKEND_URL } from '../constants';
 import { useLazyLoadImages } from '../hooks/useLazyLoadImages';
 import { auth, getIdToken } from '../firebase';
@@ -577,7 +577,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
           delay={400}
         />
         <AgentOutputCard
-          icon={Video}
+          icon={VideoIcon}
           title="Pitch Writer"
           color="#ec4899"
           output={outputs.pitch}

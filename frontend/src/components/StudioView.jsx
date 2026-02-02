@@ -2,11 +2,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List, Calendar, Award, CloudOff, Loader2, Copy, Layers
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers
 } from 'lucide-react';
 
 const Users = UsersIcon;
 const ImageIconComponent = ImageIcon;
+const VideoComponent = VideoIcon;
+const ListComponent = ListIcon;
 
 // Lazy load heavy sub-components (standardizing to React.lazy to prevent 'lazy is not defined' error)
 const StudioOrchestrator = React.lazy(() => import('./StudioOrchestratorV2'));
@@ -5189,7 +5191,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                          alignItems: 'center',
                          gap: '4px'
                        }}>
-                         {asset.type === 'Video' && <Video size={10} />}
+                         {asset.type === 'Video' && <VideoIcon size={10} />}
                          {asset.type === 'Audio' && <Music size={10} />}
                          {asset.type === 'Image' && <ImageIcon size={10} />}
                          {(asset.type === 'Text' || asset.type === 'Lyrics' || asset.type === 'Script') && <FileText size={10} />}
@@ -7494,7 +7496,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           alignItems: 'center',
                           justifyContent: 'center'
                         }}>
-                          <Video size={16} color="#ef4444" />
+                          <VideoIcon size={16} color="#ef4444" />
                         </div>
                         <div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Seed DNA</div>
@@ -7522,7 +7524,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                       {audioDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#06b6d420', color: '#06b6d4', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #06b6d440' }}><Music size={10} /> Audio DNA Active</div>}
                       {lyricsDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#a855f720', color: '#a855f7', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #a855f740' }}><FileText size={10} /> Lyrics DNA Active</div>}
                       {voiceSampleUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#fbbf2420', color: '#fbbf24', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #fbbf2440' }}><Mic size={10} /> Voice Ready</div>}
-                      {videoDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ef444420', color: '#ef4444', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ef444440' }}><Video size={10} /> Seed DNA Ready</div>}
+                      {videoDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ef444420', color: '#ef4444', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ef444440' }}><VideoIcon size={10} /> Seed DNA Ready</div>}
                     </div>
                   )}
 
@@ -8318,7 +8320,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                               }}>
                                 {!item.imageUrl && (
                                   item.type === 'audio' ? <Music size={14} style={{ opacity: 0.5 }} /> :
-                                  item.type === 'video' ? <Video size={14} style={{ opacity: 0.5 }} /> :
+                                  item.type === 'video' ? <VideoIcon size={14} style={{ opacity: 0.5 }} /> :
                                   <FileText size={14} style={{ opacity: 0.5 }} />
                                 )}
                               </div>
@@ -9212,7 +9214,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   </h3>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button className="btn-icon-sm" title="Grid View"><LayoutGrid size={16} /></button>
-                    <button className="btn-icon-sm" title="List View"><List size={16} /></button>
+                    <button className="btn-icon-sm" title="List View"><ListIcon size={16} /></button>
                   </div>
                 </div>
 
@@ -9269,7 +9271,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                         >
                           {!asset.imageUrl && (
                             asset.type === 'audio' ? <Music size={48} style={{ opacity: 0.2 }} /> :
-                            asset.type === 'video' ? <Video size={48} style={{ opacity: 0.2 }} /> :
+                            asset.type === 'video' ? <VideoIcon size={48} style={{ opacity: 0.2 }} /> :
                             <FileText size={48} style={{ opacity: 0.2 }} />
                           )}
                           
@@ -11872,7 +11874,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 {/* Track 3: Visual */}
                 <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', border: sessionTracks.visual ? '1px solid var(--color-pink)' : '1px solid rgba(255,255,255,0.1)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: sessionTracks.visual ? '12px' : 0 }}>
-                    <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Video size={24} className="text-pink" /></div>
+                    <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><VideoIcon size={24} className="text-pink" /></div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
                         <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track 3</label>
@@ -11914,7 +11916,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                           <video src={sessionTracks.visual.videoUrl} style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '6px' }} muted />
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-pink)', fontSize: '0.85rem' }}>
-                            <Video size={24} />
+                            <VideoIcon size={24} />
                             <div>
                               <div style={{ fontWeight: 600 }}>{sessionTracks.visual.title || 'Video Asset'}</div>
                               <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Video will be generated on render</div>
@@ -15434,7 +15436,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   justifyContent: 'center'
                 }}>
                   {safePreview.type === 'image' && <ImageIcon size={18} style={{ color: 'var(--color-pink)' }} />}
-                  {safePreview.type === 'video' && <Video size={18} style={{ color: 'var(--color-cyan)' }} />}
+                  {safePreview.type === 'video' && <VideoIcon size={18} style={{ color: 'var(--color-cyan)' }} />}
                   {safePreview.type === 'audio' && <Music size={18} style={{ color: 'var(--color-purple)' }} />}
                   {(safePreview.type === 'text' || safePreview.type === 'lyrics' || safePreview.type === 'hook' || safePreview.type === 'verse' || safePreview.type === 'concept') && <FileText size={18} style={{ color: 'var(--color-green)' }} />}
                 </div>

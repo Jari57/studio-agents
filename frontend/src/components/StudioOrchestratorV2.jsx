@@ -1,7 +1,7 @@
 /* eslint-disable no-use-before-define */
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { 
-  Sparkles, Mic, MicOff, FileText, Video, RefreshCw, Zap, 
+  Sparkles, Mic, MicOff, FileText, Video as VideoIcon, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
   Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, Lightbulb,
   Settings, CheckCircle2, Lock, User, Database as DatabaseIcon, CircleHelp,
@@ -589,7 +589,7 @@ function GeneratorCard({
               >
                 {mediaType === 'audio' && <Music size={16} />}
                 {mediaType === 'image' && <ImageIcon size={16} />}
-                {mediaType === 'video' && <Video size={16} />}
+                {mediaType === 'video' && <VideoIcon size={16} />}
                 {slot === 'lyrics' ? 'Create AI Vocals' : `Generate ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`}
               </button>
             ) : null}
@@ -1097,7 +1097,7 @@ function ProductionControlHub({
               ) : musicVideoUrl ? (
                 <Zap size={18} fill="#22c55e" />
               ) : (
-                <Video size={18} />
+                <VideoIcon size={18} />
               )}
               {generatingMusicVideo ? 'Syncing...' : musicVideoUrl ? 'Image to Video Sync ✓' : 'Image to Video Sync'}
             </button>
@@ -3398,7 +3398,7 @@ export default function StudioOrchestratorV2({
                 justifyContent: 'space-between'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Video size={18} color="#f59e0b" />
+                  <VideoIcon size={18} color="#f59e0b" />
                   <div>
                     <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Seed DNA</div>
                     <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -3423,7 +3423,7 @@ export default function StudioOrchestratorV2({
               {visualDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', borderRadius: '6px', border: '1px solid rgba(236, 72, 153, 0.2)', display: 'flex', alignItems: 'center', gap: '4px' }}><ImageIcon size={10} /> Visual DNA</div>}
               {audioDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: 'rgba(6, 182, 212, 0.1)', color: '#06b6d4', borderRadius: '6px', border: '1px solid rgba(6, 182, 212, 0.2)', display: 'flex', alignItems: 'center', gap: '4px' }}><Music size={10} /> Audio DNA</div>}
               {lyricsDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7', borderRadius: '6px', border: '1px solid rgba(168, 85, 247, 0.2)', display: 'flex', alignItems: 'center', gap: '4px' }}><FileText size={10} /> Lyrics DNA</div>}
-              {videoDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.2)', display: 'flex', alignItems: 'center', gap: '4px' }}><Video size={10} /> Seed DNA</div>}
+              {videoDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.2)', display: 'flex', alignItems: 'center', gap: '4px' }}><VideoIcon size={10} /> Seed DNA</div>}
             </div>
           )}
         </div>
@@ -4880,7 +4880,7 @@ export default function StudioOrchestratorV2({
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <h3 style={{ margin: 0, color: '#fbbf24', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Video size={18} />
+                    <VideoIcon size={18} />
                     Video
                   </h3>
                   <span style={{
