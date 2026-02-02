@@ -1464,7 +1464,7 @@ export default function StudioOrchestratorV2({
       key: 'video', 
       title: 'Image to Video', 
       subtitle: 'Video creation', 
-      icon: Video, 
+      icon: VideoIcon, 
       color: '#f59e0b',
       mediaType: 'video' 
     }

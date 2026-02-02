@@ -1356,7 +1356,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     { id: 'pro', label: 'Pro Studio', icon: Crown, desc: 'Full production suite', color: 'var(--color-purple)' },
     { id: 'vybing', label: 'Vybing', icon: Music, desc: 'Quick beat ideas', color: 'var(--color-cyan)' },
     { id: 'mixtapes', label: 'Mixtapes', icon: Disc, desc: 'Curated playlists', color: 'var(--color-orange)' },
-    { id: 'video', label: 'Video', icon: Video, desc: 'Visual content', color: 'var(--color-pink)' },
+    { id: 'video', label: 'Video', icon: VideoIcon, desc: 'Visual content', color: 'var(--color-pink)' },
     { id: 'scores', label: 'Scores', icon: FileMusic, desc: 'Cinematic composition', color: 'var(--color-emerald)' },
     { id: 'moves', label: 'Moves', icon: Activity, desc: 'Dance & Choreo', color: 'var(--color-yellow)' },
     { id: 'music_videos', label: 'Music Videos', icon: Film, desc: 'Full production clips', color: 'var(--color-red)' },
@@ -10199,7 +10199,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   { id: 'instagram', label: 'Instagram', icon: Instagram, color: '#E1306C' },
                   { id: 'twitter', label: 'X / Twitter', icon: Twitter, color: '#1DA1F2' },
                   { id: 'spotify', label: 'Spotify for Artists', icon: Music, color: '#1DB954' },
-                  { id: 'tiktok', label: 'TikTok', icon: Video, color: '#00f2ea' }
+                  { id: 'tiktok', label: 'TikTok', icon: VideoIcon, color: '#00f2ea' }
                 ].map(social => (
                   <div key={social.id} className="social-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -14251,7 +14251,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   {[
                     { action: 'Create Project', cost: 2, icon: Folder },
                     { action: 'Text Generation', cost: 5, icon: FileText },
-                    { action: 'Image Generation', cost: 15, icon: Image },
+                    { action: 'Image Generation', cost: 15, icon: ImageIcon },
                     { action: 'Audio Processing', cost: 25, icon: Music }
                   ].map(({ action, cost, icon: ActionIcon }) => (
                     <div 
