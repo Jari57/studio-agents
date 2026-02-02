@@ -5627,6 +5627,14 @@ const STRIPE_PRICES = {
   lifetime: process.env.STRIPE_PRICE_LIFETIME || 'price_lifetime_one_time' // $99 one-time
 };
 
+// Stripe Credit Pack IDs (Price IDs for one-time payments)
+const STRIPE_CREDIT_PACKS = {
+  '10': process.env.STRIPE_PRICE_CREDITS_10 || 'price_credits_10',
+  '50': process.env.STRIPE_PRICE_CREDITS_50 || 'price_credits_50',
+  '150': process.env.STRIPE_PRICE_CREDITS_150 || 'price_credits_150',
+  '500': process.env.STRIPE_PRICE_CREDITS_500 || 'price_credits_500'
+};
+
 // Firebase Admin is already initialized at the top of the file via getFirestoreDb()
 // No need for a second initialization here
 
@@ -5693,14 +5701,70 @@ app.post('/api/stripe/create-checkout-session', async (req, res) => {
   }
 });
 
-// POST /api/stripe/webhook - Handle Stripe webhook events
-// IMPORTANT: This must use raw body, not JSON parsed
-app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  if (!stripe) {
-    return res.status(503).json({ error: 'Payment system not configured' });
-  }
+  // POST /api/stripe/create-credits-checkout-session - Create a Stripe Checkout session for credits
+  app.post('/api/stripe/create-credits-checkout-session', verifyFirebaseToken, async (req, res) => {
+    if (!stripe) {
+      return res.status(503).json({ error: 'Payment system not configured' });
+    }
 
-  const sig = req.headers['stripe-signature'];
+    const { amount, userId, userEmail, successUrl, cancelUrl } = req.body;
+    const packAmount = String(amount);
+
+    if (!amount || !STRIPE_CREDIT_PACKS[packAmount]) {
+      return res.status(400).json({ error: 'Invalid credit pack amount' });
+    }
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User must be logged in to buy credits' });
+    }
+
+    const priceId = STRIPE_CREDIT_PACKS[packAmount];
+
+    try {
+      // Check if user already has a Stripe customer ID
+      let customerId = null;
+      const db = getFirestoreDb();
+      if (db) {
+        const userDoc = await db.collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          customerId = userDoc.data()?.stripeCustomerId;
+        }
+      }
+
+      const sessionParams = {
+        payment_method_types: ['card'],
+        line_items: [{ price: priceId, quantity: 1 }],
+        mode: 'payment', // Credits are one-time payments
+        success_url: successUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=success&type=credits&amount=${amount}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: cancelUrl || `${process.env.FRONTEND_URL || 'http://localhost:5173'}?payment=cancelled`,
+        client_reference_id: userId,
+        metadata: {
+          userId,
+          type: 'credits',
+          amount: String(amount),
+          userEmail: userEmail || ''
+        }
+      };
+
+      if (customerId) {
+        sessionParams.customer = customerId;
+      } else if (userEmail) {
+        sessionParams.customer_email = userEmail;
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionParams);
+
+      logger.info('💳 Credit checkout session created', { sessionId: session.id, amount, userId: userId.slice(0, 8) + '...' });
+
+      res.json({
+        sessionId: session.id,
+        url: session.url
+      });
+    } catch (err) {
+      logger.error('❌ Stripe credit checkout error', { error: err.message });
+      res.status(500).json({ error: 'Failed to create credit checkout session' });
+    }
+  });
   let event;
 
   try {
@@ -5755,23 +5819,53 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
   }
 });
 
-// Handle successful checkout - activate subscription
-async function handleSuccessfulCheckout(session) {
-  const userId = session.client_reference_id || session.metadata?.userId;
-  const tier = session.metadata?.tier || 'creator';
-  const customerId = session.customer;
-  const subscriptionId = session.subscription;
+// Handle successful checkout - activate subscription or add credits
+  async function handleSuccessfulCheckout(session) {
+    const userId = session.client_reference_id || session.metadata?.userId;
+    const type = session.metadata?.type || 'subscription';
+    const amount = session.metadata?.amount ? parseInt(session.metadata.amount) : 0;
+    const tier = session.metadata?.tier || 'creator';
+    const customerId = session.customer;
+    const subscriptionId = session.subscription;
 
-  if (!userId) {
-    logger.error('❌ No userId in checkout session');
-    return;
-  }
+    if (!userId) {
+      logger.error('❌ No userId in checkout session');
+      return;
+    }
 
-  logger.info('💳 Processing successful checkout', { userId: userId.slice(0, 8) + '...', tier });
+    logger.info('💳 Processing successful checkout', { userId: userId.slice(0, 8) + '...', type, tier });
 
-  const db = getFirestoreDb();
-  if (db) {
-    try {
+    const db = getFirestoreDb();
+    if (db) {
+      try {
+        if (type === 'credits') {
+          logger.info('💳 Processing successful credit purchase', { userId, amount });
+          const userRef = db.collection('users').doc(userId);
+          const userDoc = await userRef.get();
+          const currentCredits = userDoc.exists ? (userDoc.data().credits || 0) : 3;
+          const newTotal = currentCredits + amount;
+
+          await userRef.set({
+            credits: newTotal,
+            stripeCustomerId: customerId,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+
+          // Log billing history for credits
+          await userRef.collection('billing_history').add({
+            type: 'credits',
+            amount_credits: amount,
+            amount_paid: session.amount_total / 100,
+            currency: session.currency?.toUpperCase() || 'USD',
+            stripeSessionId: session.id,
+            status: 'paid',
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+
+          logger.info('✅ Credits added to Firebase', { userId, amount, newTotal });
+          return;
+        }
+
       // Get subscription details from Stripe
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       

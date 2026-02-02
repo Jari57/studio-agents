@@ -1401,21 +1401,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       socialBio: newProjectData.socialBio || '',
       socialPlatform: newProjectData.socialPlatform || 'instagram',
       date: new Date().toLocaleDateString(),
-      status: 'Active',
-      progress: 0,
-      assets: [], // Store generated content here
-      context: {} // Shared context for MAS
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
-    
-    console.log('[CreateProject] New project object created:', newProject);
-
-    // Deduct credits
-    console.log('[CreateProject] Deducting credits...');
-    setUserCredits(prev => {
-      const newCredits = prev - PROJECT_CREDIT_COST;
-      console.log('[CreateProject] Credits updated:', prev, '->', newCredits);
-      return newCredits;
-    });
     
     console.log('[CreateProject] Adding project to state...');
     setProjects(prev => {
@@ -1487,14 +1475,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       agents: [],
       workflow: "custom",
       date: new Date().toLocaleDateString(),
-      status: 'Active',
-      progress: 0,
-      assets: [],
-      context: {}
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
-
-    // Deduct credits
-    setUserCredits(prev => prev - PROJECT_CREDIT_COST);
+    
     toast.success(`Quick project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
     setProjects(prev => [newProject, ...prev]);
@@ -1669,14 +1653,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       agents: [asset.agent], // Store ID string
       workflow: 'custom',
       date: new Date().toLocaleDateString(),
-      status: 'Active',
-      progress: 10,
-      assets: [asset],
-      context: {}
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     
-    // Deduct credits
-    setUserCredits(prev => prev - PROJECT_CREDIT_COST);
     toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
     setProjects(prev => {
@@ -2031,60 +2011,64 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   }, []);
 
   // Fetch user credits from Firestore
-  const fetchUserCredits = async (uid) => {
+const fetchUserCredits = useCallback(async (uid) => {
     if (!db) return;
     try {
       const userRef = doc(db, 'users', uid);
       const userDoc = await getDoc(userRef);
       if (userDoc.exists()) {
-        setUserCredits(userDoc.data().credits || 0);
-        setUserProfile(prev => ({ ...prev, credits: userDoc.data().credits || 0 }));
+        const credits = userDoc.data().credits || 0;
+        setUserCredits(credits);
+        setUserProfile(prev => ({ ...prev, credits }));       
       } else {
         // Initialize new user with 3 trial credits
-        await setDoc(userRef, { credits: 3, tier: 'free', createdAt: new Date() });
+        await setDoc(userRef, { credits: 3, tier: 'free', createdAt: new Date() });        
         setUserCredits(3);
       }
     } catch (err) {
       console.error('Failed to fetch credits:', err);
     }
-  };
+  }, [db]);
 
   // 💰 PURCHASE CREDITS - Revenue engine for top-ups
   const buyCreditPack = async (amount, price) => {
     if (!user) {
+      toast.error('Please log in to purchase credits');
       setShowLoginModal(true);
       return;
     }
 
-    const toastId = toast.loading(`Processing your purchase of ${amount} credits...`);
-    
+    const toastId = toast.loading(`Redirecting to secure checkout for ${amount} credits...`);
+
     try {
-      // 1. Simulate payment processing (placeholder for Stripe/etc)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // 2. Update Firestore (the only source of truth)
-      if (db) {
-        const userRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userRef);
-        const currentCredits = userDoc.exists() ? (userDoc.data().credits || 0) : 0;
-        const newTotal = currentCredits + amount;
-        
-        await updateDoc(userRef, { 
-          credits: newTotal,
-          lastPurchaseDate: new Date().toISOString(),
-          totalPurchasedCredits: increment(amount)
-        });
+      // 💳 Call the actual Stripe backend (production or local)
+      const response = await fetch(`${BACKEND_URL}/api/stripe/create-credits-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseInt(amount),
+          userId: user.uid,
+          userEmail: user.email,
+          successUrl: window.location.origin + window.location.pathname + '#/studio?payment=success&type=credits&amount=' + amount,
+          cancelUrl: window.location.origin + window.location.pathname + '#/studio?payment=cancelled'
+        })
+      });
+
+      const data = await response.json();
+      toast.dismiss(toastId);
+
+      if (data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else if (data.error) {
+        toast.error(data.error);
+      } else {
+        toast.error('Could not create payment session. Please try again.');
       }
-      
-      // 3. Update local state
-      setUserCredits(prev => prev + amount);
-      setUserProfile(prev => ({ ...prev, credits: (prev.credits || 0) + amount }));
-      
-      toast.success(`Success! ${amount} credits added to your studio.`, { id: toastId, icon: '💰' });
-      triggerHapticFeedback('success');
     } catch (err) {
-      console.error('Purchase failed:', err);
-      toast.error('Purchase failed. Please try again or contact support.', { id: toastId });
+      toast.dismiss(toastId);
+      console.error('Purchase error:', err);
+      toast.error('Payment system unavailable. Please contact support.');
     }
   };
 
@@ -2513,32 +2497,52 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     if (metaName) localStorage.setItem('studio_agents_meta_name', metaName);
   }, [socialConnections, twitterUsername, metaName, storageConnections]);
 
-  // Handle Social OAuth Callbacks
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    
-    // Twitter Callback
-    if (params.get('twitter_connected') === 'true') {
-      const username = params.get('twitter_username');
-      setSocialConnections(prev => ({ ...prev, twitter: true }));
-      setTwitterUsername(username);
-      
-      const newUrl = window.location.pathname + window.location.hash;
-      window.history.replaceState({}, document.title, newUrl);
-      toast.success(`Connected to X/Twitter as @${username}!`);
-    }
+// Handle Social OAuth & Payment Callbacks
+    useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
 
-    // Meta Callback (Insta/FB)
-    if (params.get('meta_connected') === 'true') {
-      const name = params.get('meta_name');
-      setSocialConnections(prev => ({ ...prev, instagram: true, facebook: true }));
-      setMetaName(name);
-      
-      const newUrl = window.location.pathname + window.location.hash;
-      window.history.replaceState({}, document.title, newUrl);
-      toast.success(`Connected to Meta as ${name}!`);
-    }
-  }, []);
+      // Twitter Callback
+      if (params.get('twitter_connected') === 'true') {
+        const username = params.get('twitter_username');
+        setSocialConnections(prev => ({ ...prev, twitter: true }));
+        setTwitterUsername(username);
+
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+        toast.success(`Connected to X/Twitter as @${username}!`);
+      }
+
+      // Meta Callback (Insta/FB)
+      if (params.get('meta_connected') === 'true') {
+        const name = params.get('meta_name');
+        setSocialConnections(prev => ({ ...prev, instagram: true, facebook: true }));        
+        setMetaName(name);
+
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+        toast.success(`Connected to Meta as ${name}!`);
+      }
+
+      // Payment Success/Cancel Callback
+      const paymentStatus = params.get('payment');
+      if (paymentStatus === 'success') {
+        const type = params.get('type') || 'subscription';
+        const amount = params.get('amount');
+        if (type === 'credits') {
+          toast.success(`Success! ${amount || 'Your'} credits have been added.`, { icon: '💰' });
+          if (user?.uid) fetchUserCredits(user.uid);
+        } else {
+          toast.success('Your subscription is now active!', { icon: '✨' });
+        }
+        // Cleanup URL
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+      } else if (paymentStatus === 'cancelled') {
+        toast.error('Payment was cancelled.');
+        const newUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    }, [user, fetchUserCredits]);
 
   // --- STRIPE CHECKOUT ---
   const handleCheckoutRedirect = async (plan) => {
@@ -3944,7 +3948,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           status: 'Active',
           progress: 0,
           assets: [itemToSave],
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
         setProjects(prev => [newProject, ...prev]);
         setSelectedProject(newProject);

@@ -1286,7 +1286,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 key={key} 
                 className={`agent-studio-card ${agent.colorClass} animate-fadeInUp haptic-press`}
                 style={{ animationDelay: `${i * 0.1}s`, position: 'relative' }}
-                onClick={() => handleCtaClick('agent')}
+                onClick={() => handleCtaClick('agent', 'whitepapers')}
               >
                 {/* Whitepaper Gear Button */}
                 <button
@@ -1331,7 +1331,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   className="agent-launch-btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleCtaClick('agent');
+                    handleCtaClick('agent', 'whitepapers');
                   }}
                 >
                   Launch Agent
@@ -4289,7 +4289,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 </button>
                 <button 
                   className="cta-button-primary"
-                  onClick={() => { setShowAgentWhitepaper(false); handleCtaClick('agent'); }}
+                  onClick={() => { setShowAgentWhitepaper(false); handleCtaClick('agent', 'whitepapers'); }}
                   style={{ flex: 2, justifyContent: 'center' }}
                 >
                   <Zap size={18} />

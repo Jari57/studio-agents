@@ -85,8 +85,18 @@ function App() {
     setStartTour(false);
     setInitialPlan(null);
     setInitialTab(targetTab || 'resources');
-    console.log('[App] Setting hash to #/studio/resources');
-    window.location.hash = targetTab && targetTab !== 'agents' ? `#/studio/${targetTab}` : '#/studio/resources';
+    
+    // Redirect to top-level pages if requested, else studio sub-tabs
+    if (targetTab === 'whitepapers') {
+      console.log('[App] Navigating to top-level whitepapers');
+      window.location.hash = '#/whitepapers';
+    } else if (targetTab === 'legal') {
+      console.log('[App] Navigating to top-level legal');
+      window.location.hash = '#/legal';
+    } else {
+      console.log('[App] Navigating to studio tab:', targetTab);
+      window.location.hash = targetTab && targetTab !== 'agents' ? `#/studio/${targetTab}` : '#/studio/resources';
+    }
   };
 
   const handleStartTour = () => {

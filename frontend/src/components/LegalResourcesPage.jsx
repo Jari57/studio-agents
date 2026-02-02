@@ -2,10 +2,10 @@
 import { 
   Shield, ChevronRight, FileText, Tv, CreditCard,
   ArrowLeft, BookOpen, CheckCircle, AlertCircle, Scale,
-  Gavel, HelpCircle, FileCheck, Info, Clock, AlertTriangle
+  Gavel, HelpCircle, FileCheck, Info, Clock, AlertTriangle, Target
 } from 'lucide-react';
 
-const FormattedLegalContent = ({ content, accentColor = '#8b5cf6' }) => {
+const RenderLegalContent = ({ content, accentColor }) => {
   if (!content) return null;
 
   const lines = content.split('\n');
@@ -1460,6 +1460,69 @@ Independent artist discovered $18,000 in unclaimed European royalties from 2018-
 5. Monitor quarterly statements
 
 Publishing is complex, but it's YOUR money. Don't leave it uncollected.`
+        }
+      ]
+    },
+    {
+      id: 'legal-agreements',
+      title: 'Standard Music Industry Agreements',
+      category: 'Legal Documents',
+      icon: FileText,
+      color: '#10b981',
+      readTime: '15 min',
+      type: 'Templates',
+      summary: 'Essential legal templates and guides for split sheets, work-for-hire, and management contracts.',
+      sections: [
+        {
+          heading: 'The Essential Split Sheet',
+          content: `A split sheet is a simple but critical document that specifies exactly how much each person contributed to a song and what percentage of the publishing they own.
+
+**Why it matters:**
+Without a signed split sheet, copyright defaults to equal parts (50/50 for a duo, 33/33/33 for a trio) regardless of contribution. 
+
+**Key elements to include:**
+• Producer/Songwriter legal names and IPI numbers
+• Specific percentages for lyrics and melody
+• Sampling clearance status
+• Date and signature of all parties`
+        },
+        {
+          heading: 'Work-for-Hire Agreements',
+          content: `Used when you hire a session musician, mixing engineer, or vocalist and want to own the final product completely.
+
+**Key Provisions:**
+• **Clear transfer of ownership:** Explicitly states it's a "work made for hire."
+• **One-time payment:** Specifies the flat fee instead of ongoing royalties.
+• **Warranty of originality:** The hired professional guarantees they aren't infringing on other works.`
+        }
+      ]
+    },
+    {
+      id: 'white-papers',
+      title: 'Industry Research & Strategy Whitepapers',
+      category: 'Strategic Analysis',
+      icon: Target,
+      color: '#3b82f6',
+      readTime: '25 min',
+      type: 'Data',
+      summary: 'In-depth analysis of the 2025 music economy, AI integration reports, and streaming growth strategies.',
+      sections: [
+        {
+          heading: 'The AI-Augmented Artist (2025)',
+          content: `Research on how small-scale creators are using AI to compete with major label marketing budgets.
+
+**Key Findings:**
+• 340% increase in productivity for artists using AI co-writer tools.
+• $2.4B projected market for generative AI in music production by 2027.
+• Shift from "Human vs AI" to "Human + AI" workflows.`
+        },
+        {
+          heading: 'Zero-Gatekeeper Distribution',
+          content: `A deep dive into bypassing traditional labels through direct-to-fan platforms and blockchain-enabled licensing.
+
+**Strategic Insights:**
+• Monetization beyond streams: Digital collectibles and private communities.
+• Global market access: The rise of hyper-regional success in South Asia and Africa.`
         }
       ]
     }

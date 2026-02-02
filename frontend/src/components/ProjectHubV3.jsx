@@ -548,11 +548,21 @@ function ProjectHubV3({
     if (assets.length === 0) return;
     
     const asset = assets[assets.length - 1];
-    if (setPlayingItem && (asset.imageUrl || asset.videoUrl || asset.audioUrl)) {
+    
+    // Explicitly format sources to ensure playback compatibility
+    const vUrl = asset.videoUrl ? formatVideoSrc(asset.videoUrl) : null;
+    const aUrl = asset.audioUrl ? formatAudioSrc(asset.audioUrl) : null;
+    const iUrl = asset.imageUrl ? formatImageSrc(asset.imageUrl) : null;
+    const finalUrl = vUrl || aUrl || iUrl;
+
+    if (setPlayingItem && finalUrl) {
       setPlayingItem?.({
         ...asset,
-        url: asset.videoUrl || asset.imageUrl || asset.audioUrl,
-        type: asset.videoUrl ? 'video' : asset.imageUrl ? 'image' : 'audio'
+        url: finalUrl,
+        videoUrl: vUrl,
+        audioUrl: aUrl,
+        imageUrl: iUrl,
+        type: vUrl ? 'video' : aUrl ? 'audio' : 'image'
       });
     } else {
       setPreviewItem?.({
@@ -578,12 +588,21 @@ function ProjectHubV3({
       if (type === 'text') return a.content || a.lyrics;
       return false;
     });
+    
     if (asset) {
-      if (setPlayingItem && (asset.imageUrl || asset.videoUrl || asset.audioUrl)) {
+      const vUrl = asset.videoUrl ? formatVideoSrc(asset.videoUrl) : null;
+      const aUrl = asset.audioUrl ? formatAudioSrc(asset.audioUrl) : null;
+      const iUrl = asset.imageUrl ? formatImageSrc(asset.imageUrl) : null;
+      const finalUrl = vUrl || aUrl || iUrl;
+
+      if (setPlayingItem && finalUrl) {
         setPlayingItem?.({
           ...asset,
-          url: asset.videoUrl || asset.imageUrl || asset.audioUrl,
-          type: asset.videoUrl ? 'video' : asset.imageUrl ? 'image' : 'audio'
+          url: finalUrl,
+          videoUrl: vUrl,
+          audioUrl: aUrl,
+          imageUrl: iUrl,
+          type: vUrl ? 'video' : aUrl ? 'audio' : 'image'
         });
       } else {
         setPreviewItem?.({
