@@ -4,7 +4,7 @@ import {
   Sparkles, Mic, MicOff, FileText, Video as VideoIcon, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
   Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, Lightbulb,
-  Settings, CheckCircle2, Lock, User, Database as DatabaseIcon, CircleHelp,
+  Settings, CheckCircle2, Lock as LockIcon, User, Database as DatabaseIcon, CircleHelp,
   ChevronRight, ChevronUp
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS } from '../constants';
@@ -1139,7 +1139,7 @@ function ProductionControlHub({
               </>
             ) : (
               <>
-                <Lock size={18} />
+                <LockIcon size={18} />
                 Master Preview Locked
               </>
             )}

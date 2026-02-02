@@ -5,7 +5,7 @@ import {
   Music, Video as VideoIcon, Image as ImageIcon, Mic, FileText, X, Sparkles,
   ChevronRight, Download, Share2, CheckCircle, Archive,
   Pause, Upload, Wand2, Zap, TrendingUp, Star, Eye,
-  Globe, Lock
+  Globe as GlobeIcon, Lock as LockIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, createProjectFromTemplate } from '../data/projectTemplates';
@@ -983,9 +983,9 @@ function ProjectHubV3({
                         </span>
                         <span className="meta-visibility">
                           {project.isPublic ? (
-                            <Globe size={12} color="var(--color-cyan)" />
+                            <GlobeIcon size={12} color="var(--color-cyan)" />
                           ) : (
-                            <Lock size={12} />
+                            <LockIcon size={12} />
                           )}
                           {project.isPublic ? 'Public' : 'Private'}
                         </span>
@@ -1027,7 +1027,7 @@ function ProjectHubV3({
                         setShowContextMenu(null);
                         toast.success(updated.isPublic ? 'Project is now Public' : 'Project is now Private');
                       }}>
-                        {project.isPublic ? <Lock size={16} /> : <Globe size={16} />}
+                        {project.isPublic ? <LockIcon size={16} /> : <GlobeIcon size={16} />}
                         {project.isPublic ? 'Make Private' : 'Make Public'}
                       </button>
                       <button onClick={e => toggleFavorite(project.id, e)}>

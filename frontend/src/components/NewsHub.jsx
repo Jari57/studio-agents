@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Search, RefreshCw, ChevronUp, ChevronRight, ExternalLink,
   Zap, TrendingUp, Flame, Clock, PlayCircle, Share2, Bookmark,
-  Twitter, Globe, Newspaper, Radio, Mic, Video as VideoIcon, X, Eye
+  Twitter, Globe as GlobeIcon, Newspaper, Radio, Mic, Video as VideoIcon, X, Eye
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

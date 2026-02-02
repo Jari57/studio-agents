@@ -95,7 +95,7 @@ function App() {
       window.location.hash = '#/legal';
     } else {
       console.log('[App] Navigating to studio tab:', targetTab);
-      window.location.hash = targetTab && targetTab !== 'agents' ? `#/studio/${targetTab}` : '#/studio/resources';
+      window.location.hash = targetTab ? `#/studio/${targetTab}` : '#/studio/resources';
     }
   };
 

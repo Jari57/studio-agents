@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock, LayoutGrid } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LayoutGrid } from 'lucide-react';
 import { AGENTS } from '../constants';
 import { auth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
 
@@ -1286,7 +1286,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 key={key} 
                 className={`agent-studio-card ${agent.colorClass} animate-fadeInUp haptic-press`}
                 style={{ animationDelay: `${i * 0.1}s`, position: 'relative' }}
-                onClick={() => handleCtaClick('agent', 'whitepapers')}
+                onClick={() => handleCtaClick('agent', 'agents')}
               >
                 {/* Whitepaper Gear Button */}
                 <button
@@ -1331,7 +1331,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   className="agent-launch-btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleCtaClick('agent', 'whitepapers');
+                    handleCtaClick('agent', 'agents');
                   }}
                 >
                   Launch Agent
@@ -2542,7 +2542,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       opacity: isLocked ? 0.7 : 1
                     }}
                   >
-                    {isLocked ? <Lock size={12} /> : <tab.icon size={14} />}
+                    {isLocked ? <LockIcon size={12} /> : <tab.icon size={14} />}
                     {tab.label}
                     {isLocked && <span style={{ fontSize: '0.6rem', marginLeft: '2px' }}>🔒</span>}
                   </button>
@@ -2575,7 +2575,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     justifyContent: 'center',
                     marginBottom: '24px'
                   }}>
-                    <Lock size={36} style={{ color: 'var(--color-purple)' }} />
+                    <LockIcon size={36} style={{ color: 'var(--color-purple)' }} />
                   </div>
                   
                   {accessPending ? (
@@ -3036,7 +3036,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                                   background: agent.tier === 'free' ? 'var(--color-cyan)' : 'var(--color-purple)' 
                                 }} />
                                 {agent.name}
-                                {agent.tier !== 'free' && <Lock size={10} style={{ opacity: 0.5 }} />}
+                                {agent.tier !== 'free' && <LockIcon size={10} style={{ opacity: 0.5 }} />}
                               </div>
                             ))}
                           </div>
@@ -4289,7 +4289,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 </button>
                 <button 
                   className="cta-button-primary"
-                  onClick={() => { setShowAgentWhitepaper(false); handleCtaClick('agent', 'whitepapers'); }}
+                  onClick={() => { setShowAgentWhitepaper(false); handleCtaClick('agent', 'agents'); }}
                   style={{ flex: 2, justifyContent: 'center' }}
                 >
                   <Zap size={18} />

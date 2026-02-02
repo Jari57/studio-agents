@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers
 } from 'lucide-react';
 
 const Users = UsersIcon;
@@ -5624,7 +5624,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             { name: 'Priority API', active: userPlan.toLowerCase() === 'pro' || userPlan.toLowerCase() === 'lifetime' }
                           ].map((feat, i) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: feat.active ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                              {feat.active ? <Check size={10} color="var(--color-emerald)" /> : <Lock size={10} />}
+                              {feat.active ? <Check size={10} color="var(--color-emerald)" /> : <LockIcon size={10} />}
                               <span>{feat.name}</span>
                             </div>
                           ))}
@@ -5635,7 +5635,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     <div className="dashboard-card platform-integration-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <Globe size={20} className="text-cyan" /> Cloud Integrations
+                          <GlobeIcon size={20} className="text-cyan" /> Cloud Integrations
                         </h3>
                         <div style={{ fontSize: '0.75rem', color: 'var(--color-emerald)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '10px' }}>
                           {Object.values(socialConnections).filter(Boolean).length} Linked
@@ -8028,7 +8028,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       className={`social-connect-btn ${socialConnections.instagram ? 'connected' : ''}`}
                       onClick={() => handleConnectSocial('instagram')}
                     >
-                      <Globe size={16} />
+                      <GlobeIcon size={16} />
                       <span>{socialConnections.instagram ? (metaName ? `Insta: ${metaName}` : 'Instagram Linked') : 'Link Instagram'}</span>
                     </button>
                     <button 
@@ -8717,7 +8717,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             opacity: isLocked ? 0.6 : 1
                           }}
                         >
-                          {isLocked && <Lock size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
+                          {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
                           <div style={{
                             width: '40px',
                             height: '40px',
@@ -8795,7 +8795,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             opacity: isLocked ? 0.6 : 1
                           }}
                         >
-                          {isLocked && <Lock size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
+                          {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
                           <div style={{
                             width: '40px',
                             height: '40px',
@@ -8874,7 +8874,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             opacity: isLocked ? 0.6 : 1
                           }}
                         >
-                          {isLocked && <Lock size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
+                          {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
                           <div style={{
                             width: '40px',
                             height: '40px',
@@ -9844,7 +9844,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         {item.source === 'reddit' && <MessageSquare size={12} />}
                         {(item.source === 'releases' || item.type === 'release') && <Calendar size={12} />}
                         {item.source === 'soundcloud' && <Cloud size={12} />}
-                        {item.source === 'news' && <Globe size={12} />}
+                        {item.source === 'news' && <GlobeIcon size={12} />}
                         {item.source}
                       </div>
                     </div>
@@ -11102,7 +11102,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             className={`nav-link ${activeTab === 'news' ? 'active' : ''}`}
             onClick={() => { setActiveTab('news'); setSelectedAgent(null); }}
           >
-            <Globe size={20} />
+            <GlobeIcon size={20} />
             <span>Industry Pulse</span>
           </button>
           <button 
@@ -14064,7 +14064,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
               <div className="modal-footer" style={{ borderTop: '1px solid var(--glass-border)', padding: '1rem 1.5rem', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                  <Lock size={14} />
+                  <LockIcon size={14} />
                   <span>256-bit encryption • Secured by Stripe</span>
                 </div>
               </div>
@@ -16211,7 +16211,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     alignItems: 'center',
                     gap: '8px'
                   }}>
-                    <Lock size={14} />
+                    <LockIcon size={14} />
                     Upgrade to Unlock ({getLockedAgents().length})
                   </h3>
                   <div style={{
@@ -16279,7 +16279,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                               {tierLabel}
                             </div>
                           </div>
-                          <Lock size={12} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+                          <LockIcon size={12} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
                         </div>
                       );
                     })}
