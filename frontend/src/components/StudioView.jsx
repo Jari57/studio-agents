@@ -535,14 +535,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // REF for stable access to current user in callbacks (prevents stale closure)
   const userRef = useRef(null);
   
-  // REF for secure logout function (prevents TDZ in session timeout)
-  const secureLogoutRef = useRef(null);
-  
-  // REF for checkout redirect function (prevents TDZ in login handlers)
-  const checkoutRedirectRef = useRef(null);
-  
-  // REF for handleGenerate (prevents TDZ in voice recognition callback)
-  const handleGenerateRef = useRef(null);
+  // NOTE: Function refs are now initialized earlier (line ~360) with safe fallbacks to prevent TDZ
 
   // Save a single project to Firestore via backend API
   const saveProjectToCloud = async (uid, project) => {
@@ -1374,7 +1367,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   // Handle initial plan from landing page - using ref to avoid TDZ
   const handleSubscribeRef = useRef(null);
-  const handleTextToVoiceRef = useRef(null);
+  // NOTE: handleTextToVoiceRef is initialized earlier (line ~360) with safe fallback
   useEffect(() => {
     if (initialPlan && handleSubscribeRef.current) {
       handleSubscribeRef.current(initialPlan);
