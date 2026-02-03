@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } fr
 import { 
   Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers
 } from 'lucide-react';
+import { useSafeAsync } from '../hooks/useSafeAsync';
 
 const Users = UsersIcon;
 const ImageIconComponent = ImageIcon;
@@ -251,6 +252,9 @@ const getTimeSince = (date) => {
 };
 
 function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan, initialTab }) {
+  // 🛡️ SAFE ASYNC OPERATIONS - Prevents memory leaks and race conditions
+  const { safeFetch, safeSetState, isMounted } = useSafeAsync();
+  
   // --- CORE AUTH & USER STATE ---
   // Must be first because other hooks (activeTab, newsSearch) depend on user / uid
   const [user, setUser] = useState(null);
@@ -359,6 +363,31 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setActiveTab
   );
   const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🔒 CRITICAL: TDZ-SAFE FUNCTION REFS
+  // Initialize with safe fallback handlers to prevent "Cannot access before initialization" errors
+  // ═══════════════════════════════════════════════════════════════════════════
+  const handleGenerateRef = useRef(() => {
+    console.warn('[TDZ] handleGenerate called before initialization');
+    return Promise.resolve();
+  });
+
+  const handleTextToVoiceRef = useRef(() => {
+    console.warn('[TDZ] handleTextToVoice called before initialization');
+  });
+
+  const checkoutRedirectRef = useRef(() => {
+    console.warn('[TDZ] checkoutRedirect called before initialization');
+  });
+
+  const secureLogoutRef = useRef(() => {
+    console.warn('[TDZ] secureLogout called before initialization');
+    // Emergency fallback
+    localStorage.clear();
+    window.location.href = '/';
+  });
+  
   const [selectedAgent, setSelectedAgent] = useState(() => {
     // Priority 1: Check hash for direct agent link
     const hash = window.location.hash;
