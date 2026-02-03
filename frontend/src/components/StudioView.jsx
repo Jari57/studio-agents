@@ -14781,7 +14781,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   {/* Custom Agent Selection (Only if Custom is selected) */}
                   {newProjectData.workflow === 'custom' && (
                     <div className="agents-grid-selection animate-fadeIn" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
-                    {AGENTS.map(agent => {
+                    {(typeof AGENTS !== 'undefined' ? AGENTS : []).map(agent => {
                       const isSelected = newProjectData.selectedAgents?.includes(agent.id);
                       return (
                         <div 
