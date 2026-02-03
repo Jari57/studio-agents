@@ -275,14 +275,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     if (hash.startsWith('#/studio/')) {
       const tab = hash.split('/')[2];
       // If it's a direct agent ID, return 'agents' as the tab
-      if (AGENTS && AGENTS.some(a => a.id === tab)) {
+      // SAFE ACCESS: Use typeof to avoid TDZ (Temporal Dead Zone) in large builds
+      if (typeof AGENTS !== 'undefined' && AGENTS && AGENTS.some(a => a.id === tab)) {
         return 'agents';
       }
       return tab;
     }
     // FALLBACK: Check localStorage for last active tab before defaulting to 'agents'
     const lastTab = localStorage.getItem('studio_active_tab');
-    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub'].includes(lastTab)) {
+    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal'].includes(lastTab)) {
       return lastTab;
     }
     return 'resources';
@@ -292,7 +293,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const hash = window.location.hash;
     if (hash.startsWith('#/studio/')) {
       const tab = hash.split('/')[2];
-      if (AGENTS && AGENTS.some(a => a.id === tab)) {
+      if (typeof AGENTS !== 'undefined' && AGENTS && AGENTS.some(a => a.id === tab)) {
         return 'agents';
       }
       return tab;
@@ -301,7 +302,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     // Use namespaced key
     const uid = localStorage.getItem('studio_user_id') || 'guest';
     const lastTab = localStorage.getItem(`studio_tab_${uid}`);
-    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub'].includes(lastTab)) {
+    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal'].includes(lastTab)) {
       return lastTab;
     }
     return 'resources';
@@ -363,14 +364,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const hash = window.location.hash;
     if (hash.startsWith('#/studio/')) {
       const tabOrId = hash.split('/')[2];
-      const agent = AGENTS.find(a => a.id === tabOrId);
+      // SAFE ACCESS: Check for AGENTS availability
+      const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.id === tabOrId) : null;
       if (agent) return agent;
     }
 
     // Priority 2: localStorage fallback
     const uid = localStorage.getItem('studio_user_id') || 'guest';
     const savedId = localStorage.getItem(`studio_agent_${uid}`);
-    if (savedId && AGENTS) {
+    if (savedId && typeof AGENTS !== 'undefined' && AGENTS) {
       return AGENTS.find(a => a.id === savedId) || null;
     }
     return null;
@@ -918,6 +920,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   
   // Get agents available for current tier
   const getAvailableAgents = () => {
+    // SAFE ACCESS: Check for AGENTS availability
+    if (typeof AGENTS === 'undefined' || !AGENTS) return [];
+
     const plan = userPlan.toLowerCase();
     if (plan === 'pro' || plan === 'lifetime access') return AGENTS; // All 16 agents
     if (plan === 'monthly') return AGENTS.filter(a => a.tier === 'free' || a.tier === 'monthly'); // 8 agents
@@ -926,6 +931,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   
   // Get locked agents for teaser section
   const getLockedAgents = () => {
+    // SAFE ACCESS: Check for AGENTS availability
+    if (typeof AGENTS === 'undefined' || !AGENTS) return [];
+    
     if (isAdmin) return []; // Admins have all agents
     const plan = userPlan.toLowerCase();
     if (plan === 'pro' || plan === 'lifetime access') return []; // No locked agents
