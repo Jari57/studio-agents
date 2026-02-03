@@ -5768,59 +5768,68 @@ app.post('/api/stripe/create-checkout-session', async (req, res) => {
       res.status(500).json({ error: 'Failed to create credit checkout session' });
     }
   });
-  let event;
 
-  try {
-    if (STRIPE_WEBHOOK_SECRET) {
-      event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
-    } else {
-      // For testing without webhook signature verification
-      event = JSON.parse(req.body.toString());
-      logger.warn('⚠️ Webhook signature verification skipped (no secret configured)');
-    }
-  } catch (err) {
-    logger.error('❌ Webhook signature verification failed', { error: err.message });
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  logger.info('💳 Webhook received', { type: event.type });
-
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object;
-        await handleSuccessfulCheckout(session);
-        break;
-      }
-      
-      case 'customer.subscription.updated': {
-        const subscription = event.data.object;
-        await handleSubscriptionUpdate(subscription);
-        break;
-      }
-      
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object;
-        await handleSubscriptionCancelled(subscription);
-        break;
-      }
-      
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object;
-        await handlePaymentFailed(invoice);
-        break;
-      }
-
-      default:
-        logger.info('💳 Unhandled webhook event', { type: event.type });
+  // POST /api/stripe/webhook - Handle Stripe webhook events
+  // NOTE: This must use express.raw for signature verification
+  app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    if (!stripe) {
+      return res.status(503).json({ error: 'Payment system not configured' });
     }
 
-    res.json({ received: true });
-  } catch (err) {
-    logger.error('❌ Webhook handler error', { error: err.message, type: event.type });
-    res.status(500).json({ error: 'Webhook handler failed' });
-  }
-});
+    const sig = req.headers['stripe-signature'];
+    let event;
+
+    try {
+      if (STRIPE_WEBHOOK_SECRET) {
+        event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+      } else {
+        // For testing without webhook signature verification
+        event = JSON.parse(req.body.toString());
+        logger.warn('⚠️ Webhook signature verification skipped (no secret configured)');
+      }
+    } catch (err) {
+      logger.error('❌ Webhook signature verification failed', { error: err.message });
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    logger.info('💳 Webhook received', { type: event.type });
+
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object;
+          await handleSuccessfulCheckout(session);
+          break;
+        }
+        
+        case 'customer.subscription.updated': {
+          const subscription = event.data.object;
+          await handleSubscriptionUpdate(subscription);
+          break;
+        }
+        
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object;
+          await handleSubscriptionCancelled(subscription);
+          break;
+        }
+        
+        case 'invoice.payment_failed': {
+          const invoice = event.data.object;
+          await handlePaymentFailed(invoice);
+          break;
+        }
+
+        default:
+          logger.info('💳 Unhandled webhook event', { type: event.type });
+      }
+
+      res.json({ received: true });
+    } catch (err) {
+      logger.error('❌ Webhook handler error', { error: err.message, type: event.type });
+      res.status(500).json({ error: 'Webhook handler failed' });
+    }
+  });
 
 // Handle successful checkout - activate subscription or add credits
   async function handleSuccessfulCheckout(session) {
