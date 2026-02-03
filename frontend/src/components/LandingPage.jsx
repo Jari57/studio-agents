@@ -621,12 +621,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   
   // Detect local development environment
   const isLocal = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port === '5173');
   
   // Backend API for investor access validation
   const INVESTOR_API_URL = isLocal 
-    ? 'http://localhost:3001/api/investor-access'
-    : 'https://web-production-b5922.up.railway.app/api/investor-access';
+    ? 'http://localhost:3000/api/investor-access'
+    : '/api/investor-access';
   
   const handleInvestorAccessSubmit = async () => {
     const email = investorEmail.trim().toLowerCase();

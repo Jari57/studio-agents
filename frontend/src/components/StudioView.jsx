@@ -405,8 +405,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // 🛡️ SAFE ASYNC OPERATIONS - Prevents memory leaks and race conditions
   const { safeFetch, safeSetState, isMounted } = useSafeAsync();
   
-  // --- CORE AUTH & USER STATE ---
-  // Must be first because other hooks (activeTab, newsSearch) depend on user / uid
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 🏗️ CORE STATE & REFS (Hoisted for TDZ safety)
+  // ═══════════════════════════════════════════════════════════════════════════
+  
+  // --- AUTH & USER ---
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('studio_user_id'));
   const [isGuestMode, setIsGuestMode] = useState(() => localStorage.getItem('studio_guest_mode') === 'true');
@@ -415,8 +418,205 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); 
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [userCredits, setUserCredits] = useState(3);
+  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('studio_user_plan') || 'Free');
+  const [freeGenerationsUsed, setFreeGenerationsUsed] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return parseInt(localStorage.getItem(`studio_free_gens_${uid}`) || '0');
+  });
 
+  // --- NAVIGATION & UI ---
+  const [activeTab, _setActiveTab] = useState(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#/studio/')) {
+      const tab = hash.split('/')[2];
+      if (typeof AGENTS !== 'undefined' && AGENTS && AGENTS.some(a => a.id === tab)) return 'agents';
+      return tab;
+    }
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    const lastTab = localStorage.getItem(`studio_tab_${uid}`);
+    return (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal'].includes(lastTab)) ? lastTab : 'resources';
+  });
+  const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [selectedAgent, setSelectedAgent] = useState(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#/studio/')) {
+      const tabOrId = hash.split('/')[2];
+      const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.id === tabOrId) : null;
+      if (agent) return agent;
+    }
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    const savedId = localStorage.getItem(`studio_agent_${uid}`);
+    if (savedId && typeof AGENTS !== 'undefined' && AGENTS) return AGENTS.find(a => a.id === savedId) || null;
+    return null;
+  });
+
+  // --- PROJECTS & ASSETS ---
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [isCreatingVocal, setIsCreatingVocal] = useState(false);
+  const [visualDnaUrl, setVisualDnaUrl] = useState(null);
+  const [audioDnaUrl, setAudioDnaUrl] = useState(null);
+  const [videoDnaUrl, setVideoDnaUrl] = useState(null);
+  const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null);
+  const [voiceSampleUrl, setVoiceSampleUrl] = useState(null);
+  const [isUploadingDna, setIsUploadingDna] = useState({});
+  const [isUploadingSample, setIsUploadingSample] = useState(false);
+  const [showDnaVault, setShowDnaVault] = useState(false);
+
+  // --- PLATFORM & ADMIN ---
+  const [adminStats, setAdminStats] = useState(null);
+  const [adminApiStatus, setAdminApiStatus] = useState(null);
+  const [isAdminLoading, setIsAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState(null);
+  const [systemStatus, setSystemStatus] = useState({ status: 'healthy', message: 'All Systems Operational' });
+
+  // --- UI TOGGLES & INTERACTION ---
+  const [showOrchestrator, setShowOrchestrator] = useState(false);
+  const [showStudioSession, setShowStudioSession] = useState(false);
+  const [sessionTracks, setSessionTracks] = useState({ 
+    audio: null, vocal: null, visual: null,
+    audioVolume: 0.8, vocalVolume: 1.0,
+    bpm: 120, timeSignature: '4/4', key: 'C Major',
+    frameRate: 30, aspectRatio: '16:9', sampleRate: 48000, bitDepth: 24,
+    syncLocked: true, generateRealAssets: false,
+    renderCount: 0, maxRenders: 3, lastRenderTime: null, renderHistory: []
+  });
+  const [sessionHistory, setSessionHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [sessionPlaying, setSessionPlaying] = useState(false);
+  const [expandedNews, setExpandedNews] = useState(new Set());
+  const [allNewsExpanded, setAllNewsExpanded] = useState(false);
+  const [expandedHelp, setExpandedHelp] = useState(null);
+  const [helpSearch, setHelpSearch] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_help_${uid}`) || '';
+  });
+  const [showNudge, setShowNudge] = useState(true);
+  const [playingItem, setPlayingItem] = useState(null);
+  const [previewItem, setPreviewItem] = useState(null);
+  const [previewPrompt, setPreviewPrompt] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_prompt_${uid}`) || '';
+  });
+  const [previewView, setPreviewView] = useState('lyrics');
+  const [mediaLoadError, setMediaLoadError] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [agentPreviews, setAgentPreviews] = useState({});
+  const [saveStatus, setSaveStatus] = useState('idle');
+  const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+
+  // --- VOICE & AI INTERACTION ---
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [showVoiceHelp, setShowVoiceHelp] = useState(false);
+  const [showVoiceCommandPalette, setShowVoiceCommandPalette] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_transcript_${uid}`) || '';
+  });
+  const [lastVoiceCommand, setLastVoiceCommand] = useState(null);
+  const [voiceSettings, setVoiceSettings] = useState({
+    gender: 'male', region: 'US', language: 'English', style: 'rapper',
+    rapStyle: 'aggressive', genre: 'hip-hop', duration: 30, voiceName: 'rapper-male-1',
+    speakerUrl: localStorage.getItem('studio_cloned_voice_url') || null
+  });
+
+  // --- PREVIEWS & RENDERING ---
+  const [showPreview, setShowPreview] = useState(null);
+  const [previewMaximized, setPreviewMaximized] = useState(false);
+  const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null);
+  const [previewSaveMode, setPreviewSaveMode] = useState(false);
+  const [newProjectNameInPreview, setNewProjectNameInPreview] = useState('');
+  const [isPreviewMediaLoading, setIsPreviewMediaLoading] = useState(false);
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportPreset, setExportPreset] = useState('streaming');
+
+  // --- USER DATA & SETTINGS ---
+  const [dashboardTab, setDashboardTab] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_dash_${uid}`) || 'overview';
+  });
+  const [userProfile, setUserProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_user_profile');
+      return saved ? JSON.parse(saved) : {
+        stageName: '', genre: 'Hip Hop / Rap', targetDemographic: 'Gen Z',
+        language: 'English', bio: '', credits: 500, memberSince: new Date().getFullYear(),
+        plan: 'Free', location: 'Los Angeles, CA', website: ''
+      };
+    } catch (_e) { return { stageName: '', genre: 'Hip Hop / Rap', bio: '', credits: 500, memberSince: new Date().getFullYear(), plan: 'Free', location: 'Los Angeles, CA', website: '' }; }
+  });
+  const [socialConnections, setSocialConnections] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_agents_socials');
+      return saved ? JSON.parse(saved) : { instagram: false, tiktok: false, twitter: false, spotify: false };
+    } catch (_e) { return { instagram: false, tiktok: false, twitter: false, spotify: false }; }
+  });
+  const [paymentMethods, setPaymentMethods] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_agents_payments');
+      return saved ? JSON.parse(saved) : [
+        { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
+        { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
+      ];
+    } catch (_e) { return [{ id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true }]; }
+  });
+
+  // --- REFS (Function Handlers for TDZ Safety) ---
+  const handleGenerateRef = useRef(() => Promise.resolve());
+  const handleTextToVoiceRef = useRef(() => {});
+  const checkoutRedirectRef = useRef(() => {});
+  const secureLogoutRef = useRef(() => {
+    localStorage.clear();
+    window.location.href = '/';
+  });
+  const handleSubscribeRef = useRef(null);
+  const saveStatusTimeoutRef = useRef(null);
+  const pendingOperationsRef = useRef(new Set());
+  const syncTimeoutRef = useRef(null);
+  const userRef = useRef(null);
+  const sessionTimeoutRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const textareaRef = useRef(null);
+  const previewAudioRef = useRef(null);
+  const canvasAudioRef = useRef(null);
+
+  const [newsSearch, setNewsSearch] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_news_${uid}`) || '';
+  });
+
+  const [projects, setProjects] = useState(() => {
+    try {
+      const uid = localStorage.getItem('studio_user_id') || 'guest';
+      const saved = localStorage.getItem(`studio_projects_${uid}`) || localStorage.getItem('studio_agents_projects');
+      if (saved) {
+        let parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.sort((a, b) => {
+          const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+          return bTime - aTime;
+        });
+      }
+      return [];
+    } catch (_e) {
+      console.error('[StudioView] Failed to parse projects from localStorage', _e);
+      return [];
+    }
+  });
+
+  const [backingTrack, setBackingTrack] = useState(null);
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
@@ -442,25 +642,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
     return 'resources';
   };
-
-  const [activeTab, _setActiveTab] = useState(() => {
-    const hash = window.location.hash;
-    if (hash.startsWith('#/studio/')) {
-      const tab = hash.split('/')[2];
-      if (typeof AGENTS !== 'undefined' && AGENTS && AGENTS.some(a => a.id === tab)) {
-        return 'agents';
-      }
-      return tab;
-    }
-    
-    // Use namespaced key
-    const uid = localStorage.getItem('studio_user_id') || 'guest';
-    const lastTab = localStorage.getItem(`studio_tab_${uid}`);
-    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal'].includes(lastTab)) {
-      return lastTab;
-    }
-    return 'resources';
-  });
 
   // Persist activeTab to localStorage whenever it changes
   useEffect(() => {
@@ -512,67 +693,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     activeTab,
     setActiveTab
   );
-  const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
   
-  // ═══════════════════════════════════════════════════════════════════════════
-  // 🔒 CRITICAL: TDZ-SAFE FUNCTION REFS
-  // Initialize with safe fallback handlers to prevent "Cannot access before initialization" errors
-  // ═══════════════════════════════════════════════════════════════════════════
-  const handleGenerateRef = useRef(() => {
-    console.warn('[TDZ] handleGenerate called before initialization');
-    return Promise.resolve();
-  });
-
-  const handleTextToVoiceRef = useRef(() => {
-    console.warn('[TDZ] handleTextToVoice called before initialization');
-  });
-
-  const checkoutRedirectRef = useRef(() => {
-    console.warn('[TDZ] checkoutRedirect called before initialization');
-  });
-
-  const secureLogoutRef = useRef(() => {
-    console.warn('[TDZ] secureLogout called before initialization');
-    // Emergency fallback
-    localStorage.clear();
-    window.location.href = '/';
-  });
-  
-  const [selectedAgent, setSelectedAgent] = useState(() => {
-    // Priority 1: Check hash for direct agent link
-    const hash = window.location.hash;
-    if (hash.startsWith('#/studio/')) {
-      const tabOrId = hash.split('/')[2];
-      // SAFE ACCESS: Check for AGENTS availability
-      const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.id === tabOrId) : null;
-      if (agent) return agent;
-    }
-
-    // Priority 2: localStorage fallback
-    const uid = localStorage.getItem('studio_user_id') || 'guest';
-    const savedId = localStorage.getItem(`studio_agent_${uid}`);
-    if (savedId && typeof AGENTS !== 'undefined' && AGENTS) {
-      return AGENTS.find(a => a.id === savedId) || null;
-    }
-    return null;
-  });
-  const [backingTrack, setBackingTrack] = useState(null); // For vocal sync
-  
-  // Inspiration / DNA States
-  const [visualDnaUrl, setVisualDnaUrl] = useState(null);
-  const [audioDnaUrl, setAudioDnaUrl] = useState(null);
-  const [videoDnaUrl, setVideoDnaUrl] = useState(null);
-  const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null);
-  const [voiceSampleUrl, setVoiceSampleUrl] = useState(null);
-  const [isUploadingDna, setIsUploadingDna] = useState({});
-  const [isUploadingSample, setIsUploadingSample] = useState(false);
-  const [showDnaVault, setShowDnaVault] = useState(false);
-
-  const [newsSearch, setNewsSearch] = useState(() => {
-    const uid = localStorage.getItem('studio_user_id') || 'guest';
-    return localStorage.getItem(`studio_news_${uid}`) || '';
-  });
-
   // Persistence Effects
   useEffect(() => {
     localStorage.setItem('studio_theme', theme);
@@ -591,35 +712,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
     localStorage.setItem(`studio_news_${uid}`, newsSearch);
   }, [newsSearch, user?.uid]);
-
-  const [projects, setProjects] = useState(() => {
-    try {
-      // Use user-specific project key if available, otherwise fallback to guest/legacy
-      // Note: We avoid using authChecking here to keep initialization fast
-      const uid = localStorage.getItem('studio_user_id') || 'guest';
-      const saved = localStorage.getItem(`studio_projects_${uid}`) || localStorage.getItem('studio_agents_projects');
-      if (saved) {
-        let parsed = JSON.parse(saved);
-        
-        // STABILITY FIX: Ensure parsed is an array
-        if (!Array.isArray(parsed)) {
-          console.warn('[StudioView] projects is not an array, resetting');
-          return [];
-        }
-
-        // Sort by updatedAt/createdAt descending (newest first)
-        return parsed.sort((a, b) => {
-          const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
-          const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
-          return bTime - aTime;
-        });
-      }
-      return [];
-    } catch (_e) {
-      console.error('[StudioView] Failed to parse projects from localStorage', _e);
-      return [];
-    }
-  });
 
   // Handle cross-tab or cross-session state sync for projects
   useEffect(() => {
@@ -696,7 +788,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // NOTE: Function refs are now initialized earlier (line ~360) with safe fallbacks to prevent TDZ
 
   // Save a single project to Firestore via backend API
-  const saveProjectToCloud = async (uid, project) => {
+  async function saveProjectToCloud(uid, project) {
     const traceId = `SAVE-${Date.now()}`;
     console.log(`[TRACE:${traceId}] saveProjectToCloud START`, {
       hasUid: !!uid,
@@ -781,7 +873,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   };
   
   // Sync all projects to cloud via backend API (individual saves)
-  const syncProjectsToCloud = async (uid, projectsToSync) => {
+  async function syncProjectsToCloud(uid, projectsToSync) {
     if (!uid || !Array.isArray(projectsToSync) || projectsToSync.length === 0) return;
     setProjectsSyncing(true);
     
@@ -838,7 +930,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   }, [projects, user?.uid, auth?.currentUser]);
   
   // Load projects from cloud via backend API
-  const loadProjectsFromCloud = async (uid) => {
+  async function loadProjectsFromCloud(uid) {
     const traceId = `LOAD-${Date.now()}`;
     console.log(`[TRACE:${traceId}] loadProjectsFromCloud START`, { hasUid: !!uid });
     
@@ -934,39 +1026,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       return bTime - aTime;
     });
   };
-  
-  // Studio Orchestrator State (New Clean Interface)
-  const [showOrchestrator, setShowOrchestrator] = useState(false);
-  
   // Studio Session State (Global Mechanism)
-  const [showStudioSession, setShowStudioSession] = useState(false);
-  const [sessionTracks, setSessionTracks] = useState({ 
-    audio: null, 
-    vocal: null, 
-    visual: null,
-    audioVolume: 0.8,
-    vocalVolume: 1.0,
-    // Professional sync settings
-    bpm: 120,
-    timeSignature: '4/4',
-    key: 'C Major',
-    frameRate: 30,
-    aspectRatio: '16:9',
-    sampleRate: 48000,
-    bitDepth: 24,
-    syncLocked: true,
-    // Real assets toggle
-    generateRealAssets: false,
-    // Render tracking
-    renderCount: 0,
-    maxRenders: 3,
-    lastRenderTime: null,
-    renderHistory: []
-  });
-  const [sessionHistory, setSessionHistory] = useState([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-  const [sessionPlaying, setSessionPlaying] = useState(false);
-
   // History Helpers
   const updateSessionWithHistory = (newTracksOrUpdater) => {
     let newTracks;
@@ -999,30 +1059,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
   
-  const [expandedNews, setExpandedNews] = useState(new Set());
-  const [allNewsExpanded, setAllNewsExpanded] = useState(false);
-  const [expandedHelp, setExpandedHelp] = useState(null);
-  const [helpSearch, setHelpSearch] = useState(() => {
-    const uid = localStorage.getItem('studio_user_id') || 'guest';
-    return localStorage.getItem(`studio_help_${uid}`) || '';
-  });
-
   // Persist helpSearch
   useEffect(() => {
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
     localStorage.setItem(`studio_help_${uid}`, helpSearch);
   }, [helpSearch, user?.uid]);
-  const [showNudge, setShowNudge] = useState(true);
-
   const [playingItem, setPlayingItem] = useState(null);
   
   // Preview Modal State (for reviewing AI generations before saving)
-
-  const [previewItem, setPreviewItem] = useState(null);
-  const [previewPrompt, setPreviewPrompt] = useState(() => {
-    const uid = localStorage.getItem('studio_user_id') || 'guest';
-    return localStorage.getItem(`studio_prompt_${uid}`) || '';
-  });
   
   // Persist previewPrompt
   useEffect(() => {
@@ -1030,65 +1074,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     localStorage.setItem(`studio_prompt_${uid}`, previewPrompt);
   }, [previewPrompt, user?.uid]);
 
-  const [previewView, setPreviewView] = useState('lyrics'); // 'lyrics' or 'prompt'
-  const [mediaLoadError, setMediaLoadError] = useState(null); // Track media load failures toggle
-  const [isSaving, setIsSaving] = useState(false); // Saving/syncing state with animated loader
-  const [isGenerating, setIsGenerating] = useState(false); // Generation in progress state
-  const [agentPreviews, setAgentPreviews] = useState({}); // Cache last generation per agent
-  
   // Save status for visual feedback: 'idle' | 'saving' | 'saved' | 'error'
-  const [saveStatus, setSaveStatus] = useState('idle');
-  const saveStatusTimeoutRef = useRef(null);
   
-  // Pending operations guard - prevents double-clicks and overlapping operations
-  const pendingOperationsRef = useRef(new Set());
-  
-  const [isListening, setIsListening] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
-  const [showVoiceHelp, setShowVoiceHelp] = useState(false);
-  const [showVoiceCommandPalette, setShowVoiceCommandPalette] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState(() => {
-    const uid = localStorage.getItem('studio_user_id') || 'guest';
-    return localStorage.getItem(`studio_transcript_${uid}`) || '';
-  });
-
   // Persist voiceTranscript
   useEffect(() => {
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
     localStorage.setItem(`studio_transcript_${uid}`, voiceTranscript);
   }, [voiceTranscript, user?.uid]);
 
-  const [lastVoiceCommand, setLastVoiceCommand] = useState(null);
-  const [voiceSettings, setVoiceSettings] = useState({
-    gender: 'male',
-    region: 'US',
-    language: 'English',
-    style: 'rapper',           // rapper, rapper-female, singer, narrator, spoken, cloned
-    rapStyle: 'aggressive',    // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
-    genre: 'hip-hop',          // r&b, pop, hip-hop, soul, country, rock, jazz
-    duration: 30,              // 30s, 60s, 120s, 180s
-    voiceName: 'rapper-male-1',
-    speakerUrl: localStorage.getItem('studio_cloned_voice_url') || null
-  });
-  
   // Voice Command Definitions for Whisperer-style UI
-  const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(null);
-  // user state moved to top of component (before cloud sync useEffect)
-  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('studio_user_plan') || 'Free');
-  
-  // Free generation tracking (3 free before requiring login/payment)
-  const [freeGenerationsUsed, setFreeGenerationsUsed] = useState(() => {
-    const stored = localStorage.getItem('studio_free_generations');
-    return stored ? parseInt(stored, 10) : 0;
-  });
-  
-  // Persist free generations
-  useEffect(() => {
-    localStorage.setItem('studio_free_generations', freeGenerationsUsed.toString());
-  }, [freeGenerationsUsed]);
-  
   // Get agents available for current tier
   const getAvailableAgents = () => {
     // SAFE ACCESS: Check for AGENTS availability
@@ -1198,15 +1192,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [agentCreations, setAgentCreations] = useState({
     // Format: { agentId: { video: url, image: url, audio: url } }
   });
-  
-  // Asset preview state - enhanced with navigation and robust handling
-  const [showPreview, setShowPreview] = useState(null); // { type: 'audio'|'video'|'image'|'text', url, title, asset, assets, currentIndex }
-  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max toggle for preview modal
-  const [canvasPreviewAsset, setCanvasPreviewAsset] = useState(null); // For Project Canvas embedded player
-  const [previewSaveMode, setPreviewSaveMode] = useState(false); // Toggle save options view in preview modal
-  const [newProjectNameInPreview, setNewProjectNameInPreview] = useState(''); // New project name input in preview modal
-  const [isPreviewMediaLoading, setIsPreviewMediaLoading] = useState(false); // Loading state for preview media (img/video/audio)
-  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false); // Playback state for pulse animations
   
   // Safe preview data access (prevents TDZ/null errors)
   const safePreview = showPreview || {};
@@ -2121,13 +2106,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     };
   }, [user, resetSessionTimeout]);
 
-  // --- AUTH STATE ---
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset'
-  const [authEmail, setAuthEmail] = useState('');
-  const [authPassword, setAuthPassword] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const [userCredits, setUserCredits] = useState(3); // Default trial credits
-  
   // 🔐 PASSWORD VALIDATION - Enforce strong passwords
   const validatePassword = (password) => {
     const errors = [];
@@ -2139,7 +2117,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   };
   
   // 🔐 SECURE LOGOUT - Clear all sensitive data
-  const handleSecureLogout = async () => {
+  async function handleSecureLogout() {
     try {
       // Sign out from Firebase first
       if (auth) {
@@ -2266,7 +2244,7 @@ const fetchUserCredits = useCallback(async (uid) => {
   };
 
   // --- LOGIN HANDLER (Google) ---
-  const handleGoogleLogin = async () => {
+  async function handleGoogleLogin() {
     if (!auth) {
       toast.error('Authentication service unavailable');
       return;
@@ -2312,7 +2290,7 @@ const fetchUserCredits = useCallback(async (uid) => {
   };
 
   // --- EMAIL/PASSWORD LOGIN ---
-  const handleEmailAuth = async (e) => {
+  async function handleEmailAuth(e) {
     e.preventDefault();
     if (!auth) {
       toast.error('Authentication service unavailable');
@@ -2425,18 +2403,6 @@ const fetchUserCredits = useCallback(async (uid) => {
   // --- LOGOUT HANDLER ---
   // Use handleSecureLogout defined above for all logout operations
 
-  // Dashboard State
-  const [dashboardTab, setDashboardTab] = useState(() => {
-    const uid = localStorage.getItem('studio_user_id') || 'guest';
-    return localStorage.getItem(`studio_dash_${uid}`) || 'overview';
-  });
-
-  // Admin Dashboard State
-  const [adminStats, setAdminStats] = useState(null);
-  const [adminApiStatus, setAdminApiStatus] = useState(null);
-  const [isAdminLoading, setIsAdminLoading] = useState(false);
-  const [adminError, setAdminError] = useState(null);
-
   // Persist dashboardTab
   useEffect(() => {
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
@@ -2450,7 +2416,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   }, [dashboardTab, isAdmin]);
 
-  const fetchAdminData = async () => {
+  async function fetchAdminData() {
     setIsAdminLoading(true);
     setAdminError(null);
     try {
@@ -2561,65 +2527,7 @@ const fetchUserCredits = useCallback(async (uid) => {
   const [hasMoreNews, setHasMoreNews] = useState(true);
   const [newsArticles, setNewsArticles] = useState([]);
 
-  const [userProfile, setUserProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_user_profile');
-      return saved ? JSON.parse(saved) : {
-        stageName: '',
-        genre: 'Hip Hop / Rap',
-        targetDemographic: 'Gen Z',
-        language: 'English',
-        bio: '',
-        credits: 500,
-        memberSince: new Date().getFullYear(),
-        plan: 'Free',
-        location: 'Los Angeles, CA',
-        website: ''
-      };
-    } catch (_e) {
-      return {
-        stageName: '',
-        genre: 'Hip Hop / Rap',
-        bio: '',
-        credits: 500,
-        memberSince: new Date().getFullYear(),
-        plan: 'Free',
-        location: 'Los Angeles, CA',
-        website: ''
-      };
-    }
-  });
-
   // Simulated Performance Data (for Board Demo)
-  const [performanceStats] = useState({
-    listeners: 12450,
-    streams: 45200,
-    followers: 890,
-    growth: '+12%'
-  });
-
-  useEffect(() => {
-    localStorage.setItem('studio_user_profile', JSON.stringify(userProfile));
-  }, [userProfile]);
-
-  const [socialConnections, setSocialConnections] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_socials');
-      return saved ? JSON.parse(saved) : {
-        instagram: false,
-        tiktok: false,
-        twitter: false,
-        spotify: false
-      };
-    } catch (_e) {
-      return {
-        instagram: false,
-        tiktok: false,
-        twitter: false,
-        spotify: false
-      };
-    }
-  });
   const [twitterUsername, setTwitterUsername] = useState(() => localStorage.getItem('studio_agents_twitter_user'));
   const [metaName, setMetaName] = useState(() => localStorage.getItem('studio_agents_meta_name'));
   const [storageConnections, setStorageConnections] = useState(() => {
@@ -2638,21 +2546,6 @@ const fetchUserCredits = useCallback(async (uid) => {
         oneDrive: false,
         localDevice: true
       };
-    }
-  });
-
-  const [paymentMethods, setPaymentMethods] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_payments');
-      return saved ? JSON.parse(saved) : [
-        { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
-        { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
-      ];
-    } catch (_e) {
-      return [
-        { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
-        { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
-      ];
     }
   });
 
@@ -2741,7 +2634,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }, [user, fetchUserCredits]);
 
   // --- STRIPE CHECKOUT ---
-  const handleCheckoutRedirect = async (plan) => {
+  async function handleCheckoutRedirect(plan) {
     if (!isLoggedIn || !user) {
       toast.error('Please log in first');
       setShowLoginModal(true);
@@ -3192,9 +3085,6 @@ const fetchUserCredits = useCallback(async (uid) => {
   // Set ref for TDZ-safe access from earlier functions
   handleTextToVoiceRef.current = handleTextToVoice;
 
-  // State for AI vocal generation
-  const [isCreatingVocal, setIsCreatingVocal] = useState(false);
-
   // Create AI Vocal from text using Uberduck TTS API (NOT browser TTS)
   const handleCreateAIVocal = async (textContent, sourceAgent = 'Ghostwriter') => {
     if (!textContent || textContent.trim().length === 0) {
@@ -3540,7 +3430,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   };
 
-  const handleGenerate = async () => {
+  async function handleGenerate() {
     // PREVENT DUPLICATE CALLS
     if (isGenerating) return;
 
@@ -4376,7 +4266,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     handleGenerate();
   };
 
-  const fetchActivity = async (page = 1, section = null) => {
+  async function fetchActivity(page = 1, section = null) {
     if (isLoadingActivity || (!hasMoreActivity && page !== 1)) return;
     
     const currentSection = section || activitySection || 'all';
@@ -4410,7 +4300,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   };
 
-  const fetchNews = async (page = 1, searchQuery = '', forceRefresh = false) => {
+  async function fetchNews(page = 1, searchQuery = '', forceRefresh = false) {
     if (!forceRefresh && (isLoadingNews || (!hasMoreNews && page !== 1))) return { success: false };
     
     setIsLoadingNews(true);
