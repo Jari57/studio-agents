@@ -1221,7 +1221,7 @@ export default function StudioOrchestratorV2({
       setLoadingVoices(true);
       try {
         const q = query(
-          collection(db, 'users', auth.currentUser.uid, 'voices')
+          collection(db, 'users', auth.currentUser?.uid, 'voices')
         );
         const querySnapshot = await getDocs(q);
         const voices = querySnapshot.docs.map(doc => ({
@@ -1246,7 +1246,7 @@ export default function StudioOrchestratorV2({
     const fetchUserDna = async () => {
       if (!auth.currentUser || !isOpen) return;
       try {
-        const userRef = doc(db, 'users', auth.currentUser.uid);
+        const userRef = doc(db, 'users', auth.currentUser?.uid);
         const userDoc = await getDoc(userRef);
         if (userDoc.exists()) {
           const userData = userDoc.data();
@@ -1970,7 +1970,7 @@ export default function StudioOrchestratorV2({
             if (auth.currentUser) {
               try {
                 // Primary Voice Field
-                const userRef = doc(db, 'users', auth.currentUser.uid);
+                const userRef = doc(db, 'users', auth.currentUser?.uid);
                 await updateDoc(userRef, {
                   voiceSampleUrl: result.url,
                   lastVoiceUpdate: Date.now()
@@ -1983,7 +1983,7 @@ export default function StudioOrchestratorV2({
                   createdAt: serverTimestamp(),
                   type: 'cloned'
                 };
-                const docRef = await addDoc(collection(db, 'users', auth.currentUser.uid, 'voices'), voiceData);
+                const docRef = await addDoc(collection(db, 'users', auth.currentUser?.uid, 'voices'), voiceData);
                 setSavedVoices(prev => [{ id: docRef.id, ...voiceData }, ...prev]);
                 toast.success('Voice saved to library');
               } catch (saveErr) {
@@ -2057,7 +2057,7 @@ export default function StudioOrchestratorV2({
             // Industrial Strength Persistence: Save to User Profile
             if (auth.currentUser?.uid) {
               try {
-                const userRef = doc(db, 'users', auth.currentUser.uid);
+                const userRef = doc(db, 'users', auth.currentUser?.uid);
                 await updateDoc(userRef, {
                   [`${slot}DnaUrl`]: url,
                   lastDnaUpdate: Date.now()
@@ -3766,7 +3766,7 @@ export default function StudioOrchestratorV2({
                             e.stopPropagation();
                             if (window.confirm('Delete this voice from your library?')) {
                               try {
-                                await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'voices', voice.id));
+                                await deleteDoc(doc(db, 'users', auth.currentUser?.uid, 'voices', voice.id));
                                 setSavedVoices(prev => prev.filter(v => v.id !== voice.id));
                                 if (voiceSampleUrl === voice.url) {
                                   setVoiceSampleUrl(null);

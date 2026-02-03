@@ -669,7 +669,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     
     // Debounce sync by 3 seconds to avoid excessive writes
     syncTimeoutRef.current = setTimeout(() => {
-      syncProjectsToCloud(user.uid, projects);
+      syncProjectsToCloud(user?.uid, projects);
     }, 3000);
     
     return () => {
@@ -1500,8 +1500,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     // Save to cloud if logged in (uses backend API now)
     console.log('[CreateProject] Auth check - isLoggedIn:', isLoggedIn, 'user:', !!user);
     if (isLoggedIn && user) {
-      console.log('[CreateProject] Saving to cloud for user:', user.uid, user.email);
-      saveProjectToCloud(user.uid, newProject).then(success => {
+      console.log('[CreateProject] Saving to cloud for user:', user?.uid, user?.email);
+      saveProjectToCloud(user?.uid, newProject).then(success => {
         console.log('[CreateProject] Cloud save result:', success);
       }).catch(err => {
         console.error('[CreateProject] Cloud save error:', err);
@@ -1568,7 +1568,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     
     // Save to cloud if logged in
     if (user) {
-      saveProjectToCloud(user.uid, newProject).catch(err => {
+      saveProjectToCloud(user?.uid, newProject).catch(err => {
         console.error('Failed to save quick project to cloud:', err);
       });
     }
@@ -1683,7 +1683,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       // Save to cloud if logged in AND Firebase is ready
       const updatedProject = newProjects.find(p => p.id === projectId);
       if (updatedProject && user && auth?.currentUser) {
-        saveProjectToCloud(user.uid, updatedProject)
+        saveProjectToCloud(user?.uid, updatedProject)
           .then((success) => {
             if (success) {
               updateSaveStatus('saved');
@@ -1751,7 +1751,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
     // Save to cloud if logged in
     if (user) {
-      saveProjectToCloud(user.uid, newProject).catch(err => {
+      saveProjectToCloud(user?.uid, newProject).catch(err => {
         console.error('Failed to save new project with asset to cloud:', err);
       });
     }
@@ -2129,8 +2129,8 @@ const fetchUserCredits = useCallback(async (uid) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: parseInt(amount),
-          userId: user.uid,
-          userEmail: user.email,
+          userId: user?.uid,
+          userEmail: user?.email,
           successUrl: window.location.origin + window.location.pathname + '#/studio?payment=success&type=credits&amount=' + amount,
           cancelUrl: window.location.origin + window.location.pathname + '#/studio?payment=cancelled'
         })
@@ -2651,8 +2651,8 @@ const fetchUserCredits = useCallback(async (uid) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tier,
-          userId: user.uid,
-          userEmail: user.email,
+          userId: user?.uid,
+          userEmail: user?.email,
           successUrl: window.location.origin + '?payment=success',
           cancelUrl: window.location.origin + '?payment=cancelled'
         })
@@ -3329,7 +3329,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             // Industrial Strength Persistence: Save to User Profile
             if (user?.uid) {
               try {
-                const userRef = doc(db, 'users', user.uid);
+                const userRef = doc(db, 'users', user?.uid);
                 await updateDoc(userRef, {
                   [`${slot}DnaUrl`]: url,
                   lastDnaUpdate: Date.now()
@@ -3401,7 +3401,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             // Industrial Strength Persistence: Save to User Profile
             if (user?.uid) {
               try {
-                const userRef = doc(db, 'users', user.uid);
+                const userRef = doc(db, 'users', user?.uid);
                 await updateDoc(userRef, {
                   voiceSampleUrl: url,
                   lastVoiceUpdate: Date.now()
@@ -3511,9 +3511,9 @@ const fetchUserCredits = useCallback(async (uid) => {
     
     try {
       // DEDUCT CREDIT / TRACK FREE USE
-      if (isLoggedIn && !isAdmin) {
+      if (isLoggedIn && user && !isAdmin) {
         try {
-          const userRef = doc(db, "users", user.uid);
+          const userRef = doc(db, "users", user?.uid);
           await updateDoc(userRef, {
             credits: increment(-1)
           });
@@ -4614,7 +4614,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           }
         }
         
-        const response = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(String(projectId))}?userId=${encodeURIComponent(user.uid)}&projectName=${encodeURIComponent(projectName)}`, {
+        const response = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(String(projectId))}?userId=${encodeURIComponent(user?.uid || 'guest')}&projectName=${encodeURIComponent(projectName)}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -9064,7 +9064,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 // Save to cloud if logged in (uses backend API now)
                 if (isLoggedIn && user) {
                   console.log('[StudioView] Orchestrator: Saving to cloud for user:', user.uid);
-                  saveProjectToCloud(user.uid, project).then(success => {
+                  saveProjectToCloud(user?.uid, project).then(success => {
                     console.log('[StudioView] Orchestrator: Cloud save result:', success);
                   }).catch(err => {
                     console.error('[StudioView] Orchestrator: Cloud save error:', err);
@@ -9081,7 +9081,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               onDeleteProject={handleDeleteProject}
               onSaveProject={(project) => {
                 if (isLoggedIn && user) {
-                  return saveProjectToCloud(user.uid, project);
+                  return saveProjectToCloud(user?.uid, project);
                 }
                 return Promise.resolve(true);
               }}
@@ -10979,9 +10979,9 @@ const fetchUserCredits = useCallback(async (uid) => {
   // Demo mode state for banner visibility
   const [showDemoBanner, setShowDemoBanner] = useState(getDemoModeState());
 
-  // AUTH GATE: Show loading only if checking auth AND user wasn't previously logged in
-  // This prevents the loading flash for returning users
-  if (authChecking && !isLoggedIn) {
+  // AUTH GATE: Show loading screen only if checking auth AND user isn't ready yet
+  // This prevents crashes from race conditions whereLoggedIn is true but user state is null
+  if (authChecking && !user && !isGuestMode) {
     return (
       <div className={`studio-container ${theme}-theme`} style={{
         display: 'flex',
@@ -12435,7 +12435,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         
                         for (const project of projectsToSync) {
                           try {
-                            const success = await saveProjectToCloud(user.uid, project);
+                            const success = await saveProjectToCloud(user?.uid, project);
                             if (success) successCount++;
                           } catch (err) {
                             console.error(`Failed to sync project ${project.id}:`, err);
@@ -13633,7 +13633,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 setSelectedProject(finalProject);
                 
                 if (isLoggedIn && user) {
-                  saveProjectToCloud(user.uid, finalProject);
+                  saveProjectToCloud(user?.uid, finalProject);
                 }
               }
             }}
@@ -13704,7 +13704,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               // Save to cloud if user is logged in (uses backend API now)
               if (isLoggedIn && user) {
                 console.log(`[TRACE:${traceId}] Initiating cloud save for:`, finalProject.id);
-                saveProjectToCloud(user.uid, finalProject).then(success => {
+                saveProjectToCloud(user?.uid, finalProject).then(success => {
                   console.log(`[TRACE:${traceId}] Cloud save result:`, success);
                 }).catch(err => {
                   console.error(`[TRACE:${traceId}] Cloud save error:`, err);
