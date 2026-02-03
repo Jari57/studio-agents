@@ -780,13 +780,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Cloud sync state
   const [_projectsSyncing, setProjectsSyncing] = useState(false);
   const [_lastSyncTime, setLastSyncTime] = useState(null);
-  const syncTimeoutRef = useRef(null);
   
-  // REF for stable access to current user in callbacks (prevents stale closure)
-  const userRef = useRef(null);
-  
-  // NOTE: Function refs are now initialized earlier (line ~360) with safe fallbacks to prevent TDZ
-
   // Save a single project to Firestore via backend API
   async function saveProjectToCloud(uid, project) {
     const traceId = `SAVE-${Date.now()}`;
@@ -1064,7 +1058,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
     localStorage.setItem(`studio_help_${uid}`, helpSearch);
   }, [helpSearch, user?.uid]);
-  const [playingItem, setPlayingItem] = useState(null);
   
   // Preview Modal State (for reviewing AI generations before saving)
   
@@ -1140,13 +1133,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [quickWorkflowAgent, setQuickWorkflowAgent] = useState(null); // Streamlined agent workflow modal
 
   const [autoStartVoice, setAutoStartVoice] = useState(false);
-  const [selectedProject, setSelectedProject] = useState(() => {
-    const uid = localStorage.getItem('studio_user_id') || 'guest';
-    const savedId = localStorage.getItem(`studio_project_id_${uid}`);
-    // We'll need the projects already initialized to find it
-    // But projects is defined later. I'll move this or use an effect.
-    return null;
-  });
 
   // Effect to rehydrate selectedProject once projects are loaded
   useEffect(() => {
@@ -1362,18 +1348,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }, 50);
   };
   
-  // Audio refs to prevent re-render interruption
-  const previewAudioRef = useRef(null);
-  const canvasAudioRef = useRef(null);
-  
   // Transition guard ref (doesn't cause re-render)
   const isModalTransitioning = useRef(false);
   const previewDebounceTimer = useRef(null);
-
-  // Audio Export/Mastering State
-  const [showExportModal, setShowExportModal] = useState(null); // Stores audio item to export
-  const [exportPreset, setExportPreset] = useState('streaming');
-  const [isExporting, setIsExporting] = useState(false);
 
   // Add Asset to Project Modal State
   const [addToProjectAsset, setAddToProjectAsset] = useState(null); // Asset waiting to be added to project
@@ -1446,7 +1423,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setShowOnboarding(false); // Close wizard if open
     }
   }, [initialTab]);
-  const [systemStatus, setSystemStatus] = useState({ status: 'healthy', message: 'All Systems Operational' });
   
   // System Health Check
   useEffect(() => {
@@ -1475,8 +1451,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return () => clearInterval(interval);
   }, []);
 
-  // Handle initial plan from landing page - using ref to avoid TDZ
-  const handleSubscribeRef = useRef(null);
   // NOTE: handleTextToVoiceRef is initialized earlier (line ~360) with safe fallback
   useEffect(() => {
     if (initialPlan && handleSubscribeRef.current) {
@@ -2066,7 +2040,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   }, []);
 
   // 🔐 SESSION TIMEOUT - Auto logout after inactivity (security best practice)
-  const sessionTimeoutRef = useRef(null);
   
   const resetSessionTimeout = useCallback(() => {
     if (sessionTimeoutRef.current) {
@@ -2695,9 +2668,6 @@ const fetchUserCredits = useCallback(async (uid) => {
   checkoutRedirectRef.current = handleCheckoutRedirect;
 
   // --- PROFESSIONAL VOICE & TRANSLATION LOGIC (Whisperer-style) ---
-  
-  const recognitionRef = useRef(null);
-  const textareaRef = useRef(null);
   
   // Pending prompt to apply when agent view renders (for re-run functionality)
   const [pendingPrompt, setPendingPrompt] = useState(null);
