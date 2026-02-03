@@ -99,10 +99,8 @@ class ErrorBoundary extends React.Component {
             marginBottom: '24px',
             border: '2px solid rgba(239, 68, 68, 0.3)',
           }}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
           </div>
 
@@ -111,22 +109,22 @@ class ErrorBoundary extends React.Component {
             fontSize: '28px',
             fontWeight: '700',
             marginBottom: '12px',
-            background: 'linear-gradient(90deg, #fff, #a5b4fc)',
+            background: 'linear-gradient(90deg, #ff4d4d, #f97316)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
           }}>
-            Something went wrong
+            System Maintenance
           </h1>
           
           <p style={{
             fontSize: '16px',
             color: 'rgba(255, 255, 255, 0.7)',
-            maxWidth: '400px',
+            maxWidth: '430px',
             lineHeight: '1.6',
             marginBottom: '32px',
           }}>
-            We hit an unexpected error. Don't worry — your work is saved. 
-            Try refreshing the page or click retry below.
+            The Studio is currently undergoing critical updates or experiencing connectivity issues. 
+            We've saved your progress. Please try refreshing in a few moments.
           </p>
 
           {/* Buttons */}

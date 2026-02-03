@@ -1286,7 +1286,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 key={key} 
                 className={`agent-studio-card ${agent.colorClass} animate-fadeInUp haptic-press`}
                 style={{ animationDelay: `${i * 0.1}s`, position: 'relative' }}
-                onClick={() => handleCtaClick('agent', 'agents')}
+                onClick={() => handleCtaClick('agent', agent.id)}
               >
                 {/* Whitepaper Gear Button */}
                 <button
@@ -1331,7 +1331,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   className="agent-launch-btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleCtaClick('agent', 'agents');
+                    handleCtaClick('agent', agent.id);
                   }}
                 >
                   Launch Agent

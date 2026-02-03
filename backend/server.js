@@ -222,7 +222,7 @@ try {
   });
   
   // PRIORITY: Use hardcoded config (workaround for Railway env var issues)
-  if (FIREBASE_CONFIG && FIREBASE_PRIVATE_KEY_B64) {
+  if (!admin.apps.length && FIREBASE_CONFIG && FIREBASE_PRIVATE_KEY_B64) {
     const privateKeyDecoded = Buffer.from(FIREBASE_PRIVATE_KEY_B64, 'base64').toString('utf8');
     const serviceAccount = {
       ...FIREBASE_CONFIG,
@@ -233,7 +233,7 @@ try {
     });
     firebaseInitialized = true;
     logger.info('🔥 Firebase Admin initialized from hardcoded config');
-  } else if (serviceAccountBase64) {
+  } else if (!admin.apps.length && serviceAccountBase64) {
     // WORKAROUND: Decode base64-encoded service account (avoids special char issues)
     const decoded = Buffer.from(serviceAccountBase64, 'base64').toString('utf8');
     const serviceAccount = JSON.parse(decoded);
@@ -242,7 +242,7 @@ try {
     });
     firebaseInitialized = true;
     logger.info('🔥 Firebase Admin initialized from BASE64 environment variable');
-  } else if (serviceAccountJson) {
+  } else if (!admin.apps.length && serviceAccountJson) {
     // Parse JSON from environment variable (Railway/production)
     const serviceAccount = JSON.parse(serviceAccountJson);
     admin.initializeApp({
@@ -251,7 +251,7 @@ try {
 
     firebaseInitialized = true;
     logger.info('🔥 Firebase Admin initialized from JSON environment variable');
-  } else if (projectId && clientEmail && privateKey) {
+  } else if (!admin.apps.length && projectId && clientEmail && privateKey) {
     // Initialize from individual environment variables
     admin.initializeApp({
       credential: admin.credential.cert({
@@ -262,7 +262,7 @@ try {
     });
     firebaseInitialized = true;
     logger.info('🔥 Firebase Admin initialized from individual environment variables');
-  } else if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
+  } else if (!admin.apps.length && serviceAccountPath && fs.existsSync(serviceAccountPath)) {
     // Load from file path (local development)
     const serviceAccount = require(serviceAccountPath);
     admin.initializeApp({
@@ -270,6 +270,9 @@ try {
     });
     firebaseInitialized = true;
     logger.info('🔥 Firebase Admin initialized from file');
+  } else if (admin.apps.length) {
+    firebaseInitialized = true;
+    logger.info('🔥 Firebase Admin already initialized');
   } else {
     logger.warn('⚠️ Firebase Admin not configured - auth features disabled');
     logger.warn('   Set FIREBASE_SERVICE_ACCOUNT_BASE64 or FIREBASE_SERVICE_ACCOUNT (JSON)');
@@ -676,6 +679,7 @@ const allowedOrigins = isDevelopment
   'https://studioagentsai.com',
   'https://www.studioagentsai.com',
   'https://studio-agents.vercel.app',
+  'https://web-production-b5922.up.railway.app',
   process.env.FRONTEND_URL]
   : [
       process.env.FRONTEND_URL,
@@ -686,6 +690,7 @@ const allowedOrigins = isDevelopment
   'https://studioagentsai.com',
   'https://www.studioagentsai.com',
   'https://studio-agents.vercel.app',
+  'https://web-production-b5922.up.railway.app',
     ].filter(Boolean);
 
 app.use(cors({
@@ -2532,6 +2537,7 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
     const allowedModels = [
       'gemini-2.0-flash',
       'gemini-2.0-flash-exp',
+      'gemini-2.0-pro-exp-02-05',
       'gemini-1.5-flash',
       'gemini-1.5-flash-latest',
       'gemini-1.5-pro',
@@ -2708,11 +2714,8 @@ app.post('/api/orchestrate', verifyFirebaseToken, checkCreditsFor('orchestrate')
       return res.status(400).json({ error: 'Maximum 4 agent outputs allowed' });
     }
     
-    // Get user ID for saving
-    const userId = req.user?.uid;
-    if (!userId) {
-      return res.status(401).json({ error: 'Authentication required for orchestration' });
-    }
+    // Get user ID for orchestration (guest/anonymous access allowed for demo)
+    const userId = req.user?.uid || 'guest';
     
     logger.info('🎛️ AMO Orchestration request', { 
       userId, 
@@ -6236,9 +6239,11 @@ app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
   try {
     const db = getFirestoreDb();
     if (db) {
+      // Remove restrictive orderBy and increase limit to ensure all projects (like the user's 60+) are returned.
+      // Firebase orderBy('field') implicitly filters out documents that lack that field.
+      // We fetch all (up to 1000) and let the frontend handle the sorting by whichever timestamp is available.
       const snapshot = await db.collection('users').doc(targetUserId).collection('projects')
-        .orderBy('savedAt', 'desc')
-        .limit(50)
+        .limit(1000)
         .get();
       
       const projects = [];
@@ -6250,7 +6255,13 @@ app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
           // Convert Firestore Timestamp to ISO string for frontend compatibility
           savedAt: data.savedAt && typeof data.savedAt.toDate === 'function' 
             ? data.savedAt.toDate().toISOString() 
-            : data.savedAt
+            : data.savedAt,
+          updatedAt: data.updatedAt && typeof data.updatedAt.toDate === 'function'
+            ? data.updatedAt.toDate().toISOString()
+            : data.updatedAt,
+          createdAt: data.createdAt && typeof data.createdAt.toDate === 'function'
+            ? data.createdAt.toDate().toISOString()
+            : data.createdAt
         });
       });
       
@@ -6309,16 +6320,6 @@ app.delete('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
 // =============================================================================
 
 const HOST = '0.0.0.0'; // Bind to all interfaces for Railway
-const server = app.listen(PORT, HOST, () => {
-  logger.info('✅ Server started successfully', {
-    host: HOST,
-    port: PORT,
-    environment: NODE_ENV,
-    nodeVersion: process.version,
-    platform: process.platform
-  });
-  logger.info(`🚀 Uplink Ready at http://${HOST}:${PORT}`);
-});
 
 // ═══════════════════════════════════════════════════════════════════
 // SYNCED MUSIC VIDEO GENERATION ROUTES
@@ -6745,6 +6746,18 @@ app.use((err, req, res, _next) => {
     details: isDevelopment ? err.stack : undefined,
     requestId: req.id // If we used a request ID middleware
   });
+});
+
+// START SERVER
+const server = app.listen(PORT, HOST, () => {
+  logger.info('✅ Server started successfully', {
+    host: HOST,
+    port: PORT,
+    environment: NODE_ENV,
+    nodeVersion: process.version,
+    platform: process.platform
+  });
+  logger.info(`🚀 Uplink Ready at http://${HOST}:${PORT}`);
 });
 
 // Graceful shutdown handlers

@@ -273,7 +273,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const getTabFromHash = () => {
     const hash = window.location.hash;
     if (hash.startsWith('#/studio/')) {
-      return hash.split('/')[2];
+      const tab = hash.split('/')[2];
+      // If it's a direct agent ID, return 'agents' as the tab
+      if (AGENTS && AGENTS.some(a => a.id === tab)) {
+        return 'agents';
+      }
+      return tab;
     }
     // FALLBACK: Check localStorage for last active tab before defaulting to 'agents'
     const lastTab = localStorage.getItem('studio_active_tab');
@@ -285,7 +290,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   const [activeTab, _setActiveTab] = useState(() => {
     const hash = window.location.hash;
-    if (hash.startsWith('#/studio/')) return hash.split('/')[2];
+    if (hash.startsWith('#/studio/')) {
+      const tab = hash.split('/')[2];
+      if (AGENTS && AGENTS.some(a => a.id === tab)) {
+        return 'agents';
+      }
+      return tab;
+    }
     
     // Use namespaced key
     const uid = localStorage.getItem('studio_user_id') || 'guest';
@@ -308,14 +319,25 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
-      const newTab = hash.startsWith('#/studio/') ? hash.split('/')[2] : 'resources';
-      if (newTab !== activeTab) {
-        _setActiveTab(newTab);
+      if (!hash.startsWith('#/studio/')) return;
+      
+      const parts = hash.split('/');
+      const tabOrId = parts[2] || 'resources';
+      
+      // Check if it's an agent ID
+      const agent = AGENTS.find(a => a.id === tabOrId);
+      if (agent) {
+        if (activeTab !== 'agents') _setActiveTab('agents');
+        if (selectedAgent?.id !== agent.id) setSelectedAgent(agent);
+      } else {
+        if (tabOrId !== activeTab) {
+          _setActiveTab(tabOrId);
+        }
       }
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [activeTab]);
+  }, [activeTab, selectedAgent]);
 
   // Custom setter that updates URL
   const setActiveTab = (tab) => {
@@ -337,6 +359,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   );
   const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
   const [selectedAgent, setSelectedAgent] = useState(() => {
+    // Priority 1: Check hash for direct agent link
+    const hash = window.location.hash;
+    if (hash.startsWith('#/studio/')) {
+      const tabOrId = hash.split('/')[2];
+      const agent = AGENTS.find(a => a.id === tabOrId);
+      if (agent) return agent;
+    }
+
+    // Priority 2: localStorage fallback
     const uid = localStorage.getItem('studio_user_id') || 'guest';
     const savedId = localStorage.getItem(`studio_agent_${uid}`);
     if (savedId && AGENTS) {
@@ -1250,8 +1281,25 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   // If initialTab prop is provided, navigate to that tab on mount
   useEffect(() => {
-    if (initialTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'].includes(initialTab)) {
+    if (!initialTab) return;
+    
+    console.log('[StudioView] Deep link check - initialTab:', initialTab);
+    
+    // 1. Handle standard top-level tabs
+    const standardTabs = ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub'];
+    if (standardTabs.includes(initialTab)) {
       setActiveTab(initialTab);
+      return;
+    } 
+    
+    // 2. Handle deep-linking to specific agents (IDs like 'ghost', 'beat', 'album', etc.)
+    // This allows landing page cards (which pass the agent ID) to open the specific agent workspace.
+    const foundAgent = AGENTS?.find(a => a.id === initialTab);
+    if (foundAgent) {
+      console.log('[StudioView] Deep linking to agent:', foundAgent.name);
+      setSelectedAgent(foundAgent);
+      setActiveTab('agents');
+      setShowOnboarding(false); // Close wizard if open
     }
   }, [initialTab]);
   const [systemStatus, setSystemStatus] = useState({ status: 'healthy', message: 'All Systems Operational' });
@@ -3386,13 +3434,13 @@ const fetchUserCredits = useCallback(async (uid) => {
     // Demo mode - return mock response without hitting API
     if (getDemoModeState()) {
       setIsGenerating(true);
-      const toastId = toast.loading(`${selectedAgent.name} is working... (Demo Mode)`);
+      const toastId = toast.loading(`${targetAgentSnapshot.name} is working... (Demo Mode)`);
       try {
-        const mockOutput = await getMockResponse(selectedAgent.id, textarea.value);
+        const mockOutput = await getMockResponse(targetAgentSnapshot.id, textarea.value);
         // Store demo result in agent previews cache
         setAgentPreviews(prev => ({
           ...prev,
-          [selectedAgent.id]: {
+          [targetAgentSnapshot.id]: {
             output: mockOutput,
             timestamp: Date.now(),
             isDemo: true
@@ -3645,11 +3693,11 @@ const fetchUserCredits = useCallback(async (uid) => {
       // Handle different response types
       let newItem = {
         id: String(Date.now()),
-        title: `${selectedAgent?.name || 'AI'} Result`,
-        type: selectedAgent?.category || 'text',
-        agent: selectedAgent?.name || 'Unknown Agent',
+        title: `${targetAgentSnapshot?.name || 'AI'} Result`,
+        type: targetAgentSnapshot?.category || 'text',
+        agent: targetAgentSnapshot?.name || 'Unknown Agent',
         date: 'Just now',
-        color: selectedAgent?.colorClass || '',
+        color: targetAgentSnapshot?.colorClass || '',
         snippet: prompt, // Default snippet is the prompt
         projectSnapshot: targetProjectSnapshot // Preserve context for saving
       };
@@ -3889,11 +3937,11 @@ const fetchUserCredits = useCallback(async (uid) => {
       safeOpenGenerationPreview(newItem);
       setPreviewPrompt(prompt);
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
-      setAgentPreviews(prev => ({ ...prev, [selectedAgent.id]: newItem }));
+      setAgentPreviews(prev => ({ ...prev, [targetAgentSnapshot.id]: newItem }));
       toast.success(`Generation complete! Review your result.`, { id: toastId });
       
       // Track successful generation
-      Analytics.contentGenerated(selectedAgent.id, newItem.type || 'text');
+      Analytics.contentGenerated(targetAgentSnapshot.id, newItem.type || 'text');
 
     } catch (error) {
       console.error("Generation error", error);
@@ -9410,6 +9458,8 @@ const fetchUserCredits = useCallback(async (uid) => {
           { id: 'mystudio', icon: Folder, label: 'My Studio', desc: 'Projects & assets', color: 'var(--color-cyan)' },
           { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-pink)' },
           { id: 'news', icon: GlobeIcon, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-emerald)' },
+          { id: 'whitepapers', icon: FileText, label: 'Whitepapers', desc: 'Technical documentation', color: 'var(--color-indigo)' },
+          { id: 'legal', icon: Shield, label: 'Legal Center', desc: 'Terms & licensing', color: 'var(--color-red)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-orange)' },
           { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-yellow)' },
           { id: 'hub', icon: FolderPlus, label: 'Project Hub', desc: 'Shared by Studio Agent users', color: 'var(--color-blue)' },
@@ -9423,10 +9473,10 @@ const fetchUserCredits = useCallback(async (uid) => {
               <p>Quick access to all studio features and tools.</p>
             </div>
 
-            {/* Quick Navigation Cards - 4x4 on desktop, 2x2 on mobile */}
+            {/* Quick Navigation Cards - 5x2 on desktop, 2x5 on mobile */}
             <div className="resources-cards-grid" style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(4, 1fr)', 
+              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)', 
               gap: '20px',
               marginBottom: '32px'
             }}>
@@ -9435,7 +9485,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => {
+                      if (item.id === 'legal' || item.id === 'whitepapers') {
+                        window.location.hash = `#/${item.id}`;
+                      } else {
+                        setActiveTab(item.id);
+                      }
+                    }}
                     role="button"
                     tabIndex={0}
                     className="haptic-press"
@@ -9550,6 +9606,61 @@ const fetchUserCredits = useCallback(async (uid) => {
                   background: 'radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, rgba(0,0,0,0) 70%)', 
                   borderRadius: '50%' 
                 }}></div>
+              </div>
+            </section>
+
+            {/* Meet the Agents Section - Deep Linking enabled */}
+            <section className="marketing-section" style={{ padding: '0 20px 60px' }}>
+              <div className="section-header" style={{ marginBottom: '30px' }}>
+                <h2 style={{ fontSize: '2rem', marginBottom: '10px' }}>The Specialized AI Team</h2>
+                <div style={{ width: '60px', height: '4px', background: 'var(--color-cyan)', borderRadius: '2px' }}></div>
+                <p style={{ marginTop: '12px', color: 'var(--text-secondary)' }}>Click any agent to launch their specialized workspace</p>
+              </div>
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+                gap: '16px' 
+              }}>
+                {(AGENTS || []).slice(0, 8).map(agent => {
+                  const Icon = agent.icon || Sparkles;
+                  return (
+                    <div 
+                      key={agent.id}
+                      className={`agent-info-card-slim animate-fadeInUp haptic-press`}
+                      onClick={() => {
+                        setSelectedAgent(agent);
+                        setActiveTab('agents');
+                        window.scrollTo(0, 0);
+                      }}
+                      style={{
+                        background: 'var(--card-bg)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '20px',
+                        padding: '24px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '16px',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div className={`agent-icon-mini ${agent.colorClass}`} style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}>
+                        <Icon size={28} />
+                      </div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700' }}>{agent.name}</h3>
+                        <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{agent.category}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
@@ -10558,6 +10669,8 @@ const fetchUserCredits = useCallback(async (uid) => {
         const moreMenuItems = [
           { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-purple)' },
           { id: 'news', icon: GlobeIcon, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
+          { id: 'whitepapers', icon: FileText, label: 'Whitepapers', desc: 'Technical documentation', color: 'var(--color-indigo)' },
+          { id: 'legal', icon: Shield, label: 'Legal Center', desc: 'Terms & licensing', color: 'var(--color-red)' },
           { id: 'resources', icon: Book, label: 'Resources', desc: 'Guides & tutorials', color: 'var(--color-orange)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-pink)' },
           { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-emerald)' },
@@ -10579,7 +10692,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => {
+                      if (item.id === 'legal' || item.id === 'whitepapers') {
+                        window.location.hash = `#/${item.id}`;
+                      } else {
+                        setActiveTab(item.id);
+                      }
+                    }}
                     role="button"
                     tabIndex={0}
                     style={{
