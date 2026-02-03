@@ -2716,6 +2716,9 @@ app.post('/api/orchestrate', verifyFirebaseToken, _requireAuth, checkCreditsFor(
     
     // Get user ID for orchestration (authentication required)
     const userId = req.user?.uid;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required for orchestration' });
+    }
     
     logger.info('🎛️ AMO Orchestration request', { 
       userId, 
