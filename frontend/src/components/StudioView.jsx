@@ -5,6 +5,32 @@ import {
   Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers
 } from 'lucide-react';
 import { useSafeAsync } from '../hooks/useSafeAsync';
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
+import toast, { Toaster } from 'react-hot-toast';
+import { 
+  auth, 
+  db, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  increment,
+  uploadFile,
+  uploadBase64
+  // Note: collection, getDocs, query, orderBy, deleteDoc moved to backend API
+} from '../firebase';
+import { AGENTS, BACKEND_URL } from '../constants';
+import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
+import { Analytics, trackPageView } from '../utils/analytics';
+import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
 const Users = UsersIcon;
 const ImageIconComponent = ImageIcon;
@@ -173,33 +199,6 @@ const LazyFallback = () => (
     Loading...
   </div>
 );
-
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
-import toast, { Toaster } from 'react-hot-toast';
-import { 
-  auth, 
-  db, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut, 
-  onAuthStateChanged,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-  sendEmailVerification,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  increment,
-  uploadFile,
-  uploadBase64
-  // Note: collection, getDocs, query, orderBy, deleteDoc moved to backend API
-} from '../firebase';
-import { AGENTS, BACKEND_URL } from '../constants';
-import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
-import { Analytics, trackPageView } from '../utils/analytics';
-import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
 // --- CONSTANTS FOR ONBOARDING & SUPPORT ---
 
@@ -600,7 +599,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       const uid = localStorage.getItem('studio_user_id') || 'guest';
       const saved = localStorage.getItem(`studio_projects_${uid}`) || localStorage.getItem('studio_agents_projects');
       if (saved) {
-        const parsed = JSON.parse(saved);
+        let parsed = JSON.parse(saved);
+        
+        // STABILITY FIX: Ensure parsed is an array
+        if (!Array.isArray(parsed)) {
+          console.warn('[StudioView] projects is not an array, resetting');
+          return [];
+        }
+
         // Sort by updatedAt/createdAt descending (newest first)
         return parsed.sort((a, b) => {
           const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
@@ -610,6 +616,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
       return [];
     } catch (_e) {
+      console.error('[StudioView] Failed to parse projects from localStorage', _e);
       return [];
     }
   });
@@ -4744,11 +4751,21 @@ const fetchUserCredits = useCallback(async (uid) => {
 
   const filteredNews = useMemo(() => {
     if (activeTab !== 'news') return [];
-    return newsArticles.filter(item => 
-      item.title.toLowerCase().includes(newsSearch.toLowerCase()) ||
-      item.source.toLowerCase().includes(newsSearch.toLowerCase()) ||
-      item.content.toLowerCase().includes(newsSearch.toLowerCase())
-    );
+    if (!Array.isArray(newsArticles)) return [];
+    
+    const searchLower = (newsSearch || '').toLowerCase();
+    
+    return newsArticles.filter(item => {
+      if (!item) return false;
+      
+      const title = (item.title || '').toLowerCase();
+      const source = (item.source || '').toLowerCase();
+      const content = (item.content || '').toLowerCase();
+      
+      return title.includes(searchLower) ||
+             source.includes(searchLower) ||
+             content.includes(searchLower);
+    });
   }, [activeTab, newsArticles, newsSearch]);
 
   const handleRefreshNews = () => {
@@ -8475,14 +8492,18 @@ const fetchUserCredits = useCallback(async (uid) => {
                         let relevantItems = [];
                         
                         if (selectedProject && Array.isArray(selectedProject.assets)) {
-                          relevantItems = selectedProject.assets.filter(a => 
-                            a.agent === selectedAgent.name || 
-                            a.agent === selectedAgent.id ||
-                            (a.type && selectedAgent.category && a.type.toLowerCase() === selectedAgent.category.toLowerCase())
-                          );
+                          relevantItems = selectedProject.assets.filter(a => {
+                            if (!a) return false;
+                            
+                            const agentMatch = a.agent === selectedAgent.name || a.agent === selectedAgent.id;
+                            const categoryMatch = a.type && selectedAgent.category && 
+                                               a.type.toLowerCase() === selectedAgent.category.toLowerCase();
+                            
+                            return agentMatch || categoryMatch;
+                          });
                         } else {
                           // Fallback to searching all projects for this agent's name
-                          relevantItems = (projects || []).filter(p => p.agent === selectedAgent.name).slice(0, 3);
+                          relevantItems = (projects || []).filter(p => p && p.agent === selectedAgent.name).slice(0, 3);
                         }
                         
                         if (relevantItems.length > 0) {
