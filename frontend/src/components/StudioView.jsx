@@ -238,6 +238,157 @@ const goalOptions = [
   { id: 'explore', label: "Just exploring", description: "Discover what's possible", icon: Sparkles, agents: [] }
 ];
 
+// Project configuration and costs
+const PROJECT_CATEGORIES = [
+  { id: 'pro', label: 'Pro Studio', icon: Crown, desc: 'Full production suite', color: 'var(--color-purple)' },
+  { id: 'vybing', label: 'Vybing', icon: Music, desc: 'Quick beat ideas', color: 'var(--color-cyan)' },
+  { id: 'mixtapes', label: 'Mixtapes', icon: Disc, desc: 'Curated playlists', color: 'var(--color-orange)' },
+  { id: 'video', label: 'Video', icon: VideoIcon, desc: 'Visual content', color: 'var(--color-pink)' },
+  { id: 'scores', label: 'Scores', icon: FileMusic, desc: 'Cinematic composition', color: 'var(--color-emerald)' },
+  { id: 'moves', label: 'Moves', icon: Activity, desc: 'Dance & Choreo', color: 'var(--color-yellow)' },
+  { id: 'music_videos', label: 'Music Videos', icon: Film, desc: 'Full production clips', color: 'var(--color-red)' },
+  { id: 'social', label: 'Social Brand', icon: Share2, desc: 'Grow your audience', color: 'var(--color-blue)' }
+];
+
+const PROJECT_CREDIT_COST = 2;
+
+// Voice Command Definitions for Whisperer-style UI
+const VOICE_COMMANDS = [
+  { command: 'open [agent]', description: 'Launch an agent', example: '"Open Ghostwriter"', category: 'Navigation' },
+  { command: 'go to [section]', description: 'Navigate to dashboard, hub, news, agents', example: '"Go to hub"', category: 'Navigation' },
+  { command: 'generate', description: 'Start generation with current prompt', example: '"Generate"', category: 'Actions' },
+  { command: 'clear', description: 'Clear the prompt', example: '"Clear prompt"', category: 'Actions' },
+  { command: 'read back', description: 'Read the prompt aloud', example: '"Read back"', category: 'Actions' },
+  { command: 'reference [type] DNA', description: 'Upload visual/audio/lyrics DNA', example: '"Reference visual DNA"', category: 'Creation' },
+  { command: 'set genre to [genre]', description: 'Change musical genre', example: '"Set genre to Country"', category: 'Settings' },
+  { command: 'set duration to [time]', description: 'Change generation length', example: '"Set duration to 1 minute"', category: 'Settings' },
+  { command: 'switch theme', description: 'Toggle dark/light mode', example: '"Switch theme"', category: 'Settings' },
+  { command: 'stop', description: 'Stop listening', example: '"Stop listening"', category: 'Voice' }
+];
+
+const FREE_GENERATION_LIMIT = 3;
+
+// Model Picker State - Available AI Models
+const AI_MODELS = [
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Fastest responses, great for quick tasks', tier: 'free', speed: '⚡⚡⚡', quality: '★★★☆' },
+  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: 'Ultra-fast, cost-effective', tier: 'free', speed: '⚡⚡⚡⚡', quality: '★★☆☆' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Best quality for complex prompts', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Balanced speed and quality', tier: 'free', speed: '⚡⚡⚡', quality: '★★★☆' },
+  { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', provider: 'Google', description: 'Lightweight, efficient', tier: 'free', speed: '⚡⚡⚡⚡', quality: '★★☆☆' },
+  { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (Preview)', provider: 'Google', description: 'Latest capabilities, experimental', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+  { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (Preview)', provider: 'Google', description: 'Next-gen speed + quality', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent for creative writing', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+  { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Fast and capable', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Multimodal powerhouse', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Affordable GPT-4 class', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'High capability, larger context', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
+  { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta', description: 'Open-source powerhouse', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
+  { id: 'llama-3.2-90b-vision', name: 'Llama 3.2 90B Vision', provider: 'Meta', description: 'Multimodal open model', tier: 'pro', speed: '⚡', quality: '★★★★' },
+  { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'European excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
+  { id: 'codestral', name: 'Codestral', provider: 'Mistral', description: 'Optimized for code generation', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
+  { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', description: 'Cost-effective reasoning', tier: 'free', speed: '⚡⚡⚡', quality: '★★★★' },
+  { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Multilingual excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' }
+];
+
+// 🔐 SESSION TIMEOUT - Auto logout after inactivity (security best practice)
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+
+const HELP_ITEMS = [
+  { 
+    icon: Book, 
+    title: 'Getting Started', 
+    desc: 'Learn the basics of the Studio Agents workflow.',
+    details: 'To get started, select an agent from the "Agents" tab. Each agent specializes in a different part of the music creation process. For example, Ghostwriter can help you write lyrics, while Beat Lab can generate drum patterns. Once you\'ve selected an agent, enter a prompt describing what you want to create. You can then save your creation as a new project, which will appear in your Project Hub for later recall.'
+  },
+  { 
+    icon: Zap, 
+    title: 'Agent Mastery', 
+    desc: 'Deep dives into each agent\'s unique capabilities.',
+    details: 'Mastering our agents requires understanding their specific strengths. Ghostwriter responds best to emotional cues and genre-specific keywords. Album Artist can interpret complex visual metaphors. Trend Hunter scans real-time social data to give you a competitive edge. Experiment with different "Intensity" settings to see how the AI\'s creativity shifts from subtle to experimental.'
+  },
+  { 
+    icon: PlayCircle, 
+    title: 'Video Tutorials', 
+    desc: 'Watch step-by-step guides on making hits.',
+    details: 'Our video library includes tutorials on: "Writing Your First Hit with Ghostwriter", "Advanced Beat Making with Beat Lab", and "Strategic Rollouts with Release Manager". Each video is under 5 minutes and designed to get you creating immediately. Pro members get access to exclusive masterclasses from industry-leading producers who use Studio Agents in their daily workflow.'
+  },
+  { 
+    icon: MessageSquare, 
+    title: 'Community Tips', 
+    desc: 'See how other creators are using the studio.',
+    details: 'Join our Discord community and check out the "Activity Wall" to share prompts, collaborate with other creators, and get feedback on your AI-assisted tracks. Many users have found success by combining outputs from multiple agents—for example, using Ghostwriter for lyrics and then feeding those lyrics into a vocal synth. The possibilities are endless when you collaborate with the community.'
+  }
+];
+
+const TROUBLESHOOTING_GUIDE = [
+  {
+    keywords: ['download', 'save', 'export', 'phone', 'photos'],
+    issue: 'Cannot download or save to device',
+    solution: 'Ensure you have granted storage permissions to your browser. On mobile, long-press the image or use the "Save to Files" option in the share menu. If using cloud storage, verify your Google Drive or OneDrive connection is active.'
+  },
+  {
+    keywords: ['audio', 'sound', 'hear', 'play', 'silent'],
+    issue: 'No sound during playback',
+    solution: 'Check if your device is on silent mode. Ensure the volume slider in the Media Player is turned up. Some browsers block auto-play audio; try clicking the play button manually.'
+  },
+  {
+    keywords: ['slow', 'stuck', 'loading', 'generate', 'wait'],
+    issue: 'Generation is taking too long',
+    solution: 'High-quality models like Imagen 3 and Veo can take up to 30 seconds. Check your internet connection. If the progress bar is stuck, try refreshing the page; your project will be saved in the Project Hub.'
+  },
+  {
+    keywords: ['login', 'account', 'pro', 'subscription', 'access'],
+    issue: 'Cannot access Pro agents',
+    solution: 'Pro agents require an active Studio Pro subscription. Ensure you are logged in with the correct account. If you just subscribed, try logging out and back in to refresh your status.'
+  },
+  {
+    keywords: ['voice', 'mic', 'microphone', 'speak', 'listen', 'gender', 'male', 'female', 'accent', 'translate', 'language'],
+    issue: 'Voice controls and translation settings',
+    solution: 'Use the Mic icon for Voice-to-Text and the Speaker icon for Text-to-Voice. Click the Settings (gear) icon to change voice gender (Male/Female), region (US/UK/AU/IN), or to enable automatic translation to your preferred language.'
+  },
+  {
+    keywords: ['privacy', 'data', 'security', 'safe', 'private'],
+    issue: 'Is my data and music private?',
+    solution: 'Yes. We use end-to-end encryption for your prompts and creations. We do not share your personal studio data with third parties or use it to train public models without your permission.'
+  },
+  {
+    keywords: ['copyright', 'rights', 'own', 'legal', 'truth'],
+    issue: 'Do I own the AI-generated music?',
+    solution: 'You own the rights to the output you generate. However, for full copyright protection, we recommend adding human elements (vocals, live instruments) to make the work uniquely yours.'
+  },
+  {
+    keywords: ['quality', 'professional', 'pro', 'industry', 'standard'],
+    issue: 'How to get professional quality results?',
+    solution: 'Use high-quality reference tracks, layer AI stems with live recordings, and always perform a final manual mix. Our Mastering Lab agent can help with the final industry-standard polish.'
+  },
+  {
+    keywords: ['multi', 'agent', 'chain', 'workflow', 'project', 'pro'],
+    issue: 'How to use multiple agents in one project?',
+    solution: 'Pro users can "chain" agents by taking the output of one (e.g., Ghostwriter lyrics) and feeding it into another (e.g., Vocal Architect). Check "The Come Up" section for detailed Multi-Agent Workflow guides.'
+  }
+];
+
+const NAVIGATION_ITEMS_STATIC = [
+  { keywords: ['billing', 'payment', 'card', 'subscription', 'plan', 'wallet', 'money', 'cost', 'price'], label: 'Billing & Wallet', type: 'mystudio', sub: 'billing' },
+  { keywords: ['settings', 'config', 'preferences', 'dark mode', 'theme', 'language', 'voice'], label: 'App Settings', type: 'mystudio', sub: 'settings' },
+  { keywords: ['profile', 'account', 'user', 'avatar', 'login', 'logout', 'email'], label: 'User Profile', type: 'mystudio', sub: 'overview' },
+  { keywords: ['news', 'feed', 'updates', 'industry', 'trends', 'pulse'], label: 'Industry Pulse', type: 'news' },
+  { keywords: ['hub', 'projects', 'files', 'saved', 'library', 'creations'], label: 'Project Hub', type: 'hub' },
+  { keywords: ['activity', 'wall', 'community', 'share', 'feed', 'music', 'hub', 'trends', 'audio', 'creations'], label: 'Music Hub', type: 'activity' },
+  { keywords: ['agents', 'tools', 'create', 'make', 'generate'], label: 'Agent Studio', type: 'agents' }
+];
+
+const MORE_MENU_ITEMS = [
+  { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-purple)' },
+  { id: 'news', icon: GlobeIcon, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
+  { id: 'whitepapers', icon: FileText, label: 'Whitepapers', desc: 'Technical documentation', color: 'var(--color-indigo)' },
+  { id: 'legal', icon: Shield, label: 'Legal Center', desc: 'Terms & licensing', color: 'var(--color-red)' },
+  { id: 'resources', icon: Book, label: 'Resources', desc: 'Guides & tutorials', color: 'var(--color-orange)' },
+  { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-pink)' },
+  { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-emerald)' },
+  { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-yellow)' },
+];
+
 // Helper: Get relative time since date
 const getTimeSince = (date) => {
   const now = new Date();
@@ -915,18 +1066,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   });
   
   // Voice Command Definitions for Whisperer-style UI
-  const VOICE_COMMANDS = [
-    { command: 'open [agent]', description: 'Launch an agent', example: '"Open Ghostwriter"', category: 'Navigation' },
-    { command: 'go to [section]', description: 'Navigate to dashboard, hub, news, agents', example: '"Go to hub"', category: 'Navigation' },
-    { command: 'generate', description: 'Start generation with current prompt', example: '"Generate"', category: 'Actions' },
-    { command: 'clear', description: 'Clear the prompt', example: '"Clear prompt"', category: 'Actions' },
-    { command: 'read back', description: 'Read the prompt aloud', example: '"Read back"', category: 'Actions' },
-    { command: 'reference [type] DNA', description: 'Upload visual/audio/lyrics DNA', example: '"Reference visual DNA"', category: 'Creation' },
-    { command: 'set genre to [genre]', description: 'Change musical genre', example: '"Set genre to Country"', category: 'Settings' },
-    { command: 'set duration to [time]', description: 'Change generation length', example: '"Set duration to 1 minute"', category: 'Settings' },
-    { command: 'switch theme', description: 'Toggle dark/light mode', example: '"Switch theme"', category: 'Settings' },
-    { command: 'stop', description: 'Stop listening', example: '"Stop listening"', category: 'Voice' }
-  ];
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
   // user state moved to top of component (before cloud sync useEffect)
@@ -937,7 +1076,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const stored = localStorage.getItem('studio_free_generations');
     return stored ? parseInt(stored, 10) : 0;
   });
-  const FREE_GENERATION_LIMIT = 3;
   
   // Persist free generations
   useEffect(() => {
@@ -1251,26 +1389,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   // Model Picker State - Available AI Models
   const [selectedModel, setSelectedModel] = useState('gemini-2.0-flash');
-  const AI_MODELS = [
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Fastest responses, great for quick tasks', tier: 'free', speed: '⚡⚡⚡', quality: '★★★☆' },
-    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: 'Ultra-fast, cost-effective', tier: 'free', speed: '⚡⚡⚡⚡', quality: '★★☆☆' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Best quality for complex prompts', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Balanced speed and quality', tier: 'free', speed: '⚡⚡⚡', quality: '★★★☆' },
-    { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', provider: 'Google', description: 'Lightweight, efficient', tier: 'free', speed: '⚡⚡⚡⚡', quality: '★★☆☆' },
-    { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (Preview)', provider: 'Google', description: 'Latest capabilities, experimental', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
-    { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (Preview)', provider: 'Google', description: 'Next-gen speed + quality', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
-    { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent for creative writing', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
-    { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Fast and capable', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
-    { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Multimodal powerhouse', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Affordable GPT-4 class', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
-    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'High capability, larger context', tier: 'pro', speed: '⚡⚡', quality: '★★★★★' },
-    { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta', description: 'Open-source powerhouse', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
-    { id: 'llama-3.2-90b-vision', name: 'Llama 3.2 90B Vision', provider: 'Meta', description: 'Multimodal open model', tier: 'pro', speed: '⚡', quality: '★★★★' },
-    { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'European excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' },
-    { id: 'codestral', name: 'Codestral', provider: 'Mistral', description: 'Optimized for code generation', tier: 'pro', speed: '⚡⚡⚡', quality: '★★★★' },
-    { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', description: 'Cost-effective reasoning', tier: 'free', speed: '⚡⚡⚡', quality: '★★★★' },
-    { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Multilingual excellence', tier: 'pro', speed: '⚡⚡', quality: '★★★★' }
-  ];
 
   // Check for first visit
   useEffect(() => {
@@ -1433,19 +1551,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     socialBio: '',
     socialPlatform: 'instagram'
   });
-
-  const PROJECT_CATEGORIES = [
-    { id: 'pro', label: 'Pro Studio', icon: Crown, desc: 'Full production suite', color: 'var(--color-purple)' },
-    { id: 'vybing', label: 'Vybing', icon: Music, desc: 'Quick beat ideas', color: 'var(--color-cyan)' },
-    { id: 'mixtapes', label: 'Mixtapes', icon: Disc, desc: 'Curated playlists', color: 'var(--color-orange)' },
-    { id: 'video', label: 'Video', icon: VideoIcon, desc: 'Visual content', color: 'var(--color-pink)' },
-    { id: 'scores', label: 'Scores', icon: FileMusic, desc: 'Cinematic composition', color: 'var(--color-emerald)' },
-    { id: 'moves', label: 'Moves', icon: Activity, desc: 'Dance & Choreo', color: 'var(--color-yellow)' },
-    { id: 'music_videos', label: 'Music Videos', icon: Film, desc: 'Full production clips', color: 'var(--color-red)' },
-    { id: 'social', label: 'Social Brand', icon: Share2, desc: 'Grow your audience', color: 'var(--color-blue)' }
-  ];
-
-  const PROJECT_CREDIT_COST = 2;
 
   const handleCreateProject = () => {
     console.log('[CreateProject] Starting with data:', newProjectData);
@@ -1969,7 +2074,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   }, []);
 
   // 🔐 SESSION TIMEOUT - Auto logout after inactivity (security best practice)
-  const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
   const sessionTimeoutRef = useRef(null);
   
   const resetSessionTimeout = useCallback(() => {
@@ -10433,95 +10537,10 @@ const fetchUserCredits = useCallback(async (uid) => {
         );
 
       case 'support': {
-        const HELP_ITEMS = [
-          { 
-            icon: Book, 
-            title: 'Getting Started', 
-            desc: 'Learn the basics of the Studio Agents workflow.',
-            details: 'To get started, select an agent from the "Agents" tab. Each agent specializes in a different part of the music creation process. For example, Ghostwriter can help you write lyrics, while Beat Lab can generate drum patterns. Once you\'ve selected an agent, enter a prompt describing what you want to create. You can then save your creation as a new project, which will appear in your Project Hub for later recall.'
-          },
-          { 
-            icon: Zap, 
-            title: 'Agent Mastery', 
-            desc: 'Deep dives into each agent\'s unique capabilities.',
-            details: 'Mastering our agents requires understanding their specific strengths. Ghostwriter responds best to emotional cues and genre-specific keywords. Album Artist can interpret complex visual metaphors. Trend Hunter scans real-time social data to give you a competitive edge. Experiment with different "Intensity" settings to see how the AI\'s creativity shifts from subtle to experimental.'
-          },
-          { 
-            icon: PlayCircle, 
-            title: 'Video Tutorials', 
-            desc: 'Watch step-by-step guides on making hits.',
-            details: 'Our video library includes tutorials on: "Writing Your First Hit with Ghostwriter", "Advanced Beat Making with Beat Lab", and "Strategic Rollouts with Release Manager". Each video is under 5 minutes and designed to get you creating immediately. Pro members get access to exclusive masterclasses from industry-leading producers who use Studio Agents in their daily workflow.'
-          },
-          { 
-            icon: MessageSquare, 
-            title: 'Community Tips', 
-            desc: 'See how other creators are using the studio.',
-            details: 'Join our Discord community and check out the "Activity Wall" to share prompts, collaborate with other creators, and get feedback on your AI-assisted tracks. Many users have found success by combining outputs from multiple agents—for example, using Ghostwriter for lyrics and then feeding those lyrics into a vocal synth. The possibilities are endless when you collaborate with the community.'
-          }
-        ];
-
-        const TROUBLESHOOTING_GUIDE = [
-          {
-            keywords: ['download', 'save', 'export', 'phone', 'photos'],
-            issue: 'Cannot download or save to device',
-            solution: 'Ensure you have granted storage permissions to your browser. On mobile, long-press the image or use the "Save to Files" option in the share menu. If using cloud storage, verify your Google Drive or OneDrive connection is active.'
-          },
-          {
-            keywords: ['audio', 'sound', 'hear', 'play', 'silent'],
-            issue: 'No sound during playback',
-            solution: 'Check if your device is on silent mode. Ensure the volume slider in the Media Player is turned up. Some browsers block auto-play audio; try clicking the play button manually.'
-          },
-          {
-            keywords: ['slow', 'stuck', 'loading', 'generate', 'wait'],
-            issue: 'Generation is taking too long',
-            solution: 'High-quality models like Imagen 3 and Veo can take up to 30 seconds. Check your internet connection. If the progress bar is stuck, try refreshing the page; your project will be saved in the Project Hub.'
-          },
-          {
-            keywords: ['login', 'account', 'pro', 'subscription', 'access'],
-            issue: 'Cannot access Pro agents',
-            solution: 'Pro agents require an active Studio Pro subscription. Ensure you are logged in with the correct account. If you just subscribed, try logging out and back in to refresh your status.'
-          },
-          {
-            keywords: ['voice', 'mic', 'microphone', 'speak', 'listen', 'gender', 'male', 'female', 'accent', 'translate', 'language'],
-            issue: 'Voice controls and translation settings',
-            solution: 'Use the Mic icon for Voice-to-Text and the Speaker icon for Text-to-Voice. Click the Settings (gear) icon to change voice gender (Male/Female), region (US/UK/AU/IN), or to enable automatic translation to your preferred language.'
-          },
-          {
-            keywords: ['privacy', 'data', 'security', 'safe', 'private'],
-            issue: 'Is my data and music private?',
-            solution: 'Yes. We use end-to-end encryption for your prompts and creations. We do not share your personal studio data with third parties or use it to train public models without your permission.'
-          },
-          {
-            keywords: ['copyright', 'rights', 'own', 'legal', 'truth'],
-            issue: 'Do I own the AI-generated music?',
-            solution: 'You own the rights to the output you generate. However, for full copyright protection, we recommend adding human elements (vocals, live instruments) to make the work uniquely yours.'
-          },
-          {
-            keywords: ['quality', 'professional', 'pro', 'industry', 'standard'],
-            issue: 'How to get professional quality results?',
-            solution: 'Use high-quality reference tracks, layer AI stems with live recordings, and always perform a final manual mix. Our Mastering Lab agent can help with the final industry-standard polish.'
-          },
-          {
-            keywords: ['multi', 'agent', 'chain', 'workflow', 'project', 'pro'],
-            issue: 'How to use multiple agents in one project?',
-            solution: 'Pro users can "chain" agents by taking the output of one (e.g., Ghostwriter lyrics) and feeding it into another (e.g., Vocal Architect). Check "The Come Up" section for detailed Multi-Agent Workflow guides.'
-          }
-        ];
-
-        const NAVIGATION_ITEMS = [
-          { keywords: ['billing', 'payment', 'card', 'subscription', 'plan', 'wallet', 'money', 'cost', 'price'], label: 'Billing & Wallet', action: () => { setActiveTab('mystudio'); setDashboardTab('billing'); } },
-          { keywords: ['settings', 'config', 'preferences', 'dark mode', 'theme', 'language', 'voice'], label: 'App Settings', action: () => { setActiveTab('mystudio'); setDashboardTab('settings'); } },
-          { keywords: ['profile', 'account', 'user', 'avatar', 'login', 'logout', 'email'], label: 'User Profile', action: () => { setActiveTab('mystudio'); setDashboardTab('overview'); } },
-          { keywords: ['news', 'feed', 'updates', 'industry', 'trends', 'pulse'], label: 'Industry Pulse', action: () => setActiveTab('news') },
-          { keywords: ['hub', 'projects', 'files', 'saved', 'library', 'creations'], label: 'Project Hub', action: () => setActiveTab('hub') },
-          { keywords: ['activity', 'wall', 'community', 'share', 'feed', 'music', 'hub', 'trends', 'audio', 'creations'], label: 'Music Hub', action: () => setActiveTab('activity') },
-          { keywords: ['agents', 'tools', 'create', 'make', 'generate'], label: 'Agent Studio', action: () => setActiveTab('agents') }
-        ];
-
         const suggestions = helpSearch.length > 1 
           ? [
               // Navigation Matches
-              ...NAVIGATION_ITEMS.filter(nav => 
+              ...NAVIGATION_ITEMS_STATIC.filter(nav => 
                 nav.keywords.some(k => k.includes(helpSearch.toLowerCase())) || 
                 nav.label.toLowerCase().includes(helpSearch.toLowerCase())
               ).map(item => ({
@@ -10529,7 +10548,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                 title: `Go to ${item.label}`,
                 description: 'Navigate to this section',
                 icon: ArrowRight,
-                action: item.action
+                action: () => {
+                   setActiveTab(item.type);
+                   if (item.sub) setDashboardTab(item.sub);
+                }
               })),
 
               // Troubleshooting Matches
@@ -10710,18 +10732,6 @@ const fetchUserCredits = useCallback(async (uid) => {
         );
       }
       case 'more': {
-        // Mobile "More" menu with all navigation options
-        const moreMenuItems = [
-          { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-purple)' },
-          { id: 'news', icon: GlobeIcon, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
-          { id: 'whitepapers', icon: FileText, label: 'Whitepapers', desc: 'Technical documentation', color: 'var(--color-indigo)' },
-          { id: 'legal', icon: Shield, label: 'Legal Center', desc: 'Terms & licensing', color: 'var(--color-red)' },
-          { id: 'resources', icon: Book, label: 'Resources', desc: 'Guides & tutorials', color: 'var(--color-orange)' },
-          { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-pink)' },
-          { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-emerald)' },
-          { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-yellow)' },
-        ];
-
         return (
           <div className="more-menu-view animate-fadeInUp" style={{ padding: '20px' }}>
             <h2 style={{ marginBottom: '24px', fontSize: '1.5rem' }}>More Options</h2>
@@ -10732,7 +10742,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               gap: '16px',
               marginBottom: '32px'
             }}>
-              {moreMenuItems.map(item => {
+              {MORE_MENU_ITEMS.map(item => {
                 const Icon = item.icon;
                 return (
                   <div
