@@ -933,7 +933,7 @@ ${agent.name} gets smarter over time:
             gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
             gap: '20px'
           }}>
-            {agents.map((agent) => {
+            {Array.isArray(agents) && agents.map((agent) => {
               const Icon = agent.icon;
               const tierColor = agent.tier === 'free' ? '#22c55e' : agent.tier === 'monthly' ? '#fbbf24' : '#a855f7';
               return (

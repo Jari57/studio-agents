@@ -2701,7 +2701,7 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
 // AGENT MODEL ORCHESTRATOR (AMO) - Combine up to 4 agent outputs
 // ═══════════════════════════════════════════════════════════════════
 // Orchestration charges 8 credits (multi-step workflow)
-app.post('/api/orchestrate', verifyFirebaseToken, checkCreditsFor('orchestrate'), async (req, res) => {
+app.post('/api/orchestrate', verifyFirebaseToken, _requireAuth, checkCreditsFor('orchestrate'), async (req, res) => {
   try {
     const { agentOutputs, projectName, projectDescription } = req.body;
     
@@ -2714,8 +2714,8 @@ app.post('/api/orchestrate', verifyFirebaseToken, checkCreditsFor('orchestrate')
       return res.status(400).json({ error: 'Maximum 4 agent outputs allowed' });
     }
     
-    // Get user ID for orchestration (guest/anonymous access allowed for demo)
-    const userId = req.user?.uid || 'guest';
+    // Get user ID for orchestration (authentication required)
+    const userId = req.user?.uid;
     
     logger.info('🎛️ AMO Orchestration request', { 
       userId, 

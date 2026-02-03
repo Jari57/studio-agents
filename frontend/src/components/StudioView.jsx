@@ -325,8 +325,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       const parts = hash.split('/');
       const tabOrId = parts[2] || 'resources';
       
-      // Check if it's an agent ID
-      const agent = AGENTS.find(a => a.id === tabOrId);
+      // Check if it's an agent ID (Safe access for TDZ)
+      const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.id === tabOrId) : null;
       if (agent) {
         if (activeTab !== 'agents') _setActiveTab('agents');
         if (selectedAgent?.id !== agent.id) setSelectedAgent(agent);
@@ -689,13 +689,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
       
       const data = await response.json();
-      const cloudProjects = (data.projects || []).map(p => ({
-        ...p,
-        id: p.id || String(Date.now()),
-        // Normalize timestamps
-        createdAt: p.createdAt || new Date().toISOString(),
-        updatedAt: p.updatedAt || new Date().toISOString()
-      }));
+      const cloudProjects = (data.projects || [])
+        .filter(p => p && typeof p === 'object') // Stability: Ignore null/malformed projects
+        .map(p => ({
+          ...p,
+          id: p.id || String(Date.now()) + Math.random().toString(36).substr(2, 5),
+          // Normalize timestamps
+          createdAt: p.createdAt || new Date().toISOString(),
+          updatedAt: p.updatedAt || new Date().toISOString(),
+          assets: Array.isArray(p.assets) ? p.assets.filter(Boolean) : [],
+          agents: Array.isArray(p.agents) ? p.agents.filter(Boolean) : []
+        }));
       
       console.log(`[TRACE:${traceId}] loadProjectsFromCloud COMPLETE`, {
         count: cloudProjects.length,
@@ -2354,16 +2358,19 @@ const fetchUserCredits = useCallback(async (uid) => {
       const saved = localStorage.getItem('studio_managed_agents');
       if (saved) {
         const parsed = JSON.parse(saved);
+        // SAFE ACCESS: Use typeof to avoid TDZ
+        const agentsSource = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS : [];
+        
         // Re-attach icons from AGENTS source of truth
         return parsed.map(p => {
-          const original = AGENTS.find(a => a.name === p.name);
+          const original = agentsSource.find(a => a.name === p.name);
           return { ...p, icon: original ? original.icon : Sparkles };
         });
       }
-      return (typeof AGENTS !== 'undefined' ? AGENTS.map(a => ({ ...a, visible: true })) : []);
+      return (typeof AGENTS !== 'undefined' && AGENTS ? AGENTS.map(a => ({ ...a, visible: true })) : []);
     } catch (e) {
       console.error("Failed to parse managed agents", e);
-      return (typeof AGENTS !== 'undefined' ? AGENTS.map(a => ({ ...a, visible: true })) : []);
+      return (typeof AGENTS !== 'undefined' && AGENTS ? AGENTS.map(a => ({ ...a, visible: true })) : []);
     }
   });
   const [appSettings, setAppSettings] = useState(() => {
@@ -2768,7 +2775,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       // Open/Launch agent commands
       if (transcript.includes('open') || transcript.includes('launch')) {
         const agentName = transcript.replace('open', '').replace('launch', '').trim();
-        const foundAgent = AGENTS.find(a => a.name.toLowerCase().includes(agentName));
+        const foundAgent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.name.toLowerCase().includes(agentName)) : null;
         if (foundAgent) {
           setSelectedAgent(foundAgent);
           setActiveTab('agents');
@@ -4899,7 +4906,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                     // Agent might be stored as object or as ID string - handle both
                     // CRITICAL: Always re-map to AGENTS constant if possible to restore React component icons
                     const agentId = typeof agentItem === 'object' ? (agentItem.id || agentItem.name) : agentItem;
-                    const agent = AGENTS.find(a => a.id === agentId || a.name === agentId) || (typeof agentItem === 'object' ? agentItem : AGENTS[0] || null);
+                    const agent = (typeof AGENTS !== 'undefined' && AGENTS) 
+                      ? (AGENTS.find(a => a.id === agentId || a.name === agentId) || (typeof agentItem === 'object' ? agentItem : AGENTS[0] || null))
+                      : (typeof agentItem === 'object' ? agentItem : null);
                     
                     if (!agent) return null; // Skip if agent couldn't be resolved
                     return (
@@ -6164,7 +6173,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                               transition: 'all 0.2s'
                             }}
                             onClick={() => {
-                              const agent = AGENTS.find(a => a.id === step.agentId);
+                              const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.id === step.agentId) : null;
                               if (agent) {
                                   if (agent.isPro && !isLoggedIn) {
                                       setShowLoginModal(true);
@@ -8494,11 +8503,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                   <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#22c55e', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
                     <Sparkles size={12} /> Free Tier
                     <span style={{ marginLeft: 'auto', background: 'rgba(34, 197, 94, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
-                      {AGENTS.filter(a => a.tier === 'free').length} agents
+                      {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'free').length} agents
                     </span>
                   </h5>
                 </div>
-                {AGENTS.filter(a => a.tier === 'free').map((agent) => {
+                {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'free').map((agent) => {
                   const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                   const isActive = selectedAgent?.id === agent.id;
                   const isLocked = !availableAgents.find(a => a.id === agent.id);
@@ -8542,11 +8551,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                   <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a855f7', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
                     <Zap size={12} /> Monthly — $4.99/mo
                     <span style={{ marginLeft: 'auto', background: 'rgba(139, 92, 246, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
-                      {AGENTS.filter(a => a.tier === 'monthly').length} agents
+                      {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'monthly').length} agents
                     </span>
                   </h5>
                 </div>
-                {AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
+                {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'monthly').map((agent) => {
                   const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                   const isActive = selectedAgent?.id === agent.id;
                   const isLocked = !availableAgents.find(a => a.id === agent.id);
@@ -8590,11 +8599,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                   <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#eab308', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
                     <Award size={12} /> Pro — $9.99/mo
                     <span style={{ marginLeft: 'auto', background: 'rgba(234, 179, 8, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
-                      {AGENTS.filter(a => a.tier === 'pro').length} agents
+                      {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'pro').length} agents
                     </span>
                   </h5>
                 </div>
-                {AGENTS.filter(a => a.tier === 'pro').map((agent) => {
+                {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'pro').map((agent) => {
                   const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                   const isActive = selectedAgent?.id === agent.id;
                   const isLocked = !availableAgents.find(a => a.id === agent.id);
@@ -8737,7 +8746,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         Free Tier
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        — {AGENTS.filter(a => a.tier === 'free').length} agents included
+                        — {(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'free').length : 0} agents included
                       </span>
                     </div>
                     {/* FREE TIER Grid */}
@@ -8746,7 +8755,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       gridTemplateColumns: 'repeat(2, 1fr)',
                       gap: '12px'
                     }}>
-                    {AGENTS.filter(a => a.tier === 'free').map((agent) => {
+                    {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'free').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       return (
@@ -8815,7 +8824,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         Monthly — $4.99/mo
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        — {AGENTS.filter(a => a.tier === 'monthly').length} agents
+                        — {(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'monthly').length : 0} agents
                       </span>
                     </div>
                     {/* MONTHLY TIER Grid */}
@@ -8824,7 +8833,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       gridTemplateColumns: 'repeat(2, 1fr)',
                       gap: '12px'
                     }}>
-                    {AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
+                    {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       return (
@@ -8894,7 +8903,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         Pro — $9.99/mo
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        — {AGENTS.filter(a => a.tier === 'pro').length} agents
+                        — {(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'pro').length : 0} agents
                       </span>
                     </div>
                     {/* PRO TIER Grid */}
@@ -8903,7 +8912,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       gridTemplateColumns: 'repeat(2, 1fr)',
                       gap: '12px'
                     }}>
-                    {AGENTS.filter(a => a.tier === 'pro').map((agent) => {
+                    {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'pro').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       return (
@@ -9120,7 +9129,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                       if (selectedProject.agents && selectedProject.agents.length > 0) {
                         const firstAgentData = selectedProject.agents[0];
                         const agentId = typeof firstAgentData === 'string' ? firstAgentData : firstAgentData?.id;
-                        const agent = AGENTS.find(a => a.id === agentId) || (typeof firstAgentData === 'object' ? firstAgentData : null);
+                        const agent = (typeof AGENTS !== 'undefined' && AGENTS) 
+                          ? (AGENTS.find(a => a.id === agentId) || (typeof firstAgentData === 'object' ? firstAgentData : null))
+                          : (typeof firstAgentData === 'object' ? firstAgentData : null);
                         if (agent) {
                           setSelectedAgent(agent);
                         } else {
@@ -9178,7 +9189,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                     {selectedProject.agents.map((agentData, agentIdx) => {
                       // Handle both agent objects and agent ID strings
                       const agentId = typeof agentData === 'string' ? agentData : agentData?.id;
-                      const agent = AGENTS.find(a => a.id === agentId) || (typeof agentData === 'object' ? agentData : null);
+                      const agent = (typeof AGENTS !== 'undefined' && AGENTS) 
+                        ? (AGENTS.find(a => a.id === agentId) || (typeof agentData === 'object' ? agentData : null))
+                        : (typeof agentData === 'object' ? agentData : null);
                       
                       // Skip invalid agents
                       if (!agent) return null;
@@ -9439,7 +9452,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                         if (selectedProject.agents && selectedProject.agents.length > 0) {
                           const firstAgentData = selectedProject.agents[0];
                           const agentId = typeof firstAgentData === 'string' ? firstAgentData : firstAgentData?.id;
-                          const agent = AGENTS.find(a => a.id === agentId) || (typeof firstAgentData === 'object' ? firstAgentData : null);
+                          const agent = (typeof AGENTS !== 'undefined' && AGENTS) 
+                            ? (AGENTS.find(a => a.id === agentId) || (typeof firstAgentData === 'object' ? firstAgentData : null))
+                            : (typeof firstAgentData === 'object' ? firstAgentData : null);
                           if (agent) {
                             setSelectedAgent(agent);
                           } else {
@@ -10891,7 +10906,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       return selectedProject.agents.map((agentData, index) => {
         // Handle both string IDs and agent objects
         const agentId = typeof agentData === 'string' ? agentData : (agentData?.id || '');
-        const agent = AGENTS.find(a => a.id === agentId);
+        const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.id === agentId) : null;
         
         // DEFENSIVE: Ensure icon is a valid React component
         // Deserialized projects from Firestore may have plain objects instead of functions
@@ -14860,7 +14875,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     
                     <div className="selected-team-preview" style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
                       {(newProjectData.selectedAgents || []).map(agentIdOrName => {
-                        const agent = AGENTS.find(a => a.id === agentIdOrName || a.name === agentIdOrName);
+                        const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.id === agentIdOrName || a.name === agentIdOrName) : null;
                         return agent ? (
                           <div key={agentIdOrName} title={agent.name} style={{ 
                             width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-bg-primary)', 
@@ -15278,7 +15293,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               <button 
                 className="cta-button-premium"
                 onClick={() => {
-                  const agent = AGENTS.find(a => a.id === showAgentWhitePaper.key);
+                  const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.id === showAgentWhitePaper.key) : null;
                   if (agent) {
                     setSelectedAgent(agent);
                     setShowAgentWhitePaper(null);
@@ -15995,7 +16010,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const agent = AGENTS.find(a => a.name === safePreview.asset?.agent);
+                    const agent = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.name === safePreview.asset?.agent) : null;
                     if (agent) {
                       setSelectedAgent(agent);
                       setPendingPrompt(safePreview.asset?.snippet || safePreview.title || '');

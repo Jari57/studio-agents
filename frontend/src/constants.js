@@ -2,7 +2,7 @@ import { Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, S
 
 export const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port === '5173' || window.location.port === '3000') 
   ? 'http://localhost:3000' 
-  : 'https://web-production-b5922.up.railway.app';
+  : ''; // In production, use relative paths to the same domain serving the app
 
 // AGENTS ordered for logical 2-column pairing on mobile
 // Row 1: Lyrics + Beats (core music creation)
