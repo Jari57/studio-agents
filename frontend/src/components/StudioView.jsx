@@ -546,6 +546,66 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const uid = localStorage.getItem('studio_user_id') || 'guest';
     return localStorage.getItem(`studio_dash_${uid}`) || 'overview';
   });
+  const [managedAgents, setManagedAgents] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_managed_agents');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // SAFE ACCESS: Use typeof to avoid TDZ
+        const agentsSource = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS : [];
+        
+        // Re-attach icons from AGENTS source of truth
+        return parsed.map(p => {
+          const original = agentsSource.find(a => a.name === p.name);
+          return { ...p, icon: original ? original.icon : Sparkles };
+        });
+      }
+      return (typeof AGENTS !== 'undefined' && AGENTS ? AGENTS.map(a => ({ ...a, visible: true })) : []);
+    } catch (e) {
+      console.error("Failed to parse managed agents", e);
+      return (typeof AGENTS !== 'undefined' && AGENTS ? AGENTS.map(a => ({ ...a, visible: true })) : []);
+    }
+  });
+  const [appSettings, setAppSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_app_settings');
+      const defaults = {
+        showNews: true,
+        publicActivity: true,
+        autoSave: true,
+        highQualityPreviews: false,
+        streamerMode: false
+      };
+      return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+    } catch (e) {
+      console.error("Failed to parse app settings", e);
+      return {
+        showNews: true,
+        publicActivity: true,
+        autoSave: true,
+        highQualityPreviews: false,
+        streamerMode: false
+      };
+    }
+  });
+  
+  // Activity Wall Pagination State
+  const [activityPage, setActivityPage] = useState(1);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(false);
+  const [hasMoreActivity, setHasMoreActivity] = useState(true);
+  const [activityFeed, setActivityFeed] = useState([]);
+  const [activitySection, setActivitySection] = useState(() => localStorage.getItem('musicHubSection') || 'all');
+
+  // News Pagination State
+  const [newsPage, setNewsPage] = useState(1);
+  const [isLoadingNews, setIsLoadingNews] = useState(false);
+  const [hasMoreNews, setHasMoreNews] = useState(true);
+  const [newsArticles, setNewsArticles] = useState([]);
+  const [newsSearch, setNewsSearch] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_news_${uid}`) || '';
+  });
+
   const [userProfile, setUserProfile] = useState(() => {
     try {
       const saved = localStorage.getItem('studio_user_profile');
@@ -562,6 +622,15 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       return saved ? JSON.parse(saved) : { instagram: false, tiktok: false, twitter: false, spotify: false };
     } catch (_e) { return { instagram: false, tiktok: false, twitter: false, spotify: false }; }
   });
+  const [performanceStats] = useState({ listeners: 12450, streams: 45200, followers: 890, growth: '+12%' });
+  const [twitterUsername, setTwitterUsername] = useState(() => localStorage.getItem('studio_agents_twitter_user'));
+  const [metaName, setMetaName] = useState(() => localStorage.getItem('studio_agents_meta_name'));
+  const [storageConnections, setStorageConnections] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_agents_storage');
+      return saved ? JSON.parse(saved) : { googleDrive: false, dropbox: false, oneDrive: false, localDevice: true };
+    } catch (_e) { return { googleDrive: false, dropbox: false, oneDrive: false, localDevice: true }; }
+  });
   const [paymentMethods, setPaymentMethods] = useState(() => {
     try {
       const saved = localStorage.getItem('studio_agents_payments');
@@ -571,6 +640,16 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       ];
     } catch (_e) { return [{ id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true }]; }
   });
+  const [bankAccounts, setBankAccounts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_agents_banks');
+      return saved ? JSON.parse(saved) : [ { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' } ];
+    } catch (_e) { return []; }
+  });
+  const [notifications, setNotifications] = useState([
+    { id: 1, title: 'Welcome to Studio Agents', message: 'Start creating your first track!', time: 'Just now', read: false },
+    { id: 2, title: 'Pro Tip', message: 'Try the Ghostwriter agent for lyrics.', time: '2m ago', read: false }
+  ]);
 
   // --- REFS (Function Handlers for TDZ Safety) ---
   const handleGenerateRef = useRef(() => Promise.resolve());
@@ -590,11 +669,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const textareaRef = useRef(null);
   const previewAudioRef = useRef(null);
   const canvasAudioRef = useRef(null);
-
-  const [newsSearch, setNewsSearch] = useState(() => {
-    const uid = localStorage.getItem('studio_user_id') || 'guest';
-    return localStorage.getItem(`studio_news_${uid}`) || '';
-  });
 
   const [projects, setProjects] = useState(() => {
     try {
@@ -2425,48 +2499,6 @@ const fetchUserCredits = useCallback(async (uid) => {
       setIsAdminLoading(false);
     }
   };
-  const [managedAgents, setManagedAgents] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_managed_agents');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // SAFE ACCESS: Use typeof to avoid TDZ
-        const agentsSource = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS : [];
-        
-        // Re-attach icons from AGENTS source of truth
-        return parsed.map(p => {
-          const original = agentsSource.find(a => a.name === p.name);
-          return { ...p, icon: original ? original.icon : Sparkles };
-        });
-      }
-      return (typeof AGENTS !== 'undefined' && AGENTS ? AGENTS.map(a => ({ ...a, visible: true })) : []);
-    } catch (e) {
-      console.error("Failed to parse managed agents", e);
-      return (typeof AGENTS !== 'undefined' && AGENTS ? AGENTS.map(a => ({ ...a, visible: true })) : []);
-    }
-  });
-  const [appSettings, setAppSettings] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_app_settings');
-      const defaults = {
-        showNews: true,
-        publicActivity: true,
-        autoSave: true,
-        highQualityPreviews: false,
-        streamerMode: false
-      };
-      return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
-    } catch (e) {
-      console.error("Failed to parse app settings", e);
-      return {
-        showNews: true,
-        publicActivity: true,
-        autoSave: true,
-        highQualityPreviews: false,
-        streamerMode: false
-      };
-    }
-  });
 
   // Persist Dashboard State
   useEffect(() => {
@@ -2487,63 +2519,11 @@ const fetchUserCredits = useCallback(async (uid) => {
     setAppSettings(prev => ({ ...prev, [key]: !prev[key] }));
   };
   
-  // Activity Wall Pagination State
-  const [activityPage, setActivityPage] = useState(1);
-  const [isLoadingActivity, setIsLoadingActivity] = useState(false);
-  const [hasMoreActivity, setHasMoreActivity] = useState(true);
-  const [activityFeed, setActivityFeed] = useState([]);
-  const [activitySection, setActivitySection] = useState(() => localStorage.getItem('musicHubSection') || 'all');
-
-  // News Pagination State
-  const [newsPage, setNewsPage] = useState(1);
-  const [isLoadingNews, setIsLoadingNews] = useState(false);
-  const [hasMoreNews, setHasMoreNews] = useState(true);
-  const [newsArticles, setNewsArticles] = useState([]);
-
-  // Simulated Performance Data (for Board Demo)
-  const [twitterUsername, setTwitterUsername] = useState(() => localStorage.getItem('studio_agents_twitter_user'));
-  const [metaName, setMetaName] = useState(() => localStorage.getItem('studio_agents_meta_name'));
-  const [storageConnections, setStorageConnections] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_storage');
-      return saved ? JSON.parse(saved) : {
-        googleDrive: false,
-        dropbox: false,
-        oneDrive: false,
-        localDevice: true
-      };
-    } catch (_e) {
-      return {
-        googleDrive: false,
-        dropbox: false,
-        oneDrive: false,
-        localDevice: true
-      };
-    }
-  });
-
-  const [bankAccounts, setBankAccounts] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_banks');
-      return saved ? JSON.parse(saved) : [
-        { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
-      ];
-    } catch (_e) {
-      return [
-        { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' }
-      ];
-    }
-  });
-
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null); // { item, type }
   const [paymentType, setPaymentType] = useState('card'); // 'card' or 'bank'
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'Welcome to Studio Agents', message: 'Start creating your first track!', time: 'Just now', read: false },
-    { id: 2, title: 'Pro Tip', message: 'Try the Ghostwriter agent for lyrics.', time: '2m ago', read: false }
-  ]);
 
   // Persist payment state
   useEffect(() => {
