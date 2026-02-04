@@ -866,10 +866,26 @@ const apiLimiter = rateLimit({
 // Apply rate limiting to API routes only
 app.use('/api/', apiLimiter);
 
+// Diagnostic endpoint to check backend health and firebase status
+app.get('/api/debug-status', (req, res) => {
+  res.json({
+    status: 'online',
+    timestamp: new Date().toISOString(),
+    firebaseInitialized: !!getFirebaseApp(),
+    firestoreInitialized: !!getFirestoreDb(),
+    nodeEnv: process.env.NODE_ENV,
+    port: PORT,
+    models: {
+      primary: GENERATIVE_MODEL,
+      available: ['gemini-1.5-flash', 'gemini-1.5-pro']
+    }
+  });
+});
+
 // Stricter limit for AI generation (most expensive operation)
 const generationLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 200, // Increased to 200 AI generations per minute
+  max: 500, // Increased to 500 AI generations per minute for production scaling
   keyGenerator: createFingerprint,
   handler: (req, res) => {
     logger.warn('⚠️ AI generation rate limit exceeded', {
@@ -4897,9 +4913,15 @@ const fetchRedditMusic = async () => {
     const results = await Promise.all(REDDIT_MUSIC_SUBS.map(async (sub) => {
       try {
         const response = await fetch(`https://www.reddit.com/r/${sub.name}/hot.json?limit=10`, {
-          headers: { 'User-Agent': 'StudioAgents/1.0' }
+          headers: { 
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json'
+          }
         });
-        if (!response.ok) return [];
+        if (!response.ok) {
+          logger.warn(`Reddit sub r/${sub.name} returned ${response.status}`);
+          return [];
+        }
         const data = await response.json();
         
         return (data.data?.children || []).map(post => {
@@ -5044,7 +5066,12 @@ const fetchMusicReleases = async () => {
     
     const response = await fetch(
       `https://musicbrainz.org/ws/2/release?query=date:[${fromDate} TO ${toDate}] AND status:official AND type:album&fmt=json&limit=50`,
-      { headers: { 'User-Agent': 'StudioAgents/1.0 (studio-agents.com)' } }
+      { 
+        headers: { 
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json'
+        } 
+      }
     );
     
     if (!response.ok) return [];
@@ -5204,16 +5231,27 @@ app.get('/api/music-hub', async (req, res) => {
     if (!cacheValid) {
       logger.info('Fetching fresh Music Hub data...');
       
-      // Fetch all sources in parallel
+      // Helper for resilient fetching with timeout
+      const fetchWithTimeout = async (name, fetchFn, timeout = 10000) => {
+        try {
+          // Some functions might already have timeouts, but we add an extra layer
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(`${name} fetch timed out`)), timeout)
+          );
+          return await Promise.race([fetchFn(), timeoutPromise]);
+        } catch (e) {
+          logger.warn(`Resilient fetch failed for ${name}:`, e.message);
+          return [];
+        }
+      };
+
+      // Fetch all sources in parallel with individual resilience
       const [reddit, youtube, releases, news, soundcloud] = await Promise.all([
-        fetchRedditMusic(),
-        fetchYouTubeTrending(),
-        fetchMusicReleases(),
-        fetchMusicNews(),
-        fetchSoundCloudTrending()
-      ]);
-      
-      musicHubCache = { reddit, youtube, releases, news, soundcloud, timestamp: now };
+        fetchWithTimeout('reddit', fetchRedditMusic),
+        fetchWithTimeout('youtube', fetchYouTubeTrending),
+        fetchWithTimeout('releases', fetchMusicReleases),
+        fetchWithTimeout('news', fetchMusicNews),
+        fetchWithTimeout('soundcloud', fetchSoundCloudTrending)
       logger.info('Music Hub cache updated', { 
         reddit: reddit.length, 
         youtube: youtube.length, 
