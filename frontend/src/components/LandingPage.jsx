@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LayoutGrid } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LayoutGrid, LogIn, LogOut, User } from 'lucide-react';
 import { AGENTS } from '../constants';
 import { auth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
 
@@ -576,6 +576,19 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     setAuthError('');
   };
   
+  // Handle Logout
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      localStorage.removeItem('studio_user_id');
+      localStorage.removeItem('studio_guest_mode');
+      setIsLoggedMember(false);
+      window.location.hash = '#/';
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+  
   // Skip auth and continue as guest - with transition guard
   const handleContinueAsGuest = () => {
     // Guard: prevent double-clicks and race conditions
@@ -587,6 +600,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     console.log('[LandingPage] Continue as guest clicked, pendingAction:', pendingAction);
     setIsTransitioning(true);
     setShowAuthModal(false);
+    
+    // Set guest mode in localStorage for persistence
+    localStorage.setItem('studio_guest_mode', 'true');
+    setIsLoggedMember(true);
     
     // Small delay to let modal close animation complete before navigation
     setTimeout(() => {
@@ -724,6 +741,51 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           <div className="header-logo">
             <Sparkles size={24} className="text-purple" />
             <span className="header-title">Studio Agents</span>
+          </div>
+          <div className="header-actions">
+            {isLoggedMember ? (
+              <button 
+                onClick={handleLogout}
+                className="header-login-btn haptic-press"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  color: 'var(--color-red, #ef4444)',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer'
+                }}
+              >
+                <LogOut size={16} />
+                Sign Out
+              </button>
+            ) : (
+              <button 
+                onClick={() => handleCtaClick('login')}
+                className="header-login-btn haptic-press"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  color: 'white',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer'
+                }}
+              >
+                <LogIn size={16} />
+                Sign In
+              </button>
+            )}
           </div>
         </div>
       </header>
