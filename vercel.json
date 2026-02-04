@@ -5,6 +5,14 @@
   "framework": null,
   "rewrites": [
     {
+      "source": "/health",
+      "destination": "https://studio-agents-backend-production.up.railway.app/health"
+    },
+    {
+      "source": "/api/health",
+      "destination": "https://studio-agents-backend-production.up.railway.app/api/health"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://studio-agents-backend-production.up.railway.app/api/:path*"
     }

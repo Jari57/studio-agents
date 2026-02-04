@@ -690,6 +690,7 @@ const allowedOrigins = isDevelopment
   'https://studioagentsai.com',
   'https://www.studioagentsai.com',
   'https://studio-agents.vercel.app',
+  'https://studio-agents-backend-production.up.railway.app',
   'https://web-production-b5922.up.railway.app',
     ].filter(Boolean);
 
