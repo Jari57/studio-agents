@@ -31,10 +31,14 @@ const splitCreativeContent = (text) => {
     /\[Chorus/i,
     /\[Hook/i,
     /\[Bridge/i,
-    /\[Intro\]/i,
-    /Verse 1:/i,
+    /\[Intro/i,
+    /\[Lyrics/i,
+    /Verse \d+:/i,
     /Chorus:/i,
-    /\(Verse/i
+    /Hook:/i,
+    /\(Verse/i,
+    /\(Chorus/i,
+    /^\s*Lyrics:\s*$/im
   ];
   
   let firstMarkerIndex = -1;
@@ -52,6 +56,23 @@ const splitCreativeContent = (text) => {
     };
   }
   
+  // If no markers found, check if it starts with "Here is", "Sure!", etc and try to strip it
+  const fluffPrefixes = [
+    /^Sure! Here (is|are) some (lyrics|content|a song).*:/i,
+    /^Here (is|are) (the|your) (lyrics|song).*:/i,
+    /^Okay, here's a concept.*:/i
+  ];
+  
+  for (const prefix of fluffPrefixes) {
+    if (prefix.test(text)) {
+      const match = text.match(prefix);
+      return {
+        intro: match[0].trim(),
+        content: text.substring(match[0].length).trim()
+      };
+    }
+  }
+
   // Check for "Summary:" or similar as well
   if (text.includes('Summary:')) {
     const parts = text.split('Summary:');
@@ -1519,6 +1540,13 @@ export default function StudioOrchestratorV2({
 
   // Text-to-Speech (Browser TTS with voice style adjustments)
   const speakText = (text, slot) => {
+    // 🛡️ Ensure we only speak lyrics, not the AI preamble
+    let textToSpeak = text;
+    if (slot === 'lyrics' || slot === 'content') {
+      const { content: cleanLyrics } = splitCreativeContent(text);
+      if (cleanLyrics) textToSpeak = cleanLyrics;
+    }
+
     if (speakingSlot === slot) {
       window.speechSynthesis.cancel();
       if (vocalAudioRef.current) {
@@ -1544,7 +1572,7 @@ export default function StudioOrchestratorV2({
         vocalAudio.play().catch(err => {
           console.error("Audio playback failed:", err);
           // Fallback to TTS if audio fails
-          speakRoboticText(text, slot);
+          speakRoboticText(textToSpeak, slot);
         });
         vocalAudio.onended = () => setSpeakingSlot(null);
         setSpeakingSlot(slot);
@@ -1554,7 +1582,7 @@ export default function StudioOrchestratorV2({
       }
     }
     
-    speakRoboticText(text, slot);
+    speakRoboticText(textToSpeak, slot);
   };
 
   // Original TTS as fallback
@@ -1643,7 +1671,6 @@ export default function StudioOrchestratorV2({
     
     setIsGenerating(true);
     toast.loading('Generating content...', { id: 'gen-all' });
-    const newOutputs = { lyrics: null, vocals: null, audio: null, visual: null, video: null };
     
     try {
       const headers = await getHeaders();
@@ -1663,10 +1690,10 @@ export default function StudioOrchestratorV2({
         const systemPrompt = `You are ${agent.name}, a professional ${agent.category} specialist. 
         Create content for a ${style} song about: "${songIdea}" in ${language}.
         Be creative, professional, and match the genre's style.
-        ${slot === 'lyrics' ? 'Write a catchy hook and verse lyrics.' : ''}
+        ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus). USE CLEAR LABELS like [Verse 1], [Chorus], [Bridge]. Do not include any "Here are the lyrics" text or preamble within the labeled sections.' : ''}
         ${slot === 'vocals' ? 'Describe the vocal performance style, tone, and character in detail (e.g., "Energetic female vocal with a soulful grit and rapid-fire delivery in the verses").' : ''}
-        ${slot === 'audio' ? 'Describe a detailed beat/instrumental concept with BPM, key, and production elements.' : ''}
-        ${slot === 'visual' ? 'Describe a striking album cover or visual concept in detail for image generation.' : ''}
+        ${slot === 'audio' ? 'Describe a detailed beat/instrumental concept with BPM, key, and production elements. Be technical and descriptive for an AI music engine.' : ''}
+        ${slot === 'visual' ? 'Describe a striking album cover or concept in detail for image generation.' : ''}
         ${slot === 'video' ? 'Write a creative image to video concept/storyboard with scene descriptions.' : ''}`;
         
         console.log(`[handleGenerate] Starting parallel generation for ${slot} with agent:`, agent.name);
@@ -1687,11 +1714,19 @@ export default function StudioOrchestratorV2({
           
           if (response.ok) {
             const data = await response.json();
-            newOutputs[slot] = data.output;
+            // Update incrementally for better UX
+            setOutputs(prev => ({ ...prev, [slot]: data.output }));
             console.log(`[handleGenerate] ${slot} generated successfully`);
+            
+            // Auto-trigger media generation for audio/visual if selected
+            if (slot === 'audio') {
+              // small delay to ensure state has updated
+              setTimeout(() => handleGenerateAudio(), 500);
+            }
           } else {
             const errorText = await response.text();
             console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
+            toast.error(`Agent ${agent.name} failed: ${response.status}`, { duration: 3000 });
           }
         } catch (err) {
           console.error(`Error generating ${slot}:`, err);
@@ -1700,13 +1735,6 @@ export default function StudioOrchestratorV2({
 
       await Promise.all(generationPromises);
       
-      console.log('[handleGenerate] Final parallel outputs:', { 
-        lyrics: !!newOutputs.lyrics, 
-        audio: !!newOutputs.audio,
-        visual: !!newOutputs.visual,
-        video: !!newOutputs.video 
-      });
-      setOutputs(newOutputs);
       toast.dismiss('gen-all');
       toast.success('Generation complete!');
       
@@ -1752,7 +1780,8 @@ export default function StudioOrchestratorV2({
         headers,
         body: JSON.stringify({
           prompt: `Create fresh ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
-          systemInstruction: `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.`,
+          systemInstruction: `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.
+          ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse] or [Chorus]. No intro fluff.' : ''}`,
           model: modelId,
           duration: duration,
           language: language
@@ -1796,11 +1825,16 @@ export default function StudioOrchestratorV2({
     
     try {
       const headers = await getHeaders();
+
+      // Clean prompt of AI fluff
+      const { content: cleanAudioPrompt } = splitCreativeContent(outputs.audio);
+      const audioPrompt = cleanAudioPrompt || outputs.audio;
+
       const response = await fetch(`${BACKEND_URL}/api/generate-audio`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: `${style} ${mood} instrumental, ${structure} format: ${outputs.audio.substring(0, 250)}`,
+          prompt: `${style} ${mood} instrumental, ${structure} format: ${typeof audioPrompt === 'string' ? audioPrompt.substring(0, 500) : 'Music production'}`,
           genre: style || 'hip-hop',
           mood: mood.toLowerCase() || 'energetic',
           bpm: projectBpm || 90,
@@ -1817,27 +1851,30 @@ export default function StudioOrchestratorV2({
       });
       
       let data;
-      if (response.headers.get('content-type')?.includes('application/json')) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
         throw new Error(`Invalid audio response (${response.status})`);
       }
 
       if (response.ok) {
-        console.log('[Orchestrator] Audio generation response:', { 
-          hasUrl: !!data.audioUrl, 
+        console.log('[Orchestrator] Audio generation response success:', { 
+          hasUrl: !!(data.audioUrl || data.output), 
           isReal: data.isRealGeneration,
           source: data.source 
         });
         
-        if (data.audioUrl) {
-          setMediaUrls(prev => ({ ...prev, audio: data.audioUrl }));
+        const finalUrl = data.audioUrl || data.output;
+        if (finalUrl) {
+          setMediaUrls(prev => ({ ...prev, audio: finalUrl }));
           toast.success('AI beat generated!', { id: 'gen-audio' });
         } else {
           toast.error('No audio returned', { id: 'gen-audio' });
         }
       } else {
-        const errData = await response.json().catch(() => ({}));
+        // Use already-parsed data
+        const errData = data || {};
         console.error('[Orchestrator] Audio generation failed:', errData);
         
         // Show helpful setup message for 503 errors
@@ -1876,6 +1913,10 @@ export default function StudioOrchestratorV2({
     try {
       const headers = await getHeaders();
 
+      // Ensure we only send the actual lyrics content, not the intro/prompt fluff
+      const { content: lyricsOnly } = splitCreativeContent(outputs.lyrics);
+      const cleanLyrics = lyricsOnly || outputs.lyrics;
+
       // Use the same voice mapping as handleGenerateLyricsVocal
       const voiceMapping = {
         'rapper': 'rapper-male-1',
@@ -1893,7 +1934,7 @@ export default function StudioOrchestratorV2({
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: outputs.lyrics.substring(0, 500),
+          prompt: cleanLyrics.substring(0, 1000), // Increased limit for full lyrics
           voice: selectedVoice,
           style: voiceStyle,
           rapStyle: rapStyle,
@@ -1902,7 +1943,14 @@ export default function StudioOrchestratorV2({
         })
       });
 
-      const data = await response.json();
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        throw new Error(`Invalid vocal response (${response.status})`);
+      }
+
       if (response.ok && data.audioUrl) {
         setMediaUrls(prev => ({ 
           ...prev, 
@@ -1916,7 +1964,8 @@ export default function StudioOrchestratorV2({
         }));
         toast.success('AI Vocals generated!', { id: 'gen-vocals' });
       } else {
-        toast.error(data.details || 'Vocal generation failed', { id: 'gen-vocals' });
+        const errData = data || {};
+        toast.error(errData.details || errData.error || 'Vocal generation failed', { id: 'gen-vocals' });
       }
     } catch (err) {
       console.error('[Orchestrator] Vocal generation error:', err);
@@ -2151,11 +2200,16 @@ export default function StudioOrchestratorV2({
     
     try {
       const headers = await getHeaders();
+
+      // Clean prompt of AI fluff
+      const { content: cleanVisualPrompt } = splitCreativeContent(outputs.visual);
+      const visualPrompt = cleanVisualPrompt || outputs.visual;
+
       const response = await fetch(`${BACKEND_URL}/api/generate-image`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: `Album cover art: ${outputs.visual.substring(0, 300)}`,
+          prompt: `Album cover art, highly detailed, professional: ${visualPrompt.substring(0, 600)}`,
           referenceImage: visualDnaUrl
         })
       });
@@ -2274,11 +2328,16 @@ export default function StudioOrchestratorV2({
     
     try {
       const headers = await getHeaders();
+
+      // Clean prompt of AI fluff
+      const { content: cleanVideoPrompt } = splitCreativeContent(outputs.video);
+      const videoPrompt = cleanVideoPrompt || outputs.video;
+
       const response = await fetch(`${BACKEND_URL}/api/generate-video`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: `Image to video: ${outputs.video.substring(0, 200)}`,
+          prompt: `Cinematic image to video, professional visual: ${videoPrompt.substring(0, 500)}`,
           referenceImage: videoDnaUrl,
           duration: duration
         })
@@ -2394,11 +2453,15 @@ export default function StudioOrchestratorV2({
       
       const selectedVoice = voiceMapping[voiceStyle] || 'rapper-male-1';
       
+      // Clean lyrics before generating vocals
+      const { content: lyricsOnly } = splitCreativeContent(outputs.lyrics);
+      const cleanLyrics = lyricsOnly || outputs.lyrics;
+
       // Prepare lyrics text with performance direction based on rap style
       // Send ONLY the clean lyrics text - no style directions!
       // Style info is sent as separate API parameters (voice, style, rapStyle, genre)
       // The backend handles applying the style to the voice, not by reading style text aloud
-      const performanceText = outputs.lyrics.substring(0, 500);
+      const performanceText = cleanLyrics.substring(0, 750);
       
       console.log('[handleGenerateLyricsVocal] Making API call to:', `${BACKEND_URL}/api/generate-speech`);
       const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
@@ -2687,7 +2750,14 @@ export default function StudioOrchestratorV2({
       if (outputContent) {
         const agent = AGENTS.find(a => a.id === selectedAgents[slot.key]);
         // Safely get content as string
-        const contentStr = typeof outputContent === 'string' ? outputContent : JSON.stringify(outputContent);
+        let contentStr = typeof outputContent === 'string' ? outputContent : JSON.stringify(outputContent);
+        
+        // Clean lyrics before saving to project library
+        if (slot.key === 'lyrics') {
+          const { content: cleanLyrics } = splitCreativeContent(contentStr);
+          if (cleanLyrics) contentStr = cleanLyrics;
+        }
+
         const asset = {
           id: `${slot.key}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           title: slot.title,
@@ -3233,6 +3303,13 @@ export default function StudioOrchestratorV2({
                     if (userPlan === 'Pro') return true; // Pro sees all
                     if (userPlan === 'Monthly') return a.tier === 'free' || a.tier === 'monthly';
                     return a.tier === 'free'; // Default/Free tier
+                  }).filter(a => {
+                    // Additional filter for logic pairing
+                    if (slot.key === 'lyrics') return a.category === 'Music Creation' || a.id === 'ghost';
+                    if (slot.key === 'audio') return a.category === 'Pro Producer' || a.category === 'Music Creation' || a.id === 'beat';
+                    if (slot.key === 'visual') return a.category === 'Visual Identity' || a.id === 'album';
+                    if (slot.key === 'video') return a.category === 'Visual Identity' || a.id === 'video-creator';
+                    return true;
                   }).map(agent => (
                     <option 
                       key={agent.id} 

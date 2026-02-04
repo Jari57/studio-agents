@@ -3454,10 +3454,6 @@ const fetchUserCredits = useCallback(async (uid) => {
       toast.error("Please enter a prompt first.");
       return;
     }
-      console.error('[handleGenerate] Empty prompt');
-      toast.error("Please enter a prompt first.");
-      return;
-    }
 
     console.log('[handleGenerate] Prompt found:', promptValue.substring(0, 30) + '...');
 
