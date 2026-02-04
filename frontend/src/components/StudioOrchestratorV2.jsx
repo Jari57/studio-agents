@@ -38,7 +38,13 @@ const splitCreativeContent = (text) => {
     /Hook:/i,
     /\(Verse/i,
     /\(Chorus/i,
-    /^\s*Lyrics:\s*$/im
+    /^\s*Lyrics:\s*$/im,
+    /Visual:/i,
+    /Concept:/i,
+    /Description:/i,
+    /Beat Description:/i,
+    /BPM:/i,
+    /Storyboard:/i
   ];
   
   let firstMarkerIndex = -1;
@@ -1708,7 +1714,10 @@ export default function StudioOrchestratorV2({
               model: modelId,
               duration: duration,
               language: language,
-              referenceUrl: slot === 'lyrics' ? lyricsDnaUrl : null
+              referenceUrl: slot === 'lyrics' ? lyricsDnaUrl : 
+                            slot === 'audio' ? audioDnaUrl :
+                            slot === 'visual' ? visualDnaUrl :
+                            slot === 'video' ? videoDnaUrl : null
             })
           });
           
@@ -1718,10 +1727,15 @@ export default function StudioOrchestratorV2({
             setOutputs(prev => ({ ...prev, [slot]: data.output }));
             console.log(`[handleGenerate] ${slot} generated successfully`);
             
-            // Auto-trigger media generation for audio/visual if selected
+            // Industrial Strength Auto-triggering: ensure media follows text immediately
             if (slot === 'audio') {
-              // small delay to ensure state has updated
               setTimeout(() => handleGenerateAudio(), 500);
+            } else if (slot === 'lyrics') {
+              setTimeout(() => handleGenerateVocals(), 700);
+            } else if (slot === 'visual') {
+              setTimeout(() => handleGenerateImage(), 900);
+            } else if (slot === 'video') {
+              setTimeout(() => handleGenerateVideo(), 1100);
             }
           } else {
             const errorText = await response.text();
@@ -1834,7 +1848,7 @@ export default function StudioOrchestratorV2({
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: `${style} ${mood} instrumental, ${structure} format: ${typeof audioPrompt === 'string' ? audioPrompt.substring(0, 500) : 'Music production'}`,
+          prompt: `${style} ${mood} instrumental beat, ${structure || 'Song'} format: ${typeof audioPrompt === 'string' ? audioPrompt.substring(0, 500) : 'Music production'}`,
           genre: style || 'hip-hop',
           mood: mood.toLowerCase() || 'energetic',
           bpm: projectBpm || 90,
@@ -2765,7 +2779,7 @@ export default function StudioOrchestratorV2({
           agent: agent?.name || slot.subtitle,
           content: contentStr,
           snippet: contentStr.substring(0, 100),
-          audioUrl: slot.key === 'audio' ? (mediaUrls.audio || null) : (slot.key === 'vocals' ? (mediaUrls.vocals || null) : null),
+          audioUrl: slot.key === 'audio' ? (mediaUrls.audio || null) : (slot.key === 'lyrics' ? (mediaUrls.vocals || null) : null),
           imageUrl: slot.key === 'visual' ? (formatImageSrc(mediaUrls.image) || null) : null,
           videoUrl: slot.key === 'video' ? (mediaUrls.video || null) : null,
           date: new Date().toLocaleDateString(),

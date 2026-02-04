@@ -3334,57 +3334,50 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         
         // Bark speaker presets for different styles
         // Valid options: de_speaker_0-9, en_speaker_0-9, es_speaker_0-9, fr_speaker_0-9, etc.
-        let speakerHistory = `${langCode}_speaker_6`; // Default: expressive male
+        let speakerHistory = `v2/${langCode}_speaker_6`; // Default: expressive male (v2 prefix restored for better quality)
         
         // Map voice style + rap style to best Bark speaker
         if (style === 'rapper-female') {
           // Female rapper - use energetic female
-          speakerHistory = (rapStyle === 'chill' || rapStyle === 'melodic') ? `${langCode}_speaker_9` : `${langCode}_speaker_8`;
+          speakerHistory = (rapStyle === 'chill' || rapStyle === 'melodic') ? `v2/${langCode}_speaker_9` : `v2/${langCode}_speaker_8`;
         } else if (style === 'singer-female') {
           // Female singer - use expressive female
-          speakerHistory = `${langCode}_speaker_9`;
+          speakerHistory = `v2/${langCode}_speaker_9`;
         } else if (style === 'singer' || style === 'singer-male') {
           // Male singer - use expressive/smooth male
-          speakerHistory = `${langCode}_speaker_6`;
+          speakerHistory = `v2/${langCode}_speaker_6`;
         } else if (style === 'rapper' || style === 'rapper-male') {
           // Male rapper - adjust based on rap style
           if (rapStyle === 'aggressive' || rapStyle === 'hype' || rapStyle === 'drill') {
-            speakerHistory = `${langCode}_speaker_3`; // Intense male
+            speakerHistory = `v2/${langCode}_speaker_3`; // Intense male
           } else if (rapStyle === 'chill' || rapStyle === 'melodic') {
-            speakerHistory = `${langCode}_speaker_6`; // Smooth male
+            speakerHistory = `v2/${langCode}_speaker_6`; // Smooth male
           } else if (rapStyle === 'fast' || rapStyle === 'trap') {
-            speakerHistory = `${langCode}_speaker_1`; // Young energetic male
+            speakerHistory = `v2/${langCode}_speaker_1`; // Young energetic male
           } else if (rapStyle === 'boom-bap' || rapStyle === 'oldschool') {
-            speakerHistory = `${langCode}_speaker_7`; // Deep male
+            speakerHistory = `v2/${langCode}_speaker_7`; // Deep male
           } else {
-            speakerHistory = `${langCode}_speaker_2`; // Middle-aged male (default rap)
+            speakerHistory = `v2/${langCode}_speaker_6`; // Default to speaker 6 (most expressive)
           }
         } else if (style === 'narrator') {
           speakerHistory = 'announcer'; // Professional announcer voice
         } else if (style === 'spoken') {
-          speakerHistory = `${langCode}_speaker_0`; // Neutral male
+          speakerHistory = `v2/${langCode}_speaker_0`; // Neutral male
         }
         
         // Fallback for languages with fewer speakers or 'announcer' not supporting target lang
         if (langCode !== 'en' && speakerHistory === 'announcer') {
-            speakerHistory = `${langCode}_speaker_0`;
+            speakerHistory = `v2/${langCode}_speaker_0`;
         }
 
         logger.info('🎤 Selected Bark speaker', { speakerHistory, style, rapStyle, langCode });
         
-        // Clean the prompt text - remove any style direction markers that may have been included
-        // These markers like [aggressive rap style - ...] should NOT be read aloud
-        const cleanPrompt = prompt
-          .replace(/\[.*?style.*?\]\s*/gi, '') // Remove [any style...] markers
-          .replace(/^\[.*?\]\s*/g, '')         // Remove any leading brackets
-          .trim();
-        
         // Add Bark-specific markers for expression
         // [laughter], [laughs], [sighs], [music], [gasps], ♪ for singing
-        let barkPrompt = cleanPrompt;
+        let barkPrompt = prompt; // Restore full prompt for better AI context
         if (style.includes('singer')) {
           // Add music markers for singing
-          barkPrompt = `♪ ${cleanPrompt} ♪`;
+          barkPrompt = `♪ ${prompt} ♪`;
         }
         
         const response = await fetch('https://api.replicate.com/v1/predictions', {
@@ -3699,7 +3692,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     else if (stem === 'Melody Only') stemInstruction = 'Isolated lead melody, minimal accompaniment.';
     else if (stem === 'Bass Only') stemInstruction = 'Isolated bassline, sub-heavy, no high-end instruments.';
     
-    const musicPrompt = `${genre} ${mood} instrumental, ${bpm} BPM. ${prompt}. ${stemInstruction} ${referenceAudio ? 'Reference-guided melody.' : ''} ${qualityTags}. Professional studio quality, broadcast ready.`;
+    const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${stemInstruction} ${referenceAudio ? 'Reference-guided melody.' : ''} ${qualityTags}. Professional studio quality, broadcast ready.`;
 
     // Engine Selection Logic - DEFAULT TO STABILITY for long tracks, MUSIC GPT for short
     let finalEngine = engine;
@@ -3758,7 +3751,13 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
           headers: { 'Authorization': `Bearer ${replicateKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             version: 'b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38',
-            input: { prompt: musicPrompt, duration: Math.min(durationSeconds, 180), model_version: 'stereo-large', output_format: 'mp3' }
+            input: { 
+              prompt: musicPrompt, 
+              duration: Math.min(durationSeconds, 60), // Cap MusicGen at 60s for stability, use Stability AI for longer
+              model_version: 'stereo-large', 
+              output_format: 'mp3',
+              normalization_strategy: 'peak' // Added for better audio levels
+            }
           })
         });
 
@@ -5252,6 +5251,8 @@ app.get('/api/music-hub', async (req, res) => {
         fetchWithTimeout('releases', fetchMusicReleases),
         fetchWithTimeout('news', fetchMusicNews),
         fetchWithTimeout('soundcloud', fetchSoundCloudTrending)
+      ]);
+
       logger.info('Music Hub cache updated', { 
         reddit: reddit.length, 
         youtube: youtube.length, 
