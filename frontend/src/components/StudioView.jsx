@@ -3301,7 +3301,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             if (slot === 'video') setVideoDnaUrl(url);
             if (slot === 'lyrics') setLyricsDnaUrl(url);
             
-            // Industrial Strength Persistence: Save to User Profile
+            toast.success(`${slot.charAt(0).toUpperCase() + slot.slice(1)} DNA Attached!`, { id: loadingId });
             if (user?.uid) {
               try {
                 const userRef = doc(db, 'users', user?.uid);
@@ -3449,7 +3449,11 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
     }
 
-    if (!promptValue) {
+    if (!promptValue || !promptValue.trim()) {
+      console.error('[handleGenerate] Empty prompt');
+      toast.error("Please enter a prompt first.");
+      return;
+    }
       console.error('[handleGenerate] Empty prompt');
       toast.error("Please enter a prompt first.");
       return;
