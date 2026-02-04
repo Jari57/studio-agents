@@ -564,7 +564,7 @@ const app = express();
 // Trust the first proxy (Railway load balancer)
 // Increased to 3 to handle potential multiple proxy layers in production
 app.set('trust proxy', 3); 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // ⚡ PERFORMANCE: Compression - Gzip/Brotli for JSON responses
 app.use(compression({

@@ -1175,22 +1175,31 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   
   // Check if user can generate (has free uses left or is subscribed)
   const canGenerate = () => {
-    if (isAdmin) return true; // Admins always have access
-    
+    // Admins always have access
+    if (isAdmin) {
+      console.log('[Credits] Admin access granted');
+      return true;
+    }
+
     // If logged in, prioritize credits
     if (isLoggedIn) {
+      console.log(`[Credits] Checking for logged in user. Credits: ${userCredits}, Plan: ${userPlan}`);
       if (userCredits > 0) return true;
+
+      const plan = (userPlan || 'Free').toLowerCase();
+      if (plan === 'pro' || plan === 'lifetime access') {
+        console.log(`[Credits] Access granted due to plan: ${plan}`);
+        return true;
+      }
       
-      // Some plans might have unlimited access, but for monetization,
-      // we prefer a credit-based system.
-      const plan = userPlan.toLowerCase();
-      if (plan === 'pro' || plan === 'lifetime access') return true;
-      
+      console.warn('[Credits] Logged in but no credits/plan');
       return false;
     }
     
     // Guests get limited free uses
-    return freeGenerationsUsed < FREE_GENERATION_LIMIT;
+    const canUseFree = freeGenerationsUsed < FREE_GENERATION_LIMIT;
+    console.log(`[Credits] Guest check: ${freeGenerationsUsed}/${FREE_GENERATION_LIMIT}. Can use: ${canUseFree}`);
+    return canUseFree;
   };
   
   // Get remaining free generations
@@ -3230,11 +3239,21 @@ const fetchUserCredits = useCallback(async (uid) => {
   };
 
   const handleUploadDna = async (slot, e) => {
+    console.log(`[DNA] Upload initiated for slot: ${slot}`);
+    
     // PREVENT DUPLICATE CALLS
-    if (isUploadingDna[slot]) return;
+    if (isUploadingDna[slot]) {
+      console.warn(`[DNA] Upload already in progress for ${slot}`);
+      return;
+    }
 
-    const file = e.target.files[0];
-    if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) {
+      console.error(`[DNA] No file selected for ${slot}`);
+      return;
+    }
+
+    console.log(`[DNA] Selected file: ${file.name} (${file.size} bytes)`);
 
     // Check size limit (10MB)
     if (file.size > 10 * 1024 * 1024) {
@@ -3246,17 +3265,21 @@ const fetchUserCredits = useCallback(async (uid) => {
     const loadingId = toast.loading(`Uploading ${slot} DNA...`, { id: `upload-dna-${slot}` });
 
     try {
+      console.log(`[DNA] Getting Firebase token...`);
       const token = user ? await user.getIdToken() : null;
       const headers = {
         'Content-Type': 'application/json'
       };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
+      console.log(`[DNA] Reading file as Base64...`);
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         try {
           const base64Data = reader.result;
+          console.log(`[DNA] Sending to backend: ${BACKEND_URL}/api/upload-asset`);
+          
           const response = await fetch(`${BACKEND_URL}/api/upload-asset`, {
             method: 'POST',
             headers,
@@ -3272,6 +3295,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           const result = await response.json();
           if (response.ok && result.url) {
             const url = result.url;
+            console.log(`[DNA] Upload Success: ${url}`);
             if (slot === 'visual') setVisualDnaUrl(url);
             if (slot === 'audio') setAudioDnaUrl(url);
             if (slot === 'video') setVideoDnaUrl(url);
@@ -3293,6 +3317,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
             toast.success(`${slot === 'video' ? 'Image' : slot.charAt(0).toUpperCase() + slot.slice(1)} DNA attached!`, { id: loadingId });
           } else {
+            console.error(`[DNA] Upload Error:`, result);
             throw new Error(result.error || 'Upload failed');
           }
         } catch (err) {
@@ -3303,6 +3328,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
       };
       reader.onerror = () => {
+        console.error(`[DNA] FileReader error`);
         toast.error('Failed to read file');
         setIsUploadingDna(prev => ({ ...prev, [slot]: false }));
       };
@@ -3381,8 +3407,13 @@ const fetchUserCredits = useCallback(async (uid) => {
   };
 
   async function handleGenerate() {
+    console.log('[handleGenerate] Button click detected');
+    
     // PREVENT DUPLICATE CALLS
-    if (isGenerating) return;
+    if (isGenerating) {
+      console.warn('[handleGenerate] Already generating, ignoring click');
+      return;
+    }
 
     // CAPTURE CONTEXT IMMEDIATELY (Prevent race conditions if user switches projects/agents)
     const targetProjectSnapshot = selectedProject;
@@ -3390,11 +3421,13 @@ const fetchUserCredits = useCallback(async (uid) => {
 
     // Guard: Ensure agent is selected
     if (!targetAgentSnapshot) {
+      console.error('[handleGenerate] No agent selected');
       toast.error("Please select an agent first.");
       return;
     }
 
     const agentId = targetAgentSnapshot.id;
+    console.log('[handleGenerate] Targeting agent:', agentId, targetAgentSnapshot.name);
 
     // CHECK: Block generation for "Coming Soon" agents
     if (targetAgentSnapshot.comingSoon) {
@@ -3402,16 +3435,36 @@ const fetchUserCredits = useCallback(async (uid) => {
       return;
     }
     
-    const textarea = textareaRef.current || document.querySelector('.studio-textarea');
-    if (!textarea || !textarea.value) {
+    // Attempt to find prompt from multiple sources (Responsive Layout fallback)
+    let promptValue = textareaRef.current?.value || '';
+    
+    if (!promptValue) {
+      const allTextareas = document.querySelectorAll('.studio-textarea');
+      for (const ta of allTextareas) {
+        if (ta.value) {
+          promptValue = ta.value;
+          console.log('[handleGenerate] Prompt recovered from secondary textarea');
+          break;
+        }
+      }
+    }
+
+    if (!promptValue) {
+      console.error('[handleGenerate] Empty prompt');
       toast.error("Please enter a prompt first.");
       return;
     }
 
+    console.log('[handleGenerate] Prompt found:', promptValue.substring(0, 30) + '...');
+
     // Check if user typed the demo code ("pitch")
-    if (checkDemoCode(textarea.value)) {
+    if (checkDemoCode(promptValue)) {
       setShowDemoBanner(true);
-      textarea.value = '';
+      // Clear all visible textareas
+      const allTextareas = document.querySelectorAll('.studio-textarea');
+      allTextareas.forEach(t => t.value = '');
+      if (textareaRef.current) textareaRef.current.value = '';
+      
       toast.success('🎭 Demo mode activated! Type "pitch" again to generate a demo response.', {
         duration: 5000,
         icon: '🎬'
@@ -3424,7 +3477,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       setIsGenerating(true);
       const toastId = toast.loading(`${targetAgentSnapshot.name} is working... (Demo Mode)`);
       try {
-        const mockOutput = await getMockResponse(targetAgentSnapshot.id, textarea.value);
+        const mockOutput = await getMockResponse(targetAgentSnapshot.id, promptValue);
         // Store demo result in agent previews cache
         setAgentPreviews(prev => ({
           ...prev,
@@ -3482,7 +3535,8 @@ const fetchUserCredits = useCallback(async (uid) => {
         });
       }
 
-      let prompt = textarea.value;
+      //let prompt = textarea.value; -- REPLACED BY promptValue from earlier in function
+      let prompt = promptValue;
 
       // Auto-translate if not English
       if (voiceSettings.language !== 'English') {
@@ -3588,6 +3642,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
 
       // Call Backend with auth headers
+      console.log(`[Studio] Calling ${endpoint} with prompt:`, prompt.substring(0, 50));
       let response;
       try {
         response = await fetch(`${BACKEND_URL}${endpoint}`, {
@@ -7639,7 +7694,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '600' }}>Last Generated</span>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button onClick={() => setPreviewItem(currentPreview)} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <button onClick={() => safeOpenGenerationPreview(currentPreview)} style={{ background: 'none', border: 'none', color: 'var(--color-cyan)', fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <Maximize2 size={12} /> View Full
                           </button>
                         </div>
@@ -7650,12 +7705,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                           src={formatImageSrc(currentPreview.imageUrl)} 
                           alt="Preview" 
                           style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} 
-                          onClick={() => setPreviewItem(currentPreview)} 
+                          onClick={() => safeOpenGenerationPreview(currentPreview)} 
                           onError={(e) => { e.target.style.display = 'none'; }}
                         />
                       ) : currentPreview.type === 'video' && currentPreview.videoUrl ? (
                         <div style={{ position: 'relative' }}>
-                          <video src={formatVideoSrc(currentPreview.videoUrl)} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setPreviewItem(currentPreview)} />
+                          <video src={formatVideoSrc(currentPreview.videoUrl)} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => safeOpenGenerationPreview(currentPreview)} />
                           {currentPreview.audioUrl && (
                             <div style={{ position: 'absolute', bottom: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <Music size={10} /> Synced
@@ -7852,7 +7907,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             transition: 'all 0.2s ease',
                             cursor: 'pointer'
                           }}
-                          onClick={() => setPreviewItem(item)}
+                          onClick={() => safeOpenGenerationPreview(item)}
                           onMouseOver={(e) => {
                             e.currentTarget.style.background = 'rgba(139, 92, 246, 0.1)';
                             e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
@@ -8350,7 +8405,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           return relevantItems.slice(0, 5).map((item, i) => (
                             <div
                               key={item.id || i}
-                              onClick={() => setPreviewItem(item)}
+                              onClick={() => safeOpenGenerationPreview(item)}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',

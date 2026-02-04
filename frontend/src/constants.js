@@ -1,8 +1,13 @@
 import { Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe, Folder, Book } from 'lucide-react';
 
-export const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port === '5173' || window.location.port === '3000') 
-  ? 'http://localhost:3000' 
-  : ''; // In production, use relative paths to the same domain serving the app
+// BACKEND CONFIGURATION
+// Use 3001 as default local backend port to avoid collision with Vite (which often takes 3000 if 5173 is busy)
+const isLocal = window.location.hostname === 'localhost' || 
+                window.location.hostname === '127.0.0.1' || 
+                window.location.port === '5173' || 
+                window.location.port === '3000';
+
+export const BACKEND_URL = isLocal ? 'http://localhost:3001' : ''; 
 
 // AGENTS ordered for logical 2-column pairing on mobile
 // Row 1: Lyrics + Beats (core music creation)
