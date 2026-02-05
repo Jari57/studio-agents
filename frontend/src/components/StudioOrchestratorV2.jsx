@@ -232,9 +232,24 @@ function GeneratorCard({
             color: 'var(--text-secondary)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}>
             {agent?.name || subtitle}
+            {agent?.isBeta && (
+              <span style={{
+                fontSize: '0.6rem',
+                padding: '1px 5px',
+                background: 'rgba(245, 158, 11, 0.1)',
+                color: '#f59e0b',
+                borderRadius: '4px',
+                border: '1px solid rgba(245, 158, 11, 0.2)',
+                fontWeight: '800',
+                letterSpacing: '0.05em'
+              }}>BETA</span>
+            )}
           </p>
         </div>
 
@@ -1313,22 +1328,35 @@ export default function StudioOrchestratorV2({
   }, [isOpen]);
   
   const [songIdea, setSongIdea] = useState(existingProject?.name || '');
-  const [language, setLanguage] = useState('English');
-  const [style, setStyle] = useState('Modern Hip-Hop');
-  const [duration, setDuration] = useState(90);
-  const [model, setModel] = useState('Gemini 2.0 Flash');
-  const [musicEngine, setMusicEngine] = useState('music-gpt'); // Default to Beat Lab (MusicGen)
-  const [mood, setMood] = useState('Energetic'); // Beatoven-inspired
-  const [structure, setStructure] = useState('Full Song'); // Structure control
+  const [language, setLanguage] = useState(existingProject?.language || 'English');
+  const [style, setStyle] = useState(existingProject?.style || 'Modern Hip-Hop');
+  const [duration, setDuration] = useState(existingProject?.duration || 90);
+  const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
+  const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
+  const [model, setModel] = useState(existingProject?.model || 'Gemini 2.0 Flash');
+  const [musicEngine, setMusicEngine] = useState(existingProject?.musicEngine || 'music-gpt'); // Default to Beat Lab (MusicGen)
+  const [mood, setMood] = useState(existingProject?.mood || 'Energetic'); // Beatoven-inspired
+  const [structure, setStructure] = useState(existingProject?.structure || 'Full Song'); // Structure control
 
-  // Sync duration with structure
+  // Calculate duration from bars and BPM
   useEffect(() => {
-    if (structure === 'Full Song') setDuration(90);
-    else if (structure === 'Radio Edit') setDuration(150);
-    else if (structure === 'Extended') setDuration(180);
-    else if (structure === 'Loop') setDuration(30);
-    else setDuration(15); // Intro, Verse, etc.
-  }, [structure]);
+    if (useBars) {
+      // 4 beats per bar, 60 seconds per minute
+      const calculatedDuration = Math.round((bars * 4 * 60) / projectBpm);
+      setDuration(calculatedDuration);
+    }
+  }, [bars, projectBpm, useBars]);
+
+  // Sync structure with bars if needed, or vice-versa
+  useEffect(() => {
+    if (!useBars) {
+      if (structure === 'Full Song') setDuration(90);
+      else if (structure === 'Radio Edit') setDuration(150);
+      else if (structure === 'Extended') setDuration(180);
+      else if (structure === 'Loop') setDuration(30);
+      else setDuration(15); 
+    }
+  }, [structure, useBars]);
 
   const [highMusicality, setHighMusicality] = useState(true); // Udio-style musicality
   const [seed, setSeed] = useState(-1); // Riffusion/Suno-style seed (-1 for random)
@@ -1724,7 +1752,7 @@ export default function StudioOrchestratorV2({
         Create content for a ${style} song about: "${songIdea}" in ${language}.
         Be creative, professional, and match the genre's style.
         ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse 1], [Chorus], [Bridge]. ALSO INCLUDE Suno-style vocal/style tags in brackets like [Hard Hitting Rap] or [Soulful Vocals] to guide the performance. Do not include any intro/preamble like "Here are the lyrics".' : ''}
-        ${slot === 'audio' ? 'Describe a detailed beat/instrumental concept with BPM, key, and production elements. Be technical and descriptive for an AI music engine.' : ''}
+        ${slot === 'audio' ? `Describe a detailed beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}, key, and production elements. Be technical and descriptive for an AI music engine.` : ''}
         ${slot === 'visual' ? 'Describe a striking album cover or concept in detail for image generation.' : ''}
         ${slot === 'video' ? 'Write a creative image to video concept/storyboard with scene descriptions.' : ''}`;
         
@@ -1835,7 +1863,8 @@ export default function StudioOrchestratorV2({
         body: JSON.stringify({
           prompt: `Create fresh ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
           systemInstruction: `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.
-          ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse] or [Chorus]. No intro fluff.' : ''}`,
+          ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse] or [Chorus]. No intro fluff.' : ''}
+          ${slot === 'audio' ? `Describe a detailed beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}, key, and production elements. Be technical and descriptive for an AI music engine.` : ''}`,
           model: modelId,
           duration: duration,
           language: language
@@ -1886,7 +1915,7 @@ export default function StudioOrchestratorV2({
     }
     
     setGeneratingMedia(prev => ({ ...prev, audio: true }));
-    const waitTime = structure === 'Extended' ? '3 minutes' : (structure === 'Radio Edit' ? '2 minutes' : '60 seconds');
+    const waitTime = duration > 120 ? '3 minutes' : (duration > 60 ? '2 minutes' : '60 seconds');
     toast.loading(`Synthesizing AI beat (${waitTime})...`, { id: 'gen-audio' });
     
     try {
@@ -1942,6 +1971,41 @@ export default function StudioOrchestratorV2({
         const finalUrl = data.audioUrl || data.output;
         if (finalUrl) {
           setMediaUrls(prev => ({ ...prev, audio: finalUrl }));
+          
+          // Ensure outputs.audio is set so the asset is included in the project save
+          setOutputs(prev => ({ 
+            ...prev, 
+            audio: prev.audio || `Professional ${style} beat generated at ${projectBpm} BPM`
+          }));
+
+          // AUTO-SYNC TO EXISTING PROJECT: Add the audio asset to the project library immediately
+          if (existingProject && (onSaveToProject || onCreateProject)) {
+            const saveFunc = onSaveToProject || onCreateProject;
+            console.log(`[handleGenerateAudio] Auto-syncing audio to project: ${existingProject.id}`);
+            
+            // Check if audio asset already exists in project, if not add it
+            const hasAudioAsset = (existingProject.assets || []).some(a => a.type === 'audio' && a.audioUrl);
+            
+            if (!hasAudioAsset) {
+              const audioAsset = {
+                id: `audio-${Date.now()}`,
+                title: 'Beat Lab Production',
+                type: 'audio',
+                agent: 'Beat Lab',
+                content: cleanAudioPromptText.substring(0, 500),
+                audioUrl: finalUrl,
+                mimeType: data.mimeType || 'audio/mpeg',
+                createdAt: new Date().toISOString()
+              };
+              
+              saveFunc({
+                ...existingProject,
+                assets: [audioAsset, ...(existingProject.assets || [])],
+                updatedAt: new Date().toISOString()
+              });
+            }
+          }
+
           toast.success('AI beat generated!', { id: 'gen-audio' });
         } else {
           console.error('[handleGenerateAudio] No URL in successful response:', data);
@@ -1985,6 +2049,7 @@ export default function StudioOrchestratorV2({
       toast.error('Generate Lyrics & Hook DNA first');
       return;
     }
+    setGeneratingVocal(true);
     setGeneratingMedia(prev => ({ ...prev, vocals: true }));
     toast.loading('Generating AI Vocals (up to 2 mins)...', { id: 'gen-vocals' });
     
@@ -2043,6 +2108,35 @@ export default function StudioOrchestratorV2({
           ...prev, 
           vocals: prev.vocals || `AI Vocal Performance generated for "${songIdea || 'song'}"`
         }));
+
+        // AUTO-SYNC TO EXISTING PROJECT: Add the vocal asset to the project library immediately
+        if (existingProject && (onSaveToProject || onCreateProject)) {
+          const saveFunc = onSaveToProject || onCreateProject;
+          console.log(`[handleGenerateVocals] Auto-syncing vocals to project: ${existingProject.id}`);
+          
+          // Check if vocal asset already exists in project, if not add it
+          const hasVocalAsset = (existingProject.assets || []).some(a => a.type === 'vocal' && a.audioUrl);
+          
+          if (!hasVocalAsset) {
+            const vocalAsset = {
+              id: `vocal-${Date.now()}`,
+              title: 'Vocal Performance',
+              type: 'vocal',
+              agent: 'Ghostwriter',
+              content: cleanLyrics.substring(0, 500),
+              audioUrl: data.audioUrl,
+              mimeType: data.mimeType || 'audio/wav',
+              createdAt: new Date().toISOString()
+            };
+            
+            saveFunc({
+              ...existingProject,
+              assets: [vocalAsset, ...(existingProject.assets || [])],
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
+
         toast.success('AI Vocals generated!', { id: 'gen-vocals' });
       } else {
         const errData = data || {};
@@ -2052,6 +2146,7 @@ export default function StudioOrchestratorV2({
       console.error('[Orchestrator] Vocal generation error:', err);
       toast.error('Vocal generation failed', { id: 'gen-vocals' });
     } finally {
+      setGeneratingVocal(false);
       setGeneratingMedia(prev => ({ ...prev, vocals: false }));
     }
   };
@@ -2334,6 +2429,25 @@ export default function StudioOrchestratorV2({
         if (imageData) {
           setMediaUrls(prev => ({ ...prev, image: imageData }));
           toast.success('Image created!', { id: 'gen-image' });
+
+          // AUTO-SYNC TO PROJECT
+          if (existingProject) {
+            const imageAsset = {
+              id: `img-${Date.now()}`,
+              type: 'image',
+              url: imageData,
+              name: `Album Art - ${new Date().toLocaleTimeString()}`,
+              createdAt: new Date().toISOString()
+            };
+            
+            const updatedAssets = [...(existingProject.assets || []), imageAsset];
+            onSaveToProject({
+              ...existingProject,
+              assets: updatedAssets,
+              updatedAt: new Date().toISOString()
+            });
+            console.log('[Orchestrator] Auto-synced image to project library');
+          }
         } else {
           console.error('[Orchestrator] No image data in response:', data);
           // Try video frame fallback
@@ -2382,6 +2496,24 @@ export default function StudioOrchestratorV2({
           const frameDataUrl = await extractFrameFromVideo(videoUrl);
           setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
           toast.success('Frame extracted from video!', { id: 'gen-image' });
+
+          // AUTO-SYNC TO PROJECT
+          if (existingProject) {
+            const imageAsset = {
+              id: `img-${Date.now()}`,
+              type: 'image',
+              url: frameDataUrl,
+              name: `Video Frame Cover - ${new Date().toLocaleTimeString()}`,
+              createdAt: new Date().toISOString()
+            };
+            
+            const updatedAssets = [...(existingProject.assets || []), imageAsset];
+            onSaveToProject({
+              ...existingProject,
+              assets: updatedAssets,
+              updatedAt: new Date().toISOString()
+            });
+          }
           return;
         }
         
@@ -2389,6 +2521,24 @@ export default function StudioOrchestratorV2({
           const imageData = data.output || `data:${data.mimeType || 'image/jpeg'};base64,${data.imageData}`;
           setMediaUrls(prev => ({ ...prev, image: imageData }));
           toast.success('Frame extracted from video!', { id: 'gen-image' });
+
+          // AUTO-SYNC TO PROJECT
+          if (existingProject) {
+            const imageAsset = {
+              id: `img-${Date.now()}`,
+              type: 'image',
+              url: imageData,
+              name: `Video Frame Cover - ${new Date().toLocaleTimeString()}`,
+              createdAt: new Date().toISOString()
+            };
+            
+            const updatedAssets = [...(existingProject.assets || []), imageAsset];
+            onSaveToProject({
+              ...existingProject,
+              assets: updatedAssets,
+              updatedAt: new Date().toISOString()
+            });
+          }
           return;
         }
       }
@@ -2465,6 +2615,25 @@ export default function StudioOrchestratorV2({
           if (videoUrl && typeof videoUrl === 'string' && (videoUrl.startsWith('http') || videoUrl.startsWith('blob:'))) {
             setMediaUrls(prev => ({ ...prev, video: videoUrl }));
             toast.success(data.isDemo ? 'Demo video loaded!' : 'Video created!', { id: 'gen-video' });
+
+            // AUTO-SYNC VIDEO TO PROJECT
+            if (existingProject) {
+              const videoAsset = {
+                id: `vid-${Date.now()}`,
+                type: 'video',
+                url: videoUrl,
+                name: `Music Video - ${new Date().toLocaleTimeString()}`,
+                createdAt: new Date().toISOString()
+              };
+              
+              const updatedAssets = [...(existingProject.assets || []), videoAsset];
+              onSaveToProject({
+                ...existingProject,
+                assets: updatedAssets,
+                updatedAt: new Date().toISOString()
+              });
+              console.log('[Orchestrator] Auto-synced video to project library');
+            }
             
             // Auto-extract frame if we don't have an image yet
             if (!mediaUrls.image) {
@@ -2505,136 +2674,6 @@ export default function StudioOrchestratorV2({
       toast.error('Video generation failed', { id: 'gen-video' });
     } finally {
       setGeneratingMedia(prev => ({ ...prev, video: false }));
-    }
-  };
-
-  // Ghostwriter vocal generation - Generate audio of lyrics being recited/sung via Gemini TTS
-  const handleGenerateLyricsVocal = async () => {
-    // PREVENT DUPLICATE CALLS
-    if (generatingVocal || generatingMedia.vocals) return;
-
-    console.log('[handleGenerateLyricsVocal] Called, outputs.lyrics:', !!outputs.lyrics);
-    if (!outputs.lyrics) {
-      toast.error('Generate lyrics first');
-      return;
-    }
-    
-    setGeneratingVocal(true);
-    setGeneratingMedia(prev => ({ ...prev, vocals: true }));
-    console.log('[handleGenerateLyricsVocal] Starting vocal generation with:', { voiceStyle, rapStyle });
-    toast.loading('Creating vocal performance (~60s)...', { id: 'gen-vocal' });
-    
-    // Capture project context immediately to prevent race conditions during long AI wait
-    // eslint-disable-next-line no-unused-vars
-    const targetProjectSnapshot = existingProject;
-    
-    try {
-      const headers = await getHeaders();
-      
-      // Map voice style to API voice parameter
-      // Bark handles all voice styles with speaker presets
-      // The backend maps these to Bark speaker histories
-      const voiceMapping = {
-        'rapper': 'rapper-male-1',
-        'rapper-female': 'rapper-female-1',
-        'singer': 'singer-male',
-        'singer-female': 'singer-female',
-        'narrator': 'narrator',
-        'whisper': 'whisper',
-        'spoken': 'spoken'
-      };
-      
-      const selectedVoice = voiceMapping[voiceStyle] || 'rapper-male-1';
-      
-      // Clean lyrics before generating vocals
-      const { content: lyricsOnly } = splitCreativeContent(outputs.lyrics);
-      const cleanLyrics = lyricsOnly || outputs.lyrics;
-
-      // Prepare lyrics text with performance direction based on rap style
-      // Send ONLY the clean lyrics text - no style directions!
-      // Style info is sent as separate API parameters (voice, style, rapStyle, genre)
-      // The backend handles applying the style to the voice, not by reading style text aloud
-      const performanceText = cleanLyrics.substring(0, 750);
-      
-      console.log('[handleGenerateLyricsVocal] Making API call to:', `${BACKEND_URL}/api/generate-speech`);
-      const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          prompt: cleanLyrics.substring(0, 1500),
-          voice: selectedVoice,
-          style: voiceStyle,
-          rapStyle: rapStyle,
-          genre: genre,
-          language: language || 'English',
-          duration: duration || 30,
-          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
-          backingTrackUrl: mediaUrls.audio // Add backing track for sync if available
-        })
-      });
-      
-      console.log('[handleGenerateLyricsVocal] Response status:', response.status, response.ok);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[handleGenerateLyricsVocal] Response data keys:', Object.keys(data));
-        console.log('[handleGenerateLyricsVocal] audioUrl type:', typeof data.audioUrl);
-        console.log('[handleGenerateLyricsVocal] audioUrl starts with data:audio:', data.audioUrl?.startsWith?.('data:audio'));
-        
-        // Accept both data: URLs and https: URLs
-        if (data.audioUrl && (data.audioUrl.startsWith('data:audio') || data.audioUrl.startsWith('http'))) {
-          // Store as a separate vocal version under the lyrics
-          setMediaUrls(prev => ({ 
-            ...prev, 
-            lyricsVocal: data.audioUrl,
-            vocals: data.audioUrl 
-          }));
-          
-          // Ensure outputs.vocals is set so the asset is included in the project save
-          setOutputs(prev => ({ 
-            ...prev, 
-            vocals: prev.vocals || `AI Vocal Performance generated for "${songIdea || 'song'}"`
-          }));
-          
-          // Also sync to project if we have a target project
-          if (targetProjectSnapshot && onSaveToProject) {
-            console.log(`[handleGenerateLyricsVocal] Syncing vocal to project: ${targetProjectSnapshot.id}`);
-            onSaveToProject({
-              ...targetProjectSnapshot,
-              assets: [
-                {
-                  id: `vocal-${Date.now()}`,
-                  type: 'vocal',
-                  agent: 'Vocal Lab',
-                  audioUrl: data.audioUrl,
-                  mimeType: data.mimeType || 'audio/wav',
-                  snippet: `🎤 AI Vocal: "${performanceText.substring(0, 50)}..."`,
-                  createdAt: new Date().toISOString()
-                },
-                ...(targetProjectSnapshot.assets || [])
-              ]
-            });
-          }
-          
-          toast.success(`${rapStyle} ${voiceStyle} vocal created!`, { id: 'gen-vocal' });
-        } else if (data.error) {
-          console.error('Vocal API error:', data.error);
-          toast.error(data.error || 'Vocal generation failed', { id: 'gen-vocal' });
-        } else {
-          console.error('No valid audio in response:', data);
-          toast.error('No audio generated - try again', { id: 'gen-vocal' });
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Vocal API error:', response.status, errorData);
-        toast.error(errorData.error || 'Failed to generate vocal', { id: 'gen-vocal' });
-      }
-    } catch (err) {
-      console.error('Vocal generation error:', err);
-      toast.error('Vocal generation failed', { id: 'gen-vocal' });
-    } finally {
-      setGeneratingVocal(false);
-      setGeneratingMedia(prev => ({ ...prev, vocals: false }));
     }
   };
 
@@ -2899,6 +2938,10 @@ export default function StudioOrchestratorV2({
       style,
       model,
       bpm: projectBpm,
+      structure,
+      duration,
+      musicalBars: bars,
+      useBars,
       date: existingProject?.date || new Date().toLocaleDateString(),
       updatedAt: new Date().toISOString(),
       agents: Object.values(selectedAgents).filter(Boolean).map(id => {
@@ -3194,13 +3237,16 @@ export default function StudioOrchestratorV2({
           {[
             { label: 'Language', value: language, setter: setLanguage, options: ['English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese'] },
             { label: 'Genre', value: style, setter: setStyle, options: ['Modern Hip-Hop', '90s Boom Bap', 'Trap', 'R&B / Soul', 'Pop', 'Rock', 'Electronic', 'Lo-Fi'] },
+            { label: 'Project BPM', value: projectBpm, setter: setProjectBpm, options: [70, 80, 90, 100, 110, 120, 130, 140, 150, 160] },
+            { label: 'Timing Mode', value: useBars ? 'Bars' : 'Seconds', setter: (val) => setUseBars(val === 'Bars'), options: ['Bars', 'Seconds'] },
+            { label: 'Musical Bars', value: bars, setter: setBars, options: [4, 8, 16, 32, 64], hidden: !useBars },
+            { label: 'Target Duration', value: duration, setter: setDuration, options: [15, 30, 60, 90, 120, 180, 240, 300], hidden: useBars },
+            { label: 'Structure', value: structure, setter: setStructure, options: ['Full Song', 'Radio Edit', 'Extended', 'Loop', 'Intro', 'Verse', 'Chorus', 'Outro'] },
             { label: 'AI Model', value: model, setter: setModel, options: ['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Pro'] },
             { label: 'Mood', value: mood, setter: setMood, options: ['Chill', 'Energetic', 'Dark', 'Happy', 'Epic', 'Mysterious', 'Dreamy'] },
-            { label: 'Target Duration', value: duration, setter: setDuration, options: [15, 30, 60, 90, 120, 180, 240, 300] },
-            { label: 'Structure', value: structure, setter: setStructure, options: ['Full Song', 'Radio Edit', 'Extended', 'Loop', 'Intro', 'Verse', 'Chorus', 'Outro'] },
             { label: 'Music Engine', value: musicEngine, setter: setMusicEngine, options: ['Beat Lab (MusicGen)', 'Mureaka', 'Riffusion (Visual)', 'Stability Pro', 'Uberduck', 'Auto-Selection'] },
             { label: 'Stem Mode', value: stemType, setter: setStemType, options: ['Full Mix', 'Drums Only', 'No Drums', 'Melody Only', 'Bass Only'] }
-          ].map(config => (
+          ].filter(c => !c.hidden).map(config => (
             <div key={config.label}>
               <label style={{ 
                 display: 'block', 
@@ -3222,16 +3268,18 @@ export default function StudioOrchestratorV2({
                   musicEngine === 'uberduck' ? 'Uberduck' : 'Auto-Selection'
                 ) : config.value}
                 onChange={(e) => {
+                  const val = e.target.value;
                   if (config.label === 'Music Engine') {
-                    const val = e.target.value;
                     if (val === 'Beat Lab (MusicGen)') setMusicEngine('music-gpt');
                     else if (val === 'Mureaka') setMusicEngine('mureka');
                     else if (val === 'Riffusion (Visual)') setMusicEngine('riffusion');
                     else if (val === 'Stability Pro') setMusicEngine('stability');
                     else if (val === 'Uberduck') setMusicEngine('uberduck');
                     else setMusicEngine('auto');
+                  } else if (['Musical Bars', 'Project BPM', 'Target Duration'].includes(config.label)) {
+                    config.setter(parseInt(val));
                   } else {
-                    config.setter(e.target.value);
+                    config.setter(val);
                   }
                 }}
                 style={{
@@ -3430,7 +3478,7 @@ export default function StudioOrchestratorV2({
                       style={{ background: '#1a1a1a' }}
                       disabled={agent.comingSoon}
                     >
-                      {agent.name} {agent.comingSoon ? '(Coming Soon)' : ''}
+                      {agent.name} {agent.comingSoon ? '(Coming Soon)' : (agent.isBeta ? '(Beta)' : '')}
                     </option>
                   ))}
                 </select>
@@ -4035,7 +4083,7 @@ export default function StudioOrchestratorV2({
               <button
                 onClick={() => {
                   console.log('[Create Vocal Button] CLICKED!');
-                  handleGenerateLyricsVocal();
+                  handleGenerateVocals();
                 }}
                 disabled={generatingVocal}
                 style={{
@@ -4510,34 +4558,15 @@ export default function StudioOrchestratorV2({
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 onClick={() => setShowCreateProject(false)}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: 'none',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  whiteSpace: 'nowrap'
-                }}
+                className="btn-pill glass"
+                style={{ flex: 1, padding: '14px' }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateProject}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-                  border: 'none',
-                  color: 'white',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  whiteSpace: 'nowrap'
-                }}
+                className="btn-pill primary"
+                style={{ flex: 1, padding: '14px', fontWeight: '700' }}
               >
                 Save Project
               </button>
@@ -4626,17 +4655,11 @@ export default function StudioOrchestratorV2({
                   setShowSaveConfirm(false);
                   onClose?.();
                 }}
+                className="btn-pill glass"
                 style={{
                   flex: 1,
                   padding: '14px',
-                  borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  color: 'white',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  whiteSpace: 'nowrap'
+                  fontWeight: '600'
                 }}
               >
                 Go to Hub
@@ -4646,21 +4669,15 @@ export default function StudioOrchestratorV2({
                   setShowSaveConfirm(false);
                   setShowPreviewModal(true);
                 }}
+                className="btn-pill primary"
                 style={{
                   flex: 1,
                   padding: '14px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-                  border: 'none',
-                  color: 'white',
                   fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px',
-                  whiteSpace: 'nowrap'
+                  gap: '8px'
                 }}
               >
                 <Eye size={18} />
@@ -4731,16 +4748,10 @@ export default function StudioOrchestratorV2({
                   setShowExitConfirm(false);
                   setShowCreateProject(true);
                 }}
+                className="btn-pill primary"
                 style={{
                   width: '100%',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                  border: 'none',
-                  color: 'white',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
+                  padding: '12px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -4755,17 +4766,10 @@ export default function StudioOrchestratorV2({
                   onClick={() => {
                     setShowExitConfirm(false);
                   }}
+                  className="btn-pill glass"
                   style={{
                     flex: 1,
-                    padding: '14px',
-                    borderRadius: '12px',
-                    background: 'rgba(255,255,255,0.1)',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    color: 'white',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    fontSize: '0.95rem',
-                    whiteSpace: 'nowrap'
+                    padding: '12px'
                   }}
                 >
                   Cancel
@@ -4775,17 +4779,10 @@ export default function StudioOrchestratorV2({
                     setShowExitConfirm(false);
                     onClose?.();
                   }}
+                  className="btn-pill secondary"
                   style={{
                     flex: 1,
-                    padding: '14px',
-                    borderRadius: '12px',
-                    background: 'rgba(239, 68, 68, 0.2)',
-                    border: '1px solid rgba(239, 68, 68, 0.4)',
-                    color: '#ef4444',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    fontSize: '0.95rem',
-                    whiteSpace: 'nowrap'
+                    padding: '12px'
                   }}
                 >
                   Discard & Exit

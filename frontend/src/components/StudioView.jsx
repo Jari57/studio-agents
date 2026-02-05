@@ -42,6 +42,7 @@ const StudioOrchestrator = React.lazy(() => import('./StudioOrchestratorV2'));
 const QuickWorkflow = React.lazy(() => import('./QuickWorkflow'));
 const ProjectHub = React.lazy(() => import('./ProjectHubV3')); // CapCut/Captions-style design
 const NewsHub = React.lazy(() => import('./NewsHub'));
+const AdminAnalytics = React.lazy(() => import('./AdminAnalytics'));
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SAFE ASSET WRAPPER - Prevents crashes from malformed asset data
@@ -4756,6 +4757,147 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   };
 
+  /**
+   * 🔐 DELETE ACCOUNT - Mandatory for App Store (Apple & Google)
+   * High-security operation: deletes both Firebase auth and cloud storage data.
+   */
+  const handleDeleteAccount = async () => {
+    if (!isLoggedIn || !user) {
+      toast.error('You must be logged in to delete your account');
+      return;
+    }
+
+    // Phase 1: Confirmation
+    const confirmation = window.confirm(
+      "DANGER: Are you sure you want to permanently delete your account?\n\n" +
+      "This will remove ALL your projects, created assets (beats, vocals), " +
+      "and active subscriptions. This action is IRREVERSIBLE."
+    );
+
+    if (!confirmation) return;
+
+    // Phase 2: Double Verification
+    const typedEmail = window.prompt(`To confirm, please type your email address (${user.email}):`);
+    if (typedEmail !== user.email) {
+      toast.error('Identity verification failed. Account was NOT deleted.');
+      return;
+    }
+
+    toast.loading('Wiping all account data...', { id: 'del-acc' });
+
+    try {
+      // Get fresh token for sensitive operation
+      let authToken = null;
+      if (auth?.currentUser) {
+        authToken = await auth.currentUser.getIdToken(true);
+      }
+
+      // Phase 3: Backend Cloud Wipe (Projects, Firestore, etc.)
+      const response = await fetch(`${BACKEND_URL}/api/user/delete-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          confirmedEmail: user.email
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Cloud data wipe failed');
+      }
+
+      // Phase 4: Auth Deletion (This requires recent login, otherwise fails)
+      // If it fails due to "auth/requires-recent-login", we logout the user after successful cloud wipe
+      try {
+        if (auth?.currentUser) {
+          await auth.currentUser.delete();
+        }
+      } catch (authErr) {
+        console.warn('Firebase user delete failed (likely session too old):', authErr.message);
+        if (authErr.code === 'auth/requires-recent-login') {
+          toast.error('Security verification required. Please logout and login again to delete your account profile.', { id: 'del-acc' });
+          return;
+        }
+      }
+
+      toast.success('Account wiped clean. Farewell!', { id: 'del-acc', duration: 5000 });
+      
+      // Phase 5: Final Cleanup
+      handleSecureLogout();
+    } catch (err) {
+      console.error('Account deletion failure:', err);
+      toast.error(`Deletion partially failed: ${err.message}. Data may persist.`, { id: 'del-acc' });
+    }
+  };
+
+  /**
+   * 🎨 FORK PROJECT - Core social engagement feature
+   * Copies a shared project from the Discovery feed into the user's private Hub.
+   */
+  const handleForkProject = async (sampleProject) => {
+    if (!sampleProject) return;
+    
+    console.log('[StudioView] Forking community project:', sampleProject.id);
+    toast.loading('Forking to your workspace...', { id: 'fork-op' });
+    
+    // Create new project object based on sample
+    const newProject = {
+      ...sampleProject,
+      id: `fork-${Date.now()}`,
+      name: `Fork of ${sampleProject.name || 'Untitled Project'}`,
+      creatorId: user?.uid || 'guest',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      source: 'discovery-remix',
+      isFork: true,
+      assets: Array.isArray(sampleProject.assets) ? sampleProject.assets : [], 
+      agents: Array.isArray(sampleProject.agents) ? sampleProject.agents : []
+    };
+    
+    // Add to local projects state
+    setProjects(prev => [newProject, ...(prev || [])]);
+    
+    // Save to Firestore if logged in
+    if (isLoggedIn && user) {
+       try {
+         let authToken = null;
+         if (auth?.currentUser) authToken = await auth.currentUser.getIdToken(true);
+         
+         const response = await fetch(`${BACKEND_URL}/api/user/projects`, {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json',
+             ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+           },
+           body: JSON.stringify({
+             name: newProject.name,
+             type: 'song',
+             data: newProject,
+             metadata: { forkedFrom: sampleProject.id, isFork: true }
+           })
+         });
+         
+         if (response.ok) {
+           const data = await response.json();
+           newProject.id = data.id; // Switch to the real server ID
+         }
+       } catch (err) {
+         console.warn('[StudioView] Fork sync error:', err.message);
+       }
+    }
+    
+    toast.success('Project forked successfully!', { id: 'fork-op' });
+    
+    // Automatically open the forked project
+    setSelectedProject(newProject);
+    setDashboardTab('overview');
+    setActiveTab('hub'); 
+  };
+
   const filteredNews = useMemo(() => {
     if (activeTab !== 'news') return [];
     if (!Array.isArray(newsArticles)) return [];
@@ -5644,10 +5786,10 @@ const fetchUserCredits = useCallback(async (uid) => {
               {dashboardTab === 'overview' && (
                 <div className="dashboard-view-overview animate-fadeIn">
                   {/* Artist Profile & Command Center */}
-                  <div className="artist-profile-header animate-fadeInDown" style={{ 
+                  <div className="artist-profile-header animate-fadeIn" style={{ 
                     background: 'linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%)',
                     borderRadius: '24px',
-                    padding: '32px',
+                    padding: '24px',
                     marginBottom: '24px',
                     border: '1px solid var(--border-color)',
                     boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
@@ -5769,7 +5911,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
                   {/* Feature Utilization & Smart Insights */}
                   <div className="dashboard-grid-two-cols" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-                    <div className="dashboard-card usage-insights-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)' }}>
+                    <div className="dashboard-card usage-insights-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '20px', border: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <Activity size={20} className="text-purple" /> Studio Utilization
@@ -5847,7 +5989,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </div>
                     </div>
 
-                    <div className="dashboard-card platform-integration-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)' }}>
+                    <div className="dashboard-card platform-integration-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '20px', border: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <GlobeIcon size={20} className="text-cyan" /> Cloud Integrations
@@ -6473,6 +6615,14 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
               )}
 
+              {dashboardTab === 'admin' && (
+                <Suspense fallback={<div className="loading-spinner">Loading Analytics...</div>}>
+                  <SectionErrorBoundary name="AdminAnalytics">
+                    <AdminAnalytics />
+                  </SectionErrorBoundary>
+                </Suspense>
+              )}
+
               {dashboardTab === 'billing' && (
                 <div className="dashboard-view-billing animate-fadeIn">
                   <div className="section-header-simple">
@@ -6812,9 +6962,40 @@ const fetchUserCredits = useCallback(async (uid) => {
                         style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                       >
                         <RefreshCw size={16} />
-                        Reset Tour
+                         Reset Tour
                       </button>
                     </div>
+
+                    {/* DANGER ZONE: Account Deletion (App Store Requirement) */}
+                    {isLoggedIn && (
+                      <div className="setting-row danger-zone" style={{ 
+                        marginTop: '32px', 
+                        paddingTop: '24px', 
+                        borderTop: '1px solid rgba(239, 68, 68, 0.2)',
+                        background: 'rgba(239, 68, 68, 0.03)',
+                        padding: '24px',
+                        borderRadius: '16px'
+                      }}>
+                        <div className="setting-info">
+                          <h4 style={{ color: 'var(--color-red)' }}>Delete Account</h4>
+                          <p>Permanently remove your profile and all associated data.</p>
+                        </div>
+                        <button 
+                          className="secondary-button"
+                          onClick={handleDeleteAccount}
+                          style={{ 
+                            background: 'rgba(239, 68, 68, 0.1)', 
+                            border: '1px solid var(--color-red)', 
+                            color: 'var(--color-red)',
+                            fontWeight: '700',
+                            padding: '10px 20px'
+                          }}
+                        >
+                          <Trash2 size={16} />
+                           Wipe Account
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -9151,6 +9332,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             <ProjectHub
               projects={projects}
               setProjects={setProjects}
+              onRemix={handleForkProject}
               onSelectProject={(project) => {
                 console.log('[StudioView] Selecting project:', project?.id, project?.name, 'assets:', project?.assets?.length);
                 
@@ -12249,6 +12431,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                      };
                      setSelectedProject(updatedProject);
                      setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updatedProject.id ? updatedProject : p) : [updatedProject]);
+                     
+                     // CRITICAL FIX: Ensure project is synced to cloud immediately when clicking Save
+                     if (isLoggedIn && user) {
+                       saveProjectToCloud(user.uid, updatedProject);
+                     }
+                     
                      handleTextToVoice("Project session saved.");
                      toast.success('Session saved!');
                    }}
@@ -13943,7 +14131,22 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
               </div>
               <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>By continuing, you agree to our Terms of Service.</p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textAlign: 'center', lineHeight: '1.4' }}>
+                  By continuing, you agree to our{' '}
+                  <button 
+                    onClick={() => { setShowLoginModal(false); window.location.hash = '#/legal'; }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', padding: 0, fontSize: '0.75rem', textDecoration: 'underline' }}
+                  >
+                    Terms of Service
+                  </button>
+                  {' '}and{' '}
+                  <button 
+                    onClick={() => { setShowLoginModal(false); window.location.hash = '#/legal'; }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', padding: 0, fontSize: '0.75rem', textDecoration: 'underline' }}
+                  >
+                   Privacy Policy
+                  </button>.
+                </p>
               </div>
             </div>
           </div>

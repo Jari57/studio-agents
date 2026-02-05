@@ -2437,6 +2437,50 @@ app.post('/api/user/projects', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// POST /api/user/delete-account - Wipe all user data (App Store Requirement)
+app.post('/api/user/delete-account', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const db = getFirestoreDb();
+  if (!db) return res.status(503).json({ error: 'Database unavailable' });
+
+  const userId = req.user.uid;
+  const { confirmedEmail } = req.body;
+
+  logger.info(`🚨 ACCOUNT DELETION REQUEST: ${userId} (${confirmedEmail})`);
+
+  try {
+    // 1. Delete all projects
+    const projectsRef = db.collection('users').doc(userId).collection('projects');
+    const projectsSnapshot = await projectsRef.get();
+    
+    const batch = db.batch();
+    projectsSnapshot.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    
+    // 2. Delete credit history
+    const historyRef = db.collection('users').doc(userId).collection('credit_history');
+    const historySnapshot = await historyRef.get();
+    historySnapshot.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+
+    // 3. Delete the user document itself
+    batch.delete(db.collection('users').doc(userId));
+
+    await batch.commit();
+    
+    logger.info(`✅ Account data wiped for user: ${userId}`);
+    res.json({ success: true, message: 'Account data deleted successfully' });
+  } catch (err) {
+    logger.error('Account deletion error:', err);
+    res.status(500).json({ error: 'Failed to wipe account data', details: err.message });
+  }
+});
+
 // GET /api/user/projects - Get all projects
 app.get('/api/user/projects', verifyFirebaseToken, async (req, res) => {
   if (!req.user) {
@@ -3259,13 +3303,15 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     // ═══════════════════════════════════════════════════════════════
     if (replicateKey && !audioUrl && (speakerUrl || style === 'cloned')) {
       try {
+        // Use provided speaker URL or a default high-quality reference if none provided but 'cloned' requested
+        // Default is a well-engineered studio vocal reference
         const targetSpeaker = speakerUrl || 'https://replicate.delivery/pbxt/HN48RVB1mXdZY3K2eSLvGXGkZCz57NzDJYXCCz01DJZEZOfe/output.wav';
         logger.info('🎤 Using XTTS v2 for voice cloning', { speaker: targetSpeaker.substring(0, 50) + '...' });
         
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
-            'Authorization': `Token ${replicateKey}`,
+            'Authorization': `Bearer ${replicateKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -3283,23 +3329,22 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           const prediction = await response.json();
           logger.info('XTTS cloning prediction started', { id: prediction.id });
           
-          let attempts = 0;
-          const maxAttempts = 60; // 2 minutes
-          while (attempts < maxAttempts) {
+          let result = prediction;
+          // Poll for success (max 2 minutes)
+          for (let i = 0; i < 60 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
             await new Promise(r => setTimeout(r, 2000));
             
-            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-              headers: { 'Authorization': `Token ${replicateKey}` }
+            const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+              headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
             
-            if (statusResponse.ok) {
-              const status = await statusResponse.json();
-              
-              if (status.status === 'succeeded') {
-                let outputUrl = status.output;
+            if (pollResponse.ok) {
+              result = await pollResponse.json();
+              if (result.status === 'succeeded') {
+                let outputUrl = result.output;
                 if (Array.isArray(outputUrl)) outputUrl = outputUrl[0];
                 
-                if (outputUrl) {
+                if (outputUrl && typeof outputUrl === 'string') {
                   const audioResponse = await fetch(outputUrl);
                   if (audioResponse.ok) {
                     const audioBuffer = await audioResponse.arrayBuffer();
@@ -3310,12 +3355,11 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
                     break;
                   }
                 }
-              } else if (status.status === 'failed') {
-                logger.warn('XTTS cloning failed', { error: status.error });
+              } else if (result.status === 'failed') {
+                logger.warn('XTTS cloning failed', { error: result.error });
                 break;
               }
             }
-            attempts++;
           }
         }
       } catch (xttsError) {
@@ -3325,74 +3369,57 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
 
     // ═══════════════════════════════════════════════════════════════
     // PRIORITY 1: BARK - Expressive speech/vocals via Replicate (suno-ai/bark)
-    // Generates expressive speech with emotion, great for rap delivery
-    // Cost: ~$0.01-0.03 per generation, takes 30-120 seconds on cold start
     // ═══════════════════════════════════════════════════════════════
     if (replicateKey && !audioUrl) {
       try {
         logger.info('🎤 Using Bark for expressive vocal generation', { style, rapStyle, genre, langCode });
         
-        // Bark speaker presets for different styles
-        // Valid options: de_speaker_0-9, en_speaker_0-9, es_speaker_0-9, fr_speaker_0-9, etc.
-        let speakerHistory = `v2/${langCode}_speaker_6`; // Default: expressive male (v2 prefix restored for better quality)
-        
-        // Map voice style + rap style to best Bark speaker
+        let speakerHistory = `v2/${langCode}_speaker_6`;
         if (style === 'rapper-female') {
-          // Female rapper - use energetic female
           speakerHistory = (rapStyle === 'chill' || rapStyle === 'melodic') ? `v2/${langCode}_speaker_9` : `v2/${langCode}_speaker_8`;
         } else if (style === 'singer-female') {
-          // Female singer - use expressive female
           speakerHistory = `v2/${langCode}_speaker_9`;
         } else if (style === 'singer' || style === 'singer-male') {
-          // Male singer - use expressive/smooth male
           speakerHistory = `v2/${langCode}_speaker_6`;
         } else if (style === 'rapper' || style === 'rapper-male') {
-          // Male rapper - adjust based on rap style
           if (rapStyle === 'aggressive' || rapStyle === 'hype' || rapStyle === 'drill') {
-            speakerHistory = `v2/${langCode}_speaker_3`; // Intense male
+            speakerHistory = `v2/${langCode}_speaker_3`;
           } else if (rapStyle === 'chill' || rapStyle === 'melodic') {
-            speakerHistory = `v2/${langCode}_speaker_6`; // Smooth male
+            speakerHistory = `v2/${langCode}_speaker_6`;
           } else if (rapStyle === 'fast' || rapStyle === 'trap') {
-            speakerHistory = `v2/${langCode}_speaker_1`; // Young energetic male
+            speakerHistory = `v2/${langCode}_speaker_1`;
           } else if (rapStyle === 'boom-bap' || rapStyle === 'oldschool') {
-            speakerHistory = `v2/${langCode}_speaker_7`; // Deep male
+            speakerHistory = `v2/${langCode}_speaker_7`;
           } else {
-            speakerHistory = `v2/${langCode}_speaker_6`; // Default to speaker 6 (most expressive)
+            speakerHistory = `v2/${langCode}_speaker_6`;
           }
         } else if (style === 'narrator') {
-          speakerHistory = 'announcer'; // Professional announcer voice
+          speakerHistory = 'announcer';
         } else if (style === 'spoken') {
-          speakerHistory = `v2/${langCode}_speaker_0`; // Neutral male
+          speakerHistory = `v2/${langCode}_speaker_0`;
         }
         
-        // Fallback for languages with fewer speakers or 'announcer' not supporting target lang
         if (langCode !== 'en' && speakerHistory === 'announcer') {
             speakerHistory = `v2/${langCode}_speaker_0`;
         }
 
-        logger.info('🎤 Selected Bark speaker', { speakerHistory, style, rapStyle, langCode });
-        
-        // Add Bark-specific markers for expression
-        // [laughter], [laughs], [sighs], [music], [gasps], ♪ for singing
-        let barkPrompt = prompt; // Restore full prompt for better AI context
+        let barkPrompt = prompt;
         if (style.includes('singer')) {
-          // Add music markers for singing
           barkPrompt = `♪ ${prompt} ♪`;
         }
         
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
-            'Authorization': `Token ${replicateKey}`,
+            'Authorization': `Bearer ${replicateKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            // Bark - expressive TTS with emotion (suno-ai/bark model)
             version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
             input: {
               prompt: barkPrompt.substring(0, 1000),
-              text_temp: 0.7, // Creativity for text
-              waveform_temp: 0.7, // Creativity for audio
+              text_temp: 0.7,
+              waveform_temp: 0.7,
               history_prompt: speakerHistory
             }
           })
@@ -3400,39 +3427,21 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         
         if (response.ok) {
           const prediction = await response.json();
-          logger.info('🎤 Bark prediction started - waiting for AI voice generation', { id: prediction.id, speaker: speakerHistory });
+          logger.info('🎤 Bark prediction started', { id: prediction.id, speaker: speakerHistory });
           
-          // Bark cold start can take 2-3 minutes, and generation itself takes 45-60s.
-          // We poll for up to 180 seconds to ensure we don't timeout prematurely.
-          let attempts = 0;
-          const maxAttempts = 90; // 90 × 2 seconds = 180 seconds (3 minutes) max wait
-          while (attempts < maxAttempts) {
+          let result = prediction;
+          // Poll for max 3 minutes
+          for (let i = 0; i < 90 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
             await new Promise(r => setTimeout(r, 2000));
-            
-            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-              headers: { 'Authorization': `Token ${replicateKey}` }
+            const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+              headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
-            
-            if (statusResponse.ok) {
-              const status = await statusResponse.json();
-              
-              // Log progress every 10 attempts (20 seconds)
-              if (attempts % 10 === 0) {
-                logger.info('⏳ Bark generation in progress', { 
-                  attempt: attempts, 
-                  maxAttempts,
-                  status: status.status,
-                  elapsed: `${attempts * 2}s`
-                });
-              }
-              
-              if (status.status === 'succeeded') {
-                // Handle different Replicate output formats (string, array, or object)
-                let outputUrl = status.output;
+            if (pollResponse.ok) {
+              result = await pollResponse.json();
+              if (result.status === 'succeeded') {
+                let outputUrl = result.output;
                 if (Array.isArray(outputUrl)) outputUrl = outputUrl[0];
                 if (typeof outputUrl === 'object' && outputUrl?.audio_out) outputUrl = outputUrl.audio_out;
-                
-                logger.info('🎤 Bark generation finished, fetching results', { outputType: typeof outputUrl });
                 
                 if (outputUrl && typeof outputUrl === 'string') {
                   const audioResponse = await fetch(outputUrl);
@@ -3442,27 +3451,16 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
                     const contentType = audioResponse.headers.get('content-type') || 'audio/wav';
                     audioUrl = `data:${contentType};base64,${base64Audio}`;
                     provider = 'bark';
-                    logger.info('✅ Bark AI voice generated successfully!', { 
-                      bytes: audioBuffer.byteLength,
-                      elapsed: `${attempts * 2}s`
-                    });
+                    logger.info('✅ Bark AI voice generated successfully!');
                     break;
                   }
                 }
-              } else if (status.status === 'failed') {
-                logger.warn('❌ Bark generation failed', { error: status.error });
+              } else if (result.status === 'failed') {
+                logger.warn('❌ Bark generation failed', { error: result.error });
                 break;
               }
             }
-            attempts++;
           }
-          
-          if (attempts >= maxAttempts && !audioUrl) {
-            logger.warn('⏰ Bark timeout after 3 minutes - falling back to next provider');
-          }
-        } else {
-          const errText = await response.text();
-          logger.warn('Bark API error, trying next fallback', { status: response.status, error: errText.substring(0, 200) });
         }
       } catch (barkError) {
         logger.warn('Bark error, trying fallback', { error: barkError.message });
@@ -3649,8 +3647,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
   try {
     const { 
       prompt,           // e.g., "lo-fi hip hop beat with piano"
-      bpm = 90,
-      durationSeconds = 30,
+      bpm: rawBpm = 90,
+      durationSeconds: rawDuration = 30,
       genre = 'hip-hop',
       mood = 'chill',
       referenceAudio,   // DNA feature
@@ -3659,6 +3657,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
       seed = -1,        // Riffusion/Suno-style seed
       stem = 'Full Mix' // Stem isolation (Full Mix, Drums Only, etc.)
     } = req.body;
+
+    const bpm = parseInt(rawBpm) || 90;
+    const durationSeconds = parseInt(rawDuration) || 30;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
@@ -3694,10 +3695,11 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     
     const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${stemInstruction} ${referenceAudio ? 'Reference-guided melody.' : ''} ${qualityTags}. Professional studio quality, broadcast ready.`;
 
-    // Engine Selection Logic - DEFAULT TO STABILITY for long tracks, MUSIC GPT for short
+    // Engine Selection Logic - Favor MusicGPT for consistent beats, Stability for longer soundscapes
     let finalEngine = engine;
     if (engine === 'auto' || !engine) {
-      if (durationSeconds > 30 && stabilityKey) {
+      // MusicGen (Music GPT) is better at rhythmic beats, Stability is better at 90s+ tracks
+      if (durationSeconds > 60 && stabilityKey) {
         finalEngine = 'stability';
       } else {
         finalEngine = 'music-gpt';
@@ -3707,7 +3709,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     // ═══════════════════════════════════════════════════════════════════
     // 1. Stability AI Stable Audio 2.5 (PRIMARY FOR LONG FORM)
     // ═══════════════════════════════════════════════════════════════════
-    if (stabilityKey && (finalEngine === 'stability' || (finalEngine === 'auto' && durationSeconds > 30))) {
+    if (stabilityKey && finalEngine === 'stability') {
       try {
         logger.info('Using Stability AI Stable Audio 2.5');
         const formData = new FormData();
@@ -3716,6 +3718,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
         formData.append('model', 'stable-audio-2.5');
         formData.append('output_format', 'mp3');
         formData.append('steps', '10');
+        if (seed > 0) formData.append('seed', seed.toString());
 
         const stableAudioResponse = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
           method: 'POST',
@@ -3736,6 +3739,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
               isRealGeneration: true
             });
           }
+        } else {
+          const errData = await stableAudioResponse.text();
+          logger.warn('Stability API rejected request', { status: stableAudioResponse.status, error: errData });
         }
       } catch (err) { logger.warn('Stability failed', { error: err.message }); }
     }
@@ -3743,46 +3749,65 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     // ═══════════════════════════════════════════════════════════════════
     // 2. Replicate Music GPT
     // ═══════════════════════════════════════════════════════════════════
-    if (replicateKey) {
+    if (replicateKey && (finalEngine === 'music-gpt' || !stabilityKey)) {
       try {
-        logger.info('Using Replicate Music GPT');
+        logger.info('Using Replicate Music GPT (MusicGen)');
+        
+        // MusicGen works best with direct descriptions, omitting some excessive "high fidelity" tags
+        const musicGptPrompt = `${genre} ${mood} beat, ${bpm} BPM. ${prompt}. ${stemInstruction} Professional quality.`;
+
+        const replicateBody = {
+          // facebookresearch/musicgen stereo-large
+          version: 'b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38',
+          input: { 
+            prompt: musicGptPrompt, 
+            duration: Math.min(durationSeconds, 60),
+            model_version: 'stereo-large', 
+            output_format: 'mp3',
+            normalization_strategy: 'peak'
+          }
+        };
+
+        // Add seed support for deterministic beats (key for "like I once did")
+        if (seed > 0) replicateBody.input.seed = parseInt(seed);
+
         const startResponse = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${replicateKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            version: 'b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38',
-            input: { 
-              prompt: musicPrompt, 
-              duration: Math.min(durationSeconds, 60), // Cap MusicGen at 60s for stability, use Stability AI for longer
-              model_version: 'stereo-large', 
-              output_format: 'mp3',
-              normalization_strategy: 'peak' // Added for better audio levels
-            }
-          })
+          body: JSON.stringify(replicateBody)
         });
 
         if (startResponse.ok) {
           const prediction = await startResponse.json();
           let result = prediction;
-          for (let i = 0; i < 60 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
-            await new Promise(r => setTimeout(r, 2000));
+          
+          // Poll for completion (max 2 minutes)
+          for (let i = 0; i < 40 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
+            await new Promise(r => setTimeout(r, 3000));
             const poll = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
               headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
             result = await poll.json();
           }
+
           if (result.status === 'succeeded' && result.output) {
+            logger.info('Music GPT generation successful');
             return res.json({
               audioUrl: Array.isArray(result.output) ? result.output[0] : result.output,
               mimeType: 'audio/mpeg',
               duration: durationSeconds,
               source: 'music-gpt',
-              prompt: musicPrompt,
+              prompt: musicGptPrompt,
               isRealGeneration: true
             });
+          } else {
+            logger.warn('Music GPT prediction failed or timed out', { status: result.status });
           }
+        } else {
+          const errText = await startResponse.text();
+          logger.warn('Replicate API rejected Music GPT request', { status: startResponse.status, error: errText });
         }
-      } catch (err) { logger.warn('Music GPT failed', { error: err.message }); }
+      } catch (err) { logger.warn('Music GPT processing failed', { error: err.message }); }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -3836,8 +3861,10 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
 // Video generation charges 15 credits (expensive)
 app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), generationLimiter, async (req, res) => {
   try {
-    const { prompt, referenceImage, durationSeconds = 8 } = req.body;
+    let { prompt, referenceImage, durationSeconds = 8 } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    durationSeconds = parseInt(durationSeconds) || 8;
 
     // FAST-FAIL/MOCK for test prompts to save time and API costs during build/CI
     if (prompt.toLowerCase().includes('test video') || prompt.toLowerCase() === 'test') {
@@ -4174,15 +4201,15 @@ app.post('/api/amo/orchestrate', verifyFirebaseToken, apiLimiter, async (req, re
 
 // Helper function to get agent-specific system prompts
 function getAgentSystemPrompt(agent, session) {
-  const baseContext = session ? `Session context: BPM=${session.bpm || 120}, Key=${session.key || 'C major'}, Style=${session.style || 'contemporary'}.` : '';
+  const baseContext = session ? `Session context: BPM=${session.bpm || 120}, Key=${session.key || 'C major'}, Style=${session.style || 'contemporary'}, Bars=${session.musicalBars || 8}.` : '';
   
   const agentPrompts = {
-    'Ghostwriter': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay and authentic voice.`,
-    'BeatArchitect': `You are the Beat Architect AI, a master producer and beatmaker. ${baseContext} Create detailed beat concepts, drum patterns, and production notes.`,
+    'Ghostwriter': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay. Ensure lyrics flow perfectly at the specified BPM and song length.`,
+    'BeatArchitect': `You are the Beat Architect AI, a master producer and beatmaker. ${baseContext} Create detailed beat concepts and drum patterns. Prefer 100% professional musicality. Reference the specified BPM and exact Bar count (${session?.musicalBars || 8} bars) in your creative decisions for rhythm and timing.`,
     'VisualVibe': `You are the Visual Vibe AI, a music video and artwork conceptualist. ${baseContext} Design compelling visual concepts, color palettes, and mood boards for music.`,
     'SoundscapeDesigner': `You are the Soundscape Designer AI, an ambient and texture specialist. ${baseContext} Create atmospheric soundscapes, textures, and ambient elements.`,
-    'MelodyMaker': `You are the Melody Maker AI, a melodic composition expert. ${baseContext} Compose memorable melodies, hooks, and harmonic progressions.`,
-    'ArrangerPro': `You are the Arranger Pro AI, a song structure and arrangement specialist. ${baseContext} Design song structures, transitions, and dynamic arrangements.`
+    'MelodyMaker': `You are the Melody Maker AI, a melodic composition expert. ${baseContext} Compose memorable melodies, hooks, and harmonic progressions that sync with the specified BPM.`,
+    'ArrangerPro': `You are the Arranger Pro AI, a song structure and arrangement specialist. ${baseContext} Design song structures, transitions, and dynamic arrangements based on the ${session?.musicalBars || 8} bars provided.`
   };
   
   return agentPrompts[agent] || `You are a creative AI assistant for music production. ${baseContext} Help with the requested task.`;

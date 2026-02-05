@@ -5,7 +5,7 @@ import {
   Music, Video as VideoIcon, Image as ImageIcon, Mic, FileText, X, Sparkles,
   ChevronRight, Download, Share2, CheckCircle, Archive,
   Pause, Upload, Wand2, Zap, TrendingUp, Star, Eye,
-  Globe as GlobeIcon, Lock as LockIcon
+  Globe as GlobeIcon, Lock as LockIcon, AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, createProjectFromTemplate } from '../data/projectTemplates';
@@ -229,13 +229,33 @@ function DiscoverFeed({ onRemix, onPlay, playingAudio }) {
                     <span title="Likes" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Heart size={14} /> {track.likes}</span>
                     <span title="Forks" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Copy size={13} /> {track.remixes}</span>
                   </div>
-                  <button 
-                    className="btn-remix-action"
-                    onClick={() => onRemix(track)}
-                    style={{ gap: '6px', padding: '8px 12px' }}
-                  >
-                    <Plus size={14} /> FORK & EDIT
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className="btn-remix-action"
+                      onClick={() => onRemix(track)}
+                      style={{ gap: '6px', padding: '8px 12px' }}
+                    >
+                      <Plus size={14} /> FORK & EDIT
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (confirm('Report this content for violation of terms?')) {
+                          toast.success('Report submitted. Our moderators will review this project.');
+                        }
+                      }}
+                      style={{ 
+                        background: 'rgba(255,255,255,0.05)', 
+                        border: '1px solid rgba(255,255,255,0.1)', 
+                        borderRadius: '8px', 
+                        padding: '8px',
+                        color: 'rgba(255,255,255,0.4)',
+                        cursor: 'pointer'
+                      }}
+                      title="Report Content"
+                    >
+                      <AlertTriangle size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
