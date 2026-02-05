@@ -3511,7 +3511,16 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     setIsGenerating(true);
-    const toastId = toast.loading(`${targetAgentSnapshot?.name || 'AI'} is working...`);
+    const isImageAgent = agentId === 'album' || agentId === 'visual-art' || agentId === 'cover-art';
+    const isVideoAgent = agentId === 'video' || agentId === 'video-creator' || agentId === 'video-gen' || agentId === 'sora' || agentId === 'veo';
+    const isAudioAgent = ['beat', 'sample', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film'].includes(agentId);
+    const isSpeechAgent = ['vocal', 'vocal-arch', 'vocal-gen', 'vocal-performer', 'vocal-performance', 'vocal-lab', 'vocal-labs', 'podcast', 'voiceover'].includes(agentId) && agentId !== 'ghost';
+
+    const toastId = toast.loading(
+      (isVideoAgent || isSpeechAgent || isAudioAgent) 
+        ? `${targetAgentSnapshot?.name || 'AI'} is performing... (Typically 1-2 mins)` 
+        : `${targetAgentSnapshot?.name || 'AI'} is working...`
+    );
     
     try {
       // DEDUCT CREDIT / TRACK FREE USE
@@ -3556,13 +3565,28 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
       }
 
+      // Specialized instructions based on agent type (Flavor matching Orchestrator)
+      let customInstruction = '';
+      if (agentId === 'ghost' || agentId === 'ghost-1') {
+        customInstruction = 'Write ONLY the lyrics (verses, hooks, chorus). USE CLEAR LABELS like [Verse 1], [Chorus], [Bridge]. Do not include any "Here are the lyrics" text or preamble.';
+      } else if (agentId === 'vocal-arch' || agentId === 'voiceover') {
+        customInstruction = 'Describe the vocal performance style, tone, and character in detail (e.g., "Energetic female vocal with a soulful grit and rapid-fire delivery").';
+      } else if (agentId === 'beat' || agentId === 'sample') {
+        customInstruction = 'Describe a detailed beat/instrumental concept with BPM, key, and production elements. Be technical and descriptive for an AI music engine.';
+      } else if (agentId === 'album') {
+        customInstruction = 'Describe a striking album cover or concept in detail for image generation. Focus on composition, colors, and mood.';
+      } else if (agentId === 'video-creator') {
+        customInstruction = 'Write a creative image to video concept/storyboard with scene descriptions and visual transitions.';
+      }
+
       let endpoint = '/api/generate';
       let body = {
         prompt: prompt,
         systemInstruction: `You are ${targetAgentSnapshot?.name || 'AI Assistant'}, a professional AI agent in a high-end music studio. 
           Category: ${targetAgentSnapshot?.category || 'General'}. 
           Capabilities: ${(targetAgentSnapshot?.capabilities || []).join(', ')}.
-          ${targetAgentSnapshot?.explanation || ''}`,
+          ${targetAgentSnapshot?.explanation || ''}
+          ${customInstruction}`,
         model: selectedModel, // Pass selected model to backend
         visualDnaUrl,
         audioDnaUrl,
@@ -3572,12 +3596,6 @@ const fetchUserCredits = useCallback(async (uid) => {
       };
 
       // Route to specific endpoints for Image/Video/Audio agents
-      const agentId = targetAgentSnapshot?.id || '';
-      const isImageAgent = agentId === 'album';
-      const isVideoAgent = agentId === 'video-creator';
-      const isAudioAgent = agentId === 'beat' || agentId === 'sample';
-      const isSpeechAgent = agentId === 'podcast' || agentId === 'voiceover' || agentId === 'vocal-arch' || agentId === 'ghost';
-      
       if (isImageAgent) {
         endpoint = '/api/generate-image';
         body = { prompt, model: selectedModel, referenceImage: visualDnaUrl };
@@ -4594,10 +4612,14 @@ const fetchUserCredits = useCallback(async (uid) => {
     toast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} coming soon!`, { icon: '🚧' });
   };
 
-  const handleDeleteProject = async (projectId, e) => {
+  const handleDeleteProject = async (projectId, eOrSkipConfirm) => {
+    const isBulk = eOrSkipConfirm === true;
+    const e = typeof eOrSkipConfirm === 'object' ? eOrSkipConfirm : null;
+    
     e?.stopPropagation(); // Prevent triggering the card click
     if (!projectId) return;
-    if (!window.confirm("Are you sure you want to delete this project?")) return;
+    
+    if (!isBulk && !window.confirm("Are you sure you want to delete this project?")) return;
 
     // Find the project name before deleting for notification
     const safeProjects = projects || [];
@@ -4630,17 +4652,17 @@ const fetchUserCredits = useCallback(async (uid) => {
         
         if (response.ok) {
           console.log(`Deleted project ${projectId} from cloud via API`);
-          toast.success('Project deleted');
+          if (!isBulk) toast.success('Project deleted');
         } else {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || `HTTP ${response.status}`);
         }
       } catch (err) {
         console.error("Failed to delete from cloud:", err);
-        toast.error('Could not delete from cloud, but removed from this device');
+        if (!isBulk) toast.error('Could not delete from cloud, but removed from this device');
       }
     } else {
-      toast.success('Project deleted');
+      if (!isBulk) toast.success('Project deleted');
     }
   };
 
@@ -6983,9 +7005,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                   <Icon size={40} />
                 </div>
                 <div className="agent-hero-info">
-                  <span className="agent-badge">{selectedAgent.category}</span>
-                  <h2>{selectedAgent.name}</h2>
-                  <p>{selectedAgent.description || selectedAgent.desc}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <span className="agent-badge" style={{ background: 'linear-gradient(90deg, var(--color-purple), var(--color-cyan))', color: 'white', fontWeight: '800' }}>{selectedAgent.category}</span>
+                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.3)' }} />
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '1.5px', fontWeight: '800', textTransform: 'uppercase' }}>High-Fidelity Engine</span>
+                  </div>
+                  <h2 style={{ fontSize: '2.4rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '8px', background: 'linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{selectedAgent.name}</h2>
+                  <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)', maxWidth: '600px', lineHeight: '1.6' }}>{selectedAgent.description || selectedAgent.desc}</p>
                 </div>
               </div>
 
@@ -7704,38 +7730,40 @@ const fetchUserCredits = useCallback(async (uid) => {
                         <img 
                           src={formatImageSrc(currentPreview.imageUrl)} 
                           alt="Preview" 
-                          style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} 
+                          style={{ width: '100%', height: '220px', objectFit: 'cover', borderRadius: '12px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }} 
                           onClick={() => safeOpenGenerationPreview(currentPreview)} 
                           onError={(e) => { e.target.style.display = 'none'; }}
                         />
                       ) : currentPreview.type === 'video' && currentPreview.videoUrl ? (
-                        <div style={{ position: 'relative' }}>
-                          <video src={formatVideoSrc(currentPreview.videoUrl)} style={{ width: '100%', height: '120px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }} onClick={() => safeOpenGenerationPreview(currentPreview)} />
+                        <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
+                          <video src={formatVideoSrc(currentPreview.videoUrl)} style={{ width: '100%', height: '220px', objectFit: 'cover', cursor: 'pointer' }} onClick={() => safeOpenGenerationPreview(currentPreview)} />
                           {currentPreview.audioUrl && (
-                            <div style={{ position: 'absolute', bottom: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.65rem', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <Music size={10} /> Synced
+                            <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800' }}>
+                              <Music size={12} /> SYNCED AUDIO
                             </div>
                           )}
                         </div>
                       ) : (currentPreview.type === 'audio' || currentPreview.type === 'vocal') && currentPreview.audioUrl ? (
-                        <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '4px', padding: '8px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '12px', padding: '20px', display: 'flex', gap: '20px', alignItems: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
                            {currentPreview.imageUrl && (
                              <div style={{
-                               width: '48px',
-                               height: '48px',
-                               borderRadius: '6px',
+                               width: '80px',
+                               height: '80px',
+                               borderRadius: '12px',
                                background: `url(${formatImageSrc(currentPreview.imageUrl)}) center/cover`,
-                               flexShrink: 0
+                               flexShrink: 0,
+                               boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
+                               border: '1px solid rgba(255,255,255,0.1)'
                              }} />
                            )}
                            <div style={{ flex: 1, minWidth: 0 }}>
                              {currentPreview.backingTrackUrl ? (
                                <>
-                                 <div style={{ fontSize: '0.65rem', color: 'var(--color-pink)', marginBottom: '2px', fontWeight: 'bold' }}>Synced Vocals</div>
+                                 <div style={{ fontSize: '0.7rem', color: 'var(--color-pink)', marginBottom: '6px', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase' }}>Synced Vocal Architect</div>
                                  <audio 
                                    controls 
                                    src={formatAudioSrc(currentPreview.audioUrl)} 
-                                   style={{ width: '100%', height: '32px', marginBottom: '4px' }}
+                                   style={{ width: '100%', height: '36px', marginBottom: '8px' }}
                                    onPlay={(e) => {
                                       const container = e.target.parentElement;
                                       const backingAudio = container.querySelector('.preview-backing-audio');
@@ -7760,15 +7788,27 @@ const fetchUserCredits = useCallback(async (uid) => {
                                  <audio className="preview-backing-audio" src={formatAudioSrc(currentPreview.backingTrackUrl)} style={{ display: 'none' }} />
                                </>
                              ) : (
-                               <audio controls src={formatAudioSrc(currentPreview.audioUrl)} style={{ width: '100%', height: '32px', marginBottom: '4px' }} />
+                               <audio controls src={formatAudioSrc(currentPreview.audioUrl)} style={{ width: '100%', height: '36px', marginBottom: '8px' }} />
                              )}
-                             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                               {currentPreview.snippet}
+                             <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                               "{currentPreview.snippet?.substring(0, 80)}..."
                              </div>
                            </div>
                         </div>
                       ) : (
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', maxHeight: '120px', overflowY: 'auto' }}>
+                        <div className="flavorful-text-output" style={{ 
+                          fontSize: '1rem', 
+                          lineHeight: '1.8',
+                          color: 'rgba(255,255,255,0.95)', 
+                          padding: '24px', 
+                          background: 'rgba(0,0,0,0.3)', 
+                          borderRadius: '12px', 
+                          maxHeight: '400px', 
+                          overflowY: 'auto',
+                          border: '1px solid rgba(255,255,255,0.05)',
+                          fontFamily: "'Georgia', serif",
+                          whiteSpace: 'pre-wrap'
+                        }}>
                           {currentPreview.snippet}
                         </div>
                       )}

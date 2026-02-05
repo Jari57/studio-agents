@@ -11658,3 +11658,26 @@ html, body, #root {
     padding-bottom: 0 !important;
   }
 }
+
+/* Custom scrollbar for Orchestrator to make it less "weird" and more integrated */
+.orchestrator-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.orchestrator-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.orchestrator-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.orchestrator-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.orchestrator-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}

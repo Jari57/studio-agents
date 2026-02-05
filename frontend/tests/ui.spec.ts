@@ -82,9 +82,9 @@ test.describe('Modal Behavior', () => {
       await page.waitForTimeout(500);
       
       // Click on overlay/backdrop
-      const overlay = page.locator('.modal-overlay, .backdrop, [class*="overlay"]').first();
+      const overlay = page.locator('div.modal-overlay:visible, .backdrop:visible').first();
       if (await overlay.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await overlay.click({ position: { x: 10, y: 10 } });
+        await overlay.click({ position: { x: 10, y: 10 }, force: true });
       }
     }
   });

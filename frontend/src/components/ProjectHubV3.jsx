@@ -79,7 +79,7 @@ function DiscoverFeed({ onRemix, onPlay, playingAudio }) {
       likes: 3400, 
       remixes: 156, 
       tags: ['Trap', 'Dark'],
-      source: 'Music GPT',
+      source: 'Beat Lab',
       audioUrl: 'https://cdn.pixabay.com/audio/2021/11/23/audio_0ed20b0c20.mp3',
       thumbnail: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&q=80&w=300'
     },
@@ -330,10 +330,12 @@ function ProjectHubV3({
     localStorage.setItem('studio_favorite_projects', JSON.stringify(favorites));
   }, [favorites]);
 
-  // Filter projects
+  // Filter and Sort projects
   const filteredProjects = useMemo(() => {
     if (!projects || !Array.isArray(projects)) return [];
-    return projects.filter(p => {
+    
+    // 1. Filter
+    let result = projects.filter(p => {
       if (!p) return false;
       if (filter === 'favorites' && !favorites.includes(p.id)) return false;
       if (filter === 'completed' && p.status !== 'completed') return false;
@@ -344,7 +346,42 @@ function ProjectHubV3({
       }
       return true;
     });
+
+    // 2. Sort by creation date (newest first)
+    return result.sort((a, b) => {
+      // Helper to get time value
+      const getTime = (p) => {
+        if (!p) return 0;
+        if (p.createdAt) return new Date(p.createdAt).getTime();
+        if (p.date) return new Date(p.date).getTime();
+        if (typeof p.id === 'string' && p.id.startsWith('proj-')) {
+          const ts = parseInt(p.id.split('-')[1]);
+          if (!isNaN(ts)) return ts;
+        }
+        return 0;
+      };
+      
+      return getTime(b) - getTime(a);
+    });
   }, [projects, filter, searchQuery, favorites]);
+
+  // Bulk delete empty projects
+  const handlePurgeEmptyProjects = _useCallback(() => {
+    const emptyProjects = projects.filter(p => !p.assets || p.assets.length === 0);
+    if (emptyProjects.length === 0) {
+      toast.success("No empty projects found.");
+      return;
+    }
+    
+    const count = emptyProjects.length;
+    if (confirm(`Destroy ${count} project(s) with zero assets? This cannot be undone.`)) {
+      emptyProjects.forEach(p => onDeleteProject?.(p.id, true));
+      toast.success(`Atmospheric Cleanup: ${count} dead projects purged!`, {
+        icon: '🔥',
+        style: { background: '#ef4444', color: 'white' }
+      });
+    }
+  }, [projects, onDeleteProject]);
 
   // Get project thumbnail
   const getProjectThumbnail = (project) => {
@@ -673,6 +710,16 @@ function ProjectHubV3({
             </p>
           </div>
           <div className="header-actions">
+            {activeHubTab === 'my-projects' && projects.some(p => !p.assets || p.assets.length === 0) && (
+              <button 
+                className="btn-secondary" 
+                onClick={handlePurgeEmptyProjects}
+                style={{ background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}
+              >
+                <Trash2 size={16} />
+                <span>Purge Empty</span>
+              </button>
+            )}
             <button className="btn-create-new" onClick={() => setShowNewProjectModal(true)}>
               <Plus size={20} />
               <span>New Project</span>

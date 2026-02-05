@@ -1291,13 +1291,25 @@ export default function StudioOrchestratorV2({
 
     fetchUserDna();
   }, [isOpen]);
+
+  // Lock body scroll when orchestrator is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, [isOpen]);
   
   const [songIdea, setSongIdea] = useState(existingProject?.name || '');
   const [language, setLanguage] = useState('English');
   const [style, setStyle] = useState('Modern Hip-Hop');
   const [duration, setDuration] = useState(90);
   const [model, setModel] = useState('Gemini 2.0 Flash');
-  const [musicEngine, setMusicEngine] = useState('music-gpt'); // Default to Music GPT (MusicGen)
+  const [musicEngine, setMusicEngine] = useState('music-gpt'); // Default to Beat Lab (MusicGen)
   const [mood, setMood] = useState('Energetic'); // Beatoven-inspired
   const [structure, setStructure] = useState('Full Song'); // Structure control
 
@@ -2920,16 +2932,19 @@ export default function StudioOrchestratorV2({
       </div>
 
       {/* Main Content - Scrollable area */}
-      <div style={{ 
-        flex: 1, 
-        padding: isMobile ? '12px 10px' : '16px', 
-        maxWidth: '1200px', 
-        margin: '0 auto', 
-        width: '100%',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        WebkitOverflowScrolling: 'touch'
-      }}>
+      <div 
+        className="orchestrator-scroll-container"
+        style={{ 
+          flex: 1, 
+          padding: isMobile ? '12px 10px' : '16px', 
+          maxWidth: '1200px', 
+          margin: '0 auto', 
+          width: '100%',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
         
         {/* Input Section */}
         <div style={{ 
@@ -3099,7 +3114,7 @@ export default function StudioOrchestratorV2({
             { label: 'Mood', value: mood, setter: setMood, options: ['Chill', 'Energetic', 'Dark', 'Happy', 'Epic', 'Mysterious', 'Dreamy'] },
             { label: 'Target Duration', value: duration, setter: setDuration, options: [15, 30, 60, 90, 120, 180, 240, 300] },
             { label: 'Structure', value: structure, setter: setStructure, options: ['Full Song', 'Radio Edit', 'Extended', 'Loop', 'Intro', 'Verse', 'Chorus', 'Outro'] },
-            { label: 'Music Engine', value: musicEngine, setter: setMusicEngine, options: ['Music GPT (MusicGen)', 'Mureaka', 'Riffusion (Visual)', 'Stability Pro', 'Uberduck', 'Auto-Selection'] },
+            { label: 'Music Engine', value: musicEngine, setter: setMusicEngine, options: ['Beat Lab (MusicGen)', 'Mureaka', 'Riffusion (Visual)', 'Stability Pro', 'Uberduck', 'Auto-Selection'] },
             { label: 'Stem Mode', value: stemType, setter: setStemType, options: ['Full Mix', 'Drums Only', 'No Drums', 'Melody Only', 'Bass Only'] }
           ].map(config => (
             <div key={config.label}>
@@ -3116,7 +3131,7 @@ export default function StudioOrchestratorV2({
               </label>
               <select
                 value={config.label === 'Music Engine' ? (
-                  musicEngine === 'music-gpt' ? 'Music GPT (MusicGen)' :
+                  musicEngine === 'music-gpt' ? 'Beat Lab (MusicGen)' :
                   musicEngine === 'mureka' ? 'Mureaka' :
                   musicEngine === 'riffusion' ? 'Riffusion (Visual)' :
                   musicEngine === 'stability' ? 'Stability Pro' :
@@ -3125,7 +3140,7 @@ export default function StudioOrchestratorV2({
                 onChange={(e) => {
                   if (config.label === 'Music Engine') {
                     const val = e.target.value;
-                    if (val === 'Music GPT (MusicGen)') setMusicEngine('music-gpt');
+                    if (val === 'Beat Lab (MusicGen)') setMusicEngine('music-gpt');
                     else if (val === 'Mureaka') setMusicEngine('mureka');
                     else if (val === 'Riffusion (Visual)') setMusicEngine('riffusion');
                     else if (val === 'Stability Pro') setMusicEngine('stability');

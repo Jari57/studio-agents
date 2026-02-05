@@ -50,7 +50,7 @@ export const AGENTS = [
     },
     { 
       id: 'beat', 
-      name: 'Music GPT', 
+      name: 'Beat Lab', 
       category: 'Pro Producer', 
       icon: Zap, 
       colorClass: 'agent-cyan', 
@@ -58,8 +58,8 @@ export const AGENTS = [
       description: 'The world\'s most powerful AI music engine (Enhanced MusicGen)',
       capabilities: ['High-Fidelity Audio', 'Riffusion Spectrogram Forks', 'Seed-Persistent DNA', 'Udio-Style Musicality'],
       examples: ['[Seed: 442152] Create a high-musicality synthwave track', 'Generate an epic cinematic loop with Riffusion spectrogram logic'],
-      howToUse: 'Music GPT is the core studio engine. Use "Seed Persistence" to lock in sounds for consistent Forks. Enable "High Musicality" for Udio-grade instrumentation and detail.',
-      explanation: 'Music GPT 2.5 integrates Meta\'s MusicGen Large with Riffusion-style seed control. This allows for deterministic generation, meaning you can Fork a community track and maintain its exact sonic quality while tweaking the prompt.',
+      howToUse: 'Beat Lab is the core studio engine. Use "Seed Persistence" to lock in sounds for consistent Forks. Enable "High Musicality" for Udio-grade instrumentation and detail.',
+      explanation: 'Beat Lab 2.5 integrates Meta\'s MusicGen Large with Riffusion-style seed control. This allows for deterministic generation, meaning you can Fork a community track and maintain its exact sonic quality while tweaking the prompt.',
       helpTips: 'Pro Tip: Note down your Seeds! A Seed locks the AI\'s "imagination," allowing you to generate stems (Drums Only, Melodies) that fit perfectly with your main track.',
       onboarding: [
         "Use 'Seed Control' to maintain sonic consistency across multi-track sessions.",
@@ -122,8 +122,8 @@ export const AGENTS = [
     // === ROW 3: Performers (Vocals + Instruments) ===
     { 
       id: 'vocal-arch', 
-      name: 'Vocal Architect', 
-      category: 'Music Creation', 
+      name: 'Vocal Lab', 
+      category: 'Pro Performer', 
       icon: UsersIcon, 
       tier: 'pro', // PRO TIER
       isBeta: true,
@@ -134,11 +134,16 @@ export const AGENTS = [
       capabilities: ['[Emotional Tagging]', 'Udio-Style Phrasing', 'Harmony Logic', 'Tuning & Correction'],
       examples: ['[Soulful Grit] Generate a powerhouse female vocal', '[Haunting Reverb] Create a layered vocal pad'],
       howToUse: 'Input lyrics and use tags like [Raspy], [Operatic], or [Ad-lib] to define the vocal character. The AI maps emotional intensity to your delivery style.',
-      explanation: 'Vocal Architect 2.0 uses "Neural Emotion Mapping" to align vocal delivery with lyrical sentiment. It recognizes Suno-style descriptors to adjust breathiness, grit, and vibrato in real-time.',
+      explanation: 'Vocal Lab 2.0 uses "Neural Emotion Mapping" to align vocal delivery with lyrical sentiment. It recognizes Suno-style descriptors to adjust breathiness, grit, and vibrato in real-time.',
       helpTips: 'Pro Tip: Layer multiple vocal takes with different tags (e.g., [Lead] + [Harmony]) to create a thick, professional vocal stack directly in the DAW timeline.',
-      onboarding: ["Input structural lyrics.", "Define emotional tags.", "Synthesize and layer."],
+      onboarding: [
+        "Use [Brackets] for vocal style tags like [Breathy], [Aggressive], or [Whispering].",
+        "Type lyrics directly into the prompt to generate high-fidelity vocal stems.",
+        "Add genre markers like [90s R&B] or [Industrial Metal] for character.",
+        "Combine multiple exports to create harmonies and backing vocals."
+      ],
       howTo: 'Enter lyrics and emotion tags. The AI generates professional vocals.',
-      example: 'Voice: "Indie Male", Tag: "[Soulful]"',
+      example: 'Lyrics: "I found my ways...", Tag: "[Soulful]"',
       getStarted: 'Vocal Design'
     },
     { 
