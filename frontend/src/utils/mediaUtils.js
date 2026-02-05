@@ -35,13 +35,26 @@ export const formatImageSrc = (imageData) => {
 export const formatAudioSrc = (audioData) => {
   if (!audioData) return '';
   
-  if (typeof audioData === 'string') return audioData;
+  if (typeof audioData === 'string') {
+    // Already a URL or data URL
+    if (audioData.startsWith('http') || audioData.startsWith('data:') || audioData.startsWith('blob:')) {
+      return audioData;
+    }
+    
+    // Raw base64 - add data URL prefix (audios are typically long)
+    if (audioData.length > 100) {
+      return `data:audio/mpeg;base64,${audioData}`;
+    }
+    
+    return audioData;
+  }
   
   if (typeof audioData === 'object') {
-    if (audioData.url) return audioData.url;
-    if (audioData.audio) return audioData.audio;
+    if (audioData.url) return formatAudioSrc(audioData.url);
+    if (audioData.audio) return formatAudioSrc(audioData.audio);
     if (Array.isArray(audioData) && audioData[0]) {
-      return typeof audioData[0] === 'string' ? audioData[0] : (audioData[0].url || audioData[0].audio || '');
+      const first = audioData[0];
+      return typeof first === 'string' ? formatAudioSrc(first) : (formatAudioSrc(first.url || first.audio || ''));
     }
   }
   

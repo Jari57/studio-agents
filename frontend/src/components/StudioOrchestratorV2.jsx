@@ -1258,11 +1258,117 @@ export default function StudioOrchestratorV2({
 }) {
   // 📱 Device responsiveness
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // STATE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const [songIdea, setSongIdea] = useState(existingProject?.name || '');
+  const [language, setLanguage] = useState(existingProject?.language || 'English');
+  const [style, setStyle] = useState(existingProject?.style || 'Modern Hip-Hop');
+  const [duration, setDuration] = useState(existingProject?.duration || 90);
+  const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
+  const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
+  const [model, setModel] = useState(existingProject?.model || 'Gemini 2.0 Flash');
+  const [musicEngine, setMusicEngine] = useState(existingProject?.musicEngine || 'music-gpt'); // Default to Beat Lab (MusicGen)
+  const [mood, setMood] = useState(existingProject?.mood || 'Energetic'); // Beatoven-inspired
+  const [structure, setStructure] = useState(existingProject?.structure || 'Full Song'); // Structure control
+
+  const [highMusicality, setHighMusicality] = useState(true); // Udio-style musicality
+  const [seed, setSeed] = useState(-1); // Riffusion/Suno-style seed (-1 for random)
+  const [stemType, setStemType] = useState('Full Mix'); // Stem/Instrument isolation
+  const [projectBpm, setProjectBpm] = useState(existingProject?.bpm || existingProject?.settings?.bpm || 120); // Tempo for production
+  
+  const [selectedAgents, setSelectedAgents] = useState({
+    lyrics: 'ghost',
+    audio: 'beat',
+    visual: 'album',
+    video: 'video-creator'
+  });
+  
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [outputs, setOutputs] = useState({
+    lyrics: null,
+    audio: null,
+    visual: null,
+    video: null
+  });
+
+  const [mediaUrls, setMediaUrls] = useState({
+    audio: null,
+    image: null,
+    video: null,
+    vocals: null,
+    lyricsVocal: null // Unified key for lyrics+vocal
+  });
+  
+  const [generatingMedia, setGeneratingMedia] = useState({
+    audio: false,
+    image: false,
+    video: false,
+    vocals: false
+  });
+  
+  const [speakingSlot, setSpeakingSlot] = useState(null);
+  const [projectName, setProjectName] = useState('');
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
+  const [vocalQuality, setVocalQuality] = useState('premium'); // 'standard' or 'premium'
+  const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
+  const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
+  const [generatingVocal, setGeneratingVocal] = useState(false);
+  const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
+  const [creatingFinalMix, setCreatingFinalMix] = useState(false);
+  const [finalMixPreview, setFinalMixPreview] = useState(null);
+  const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
+  const [musicVideoUrl, setMusicVideoUrl] = useState(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
+  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
+  const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
+  const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
+  const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
+  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(localStorage.getItem('studio_elevenlabs_voice_id') || '');
+  const [isUploadingSample, setIsUploadingSample] = useState(false);
+  const [savedVoices, setSavedVoices] = useState([]); // List of voices saved in Firestore
+  const [loadingVoices, setLoadingVoices] = useState(false);
+  const [elVoices, setElVoices] = useState([]); // ElevenLabs professional voices
+  const [loadingElVoices, setLoadingElVoices] = useState(false);
+
+  // New DNA States for other agents
+  const [visualDnaUrl, setVisualDnaUrl] = useState(null);
+  const [audioDnaUrl, setAudioDnaUrl] = useState(null);
+  const [videoDnaUrl, setVideoDnaUrl] = useState(null); // Image used for image-to-video
+  const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null); // Text file or PDF as reference
+  const [referencedAudioId, setReferencedAudioId] = useState('');
+  const [referencedVisualId, setReferencedVisualId] = useState('');
+  const [isUploadingDna, setIsUploadingDna] = useState({ visual: false, audio: false, video: false, lyrics: false });
+  const [showDnaVault, setShowDnaVault] = useState(false);
+  
+  // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
+  const outputsRef = useRef(outputs);
+  const recognitionRef = useRef(null);
+  const vocalAudioRef = useRef(null);
+
+  // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
+  const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
+  const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // EFFECTS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    outputsRef.current = outputs;
+  }, [outputs]);
 
   // Fetch saved voices from Firestore
   useEffect(() => {
@@ -1288,6 +1394,28 @@ export default function StudioOrchestratorV2({
 
     if (isOpen) {
       fetchSavedVoices();
+    }
+  }, [isOpen]);
+
+  // Fetch ElevenLabs voices
+  useEffect(() => {
+    const fetchElVoices = async () => {
+      setLoadingElVoices(true);
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/voices`);
+        if (response.ok) {
+          const voices = await response.json();
+          setElVoices(voices);
+        }
+      } catch (err) {
+        console.error('[Orchestrator] Error fetching ElevenLabs voices:', err);
+      } finally {
+        setLoadingElVoices(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchElVoices();
     }
   }, [isOpen]);
 
@@ -1326,17 +1454,6 @@ export default function StudioOrchestratorV2({
       document.body.style.overflow = 'auto';
     };
   }, [isOpen]);
-  
-  const [songIdea, setSongIdea] = useState(existingProject?.name || '');
-  const [language, setLanguage] = useState(existingProject?.language || 'English');
-  const [style, setStyle] = useState(existingProject?.style || 'Modern Hip-Hop');
-  const [duration, setDuration] = useState(existingProject?.duration || 90);
-  const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
-  const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
-  const [model, setModel] = useState(existingProject?.model || 'Gemini 2.0 Flash');
-  const [musicEngine, setMusicEngine] = useState(existingProject?.musicEngine || 'music-gpt'); // Default to Beat Lab (MusicGen)
-  const [mood, setMood] = useState(existingProject?.mood || 'Energetic'); // Beatoven-inspired
-  const [structure, setStructure] = useState(existingProject?.structure || 'Full Song'); // Structure control
 
   // Calculate duration from bars and BPM
   useEffect(() => {
@@ -1357,90 +1474,11 @@ export default function StudioOrchestratorV2({
       else setDuration(15); 
     }
   }, [structure, useBars]);
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════════
 
-  const [highMusicality, setHighMusicality] = useState(true); // Udio-style musicality
-  const [seed, setSeed] = useState(-1); // Riffusion/Suno-style seed (-1 for random)
-  const [stemType, setStemType] = useState('Full Mix'); // Stem/Instrument isolation
-  const [projectBpm, setProjectBpm] = useState(existingProject?.bpm || existingProject?.settings?.bpm || 120); // Tempo for production
-  
-  // 4 Generator Slots - default to free tier agents
-  const [selectedAgents, setSelectedAgents] = useState({
-    lyrics: 'ghost',
-    audio: 'beat',
-    visual: 'album',
-    video: 'video-creator'
-  });
-  
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [outputs, setOutputs] = useState({
-    lyrics: null,
-    audio: null,
-    visual: null,
-    video: null
-  });
-
-  // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
-  const outputsRef = useRef(outputs);
-  useEffect(() => {
-    outputsRef.current = outputs;
-  }, [outputs]);
-
-  const [mediaUrls, setMediaUrls] = useState({
-    audio: null,
-    image: null,
-    video: null,
-    vocals: null,
-    lyricsVocal: null // Unified key for lyrics+vocal
-  });
-  
-  const [generatingMedia, setGeneratingMedia] = useState({
-    audio: false,
-    image: false,
-    video: false,
-    vocals: false
-  });
-  
-  const [speakingSlot, setSpeakingSlot] = useState(null);
-  const [projectName, setProjectName] = useState('');
-  const [showCreateProject, setShowCreateProject] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
-  const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
-  const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
-  const [generatingVocal, setGeneratingVocal] = useState(false);
-  const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
-  const [creatingFinalMix, setCreatingFinalMix] = useState(false);
-  const [finalMixPreview, setFinalMixPreview] = useState(null);
-  const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
-  const [musicVideoUrl, setMusicVideoUrl] = useState(null);
-  const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
-  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
-  const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
-  const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
-  const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
-  const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
-  const [isUploadingSample, setIsUploadingSample] = useState(false);
-  const [savedVoices, setSavedVoices] = useState([]); // List of voices saved in Firestore
-  const [loadingVoices, setLoadingVoices] = useState(false);
-
-  // New DNA States for other agents
-  const [visualDnaUrl, setVisualDnaUrl] = useState(null);
-  const [audioDnaUrl, setAudioDnaUrl] = useState(null);
-  const [videoDnaUrl, setVideoDnaUrl] = useState(null); // Image used for image-to-video
-  const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null); // Text file or PDF as reference
-  const [isUploadingDna, setIsUploadingDna] = useState({ visual: false, audio: false, video: false, lyrics: false });
-  const [showDnaVault, setShowDnaVault] = useState(false);
-  
-  // const speechSynthRef = useRef(null); - removed (unused)
-  const recognitionRef = useRef(null);
-  const vocalAudioRef = useRef(null);
-  
-  // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
-  const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
-  const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
-  
   // Check if there's any generated content that hasn't been saved
   const hasUnsavedContent = () => {
     const hasContent = Object.values(safeOutputs).some(Boolean) || Object.values(safeMediaUrls).some(Boolean);
@@ -1741,22 +1779,23 @@ export default function StudioOrchestratorV2({
                     model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.0-flash-exp' : 
                     model === 'Gemini 1.5 Pro' ? 'gemini-1.5-pro' : 'gemini-2.0-flash';
 
-      // Generate for all active slots in parallel
-      const generationPromises = activeSlots.map(async ([slot, agentId]) => {
+      // Helper to generate a single slot (used for sequencing or parallel)
+      const generateForSlot = async (slot, agentId, contextLyrics = '') => {
         const agent = AGENTS.find(a => a.id === agentId);
-        if (!agent) return;
+        if (!agent) return null;
         
         const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
         
         const systemPrompt = `You are ${agent.name}, a professional ${agent.category} specialist. 
         Create content for a ${style} song about: "${songIdea}" in ${language}.
         Be creative, professional, and match the genre's style.
+        ${contextLyrics ? `HERE ARE THE LYRICS FOR THE SONG - USE THEM TO INSPIRE THE VIBE: "${contextLyrics.substring(0, 1000)}"` : ''}
         ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse 1], [Chorus], [Bridge]. ALSO INCLUDE Suno-style vocal/style tags in brackets like [Hard Hitting Rap] or [Soulful Vocals] to guide the performance. Do not include any intro/preamble like "Here are the lyrics".' : ''}
-        ${slot === 'audio' ? `Describe a detailed beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}, key, and production elements. Be technical and descriptive for an AI music engine.` : ''}
+        ${slot === 'audio' ? `Briefly describe a high-quality beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Use simple genre descriptors (e.g., "Heavy Trap", "Lo-fi Chill"). DO NOT use complex technical jargon or overly verbose descriptions. Keep it under 60 words for maximum AI compatibility.` : ''}
         ${slot === 'visual' ? 'Describe a striking album cover or concept in detail for image generation.' : ''}
         ${slot === 'video' ? 'Write a creative image to video concept/storyboard with scene descriptions.' : ''}`;
         
-        console.log(`[handleGenerate] Starting parallel generation for ${slot} with agent:`, agent.name);
+        console.log(`[handleGenerate] Starting generation for ${slot} with agent:`, agent.name);
         
         try {
           const response = await fetch(`${BACKEND_URL}/api/generate`, {
@@ -1779,43 +1818,57 @@ export default function StudioOrchestratorV2({
             const data = await response.json();
             setOutputs(prev => {
               const NEW_OUTPUTS = { ...prev, [slot]: data.output };
-              outputsRef.current = NEW_OUTPUTS; // Immediate update for same-cycle access
+              outputsRef.current = NEW_OUTPUTS;
               return NEW_OUTPUTS;
             });
             console.log(`[handleGenerate] ${slot} generated successfully`);
             
-            // TRIPLE-GUARDED AUTO-TRIGGERING: 
-            // 1. Pass data directly 
-            // 2. Use Ref fallback 
-            // 3. Incrementally delayed to spread load
+            // Auto-triggering of media generators
             if (slot === 'audio') {
-              console.log('[handleGenerate] Auto-triggering Audio generation in 500ms');
               setTimeout(() => handleGenerateAudio(data.output), 500);
             } else if (slot === 'lyrics') {
-              console.log('[handleGenerate] Auto-triggering Vocal generation in 800ms');
               setTimeout(() => handleGenerateVocals(data.output), 800);
             } else if (slot === 'visual') {
-              console.log('[handleGenerate] Auto-triggering Image generation in 1100ms');
               setTimeout(() => handleGenerateImage(data.output), 1100);
             } else if (slot === 'video') {
-              console.log('[handleGenerate] Auto-triggering Video generation in 1400ms');
               setTimeout(() => handleGenerateVideo(data.output), 1400);
             }
+            return data.output;
           } else {
             const errorText = await response.text();
             console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
-            toast.error(`Agent ${agent.name} failed: ${response.status}`, { 
-              duration: 5000,
-              icon: '❌'
-            });
+            toast.error(`Agent ${agent.name} failed: ${response.status}`, { icon: '❌' });
+            return null;
           }
         } catch (err) {
           console.error(`Error generating ${slot}:`, err);
           toast.error(`Connection Error: ${slot} generation failed.`, { icon: '📡' });
+          return null;
         }
-      });
+      };
 
-      await Promise.all(generationPromises);
+      // RUN SEQUENTIALLY: Lyrics first to provide context for other agents
+      const lyricsSlot = activeSlots.find(([s]) => s === 'lyrics');
+      let lyricsResult = '';
+      
+      if (lyricsSlot) {
+        lyricsResult = await generateForSlot(lyricsSlot[0], lyricsSlot[1]);
+      } else if (existingProject?.assets) {
+        // Look for existing lyrics in the project to provide context for other agents
+        const lyricsAsset = existingProject.assets.find(a => 
+          a.type === 'lyrics' || 
+          a.id?.includes('lyrics') || 
+          a.agent?.toLowerCase().includes('ghost')
+        );
+        if (lyricsAsset) {
+          lyricsResult = lyricsAsset.content || lyricsAsset.snippet || '';
+          console.log('[Orchestrator] Found existing project lyrics for context');
+        }
+      }
+      
+      // All other slots run in parallel using the (optional) lyrics context
+      const otherSlots = activeSlots.filter(([s]) => s !== 'lyrics');
+      await Promise.all(otherSlots.map(([slot, agentId]) => generateForSlot(slot, agentId, lyricsResult)));
       
       toast.dismiss('gen-all');
       toast.success('Generation complete!');
@@ -1863,8 +1916,9 @@ export default function StudioOrchestratorV2({
         body: JSON.stringify({
           prompt: `Create fresh ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
           systemInstruction: `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.
+          ${(slot !== 'lyrics' && outputs.lyrics) ? `HERE ARE THE CURRENT LYRICS - USE THEM FOR CONTEXT: "${outputs.lyrics.substring(0, 500)}"` : ''}
           ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse] or [Chorus]. No intro fluff.' : ''}
-          ${slot === 'audio' ? `Describe a detailed beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}, key, and production elements. Be technical and descriptive for an AI music engine.` : ''}`,
+          ${slot === 'audio' ? `Briefly describe a high-quality beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Focus on mood, instrumentation, and energy. Keep it under 80 words for an AI music generator.` : ''}`,
           model: modelId,
           duration: duration,
           language: language
@@ -2084,7 +2138,9 @@ export default function StudioOrchestratorV2({
           genre: genre,
           language: language || 'English',
           duration: duration || 30,
+          quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
           speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
+          elevenLabsVoiceId: (vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null,
           backingTrackUrl: mediaUrls.audio // Add backing track for sync/context if available
         })
       });
@@ -2581,7 +2637,9 @@ export default function StudioOrchestratorV2({
         headers,
         body: JSON.stringify({
           prompt: `Cinematic image to video, professional visual: ${videoPrompt.substring(0, 500)}`,
-          referenceImage: videoDnaUrl,
+          referenceImage: visualDnaUrl || videoDnaUrl,
+          referenceVideo: videoDnaUrl,
+          visualId: referencedVisualId,
           duration: duration
         })
       });
@@ -3625,6 +3683,40 @@ export default function StudioOrchestratorV2({
                 </div>
               </div>
 
+              {/* Audio ID Reference - New for Audio_ID support */}
+              <div style={{
+                padding: '12px',
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '12px',
+                border: referencedAudioId ? '1px solid #06b6d4' : '1px solid rgba(255,255,255,0.05)',
+                gridColumn: isMobile ? 'span 1' : 'span 2'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Hash size={16} color="#06b6d4" />
+                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Project Audio ID Reference</div>
+                  </div>
+                  {referencedAudioId && <button onClick={() => setReferencedAudioId('')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Link an existing Audio ID (e.g. project_vocal_01)..."
+                  value={referencedAudioId}
+                  onChange={(e) => setReferencedAudioId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '0.8rem',
+                    color: 'white',
+                    outline: 'none',
+                    fontFamily: 'monospace'
+                  }}
+                />
+              </div>
+
               {/* Video/Profile DNA */}
               <div style={{
                 padding: '12px',
@@ -3651,6 +3743,59 @@ export default function StudioOrchestratorV2({
                     {isUploadingDna.video ? <Loader2 size={12} className="spin" /> : 'Upload'}
                   </label>
                 </div>
+              </div>
+
+              {/* ElevenLabs Premium Toggle */}
+              <div style={{
+                gridColumn: isMobile ? 'auto' : '1 / span 2',
+                padding: '12px 16px',
+                background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)',
+                borderRadius: '12px',
+                border: '1px solid rgba(168, 85, 247, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: '4px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: vocalQuality === 'premium' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: vocalQuality === 'premium' ? '#a855f7' : 'rgba(255,255,255,0.4)'
+                  }}>
+                    <Zap size={18} fill={vocalQuality === 'premium' ? '#a855f7' : 'none'} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '700', letterSpacing: '0.02em' }}>
+                      ELEVENLABS PREMIUM ENGINE
+                    </div>
+                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)' }}>
+                      {vocalQuality === 'premium' ? 'Using HD neural voices & cloned mastery' : 'Using standard generation engines'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setVocalQuality(vocalQuality === 'premium' ? 'standard' : 'premium')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    background: vocalQuality === 'premium' ? '#a855f7' : 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    color: 'white',
+                    fontSize: '0.7rem',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    boxShadow: vocalQuality === 'premium' ? '0 0 15px rgba(168, 85, 247, 0.4)' : 'none',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  {vocalQuality === 'premium' ? 'ACTIVATED' : 'ACTIVATE'}
+                </button>
               </div>
             </div>
           )}
@@ -3747,7 +3892,8 @@ export default function StudioOrchestratorV2({
                   lineHeight: '1.6',
                   color: 'rgba(255,255,255,0.85)',
                   whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
+                  wordBreak: 'break-word',
+                  fontFamily: "'Georgia', 'Times New Roman', serif"
                 }}>
                   {outputs.lyrics}
                 </div>
@@ -3918,52 +4064,126 @@ export default function StudioOrchestratorV2({
               </select>
 
               {/* Voice Sample Upload */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="file"
-                  id="voice-sample-upload"
-                  accept="audio/*"
-                  onChange={handleUploadVoiceSample}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  onClick={() => document.getElementById('voice-sample-upload').click()}
-                  disabled={isUploadingSample}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: voiceSampleUrl ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                    border: voiceSampleUrl ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
-                    color: voiceSampleUrl ? '#22c55e' : 'white',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {isUploadingSample ? <Loader2 size={16} className="spin" /> : <Mic size={16} />}
-                  {voiceSampleUrl ? 'Voice Sample Attached ✓' : 'Upload Voice Sample'}
-                </button>
-                {voiceSampleUrl && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="file"
+                    id="voice-sample-upload"
+                    accept="audio/*"
+                    onChange={handleUploadVoiceSample}
+                    style={{ display: 'none' }}
+                  />
                   <button
-                    onClick={() => {
-                      setVoiceSampleUrl(null);
-                      if (voiceStyle === 'cloned') setVoiceStyle('rapper');
-                    }}
+                    onClick={() => document.getElementById('voice-sample-upload').click()}
+                    disabled={isUploadingSample}
                     style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#ef4444',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: voiceSampleUrl ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                      border: voiceSampleUrl ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
+                      color: voiceSampleUrl ? '#22c55e' : 'white',
+                      fontSize: '0.85rem',
                       cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      padding: '4px'
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s'
                     }}
-                    title="Remove sample"
                   >
-                    <X size={14} />
+                    {isUploadingSample ? <Loader2 size={16} className="spin" /> : <Mic size={16} />}
+                    {voiceSampleUrl ? 'Voice Sample Attached ✓' : 'Upload Voice Sample'}
                   </button>
+                  {voiceSampleUrl && (
+                    <button
+                      onClick={() => {
+                        setVoiceSampleUrl(null);
+                        if (voiceStyle === 'cloned') setVoiceStyle('rapper');
+                      }}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: '10px',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        padding: '10px'
+                      }}
+                      title="Remove sample"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Premium ElevenLabs Input / Voice Selector */}
+                {(vocalQuality === 'premium' || voiceStyle === 'cloned' || voiceStyle.startsWith('saved-')) && (
+                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {elVoices.length > 0 ? (
+                      <select
+                        value={elevenLabsVoiceId}
+                        onChange={(e) => {
+                          setElevenLabsVoiceId(e.target.value);
+                          localStorage.setItem('studio_elevenlabs_voice_id', e.target.value);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          background: 'rgba(0,0,0,0.3)',
+                          border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
+                          color: 'white',
+                          fontSize: '0.85rem',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="">Select ElevenLabs Voice (Premium)</option>
+                        <optgroup label="Professional Models">
+                          {elVoices.map(voice => (
+                            <option key={voice.voice_id} value={voice.voice_id}>
+                              {voice.name} ({voice.labels?.accent || voice.labels?.gender || 'Pro'})
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="ElevenLabs Voice ID (Optional for Premium)"
+                        value={elevenLabsVoiceId}
+                        onChange={(e) => {
+                          setElevenLabsVoiceId(e.target.value);
+                          localStorage.setItem('studio_elevenlabs_voice_id', e.target.value);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          background: 'rgba(0,0,0,0.3)',
+                          border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
+                          color: 'white',
+                          fontSize: '0.8rem',
+                          outline: 'none'
+                        }}
+                      />
+                    )}
+                    {elevenLabsVoiceId && (
+                      <div style={{ 
+                        position: 'absolute', 
+                        right: elVoices.length > 0 ? '30px' : '10px', 
+                        top: '50%', 
+                        transform: 'translateY(-50%)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px', 
+                        pointerEvents: 'none' 
+                      }}>
+                        <Zap size={10} color="#fbbf24" fill="#fbbf24" />
+                        <span style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: 'bold' }}>PREMIUM</span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -4935,7 +5155,8 @@ export default function StudioOrchestratorV2({
                   color: safeOutputs.lyrics ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
-                  fontStyle: safeOutputs.lyrics ? 'normal' : 'italic'
+                  fontStyle: safeOutputs.lyrics ? 'normal' : 'italic',
+                  fontFamily: "'Georgia', 'Times New Roman', serif"
                 }}>
                   {safeOutputs.lyrics || 'No lyrics generated yet. Use the Lyrics generator to create lyrics.'}
                 </div>

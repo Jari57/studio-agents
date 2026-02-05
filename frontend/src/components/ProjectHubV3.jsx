@@ -585,8 +585,13 @@ function ProjectHubV3({
       setPlayingAudio(null);
     } else {
       if (audioRef.current) {
-        audioRef.current.src = url;
-        audioRef.current.play();
+        // Use utility to handle raw base64 and other formats correctly
+        const formattedUrl = formatAudioSrc(url);
+        audioRef.current.src = formattedUrl;
+        audioRef.current.play().catch(err => {
+          console.error('[ProjectHub] Playback failed:', err);
+          toast.error("Playback failed. Please try again.");
+        });
         setPlayingAudio(url);
       }
     }

@@ -1080,6 +1080,31 @@ app.get('/api/models', async (req, res) => {
   }
 });
 
+// ==================== ELEVENLABS VOICES API ====================
+// List available ElevenLabs professional voices
+app.get('/api/voices', async (req, res) => {
+  try {
+    const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+    if (!elevenLabsKey) {
+      return res.status(501).json({ error: 'ElevenLabs API key not configured' });
+    }
+
+    const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+      headers: { 'xi-api-key': elevenLabsKey }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      res.json(data.voices || []);
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      res.status(response.status).json({ error: 'Failed to fetch voices from ElevenLabs', details: errorData });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 // ==================== UBERDUCK VOICES API ====================
 // List available Uberduck voices for rap/speech generation
 app.get('/api/uberduck/voices', async (req, res) => {
@@ -3273,7 +3298,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
       rapStyle = 'aggressive', // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
       genre = 'hip-hop', // hip-hop, r&b, pop, soul, trap, drill, boom-bap
       language = 'en',   // en, es, fr, de, it, pt, ja, ko, zh
-      speakerUrl = null  // Reference audio for voice cloning (XTTS)
+      speakerUrl = null, // Reference audio for voice cloning (XTTS)
+      duration = 30      // Requested length
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
@@ -3292,21 +3318,71 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     };
     const langCode = langMap[language] || language || 'en';
 
-    logger.info('🎤 Generating REAL AI vocals (not TTS)', { textLength: prompt.length, voice, style, rapStyle, genre, language: langCode, hasSpeakerUrl: !!speakerUrl });
+    logger.info('🎤 Generating AI vocals/speech', { 
+      textLength: prompt.length, 
+      voice, 
+      style, 
+      language: langCode, 
+      hasSpeakerUrl: !!speakerUrl,
+      hasElevenLabsId: !!req.body.elevenLabsVoiceId,
+      quality: req.body.quality
+    });
 
     let audioUrl = null;
     let provider = null;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+    const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+
+    // ═══════════════════════════════════════════════════════════════
+    // PRIORITY -1: ElevenLabs (Premium / Indistinguishable Quality)
+    // ═══════════════════════════════════════════════════════════════
+    // If ElevenLabs key is present, try it first for 'cloned', if a voice ID is provided, or if premium quality is requested
+    if (elevenLabsKey && !audioUrl && (style === 'cloned' || req.body.elevenLabsVoiceId || req.body.quality === 'premium')) {
+      try {
+        const voiceId = req.body.elevenLabsVoiceId || 'pNInz6obpgDQGcFmaJgB'; // Default high-quality Adam voice if none provided
+        logger.info('🎤 Using ElevenLabs for premium vocal generation', { voiceId, quality: req.body.quality });
+        
+        const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'audio/mpeg',
+            'xi-api-key': elevenLabsKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: prompt,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: {
+              stability: 0.55,
+              similarity_boost: 0.8,
+              style: 0.0,
+              use_speaker_boost: true
+            }
+          })
+        });
+
+        if (elResponse.ok) {
+          const audioBuffer = await elResponse.arrayBuffer();
+          const base64Audio = Buffer.from(audioBuffer).toString('base64');
+          audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+          provider = 'elevenlabs-premium';
+          logger.info('✅ Premium ElevenLabs vocal generated');
+        } else {
+          const errorData = await elResponse.json().catch(() => ({}));
+          logger.warn('ElevenLabs failed, falling back...', { error: errorData });
+        }
+      } catch (elevenLabsError) {
+        logger.error('ElevenLabs integration error:', elevenLabsError);
+      }
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // PRIORITY 0: XTTS v2 - Voice Cloning (If speakerUrl provided)
     // ═══════════════════════════════════════════════════════════════
     if (replicateKey && !audioUrl && (speakerUrl || style === 'cloned')) {
       try {
-        // Use provided speaker URL or a default high-quality reference if none provided but 'cloned' requested
-        // Default is a well-engineered studio vocal reference
         const targetSpeaker = speakerUrl || 'https://replicate.delivery/pbxt/HN48RVB1mXdZY3K2eSLvGXGkZCz57NzDJYXCCz01DJZEZOfe/output.wav';
-        logger.info('🎤 Using XTTS v2 for voice cloning', { speaker: targetSpeaker.substring(0, 50) + '...' });
+        logger.info('🎤 Using Optimized XTTS v2 for voice cloning', { speaker: targetSpeaker.substring(0, 50) + '...' });
         
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
@@ -3315,12 +3391,14 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            // XTTS v2 - high quality TTS with voice cloning capability
             version: '684bc3855b37866c0c65add2ff39c78f3dea3f4ff103a436465326e0f438d55e',
             input: {
               text: prompt.substring(0, 2000),
               language: langCode,
-              speaker: targetSpeaker
+              speaker: targetSpeaker,
+              cleanup_voice: true,
+              speed: 1.0,
+              temperature: 0.75
             }
           })
         });
@@ -3333,17 +3411,14 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           // Poll for success (max 2 minutes)
           for (let i = 0; i < 60 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
             await new Promise(r => setTimeout(r, 2000));
-            
             const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
               headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
-            
             if (pollResponse.ok) {
               result = await pollResponse.json();
               if (result.status === 'succeeded') {
                 let outputUrl = result.output;
                 if (Array.isArray(outputUrl)) outputUrl = outputUrl[0];
-                
                 if (outputUrl && typeof outputUrl === 'string') {
                   const audioResponse = await fetch(outputUrl);
                   if (audioResponse.ok) {
@@ -3356,64 +3431,39 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
                   }
                 }
               } else if (result.status === 'failed') {
-                logger.warn('XTTS cloning failed', { error: result.error });
+                logger.warn('XTTS cloning failed, trying fallback...');
                 break;
               }
             }
           }
         }
       } catch (xttsError) {
-        logger.error('XTTS cloning error:', xttsError);
+        logger.error('XTTS cloning error, trying fallback:', xttsError);
       }
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 1: BARK - Expressive speech/vocals via Replicate (suno-ai/bark)
+    // PRIORITY 1: BARK - Expressive speech/vocals via Replicate
     // ═══════════════════════════════════════════════════════════════
     if (replicateKey && !audioUrl) {
       try {
-        logger.info('🎤 Using Bark for expressive vocal generation', { style, rapStyle, genre, langCode });
+        logger.info('🎤 Using Bark for expressive vocal generation', { style, langCode });
         
         let speakerHistory = `v2/${langCode}_speaker_6`;
-        if (style === 'rapper-female') {
-          speakerHistory = (rapStyle === 'chill' || rapStyle === 'melodic') ? `v2/${langCode}_speaker_9` : `v2/${langCode}_speaker_8`;
-        } else if (style === 'singer-female') {
+        if (style === 'rapper-female' || style === 'singer-female') {
           speakerHistory = `v2/${langCode}_speaker_9`;
-        } else if (style === 'singer' || style === 'singer-male') {
-          speakerHistory = `v2/${langCode}_speaker_6`;
-        } else if (style === 'rapper' || style === 'rapper-male') {
-          if (rapStyle === 'aggressive' || rapStyle === 'hype' || rapStyle === 'drill') {
-            speakerHistory = `v2/${langCode}_speaker_3`;
-          } else if (rapStyle === 'chill' || rapStyle === 'melodic') {
-            speakerHistory = `v2/${langCode}_speaker_6`;
-          } else if (rapStyle === 'fast' || rapStyle === 'trap') {
-            speakerHistory = `v2/${langCode}_speaker_1`;
-          } else if (rapStyle === 'boom-bap' || rapStyle === 'oldschool') {
-            speakerHistory = `v2/${langCode}_speaker_7`;
-          } else {
-            speakerHistory = `v2/${langCode}_speaker_6`;
-          }
         } else if (style === 'narrator') {
           speakerHistory = 'announcer';
         } else if (style === 'spoken') {
           speakerHistory = `v2/${langCode}_speaker_0`;
         }
         
-        if (langCode !== 'en' && speakerHistory === 'announcer') {
-            speakerHistory = `v2/${langCode}_speaker_0`;
-        }
-
         let barkPrompt = prompt;
-        if (style.includes('singer')) {
-          barkPrompt = `♪ ${prompt} ♪`;
-        }
+        if (style.includes('singer')) barkPrompt = `♪ ${prompt} ♪`;
         
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${replicateKey}`,
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Authorization': `Bearer ${replicateKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
             input: {
@@ -3427,10 +3477,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         
         if (response.ok) {
           const prediction = await response.json();
-          logger.info('🎤 Bark prediction started', { id: prediction.id, speaker: speakerHistory });
-          
           let result = prediction;
-          // Poll for max 3 minutes
           for (let i = 0; i < 90 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
             await new Promise(r => setTimeout(r, 2000));
             const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
@@ -3451,35 +3498,28 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
                     const contentType = audioResponse.headers.get('content-type') || 'audio/wav';
                     audioUrl = `data:${contentType};base64,${base64Audio}`;
                     provider = 'bark';
-                    logger.info('✅ Bark AI voice generated successfully!');
+                    logger.info('✅ Bark voice generated successfully');
                     break;
                   }
                 }
-              } else if (result.status === 'failed') {
-                logger.warn('❌ Bark generation failed', { error: result.error });
-                break;
               }
             }
           }
         }
-      } catch (barkError) {
-        logger.warn('Bark error, trying fallback', { error: barkError.message });
-      }
+      } catch (barkError) { logger.warn('Bark failed, trying fallback'); }
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 2: Gemini TTS (Robust & High Quality)
+    // PRIORITY 2: Gemini TTS (Robust Fallback)
     // ═══════════════════════════════════════════════════════════════
     const geminiKey = process.env.GEMINI_API_KEY;
     if (!audioUrl && geminiKey) {
       try {
-        logger.info('🎤 Using Gemini TTS as high-quality fallback');
-        
-        let geminiVoice = 'Kore'; // Default male
-        if (style === 'rapper-female' || style === 'singer-female') geminiVoice = 'Puck'; // Or 'Charon'
+        logger.info('🎤 Using Gemini TTS fallback');
+        let geminiVoice = 'Kore';
+        if (style.includes('female')) geminiVoice = 'Puck';
         
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
-        
         const geminiResponse = await fetch(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3487,11 +3527,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
               responseModalities: ['AUDIO'],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: geminiVoice }
-                }
-              }
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: geminiVoice } } }
             }
           })
         });
@@ -3500,20 +3536,17 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           const data = await geminiResponse.json();
           const audioData = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
           const mimeType = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'audio/wav';
-          
           if (audioData) {
             audioUrl = `data:${mimeType};base64,${audioData}`;
             provider = 'gemini-tts';
-            logger.info('✅ Gemini TTS generated vocal fallback');
+            logger.info('✅ Gemini TTS generated fallback');
           }
         }
-      } catch (geminiError) {
-        logger.warn('Gemini TTS error', { error: geminiError.message });
-      }
+      } catch (err) { logger.warn('Gemini TTS failed'); }
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // FALLBACK: Uberduck TTS (basic, but always works)
+    // PRIORITY 3: Uberduck TTS (Final Fallback)
     // ═══════════════════════════════════════════════════════════════
     const uberduckKey = process.env.UBERDUCK_API_KEY;
     const uberduckSecret = process.env.UBERDUCK_API_SECRET;
@@ -3523,30 +3556,19 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     
     if (!audioUrl && uberduckKey) {
       try {
-        logger.info('🔄 Falling back to Uberduck TTS');
-        
-        let selectedVoice = 'azure_en-US-GuyNeural';
-        if (style === 'rapper-female' || style === 'singer-female') {
-          selectedVoice = 'azure_en-US-JennyNeural';
-        }
+        logger.info('🔄 Final fallback to Uberduck TTS');
+        let selectedVoice = style.includes('female') ? 'azure_en-US-JennyNeural' : 'azure_en-US-GuyNeural';
         
         const response = await fetch('https://api.uberduck.ai/v1/text-to-speech', {
           method: 'POST',
-          headers: {
-            'Authorization': uberduckAuth,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            speech: prompt.substring(0, 2000), // Handle both property name variants
-            text: prompt.substring(0, 2000),
-            voice: selectedVoice
-          })
+          headers: { 'Authorization': uberduckAuth, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: prompt.substring(0, 2000), voice: selectedVoice })
         });
         
         if (response.ok) {
           const data = await response.json();
-          if (data.audio_url || data.url) {
-            const vocalUrl = data.audio_url || data.url;
+          const vocalUrl = data.audio_url || data.url;
+          if (vocalUrl) {
             const audioResponse = await fetch(vocalUrl);
             if (audioResponse.ok) {
               const audioBuffer = await audioResponse.arrayBuffer();
@@ -3558,21 +3580,15 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             }
           }
         }
-      } catch (uberduckError) {
-        logger.error('Uberduck error', { error: uberduckError.message });
-      }
+      } catch (err) { logger.error('Uberduck final fallback failed'); }
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // Return result - optionally save to Firebase Storage for permanence
-    // ═══════════════════════════════════════════════════════════════
     if (audioUrl) {
-      logger.info('🎤 Vocal generation successful', { provider, style });
+      logger.info('🎤 Vocal generation successful', { provider });
       
       let permanentUrl = null;
       let storagePath = null;
       
-      // If user is authenticated and saveToCloud is requested, persist to Firebase Storage
       if (req.user && req.body.saveToCloud !== false) {
         const bucket = getStorageBucket();
         if (bucket) {
@@ -3581,58 +3597,34 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             const result = await uploadToStorage(audioUrl, req.user.uid, fileName, 'audio/mpeg');
             permanentUrl = result.url;
             storagePath = result.path;
-            logger.info('📤 Vocal saved to cloud storage', { path: storagePath });
             
-            // Also save metadata to Firestore
             const db = getFirestoreDb();
             if (db) {
               await db.collection('users').doc(req.user.uid).collection('assets').add({
                 url: permanentUrl,
                 storagePath: storagePath,
-                fileName: fileName,
-                mimeType: 'audio/mpeg',
                 assetType: 'vocal',
                 provider: provider,
-                style: style,
-                promptPreview: prompt.substring(0, 100),
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                userId: req.user.uid
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
               });
             }
-          } catch (uploadErr) {
-            logger.warn('Could not save vocal to cloud storage', { error: uploadErr.message });
-          }
+          } catch (uploadErr) { logger.warn('Cloud save failed'); }
         }
       }
       
       res.json({
         audioUrl: permanentUrl || audioUrl,
         temporaryUrl: permanentUrl ? audioUrl : null,
-        storagePath,
         provider,
         style,
-        isPermanent: !!permanentUrl,
         message: `Professional vocal generated via ${provider}`
       });
     } else {
       logger.error('❌ All vocal generation methods failed');
-      res.status(503).json({ 
-        error: 'Vocal generation failed',
-        details: 'Check API key configuration in backend/.env',
-        requiredKeys: {
-          UBERDUCK_API_KEY: !!uberduckKey,
-          REPLICATE_API_KEY: !!replicateKey,
-          GEMINI_API_KEY: !!geminiKey
-        },
-        setupGuide: {
-          uberduck: 'Get API key at https://uberduck.ai/account/manage-api',
-          replicate: 'Get token at https://replicate.com/account/api-tokens'
-        }
-      });
+      res.status(503).json({ error: 'Vocal generation failed', details: 'Check API key configuration' });
     }
-
   } catch (error) {
-    logger.error('Vocal generation error', { error: error.message, stack: error.stack });
+    logger.error('Vocal generation error', { error: error.message });
     res.status(500).json({ error: 'Vocal generation failed', details: error.message });
   }
 });
@@ -3646,212 +3638,116 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
 app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), generationLimiter, async (req, res) => {
   try {
     const { 
-      prompt,           // e.g., "lo-fi hip hop beat with piano"
-      bpm: rawBpm = 90,
-      durationSeconds: rawDuration = 30,
-      genre = 'hip-hop',
-      mood = 'chill',
-      referenceAudio,   // DNA feature
-      engine = 'auto',  // engine selection (auto, music-gpt, stability, uberduck, mureka)
-      highMusicality = true, // NEW: Udio-style musicality flag
-      seed = -1,        // Riffusion/Suno-style seed
-      stem = 'Full Mix' // Stem isolation (Full Mix, Drums Only, etc.)
+      prompt, bpm: rawBpm = 90, durationSeconds: rawDuration = 30, genre = 'hip-hop', mood = 'chill',
+      referenceAudio, engine = 'auto', highMusicality = true, seed = -1, stem = 'Full Mix' 
     } = req.body;
 
     const bpm = parseInt(rawBpm) || 90;
     const durationSeconds = parseInt(rawDuration) || 30;
-    
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
-    const uberduckKey = process.env.UBERDUCK_API_KEY;
     const stabilityKey = process.env.STABILITY_API_KEY;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
-    
-    logger.info('Generating professional music/beat', { 
-      prompt: prompt.substring(0, 50), 
-      bpm, 
-      genre, 
-      mood,
-      durationSeconds,
-      engine,
-      seed,
-      stem,
-      hasReference: !!referenceAudio
-    });
+    const falKey = process.env.FAL_KEY || process.env.FAL_API_KEY;
 
-    // Enhanced prompt for professional audio (Udio & Beatoven inspired)
-    // We add high-fidelity musicality tags like "studio recording", "well-balanced mix" etc.
-    let qualityTags = 'High-fidelity studio recording, professional arrangement, clear soundstage, cinematic production, consistent rhythm';
-    if (highMusicality) {
-      qualityTags += ', highly musical, Udio-style musicality, detailed instrumentation, emotive composition, nuanced performance';
-    }
+    logger.info('Generating professional music/beat', { prompt: prompt.substring(0, 50), bpm, engine });
 
-    // Stem isolation instructions
-    let stemInstruction = '';
-    if (stem === 'Drums Only') stemInstruction = 'Isolated drum track, no instruments, pure percussion.';
-    else if (stem === 'No Drums') stemInstruction = 'Musical bed only, no drums, percussion-free.';
-    else if (stem === 'Melody Only') stemInstruction = 'Isolated lead melody, minimal accompaniment.';
-    else if (stem === 'Bass Only') stemInstruction = 'Isolated bassline, sub-heavy, no high-end instruments.';
-    
-    const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${stemInstruction} ${referenceAudio ? 'Reference-guided melody.' : ''} ${qualityTags}. Professional studio quality, broadcast ready.`;
+    let qualityTags = 'High-fidelity studio recording, professional arrangement, clear soundstage, cinematic production';
+    const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${qualityTags}. Professional studio quality.`;
 
-    // Engine Selection Logic - Favor MusicGPT for consistent beats, Stability for longer soundscapes
-    let finalEngine = engine;
-    if (engine === 'auto' || !engine) {
-      // MusicGen (Music GPT) is better at rhythmic beats, Stability is better at 90s+ tracks
-      if (durationSeconds > 60 && stabilityKey) {
-        finalEngine = 'stability';
-      } else {
-        finalEngine = 'music-gpt';
-      }
-    }
+    let audioUrl = null;
+    let provider = null;
 
-    // ═══════════════════════════════════════════════════════════════════
-    // 1. Stability AI Stable Audio 2.5 (PRIMARY FOR LONG FORM)
-    // ═══════════════════════════════════════════════════════════════════
-    if (stabilityKey && finalEngine === 'stability') {
+    // 1. Stability AI (Priority for auto or stability)
+    if (stabilityKey && (engine === 'auto' || engine === 'stability')) {
       try {
-        logger.info('Using Stability AI Stable Audio 2.5');
+        logger.info('Using Stability AI');
         const formData = new FormData();
         formData.append('prompt', musicPrompt);
         formData.append('duration', Math.min(durationSeconds, 180).toString());
         formData.append('model', 'stable-audio-2.5');
         formData.append('output_format', 'mp3');
-        formData.append('steps', '10');
         if (seed > 0) formData.append('seed', seed.toString());
 
-        const stableAudioResponse = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
+        const response = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${stabilityKey}`, 'Accept': 'application/json' },
           body: formData
         });
 
-        if (stableAudioResponse.ok) {
-          const jsonResponse = await stableAudioResponse.json();
-          if (jsonResponse.audio) {
-            return res.json({
-              audioUrl: `data:audio/mpeg;base64,${jsonResponse.audio}`,
-              mimeType: 'audio/mpeg',
-              duration: durationSeconds,
-              source: 'stable-audio-2.5',
-              prompt: musicPrompt,
-              quality: 'broadcast',
-              isRealGeneration: true
-            });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.audio) {
+            audioUrl = `data:audio/mpeg;base64,${data.audio}`;
+            provider = 'stable-audio-2.5';
           }
-        } else {
-          const errData = await stableAudioResponse.text();
-          logger.warn('Stability API rejected request', { status: stableAudioResponse.status, error: errData });
         }
-      } catch (err) { logger.warn('Stability failed', { error: err.message }); }
+      } catch (err) { logger.warn('Stability failed'); }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // 2. Replicate Music GPT
-    // ═══════════════════════════════════════════════════════════════════
-    if (replicateKey && (finalEngine === 'music-gpt' || !stabilityKey)) {
+    // 2. Replicate Music GPT (Fallback)
+    if (replicateKey && !audioUrl) {
       try {
-        logger.info('Using Replicate Music GPT (MusicGen)');
-        
-        // MusicGen works best with direct descriptions, omitting some excessive "high fidelity" tags
-        const musicGptPrompt = `${genre} ${mood} beat, ${bpm} BPM. ${prompt}. ${stemInstruction} Professional quality.`;
-
-        const replicateBody = {
-          // facebookresearch/musicgen stereo-large
-          version: 'b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38',
-          input: { 
-            prompt: musicGptPrompt, 
-            duration: Math.min(durationSeconds, 60),
-            model_version: 'stereo-large', 
-            output_format: 'mp3',
-            normalization_strategy: 'peak'
-          }
-        };
-
-        // Add seed support for deterministic beats (key for "like I once did")
-        if (seed > 0) replicateBody.input.seed = parseInt(seed);
-
+        logger.info('Using Replicate Music GPT');
         const startResponse = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${replicateKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(replicateBody)
+          body: JSON.stringify({
+            version: 'b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38',
+            input: { prompt: `${genre} ${mood} beat, ${bpm} BPM. ${prompt}`, duration: Math.min(durationSeconds, 60) }
+          })
         });
 
         if (startResponse.ok) {
-          const prediction = await startResponse.json();
-          let result = prediction;
-          
-          // Poll for completion (max 2 minutes)
+          let result = await startResponse.json();
           for (let i = 0; i < 40 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
-            await new Promise(r => setTimeout(r, 3000));
-            const poll = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+            await new Promise(r => setTimeout(r, 2000));
+            const poll = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
               headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
             result = await poll.json();
           }
 
           if (result.status === 'succeeded' && result.output) {
-            logger.info('Music GPT generation successful');
-            return res.json({
-              audioUrl: Array.isArray(result.output) ? result.output[0] : result.output,
-              mimeType: 'audio/mpeg',
-              duration: durationSeconds,
-              source: 'music-gpt',
-              prompt: musicGptPrompt,
-              isRealGeneration: true
-            });
-          } else {
-            logger.warn('Music GPT prediction failed or timed out', { status: result.status });
+            const directUrl = Array.isArray(result.output) ? result.output[0] : result.output;
+            const audioData = await fetch(directUrl).then(r => r.arrayBuffer());
+            audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
+            provider = 'music-gpt';
           }
-        } else {
-          const errText = await startResponse.text();
-          logger.warn('Replicate API rejected Music GPT request', { status: startResponse.status, error: errText });
         }
-      } catch (err) { logger.warn('Music GPT processing failed', { error: err.message }); }
+      } catch (err) { logger.warn('Music GPT failed'); }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // 3. FAL.ai Beatoven (Fallback)
-    // ═══════════════════════════════════════════════════════════════════
-    const falKey = process.env.FAL_KEY || process.env.FAL_API_KEY;
-    if (falKey) {
+    // 3. FAL.ai (Last Fallback)
+    if (falKey && !audioUrl) {
       try {
-        logger.info('Using FAL.ai Beatoven');
-        const falResponse = await fetch('https://queue.fal.run/beatoven/music-generation', {
+        const response = await fetch('https://queue.fal.run/beatoven/music-generation', {
           method: 'POST',
           headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: musicPrompt, duration: Math.min(durationSeconds, 180), genre, mood, bpm })
+          body: JSON.stringify({ prompt: musicPrompt, duration: Math.min(durationSeconds, 60) })
         });
-
-        if (falResponse.ok) {
-          const falResult = await falResponse.json();
-          if (falResult.audio_url || falResult.audio) {
-            return res.json({
-              audioUrl: falResult.audio_url || falResult.audio,
-              mimeType: 'audio/mpeg',
-              duration: durationSeconds,
-              source: 'beatoven',
-              prompt: musicPrompt,
-              isRealGeneration: true
-            });
-          }
+        if (response.ok) {
+          const data = await response.json();
+          const falUrl = data.audio_url || data.audio;
+          const audioData = await fetch(falUrl).then(r => r.arrayBuffer());
+          audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
+          provider = 'beatoven';
         }
-      } catch (err) { logger.warn('FAL failed', { error: err.message }); }
+      } catch (err) { logger.warn('FAL failed'); }
     }
 
-    // Final Demo Fallback
-    logger.info('Falling back to demo audio');
-    return res.json({
-      audioUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8b8a5a4a5.mp3',
-      mimeType: 'audio/mpeg',
-      duration: 30,
-      source: 'demo-fallback',
-      prompt: musicPrompt,
-      isRealGeneration: false
-    });
+    if (audioUrl) {
+      res.json({ audioUrl, provider, duration: durationSeconds, isRealGeneration: true });
+    } else {
+      res.json({
+        audioUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8b8a5a4a5.mp3',
+        provider: 'demo-fallback',
+        isRealGeneration: false
+      });
+    }
   } catch (error) {
-    logger.error('Global error', { error: error.message });
-    res.status(500).json({ error: 'Failed' });
+    logger.error('Global audio error', { error: error.message });
+    res.status(500).json({ error: 'Audio generation failed', details: error.message });
   }
 });
 
@@ -3861,8 +3757,11 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
 // Video generation charges 15 credits (expensive)
 app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), generationLimiter, async (req, res) => {
   try {
-    let { prompt, referenceImage, durationSeconds = 8 } = req.body;
+    let { prompt, referenceImage, referenceVideo, durationSeconds = 8 } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    // Handle reference mapping (referenceVideo -> referenceImage)
+    if (!referenceImage && referenceVideo) referenceImage = referenceVideo;
 
     durationSeconds = parseInt(durationSeconds) || 8;
 
@@ -3915,7 +3814,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
             if (response.ok) {
                 const operationData = await response.json();
                 logger.info('Veo 3.0 Fast operation started', { name: operationData.name });
-                return handleVeoOperation(operationData, apiKey, res);
+                return await handleVeoOperation(operationData, apiKey, res);
             }
             
             const errorText = await response.text();
@@ -3940,7 +3839,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
             if (veo2Response.ok) {
                 const veo2Data = await veo2Response.json();
                 logger.info('Veo 2.0 operation started', { name: veo2Data.name });
-                return handleVeoOperation(veo2Data, apiKey, res);
+                return await handleVeoOperation(veo2Data, apiKey, res);
             }
             
             const veo2Error = await veo2Response.text();
@@ -3960,12 +3859,15 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
         logger.info('Trying Replicate (Minimax) as fallback video generator...');
         const replicate = new Replicate({ auth: replicateKey });
         
+        // Truncate prompt for Replicate (Minimax prefers < 1000 characters)
+        const minimaxPrompt = prompt.length > 800 ? prompt.substring(0, 800) + '...' : prompt;
+
         // Using Minimax Video-01 (High quality, 5s)
         const output = await replicate.run(
           "minimax/video-01",
           {
             input: {
-              prompt: prompt,
+              prompt: minimaxPrompt,
               prompt_optimizer: true
             }
           }
@@ -6835,10 +6737,15 @@ const server = app.listen(PORT, HOST, () => {
     port: PORT,
     environment: NODE_ENV,
     nodeVersion: process.version,
-    platform: process.platform
+    platform: process.version
   });
   logger.info(`🚀 Uplink Ready at http://${HOST}:${PORT}`);
 });
+
+// Increase timeout for long-running video generation (10 minutes)
+server.timeout = 600000;
+server.keepAliveTimeout = 65000; // slightly longer than default for better reliability
+server.headersTimeout = 66000;
 
 // Graceful shutdown handlers
 process.on('SIGTERM', () => {
