@@ -1258,11 +1258,111 @@ export default function StudioOrchestratorV2({
 }) {
   // 📱 Device responsiveness
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // STATE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const [songIdea, setSongIdea] = useState(existingProject?.name || '');
+  const [language, setLanguage] = useState(existingProject?.language || 'English');
+  const [style, setStyle] = useState(existingProject?.style || 'Modern Hip-Hop');
+  const [duration, setDuration] = useState(existingProject?.duration || 90);
+  const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
+  const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
+  const [model, setModel] = useState(existingProject?.model || 'Gemini 2.0 Flash');
+  const [musicEngine, setMusicEngine] = useState(existingProject?.musicEngine || 'music-gpt'); // Default to Beat Lab (MusicGen)
+  const [mood, setMood] = useState(existingProject?.mood || 'Energetic'); // Beatoven-inspired
+  const [structure, setStructure] = useState(existingProject?.structure || 'Full Song'); // Structure control
+
+  const [highMusicality, setHighMusicality] = useState(true); // Udio-style musicality
+  const [seed, setSeed] = useState(-1); // Riffusion/Suno-style seed (-1 for random)
+  const [stemType, setStemType] = useState('Full Mix'); // Stem/Instrument isolation
+  const [projectBpm, setProjectBpm] = useState(existingProject?.bpm || existingProject?.settings?.bpm || 120); // Tempo for production
+  
+  const [selectedAgents, setSelectedAgents] = useState({
+    lyrics: 'ghost',
+    audio: 'beat',
+    visual: 'album',
+    video: 'video-creator'
+  });
+  
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [outputs, setOutputs] = useState({
+    lyrics: null,
+    audio: null,
+    visual: null,
+    video: null
+  });
+
+  const [mediaUrls, setMediaUrls] = useState({
+    audio: null,
+    image: null,
+    video: null,
+    vocals: null,
+    lyricsVocal: null // Unified key for lyrics+vocal
+  });
+  
+  const [generatingMedia, setGeneratingMedia] = useState({
+    audio: false,
+    image: false,
+    video: false,
+    vocals: false
+  });
+  
+  const [speakingSlot, setSpeakingSlot] = useState(null);
+  const [projectName, setProjectName] = useState('');
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
+  const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
+  const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
+  const [generatingVocal, setGeneratingVocal] = useState(false);
+  const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
+  const [creatingFinalMix, setCreatingFinalMix] = useState(false);
+  const [finalMixPreview, setFinalMixPreview] = useState(null);
+  const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
+  const [musicVideoUrl, setMusicVideoUrl] = useState(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
+  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
+  const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
+  const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
+  const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
+  const [isUploadingSample, setIsUploadingSample] = useState(false);
+  const [savedVoices, setSavedVoices] = useState([]); // List of voices saved in Firestore
+  const [loadingVoices, setLoadingVoices] = useState(false);
+
+  // New DNA States for other agents
+  const [visualDnaUrl, setVisualDnaUrl] = useState(null);
+  const [audioDnaUrl, setAudioDnaUrl] = useState(null);
+  const [videoDnaUrl, setVideoDnaUrl] = useState(null); // Image used for image-to-video
+  const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null); // Text file or PDF as reference
+  const [isUploadingDna, setIsUploadingDna] = useState({ visual: false, audio: false, video: false, lyrics: false });
+  const [showDnaVault, setShowDnaVault] = useState(false);
+  
+  // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
+  const outputsRef = useRef(outputs);
+  const recognitionRef = useRef(null);
+  const vocalAudioRef = useRef(null);
+
+  // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
+  const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
+  const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // EFFECTS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    outputsRef.current = outputs;
+  }, [outputs]);
 
   // Fetch saved voices from Firestore
   useEffect(() => {
@@ -1326,17 +1426,6 @@ export default function StudioOrchestratorV2({
       document.body.style.overflow = 'auto';
     };
   }, [isOpen]);
-  
-  const [songIdea, setSongIdea] = useState(existingProject?.name || '');
-  const [language, setLanguage] = useState(existingProject?.language || 'English');
-  const [style, setStyle] = useState(existingProject?.style || 'Modern Hip-Hop');
-  const [duration, setDuration] = useState(existingProject?.duration || 90);
-  const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
-  const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
-  const [model, setModel] = useState(existingProject?.model || 'Gemini 2.0 Flash');
-  const [musicEngine, setMusicEngine] = useState(existingProject?.musicEngine || 'music-gpt'); // Default to Beat Lab (MusicGen)
-  const [mood, setMood] = useState(existingProject?.mood || 'Energetic'); // Beatoven-inspired
-  const [structure, setStructure] = useState(existingProject?.structure || 'Full Song'); // Structure control
 
   // Calculate duration from bars and BPM
   useEffect(() => {
@@ -1357,90 +1446,11 @@ export default function StudioOrchestratorV2({
       else setDuration(15); 
     }
   }, [structure, useBars]);
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════════
 
-  const [highMusicality, setHighMusicality] = useState(true); // Udio-style musicality
-  const [seed, setSeed] = useState(-1); // Riffusion/Suno-style seed (-1 for random)
-  const [stemType, setStemType] = useState('Full Mix'); // Stem/Instrument isolation
-  const [projectBpm, setProjectBpm] = useState(existingProject?.bpm || existingProject?.settings?.bpm || 120); // Tempo for production
-  
-  // 4 Generator Slots - default to free tier agents
-  const [selectedAgents, setSelectedAgents] = useState({
-    lyrics: 'ghost',
-    audio: 'beat',
-    visual: 'album',
-    video: 'video-creator'
-  });
-  
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [outputs, setOutputs] = useState({
-    lyrics: null,
-    audio: null,
-    visual: null,
-    video: null
-  });
-
-  // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
-  const outputsRef = useRef(outputs);
-  useEffect(() => {
-    outputsRef.current = outputs;
-  }, [outputs]);
-
-  const [mediaUrls, setMediaUrls] = useState({
-    audio: null,
-    image: null,
-    video: null,
-    vocals: null,
-    lyricsVocal: null // Unified key for lyrics+vocal
-  });
-  
-  const [generatingMedia, setGeneratingMedia] = useState({
-    audio: false,
-    image: false,
-    video: false,
-    vocals: false
-  });
-  
-  const [speakingSlot, setSpeakingSlot] = useState(null);
-  const [projectName, setProjectName] = useState('');
-  const [showCreateProject, setShowCreateProject] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
-  const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
-  const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
-  const [generatingVocal, setGeneratingVocal] = useState(false);
-  const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
-  const [creatingFinalMix, setCreatingFinalMix] = useState(false);
-  const [finalMixPreview, setFinalMixPreview] = useState(null);
-  const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
-  const [musicVideoUrl, setMusicVideoUrl] = useState(null);
-  const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
-  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
-  const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
-  const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
-  const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
-  const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
-  const [isUploadingSample, setIsUploadingSample] = useState(false);
-  const [savedVoices, setSavedVoices] = useState([]); // List of voices saved in Firestore
-  const [loadingVoices, setLoadingVoices] = useState(false);
-
-  // New DNA States for other agents
-  const [visualDnaUrl, setVisualDnaUrl] = useState(null);
-  const [audioDnaUrl, setAudioDnaUrl] = useState(null);
-  const [videoDnaUrl, setVideoDnaUrl] = useState(null); // Image used for image-to-video
-  const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null); // Text file or PDF as reference
-  const [isUploadingDna, setIsUploadingDna] = useState({ visual: false, audio: false, video: false, lyrics: false });
-  const [showDnaVault, setShowDnaVault] = useState(false);
-  
-  // const speechSynthRef = useRef(null); - removed (unused)
-  const recognitionRef = useRef(null);
-  const vocalAudioRef = useRef(null);
-  
-  // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
-  const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
-  const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
-  
   // Check if there's any generated content that hasn't been saved
   const hasUnsavedContent = () => {
     const hasContent = Object.values(safeOutputs).some(Boolean) || Object.values(safeMediaUrls).some(Boolean);

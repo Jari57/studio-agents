@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
+import toast from 'react-hot-toast';
 import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LayoutGrid, LogIn, LogOut, User } from 'lucide-react';
 import { AGENTS } from '../constants';
 import { auth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
@@ -381,9 +382,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [showMarketing, setShowMarketing] = useState(false);
   const [showInvestorPitch, setShowInvestorPitch] = useState(false);
 
-  // 🚀 Check if session exists (Firebase or local storage)
+  // 🚀 Check if already logged in via Firebase OR localStorage
   const [isLoggedMember, setIsLoggedMember] = useState(false);
   useEffect(() => {
+    if (!auth) {
+      console.error("Firebase auth not initialized in LandingPage!");
+      return;
+    }
     // 1. Initial check via local storage
     const hasUserId = localStorage.getItem('studio_user_id');
     const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
@@ -439,13 +444,14 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       }, 100);
     } catch (error) {
       console.error('Google sign in error:', error);
-      if (error.code === 'auth/popup-closed-by-user') {
-        setAuthError('Sign-in cancelled. Please try again.');
-      } else if (error.code === 'auth/popup-blocked') {
-        setAuthError('Popup blocked. Please allow popups for this site.');
-      } else {
-        setAuthError(error.message || 'Failed to sign in. Please try again.');
-      }
+      const msg = error.code === 'auth/popup-closed-by-user' 
+        ? 'Sign-in cancelled.' 
+        : error.code === 'auth/popup-blocked'
+          ? 'Popup blocked by browser.'
+          : error.message || 'Failed to sign in.';
+      
+      setAuthError(msg);
+      toast.error(msg);
     } finally {
       setAuthLoading(false);
     }
@@ -513,15 +519,18 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       }, 100);
     } catch (error) {
       console.error('Email auth error:', error);
+      let msg = error.message || 'Failed to sign in. Please try again.';
+      
       if (error.code === 'auth/email-already-in-use') {
-        setAuthError('Email already in use. Try signing in instead.');
+        msg = 'Email already in use. Try signing in instead.';
       } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        setAuthError('Invalid email or password');
+        msg = 'Invalid email or password';
       } else if (error.code === 'auth/weak-password') {
-        setAuthError('Password should be at least 6 characters');
-      } else {
-        setAuthError(error.message || 'Failed to sign in. Please try again.');
+        msg = 'Password should be at least 6 characters';
       }
+      
+      setAuthError(msg);
+      toast.error(msg);
     } finally {
       setAuthLoading(false);
     }
@@ -555,12 +564,15 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     // 🚀 Check if already logged in via Firebase OR localStorage
     const hasUserId = localStorage.getItem('studio_user_id');
     const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
-    const isActuallyLogged = !!(auth.currentUser || hasUserId || isGuest);
+    const isActuallyLogged = !!(auth?.currentUser || hasUserId || isGuest);
     
     // Override 'start' action for returning members to avoid re-triggering wizard
     const finalAction = isActuallyLogged && action === 'start' ? 'return' : action;
     
-    if (isActuallyLogged) {
+    // Allow 'login' action to bypass 'isActuallyLogged' check if only logged as guest or not at all
+    const isExplicitLogin = action === 'login' && !auth?.currentUser;
+
+    if (isActuallyLogged && !isExplicitLogin) {
       console.log('[LandingPage] User already recognized, entering studio directly');
       setIsTransitioning(true);
       setTimeout(() => {

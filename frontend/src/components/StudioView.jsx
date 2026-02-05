@@ -2044,6 +2044,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           const isPasswordProvider = currentUser.providerData.some(p => p.providerId === 'password');
           if (isPasswordProvider && !currentUser.emailVerified) {
             console.log('📧 User detected as unverified, signing out.');
+            toast.error('Please verify your email to access the studio.');
             await signOut(auth);
             localStorage.removeItem('studio_user_id');
             setIsLoggedIn(false);
@@ -2054,6 +2055,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
           // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
           localStorage.setItem('studio_user_id', currentUser.uid);
+          userRef.current = currentUser; // UPDATE REF for retry logic
           setUser(currentUser); // Immediately trigger state isolation effect
           setIsLoggedIn(true); // Set this LAST after user is set
           setAuthChecking(false); // Auth check complete
@@ -2135,6 +2137,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             }
           }
         } else {
+          userRef.current = null; // UPDATE REF
           // Firebase returned null - but DON'T immediately log out
           // This can happen temporarily during network issues or page refresh
           // Only clear auth if we're certain the user has logged out
