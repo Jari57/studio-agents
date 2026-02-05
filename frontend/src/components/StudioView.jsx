@@ -363,7 +363,7 @@ const TROUBLESHOOTING_GUIDE = [
   {
     keywords: ['multi', 'agent', 'chain', 'workflow', 'project', 'pro'],
     issue: 'How to use multiple agents in one project?',
-    solution: 'Pro users can "chain" agents by taking the output of one (e.g., Ghostwriter lyrics) and feeding it into another (e.g., Vocal Architect). Check "The Come Up" section for detailed Multi-Agent Workflow guides.'
+    solution: 'Pro users can "chain" agents by taking the output of one (e.g., Ghostwriter lyrics) and feeding it into another (e.g., Vocal Lab). Check "The Come Up" section for detailed Multi-Agent Workflow guides.'
   }
 ];
 
@@ -872,16 +872,33 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
     
     try {
-      // Sanitize project data - remove undefined values, functions, and circular refs
+      // Robust Sanitization: Deep-clone serializable fields only
+      // We specifically handle the 'assets' array to ensure one bad asset doesn't break the whole project save
       const sanitizedProject = {};
       for (const [key, value] of Object.entries(project)) {
-        if (value !== undefined && typeof value !== 'function') {
-          // Deep clone to avoid circular reference issues
+        if (value === undefined || value === null || typeof value === 'function') continue;
+        
+        if (key === 'assets' && Array.isArray(value)) {
+          sanitizedProject.assets = value.map(asset => {
+            const sanitizedAsset = {};
+            for (const [aKey, aValue] of Object.entries(asset)) {
+              if (aValue === undefined || typeof aValue === 'function') continue;
+              try {
+                // Individual field serialization check
+                const json = JSON.stringify(aValue);
+                if (json) sanitizedAsset[aKey] = JSON.parse(json);
+              } catch (_e) {
+                console.warn(`[TRACE:${traceId}] Skipping non-serializable asset field: ${aKey} in asset ${asset.id}`);
+              }
+            }
+            return sanitizedAsset;
+          }).filter(Boolean);
+        } else {
           try {
-            sanitizedProject[key] = JSON.parse(JSON.stringify(value));
+            const json = JSON.stringify(value);
+            if (json) sanitizedProject[key] = JSON.parse(json);
           } catch (_e) {
-            // Skip values that can't be serialized
-            console.warn(`[TRACE:${traceId}] Skipping non-serializable field: ${key}`);
+            console.warn(`[TRACE:${traceId}] Skipping non-serializable top-level field: ${key}`);
           }
         }
       }
@@ -7759,7 +7776,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                            <div style={{ flex: 1, minWidth: 0 }}>
                              {currentPreview.backingTrackUrl ? (
                                <>
-                                 <div style={{ fontSize: '0.7rem', color: 'var(--color-pink)', marginBottom: '6px', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase' }}>Synced Vocal Architect</div>
+                                 <div style={{ fontSize: '0.7rem', color: 'var(--color-pink)', marginBottom: '6px', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase' }}>Synced Vocal Lab</div>
                                  <audio 
                                    controls 
                                    src={formatAudioSrc(currentPreview.audioUrl)} 
@@ -13598,6 +13615,21 @@ const fetchUserCredits = useCallback(async (uid) => {
                 setProjects(newProjects);
                 setSelectedProject(finalProject);
                 
+                if (isLoggedIn && user) {
+                  saveProjectToCloud(user?.uid, finalProject);
+                }
+              } else {
+                // FALLBACK: If project not found in local state, treat as creation
+                // This prevents silent save failures for newly created projects in the Orchestrator
+                console.log(`[TRACE:${traceId}] onSaveToProject: Project not found, delegating to onCreateProject`);
+                // We use the same setter logic but as a new entry
+                const finalProject = {
+                  ...project,
+                  createdAt: project.createdAt || new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                };
+                setProjects(prev => [finalProject, ...prev]);
+                setSelectedProject(finalProject);
                 if (isLoggedIn && user) {
                   saveProjectToCloud(user?.uid, finalProject);
                 }

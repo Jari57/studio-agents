@@ -2535,7 +2535,7 @@ export default function StudioOrchestratorV2({
                 {
                   id: `vocal-${Date.now()}`,
                   type: 'vocal',
-                  agent: 'Vocal Architect',
+                  agent: 'Vocal Lab',
                   audioUrl: data.audioUrl,
                   mimeType: data.mimeType || 'audio/wav',
                   snippet: `🎤 AI Vocal: "${performanceText.substring(0, 50)}..."`,
@@ -2834,8 +2834,10 @@ export default function StudioOrchestratorV2({
       assetTypes: project.assets.map(a => a.type)
     }, null, 2));
     
-    // Choose the callback: StudioView usually passes onSaveToProject
-    const saveCallback = onSaveToProject || onCreateProject;
+    // Choose the callback: StudioView usually passes onSaveToProject for updates
+    // and onCreateProject for initial creation.
+    const isUpdate = !!existingProject?.id;
+    const saveCallback = isUpdate ? (onSaveToProject || onCreateProject) : (onCreateProject || onSaveToProject);
     
     if (saveCallback) {
       console.log('[Orchestrator] Calling save callback with project');
