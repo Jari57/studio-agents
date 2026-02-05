@@ -33,18 +33,24 @@ const splitCreativeContent = (text) => {
     /\[Bridge/i,
     /\[Intro/i,
     /\[Lyrics/i,
+    /\[Style/i,
+    /\[Hard/i,
+    /\[Soft/i,
+    /\[Fast/i,
+    /\[Slow/i,
+    /\(Verse/i,
+    /\(Chorus/i,
     /Verse \d+:/i,
     /Chorus:/i,
     /Hook:/i,
-    /\(Verse/i,
-    /\(Chorus/i,
     /^\s*Lyrics:\s*$/im,
     /Visual:/i,
     /Concept:/i,
     /Description:/i,
     /Beat Description:/i,
     /BPM:/i,
-    /Storyboard:/i
+    /Storyboard:/i,
+    /^\[[A-Z]/  // Any uppercase tag at start of line
   ];
   
   let firstMarkerIndex = -1;
@@ -617,7 +623,9 @@ function GeneratorCard({
                 {mediaType === 'audio' && <Music size={16} />}
                 {mediaType === 'image' && <ImageIcon size={16} />}
                 {mediaType === 'video' && <VideoIcon size={16} />}
-                {slot === 'lyrics' ? 'Create AI Vocals' : `Generate ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`}
+                {slot === 'lyrics' ? 'Create AI Vocals' : 
+                 slot === 'audio' ? 'Synthesize AI Beat' :
+                 `Generate ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`}
               </button>
             ) : null}
           </div>
@@ -1342,12 +1350,19 @@ export default function StudioOrchestratorV2({
     visual: null,
     video: null
   });
-  
+
+  // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
+  const outputsRef = useRef(outputs);
+  useEffect(() => {
+    outputsRef.current = outputs;
+  }, [outputs]);
+
   const [mediaUrls, setMediaUrls] = useState({
     audio: null,
     image: null,
     video: null,
-    vocals: null
+    vocals: null,
+    lyricsVocal: null // Unified key for lyrics+vocal
   });
   
   const [generatingMedia, setGeneratingMedia] = useState({
@@ -1477,32 +1492,32 @@ export default function StudioOrchestratorV2({
   const GENERATOR_SLOTS = [
     { 
       key: 'lyrics', 
-      title: 'Lyrics & Hook', 
-      subtitle: 'Song writing', 
-      icon: FileText, 
+      title: 'Ghostwriter', 
+      subtitle: 'Lyrics & Hook', 
+      icon: Sparkles, 
       color: '#8b5cf6',
       mediaType: 'audio' 
     },
     { 
       key: 'audio', 
-      title: 'Beat & Audio', 
-      subtitle: 'Music production', 
-      icon: Music, 
+      title: 'Beat Lab', 
+      subtitle: 'Music Production', 
+      icon: Zap, 
       color: '#06b6d4',
       mediaType: 'audio' 
     },
     { 
       key: 'visual', 
-      title: 'Cover Art', 
-      subtitle: 'Visual design', 
+      title: 'Album Artist', 
+      subtitle: 'Cover Identity', 
       icon: ImageIcon, 
       color: '#ec4899',
       mediaType: 'image' 
     },
     { 
       key: 'video', 
-      title: 'Image to Video', 
-      subtitle: 'Video creation', 
+      title: 'Video Creator', 
+      subtitle: 'Motion & Sync', 
       icon: VideoIcon, 
       color: '#f59e0b',
       mediaType: 'video' 
@@ -1708,8 +1723,7 @@ export default function StudioOrchestratorV2({
         const systemPrompt = `You are ${agent.name}, a professional ${agent.category} specialist. 
         Create content for a ${style} song about: "${songIdea}" in ${language}.
         Be creative, professional, and match the genre's style.
-        ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus). USE CLEAR LABELS like [Verse 1], [Chorus], [Bridge]. Do not include any "Here are the lyrics" text or preamble within the labeled sections.' : ''}
-        ${slot === 'vocals' ? 'Describe the vocal performance style, tone, and character in detail (e.g., "Energetic female vocal with a soulful grit and rapid-fire delivery in the verses").' : ''}
+        ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse 1], [Chorus], [Bridge]. ALSO INCLUDE Suno-style vocal/style tags in brackets like [Hard Hitting Rap] or [Soulful Vocals] to guide the performance. Do not include any intro/preamble like "Here are the lyrics".' : ''}
         ${slot === 'audio' ? 'Describe a detailed beat/instrumental concept with BPM, key, and production elements. Be technical and descriptive for an AI music engine.' : ''}
         ${slot === 'visual' ? 'Describe a striking album cover or concept in detail for image generation.' : ''}
         ${slot === 'video' ? 'Write a creative image to video concept/storyboard with scene descriptions.' : ''}`;
@@ -1735,27 +1749,41 @@ export default function StudioOrchestratorV2({
           
           if (response.ok) {
             const data = await response.json();
-            // Update incrementally for better UX
-            setOutputs(prev => ({ ...prev, [slot]: data.output }));
+            setOutputs(prev => {
+              const NEW_OUTPUTS = { ...prev, [slot]: data.output };
+              outputsRef.current = NEW_OUTPUTS; // Immediate update for same-cycle access
+              return NEW_OUTPUTS;
+            });
             console.log(`[handleGenerate] ${slot} generated successfully`);
             
-            // Industrial Strength Auto-triggering: ensure media follows text immediately
+            // TRIPLE-GUARDED AUTO-TRIGGERING: 
+            // 1. Pass data directly 
+            // 2. Use Ref fallback 
+            // 3. Incrementally delayed to spread load
             if (slot === 'audio') {
-              setTimeout(() => handleGenerateAudio(), 500);
+              console.log('[handleGenerate] Auto-triggering Audio generation in 500ms');
+              setTimeout(() => handleGenerateAudio(data.output), 500);
             } else if (slot === 'lyrics') {
-              setTimeout(() => handleGenerateVocals(), 700);
+              console.log('[handleGenerate] Auto-triggering Vocal generation in 800ms');
+              setTimeout(() => handleGenerateVocals(data.output), 800);
             } else if (slot === 'visual') {
-              setTimeout(() => handleGenerateImage(), 900);
+              console.log('[handleGenerate] Auto-triggering Image generation in 1100ms');
+              setTimeout(() => handleGenerateImage(data.output), 1100);
             } else if (slot === 'video') {
-              setTimeout(() => handleGenerateVideo(), 1100);
+              console.log('[handleGenerate] Auto-triggering Video generation in 1400ms');
+              setTimeout(() => handleGenerateVideo(data.output), 1400);
             }
           } else {
             const errorText = await response.text();
             console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
-            toast.error(`Agent ${agent.name} failed: ${response.status}`, { duration: 3000 });
+            toast.error(`Agent ${agent.name} failed: ${response.status}`, { 
+              duration: 5000,
+              icon: '❌'
+            });
           }
         } catch (err) {
           console.error(`Error generating ${slot}:`, err);
+          toast.error(`Connection Error: ${slot} generation failed.`, { icon: '📡' });
         }
       });
 
@@ -1835,36 +1863,52 @@ export default function StudioOrchestratorV2({
   };
 
   // Media generation functions
-  const handleGenerateAudio = async () => {
+  const handleGenerateAudio = async (directInput = null) => {
     // PREVENT DUPLICATE CALLS
-    if (generatingMedia.audio) return;
-
-    console.log('[handleGenerateAudio] Called, outputs.audio:', !!outputs.audio);
-    if (!outputs.audio) {
-      toast.error('Generate beat description first');
+    if (generatingMedia.audio) {
+      console.warn('[handleGenerateAudio] Already generating audio, skipping');
       return;
     }
+
+    // Use directInput (only if string), outputsRef, or current outputs (fallback)
+    const audioPrompt = (typeof directInput === 'string' ? directInput : null) || outputsRef.current.audio || outputs.audio;
+
+    console.log('[handleGenerateAudio] Starting generation:', { 
+      hasDirectInput: !!directInput, 
+      promptLength: audioPrompt?.length || 0,
+      engine: musicEngine
+    });
+
+    if (!audioPrompt) {
+      console.error('[handleGenerateAudio] No audio prompt found');
+      toast.error('Generate Beat DNA first');
+      return;
+    }
+    
     setGeneratingMedia(prev => ({ ...prev, audio: true }));
-    console.log('[handleGenerateAudio] Starting audio generation with style:', style);
     const waitTime = structure === 'Extended' ? '3 minutes' : (structure === 'Radio Edit' ? '2 minutes' : '60 seconds');
-    toast.loading(`Generating AI beat (${waitTime})...`, { id: 'gen-audio' });
+    toast.loading(`Synthesizing AI beat (${waitTime})...`, { id: 'gen-audio' });
     
     try {
       const headers = await getHeaders();
 
       // Clean prompt of AI fluff
-      const { content: cleanAudioPrompt } = splitCreativeContent(outputs.audio);
-      const audioPrompt = cleanAudioPrompt || outputs.audio;
+      const { content: cleanAudioPrompt } = splitCreativeContent(audioPrompt);
+      const cleanAudioPromptText = cleanAudioPrompt || audioPrompt;
+      
+      console.log('[handleGenerateAudio] Making API call to:', `${BACKEND_URL}/api/generate-audio`);
 
       const response = await fetch(`${BACKEND_URL}/api/generate-audio`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: `${style} ${mood} instrumental beat, ${structure || 'Song'} format: ${typeof audioPrompt === 'string' ? audioPrompt.substring(0, 500) : 'Music production'}`,
+          // Simplified prompt: Backend already wraps with genre/mood/BPM/quality tags
+          // Sending the raw description from the agent is more effective
+          prompt: typeof cleanAudioPromptText === 'string' ? cleanAudioPromptText.substring(0, 1000) : 'Professional music production',
           genre: style || 'hip-hop',
           mood: mood.toLowerCase() || 'energetic',
-          bpm: projectBpm || 90,
-          durationSeconds: duration || (structure === 'Full Song' ? 90 : 
+          bpm: parseInt(projectBpm) || 90,
+          durationSeconds: parseInt(duration) || (structure === 'Full Song' ? 90 : 
                           structure === 'Radio Edit' ? 150 :
                           structure === 'Extended' ? 180 :
                           structure === 'Loop' ? 15 : 30),
@@ -1876,11 +1920,15 @@ export default function StudioOrchestratorV2({
         })
       });
       
+      console.log('[handleGenerateAudio] Response status:', response.status);
+      
       let data;
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
+        const text = await response.text();
+        console.error('[handleGenerateAudio] Non-JSON response:', text);
         throw new Error(`Invalid audio response (${response.status})`);
       }
 
@@ -1896,7 +1944,8 @@ export default function StudioOrchestratorV2({
           setMediaUrls(prev => ({ ...prev, audio: finalUrl }));
           toast.success('AI beat generated!', { id: 'gen-audio' });
         } else {
-          toast.error('No audio returned', { id: 'gen-audio' });
+          console.error('[handleGenerateAudio] No URL in successful response:', data);
+          toast.error('No audio returned from server', { id: 'gen-audio' });
         }
       } else {
         // Use already-parsed data
@@ -1908,29 +1957,32 @@ export default function StudioOrchestratorV2({
           toast.error(
             <div>
               <strong>Audio API Not Ready</strong>
-              <p style={{ fontSize: '12px', marginTop: '4px' }}>{errData.details}</p>
+              <p style={{ fontSize: '12px', marginTop: '4px' }}>{errData.details || 'The model is still loading'}</p>
             </div>, 
             { id: 'gen-audio', duration: 8000 }
           );
         } else {
-          toast.error(errData.details || errData.error || 'Audio generation failed', { id: 'gen-audio' });
+          toast.error(errData.details || errData.error || `Audio generation failed (${response.status})`, { id: 'gen-audio' });
         }
       }
     } catch (err) {
-      console.error('[Orchestrator] Audio generation error:', err);
-      toast.error('Audio generation failed', { id: 'gen-audio' });
+      console.error('[Orchestrator] Audio generation catch block:', err);
+      toast.error(`Generation failed: ${err.message}`, { id: 'gen-audio' });
     } finally {
       setGeneratingMedia(prev => ({ ...prev, audio: false }));
     }
   };
 
-  const handleGenerateVocals = async () => {
+  const handleGenerateVocals = async (directInput = null) => {
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.vocals) return;
 
-    console.log('[handleGenerateVocals] Called, outputs.lyrics:', !!outputs.lyrics);
-    if (!outputs.lyrics) {
-      toast.error('Generate lyrics first');
+    // Use directInput (only if string), outputsRef, or current outputs (fallback)
+    const lyricsText = (typeof directInput === 'string' ? directInput : null) || outputsRef.current.lyrics || outputs.lyrics;
+
+    console.log('[handleGenerateVocals] Called, hasLyrics:', !!lyricsText);
+    if (!lyricsText) {
+      toast.error('Generate Lyrics & Hook DNA first');
       return;
     }
     setGeneratingMedia(prev => ({ ...prev, vocals: true }));
@@ -1940,8 +1992,8 @@ export default function StudioOrchestratorV2({
       const headers = await getHeaders();
 
       // Ensure we only send the actual lyrics content, not the intro/prompt fluff
-      const { content: lyricsOnly } = splitCreativeContent(outputs.lyrics);
-      const cleanLyrics = lyricsOnly || outputs.lyrics;
+      const { content: lyricsOnly } = splitCreativeContent(lyricsText);
+      const cleanLyrics = lyricsOnly || lyricsText;
 
       // Use the same voice mapping as handleGenerateLyricsVocal
       const voiceMapping = {
@@ -1960,12 +2012,15 @@ export default function StudioOrchestratorV2({
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: cleanLyrics.substring(0, 1000), // Increased limit for full lyrics
+          prompt: cleanLyrics.substring(0, 1500), // Increased limit to match StudioView
           voice: selectedVoice,
           style: voiceStyle,
           rapStyle: rapStyle,
           genre: genre,
-          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null
+          language: language || 'English',
+          duration: duration || 30,
+          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
+          backingTrackUrl: mediaUrls.audio // Add backing track for sync/context if available
         })
       });
 
@@ -2216,11 +2271,17 @@ export default function StudioOrchestratorV2({
     });
   };
 
-  const handleGenerateImage = async () => {
+  const handleGenerateImage = async (directInput = null) => {
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.image) return;
 
-    if (!outputs.visual) return;
+    // Use directInput (only if string), outputsRef, or current outputs (fallback)
+    const visualPromptText = (typeof directInput === 'string' ? directInput : null) || outputsRef.current.visual || outputs.visual;
+
+    if (!visualPromptText) {
+      toast.error('Generate Visual DNA first');
+      return;
+    }
     setGeneratingMedia(prev => ({ ...prev, image: true }));
     toast.loading('Generating image (~10 seconds)...', { id: 'gen-image' });
     
@@ -2228,8 +2289,8 @@ export default function StudioOrchestratorV2({
       const headers = await getHeaders();
 
       // Clean prompt of AI fluff
-      const { content: cleanVisualPrompt } = splitCreativeContent(outputs.visual);
-      const visualPrompt = cleanVisualPrompt || outputs.visual;
+      const { content: cleanVisualPrompt } = splitCreativeContent(visualPromptText);
+      const visualPrompt = cleanVisualPrompt || visualPromptText;
 
       const response = await fetch(`${BACKEND_URL}/api/generate-image`, {
         method: 'POST',
@@ -2344,11 +2405,17 @@ export default function StudioOrchestratorV2({
     }
   };
 
-  const handleGenerateVideo = async () => {
+  const handleGenerateVideo = async (directInput = null) => {
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.video) return;
 
-    if (!outputs.video) return;
+    // Use directInput (if string), outputsRef, or current outputs (fallback)
+    const videoPromptText = (typeof directInput === 'string' ? directInput : null) || outputsRef.current.video || outputs.video;
+
+    if (!videoPromptText) {
+      toast.error('Generate Music Video DNA first');
+      return;
+    }
     setGeneratingMedia(prev => ({ ...prev, video: true }));
     toast.loading('Generating video (this takes ~2 min)...', { id: 'gen-video' });
     
@@ -2356,8 +2423,8 @@ export default function StudioOrchestratorV2({
       const headers = await getHeaders();
 
       // Clean prompt of AI fluff
-      const { content: cleanVideoPrompt } = splitCreativeContent(outputs.video);
-      const videoPrompt = cleanVideoPrompt || outputs.video;
+      const { content: cleanVideoPrompt } = splitCreativeContent(videoPromptText);
+      const videoPrompt = cleanVideoPrompt || videoPromptText;
 
       const response = await fetch(`${BACKEND_URL}/api/generate-video`, {
         method: 'POST',
@@ -2494,12 +2561,15 @@ export default function StudioOrchestratorV2({
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: performanceText,
+          prompt: cleanLyrics.substring(0, 1500),
           voice: selectedVoice,
           style: voiceStyle,
-          rapStyle: rapStyle, // Send rap style to backend
-          genre: genre, // Send genre for singers (r&b, pop, soul, etc)
-          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null
+          rapStyle: rapStyle,
+          genre: genre,
+          language: language || 'English',
+          duration: duration || 30,
+          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
+          backingTrackUrl: mediaUrls.audio // Add backing track for sync if available
         })
       });
       
@@ -2717,7 +2787,12 @@ export default function StudioOrchestratorV2({
     URL.revokeObjectURL(url);
     
     // Also download media if available
-    const mediaMap = { audio: mediaUrls.audio, visual: mediaUrls.image, video: mediaUrls.video };
+    const mediaMap = { 
+      audio: mediaUrls.audio, 
+      visual: mediaUrls.image, 
+      video: mediaUrls.video,
+      lyrics: mediaUrls.vocals
+    };
     const mediaUrl = mediaMap[slot];
     
     if (mediaUrl) {
@@ -2725,6 +2800,7 @@ export default function StudioOrchestratorV2({
       if (slot === 'visual') formattedUrl = formatImageSrc(mediaUrl);
       if (slot === 'audio') formattedUrl = formatAudioSrc(mediaUrl);
       if (slot === 'video') formattedUrl = formatVideoSrc(mediaUrl);
+      if (slot === 'lyrics') formattedUrl = formatAudioSrc(mediaUrl); // Vocals are audio
       
       const a = document.createElement('a');
       a.href = formattedUrl;
@@ -2736,15 +2812,21 @@ export default function StudioOrchestratorV2({
   // Delete handler
   const handleDelete = (slot) => {
     setOutputs(prev => ({ ...prev, [slot]: null }));
+    // Update ref too
+    outputsRef.current[slot] = null;
+
     if (slot === 'audio') setMediaUrls(prev => ({ ...prev, audio: null }));
     if (slot === 'visual') setMediaUrls(prev => ({ ...prev, image: null }));
     if (slot === 'video') setMediaUrls(prev => ({ ...prev, video: null }));
+    if (slot === 'lyrics') setMediaUrls(prev => ({ ...prev, vocals: null }));
     toast.success('Deleted');
   };
 
   // Edit handler
   const handleEdit = (slot, newText) => {
     setOutputs(prev => ({ ...prev, [slot]: newText }));
+    // Update ref immediately so media generation uses the edited text
+    outputsRef.current[slot] = newText;
     toast.success('Saved');
   };
 
@@ -4060,7 +4142,7 @@ export default function StudioOrchestratorV2({
             mediaType={slot.mediaType}
             mediaUrl={
               slot.key === 'audio' ? mediaUrls.audio :
-              slot.key === 'lyrics' ? mediaUrls.vocals :
+              slot.key === 'lyrics' ? (mediaUrls.vocals || mediaUrls.lyricsVocal) :
               slot.key === 'visual' ? mediaUrls.image :
               slot.key === 'video' ? mediaUrls.video : null
             }
@@ -4072,7 +4154,7 @@ export default function StudioOrchestratorV2({
             }
             isGeneratingMedia={
               slot.key === 'audio' ? generatingMedia.audio :
-              slot.key === 'lyrics' ? generatingMedia.vocals :
+              slot.key === 'lyrics' ? (generatingMedia.vocals) :
               slot.key === 'visual' ? generatingMedia.image :
               slot.key === 'video' ? generatingMedia.video : false
             }

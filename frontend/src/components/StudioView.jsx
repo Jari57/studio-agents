@@ -401,6 +401,52 @@ const getTimeSince = (date) => {
   return `${Math.floor(seconds / 2592000)}mo ago`;
 };
 
+/**
+ * Prunes large base64 data strings from a list of project objects to prevent localStorage QuotaExceededError.
+ * Keeps URLs and small strings, but placeholders large data blobs.
+ */
+const pruneLargeProjectData = (projects) => {
+  if (!projects || !Array.isArray(projects)) return projects;
+  
+  // 100KB is usually a safe threshold to identify large base64 blobs vs small metadata
+  const LARGE_DATA_THRESHOLD = 100000; 
+
+  return projects.map(project => {
+    if (!project || typeof project !== 'object') return project;
+    if (!project.assets || !Array.isArray(project.assets)) return project;
+    
+    return {
+      ...project,
+      assets: project.assets.map(asset => {
+        // Handle Null/Undefined
+        if (!asset) return asset;
+
+        // If it's a large string (likely base64 or long data URL)
+        if (typeof asset === 'string' && asset.length > LARGE_DATA_THRESHOLD) {
+          return "[Media Data Pruned to Save Space]";
+        }
+        
+        // If it's an object with various possible large fields
+        if (typeof asset === 'object') {
+          const newAsset = { ...asset };
+          let changed = false;
+          
+          ['url', 'data', 'imageData', 'audioData', 'videoData', 'output'].forEach(prop => {
+            if (typeof newAsset[prop] === 'string' && newAsset[prop].length > LARGE_DATA_THRESHOLD) {
+              newAsset[prop] = "[Media Data Pruned to Save Space]";
+              changed = true;
+            }
+          });
+          
+          return changed ? newAsset : asset;
+        }
+        
+        return asset;
+      })
+    };
+  });
+};
+
 function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan, initialTab }) {
   // 🛡️ SAFE ASYNC OPERATIONS - Prevents memory leaks and race conditions
   const { safeFetch, safeSetState, isMounted } = useSafeAsync();
@@ -787,24 +833,45 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     localStorage.setItem(`studio_news_${uid}`, newsSearch);
   }, [newsSearch, user?.uid]);
 
-  // Handle cross-tab or cross-session state sync for projects
+  // Handle cross-tab or cross-session state sync for projects with QuotaExceededError protection
   useEffect(() => {
+    if (!projects || !Array.isArray(projects)) return;
+    
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
-    if (projects.length > 0) {
-      localStorage.setItem(`studio_projects_${uid}`, JSON.stringify(projects));
-    }
-  }, [projects, user?.uid]);
-
-  // Persist projects to localStorage whenever they change
-  useEffect(() => {
-    if (projects && Array.isArray(projects)) {
-      try {
-        const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
-        localStorage.setItem(`studio_projects_${uid}`, JSON.stringify(projects));
-        // Also keep legacy key updated for now to prevent breakage during transition
-        localStorage.setItem('studio_agents_projects', JSON.stringify(projects));
-      } catch (err) {
-        console.error('[StudioView] Failed to persist projects to localStorage:', err);
+    
+    try {
+      const jsonString = JSON.stringify(projects);
+      localStorage.setItem(`studio_projects_${uid}`, jsonString);
+      
+      // OPTIMIZATION: Only save to legacy key for guest to save 50% storage space for logged-in users
+      if (uid === 'guest') {
+        localStorage.setItem('studio_agents_projects', jsonString);
+      } else {
+        // Logged in users use the UID-specific key. We remove the legacy duplicate to free up space.
+        localStorage.removeItem('studio_agents_projects');
+      }
+    } catch (err) {
+      if (err.name === 'QuotaExceededError' || err.code === 22) {
+        console.warn('[StudioView] localStorage quota exceeded. Pruning large media assets and trying again...');
+        // Prune large base64 data and try one more time
+        const prunedData = pruneLargeProjectData(projects);
+        try {
+          const prunedJson = JSON.stringify(prunedData);
+          localStorage.setItem(`studio_projects_${uid}`, prunedJson);
+          if (uid === 'guest') localStorage.setItem('studio_agents_projects', prunedJson);
+          console.log('[StudioView] Successfully saved pruned projects to localStorage.');
+        } catch (retryErr) {
+          console.error('[StudioView] Even pruned projects exceeded quota. Only saving metadata for the last 5 projects.', retryErr);
+          // Last resort: Only the 5 most recent projects, pruned
+          try {
+            const lastResort = pruneLargeProjectData(projects.slice(0, 5));
+            localStorage.setItem(`studio_projects_${uid}`, JSON.stringify(lastResort));
+          } catch(lastErr) {
+            console.error('[StudioView] Critical storage failure:', lastErr);
+          }
+        }
+      } else {
+        console.error('[StudioView] Failed to persist projects:', err);
       }
     }
   }, [projects, user?.uid]);
@@ -4016,7 +4083,13 @@ const fetchUserCredits = useCallback(async (uid) => {
       setPreviewPrompt(prompt);
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
       setAgentPreviews(prev => ({ ...prev, [targetAgentSnapshot.id]: newItem }));
-      toast.success(`Generation complete! Review your result.`, { id: toastId });
+      
+      // If the response was an error from the backend but we somehow got here, show toast as error
+      if (!response.ok && !data._isFallback) {
+        toast.error(`Agent ${targetAgentSnapshot.name} issue: ${data.error || data.details || 'Check results'}`, { id: toastId });
+      } else {
+        toast.success(`Generation complete! Review your result.`, { id: toastId });
+      }
       
       // Track successful generation
       Analytics.contentGenerated(targetAgentSnapshot.id, newItem.type || 'text');
