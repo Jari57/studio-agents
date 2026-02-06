@@ -512,7 +512,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [videoDnaUrl, setVideoDnaUrl] = useState(null);
   const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null);
   const [voiceSampleUrl, setVoiceSampleUrl] = useState(null);
+<<<<<<< HEAD
   const [dnaArtifacts, setDnaArtifacts] = useState([]);
+=======
+  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(localStorage.getItem('studio_elevenlabs_voice_id') || '');
+  const [elVoices, setElVoices] = useState([]);
+  const [referencedAudioId, setReferencedAudioId] = useState('');
+  const [referencedVisualId, setReferencedVisualId] = useState('');
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
   const [isUploadingDna, setIsUploadingDna] = useState({});
   const [isUploadingSample, setIsUploadingSample] = useState(false);
   const [showDnaVault, setShowDnaVault] = useState(false);
@@ -745,6 +752,34 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    const fetchElVoices = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/voices`);
+        if (response.ok) {
+          const data = await response.json();
+          // Handle both object {voices: []} and direct array [] responses
+          const voicesArray = Array.isArray(data) ? data : (data.voices || []);
+          
+          if (voicesArray.length > 0) {
+            // Include professional, generated, and "cloned" voices
+            const filtered = voicesArray.filter(v => 
+              v.category === 'professional' || 
+              v.category === 'generated' || 
+              v.category === 'cloned' ||
+              v.category === 'premade'
+            );
+            // If filtering results in nothing but we have voices, just use all
+            setElVoices(filtered.length > 0 ? filtered : voicesArray);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch ElevenLabs voices:", err);
+      }
+    };
+    fetchElVoices();
+  }, [BACKEND_URL]);
 
   // Helper to get tab from hash
   const getTabFromHash = () => {
@@ -1361,6 +1396,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Helper: Get proper type for asset preview (handles text assets correctly)
   const getAssetPreviewType = (asset) => {
     if (!asset) return 'text';
+    if (asset.type === 'vocal') return 'vocal';
     if (asset.audioUrl) return 'audio';
     if (asset.videoUrl) return 'video';
     if (asset.imageUrl) return 'image';
@@ -1381,6 +1417,18 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   // Cleanup audio/video on preview change to prevent race conditions
   useEffect(() => {
+    if (showPreview && showPreview.url && (showPreview.type === 'audio' || showPreview.type === 'vocal')) {
+      // Auto-play audio when preview opens (browser allowing)
+      const playTimer = setTimeout(() => {
+        if (previewAudioRef.current) {
+          previewAudioRef.current.play().catch(err => {
+            console.log('[SafePreview] Auto-play prevented:', err.message);
+          });
+        }
+      }, 600);
+      return () => clearTimeout(playTimer);
+    }
+    
     return () => {
       // Stop any playing audio when preview closes
       if (previewAudioRef.current) {
@@ -2046,6 +2094,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           const isPasswordProvider = currentUser.providerData.some(p => p.providerId === 'password');
           if (isPasswordProvider && !currentUser.emailVerified) {
             console.log('📧 User detected as unverified, signing out.');
+            toast.error('Please verify your email to access the studio.');
             await signOut(auth);
             localStorage.removeItem('studio_user_id');
             setIsLoggedIn(false);
@@ -2056,6 +2105,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
           // CRITICAL: Set user BEFORE setting isLoggedIn to avoid race condition
           localStorage.setItem('studio_user_id', currentUser.uid);
+          userRef.current = currentUser; // UPDATE REF for retry logic
           setUser(currentUser); // Immediately trigger state isolation effect
           setIsLoggedIn(true); // Set this LAST after user is set
           setAuthChecking(false); // Auth check complete
@@ -2138,6 +2188,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             }
           }
         } else {
+          userRef.current = null; // UPDATE REF
           // Firebase returned null - but DON'T immediately log out
           // This can happen temporarily during network issues or page refresh
           // Only clear auth if we're certain the user has logged out
@@ -3171,8 +3222,14 @@ const fetchUserCredits = useCallback(async (uid) => {
           style: voiceSettings.style || 'rapper',  // rapper, rapper-female, singer, singer-female
           rapStyle: voiceSettings.rapStyle || 'aggressive',  // aggressive, melodic, trap, drill, boom-bap, fast, chill, hype
           genre: voiceSettings.genre || 'hip-hop',  // hip-hop, r&b, pop, soul, trap, drill
+<<<<<<< HEAD
           speakerUrl: voiceSettings.speakerUrl,
           quality: 'premium' // V3.5 DEFAULT: Always prefer premium High-Fidelity vocals
+=======
+          speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
+          elevenLabsVoiceId: elevenLabsVoiceId,
+          quality: (elevenLabsVoiceId || voiceSampleUrl) ? 'premium' : 'standard'
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
         })
       });
 
@@ -3667,86 +3724,51 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       // Specialized instructions based on agent type (Flavor matching Orchestrator)
       let customInstruction = '';
+      
+      // Lyrical Context: Try to find lyrics in the current project to inform other agents
+      let contextLyrics = '';
+      if (targetProjectSnapshot?.assets) {
+        const lyricsAsset = targetProjectSnapshot.assets.find(a => 
+          a.type === 'lyrics' || 
+          a.id?.includes('lyrics') || 
+          a.agent?.toLowerCase().includes('ghost')
+        );
+        if (lyricsAsset) {
+          contextLyrics = lyricsAsset.content || lyricsAsset.snippet || '';
+          console.log('[Studio] Found context lyrics for generation');
+        }
+      }
+
       if (agentId === 'ghost' || agentId === 'ghost-1') {
         customInstruction = 'Write ONLY the lyrics (verses, hooks, chorus). USE CLEAR LABELS like [Verse 1], [Chorus], [Bridge]. Do not include any "Here are the lyrics" text or preamble.';
       } else if (agentId === 'vocal-arch' || agentId === 'voiceover') {
         customInstruction = 'Describe the vocal performance style, tone, and character in detail (e.g., "Energetic female vocal with a soulful grit and rapid-fire delivery").';
+        if (contextLyrics) customInstruction += ` Use these lyrics: "${contextLyrics.substring(0, 500)}"`;
       } else if (agentId === 'beat' || agentId === 'sample') {
-        customInstruction = 'Describe a detailed beat/instrumental concept with BPM, key, and production elements. Be technical and descriptive for an AI music engine.';
+        customInstruction = 'Briefly describe a high-quality beat/instrumental concept. Focus on mood, tempo, and key instruments. Keep it simple and effective for an AI generator.';
+        if (contextLyrics) customInstruction += ` Use the vibe of these lyrics to inspire the beat: "${contextLyrics.substring(0, 300)}"`;
       } else if (agentId === 'album') {
         customInstruction = 'Describe a striking album cover or concept in detail for image generation. Focus on composition, colors, and mood.';
+        if (contextLyrics) customInstruction += ` Incorporate themes from these lyrics: "${contextLyrics.substring(0, 200)}"`;
       } else if (agentId === 'video-creator') {
         customInstruction = 'Write a creative image to video concept/storyboard with scene descriptions and visual transitions.';
+        if (contextLyrics) customInstruction += ` Match the narrative of these lyrics: "${contextLyrics.substring(0, 300)}"`;
       }
 
-      let endpoint = '/api/generate';
-      let body = {
+      let brainBody = {
         prompt: prompt,
         systemInstruction: `You are ${targetAgentSnapshot?.name || 'AI Assistant'}, a professional AI agent in a high-end music studio. 
           Category: ${targetAgentSnapshot?.category || 'General'}. 
           Capabilities: ${(targetAgentSnapshot?.capabilities || []).join(', ')}.
           ${targetAgentSnapshot?.explanation || ''}
           ${customInstruction}`,
-        model: selectedModel, // Pass selected model to backend
+        model: selectedModel,
         visualDnaUrl,
         audioDnaUrl,
         videoDnaUrl,
         lyricsDnaUrl,
         voiceSampleUrl
       };
-
-      // Route to specific endpoints for Image/Video/Audio agents
-      if (isImageAgent) {
-        endpoint = '/api/generate-image';
-        body = { prompt, model: selectedModel, referenceImage: visualDnaUrl };
-      } else if (isVideoAgent) {
-        endpoint = '/api/generate-video';
-        body = { 
-          prompt, 
-          model: selectedModel, 
-          referenceVideo: videoDnaUrl,
-          durationSeconds: voiceSettings.duration || 30
-        };
-        
-        // Attach audio for music video generation
-        if (backingTrack || audioDnaUrl) {
-           // Priority to explicitly uploaded audio DNA if present, else backingTrack
-           body.audioUrl = audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl);
-           console.log('Attaching audio to video generation:', audioDnaUrl ? 'Audio DNA' : backingTrack?.title);
-        }
-      } else if (isAudioAgent) {
-        endpoint = '/api/generate-audio';
-        body = { 
-          prompt, 
-          bpm: 90, // Could add UI controls for this
-          genre: voiceSettings.genre || (agentId === 'beat' ? 'hip-hop' : 'sample'),
-          mood: 'creative',
-          durationSeconds: voiceSettings.duration || 30,
-          referenceAudio: audioDnaUrl
-        };
-      } else if (isSpeechAgent) {
-        endpoint = '/api/generate-speech';
-        body = { 
-          prompt, 
-          voice: voiceSettings.voiceName || 'rapper-male-1', 
-          style: voiceSettings.style || 'spoken',
-          genre: voiceSettings.genre || 'hip-hop',
-          rapStyle: voiceSettings.rapStyle || 'aggressive',
-          language: voiceSettings.language || 'English',
-          duration: voiceSettings.duration || 30,
-          speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl
-        };
-        
-        // Add backing track info if available (for sync)
-        if (backingTrack || audioDnaUrl) {
-          body.backingTrackUrl = audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl);
-        }
-      } else {
-        // For general text agents, also include lyrics DNA as reference if available
-        if (lyricsDnaUrl) {
-          body.referenceText = lyricsDnaUrl;
-        }
-      }
 
       // Build headers with auth token if logged in
       const headers = { 'Content-Type': 'application/json' };
@@ -3759,32 +3781,136 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
       }
 
-      // Call Backend with auth headers
-      console.log(`[Studio] Calling ${endpoint} with prompt:`, prompt.substring(0, 50));
-      let response;
+      // PHASE 1: BRAIN - Expand concept into creative description with full context
+      console.log(`[Studio] Starting Phase 1 (Brain) for:`, targetAgentSnapshot?.name);
+      
+      const brainPrompt = `
+        USER REQUEST: "${promptValue}"
+        
+        PROJECT CONTEXT:
+        ${contextLyrics ? `EXISTING LYRICS/CONCEPT: "${contextLyrics}"` : 'Starting fresh project.'}
+        ${referencedAudioId ? `REFERENCE AUDIO ID: "${referencedAudioId}"` : ''}
+        ${referencedVisualId ? `REFERENCE VISUAL ID: "${referencedVisualId}"` : ''}
+        ${audioDnaUrl || referencedAudioId ? `AUDIO DNA: [Active Reference]` : ''}
+        ${visualDnaUrl || referencedVisualId ? `VISUAL DNA: [Active Reference]` : ''}
+        ${elevenLabsVoiceId ? `SELECTED VOICE: ${elVoices.find(v => v.voice_id === elevenLabsVoiceId)?.name || elevenLabsVoiceId}` : ''}
+        
+        GOAL:
+        Develop a professional, vivid, and technical description for this request.
+        If it's for a beat, describe the instrumentation, tempo (BPM), and vibe.
+        If it's for visuals, describe the lighting, color palette, and composition.
+        If it's for lyrics, expand the theme into a full concept.
+        
+        MANDATE: Keep the final output under 80 words for technical compatibility, but make every word count.
+      `;
+
+      let brainResponse;
       try {
-        response = await fetch(`${BACKEND_URL}${endpoint}`, {
+        brainResponse = await fetch(`${BACKEND_URL}/api/generate`, {
           method: 'POST',
           headers,
-          body: JSON.stringify(body)
+          body: JSON.stringify({ 
+            prompt: brainPrompt,
+            systemInstruction: `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} Brain. 
+              Translate user ideas into professional production briefs. 
+              Be specific, moody, and technically accurate.`
+          })
         });
-      } catch (networkErr) {
-        console.error('Network failure:', networkErr);
-        throw new Error('Connection failed. Please check your internet and make sure the server is online.');
+      } catch (err) {
+        throw new Error('Brain Phase Connection Failed. Server may be offline.');
+      }
+
+      if (!brainResponse.ok) {
+        throw new Error(`Creative Brain failed to initialize (${brainResponse.status})`);
+      }
+
+      const brainData = await brainResponse.json();
+      const expandedPrompt = brainData.output;
+      console.log(`[Studio] Brain output for execution:`, expandedPrompt.substring(0, 50) + '...');
+
+      // PHASE 2: EXECUTION - Call media generators with expanded description
+      let response;
+      let finalEndpoint = '/api/generate';
+      let finalBody = brainData; // Default for text agents
+
+      if (isImageAgent) {
+        finalEndpoint = '/api/generate-image';
+        finalBody = { 
+          prompt: expandedPrompt, 
+          model: selectedModel, 
+          referenceImage: visualDnaUrl,
+          visualId: referencedVisualId 
+        };
+      } else if (isVideoAgent) {
+        finalEndpoint = '/api/generate-video';
+        finalBody = { 
+          prompt: expandedPrompt, 
+          model: selectedModel, 
+          referenceImage: visualDnaUrl || videoDnaUrl, // Pass visual DNA as preferred image reference
+          referenceVideo: videoDnaUrl,
+          visualId: referencedVisualId,
+          durationSeconds: voiceSettings.duration || 30,
+          audioUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
+          audioId: referencedAudioId
+        };
+      } else if (isAudioAgent) {
+        finalEndpoint = '/api/generate-audio';
+        finalBody = { 
+          prompt: expandedPrompt, 
+          bpm: 90, 
+          genre: voiceSettings.genre || (agentId === 'beat' ? 'hip-hop' : 'sample'),
+          mood: 'creative', 
+          durationSeconds: voiceSettings.duration || 30,
+          referenceAudio: audioDnaUrl,
+          audioId: referencedAudioId
+        };
+      } else if (isSpeechAgent) {
+        finalEndpoint = '/api/generate-speech';
+        finalBody = { 
+          prompt: expandedPrompt, 
+          voice: voiceSettings.voiceName || 'rapper-male-1', 
+          elevenLabsVoiceId: elevenLabsVoiceId, // Use premium voice if selected
+          quality: (elevenLabsVoiceId || voiceSampleUrl) ? 'premium' : 'standard',
+          style: voiceSettings.style || 'rapper',
+          genre: voiceSettings.genre || 'hip-hop',
+          rapStyle: voiceSettings.rapStyle || 'aggressive',
+          language: voiceSettings.language || 'English',
+          duration: voiceSettings.duration || 30,
+          speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
+          backingTrackUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
+          audioId: referencedAudioId
+        };
+      }
+
+      // If it's a media agent, run execution phase
+      if (finalEndpoint !== '/api/generate') {
+        console.log(`[Studio] Starting Phase 2 (Execution) calling ${finalEndpoint}`);
+        try {
+          response = await fetch(`${BACKEND_URL}${finalEndpoint}`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(finalBody)
+          });
+        } catch (mediaErr) {
+          console.error('[Studio] Execution Phase Failed:', mediaErr);
+          throw new Error(`Media generation failed. Server may be unreachable.`);
+        }
+      } else {
+        // Text-only agents skip phase 2 and use brain result directly
+        response = brainResponse; // Reuse brain response as "success"
       }
 
       // Safely parse JSON
       let data;
-      const contentType = response.headers.get('content-type');
+      const contentType = response?.headers?.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
         const text = await response.text();
         console.error('Expected JSON but got:', text.substring(0, 100));
-        if (response.status >= 500) {
-          throw new Error(`Server Error (${response.status}): The AI service is currently overloaded or undergoing maintenance. Please try again in a few minutes.`);
-        }
-        throw new Error(`Invalid response format from server (Status ${response.status})`);
+        // Use brain description as fallback if generation failed
+        data = brainData;
+        data._isFallback = true;
       }
       
       // Debug logging
@@ -3793,63 +3919,9 @@ const fetchUserCredits = useCallback(async (uid) => {
         status: response.status,
         isAudioAgent,
         isSpeechAgent,
-        dataKeys: Object.keys(data),
         hasAudioUrl: !!data.audioUrl,
         hasError: !!data.error
       });
-      
-      // Handle Imagen/Veo/Audio API errors gracefully - fall back to text description
-      if ((isImageAgent || isVideoAgent) && (data.error || !response.ok)) {
-        console.warn(`${isImageAgent ? 'Image' : 'Video'} generation not available, falling back to text description`);
-        
-        // Call text API instead with a description prompt
-        const fallbackBody = {
-          prompt: isImageAgent 
-            ? `Describe in vivid detail what album artwork would look like for: "${prompt}". Include colors, imagery, composition, mood, and style.`
-            : `Describe in vivid detail what a music video would look like for: "${prompt}". Include scenes, camera movements, visual effects, and mood.`,
-          systemInstruction: `You are a creative director providing detailed visual descriptions for ${isImageAgent ? 'album artwork' : 'music videos'}.`
-        };
-        
-        const fallbackResponse = await fetch(`${BACKEND_URL}/api/generate`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(fallbackBody)
-        });
-        
-        if (fallbackResponse.headers.get('content-type')?.includes('application/json')) {
-          data = await fallbackResponse.json();
-        } else {
-          throw new Error(`Visual fallback failed (${fallbackResponse.status})`);
-        }
-        
-        // Mark this as a fallback text response
-        data._isFallback = true;
-        data._fallbackType = isImageAgent ? 'image' : 'video';
-      }
-      
-      // Handle Audio API errors - fall back to text description
-      if ((isAudioAgent || isSpeechAgent) && (data.error || !response.ok) && !data.audioUrl && !data.description && !data.output) {
-        console.warn('Audio generation failed, falling back to text description', data.error);
-        
-        const fallbackBody = {
-          prompt: `Describe in vivid detail what a ${agentId === 'beat' ? 'beat/instrumental' : 'audio sample'} would sound like for: "${prompt}". Include instruments, rhythm, tempo, mood, and production style.`,
-          systemInstruction: `You are a music producer providing detailed audio descriptions.`
-        };
-        
-        const fallbackResponseAudio = await fetch(`${BACKEND_URL}/api/generate`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(fallbackBody)
-        });
-
-        if (fallbackResponseAudio.headers.get('content-type')?.includes('application/json')) {
-          data = await fallbackResponseAudio.json();
-        } else {
-          throw new Error(`Audio fallback failed (${fallbackResponseAudio.status})`);
-        }
-        data._isFallback = true;
-        data._fallbackType = 'audio';
-      }
       
       // Handle different response types
       let newItem = {
@@ -3859,7 +3931,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         agent: targetAgentSnapshot?.name || 'Unknown Agent',
         date: 'Just now',
         color: targetAgentSnapshot?.colorClass || '',
-        snippet: prompt, // Default snippet is the prompt
+        snippet: expandedPrompt || prompt, // Prefer expanded description from Brain Phase
         projectSnapshot: targetProjectSnapshot // Preserve context for saving
       };
 
@@ -4031,8 +4103,18 @@ const fetchUserCredits = useCallback(async (uid) => {
           newItem.type = 'synthesis';
         } else {
           // Fallback description - capture any text output
-          newItem.snippet = data.description || data.message || data.output || `Audio concept for: "${prompt}"`;
-          newItem.type = 'text';
+          const isMediaAgentRequest = isAudioAgent || isVideoAgent || isImageAgent || isSpeechAgent;
+          
+          if (isMediaAgentRequest && !data.audioUrl && !data.videoUrl && !data.imageUrl && !data.audio) {
+            console.warn('[Studio] Media generation failed, falling back to text description');
+            newItem.snippet = data.output || data.description || data.message || `Media generation failed. Idea: ${expandedPrompt || prompt}`;
+            newItem.note = "⚠️ Media generation failed - returning text concept instead.";
+            newItem.type = 'text';
+            newItem.isError = true;
+          } else {
+            newItem.snippet = data.description || data.message || data.output || `Audio concept for: "${prompt}"`;
+            newItem.type = 'text';
+          }
         }
 
         // Attach backing track if this was a sync generation
@@ -4095,6 +4177,22 @@ const fetchUserCredits = useCallback(async (uid) => {
         keys: Object.keys(newItem)
       });
       setMediaLoadError(null); // Clear any previous media errors
+      
+      // AUTO-SYNC TO SELECTED PROJECT (PERSISTENCE FIX)
+      if (targetProjectSnapshot) {
+         console.log('[handleGenerate] Auto-syncing to project:', targetProjectSnapshot.id);
+         const safeAssets = Array.isArray(targetProjectSnapshot.assets) ? targetProjectSnapshot.assets : [];
+         const updatedProject = {
+           ...targetProjectSnapshot,
+           assets: [newItem, ...safeAssets.filter(a => a && a.id !== newItem.id)]
+         };
+         setSelectedProject(updatedProject);
+         setProjects(prev => {
+           const safePrev = Array.isArray(prev) ? prev : [];
+           return safePrev.map(p => p?.id === updatedProject.id ? updatedProject : p);
+         });
+      }
+
       safeOpenGenerationPreview(newItem);
       setPreviewPrompt(prompt);
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
@@ -4772,6 +4870,147 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   };
 
+  /**
+   * 🔐 DELETE ACCOUNT - Mandatory for App Store (Apple & Google)
+   * High-security operation: deletes both Firebase auth and cloud storage data.
+   */
+  const handleDeleteAccount = async () => {
+    if (!isLoggedIn || !user) {
+      toast.error('You must be logged in to delete your account');
+      return;
+    }
+
+    // Phase 1: Confirmation
+    const confirmation = window.confirm(
+      "DANGER: Are you sure you want to permanently delete your account?\n\n" +
+      "This will remove ALL your projects, created assets (beats, vocals), " +
+      "and active subscriptions. This action is IRREVERSIBLE."
+    );
+
+    if (!confirmation) return;
+
+    // Phase 2: Double Verification
+    const typedEmail = window.prompt(`To confirm, please type your email address (${user.email}):`);
+    if (typedEmail !== user.email) {
+      toast.error('Identity verification failed. Account was NOT deleted.');
+      return;
+    }
+
+    toast.loading('Wiping all account data...', { id: 'del-acc' });
+
+    try {
+      // Get fresh token for sensitive operation
+      let authToken = null;
+      if (auth?.currentUser) {
+        authToken = await auth.currentUser.getIdToken(true);
+      }
+
+      // Phase 3: Backend Cloud Wipe (Projects, Firestore, etc.)
+      const response = await fetch(`${BACKEND_URL}/api/user/delete-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+        },
+        body: JSON.stringify({
+          userId: user.uid,
+          confirmedEmail: user.email
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Cloud data wipe failed');
+      }
+
+      // Phase 4: Auth Deletion (This requires recent login, otherwise fails)
+      // If it fails due to "auth/requires-recent-login", we logout the user after successful cloud wipe
+      try {
+        if (auth?.currentUser) {
+          await auth.currentUser.delete();
+        }
+      } catch (authErr) {
+        console.warn('Firebase user delete failed (likely session too old):', authErr.message);
+        if (authErr.code === 'auth/requires-recent-login') {
+          toast.error('Security verification required. Please logout and login again to delete your account profile.', { id: 'del-acc' });
+          return;
+        }
+      }
+
+      toast.success('Account wiped clean. Farewell!', { id: 'del-acc', duration: 5000 });
+      
+      // Phase 5: Final Cleanup
+      handleSecureLogout();
+    } catch (err) {
+      console.error('Account deletion failure:', err);
+      toast.error(`Deletion partially failed: ${err.message}. Data may persist.`, { id: 'del-acc' });
+    }
+  };
+
+  /**
+   * 🎨 FORK PROJECT - Core social engagement feature
+   * Copies a shared project from the Discovery feed into the user's private Hub.
+   */
+  const handleForkProject = async (sampleProject) => {
+    if (!sampleProject) return;
+    
+    console.log('[StudioView] Forking community project:', sampleProject.id);
+    toast.loading('Forking to your workspace...', { id: 'fork-op' });
+    
+    // Create new project object based on sample
+    const newProject = {
+      ...sampleProject,
+      id: `fork-${Date.now()}`,
+      name: `Fork of ${sampleProject.name || 'Untitled Project'}`,
+      creatorId: user?.uid || 'guest',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      source: 'discovery-remix',
+      isFork: true,
+      assets: Array.isArray(sampleProject.assets) ? sampleProject.assets : [], 
+      agents: Array.isArray(sampleProject.agents) ? sampleProject.agents : []
+    };
+    
+    // Add to local projects state
+    setProjects(prev => [newProject, ...(prev || [])]);
+    
+    // Save to Firestore if logged in
+    if (isLoggedIn && user) {
+       try {
+         let authToken = null;
+         if (auth?.currentUser) authToken = await auth.currentUser.getIdToken(true);
+         
+         const response = await fetch(`${BACKEND_URL}/api/user/projects`, {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json',
+             ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+           },
+           body: JSON.stringify({
+             name: newProject.name,
+             type: 'song',
+             data: newProject,
+             metadata: { forkedFrom: sampleProject.id, isFork: true }
+           })
+         });
+         
+         if (response.ok) {
+           const data = await response.json();
+           newProject.id = data.id; // Switch to the real server ID
+         }
+       } catch (err) {
+         console.warn('[StudioView] Fork sync error:', err.message);
+       }
+    }
+    
+    toast.success('Project forked successfully!', { id: 'fork-op' });
+    
+    // Automatically open the forked project
+    setSelectedProject(newProject);
+    setDashboardTab('overview');
+    setActiveTab('hub'); 
+  };
+
   const filteredNews = useMemo(() => {
     if (activeTab !== 'news') return [];
     if (!Array.isArray(newsArticles)) return [];
@@ -4869,7 +5108,8 @@ const fetchUserCredits = useCallback(async (uid) => {
             <div style={{ minHeight: '360px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000', position: 'relative' }}>
                {canvasPreviewAsset ? (
                  <>
-                   {canvasPreviewAsset.type === 'Video' && canvasPreviewAsset.videoUrl && (
+                   {/* 1. Video Player (Highest Priority) */}
+                   {canvasPreviewAsset.videoUrl && (
                      <video 
                        src={formatVideoSrc(canvasPreviewAsset.videoUrl)} 
                        controls 
@@ -4881,7 +5121,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                        }}
                      />
                    )}
-                   {canvasPreviewAsset.type === 'Image' && canvasPreviewAsset.imageUrl && (
+                   
+                   {/* 2. Image (If no video) */}
+                   {!canvasPreviewAsset.videoUrl && canvasPreviewAsset.imageUrl && (
                      <img 
                        src={formatImageSrc(canvasPreviewAsset.imageUrl)} 
                        alt={canvasPreviewAsset.title || 'Asset'}
@@ -4892,45 +5134,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                        }}
                      />
                    )}
-                   {canvasPreviewAsset.type === 'Audio' && canvasPreviewAsset.audioUrl && (
-                     <div style={{ width: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
-                       <div style={{ 
-                         width: '120px', 
-                         height: '120px', 
-                         borderRadius: '50%', 
-                         background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
-                         display: 'flex', 
-                         alignItems: 'center', 
-                         justifyContent: 'center',
-                         boxShadow: '0 0 40px rgba(168, 85, 247, 0.3)'
-                       }}>
-                         <Music size={48} color="white" />
-                       </div>
-                       <audio 
-                         ref={canvasAudioRef}
-                         key={canvasPreviewAsset.id || canvasPreviewAsset.audioUrl}
-                         src={formatAudioSrc(canvasPreviewAsset.audioUrl)} 
-                         controls 
-                         style={{ width: '100%', maxWidth: '600px' }}
-                         onError={() => {
-                           console.warn('[AssetViewer] Audio failed to load:', canvasPreviewAsset.audioUrl);
-                           toast.error('Audio file could not be loaded');
-                         }}
-                         onPlay={() => console.log('[AssetViewer] Audio started playing')}
-                         onPause={(e) => console.log('[AssetViewer] Audio paused at', e.target.currentTime, 'ended:', e.target.ended)}
-                         onEnded={() => console.log('[AssetViewer] Audio ended')}
-                         onLoadedData={() => console.log('[AssetViewer] Audio loaded, duration:', canvasAudioRef.current?.duration)}
-                       />
-                     </div>
-                   )}
-                   
-                   {/* Text Content Viewer - for lyrics, scripts, text generations */}
-                   {(canvasPreviewAsset.type === 'Text' || canvasPreviewAsset.type === 'Lyrics' || canvasPreviewAsset.type === 'Script' || 
-                     (!canvasPreviewAsset.videoUrl && !canvasPreviewAsset.audioUrl && !canvasPreviewAsset.imageUrl && canvasPreviewAsset.content)) && (
+
+                   {/* 3. Text & Audio Hybrid Viewer (For everything else) */}
+                   {!canvasPreviewAsset.videoUrl && !canvasPreviewAsset.imageUrl && (
                      <div style={{ 
                        width: '100%', 
                        height: '100%',
-                       minHeight: '360px',
+                       minHeight: '400px',
                        padding: '32px', 
                        display: 'flex', 
                        flexDirection: 'column',
@@ -4954,10 +5164,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                            justifyContent: 'center',
                            boxShadow: '0 0 20px rgba(6, 182, 212, 0.3)'
                          }}>
-                           <FileText size={24} color="white" />
+                           {canvasPreviewAsset.audioUrl ? <Music size={24} color="white" /> : <FileText size={24} color="white" />}
                          </div>
                          <div>
-                           <h4 style={{ margin: 0, color: 'white', fontSize: '1.1rem' }}>{canvasPreviewAsset.title}</h4>
+                           <h4 style={{ margin: 0, color: 'white', fontSize: '1.2rem', fontFamily: "'Georgia', 'Times New Roman', serif" }}>{canvasPreviewAsset.title}</h4>
                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                              {canvasPreviewAsset.agent} • {canvasPreviewAsset.date}
                            </span>
@@ -4965,8 +5175,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
                            <button
                              onClick={() => {
-                               navigator.clipboard.writeText(canvasPreviewAsset.content || '');
-                               // Could add a toast notification here
+                               navigator.clipboard.writeText(canvasPreviewAsset.content || canvasPreviewAsset.snippet || '');
+                               toast.success('Text copied to clipboard');
                              }}
                              className="btn-icon-circle glass"
                              title="Copy to clipboard"
@@ -4976,6 +5186,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                            </button>
                          </div>
                        </div>
+<<<<<<< HEAD
                        <div style={{ 
                          flex: 1,
                          overflowY: 'auto',
@@ -4992,10 +5203,68 @@ const fetchUserCredits = useCallback(async (uid) => {
                            color: 'rgba(255,255,255,0.95)',
                            whiteSpace: 'pre-wrap',
                            wordWrap: 'break-word'
+=======
+
+                       {/* Audio Player section */}
+                       {canvasPreviewAsset.audioUrl && (
+                         <div style={{ 
+                           marginBottom: '20px', 
+                           background: 'rgba(0,0,0,0.4)', 
+                           padding: '16px', 
+                           borderRadius: '16px', 
+                           border: '1px solid rgba(255,255,255,0.1)',
+                           display: 'flex',
+                           alignItems: 'center',
+                           gap: '16px'
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
                          }}>
-                           {canvasPreviewAsset.content || canvasPreviewAsset.snippet || 'No text content available'}
-                         </pre>
-                       </div>
+                           <div className="pulse-icon" style={{ flexShrink: 0 }}>
+                              <Music size={24} className="text-purple" />
+                           </div>
+                           <audio 
+                             ref={canvasAudioRef}
+                             key={canvasPreviewAsset.id || canvasPreviewAsset.audioUrl}
+                             src={formatAudioSrc(canvasPreviewAsset.audioUrl)} 
+                             controls 
+                             style={{ flex: 1, height: '36px' }}
+                             onError={() => {
+                               console.warn('[AssetViewer] Audio failed to load');
+                               toast.error('Could not load audio file');
+                             }}
+                           />
+                         </div>
+                       )}
+
+                       {/* Text Content section */}
+                       {(canvasPreviewAsset.content || canvasPreviewAsset.snippet) && (
+                         <div style={{ 
+                           flex: 1,
+                           overflowY: 'auto',
+                           padding: '24px',
+                           background: 'rgba(0,0,0,0.3)',
+                           borderRadius: '12px',
+                           border: '1px solid rgba(255,255,255,0.05)',
+                           boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)'
+                         }}>
+                           <div style={{ 
+                             margin: 0,
+                             fontFamily: "'Georgia', 'Times New Roman', serif",
+                             fontSize: '1.15rem',
+                             lineHeight: '1.8',
+                             color: 'rgba(255,255,255,0.9)',
+                             whiteSpace: 'pre-wrap',
+                             wordWrap: 'break-word'
+                           }}>
+                             {canvasPreviewAsset.content || canvasPreviewAsset.snippet}
+                           </div>
+                         </div>
+                       )}
+                       
+                       {!(canvasPreviewAsset.content || canvasPreviewAsset.snippet) && !canvasPreviewAsset.audioUrl && (
+                         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                            No preview content available for this asset type.
+                         </div>
+                       )}
                      </div>
                    )}
                    
@@ -5427,11 +5696,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                          alignItems: 'center',
                          gap: '4px'
                        }}>
-                         {asset.type === 'Video' && <VideoIcon size={10} />}
-                         {asset.type === 'Audio' && <Music size={10} />}
-                         {asset.type === 'Image' && <ImageIcon size={10} />}
-                         {(asset.type === 'Text' || asset.type === 'Lyrics' || asset.type === 'Script') && <FileText size={10} />}
-                         {asset.type}
+                         {(asset.type?.toLowerCase() === 'video') && <VideoIcon size={10} />}
+                         {(asset.type?.toLowerCase() === 'audio' || asset.type?.toLowerCase() === 'vocal') && <Music size={10} />}
+                         {(asset.type?.toLowerCase() === 'image' || asset.type?.toLowerCase() === 'visual') && <ImageIcon size={10} />}
+                         {(asset.type?.toLowerCase() === 'text' || asset.type?.toLowerCase() === 'lyrics' || asset.type?.toLowerCase() === 'script') && <FileText size={10} />}
+                         {(asset.type?.toLowerCase() === 'pro') && <Crown size={10} />}
+                         {asset.type?.charAt(0).toUpperCase() + (asset.type?.slice(1) || '')}
                        </div>
                      </div>
                      
@@ -5660,10 +5930,10 @@ const fetchUserCredits = useCallback(async (uid) => {
               {dashboardTab === 'overview' && (
                 <div className="dashboard-view-overview animate-fadeIn">
                   {/* Artist Profile & Command Center */}
-                  <div className="artist-profile-header animate-fadeInDown" style={{ 
+                  <div className="artist-profile-header animate-fadeIn" style={{ 
                     background: 'linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%)',
                     borderRadius: '24px',
-                    padding: '32px',
+                    padding: '24px',
                     marginBottom: '24px',
                     border: '1px solid var(--border-color)',
                     boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
@@ -5785,7 +6055,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
                   {/* Feature Utilization & Smart Insights */}
                   <div className="dashboard-grid-two-cols" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-                    <div className="dashboard-card usage-insights-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)' }}>
+                    <div className="dashboard-card usage-insights-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '20px', border: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <Activity size={20} className="text-purple" /> Studio Utilization
@@ -5863,7 +6133,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </div>
                     </div>
 
-                    <div className="dashboard-card platform-integration-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)' }}>
+                    <div className="dashboard-card platform-integration-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '20px', border: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                         <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <GlobeIcon size={20} className="text-cyan" /> Cloud Integrations
@@ -6836,9 +7106,40 @@ const fetchUserCredits = useCallback(async (uid) => {
                         style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                       >
                         <RefreshCw size={16} />
-                        Reset Tour
+                         Reset Tour
                       </button>
                     </div>
+
+                    {/* DANGER ZONE: Account Deletion (App Store Requirement) */}
+                    {isLoggedIn && (
+                      <div className="setting-row danger-zone" style={{ 
+                        marginTop: '32px', 
+                        paddingTop: '24px', 
+                        borderTop: '1px solid rgba(239, 68, 68, 0.2)',
+                        background: 'rgba(239, 68, 68, 0.03)',
+                        padding: '24px',
+                        borderRadius: '16px'
+                      }}>
+                        <div className="setting-info">
+                          <h4 style={{ color: 'var(--color-red)' }}>Delete Account</h4>
+                          <p>Permanently remove your profile and all associated data.</p>
+                        </div>
+                        <button 
+                          className="secondary-button"
+                          onClick={handleDeleteAccount}
+                          style={{ 
+                            background: 'rgba(239, 68, 68, 0.1)', 
+                            border: '1px solid var(--color-red)', 
+                            color: 'var(--color-red)',
+                            fontWeight: '700',
+                            padding: '10px 20px'
+                          }}
+                        >
+                          <Trash2 size={16} />
+                           Wipe Account
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -7564,6 +7865,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     overflow: 'hidden',
                     transition: 'all 0.3s ease'
                   }}>
+<<<<<<< HEAD
                     {/* DNA Explanation Section */}
                     {showDnaVault && (
                       <div style={{ 
@@ -7584,6 +7886,21 @@ const fetchUserCredits = useCallback(async (uid) => {
                         </div>
                       </div>
                     )}
+=======
+                    {/* Educational Section for DNA */}
+                    <div style={{
+                      padding: '12px',
+                      background: 'rgba(168, 85, 247, 0.05)',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(168, 85, 247, 0.1)',
+                      marginBottom: '8px'
+                    }}>
+                      <h4 style={{ margin: '0 0 4px 0', fontSize: '0.85rem', color: '#a855f7', fontWeight: 'bold', fontFamily: 'Georgia, serif' }}>What is DNA?</h4>
+                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.4', fontFamily: 'Georgia, serif' }}>
+                        Studio DNA captures your artistic identity. Uploading reference images, audio, or lyrics allows the AI to "inherit" your style, ensuring every generation feels like your personal creation.
+                      </p>
+                    </div>
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
 
                     {/* Visual DNA Upload */}
                     <div className="reference-upload-card" style={{
@@ -7773,12 +8090,114 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </div>
                     </div>
 
+                    {/* Audio ID Reference - FOR USER REQUEST: "can you use DNA and or Audio_ID?" */}
+                    <div className="reference-upload-card" style={{
+                      padding: '10px 12px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '10px',
+                      border: referencedAudioId ? '1px solid var(--color-cyan)' : '1px solid rgba(255, 255, 255, 0.1)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'rgba(6, 182, 212, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Hash size={16} color="var(--color-cyan)" />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Audio ID</div>
+                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>Reference a project track</div>
+                          </div>
+                        </div>
+                        {referencedAudioId && (
+                           <button onClick={() => setReferencedAudioId('')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                        )}
+                      </div>
+                      <input 
+                        type="text"
+                        placeholder="Paste Audio ID (e.g. remix_789)"
+                        value={referencedAudioId}
+                        onChange={(e) => setReferencedAudioId(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: 'rgba(0,0,0,0.2)',
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          borderRadius: '6px',
+                          padding: '8px 10px',
+                          fontSize: '0.75rem',
+                          color: 'white',
+                          outline: 'none',
+                          fontFamily: 'monospace'
+                        }}
+                      />
+                    </div>
+
+                    {/* Visual ID Reference */}
+                    <div className="reference-upload-card" style={{
+                      padding: '10px 12px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '10px',
+                      border: referencedVisualId ? '1px solid #ec4899' : '1px solid rgba(255, 255, 255, 0.1)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            background: 'rgba(236, 72, 153, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Hash size={16} color="#ec4899" />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Visual ID</div>
+                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)' }}>Reference a style guide</div>
+                          </div>
+                        </div>
+                        {referencedVisualId && (
+                           <button onClick={() => setReferencedVisualId('')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                        )}
+                      </div>
+                      <input 
+                        type="text"
+                        placeholder="Paste Visual ID (e.g. style_dark_vibe)"
+                        value={referencedVisualId}
+                        onChange={(e) => setReferencedVisualId(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: 'rgba(0,0,0,0.2)',
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          borderRadius: '6px',
+                          padding: '8px 10px',
+                          fontSize: '0.75rem',
+                          color: 'white',
+                          outline: 'none',
+                          fontFamily: 'monospace'
+                        }}
+                      />
+                    </div>
+
                     {/* Voice Sample Upload */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
                       background: 'rgba(255, 255, 255, 0.03)',
                       borderRadius: '10px',
-                      border: (selectedAgent?.id === 'podcast' || selectedAgent?.id === 'voiceover' || selectedAgent?.id === 'vocal-arch') ? '1px dashed #fbbf2450' : '1px dashed rgba(255, 255, 255, 0.1)',
+                      border: (selectedAgent?.id === 'podcast' || selectedAgent?.id === 'voiceover' || selectedAgent?.id === 'vocal-arch' || selectedAgent?.id === 'vocal-lab') ? '1px dashed #fbbf2450' : '1px dashed rgba(255, 255, 255, 0.1)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -7798,13 +8217,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                         <div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voice Clone</div>
                           <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {voiceSampleUrl ? 'Voice Profile Active' : 'Sample to Clone...'}
+                            {elevenLabsVoiceId ? (elVoices.find(v => v.voice_id === elevenLabsVoiceId)?.name || 'Custom Voice') : (voiceSampleUrl ? 'Voice Profile Active' : 'Sample to Clone...')}
                           </div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '6px' }}>
-                        {voiceSampleUrl && (
-                          <button onClick={() => setVoiceSampleUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                        {(voiceSampleUrl || elevenLabsVoiceId) && (
+                          <button onClick={() => { setVoiceSampleUrl(null); setElevenLabsVoiceId(''); }} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
                         )}
                         <label style={{ padding: '5px 10px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: 'white' }}>
                           <input id="voice-dna-input" type="file" accept="audio/*" style={{ display: 'none' }} onChange={handleUploadVoiceSample} />
@@ -7812,6 +8231,55 @@ const fetchUserCredits = useCallback(async (uid) => {
                         </label>
                       </div>
                     </div>
+
+                    {/* Premium ElevenLabs Selector */}
+                    {(selectedAgent?.id === 'vocal-lab' || selectedAgent?.id === 'vocal-arch' || selectedAgent?.id === 'ghost' || selectedAgent?.id === 'voiceover' || selectedAgent?.id === 'podcast') && elVoices.length > 0 && (
+                      <div style={{ padding: '0 4px', marginTop: '4px' }}>
+                        <select
+                          value={elevenLabsVoiceId}
+                          onChange={(e) => {
+                            setElevenLabsVoiceId(e.target.value);
+                            localStorage.setItem('studio_elevenlabs_voice_id', e.target.value);
+                            // Clear generic sample if a specific premium voice is chosen
+                            if (e.target.value) setVoiceSampleUrl(null);
+                          }}
+                          className="w-full haptic-press"
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            borderRadius: '12px',
+                            background: elevenLabsVoiceId ? 'rgba(251, 191, 36, 0.1)' : 'rgba(0,0,0,0.3)',
+                            border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
+                            color: elevenLabsVoiceId ? '#fbbf24' : 'rgba(255,255,255,0.7)',
+                            fontSize: '0.8rem',
+                            fontWeight: '600',
+                            outline: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <option value="" style={{ background: '#111', color: '#888' }}>
+                            -- Select Premium Voice --
+                          </option>
+                          {elVoices.map(v => (
+                            <option key={v.voice_id} value={v.voice_id} style={{ background: '#111', color: 'white' }}>
+                              {v.name} ({v.category})
+                            </option>
+                          ))}
+                        </select>
+                        <div style={{ 
+                          fontSize: '0.65rem', 
+                          color: '#fbbf24', 
+                          opacity: 0.8, 
+                          marginTop: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <Sparkles size={10} /> 
+                          Premium Engine: ElevenLabs Quality
+                        </div>
+                      </div>
+                    )}
 
                     {/* Seed DNA (Video/Image Reference for Video Creation) */}
                     <div className="reference-upload-card" style={{
@@ -7857,8 +8325,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                   {/* Auto-show Relevant DNA as active badges if Vault is closed */}
                   {!showDnaVault && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-                      {visualDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ec489920', color: '#ec4899', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ec489940' }}><ImageIcon size={10} /> Visual DNA Active</div>}
-                      {audioDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#06b6d420', color: '#06b6d4', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #06b6d440' }}><Music size={10} /> Audio DNA Active</div>}
+                      {(visualDnaUrl || referencedVisualId) && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ec489920', color: '#ec4899', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ec489940' }}><ImageIcon size={10} /> {referencedVisualId ? `Visual ID: ${referencedVisualId}` : 'Visual DNA Active'}</div>}
+                      {(audioDnaUrl || referencedAudioId) && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#06b6d420', color: '#06b6d4', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #06b6d440' }}><Music size={10} /> {referencedAudioId ? `Audio ID: ${referencedAudioId}` : 'Audio DNA Active'}</div>}
                       {lyricsDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#a855f720', color: '#a855f7', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #a855f740' }}><FileText size={10} /> Lyrics DNA Active</div>}
                       {voiceSampleUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#fbbf2420', color: '#fbbf24', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #fbbf2440' }}><Mic size={10} /> Voice Ready</div>}
                       {videoDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ef444420', color: '#ef4444', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ef444440' }}><VideoIcon size={10} /> Seed DNA Ready</div>}
@@ -9264,6 +9732,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             <ProjectHub
               projects={projects}
               setProjects={setProjects}
+              onRemix={handleForkProject}
               onSelectProject={(project) => {
                 console.log('[StudioView] Selecting project:', project?.id, project?.name, 'assets:', project?.assets?.length);
                 
@@ -9606,31 +10075,17 @@ const fetchUserCredits = useCallback(async (uid) => {
                             position: 'relative',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            cursor: 'pointer'
                           }}
                           onClick={() => {
-                            const safeAsset = {
-                              id: asset.id,
-                              title: asset.title,
-                              snippet: asset.snippet,
-                              content: asset.content,
-                              type: asset.type,
-                              agent: asset.agent,
-                              imageUrl: asset.imageUrl,
-                              audioUrl: asset.audioUrl,
-                              videoUrl: asset.videoUrl,
-                              createdAt: asset.createdAt,
-                              date: asset.date,
-                              model: asset.model,
-                              description: asset.description,
-                              isExistingAsset: true
-                            };
-                            setPreviewItem(safeAsset);
+                            const projectAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                            safeOpenPreview(asset, projectAssets);
                           }}
                         >
                           {!asset.imageUrl && (
-                            asset.type === 'audio' ? <Music size={48} style={{ opacity: 0.2 }} /> :
-                            asset.type === 'video' ? <VideoIcon size={48} style={{ opacity: 0.2 }} /> :
+                            (asset.type?.toLowerCase() === 'audio' || asset.type?.toLowerCase() === 'vocal' || asset.audioUrl) ? <Music size={48} style={{ opacity: 0.2, color: 'var(--color-purple)' }} /> :
+                            (asset.type?.toLowerCase() === 'video' || asset.videoUrl) ? <VideoIcon size={48} style={{ opacity: 0.2, color: 'var(--color-cyan)' }} /> :
                             <FileText size={48} style={{ opacity: 0.2 }} />
                           )}
                           
@@ -9640,18 +10095,24 @@ const fetchUserCredits = useCallback(async (uid) => {
                             padding: '4px 8px', borderRadius: '6px',
                             background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
                             fontSize: '0.7rem', fontWeight: '600', color: 'white',
-                            textTransform: 'uppercase'
+                            textTransform: 'uppercase',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
                           }}>
+                            {asset.type?.toLowerCase() === 'audio' && <Music size={10} />}
+                            {asset.type?.toLowerCase() === 'video' && <VideoIcon size={10} />}
                             {asset.type || 'Text'}
                           </div>
                           
                           {/* Play Button Overlay */}
-                          {(asset.type === 'audio' || asset.type === 'video') && (
+                          {(asset.type?.toLowerCase() === 'audio' || asset.type?.toLowerCase() === 'vocal' || asset.type?.toLowerCase() === 'video' || asset.audioUrl || asset.videoUrl) && (
                             <div className="play-overlay" style={{
                               width: '48px', height: '48px', borderRadius: '50%',
                               background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              cursor: 'pointer'
+                              cursor: 'pointer',
+                              border: '1px solid rgba(255,255,255,0.3)'
                             }}>
                               <Play size={24} fill="white" color="white" />
                             </div>
@@ -9660,40 +10121,48 @@ const fetchUserCredits = useCallback(async (uid) => {
 
                         {/* Info Area */}
                         <div style={{ padding: '16px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                             <span style={{ fontSize: '0.75rem', color: 'var(--color-purple)', fontWeight: '600' }}>
                               {asset.agent || 'AI Generated'}
                             </span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                               {asset.date || 'Just now'}
                             </span>
                           </div>
-                          <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          
+                          <h4 style={{ 
+                            margin: '0 0 8px 0', 
+                            fontSize: '1rem', 
+                            fontWeight: '600',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            color: 'white'
+                          }}>
                             {asset.title || asset.snippet?.substring(0, 30) || 'Untitled Asset'}
                           </h4>
-                          <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', height: '40px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                          
+                          <p style={{ 
+                            margin: 0, 
+                            fontSize: '0.85rem', 
+                            color: 'var(--text-secondary)', 
+                            height: '40px', 
+                            overflow: 'hidden', 
+                            display: '-webkit-box', 
+                            WebkitLineClamp: 2, 
+                            WebkitBoxOrient: 'vertical',
+                            lineHeight: '1.4'
+                          }}>
                             {asset.snippet || asset.description || 'No description available.'}
                           </p>
                           
                           <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
                             <button 
-                              className="btn-secondary-sm" 
-                              style={{ flex: 1 }}
+                              className="btn-secondary-sm haptic-press" 
+                              style={{ flex: 1, padding: '6px' }}
                               onClick={() => {
                                 const safeAsset = {
-                                  id: asset.id,
-                                  title: asset.title,
-                                  snippet: asset.snippet,
-                                  content: asset.content,
-                                  type: asset.type,
-                                  agent: asset.agent,
-                                  imageUrl: asset.imageUrl,
-                                  audioUrl: asset.audioUrl,
-                                  videoUrl: asset.videoUrl,
-                                  createdAt: asset.createdAt,
-                                  date: asset.date,
-                                  model: asset.model,
-                                  description: asset.description,
+                                  ...asset,
                                   isExistingAsset: true
                                 };
                                 setPreviewItem(safeAsset);
@@ -9702,12 +10171,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                               <Eye size={14} /> View
                             </button>
                             <button 
-                              className="btn-secondary-sm" 
-                              style={{ flex: 1 }}
+                              className="btn-secondary-sm haptic-press" 
+                              style={{ flex: 1, padding: '6px' }}
                               onClick={() => {
-                                // Load into editor/context
-                                if (asset.snippet) {
-                                  navigator.clipboard.writeText(asset.snippet);
+                                if (asset.snippet || asset.content) {
+                                  navigator.clipboard.writeText(asset.content || asset.snippet);
                                   toast.success('Copied to clipboard');
                                 }
                               }}
@@ -9717,7 +10185,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           </div>
                         </div>
                       </div>
-                      </SafeAssetWrapper>
+                    </SafeAssetWrapper>
                     );
                     })}
                   </div>
@@ -14083,7 +14551,22 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
               </div>
               <div className="modal-footer" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '1rem' }}>
-                <p style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>By continuing, you agree to our Terms of Service.</p>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textAlign: 'center', lineHeight: '1.4' }}>
+                  By continuing, you agree to our{' '}
+                  <button 
+                    onClick={() => { setShowLoginModal(false); window.location.hash = '#/legal'; }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', padding: 0, fontSize: '0.75rem', textDecoration: 'underline' }}
+                  >
+                    Terms of Service
+                  </button>
+                  {' '}and{' '}
+                  <button 
+                    onClick={() => { setShowLoginModal(false); window.location.hash = '#/legal'; }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', padding: 0, fontSize: '0.75rem', textDecoration: 'underline' }}
+                  >
+                   Privacy Policy
+                  </button>.
+                </p>
               </div>
             </div>
           </div>
@@ -15932,15 +16415,17 @@ const fetchUserCredits = useCallback(async (uid) => {
               flex: 1, 
               overflow: 'auto', 
               display: 'flex', 
+              flexDirection: 'column',
               alignItems: 'center', 
               justifyContent: 'center',
               background: safePreview.type === 'image' ? 'transparent' : 'rgba(0,0,0,0.3)'
             }}>
-              {safePreview.type === 'audio' && safePreview.url && (
-                <div style={{ width: '100%', maxWidth: previewMaximized ? '700px' : '500px', textAlign: 'center' }}>
-                  <div style={{
-                    width: previewMaximized ? '150px' : '120px',
-                    height: previewMaximized ? '150px' : '120px',
+              {/* Audio / Vocal player */}
+              {(safePreview.type === 'audio' || safePreview.type === 'vocal' || (safePreview.url && safePreview.asset?.audioUrl)) && (
+                <div style={{ width: '100%', maxWidth: '500px', textAlign: 'center', marginBottom: (safePreview.content || getAssetTextContent(safePreview.asset)) ? '2rem' : 0 }}>
+                  <div style={{ 
+                    width: previewMaximized ? '100px' : '80px', 
+                    height: previewMaximized ? '100px' : '80px', 
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
                     display: 'flex',
@@ -15950,7 +16435,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     boxShadow: '0 0 40px rgba(168, 85, 247, 0.4)',
                     transition: 'all 0.3s ease'
                   }}>
-                    <Music size={previewMaximized ? 60 : 48} style={{ color: 'white' }} />
+                    <Music size={previewMaximized ? 48 : 36} style={{ color: 'white' }} />
                   </div>
                   <audio 
                     ref={previewAudioRef}
@@ -15958,7 +16443,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     src={safePreview.url}
                     controls
                     style={{ width: '100%' }}
-                    autoPlay
+                    autoPlay={false}
                     controlsList="nodownload"
                     onError={(e) => {
                       console.error('[AudioPreview] Error:', e.target.error?.message || 'Unknown error', 'URL:', safePreview.url?.substring(0, 50));
@@ -15972,17 +16457,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                         container.appendChild(errDiv);
                       }
                     }}
-                    onCanPlay={() => console.log('[AudioPreview] Audio can play')}
-                    onLoadedData={() => console.log('[AudioPreview] Audio loaded, duration:', previewAudioRef.current?.duration)}
-                    onPlay={() => console.log('[AudioPreview] Audio started playing')}
-                    onPause={(e) => console.log('[AudioPreview] Audio paused at', e.target.currentTime, 'seconds, ended:', e.target.ended)}
-                    onEnded={() => console.log('[AudioPreview] Audio ended naturally')}
-                    onStalled={() => console.log('[AudioPreview] Audio stalled - network issue')}
-                    onWaiting={() => console.log('[AudioPreview] Audio waiting for data')}
                   />
                   {/* Show URL type for debugging */}
                   <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '12px', opacity: 0.6 }}>
-                    {safePreview.url?.startsWith('data:') ? 'Base64 Audio' : safePreview.url?.startsWith('http') ? 'Remote Audio' : 'Unknown Format'}
+                    {safePreview.url?.startsWith('data:') ? 'Base64 Audio' : safePreview.url?.startsWith('http') ? 'Remote Audio' : 'Cloud Asset'}
                   </p>
                 </div>
               )}

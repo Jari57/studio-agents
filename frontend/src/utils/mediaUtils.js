@@ -35,13 +35,55 @@ export const formatImageSrc = (imageData) => {
 export const formatAudioSrc = (audioData) => {
   if (!audioData) return '';
   
-  if (typeof audioData === 'string') return audioData;
+  if (typeof audioData === 'string') {
+    // Already a Blob URL - highest performance fallback
+    if (audioData.startsWith('blob:')) {
+      return audioData;
+    }
+
+    // Already a standard URL
+    if (audioData.startsWith('http')) {
+      return audioData;
+    }
+
+    // Handle Data URI and convert to Blob if it's large (base64 audio can be huge)
+    // This fixes "fail to play but works in download" by avoiding huge strings in src attributes
+    if (audioData.startsWith('data:')) {
+      // If it's a small data URI (e.g. sample), keep it
+      if (audioData.length < 100000) return audioData; 
+      
+      try {
+        const parts = audioData.split(',');
+        if (parts.length !== 2) return audioData;
+        const mime = parts[0].match(/:(.*?);/)[1];
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        return URL.createObjectURL(blob);
+      } catch (e) {
+        console.warn('Failed to convert audio data URI to blob:', e);
+        return audioData;
+      }
+    }
+    
+    // Raw base64 - add data URL prefix
+    if (audioData.length > 100) {
+      return formatAudioSrc(`data:audio/mpeg;base64,${audioData}`);
+    }
+    
+    return audioData;
+  }
   
   if (typeof audioData === 'object') {
-    if (audioData.url) return audioData.url;
-    if (audioData.audio) return audioData.audio;
+    if (audioData.url) return formatAudioSrc(audioData.url);
+    if (audioData.audio) return formatAudioSrc(audioData.audio);
     if (Array.isArray(audioData) && audioData[0]) {
-      return typeof audioData[0] === 'string' ? audioData[0] : (audioData[0].url || audioData[0].audio || '');
+      const first = audioData[0];
+      return typeof first === 'string' ? formatAudioSrc(first) : (formatAudioSrc(first.url || first.audio || ''));
     }
   }
   
@@ -51,7 +93,33 @@ export const formatAudioSrc = (audioData) => {
 export const formatVideoSrc = (videoData) => {
   if (!videoData) return '';
   
-  if (typeof videoData === 'string') return videoData;
+  if (typeof videoData === 'string') {
+    if (videoData.startsWith('blob:') || videoData.startsWith('http')) {
+      return videoData;
+    }
+
+    // Convert Video Data URIs to Blobs for playback performance
+    if (videoData.startsWith('data:')) {
+      try {
+        const parts = videoData.split(',');
+        if (parts.length !== 2) return videoData;
+        const mime = parts[0].match(/:(.*?);/)[1];
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        return URL.createObjectURL(blob);
+      } catch (e) {
+        console.warn('Failed to convert video data URI to blob:', e);
+        return videoData;
+      }
+    }
+
+    return videoData;
+  }
   
   if (typeof videoData === 'object') {
     if (videoData.url) return videoData.url;

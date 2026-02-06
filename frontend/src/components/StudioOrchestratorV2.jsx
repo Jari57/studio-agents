@@ -232,9 +232,24 @@ function GeneratorCard({
             color: 'var(--text-secondary)',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
           }}>
             {agent?.name || subtitle}
+            {agent?.isBeta && (
+              <span style={{
+                fontSize: '0.6rem',
+                padding: '1px 5px',
+                background: 'rgba(245, 158, 11, 0.1)',
+                color: '#f59e0b',
+                borderRadius: '4px',
+                border: '1px solid rgba(245, 158, 11, 0.2)',
+                fontWeight: '800',
+                letterSpacing: '0.05em'
+              }}>BETA</span>
+            )}
           </p>
         </div>
 
@@ -1243,11 +1258,117 @@ export default function StudioOrchestratorV2({
 }) {
   // 📱 Device responsiveness
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // STATE MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const [songIdea, setSongIdea] = useState(existingProject?.name || '');
+  const [language, setLanguage] = useState(existingProject?.language || 'English');
+  const [style, setStyle] = useState(existingProject?.style || 'Modern Hip-Hop');
+  const [duration, setDuration] = useState(existingProject?.duration || 90);
+  const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
+  const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
+  const [model, setModel] = useState(existingProject?.model || 'Gemini 2.0 Flash');
+  const [musicEngine, setMusicEngine] = useState(existingProject?.musicEngine || 'music-gpt'); // Default to Beat Lab (MusicGen)
+  const [mood, setMood] = useState(existingProject?.mood || 'Energetic'); // Beatoven-inspired
+  const [structure, setStructure] = useState(existingProject?.structure || 'Full Song'); // Structure control
+
+  const [highMusicality, setHighMusicality] = useState(true); // Udio-style musicality
+  const [seed, setSeed] = useState(-1); // Riffusion/Suno-style seed (-1 for random)
+  const [stemType, setStemType] = useState('Full Mix'); // Stem/Instrument isolation
+  const [projectBpm, setProjectBpm] = useState(existingProject?.bpm || existingProject?.settings?.bpm || 120); // Tempo for production
+  
+  const [selectedAgents, setSelectedAgents] = useState({
+    lyrics: 'ghost',
+    audio: 'beat',
+    visual: 'album',
+    video: 'video-creator'
+  });
+  
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [outputs, setOutputs] = useState({
+    lyrics: null,
+    audio: null,
+    visual: null,
+    video: null
+  });
+
+  const [mediaUrls, setMediaUrls] = useState({
+    audio: null,
+    image: null,
+    video: null,
+    vocals: null,
+    lyricsVocal: null // Unified key for lyrics+vocal
+  });
+  
+  const [generatingMedia, setGeneratingMedia] = useState({
+    audio: false,
+    image: false,
+    video: false,
+    vocals: false
+  });
+  
+  const [speakingSlot, setSpeakingSlot] = useState(null);
+  const [projectName, setProjectName] = useState('');
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
+  const [vocalQuality, setVocalQuality] = useState('premium'); // 'standard' or 'premium'
+  const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
+  const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
+  const [generatingVocal, setGeneratingVocal] = useState(false);
+  const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
+  const [creatingFinalMix, setCreatingFinalMix] = useState(false);
+  const [finalMixPreview, setFinalMixPreview] = useState(null);
+  const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
+  const [musicVideoUrl, setMusicVideoUrl] = useState(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
+  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
+  const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
+  const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
+  const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
+  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(localStorage.getItem('studio_elevenlabs_voice_id') || '');
+  const [isUploadingSample, setIsUploadingSample] = useState(false);
+  const [savedVoices, setSavedVoices] = useState([]); // List of voices saved in Firestore
+  const [loadingVoices, setLoadingVoices] = useState(false);
+  const [elVoices, setElVoices] = useState([]); // ElevenLabs professional voices
+  const [loadingElVoices, setLoadingElVoices] = useState(false);
+
+  // New DNA States for other agents
+  const [visualDnaUrl, setVisualDnaUrl] = useState(null);
+  const [audioDnaUrl, setAudioDnaUrl] = useState(null);
+  const [videoDnaUrl, setVideoDnaUrl] = useState(null); // Image used for image-to-video
+  const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null); // Text file or PDF as reference
+  const [referencedAudioId, setReferencedAudioId] = useState('');
+  const [referencedVisualId, setReferencedVisualId] = useState('');
+  const [isUploadingDna, setIsUploadingDna] = useState({ visual: false, audio: false, video: false, lyrics: false });
+  const [showDnaVault, setShowDnaVault] = useState(false);
+  
+  // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
+  const outputsRef = useRef(outputs);
+  const recognitionRef = useRef(null);
+  const vocalAudioRef = useRef(null);
+
+  // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
+  const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
+  const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // EFFECTS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  useEffect(() => {
+    outputsRef.current = outputs;
+  }, [outputs]);
 
   // Fetch saved voices from Firestore
   useEffect(() => {
@@ -1273,6 +1394,28 @@ export default function StudioOrchestratorV2({
 
     if (isOpen) {
       fetchSavedVoices();
+    }
+  }, [isOpen]);
+
+  // Fetch ElevenLabs voices
+  useEffect(() => {
+    const fetchElVoices = async () => {
+      setLoadingElVoices(true);
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/voices`);
+        if (response.ok) {
+          const voices = await response.json();
+          setElVoices(voices);
+        }
+      } catch (err) {
+        console.error('[Orchestrator] Error fetching ElevenLabs voices:', err);
+      } finally {
+        setLoadingElVoices(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchElVoices();
     }
   }, [isOpen]);
 
@@ -1312,52 +1455,32 @@ export default function StudioOrchestratorV2({
       document.body.style.overflow = 'auto';
     };
   }, [isOpen]);
-  
-  const [songIdea, setSongIdea] = useState(existingProject?.name || '');
-  const [language, setLanguage] = useState('English');
-  const [style, setStyle] = useState('Modern Hip-Hop');
-  const [duration, setDuration] = useState(90);
-  const [model, setModel] = useState('Gemini 2.0 Flash');
-  const [musicEngine, setMusicEngine] = useState('music-gpt'); // Default to Beat Lab (MusicGen)
-  const [mood, setMood] = useState('Energetic'); // Beatoven-inspired
-  const [structure, setStructure] = useState('Full Song'); // Structure control
 
-  // Sync duration with structure
+  // Calculate duration from bars and BPM
   useEffect(() => {
-    if (structure === 'Full Song') setDuration(90);
-    else if (structure === 'Radio Edit') setDuration(150);
-    else if (structure === 'Extended') setDuration(180);
-    else if (structure === 'Loop') setDuration(30);
-    else setDuration(15); // Intro, Verse, etc.
-  }, [structure]);
+    if (useBars) {
+      // 4 beats per bar, 60 seconds per minute
+      const calculatedDuration = Math.round((bars * 4 * 60) / projectBpm);
+      setDuration(calculatedDuration);
+    }
+  }, [bars, projectBpm, useBars]);
 
-  const [highMusicality, setHighMusicality] = useState(true); // Udio-style musicality
-  const [seed, setSeed] = useState(-1); // Riffusion/Suno-style seed (-1 for random)
-  const [stemType, setStemType] = useState('Full Mix'); // Stem/Instrument isolation
-  const [projectBpm, setProjectBpm] = useState(existingProject?.bpm || existingProject?.settings?.bpm || 120); // Tempo for production
-  
-  // 4 Generator Slots - default to free tier agents
-  const [selectedAgents, setSelectedAgents] = useState({
-    lyrics: 'ghost',
-    audio: 'beat',
-    visual: 'album',
-    video: 'video-creator'
-  });
-  
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [outputs, setOutputs] = useState({
-    lyrics: null,
-    audio: null,
-    visual: null,
-    video: null
-  });
-
-  // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
-  const outputsRef = useRef(outputs);
+  // Sync structure with bars if needed, or vice-versa
   useEffect(() => {
-    outputsRef.current = outputs;
-  }, [outputs]);
+    if (!useBars) {
+      if (structure === 'Full Song') setDuration(90);
+      else if (structure === 'Radio Edit') setDuration(150);
+      else if (structure === 'Extended') setDuration(180);
+      else if (structure === 'Loop') setDuration(30);
+      else setDuration(15); 
+    }
+  }, [structure, useBars]);
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════════════════════════
 
+<<<<<<< HEAD
   const [mediaUrls, setMediaUrls] = useState({
     audio: null,
     image: null,
@@ -1415,6 +1538,8 @@ export default function StudioOrchestratorV2({
   const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
   const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
   
+=======
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
   // Check if there's any generated content that hasn't been saved
   const hasUnsavedContent = () => {
     const hasContent = Object.values(safeOutputs).some(Boolean) || Object.values(safeMediaUrls).some(Boolean);
@@ -1428,59 +1553,6 @@ export default function StudioOrchestratorV2({
     } else {
       onClose?.();
     }
-  };
-  
-  // Helper to format image data for display
-  // Handles: URLs (http/https), data URLs, raw base64, and objects {url: "..."}
-  const formatImageSrc = (imageData) => {
-    if (!imageData) return null;
-    
-    // Handle object return from some APIs
-    if (typeof imageData === 'object' && imageData.url) {
-      return imageData.url;
-    }
-    
-    // Handle array return (Replicate/Flux)
-    if (Array.isArray(imageData) && imageData.length > 0) {
-      return formatImageSrc(imageData[0]);
-    }
-    
-    if (typeof imageData !== 'string') return null;
-    
-    // Already a URL or data URL
-    if (imageData.startsWith('http') || imageData.startsWith('data:')) {
-      return imageData;
-    }
-    
-    // Raw base64 - add data URL prefix
-    return `data:image/png;base64,${imageData}`;
-  };
-
-  // Helper to format audio data for display
-  const formatAudioSrc = (src) => {
-    if (!src) return '';
-    if (typeof src === 'string') return src;
-    if (typeof src === 'object') {
-      if (src.url) return src.url;
-      if (src.audio) return src.audio;
-      if (Array.isArray(src) && src[0]) {
-        return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].audio || '');
-      }
-    }
-    return '';
-  };
-
-  const formatVideoSrc = (src) => {
-    if (!src) return '';
-    if (typeof src === 'string') return src;
-    if (typeof src === 'object') {
-      if (src.url) return src.url;
-      if (src.video) return src.video;
-      if (Array.isArray(src) && src[0]) {
-        return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].video || '');
-      }
-    }
-    return '';
   };
   
   const EXAMPLE_IDEAS = [
@@ -1715,22 +1787,23 @@ export default function StudioOrchestratorV2({
                     model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.0-flash-exp' : 
                     model === 'Gemini 1.5 Pro' ? 'gemini-1.5-pro' : 'gemini-2.0-flash';
 
-      // Generate for all active slots in parallel
-      const generationPromises = activeSlots.map(async ([slot, agentId]) => {
+      // Helper to generate a single slot (used for sequencing or parallel)
+      const generateForSlot = async (slot, agentId, contextLyrics = '') => {
         const agent = AGENTS.find(a => a.id === agentId);
-        if (!agent) return;
+        if (!agent) return null;
         
         const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
         
         const systemPrompt = `You are ${agent.name}, a professional ${agent.category} specialist. 
         Create content for a ${style} song about: "${songIdea}" in ${language}.
         Be creative, professional, and match the genre's style.
+        ${contextLyrics ? `HERE ARE THE LYRICS FOR THE SONG - USE THEM TO INSPIRE THE VIBE: "${contextLyrics.substring(0, 1000)}"` : ''}
         ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse 1], [Chorus], [Bridge]. ALSO INCLUDE Suno-style vocal/style tags in brackets like [Hard Hitting Rap] or [Soulful Vocals] to guide the performance. Do not include any intro/preamble like "Here are the lyrics".' : ''}
-        ${slot === 'audio' ? 'Describe a detailed beat/instrumental concept with BPM, key, and production elements. Be technical and descriptive for an AI music engine.' : ''}
+        ${slot === 'audio' ? `Briefly describe a high-quality beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Use simple genre descriptors (e.g., "Heavy Trap", "Lo-fi Chill"). DO NOT use complex technical jargon or overly verbose descriptions. Keep it under 60 words for maximum AI compatibility.` : ''}
         ${slot === 'visual' ? 'Describe a striking album cover or concept in detail for image generation.' : ''}
         ${slot === 'video' ? 'Write a creative image to video concept/storyboard with scene descriptions.' : ''}`;
         
-        console.log(`[handleGenerate] Starting parallel generation for ${slot} with agent:`, agent.name);
+        console.log(`[handleGenerate] Starting generation for ${slot} with agent:`, agent.name);
         
         try {
           const response = await fetch(`${BACKEND_URL}/api/generate`, {
@@ -1753,43 +1826,57 @@ export default function StudioOrchestratorV2({
             const data = await response.json();
             setOutputs(prev => {
               const NEW_OUTPUTS = { ...prev, [slot]: data.output };
-              outputsRef.current = NEW_OUTPUTS; // Immediate update for same-cycle access
+              outputsRef.current = NEW_OUTPUTS;
               return NEW_OUTPUTS;
             });
             console.log(`[handleGenerate] ${slot} generated successfully`);
             
-            // TRIPLE-GUARDED AUTO-TRIGGERING: 
-            // 1. Pass data directly 
-            // 2. Use Ref fallback 
-            // 3. Incrementally delayed to spread load
+            // Auto-triggering of media generators
             if (slot === 'audio') {
-              console.log('[handleGenerate] Auto-triggering Audio generation in 500ms');
               setTimeout(() => handleGenerateAudio(data.output), 500);
             } else if (slot === 'lyrics') {
-              console.log('[handleGenerate] Auto-triggering Vocal generation in 800ms');
               setTimeout(() => handleGenerateVocals(data.output), 800);
             } else if (slot === 'visual') {
-              console.log('[handleGenerate] Auto-triggering Image generation in 1100ms');
               setTimeout(() => handleGenerateImage(data.output), 1100);
             } else if (slot === 'video') {
-              console.log('[handleGenerate] Auto-triggering Video generation in 1400ms');
               setTimeout(() => handleGenerateVideo(data.output), 1400);
             }
+            return data.output;
           } else {
             const errorText = await response.text();
             console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
-            toast.error(`Agent ${agent.name} failed: ${response.status}`, { 
-              duration: 5000,
-              icon: '❌'
-            });
+            toast.error(`Agent ${agent.name} failed: ${response.status}`, { icon: '❌' });
+            return null;
           }
         } catch (err) {
           console.error(`Error generating ${slot}:`, err);
           toast.error(`Connection Error: ${slot} generation failed.`, { icon: '📡' });
+          return null;
         }
-      });
+      };
 
-      await Promise.all(generationPromises);
+      // RUN SEQUENTIALLY: Lyrics first to provide context for other agents
+      const lyricsSlot = activeSlots.find(([s]) => s === 'lyrics');
+      let lyricsResult = '';
+      
+      if (lyricsSlot) {
+        lyricsResult = await generateForSlot(lyricsSlot[0], lyricsSlot[1]);
+      } else if (existingProject?.assets) {
+        // Look for existing lyrics in the project to provide context for other agents
+        const lyricsAsset = existingProject.assets.find(a => 
+          a.type === 'lyrics' || 
+          a.id?.includes('lyrics') || 
+          a.agent?.toLowerCase().includes('ghost')
+        );
+        if (lyricsAsset) {
+          lyricsResult = lyricsAsset.content || lyricsAsset.snippet || '';
+          console.log('[Orchestrator] Found existing project lyrics for context');
+        }
+      }
+      
+      // All other slots run in parallel using the (optional) lyrics context
+      const otherSlots = activeSlots.filter(([s]) => s !== 'lyrics');
+      await Promise.all(otherSlots.map(([slot, agentId]) => generateForSlot(slot, agentId, lyricsResult)));
       
       toast.dismiss('gen-all');
       toast.success('Generation complete!');
@@ -1837,7 +1924,9 @@ export default function StudioOrchestratorV2({
         body: JSON.stringify({
           prompt: `Create fresh ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
           systemInstruction: `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.
-          ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse] or [Chorus]. No intro fluff.' : ''}`,
+          ${(slot !== 'lyrics' && outputs.lyrics) ? `HERE ARE THE CURRENT LYRICS - USE THEM FOR CONTEXT: "${outputs.lyrics.substring(0, 500)}"` : ''}
+          ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse] or [Chorus]. No intro fluff.' : ''}
+          ${slot === 'audio' ? `Briefly describe a high-quality beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Focus on mood, instrumentation, and energy. Keep it under 80 words for an AI music generator.` : ''}`,
           model: modelId,
           duration: duration,
           language: language
@@ -1888,7 +1977,7 @@ export default function StudioOrchestratorV2({
     }
     
     setGeneratingMedia(prev => ({ ...prev, audio: true }));
-    const waitTime = structure === 'Extended' ? '3 minutes' : (structure === 'Radio Edit' ? '2 minutes' : '60 seconds');
+    const waitTime = duration > 120 ? '3 minutes' : (duration > 60 ? '2 minutes' : '60 seconds');
     toast.loading(`Synthesizing AI beat (${waitTime})...`, { id: 'gen-audio' });
     
     try {
@@ -1944,6 +2033,36 @@ export default function StudioOrchestratorV2({
         const finalUrl = data.audioUrl || data.output;
         if (finalUrl) {
           setMediaUrls(prev => ({ ...prev, audio: finalUrl }));
+          
+          // Ensure outputs.audio is set so the asset is included in the project save
+          setOutputs(prev => ({ 
+            ...prev, 
+            audio: prev.audio || `Professional ${style} beat generated at ${projectBpm} BPM`
+          }));
+
+          // AUTO-SYNC TO EXISTING PROJECT: Add the audio asset to the project library immediately
+          if (existingProject && (onSaveToProject || onCreateProject)) {
+            const saveFunc = onSaveToProject || onCreateProject;
+            console.log(`[handleGenerateAudio] Auto-syncing audio to project: ${existingProject.id}`);
+            
+            const audioAsset = {
+              id: `audio-${Date.now()}`,
+              title: 'Beat Lab Production',
+              type: 'audio',
+              agent: 'Beat Lab',
+              content: cleanAudioPromptText.substring(0, 500),
+              audioUrl: finalUrl,
+              mimeType: data.mimeType || 'audio/mpeg',
+              createdAt: new Date().toISOString()
+            };
+            
+            saveFunc({
+              ...existingProject,
+              assets: [audioAsset, ...(existingProject.assets || [])],
+              updatedAt: new Date().toISOString()
+            });
+          }
+
           toast.success('AI beat generated!', { id: 'gen-audio' });
         } else {
           console.error('[handleGenerateAudio] No URL in successful response:', data);
@@ -2023,7 +2142,9 @@ export default function StudioOrchestratorV2({
           genre: genre,
           language: language || 'English',
           duration: duration || 30,
+          quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
           speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
+          elevenLabsVoiceId: (vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null,
           backingTrackUrl: mediaUrls.audio // Add backing track for sync/context if available
         })
       });
@@ -2047,6 +2168,30 @@ export default function StudioOrchestratorV2({
           ...prev, 
           vocals: prev.vocals || `AI Vocal Performance generated for "${songIdea || 'song'}"`
         }));
+
+        // AUTO-SYNC TO EXISTING PROJECT: Add the vocal asset to the project library immediately
+        if (existingProject && (onSaveToProject || onCreateProject)) {
+          const saveFunc = onSaveToProject || onCreateProject;
+          console.log(`[handleGenerateVocals] Auto-syncing vocals to project: ${existingProject.id}`);
+          
+          const vocalAsset = {
+            id: `vocal-${Date.now()}`,
+            title: 'Vocal Performance',
+            type: 'vocal',
+            agent: 'Ghostwriter',
+            content: cleanLyrics.substring(0, 500),
+            audioUrl: data.audioUrl,
+            mimeType: data.mimeType || 'audio/wav',
+            createdAt: new Date().toISOString()
+          };
+          
+          saveFunc({
+            ...existingProject,
+            assets: [vocalAsset, ...(existingProject.assets || [])],
+            updatedAt: new Date().toISOString()
+          });
+        }
+
         toast.success('AI Vocals generated!', { id: 'gen-vocals' });
       } else {
         const errData = data || {};
@@ -2350,6 +2495,25 @@ export default function StudioOrchestratorV2({
         if (imageData) {
           setMediaUrls(prev => ({ ...prev, image: imageData }));
           toast.success('Image created!', { id: 'gen-image' });
+
+          // AUTO-SYNC TO PROJECT
+          if (existingProject) {
+            const imageAsset = {
+              id: `img-${Date.now()}`,
+              type: 'image',
+              url: imageData,
+              name: `Album Art - ${new Date().toLocaleTimeString()}`,
+              createdAt: new Date().toISOString()
+            };
+            
+            const updatedAssets = [...(existingProject.assets || []), imageAsset];
+            onSaveToProject({
+              ...existingProject,
+              assets: updatedAssets,
+              updatedAt: new Date().toISOString()
+            });
+            console.log('[Orchestrator] Auto-synced image to project library');
+          }
         } else {
           console.error('[Orchestrator] No image data in response:', data);
           // Try video frame fallback
@@ -2398,6 +2562,24 @@ export default function StudioOrchestratorV2({
           const frameDataUrl = await extractFrameFromVideo(videoUrl);
           setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
           toast.success('Frame extracted from video!', { id: 'gen-image' });
+
+          // AUTO-SYNC TO PROJECT
+          if (existingProject) {
+            const imageAsset = {
+              id: `img-${Date.now()}`,
+              type: 'image',
+              url: frameDataUrl,
+              name: `Video Frame Cover - ${new Date().toLocaleTimeString()}`,
+              createdAt: new Date().toISOString()
+            };
+            
+            const updatedAssets = [...(existingProject.assets || []), imageAsset];
+            onSaveToProject({
+              ...existingProject,
+              assets: updatedAssets,
+              updatedAt: new Date().toISOString()
+            });
+          }
           return;
         }
         
@@ -2405,6 +2587,24 @@ export default function StudioOrchestratorV2({
           const imageData = data.output || `data:${data.mimeType || 'image/jpeg'};base64,${data.imageData}`;
           setMediaUrls(prev => ({ ...prev, image: imageData }));
           toast.success('Frame extracted from video!', { id: 'gen-image' });
+
+          // AUTO-SYNC TO PROJECT
+          if (existingProject) {
+            const imageAsset = {
+              id: `img-${Date.now()}`,
+              type: 'image',
+              url: imageData,
+              name: `Video Frame Cover - ${new Date().toLocaleTimeString()}`,
+              createdAt: new Date().toISOString()
+            };
+            
+            const updatedAssets = [...(existingProject.assets || []), imageAsset];
+            onSaveToProject({
+              ...existingProject,
+              assets: updatedAssets,
+              updatedAt: new Date().toISOString()
+            });
+          }
           return;
         }
       }
@@ -2447,10 +2647,17 @@ export default function StudioOrchestratorV2({
         headers,
         body: JSON.stringify({
           prompt: `Cinematic image to video, professional visual: ${videoPrompt.substring(0, 500)}`,
+<<<<<<< HEAD
           referenceImage: videoDnaUrl,
           duration: duration,
           audioUrl: mediaUrls.audio,
           vocalUrl: mediaUrls.vocals || mediaUrls.lyricsVocal
+=======
+          referenceImage: visualDnaUrl || videoDnaUrl,
+          referenceVideo: videoDnaUrl,
+          visualId: referencedVisualId,
+          duration: duration
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
         })
       });
       
@@ -2483,6 +2690,25 @@ export default function StudioOrchestratorV2({
           if (videoUrl && typeof videoUrl === 'string' && (videoUrl.startsWith('http') || videoUrl.startsWith('blob:'))) {
             setMediaUrls(prev => ({ ...prev, video: videoUrl }));
             toast.success(data.isDemo ? 'Demo video loaded!' : 'Video created!', { id: 'gen-video' });
+
+            // AUTO-SYNC VIDEO TO PROJECT
+            if (existingProject) {
+              const videoAsset = {
+                id: `vid-${Date.now()}`,
+                type: 'video',
+                url: videoUrl,
+                name: `Music Video - ${new Date().toLocaleTimeString()}`,
+                createdAt: new Date().toISOString()
+              };
+              
+              const updatedAssets = [...(existingProject.assets || []), videoAsset];
+              onSaveToProject({
+                ...existingProject,
+                assets: updatedAssets,
+                updatedAt: new Date().toISOString()
+              });
+              console.log('[Orchestrator] Auto-synced video to project library');
+            }
             
             // Auto-extract frame if we don't have an image yet
             if (!mediaUrls.image) {
@@ -2523,136 +2749,6 @@ export default function StudioOrchestratorV2({
       toast.error('Video generation failed', { id: 'gen-video' });
     } finally {
       setGeneratingMedia(prev => ({ ...prev, video: false }));
-    }
-  };
-
-  // Ghostwriter vocal generation - Generate audio of lyrics being recited/sung via Gemini TTS
-  const handleGenerateLyricsVocal = async () => {
-    // PREVENT DUPLICATE CALLS
-    if (generatingVocal || generatingMedia.vocals) return;
-
-    console.log('[handleGenerateLyricsVocal] Called, outputs.lyrics:', !!outputs.lyrics);
-    if (!outputs.lyrics) {
-      toast.error('Generate lyrics first');
-      return;
-    }
-    
-    setGeneratingVocal(true);
-    setGeneratingMedia(prev => ({ ...prev, vocals: true }));
-    console.log('[handleGenerateLyricsVocal] Starting vocal generation with:', { voiceStyle, rapStyle });
-    toast.loading('Creating vocal performance (~60s)...', { id: 'gen-vocal' });
-    
-    // Capture project context immediately to prevent race conditions during long AI wait
-    // eslint-disable-next-line no-unused-vars
-    const targetProjectSnapshot = existingProject;
-    
-    try {
-      const headers = await getHeaders();
-      
-      // Map voice style to API voice parameter
-      // Bark handles all voice styles with speaker presets
-      // The backend maps these to Bark speaker histories
-      const voiceMapping = {
-        'rapper': 'rapper-male-1',
-        'rapper-female': 'rapper-female-1',
-        'singer': 'singer-male',
-        'singer-female': 'singer-female',
-        'narrator': 'narrator',
-        'whisper': 'whisper',
-        'spoken': 'spoken'
-      };
-      
-      const selectedVoice = voiceMapping[voiceStyle] || 'rapper-male-1';
-      
-      // Clean lyrics before generating vocals
-      const { content: lyricsOnly } = splitCreativeContent(outputs.lyrics);
-      const cleanLyrics = lyricsOnly || outputs.lyrics;
-
-      // Prepare lyrics text with performance direction based on rap style
-      // Send ONLY the clean lyrics text - no style directions!
-      // Style info is sent as separate API parameters (voice, style, rapStyle, genre)
-      // The backend handles applying the style to the voice, not by reading style text aloud
-      const performanceText = cleanLyrics.substring(0, 750);
-      
-      console.log('[handleGenerateLyricsVocal] Making API call to:', `${BACKEND_URL}/api/generate-speech`);
-      const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          prompt: cleanLyrics.substring(0, 1500),
-          voice: selectedVoice,
-          style: voiceStyle,
-          rapStyle: rapStyle,
-          genre: genre,
-          language: language || 'English',
-          duration: duration || 30,
-          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
-          backingTrackUrl: mediaUrls.audio // Add backing track for sync if available
-        })
-      });
-      
-      console.log('[handleGenerateLyricsVocal] Response status:', response.status, response.ok);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('[handleGenerateLyricsVocal] Response data keys:', Object.keys(data));
-        console.log('[handleGenerateLyricsVocal] audioUrl type:', typeof data.audioUrl);
-        console.log('[handleGenerateLyricsVocal] audioUrl starts with data:audio:', data.audioUrl?.startsWith?.('data:audio'));
-        
-        // Accept both data: URLs and https: URLs
-        if (data.audioUrl && (data.audioUrl.startsWith('data:audio') || data.audioUrl.startsWith('http'))) {
-          // Store as a separate vocal version under the lyrics
-          setMediaUrls(prev => ({ 
-            ...prev, 
-            lyricsVocal: data.audioUrl,
-            vocals: data.audioUrl 
-          }));
-          
-          // Ensure outputs.vocals is set so the asset is included in the project save
-          setOutputs(prev => ({ 
-            ...prev, 
-            vocals: prev.vocals || `AI Vocal Performance generated for "${songIdea || 'song'}"`
-          }));
-          
-          // Also sync to project if we have a target project
-          if (targetProjectSnapshot && onSaveToProject) {
-            console.log(`[handleGenerateLyricsVocal] Syncing vocal to project: ${targetProjectSnapshot.id}`);
-            onSaveToProject({
-              ...targetProjectSnapshot,
-              assets: [
-                {
-                  id: `vocal-${Date.now()}`,
-                  type: 'vocal',
-                  agent: 'Vocal Lab',
-                  audioUrl: data.audioUrl,
-                  mimeType: data.mimeType || 'audio/wav',
-                  snippet: `🎤 AI Vocal: "${performanceText.substring(0, 50)}..."`,
-                  createdAt: new Date().toISOString()
-                },
-                ...(targetProjectSnapshot.assets || [])
-              ]
-            });
-          }
-          
-          toast.success(`${rapStyle} ${voiceStyle} vocal created!`, { id: 'gen-vocal' });
-        } else if (data.error) {
-          console.error('Vocal API error:', data.error);
-          toast.error(data.error || 'Vocal generation failed', { id: 'gen-vocal' });
-        } else {
-          console.error('No valid audio in response:', data);
-          toast.error('No audio generated - try again', { id: 'gen-vocal' });
-        }
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Vocal API error:', response.status, errorData);
-        toast.error(errorData.error || 'Failed to generate vocal', { id: 'gen-vocal' });
-      }
-    } catch (err) {
-      console.error('Vocal generation error:', err);
-      toast.error('Vocal generation failed', { id: 'gen-vocal' });
-    } finally {
-      setGeneratingVocal(false);
-      setGeneratingMedia(prev => ({ ...prev, vocals: false }));
     }
   };
 
@@ -2701,10 +2797,12 @@ export default function StudioOrchestratorV2({
           video: {
             content: outputs.video,
             agent: AGENTS.find(a => a.id === selectedAgents.video)?.name || 'Video Creator',
-            videoUrl: mediaUrls.video || null
+            videoUrl: musicVideoUrl || mediaUrls.video || null,
+            musicVideoUrl: musicVideoUrl || null,
+            isSynced: !!musicVideoUrl
           }
         },
-        settings: { language, style, model, bpm: projectBpm }
+        settings: { language, style, model, bpm: projectBpm, musicVideoUrl: musicVideoUrl || null }
       };
 
       setFinalMixPreview(finalMix);
@@ -2910,15 +3008,25 @@ export default function StudioOrchestratorV2({
       const videoAsset = {
         id: `mvideo-${Date.now()}`,
         title: 'Professional Music Video',
+<<<<<<< HEAD
         type: 'video',
+=======
+        type: 'video', // StudioView recognizes 'video'
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
         agent: 'Orchestrator Sync',
         content: `Professional synced production for "${songIdea}"`,
         videoUrl: formatVideoSrc(musicVideoUrl),
         date: new Date().toLocaleDateString(),
         createdAt: new Date().toISOString(),
         isPremium: true,
+<<<<<<< HEAD
         color: 'agent-ec4899'
       };
+=======
+        color: 'agent-ec4899' // Pinkish
+      };
+      console.log('[Orchestrator] Adding high-fidelity music video asset');
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
       assets.push(videoAsset);
     }
 
@@ -2927,7 +3035,11 @@ export default function StudioOrchestratorV2({
       const mixAsset = {
         id: `fmix-${Date.now()}`,
         title: 'Full Production Master',
+<<<<<<< HEAD
         type: 'pro',
+=======
+        type: 'pro', // StudioView uses 'pro' for full production
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
         agent: 'Studio Orchestrator',
         content: typeof finalMixPreview === 'string' ? finalMixPreview : JSON.stringify(finalMixPreview),
         audioUrl: formatAudioSrc(mediaUrls.audio),
@@ -2935,8 +3047,14 @@ export default function StudioOrchestratorV2({
         imageUrl: formatImageSrc(mediaUrls.image),
         date: new Date().toLocaleDateString(),
         createdAt: new Date().toISOString(),
+<<<<<<< HEAD
         color: 'agent-4f46e5'
       };
+=======
+        color: 'agent-4f46e5' // Indigo
+      };
+      console.log('[Orchestrator] Adding final mix master asset');
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
       assets.push(mixAsset);
     }
     
@@ -2952,7 +3070,12 @@ export default function StudioOrchestratorV2({
       style,
       model,
       bpm: projectBpm,
+      structure,
+      duration,
+      musicalBars: bars,
+      useBars,
       date: existingProject?.date || new Date().toLocaleDateString(),
+      createdAt: existingProject?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       agents: Object.values(selectedAgents).filter(Boolean).map(id => {
         const agent = AGENTS.find(a => a.id === id);
@@ -3247,13 +3370,16 @@ export default function StudioOrchestratorV2({
           {[
             { label: 'Language', value: language, setter: setLanguage, options: ['English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese'] },
             { label: 'Genre', value: style, setter: setStyle, options: ['Modern Hip-Hop', '90s Boom Bap', 'Trap', 'R&B / Soul', 'Pop', 'Rock', 'Electronic', 'Lo-Fi'] },
+            { label: 'Project BPM', value: projectBpm, setter: setProjectBpm, options: [70, 80, 90, 100, 110, 120, 130, 140, 150, 160] },
+            { label: 'Timing Mode', value: useBars ? 'Bars' : 'Seconds', setter: (val) => setUseBars(val === 'Bars'), options: ['Bars', 'Seconds'] },
+            { label: 'Musical Bars', value: bars, setter: setBars, options: [4, 8, 16, 32, 64], hidden: !useBars },
+            { label: 'Target Duration', value: duration, setter: setDuration, options: [15, 30, 60, 90, 120, 180, 240, 300], hidden: useBars },
+            { label: 'Structure', value: structure, setter: setStructure, options: ['Full Song', 'Radio Edit', 'Extended', 'Loop', 'Intro', 'Verse', 'Chorus', 'Outro'] },
             { label: 'AI Model', value: model, setter: setModel, options: ['Gemini 2.0 Flash', 'Gemini 2.0 Pro (Exp)', 'Gemini 1.5 Pro'] },
             { label: 'Mood', value: mood, setter: setMood, options: ['Chill', 'Energetic', 'Dark', 'Happy', 'Epic', 'Mysterious', 'Dreamy'] },
-            { label: 'Target Duration', value: duration, setter: setDuration, options: [15, 30, 60, 90, 120, 180, 240, 300] },
-            { label: 'Structure', value: structure, setter: setStructure, options: ['Full Song', 'Radio Edit', 'Extended', 'Loop', 'Intro', 'Verse', 'Chorus', 'Outro'] },
             { label: 'Music Engine', value: musicEngine, setter: setMusicEngine, options: ['Beat Lab (MusicGen)', 'Mureaka', 'Riffusion (Visual)', 'Stability Pro', 'Uberduck', 'Auto-Selection'] },
             { label: 'Stem Mode', value: stemType, setter: setStemType, options: ['Full Mix', 'Drums Only', 'No Drums', 'Melody Only', 'Bass Only'] }
-          ].map(config => (
+          ].filter(c => !c.hidden).map(config => (
             <div key={config.label}>
               <label style={{ 
                 display: 'block', 
@@ -3275,16 +3401,18 @@ export default function StudioOrchestratorV2({
                   musicEngine === 'uberduck' ? 'Uberduck' : 'Auto-Selection'
                 ) : config.value}
                 onChange={(e) => {
+                  const val = e.target.value;
                   if (config.label === 'Music Engine') {
-                    const val = e.target.value;
                     if (val === 'Beat Lab (MusicGen)') setMusicEngine('music-gpt');
                     else if (val === 'Mureaka') setMusicEngine('mureka');
                     else if (val === 'Riffusion (Visual)') setMusicEngine('riffusion');
                     else if (val === 'Stability Pro') setMusicEngine('stability');
                     else if (val === 'Uberduck') setMusicEngine('uberduck');
                     else setMusicEngine('auto');
+                  } else if (['Musical Bars', 'Project BPM', 'Target Duration'].includes(config.label)) {
+                    config.setter(parseInt(val));
                   } else {
-                    config.setter(e.target.value);
+                    config.setter(val);
                   }
                 }}
                 style={{
@@ -3780,7 +3908,133 @@ export default function StudioOrchestratorV2({
                     ))}
                   </div>
                 </div>
+<<<<<<< HEAD
               )}
+=======
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {lyricsDnaUrl && <button onClick={() => setLyricsDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
+                  <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
+                    <input type="file" style={{ display: 'none' }} onChange={(e) => handleUploadDna('lyrics', e)} />
+                    {isUploadingDna.lyrics ? <Loader2 size={12} className="spin" /> : 'Upload'}
+                  </label>
+                </div>
+              </div>
+
+              {/* Audio ID Reference - New for Audio_ID support */}
+              <div style={{
+                padding: '12px',
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '12px',
+                border: referencedAudioId ? '1px solid #06b6d4' : '1px solid rgba(255,255,255,0.05)',
+                gridColumn: isMobile ? 'span 1' : 'span 2'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Hash size={16} color="#06b6d4" />
+                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Project Audio ID Reference</div>
+                  </div>
+                  {referencedAudioId && <button onClick={() => setReferencedAudioId('')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
+                </div>
+                <input 
+                  type="text" 
+                  placeholder="Link an existing Audio ID (e.g. project_vocal_01)..."
+                  value={referencedAudioId}
+                  onChange={(e) => setReferencedAudioId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '0.8rem',
+                    color: 'white',
+                    outline: 'none',
+                    fontFamily: 'monospace'
+                  }}
+                />
+              </div>
+
+              {/* Video/Profile DNA */}
+              <div style={{
+                padding: '12px',
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '12px',
+                border: '1px solid rgba(255,255,255,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <VideoIcon size={18} color="#f59e0b" />
+                  <div>
+                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Seed DNA</div>
+                    <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {videoDnaUrl ? 'Profile Active' : 'No Seed'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {videoDnaUrl && <button onClick={() => setVideoDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
+                  <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
+                    <input type="file" style={{ display: 'none' }} onChange={(e) => handleUploadDna('video', e)} />
+                    {isUploadingDna.video ? <Loader2 size={12} className="spin" /> : 'Upload'}
+                  </label>
+                </div>
+              </div>
+
+              {/* ElevenLabs Premium Toggle */}
+              <div style={{
+                gridColumn: isMobile ? 'auto' : '1 / span 2',
+                padding: '12px 16px',
+                background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)',
+                borderRadius: '12px',
+                border: '1px solid rgba(168, 85, 247, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: '4px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: vocalQuality === 'premium' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: vocalQuality === 'premium' ? '#a855f7' : 'rgba(255,255,255,0.4)'
+                  }}>
+                    <Zap size={18} fill={vocalQuality === 'premium' ? '#a855f7' : 'none'} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '700', letterSpacing: '0.02em' }}>
+                      ELEVENLABS PREMIUM ENGINE
+                    </div>
+                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)' }}>
+                      {vocalQuality === 'premium' ? 'Using HD neural voices & cloned mastery' : 'Using standard generation engines'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setVocalQuality(vocalQuality === 'premium' ? 'standard' : 'premium')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '20px',
+                    background: vocalQuality === 'premium' ? '#a855f7' : 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    color: 'white',
+                    fontSize: '0.7rem',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    boxShadow: vocalQuality === 'premium' ? '0 0 15px rgba(168, 85, 247, 0.4)' : 'none',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  {vocalQuality === 'premium' ? 'ACTIVATED' : 'ACTIVATE'}
+                </button>
+              </div>
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
             </div>
           )}
 
@@ -3877,7 +4131,8 @@ export default function StudioOrchestratorV2({
                   fontFamily: "'Georgia', 'Times New Roman', serif",
                   color: 'rgba(255,255,255,0.85)',
                   whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
+                  wordBreak: 'break-word',
+                  fontFamily: "'Georgia', 'Times New Roman', serif"
                 }}>
                   {outputs.lyrics}
                 </div>
@@ -4048,52 +4303,126 @@ export default function StudioOrchestratorV2({
               </select>
 
               {/* Voice Sample Upload */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="file"
-                  id="voice-sample-upload"
-                  accept="audio/*"
-                  onChange={handleUploadVoiceSample}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  onClick={() => document.getElementById('voice-sample-upload').click()}
-                  disabled={isUploadingSample}
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '10px',
-                    background: voiceSampleUrl ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                    border: voiceSampleUrl ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
-                    color: voiceSampleUrl ? '#22c55e' : 'white',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {isUploadingSample ? <Loader2 size={16} className="spin" /> : <Mic size={16} />}
-                  {voiceSampleUrl ? 'Voice Sample Attached ✓' : 'Upload Voice Sample'}
-                </button>
-                {voiceSampleUrl && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="file"
+                    id="voice-sample-upload"
+                    accept="audio/*"
+                    onChange={handleUploadVoiceSample}
+                    style={{ display: 'none' }}
+                  />
                   <button
-                    onClick={() => {
-                      setVoiceSampleUrl(null);
-                      if (voiceStyle === 'cloned') setVoiceStyle('rapper');
-                    }}
+                    onClick={() => document.getElementById('voice-sample-upload').click()}
+                    disabled={isUploadingSample}
                     style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#ef4444',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      background: voiceSampleUrl ? 'rgba(34, 197, 94, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                      border: voiceSampleUrl ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
+                      color: voiceSampleUrl ? '#22c55e' : 'white',
+                      fontSize: '0.85rem',
                       cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      padding: '4px'
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s'
                     }}
-                    title="Remove sample"
                   >
-                    <X size={14} />
+                    {isUploadingSample ? <Loader2 size={16} className="spin" /> : <Mic size={16} />}
+                    {voiceSampleUrl ? 'Voice Sample Attached ✓' : 'Upload Voice Sample'}
                   </button>
+                  {voiceSampleUrl && (
+                    <button
+                      onClick={() => {
+                        setVoiceSampleUrl(null);
+                        if (voiceStyle === 'cloned') setVoiceStyle('rapper');
+                      }}
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: '10px',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        padding: '10px'
+                      }}
+                      title="Remove sample"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Premium ElevenLabs Input / Voice Selector */}
+                {(vocalQuality === 'premium' || voiceStyle === 'cloned' || voiceStyle.startsWith('saved-')) && (
+                  <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {elVoices.length > 0 ? (
+                      <select
+                        value={elevenLabsVoiceId}
+                        onChange={(e) => {
+                          setElevenLabsVoiceId(e.target.value);
+                          localStorage.setItem('studio_elevenlabs_voice_id', e.target.value);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          background: 'rgba(0,0,0,0.3)',
+                          border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
+                          color: 'white',
+                          fontSize: '0.85rem',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="">Select ElevenLabs Voice (Premium)</option>
+                        <optgroup label="Professional Models">
+                          {elVoices.map(voice => (
+                            <option key={voice.voice_id} value={voice.voice_id}>
+                              {voice.name} ({voice.labels?.accent || voice.labels?.gender || 'Pro'})
+                            </option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        placeholder="ElevenLabs Voice ID (Optional for Premium)"
+                        value={elevenLabsVoiceId}
+                        onChange={(e) => {
+                          setElevenLabsVoiceId(e.target.value);
+                          localStorage.setItem('studio_elevenlabs_voice_id', e.target.value);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          background: 'rgba(0,0,0,0.3)',
+                          border: elevenLabsVoiceId ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.1)',
+                          color: 'white',
+                          fontSize: '0.8rem',
+                          outline: 'none'
+                        }}
+                      />
+                    )}
+                    {elevenLabsVoiceId && (
+                      <div style={{ 
+                        position: 'absolute', 
+                        right: elVoices.length > 0 ? '30px' : '10px', 
+                        top: '50%', 
+                        transform: 'translateY(-50%)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px', 
+                        pointerEvents: 'none' 
+                      }}>
+                        <Zap size={10} color="#fbbf24" fill="#fbbf24" />
+                        <span style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: 'bold' }}>PREMIUM</span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -4213,7 +4542,7 @@ export default function StudioOrchestratorV2({
               <button
                 onClick={() => {
                   console.log('[Create Vocal Button] CLICKED!');
-                  handleGenerateLyricsVocal();
+                  handleGenerateVocals();
                 }}
                 disabled={generatingVocal}
                 style={{
@@ -4688,34 +5017,15 @@ export default function StudioOrchestratorV2({
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 onClick={() => setShowCreateProject(false)}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: 'none',
-                  color: 'white',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  whiteSpace: 'nowrap'
-                }}
+                className="btn-pill glass"
+                style={{ flex: 1, padding: '14px' }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateProject}
-                style={{
-                  flex: 1,
-                  padding: '14px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-                  border: 'none',
-                  color: 'white',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  whiteSpace: 'nowrap'
-                }}
+                className="btn-pill primary"
+                style={{ flex: 1, padding: '14px', fontWeight: '700' }}
               >
                 Save Project
               </button>
@@ -4804,17 +5114,11 @@ export default function StudioOrchestratorV2({
                   setShowSaveConfirm(false);
                   onClose?.();
                 }}
+                className="btn-pill glass"
                 style={{
                   flex: 1,
                   padding: '14px',
-                  borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  color: 'white',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
-                  whiteSpace: 'nowrap'
+                  fontWeight: '600'
                 }}
               >
                 Go to Hub
@@ -4824,21 +5128,15 @@ export default function StudioOrchestratorV2({
                   setShowSaveConfirm(false);
                   setShowPreviewModal(true);
                 }}
+                className="btn-pill primary"
                 style={{
                   flex: 1,
                   padding: '14px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-                  border: 'none',
-                  color: 'white',
                   fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '0.95rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px',
-                  whiteSpace: 'nowrap'
+                  gap: '8px'
                 }}
               >
                 <Eye size={18} />
@@ -5097,7 +5395,8 @@ export default function StudioOrchestratorV2({
                   color: safeOutputs.lyrics ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
-                  fontStyle: safeOutputs.lyrics ? 'normal' : 'italic'
+                  fontStyle: safeOutputs.lyrics ? 'normal' : 'italic',
+                  fontFamily: "'Georgia', 'Times New Roman', serif"
                 }}>
                   {safeOutputs.lyrics || 'No lyrics generated yet. Use the Lyrics generator to create lyrics.'}
                 </div>
@@ -5225,22 +5524,23 @@ export default function StudioOrchestratorV2({
                 background: 'rgba(245, 158, 11, 0.1)',
                 borderRadius: '16px',
                 padding: isMobile ? '12px' : '16px',
-                border: '1px solid rgba(245, 158, 11, 0.3)'
+                border: musicVideoUrl ? '1px solid rgba(34, 197, 94, 0.5)' : '1px solid rgba(245, 158, 11, 0.3)',
+                boxShadow: musicVideoUrl ? '0 0 15px rgba(34, 197, 94, 0.2)' : 'none'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ margin: 0, color: '#fbbf24', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <VideoIcon size={18} />
-                    Video
+                  <h3 style={{ margin: 0, color: musicVideoUrl ? '#22c55e' : '#fbbf24', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {musicVideoUrl ? <Zap size={18} /> : <VideoIcon size={18} />}
+                    {musicVideoUrl ? 'Professional Sync' : 'Concept Video'}
                   </h3>
                   <span style={{
                     padding: '4px 10px',
                     borderRadius: '20px',
                     fontSize: '0.75rem',
                     fontWeight: '600',
-                    background: safeMediaUrls.video ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
-                    color: safeMediaUrls.video ? '#22c55e' : 'rgba(255,255,255,0.5)'
+                    background: (musicVideoUrl || safeMediaUrls.video) ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
+                    color: (musicVideoUrl || safeMediaUrls.video) ? '#22c55e' : 'rgba(255,255,255,0.5)'
                   }}>
-                    {safeMediaUrls.video ? '✓ Ready' : 'Pending'}
+                    {musicVideoUrl ? '✓ Synced' : (safeMediaUrls.video ? '✓ Concept' : 'Pending')}
                   </span>
                 </div>
                 <div style={{
@@ -5253,9 +5553,9 @@ export default function StudioOrchestratorV2({
                   justifyContent: 'center',
                   overflow: 'hidden'
                 }}>
-                  {safeMediaUrls.video ? (
+                  {(musicVideoUrl || safeMediaUrls.video) ? (
                     <video
-                      src={formatVideoSrc(safeMediaUrls.video)}
+                      src={formatVideoSrc(musicVideoUrl || safeMediaUrls.video)}
                       controls
                       style={{
                         width: '100%',
