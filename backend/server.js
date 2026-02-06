@@ -2524,11 +2524,27 @@ app.delete('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
 // GENERATION ROUTE (with optional Firebase auth) - 1 credit for text/lyrics
 app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generationLimiter, async (req, res) => {
   try {
-    const { prompt, systemInstruction, model: requestedModel, referenceUrl, duration, language } = req.body;
+    const { 
+      prompt, 
+      systemInstruction, 
+      model: requestedModel, 
+      referenceUrl, 
+      duration, 
+      language,
+      visualDnaUrl,
+      audioDnaUrl,
+      lyricsDnaUrl,
+      videoDnaUrl
+    } = req.body;
 
     // Log auth status
     if (req.user) {
-      logger.info('🔐 Authenticated generation request', { uid: req.user.uid, hasReference: !!referenceUrl, duration, language });
+      logger.info('🔐 Authenticated generation request', { 
+        uid: req.user.uid, 
+        hasReference: !!referenceUrl || !!visualDnaUrl || !!audioDnaUrl || !!lyricsDnaUrl || !!videoDnaUrl, 
+        duration, 
+        language 
+      });
     }
 
     // 🛡️ INPUT VALIDATION & SANITIZATION
@@ -2546,10 +2562,13 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
     if (language) sanitizedPrompt += `\nResponse Language: ${language}`;
 
     const sanitizedSystemInstruction = sanitizeInput(systemInstruction || '', 2000);
-    // For more advanced use, we could fetch the text content here
-    if (referenceUrl) {
-      sanitizedPrompt = `${sanitizedPrompt} (Style Reference: ${referenceUrl}). Please match the tone and structure found at this source.`;
-    }
+    
+    // Inject DNA references into the prompt for the AI to consider
+    if (referenceUrl) sanitizedPrompt = `${sanitizedPrompt} (Reference Context: ${referenceUrl}).`;
+    if (visualDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Visual DNA: ${visualDnaUrl}). Please consider these visual aesthetics in your response.`;
+    if (audioDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Audio DNA: ${audioDnaUrl}). Use this as a sonic/tonal reference.`;
+    if (lyricsDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Lyrical DNA: ${lyricsDnaUrl}). Match the writing style or context found here.`;
+    if (videoDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Seed/Video DNA: ${videoDnaUrl}).`;
     
     // 🛡️ Validate model name (only allow known Gemini models)
     const allowedModels = [
@@ -3253,6 +3272,78 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     let audioUrl = null;
     let provider = null;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+    const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+
+    // ═══════════════════════════════════════════════════════════════
+    // PRIORITY -1: ElevenLabs (V3.5 High-Fidelity / Premium)
+    // ═══════════════════════════════════════════════════════════════
+    // If ElevenLabs key is present, try it first for 'cloned', if a voice ID is provided, or if premium quality is requested
+    if (elevenLabsKey && !audioUrl && (style === 'cloned' || req.body.elevenLabsVoiceId || req.body.quality === 'premium' || style.includes('rapper'))) {
+      try {
+        // Voice ID logic: Choose a voice that matches the request
+        let voiceId = req.body.elevenLabsVoiceId;
+        
+        if (!voiceId) {
+          // V3.5 CURATED VOICE MAPPING for Rap/Premium
+          if (style === 'rapper') voiceId = 'pNInz6obpgDQGcFmaJgB'; // Adam (Good for mature rap)
+          else if (style === 'rapper-female') voiceId = 'Lcf7NAZ7x9YVvj6S7YhL'; // Female Rapper (Alice)
+          else if (style === 'singer') voiceId = 'MF3mGyEYCl7XYW7ANnSM'; // Emotional Singer
+          else voiceId = 'pNInz6obpgDQGcFmaJgB'; // Default Adam
+        }
+
+        logger.info('🎤 Using ElevenLabs V3.5 High-Fidelity', { voiceId, quality: req.body.quality, style });
+        
+        // RAP FORMATTING: Add rhythmic pauses for TTS if it's a rap style
+        let processedPrompt = prompt;
+        if (style.includes('rapper')) {
+          // Add commas and periods to simulate rhythm if none exist
+          // This forces the TTS engine to pause briefly between bars
+          processedPrompt = prompt.split('\n').map(line => {
+            let l = line.trim();
+            if (l.length > 0 && !l.endsWith('.') && !l.endsWith(',') && !l.endsWith('!')) {
+               return l + ','; // Force a rhythmic pause at the end of bars
+            }
+            return l;
+          }).join('\n');
+          
+          // Strip [Verse], [Chorus] tags so they aren't spoken
+          processedPrompt = processedPrompt.replace(/\[.*?\]/g, '');
+        }
+
+        const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'audio/mpeg',
+            'xi-api-key': elevenLabsKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: processedPrompt,
+            model_id: 'eleven_turbo_v2_5', // UPGRADED TO V2.5 (High Speed, High Quality)
+            voice_settings: {
+              stability: style.includes('rapper') ? 0.35 : 0.55, // Lower stability = more expressive rap
+              similarity_boost: 0.8,
+              style: style.includes('rapper') ? 0.65 : 0.0, // Higher style = more vivid delivery
+              use_speaker_boost: true
+            },
+            language_code: langCode // EXPLICIT LANGUAGE GUARD (Stops hallucinations)
+          })
+        });
+
+        if (elResponse.ok) {
+          const audioBuffer = await elResponse.arrayBuffer();
+          const base64Audio = Buffer.from(audioBuffer).toString('base64');
+          audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+          provider = 'elevenlabs-premium';
+          logger.info('✅ Premium ElevenLabs vocal generated');
+        } else {
+          const errorData = await elResponse.json().catch(() => ({}));
+          logger.warn('ElevenLabs failed, falling back...', { error: errorData });
+        }
+      } catch (elevenLabsError) {
+        logger.error('ElevenLabs integration error:', elevenLabsError);
+      }
+    }
 
     // ═══════════════════════════════════════════════════════════════
     // PRIORITY 0: XTTS v2 - Voice Cloning (If speakerUrl provided)
@@ -3265,7 +3356,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
-            'Authorization': `Token ${replicateKey}`,
+            'Authorization': `Bearer ${replicateKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -3289,7 +3380,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             await new Promise(r => setTimeout(r, 2000));
             
             const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-              headers: { 'Authorization': `Token ${replicateKey}` }
+              headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
             
             if (statusResponse.ok) {
@@ -3383,7 +3474,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
-            'Authorization': `Token ${replicateKey}`,
+            'Authorization': `Bearer ${replicateKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -3410,7 +3501,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             await new Promise(r => setTimeout(r, 2000));
             
             const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-              headers: { 'Authorization': `Token ${replicateKey}` }
+              headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
             
             if (statusResponse.ok) {
@@ -3694,10 +3785,11 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     
     const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${stemInstruction} ${referenceAudio ? 'Reference-guided melody.' : ''} ${qualityTags}. Professional studio quality, broadcast ready.`;
 
-    // Engine Selection Logic - DEFAULT TO STABILITY for long tracks, MUSIC GPT for short
+    // Engine Selection Logic - Favor MusicGPT for consistent beats, Stability for longer soundscapes
     let finalEngine = engine;
     if (engine === 'auto' || !engine) {
-      if (durationSeconds > 30 && stabilityKey) {
+      // MusicGen (Music GPT) is better at rhythmic beats, Stability is better at 60s+ tracks
+      if (durationSeconds > 60 && stabilityKey) {
         finalEngine = 'stability';
       } else {
         finalEngine = 'music-gpt';
@@ -3707,7 +3799,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     // ═══════════════════════════════════════════════════════════════════
     // 1. Stability AI Stable Audio 2.5 (PRIMARY FOR LONG FORM)
     // ═══════════════════════════════════════════════════════════════════
-    if (stabilityKey && (finalEngine === 'stability' || (finalEngine === 'auto' && durationSeconds > 30))) {
+    if (stabilityKey && (finalEngine === 'stability' || (finalEngine === 'auto' && durationSeconds > 60))) {
       try {
         logger.info('Using Stability AI Stable Audio 2.5');
         const formData = new FormData();
@@ -3716,6 +3808,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
         formData.append('model', 'stable-audio-2.5');
         formData.append('output_format', 'mp3');
         formData.append('steps', '10');
+        if (seed > 0) formData.append('seed', seed.toString());
 
         const stableAudioResponse = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
           method: 'POST',
@@ -3753,10 +3846,11 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
             version: 'b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38',
             input: { 
               prompt: musicPrompt, 
-              duration: Math.min(durationSeconds, 60), // Cap MusicGen at 60s for stability, use Stability AI for longer
+              duration: Math.min(durationSeconds, 60), 
               model_version: 'stereo-large', 
               output_format: 'mp3',
-              normalization_strategy: 'peak' // Added for better audio levels
+              normalization_strategy: 'peak',
+              seed: seed > 0 ? seed : undefined
             }
           })
         });
@@ -3836,8 +3930,15 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
 // Video generation charges 15 credits (expensive)
 app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), generationLimiter, async (req, res) => {
   try {
-    const { prompt, referenceImage, durationSeconds = 8 } = req.body;
+    let { prompt, referenceImage, durationSeconds = 8, audioUrl = null, vocalUrl = null } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    // SYNC AUGMENTATION: If audio or vocals are provided, enhance the prompt to ensure the video engine "sees" the sound
+    let enhancedPrompt = prompt;
+    if (audioUrl || vocalUrl) {
+      enhancedPrompt = `${prompt}. Synchronize movements and energy with a ${req.body.style || 'dynamic'} beat. The video should feel like a high-fidelity music video performance with rhythmic cuts and energetic motion matching the audio flow.`;
+      logger.info('🎬 Augmenting video prompt for audio synchronization', { hasAudio: !!audioUrl, hasVocals: !!vocalUrl });
+    }
 
     // FAST-FAIL/MOCK for test prompts to save time and API costs during build/CI
     if (prompt.toLowerCase().includes('test video') || prompt.toLowerCase() === 'test') {
@@ -3852,7 +3953,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
     }
 
     logger.info('Starting video generation', { 
-      promptLength: prompt.length, 
+      promptLength: enhancedPrompt.length, 
       hasReference: !!referenceImage,
       durationSeconds 
     });
@@ -3864,6 +3965,26 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:predictLongRunning?key=${apiKey}`;
         
         try {
+            logger.info('Trying Veo 3.0 Fast as primary video generator...');
+            
+            // Build instances with image if provided
+            const instance = { prompt: enhancedPrompt };
+            if (referenceImage) {
+              instance.image = { image_url: referenceImage };
+            }
+
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                instances: [instance],
+                parameters: {
+                  aspectRatio: "16:9",
+                  durationSeconds: Math.min(durationSeconds, 8), // Veo 3.0 Fast requires 4-8 seconds
+                  sampleCount: 1
+                }
+              })
+            });
             logger.info('Trying Veo 3.0 Fast as primary video generator...');
             
             // Build instances with image if provided
@@ -4174,15 +4295,15 @@ app.post('/api/amo/orchestrate', verifyFirebaseToken, apiLimiter, async (req, re
 
 // Helper function to get agent-specific system prompts
 function getAgentSystemPrompt(agent, session) {
-  const baseContext = session ? `Session context: BPM=${session.bpm || 120}, Key=${session.key || 'C major'}, Style=${session.style || 'contemporary'}.` : '';
+  const baseContext = session ? `Session context: BPM=${session.bpm || 120}, Key=${session.key || 'C major'}, Style=${session.style || 'contemporary'}, Bars=${session.musicalBars || 8}.` : '';
   
   const agentPrompts = {
-    'Ghostwriter': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay and authentic voice.`,
-    'BeatArchitect': `You are the Beat Architect AI, a master producer and beatmaker. ${baseContext} Create detailed beat concepts, drum patterns, and production notes.`,
+    'Ghostwriter': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay. Ensure lyrics flow perfectly at the specified BPM and song length.`,
+    'BeatArchitect': `You are the Beat Architect AI, a master producer and beatmaker. ${baseContext} Create detailed beat concepts and drum patterns. Prefer 100% professional musicality. Reference the specified BPM and exact Bar count (${session?.musicalBars || 8} bars) in your creative decisions for rhythm and timing.`,
     'VisualVibe': `You are the Visual Vibe AI, a music video and artwork conceptualist. ${baseContext} Design compelling visual concepts, color palettes, and mood boards for music.`,
     'SoundscapeDesigner': `You are the Soundscape Designer AI, an ambient and texture specialist. ${baseContext} Create atmospheric soundscapes, textures, and ambient elements.`,
-    'MelodyMaker': `You are the Melody Maker AI, a melodic composition expert. ${baseContext} Compose memorable melodies, hooks, and harmonic progressions.`,
-    'ArrangerPro': `You are the Arranger Pro AI, a song structure and arrangement specialist. ${baseContext} Design song structures, transitions, and dynamic arrangements.`
+    'MelodyMaker': `You are the Melody Maker AI, a melodic composition expert. ${baseContext} Compose memorable melodies, hooks, and harmonic progressions that sync with the specified BPM.`,
+    'ArrangerPro': `You are the Arranger Pro AI, a song structure and arrangement specialist. ${baseContext} Design song structures, transitions, and dynamic arrangements based on the ${session?.musicalBars || 8} bars provided.`
   };
   
   return agentPrompts[agent] || `You are a creative AI assistant for music production. ${baseContext} Help with the requested task.`;

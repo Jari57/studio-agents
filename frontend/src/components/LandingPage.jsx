@@ -162,7 +162,7 @@ const AGENT_WHITEPAPER = {
   },
   'master': {
     fullName: 'Mastering Lab AI',
-    version: '3.0.0',
+    version: '3.5.0',
     releaseDate: 'September 2024',
     tagline: 'Major Label Sound, Indie Budget',
     overview: 'Mastering Lab applies professional-grade audio mastering using neural networks trained by Grammy-winning engineers. It analyzes your mix and applies precise EQ, compression, limiting, and stereo enhancement.',
@@ -864,7 +864,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             >
               <Music size={22} fill="currentColor" />
               {isLoggedMember ? 'Return to Your Studio' : 'Launch Your Studio — Free'}
-              <ArrowRight size={22} />
+              <ChevronRight size={22} />
             </button>
 
             <button
@@ -1087,7 +1087,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  <ArrowRight size={18} color="#8b5cf6" />
+                  <ChevronRight size={18} color="#8b5cf6" />
                 </div>
               </div>
             </div>
@@ -1536,7 +1536,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           >
             <Zap size={20} />
             Start Free
-            <ArrowRight size={18} />
+            <ChevronRight size={18} />
           </button>
         </div>
         
@@ -1627,7 +1627,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           }}
         >
           <span>Launch Studio Suite</span>
-          <ArrowRight size={28} />
+          <ChevronRight size={28} />
         </button>
       </section>
 
@@ -2293,7 +2293,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               >
                 <Zap size={18} />
                 Enter The Studio
-                <ArrowRight size={18} />
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>
@@ -2517,7 +2517,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               >
                 <Zap size={18} />
                 Start Creating Free
-                <ArrowRight size={18} />
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>
@@ -3734,7 +3734,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               >
                 <Zap size={18} />
                 Try the Platform
-                <ArrowRight size={18} />
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>
@@ -4356,7 +4356,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 >
                   <Zap size={18} />
                   Try {agent.name}
-                  <ArrowRight size={18} />
+                  <ChevronRight size={18} />
                 </button>
               </div>
             </div>

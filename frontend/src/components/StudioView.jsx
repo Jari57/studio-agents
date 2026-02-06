@@ -23,6 +23,7 @@ import {
   setDoc,
   updateDoc,
   increment,
+  arrayUnion,
   uploadFile,
   uploadBase64
   // Note: collection, getDocs, query, orderBy, deleteDoc moved to backend API
@@ -42,6 +43,7 @@ const StudioOrchestrator = React.lazy(() => import('./StudioOrchestratorV2'));
 const QuickWorkflow = React.lazy(() => import('./QuickWorkflow'));
 const ProjectHub = React.lazy(() => import('./ProjectHubV3')); // CapCut/Captions-style design
 const NewsHub = React.lazy(() => import('./NewsHub'));
+const AdminAnalytics = React.lazy(() => import('./AdminAnalytics'));
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SAFE ASSET WRAPPER - Prevents crashes from malformed asset data
@@ -510,6 +512,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [videoDnaUrl, setVideoDnaUrl] = useState(null);
   const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null);
   const [voiceSampleUrl, setVoiceSampleUrl] = useState(null);
+  const [dnaArtifacts, setDnaArtifacts] = useState([]);
   const [isUploadingDna, setIsUploadingDna] = useState({});
   const [isUploadingSample, setIsUploadingSample] = useState(false);
   const [showDnaVault, setShowDnaVault] = useState(false);
@@ -1473,7 +1476,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             console.log('[SafePreview] Opening media preview at index', safeIndex, 'type:', targetAsset.audioUrl ? 'audio' : targetAsset.videoUrl ? 'video' : 'image');
             setShowPreview({
               type: targetAsset.audioUrl ? 'audio' : targetAsset.videoUrl ? 'video' : 'image',
-              url: targetAsset.audioUrl || targetAsset.videoUrl || targetAsset.imageUrl,
+              url: formatAudioSrc(targetAsset.audioUrl) || formatVideoSrc(targetAsset.videoUrl) || formatImageSrc(targetAsset.imageUrl) || null,
               title: targetAsset.title || 'Untitled',
               asset: targetAsset,
               assets: previewableAssets,
@@ -2092,6 +2095,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 if (userData.videoDnaUrl) setVideoDnaUrl(userData.videoDnaUrl);
                 if (userData.lyricsDnaUrl) setLyricsDnaUrl(userData.lyricsDnaUrl);
                 if (userData.voiceSampleUrl) setVoiceSampleUrl(userData.voiceSampleUrl);
+                if (userData.dnaArtifacts) setDnaArtifacts(userData.dnaArtifacts);
                 
                 // Load subscription plan from Firestore
                 // Backend saves: tier, subscriptionTier, subscriptionStatus
@@ -3167,7 +3171,8 @@ const fetchUserCredits = useCallback(async (uid) => {
           style: voiceSettings.style || 'rapper',  // rapper, rapper-female, singer, singer-female
           rapStyle: voiceSettings.rapStyle || 'aggressive',  // aggressive, melodic, trap, drill, boom-bap, fast, chill, hype
           genre: voiceSettings.genre || 'hip-hop',  // hip-hop, r&b, pop, soul, trap, drill
-          speakerUrl: voiceSettings.speakerUrl
+          speakerUrl: voiceSettings.speakerUrl,
+          quality: 'premium' // V3.5 DEFAULT: Always prefer premium High-Fidelity vocals
         })
       });
 
@@ -3389,11 +3394,22 @@ const fetchUserCredits = useCallback(async (uid) => {
             if (user?.uid) {
               try {
                 const userRef = doc(db, 'users', user?.uid);
+                const newArtifact = {
+                  id: `dna-${Date.now()}`,
+                  type: slot,
+                  url: url,
+                  name: file.name,
+                  timestamp: Date.now()
+                };
+                
                 await updateDoc(userRef, {
                   [`${slot}DnaUrl`]: url,
+                  dnaArtifacts: arrayUnion(newArtifact),
                   lastDnaUpdate: Date.now()
                 });
-                console.log(`[Studio] Persisted ${slot} DNA to profile`);
+                
+                setDnaArtifacts(prev => [newArtifact, ...(prev || [])]);
+                console.log(`[Studio] Persisted ${slot} DNA to profile and vault`);
               } catch (saveErr) {
                 console.warn(`[Studio] Failed to persist ${slot} DNA:`, saveErr);
               }
@@ -3978,7 +3994,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           });
 
           // SUNO-LIKE FEATURE: Auto-generate cover art for the beat
-          if (agentId === 'beat') {
+          if (agentId === 'beat' && !showOrchestrator) {
              try {
                console.log('Generating cover art for beat...');
                const coverRes = await fetch(`${BACKEND_URL}/api/generate-image`, {
@@ -4970,10 +4986,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                        }}>
                          <pre style={{ 
                            margin: 0,
-                           fontFamily: "'SF Mono', 'Fira Code', monospace",
-                           fontSize: '0.95rem',
+                           fontFamily: "'Georgia', 'Times New Roman', serif",
+                           fontSize: '1rem',
                            lineHeight: '1.8',
-                           color: 'rgba(255,255,255,0.9)',
+                           color: 'rgba(255,255,255,0.95)',
                            whiteSpace: 'pre-wrap',
                            wordWrap: 'break-word'
                          }}>
@@ -6473,6 +6489,14 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
               )}
 
+              {dashboardTab === 'admin' && (
+                <Suspense fallback={<div className="loading-spinner">Loading Analytics...</div>}>
+                  <SectionErrorBoundary name="AdminAnalytics">
+                    <AdminAnalytics />
+                  </SectionErrorBoundary>
+                </Suspense>
+              )}
+
               {dashboardTab === 'billing' && (
                 <div className="dashboard-view-billing animate-fadeIn">
                   <div className="section-header-simple">
@@ -7540,6 +7564,27 @@ const fetchUserCredits = useCallback(async (uid) => {
                     overflow: 'hidden',
                     transition: 'all 0.3s ease'
                   }}>
+                    {/* DNA Explanation Section */}
+                    {showDnaVault && (
+                      <div style={{ 
+                        padding: '12px', 
+                        background: 'rgba(168, 85, 247, 0.05)', 
+                        borderRadius: '10px', 
+                        border: '1px solid rgba(168, 85, 247, 0.15)',
+                        marginBottom: '8px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                          <CircleHelp size={16} color="#a855f7" style={{ marginTop: '2px' }} />
+                          <div>
+                            <h4 style={{ margin: '0 0 4px 0', fontSize: '0.85rem', color: '#a855f7', fontWeight: 'bold', fontFamily: 'Georgia, serif' }}>What is DNA?</h4>
+                            <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.4', fontFamily: 'Georgia, serif' }}>
+                              DNA (Digital Narrative Artifacts) allows you to "seed" the AI with specific creative references. Select an artifact below to activate it for your session.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Visual DNA Upload */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
@@ -7619,6 +7664,74 @@ const fetchUserCredits = useCallback(async (uid) => {
                         </label>
                       </div>
                     </div>
+
+                    {/* Stored Vault Artifacts */}
+                    {dnaArtifacts && dnaArtifacts.length > 0 && showDnaVault && (
+                      <div style={{ 
+                        marginTop: '8px',
+                        padding: '10px',
+                        background: 'rgba(255,255,255,0.02)',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(255,255,255,0.05)'
+                      }}>
+                        <h4 style={{ margin: '0 0 8px 0', fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Stored Vault</h4>
+                        <div style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          gap: '6px',
+                          maxHeight: '150px',
+                          overflowY: 'auto'
+                        }}>
+                          {dnaArtifacts.slice().reverse().map((artifact) => (
+                            <div key={artifact.id} style={{
+                              padding: '6px 10px',
+                              background: 'rgba(0,0,0,0.2)',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                {artifact.type === 'visual' && <ImageIcon size={12} color="#ec4899" />}
+                                {artifact.type === 'audio' && <Music size={12} color="#06b6d4" />}
+                                {artifact.type === 'lyrics' && <FileText size={12} color="#a855f7" />}
+                                {artifact.type === 'video' && <VideoIcon size={12} color="#f59e0b" />}
+                                <div style={{ fontSize: '0.7rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {artifact.name}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: '6px' }}>
+                                <button
+                                  onClick={() => {
+                                    if (artifact.type === 'visual') setVisualDnaUrl(artifact.url);
+                                    if (artifact.type === 'audio') setAudioDnaUrl(artifact.url);
+                                    if (artifact.type === 'video') setVideoDnaUrl(artifact.url);
+                                    if (artifact.type === 'lyrics') setLyricsDnaUrl(artifact.url);
+                                    toast.success('Activated');
+                                  }}
+                                  style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.2)', borderRadius: '4px', color: '#a855f7', fontSize: '0.6rem', padding: '2px 6px', cursor: 'pointer' }}
+                                >
+                                  Use
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (!window.confirm('Delete?')) return;
+                                    const newArtifacts = dnaArtifacts.filter(a => a.id !== artifact.id);
+                                    setDnaArtifacts(newArtifacts);
+                                    const userRef = doc(db, 'users', user?.uid);
+                                    await updateDoc(userRef, { dnaArtifacts: newArtifacts });
+                                  }}
+                                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer' }}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                     {/* Lyrics DNA Upload */}
                     <div className="reference-upload-card" style={{
@@ -7896,7 +8009,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           maxHeight: '400px', 
                           overflowY: 'auto',
                           border: '1px solid rgba(255,255,255,0.05)',
-                          fontFamily: "'Georgia', serif",
+                          fontFamily: "'Georgia', 'Times New Roman', serif",
                           whiteSpace: 'pre-wrap'
                         }}>
                           {currentPreview.snippet}
@@ -12249,6 +12362,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                      };
                      setSelectedProject(updatedProject);
                      setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updatedProject.id ? updatedProject : p) : [updatedProject]);
+                     
+                     // CRITICAL FIX: Ensure project is synced to cloud immediately when clicking Save
+                     if (isLoggedIn && user) {
+                       saveProjectToCloud(user.uid, updatedProject);
+                     }
+                     
                      handleTextToVoice("Project session saved.");
                      toast.success('Session saved!');
                    }}
@@ -13388,6 +13507,27 @@ const fetchUserCredits = useCallback(async (uid) => {
                         </div>
                       )}
                       
+                      {/* Audio Player for vocals if present */}
+                      {previewItem.audioUrl && (
+                        <div style={{ 
+                          marginBottom: '1rem', 
+                          padding: '1.25rem',
+                          background: 'rgba(139, 92, 246, 0.1)',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(139, 92, 246, 0.3)'
+                        }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#8b5cf6', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            <Volume2 size={14} /> AI Vocal Performance
+                          </div>
+                          <audio 
+                            controls 
+                            src={formatAudioSrc(previewItem.audioUrl)} 
+                            style={{ width: '100%', height: '40px' }} 
+                            autoPlay={false}
+                          />
+                        </div>
+                      )}
+
                       {/* Content based on toggle */}
                       <div style={{ 
                         whiteSpace: 'pre-wrap', 
@@ -13401,8 +13541,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                         minHeight: '200px',
                         overflow: 'auto',
                         transition: 'all 0.2s',
-                        fontSize: '1rem',
-                        fontFamily: 'inherit'
+                        fontSize: '1.1rem',
+                        fontFamily: "'Georgia', 'Times New Roman', serif"
                       }}>
                         {previewView === 'lyrics' 
                           ? (previewItem.snippet || previewItem.title || 'No content generated')
@@ -15536,7 +15676,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   
                   setShowPreview({
                     type: getAssetPreviewType(newAsset),
-                    url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl || null,
+                    url: formatAudioSrc(newAsset.audioUrl) || formatVideoSrc(newAsset.videoUrl) || formatImageSrc(newAsset.imageUrl) || null,
                     content: newAsset.content || newAsset.snippet || newAsset.output || null,
                     title: newAsset.title || 'Untitled',
                     asset: newAsset,
@@ -15598,7 +15738,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   
                   setShowPreview({
                     type: getAssetPreviewType(newAsset),
-                    url: newAsset.audioUrl || newAsset.videoUrl || newAsset.imageUrl || null,
+                    url: formatAudioSrc(newAsset.audioUrl) || formatVideoSrc(newAsset.videoUrl) || formatImageSrc(newAsset.imageUrl) || null,
                     content: newAsset.content || newAsset.snippet || newAsset.output || null,
                     title: newAsset.title || 'Untitled',
                     asset: newAsset,
@@ -15960,24 +16100,25 @@ const fetchUserCredits = useCallback(async (uid) => {
                   />
                 </div>
               )}
-              {/* Text content preview */}
-              {(safePreview.type === 'text' || safePreview.type === 'lyrics' || safePreview.type === 'hook' || safePreview.type === 'verse' || safePreview.type === 'concept') && (
+              {/* Text content preview (unify with lyrics/vocally) */}
+              {(safePreview.type === 'text' || safePreview.type === 'lyrics' || safePreview.type === 'vocal' || safePreview.type === 'audio' || safePreview.type === 'hook' || safePreview.type === 'verse' || safePreview.type === 'concept') && (
                 <div style={{ 
                   width: '100%', 
-                  maxWidth: previewMaximized ? '800px' : '600px', 
-                  maxHeight: previewMaximized ? '85vh' : '70vh',
+                  maxWidth: previewMaximized ? '800px' : '650px', 
+                  maxHeight: previewMaximized ? '85vh' : '75vh',
                   overflow: 'auto',
-                  padding: '2rem',
-                  background: 'rgba(20, 20, 30, 0.8)',
+                  padding: '2.5rem',
+                  background: 'rgba(20, 20, 30, 0.9)',
                   borderRadius: '16px',
-                  border: '1px solid rgba(255,255,255,0.1)'
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
                 }}>
                   <div style={{ 
-                    fontSize: previewMaximized ? '1.1rem' : '1rem', 
+                    fontSize: previewMaximized ? '1.2rem' : '1.1rem', 
                     lineHeight: '1.8',
                     color: 'var(--text-primary)',
                     whiteSpace: 'pre-wrap',
-                    fontFamily: 'inherit'
+                    fontFamily: "'Georgia', 'Times New Roman', serif"
                   }}>
                     {(() => {
                       // Use helper for robust text extraction

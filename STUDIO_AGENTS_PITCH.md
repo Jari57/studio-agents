@@ -1,13 +1,14 @@
-# STUDIO AGENTS
+# STUDIO AGENTS V3.5
 ### YOUR LABEL. YOUR POCKET.
+#### High-Fidelity (Hi-fi) AI Orchestration
 
 ---
 
 ## The Pitch
 
-**Studio Agents** = 16 AI agents that give independent artists major-label firepower at indie prices.
+**Studio Agents V3.5** = 16 professional AI agents that give independent artists major-label firepower at indie prices.
 
-One idea → lyrics, beats, cover art, marketing, video — done.
+One idea → Hi-fi lyrics, beats, cover art, marketing, video — done.
 
 ---
 
@@ -44,10 +45,10 @@ One idea → lyrics, beats, cover art, marketing, video — done.
 ## How It Works
 
 ```
-DESCRIBE → GENERATE → REFINE → EXPORT
+DESCRIBE → GENERATE (V3.5) → REFINE → EXPORT
 ```
 
-Real outputs: audio (MusicGen), images (Imagen 4.0), video (Veo 3.0).
+Real Hi-fi outputs: audio (MusicGen), images (Imagen 4.0), video (Veo 3.0).
 
 ---
 

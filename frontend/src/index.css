@@ -310,20 +310,20 @@ input::placeholder, textarea::placeholder {
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(40px); }
+  from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slide-in-right {
-  from { transform: translateX(100%); }
+  from { transform: translateX(20px); }
   to { transform: translateX(0); }
 }
 
-.animate-slide-down { animation: slide-down 0.3s ease-out forwards; }
-.animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
-.animate-slide-up { animation: slide-up 0.4s ease-out forwards; }
-.animate-fadeInUp { animation: fadeInUp 0.6s ease-out forwards; }
-.animate-slide-in-right { animation: slide-in-right 0.3s ease-out forwards; }
+.animate-slide-down { animation: slide-down 0.2s ease-out forwards; }
+.animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
+.animate-slide-up { animation: slide-up 0.3s ease-out forwards; }
+.animate-fadeInUp { animation: fadeInUp 0.3s ease-out forwards; }
+.animate-slide-in-right { animation: slide-in-right 0.2s ease-out forwards; }
 
 /* Mobile Optimizations */
 body.modal-open {

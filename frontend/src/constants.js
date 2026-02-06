@@ -50,16 +50,16 @@ export const AGENTS = [
     },
     { 
       id: 'beat', 
-      name: 'Beat Lab', 
+      name: 'Music GPT', 
       category: 'Pro Producer', 
       icon: Zap, 
       colorClass: 'agent-cyan', 
-      tier: 'free', // FREE TIER
-      description: 'The world\'s most powerful AI music engine (Enhanced MusicGen)',
-      capabilities: ['High-Fidelity Audio', 'Riffusion Spectrogram Forks', 'Seed-Persistent DNA', 'Udio-Style Musicality'],
+      tier: 'free', 
+      description: 'The world\'s most powerful AI music engine (MusicGen + Riffusion DNA)',
+      capabilities: ['High-Fidelity Audio', 'Riffusion Spectrogram Forks', 'Seed-Persistent DNA', 'Deterministic Generation'],
       examples: ['[Seed: 442152] Create a high-musicality synthwave track', 'Generate an epic cinematic loop with Riffusion spectrogram logic'],
-      howToUse: 'Beat Lab is the core studio engine. Use "Seed Persistence" to lock in sounds for consistent Forks. Enable "High Musicality" for Udio-grade instrumentation and detail.',
-      explanation: 'Beat Lab 2.5 integrates Meta\'s MusicGen Large with Riffusion-style seed control. This allows for deterministic generation, meaning you can Fork a community track and maintain its exact sonic quality while tweaking the prompt.',
+      howToUse: 'Music GPT is the core studio engine. Use "Seed Persistence" to lock in sounds for consistent Forks. Enable "High Musicality" for Udio-grade instrumentation and detail.',
+      explanation: 'Music GPT 2.5 integrates Meta\'s MusicGen Large with Riffusion-style seed control. This allows for deterministic generation, meaning you can Fork a community track and maintain its exact sonic quality while tweaking the prompt.',
       helpTips: 'Pro Tip: Note down your Seeds! A Seed locks the AI\'s "imagination," allowing you to generate stems (Drums Only, Melodies) that fit perfectly with your main track.',
       onboarding: [
         "Use 'Seed Control' to maintain sonic consistency across multi-track sessions.",

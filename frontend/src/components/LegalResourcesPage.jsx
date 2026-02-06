@@ -5,7 +5,7 @@ import {
   Gavel, HelpCircle, FileCheck, Info, Clock, AlertTriangle, Target
 } from 'lucide-react';
 
-const RenderLegalContent = ({ content, accentColor }) => {
+const FormattedLegalContent = ({ content, accentColor }) => {
   if (!content) return null;
 
   const lines = content.split('\n');
