@@ -4081,8 +4081,18 @@ const fetchUserCredits = useCallback(async (uid) => {
           newItem.type = 'synthesis';
         } else {
           // Fallback description - capture any text output
-          newItem.snippet = data.description || data.message || data.output || `Audio concept for: "${prompt}"`;
-          newItem.type = 'text';
+          const isMediaAgentRequest = isAudioAgent || isVideoAgent || isImageAgent || isSpeechAgent;
+          
+          if (isMediaAgentRequest && !data.audioUrl && !data.videoUrl && !data.imageUrl && !data.audio) {
+            console.warn('[Studio] Media generation failed, falling back to text description');
+            newItem.snippet = data.output || data.description || data.message || `Media generation failed. Idea: ${expandedPrompt || prompt}`;
+            newItem.note = "⚠️ Media generation failed - returning text concept instead.";
+            newItem.type = 'text';
+            newItem.isError = true;
+          } else {
+            newItem.snippet = data.description || data.message || data.output || `Audio concept for: "${prompt}"`;
+            newItem.type = 'text';
+          }
         }
 
         // Attach backing track if this was a sync generation
@@ -4145,6 +4155,22 @@ const fetchUserCredits = useCallback(async (uid) => {
         keys: Object.keys(newItem)
       });
       setMediaLoadError(null); // Clear any previous media errors
+      
+      // AUTO-SYNC TO SELECTED PROJECT (PERSISTENCE FIX)
+      if (targetProjectSnapshot) {
+         console.log('[handleGenerate] Auto-syncing to project:', targetProjectSnapshot.id);
+         const safeAssets = Array.isArray(targetProjectSnapshot.assets) ? targetProjectSnapshot.assets : [];
+         const updatedProject = {
+           ...targetProjectSnapshot,
+           assets: [newItem, ...safeAssets.filter(a => a && a.id !== newItem.id)]
+         };
+         setSelectedProject(updatedProject);
+         setProjects(prev => {
+           const safePrev = Array.isArray(prev) ? prev : [];
+           return safePrev.map(p => p?.id === updatedProject.id ? updatedProject : p);
+         });
+      }
+
       safeOpenGenerationPreview(newItem);
       setPreviewPrompt(prompt);
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
@@ -5629,11 +5655,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                          alignItems: 'center',
                          gap: '4px'
                        }}>
-                         {(asset.type === 'Video') && <VideoIcon size={10} />}
-                         {(asset.type === 'Audio' || asset.type === 'vocal') && <Music size={10} />}
-                         {asset.type === 'Image' && <ImageIcon size={10} />}
-                         {(asset.type === 'Text' || asset.type === 'Lyrics' || asset.type === 'lyrics' || asset.type === 'Script') && <FileText size={10} />}
-                         {asset.type}
+                         {(asset.type?.toLowerCase() === 'video') && <VideoIcon size={10} />}
+                         {(asset.type?.toLowerCase() === 'audio' || asset.type?.toLowerCase() === 'vocal') && <Music size={10} />}
+                         {(asset.type?.toLowerCase() === 'image' || asset.type?.toLowerCase() === 'visual') && <ImageIcon size={10} />}
+                         {(asset.type?.toLowerCase() === 'text' || asset.type?.toLowerCase() === 'lyrics' || asset.type?.toLowerCase() === 'script') && <FileText size={10} />}
+                         {(asset.type?.toLowerCase() === 'pro') && <Crown size={10} />}
+                         {asset.type?.charAt(0).toUpperCase() + (asset.type?.slice(1) || '')}
                        </div>
                      </div>
                      

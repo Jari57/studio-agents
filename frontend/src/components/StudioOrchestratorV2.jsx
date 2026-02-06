@@ -1494,59 +1494,6 @@ export default function StudioOrchestratorV2({
     }
   };
   
-  // Helper to format image data for display
-  // Handles: URLs (http/https), data URLs, raw base64, and objects {url: "..."}
-  const formatImageSrc = (imageData) => {
-    if (!imageData) return null;
-    
-    // Handle object return from some APIs
-    if (typeof imageData === 'object' && imageData.url) {
-      return imageData.url;
-    }
-    
-    // Handle array return (Replicate/Flux)
-    if (Array.isArray(imageData) && imageData.length > 0) {
-      return formatImageSrc(imageData[0]);
-    }
-    
-    if (typeof imageData !== 'string') return null;
-    
-    // Already a URL or data URL
-    if (imageData.startsWith('http') || imageData.startsWith('data:')) {
-      return imageData;
-    }
-    
-    // Raw base64 - add data URL prefix
-    return `data:image/png;base64,${imageData}`;
-  };
-
-  // Helper to format audio data for display
-  const formatAudioSrc = (src) => {
-    if (!src) return '';
-    if (typeof src === 'string') return src;
-    if (typeof src === 'object') {
-      if (src.url) return src.url;
-      if (src.audio) return src.audio;
-      if (Array.isArray(src) && src[0]) {
-        return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].audio || '');
-      }
-    }
-    return '';
-  };
-
-  const formatVideoSrc = (src) => {
-    if (!src) return '';
-    if (typeof src === 'string') return src;
-    if (typeof src === 'object') {
-      if (src.url) return src.url;
-      if (src.video) return src.video;
-      if (Array.isArray(src) && src[0]) {
-        return typeof src[0] === 'string' ? src[0] : (src[0].url || src[0].video || '');
-      }
-    }
-    return '';
-  };
-  
   const EXAMPLE_IDEAS = [
     "Summer love in Brooklyn",
     "Trap anthem about success", 
@@ -2037,27 +1984,22 @@ export default function StudioOrchestratorV2({
             const saveFunc = onSaveToProject || onCreateProject;
             console.log(`[handleGenerateAudio] Auto-syncing audio to project: ${existingProject.id}`);
             
-            // Check if audio asset already exists in project, if not add it
-            const hasAudioAsset = (existingProject.assets || []).some(a => a.type === 'audio' && a.audioUrl);
+            const audioAsset = {
+              id: `audio-${Date.now()}`,
+              title: 'Beat Lab Production',
+              type: 'audio',
+              agent: 'Beat Lab',
+              content: cleanAudioPromptText.substring(0, 500),
+              audioUrl: finalUrl,
+              mimeType: data.mimeType || 'audio/mpeg',
+              createdAt: new Date().toISOString()
+            };
             
-            if (!hasAudioAsset) {
-              const audioAsset = {
-                id: `audio-${Date.now()}`,
-                title: 'Beat Lab Production',
-                type: 'audio',
-                agent: 'Beat Lab',
-                content: cleanAudioPromptText.substring(0, 500),
-                audioUrl: finalUrl,
-                mimeType: data.mimeType || 'audio/mpeg',
-                createdAt: new Date().toISOString()
-              };
-              
-              saveFunc({
-                ...existingProject,
-                assets: [audioAsset, ...(existingProject.assets || [])],
-                updatedAt: new Date().toISOString()
-              });
-            }
+            saveFunc({
+              ...existingProject,
+              assets: [audioAsset, ...(existingProject.assets || [])],
+              updatedAt: new Date().toISOString()
+            });
           }
 
           toast.success('AI beat generated!', { id: 'gen-audio' });
@@ -2170,27 +2112,22 @@ export default function StudioOrchestratorV2({
           const saveFunc = onSaveToProject || onCreateProject;
           console.log(`[handleGenerateVocals] Auto-syncing vocals to project: ${existingProject.id}`);
           
-          // Check if vocal asset already exists in project, if not add it
-          const hasVocalAsset = (existingProject.assets || []).some(a => a.type === 'vocal' && a.audioUrl);
+          const vocalAsset = {
+            id: `vocal-${Date.now()}`,
+            title: 'Vocal Performance',
+            type: 'vocal',
+            agent: 'Ghostwriter',
+            content: cleanLyrics.substring(0, 500),
+            audioUrl: data.audioUrl,
+            mimeType: data.mimeType || 'audio/wav',
+            createdAt: new Date().toISOString()
+          };
           
-          if (!hasVocalAsset) {
-            const vocalAsset = {
-              id: `vocal-${Date.now()}`,
-              title: 'Vocal Performance',
-              type: 'vocal',
-              agent: 'Ghostwriter',
-              content: cleanLyrics.substring(0, 500),
-              audioUrl: data.audioUrl,
-              mimeType: data.mimeType || 'audio/wav',
-              createdAt: new Date().toISOString()
-            };
-            
-            saveFunc({
-              ...existingProject,
-              assets: [vocalAsset, ...(existingProject.assets || [])],
-              updatedAt: new Date().toISOString()
-            });
-          }
+          saveFunc({
+            ...existingProject,
+            assets: [vocalAsset, ...(existingProject.assets || [])],
+            updatedAt: new Date().toISOString()
+          });
         }
 
         toast.success('AI Vocals generated!', { id: 'gen-vocals' });
@@ -2780,10 +2717,12 @@ export default function StudioOrchestratorV2({
           video: {
             content: outputs.video,
             agent: AGENTS.find(a => a.id === selectedAgents.video)?.name || 'Video Creator',
-            videoUrl: mediaUrls.video || null
+            videoUrl: musicVideoUrl || mediaUrls.video || null,
+            musicVideoUrl: musicVideoUrl || null,
+            isSynced: !!musicVideoUrl
           }
         },
-        settings: { language, style, model, bpm: projectBpm }
+        settings: { language, style, model, bpm: projectBpm, musicVideoUrl: musicVideoUrl || null }
       };
 
       setFinalMixPreview(finalMix);
@@ -2983,6 +2922,43 @@ export default function StudioOrchestratorV2({
     });
     
     console.log('[Orchestrator] Total assets created:', assets.length);
+
+    // ADDED: Add Music Video (High Fidelity Sync) if exists
+    if (musicVideoUrl) {
+      const videoAsset = {
+        id: `mvideo-${Date.now()}`,
+        title: 'Professional Music Video',
+        type: 'video', // StudioView recognizes 'video'
+        agent: 'Orchestrator Sync',
+        content: `Professional synced production for "${songIdea}"`,
+        videoUrl: formatVideoSrc(musicVideoUrl),
+        date: new Date().toLocaleDateString(),
+        createdAt: new Date().toISOString(),
+        isPremium: true,
+        color: 'agent-ec4899' // Pinkish
+      };
+      console.log('[Orchestrator] Adding high-fidelity music video asset');
+      assets.push(videoAsset);
+    }
+
+    // ADDED: Add Final Mix if exists
+    if (finalMixPreview) {
+      const mixAsset = {
+        id: `fmix-${Date.now()}`,
+        title: 'Full Production Master',
+        type: 'pro', // StudioView uses 'pro' for full production
+        agent: 'Studio Orchestrator',
+        content: typeof finalMixPreview === 'string' ? finalMixPreview : JSON.stringify(finalMixPreview),
+        audioUrl: formatAudioSrc(mediaUrls.audio),
+        videoUrl: formatVideoSrc(musicVideoUrl || mediaUrls.video),
+        imageUrl: formatImageSrc(mediaUrls.image),
+        date: new Date().toLocaleDateString(),
+        createdAt: new Date().toISOString(),
+        color: 'agent-4f46e5' // Indigo
+      };
+      console.log('[Orchestrator] Adding final mix master asset');
+      assets.push(mixAsset);
+    }
     
     // Use existing project ID if updating, otherwise create new
     const projectId = existingProject?.id || String(Date.now());
@@ -5284,22 +5260,23 @@ export default function StudioOrchestratorV2({
                 background: 'rgba(245, 158, 11, 0.1)',
                 borderRadius: '16px',
                 padding: isMobile ? '12px' : '16px',
-                border: '1px solid rgba(245, 158, 11, 0.3)'
+                border: musicVideoUrl ? '1px solid rgba(34, 197, 94, 0.5)' : '1px solid rgba(245, 158, 11, 0.3)',
+                boxShadow: musicVideoUrl ? '0 0 15px rgba(34, 197, 94, 0.2)' : 'none'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ margin: 0, color: '#fbbf24', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <VideoIcon size={18} />
-                    Video
+                  <h3 style={{ margin: 0, color: musicVideoUrl ? '#22c55e' : '#fbbf24', fontSize: '1rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {musicVideoUrl ? <Zap size={18} /> : <VideoIcon size={18} />}
+                    {musicVideoUrl ? 'Professional Sync' : 'Concept Video'}
                   </h3>
                   <span style={{
                     padding: '4px 10px',
                     borderRadius: '20px',
                     fontSize: '0.75rem',
                     fontWeight: '600',
-                    background: safeMediaUrls.video ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
-                    color: safeMediaUrls.video ? '#22c55e' : 'rgba(255,255,255,0.5)'
+                    background: (musicVideoUrl || safeMediaUrls.video) ? 'rgba(34, 197, 94, 0.2)' : 'rgba(100,100,100,0.2)',
+                    color: (musicVideoUrl || safeMediaUrls.video) ? '#22c55e' : 'rgba(255,255,255,0.5)'
                   }}>
-                    {safeMediaUrls.video ? '✓ Ready' : 'Pending'}
+                    {musicVideoUrl ? '✓ Synced' : (safeMediaUrls.video ? '✓ Concept' : 'Pending')}
                   </span>
                 </div>
                 <div style={{
@@ -5312,9 +5289,9 @@ export default function StudioOrchestratorV2({
                   justifyContent: 'center',
                   overflow: 'hidden'
                 }}>
-                  {safeMediaUrls.video ? (
+                  {(musicVideoUrl || safeMediaUrls.video) ? (
                     <video
-                      src={formatVideoSrc(safeMediaUrls.video)}
+                      src={formatVideoSrc(musicVideoUrl || safeMediaUrls.video)}
                       controls
                       style={{
                         width: '100%',

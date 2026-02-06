@@ -2688,6 +2688,11 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
       text = response.text();
       const duration = Date.now() - startTime;
 
+      // Ensure we don't return an empty string
+      if (!text || text.trim().length < 2) {
+        throw new Error("AI returned empty output");
+      }
+
       logger.info('Generation successful', { 
         ip: req.ip,
         duration: `${duration}ms`,
@@ -2698,6 +2703,26 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
     } catch (primaryError) {
       // Fallback logic for 429 (Quota) or 404 (Model Not Found) or 500
       const isQuotaError = String(primaryError).includes('429');
+      const isModelError = String(primaryError).includes('404') || String(primaryError).includes('not found');
+      
+      logger.warn('Primary model failed, attempting fallback', { error: primaryError.message, model: desiredModel });
+      
+      try {
+        // Fallback to gemini-1.5-flash as it's the most stable/available
+        const fallbackModelId = "gemini-1.5-flash";
+        const fallbackModel = genAI.getGenerativeModel({ model: fallbackModelId, systemInstruction: sanitizedSystemInstruction || undefined });
+        const fallbackResult = await fallbackModel.generateContent(sanitizedPrompt);
+        text = fallbackResult.response.text();
+        usedModel = fallbackModelId;
+        
+        if (!text || text.trim().length < 2) {
+          text = "I'm sorry, I couldn't generate a detailed response. Please try again with a more specific prompt.";
+        }
+      } catch (fallbackError) {
+        logger.error('All generation models failed', { error: fallbackError.message });
+        throw fallbackError;
+      }
+    }
       const isNotFoundError = String(primaryError).includes('404') || String(primaryError).includes('not found');
       const isFallbackCandidate = isQuotaError || isNotFoundError || String(primaryError).includes('500');
       
@@ -3677,9 +3702,11 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
 
         if (response.ok) {
           const data = await response.json();
-          if (data.audio) {
+          if (data.audio && data.audio.length > 500) {
             audioUrl = `data:audio/mpeg;base64,${data.audio}`;
             provider = 'stable-audio-2.5';
+          } else {
+            logger.warn('Stability returned too little audio data', { length: data.audio?.length });
           }
         }
       } catch (err) { logger.warn('Stability failed'); }
@@ -3711,8 +3738,14 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
           if (result.status === 'succeeded' && result.output) {
             const directUrl = Array.isArray(result.output) ? result.output[0] : result.output;
             const audioData = await fetch(directUrl).then(r => r.arrayBuffer());
-            audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
-            provider = 'music-gpt';
+            
+            if (audioData.byteLength > 100) {
+              audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
+              provider = 'music-gpt';
+              logger.info('Successfully fetched audio from Replicate', { size: audioData.byteLength });
+            } else {
+              logger.warn('Replicate returned a successful status but empty/tiny audio data');
+            }
           }
         }
       } catch (err) { logger.warn('Music GPT failed'); }
@@ -3737,11 +3770,42 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     }
 
     if (audioUrl) {
-      res.json({ audioUrl, provider, duration: durationSeconds, isRealGeneration: true });
+      // PERSIST TO FIRESTORE IF USER IS AUTHENTICATED
+      let permanentUrl = null;
+      if (req.user && req.user.uid) {
+        try {
+          const db = getFirestoreDb();
+          if (db) {
+            await db.collection('users').doc(req.user.uid).collection('assets').add({
+              url: audioUrl,
+              assetType: 'audio',
+              provider: provider,
+              prompt: prompt,
+              bpm: bpm,
+              genre: genre,
+              createdAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            logger.info('Asset persisted to Firestore');
+          }
+        } catch (dbErr) {
+          logger.warn('Failed to persist asset to Firestore', { error: dbErr.message });
+        }
+      }
+
+      res.json({ 
+        audioUrl, 
+        provider, 
+        duration: durationSeconds, 
+        isRealGeneration: true,
+        mimeType: 'audio/mpeg' 
+      });
     } else {
-      res.json({
-        audioUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8b8a5a4a5.mp3',
-        provider: 'demo-fallback',
+      // If we reach here, ALL AI providers failed. 
+      // Instead of a random Pixabay link, let's return a 500 so the frontend can handle it correctly.
+      logger.error('All audio generation attempts failed');
+      res.status(500).json({ 
+        error: 'AI Generation Failed', 
+        details: 'All audio models are currently busy or reached their quota. Please try again in a few minutes.',
         isRealGeneration: false
       });
     }
