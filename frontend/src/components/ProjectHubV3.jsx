@@ -41,60 +41,9 @@ function WaveformOverlay({ color = 'var(--color-purple)' }) {
 // DISCOVER FEED COMPONENT (BandLab style)
 // ═══════════════════════════════════════════════════════════════════════════════
 function DiscoverFeed({ onRemix, onPlay, playingAudio }) {
-  const trendingCreators = [
-    { id: 1, name: 'NeonVibe', avatar: 'https://i.pravatar.cc/150?u=1', followers: '12k' },
-    { id: 2, name: 'HyperPop_AI', avatar: 'https://i.pravatar.cc/150?u=2', followers: '8.4k' },
-    { id: 3, name: 'Metro_Boomin_Bot', avatar: 'https://i.pravatar.cc/150?u=3', followers: '45k' },
-    { id: 4, name: 'LoFi_Girl_X', avatar: 'https://i.pravatar.cc/150?u=4', followers: '1.2M' },
-    { id: 5, name: 'DrillMaster', avatar: 'https://i.pravatar.cc/150?u=5', followers: '3k' },
-  ];
+  const trendingCreators = [];
 
-  const discoveryTracks = [
-    { 
-      id: 'd1', 
-      name: 'Cybernetic Dreams', 
-      creator: 'NeonVibe', 
-      likes: 1240, 
-      remixes: 45, 
-      tags: ['Cyberpunk', 'Synthwave'],
-      source: 'Mureaka',
-      audioUrl: 'https://cdn.pixabay.com/audio/2022/03/15/audio_c8c8a165b4.mp3',
-      thumbnail: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?auto=format&fit=crop&q=80&w=300'
-    },
-    { 
-      id: 'd2', 
-      name: 'Midnight In Tokyo', 
-      creator: 'HyperPop_AI', 
-      likes: 890, 
-      remixes: 12, 
-      tags: ['Lo-Fi', 'Study'],
-      source: 'BandLab',
-      audioUrl: 'https://cdn.pixabay.com/audio/2022/01/21/audio_168f86067b.mp3',
-      thumbnail: 'https://images.unsplash.com/photo-1571330735066-03aaa9429d89?auto=format&fit=crop&q=80&w=300'
-    },
-    { 
-      id: 'd3', 
-      name: 'Trap Soul Sessions', 
-      creator: 'DrillMaster', 
-      likes: 3400, 
-      remixes: 156, 
-      tags: ['Trap', 'Dark'],
-      source: 'Beat Lab',
-      audioUrl: 'https://cdn.pixabay.com/audio/2021/11/23/audio_0ed20b0c20.mp3',
-      thumbnail: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&q=80&w=300'
-    },
-    { 
-      id: 'd4', 
-      name: 'Ethereal Vocals', 
-      creator: 'LoFi_Girl_X', 
-      likes: 15400, 
-      remixes: 890, 
-      tags: ['Ambient', 'Vocal'],
-      source: 'Mureaka',
-      audioUrl: 'https://cdn.pixabay.com/audio/2022/10/21/audio_a16f217730.mp3',
-      thumbnail: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?auto=format&fit=crop&q=80&w=300'
-    }
-  ];
+  const discoveryTracks = [];
 
   return (
     <div className="discover-feed-container animate-fadeIn">
@@ -102,146 +51,59 @@ function DiscoverFeed({ onRemix, onPlay, playingAudio }) {
       <div className="discovery-hero-banner" style={{
         background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.4), rgba(147, 51, 234, 0.4))',
         borderRadius: '20px',
-        padding: '30px',
-        marginBottom: '32px',
+        padding: '40px',
+        marginBottom: '42px',
         border: '1px solid rgba(255,255,255,0.1)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
+        alignItems: 'center',
+        textAlign: 'center',
+        gap: '16px',
         position: 'relative',
         overflow: 'hidden'
       }}>
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <span style={{ 
-            background: '#ef4444', 
+          <div style={{ 
+            background: 'var(--color-purple)', 
             color: 'white', 
-            padding: '4px 10px', 
-            borderRadius: '6px', 
-            fontSize: '0.7rem', 
+            padding: '6px 14px', 
+            borderRadius: '20px', 
+            fontSize: '0.75rem', 
             fontWeight: '800',
             textTransform: 'uppercase',
-            letterSpacing: '1px'
-          }}>Community</span>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: '800', marginTop: '10px' }}>Studio Agents Collaboration</h2>
-          <p style={{ color: 'rgba(255,255,255,0.8)', maxWidth: '500px' }}>
-            Fork projects shared by other Studio Agent users to collaborate, remix ideas, and learn from fellow creators.
+            letterSpacing: '1px',
+            display: 'inline-block',
+            marginBottom: '16px'
+          }}>Studio Hub</div>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: '900', color: 'white' }}>Connect & Collaborate</h2>
+          <p style={{ color: 'rgba(255,255,255,0.8)', maxWidth: '600px', margin: '0 auto', fontSize: '1.1rem' }}>
+            The Fragments Project Hub is where you can discover templates, share your creations, and fork projects from the community.
           </p>
-          <button 
-            className="btn-create-new" 
-            style={{ width: 'fit-content', marginTop: '10px' }}
-            onClick={() => onRemix(discoveryTracks[0])}
-          >
-            <Copy size={18} /> Fork Project
-          </button>
         </div>
         <div style={{
           position: 'absolute',
           right: '-50px',
           top: '-20px',
-          opacity: 0.2,
+          opacity: 0.1,
           transform: 'rotate(15deg)'
         }}>
-          <Music size={240} />
+          <Sparkles size={240} />
         </div>
       </div>
 
-      {/* Trending Creators Bar */}
-      <section className="trending-creators">
-        <div className="section-header">
-          <h3>@Studio Agents</h3>
-          <button className="btn-text">View All <ChevronRight size={14} /></button>
-        </div>
-        <div className="creator-scroll">
-          {trendingCreators.map(creator => (
-            <div key={creator.id} className="creator-card">
-              <div className="avatar-wrapper">
-                <img src={creator.avatar} alt={creator.name} />
-                <div className="online-indicator" />
-              </div>
-              <span className="creator-name">{creator.name}</span>
-              <span className="creator-stat">Studio User</span>
-              <button className="btn-follow">View Workspace</button>
-            </div>
-          ))}
+      {/* Discovery Feed Empty State */}
+      <section className="feed-tracks">
+        <div className="empty-state-v3" style={{ padding: '80px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+          <div className="empty-icon main-icon" style={{ marginBottom: '20px' }}>
+            <GlobeIcon size={48} style={{ opacity: 0.3 }} />
+          </div>
+          <h3>The Community Hub is coming soon</h3>
+          <p style={{ maxWidth: '400px', margin: '0 auto' }}>We are preparing the global sharing platform. Soon you'll be able to publish your projects and collaborate with creators worldwide.</p>
         </div>
       </section>
-
-      {/* Discovery Feed Grid */}
-      <section className="feed-tracks">
-        <div className="section-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <TrendingUp size={20} color="var(--color-purple)" />
-            <h3>Shared Studio Projects</h3>
-          </div>
-          <div className="feed-filters">
-            <button className="active">Trending</button>
-            <button>Top Remixes</button>
-            <button>Most Forked</button>
-            <button>All Shared</button>
-          </div>
-        </div>
-        <div className="feed-grid">
-          {discoveryTracks.map(track => (
-            <div key={track.id} className="feed-item-card">
-              <div 
-                className="track-thumb"
-                style={{ backgroundImage: `url(${track.thumbnail})` }}
-              >
-                <div className="track-overlay">
-                  <button 
-                    className={`play-circle ${playingAudio === track.audioUrl ? 'playing' : ''}`}
-                    onClick={(e) => onPlay(track.audioUrl, e)}
-                  >
-                    {playingAudio === track.audioUrl ? <Pause size={24} /> : <Play size={24} />}
-                  </button>
-                </div>
-                <div className="remix-badge">
-                   <Copy size={10} /> Fork
-                </div>
-                {track.source && (
-                  <div className="source-badge">
-                    {track.source}
-                  </div>
-                )}
-              </div>
-              <div className="track-info">
-                <div className="track-primary" style={{ width: '100%', overflow: 'hidden' }}>
-                  <h4 className="track-name" style={{ 
-                    whiteSpace: 'nowrap', 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis',
-                    margin: 0
-                  }}>{track.name}</h4>
-                  <p className="track-creator" style={{ 
-                    whiteSpace: 'nowrap', 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis',
-                    margin: '4px 0 0 0',
-                    opacity: 0.7,
-                    fontSize: '0.85rem'
-                  }}>@ {track.creator.toLowerCase().replace(/_|\s/g, '')}</p>
-                </div>
-                <div className="track-tags">
-                  {track.tags.map(tag => <span key={tag} className="tag">#{tag}</span>)}
-                </div>
-                <div className="track-actions">
-                  <div className="stats" style={{ display: 'flex', gap: '12px' }}>
-                    <span title="Likes" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Heart size={14} /> {track.likes}</span>
-                    <span title="Forks" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Copy size={13} /> {track.remixes}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button 
-                      className="btn-remix-action"
-                      onClick={() => onRemix(track)}
-                      style={{ gap: '6px', padding: '8px 12px' }}
-                    >
-                      <Plus size={14} /> FORK & EDIT
-                    </button>
-                    <button 
-                      onClick={() => {
-                        if (confirm('Report this content for violation of terms?')) {
-                          toast.success('Report submitted. Our moderators will review this project.');
-                        }
+    </div>
+  );
+}
                       }}
                       style={{ 
                         background: 'rgba(255,255,255,0.05)', 

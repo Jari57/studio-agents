@@ -547,7 +547,8 @@ const checkCreditsFor = (featureType) => {
           error: 'Insufficient Credits', 
           details: `This action requires ${creditCost} credits. Please upgrade your plan or purchase more credits.`,
           required: creditCost,
-          feature: featureType
+          feature: featureType,
+          isUserCreditIssue: true
         });
       }
       
@@ -3334,7 +3335,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
       genre = 'hip-hop', // hip-hop, r&b, pop, soul, trap, drill, boom-bap
       language = 'en',   // en, es, fr, de, it, pt, ja, ko, zh
       speakerUrl = null, // Reference audio for voice cloning (XTTS)
-      duration = 30      // Requested length
+      duration = 30,      // Requested length
+      outputFormat = 'social' // social, podcast, tv, music
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
@@ -3353,10 +3355,11 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     };
     const langCode = langMap[language] || language || 'en';
 
-    logger.info('🎤 Generating AI vocals/speech', { 
+    logger.info('🎤 Generating AI vocals/speech (Righteous Quality)', { 
       textLength: prompt.length, 
       voice, 
       style, 
+      outputFormat,
       language: langCode, 
       hasSpeakerUrl: !!speakerUrl,
       hasElevenLabsId: !!req.body.elevenLabsVoiceId,
@@ -3365,6 +3368,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
 
     let audioUrl = null;
     let provider = null;
+    let systemCreditIssue = false;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
 
@@ -3378,20 +3382,40 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         let voiceId = req.body.elevenLabsVoiceId;
         
         if (!voiceId) {
-          // V3.5 CURATED VOICE MAPPING for Rap/Premium
+          // V3.5 CURATED VOICE MAPPING for Rap/Premium - BILLBOARD READY
           if (style === 'rapper') voiceId = 'pNInz6obpgDQGcFmaJgB'; // Adam (Good for mature rap)
           else if (style === 'rapper-female') voiceId = 'Lcf7NAZ7x9YVvj6S7YhL'; // Female Rapper (Alice)
           else if (style === 'singer') voiceId = 'MF3mGyEYCl7XYW7ANnSM'; // Emotional Singer
+          else if (style === 'narrator') voiceId = 'onwK4e9ZLuTAKqWW03af'; // Deep Documentary
           else voiceId = 'pNInz6obpgDQGcFmaJgB'; // Default Adam
         }
 
-        logger.info('🎤 Using ElevenLabs V3.5 High-Fidelity', { voiceId, quality: req.body.quality, style });
+        logger.info('🎤 Using ElevenLabs V3.5 High-Fidelity', { voiceId, quality: req.body.quality, style, outputFormat });
         
-        // RAP FORMATTING: Add rhythmic pauses for TTS if it's a rap style
+        // RAP/BILLBOARD FORMATTING: Add rhythmic pauses and emphasis
         let processedPrompt = prompt;
         if (style.includes('rapper')) {
            // Add slight pauses after sentences/lines to maintain rhythm
            processedPrompt = prompt.replace(/\.(?!\d)/g, '... ').replace(/\n/g, '; ');
+           // Add emphasis for Billboard quality
+           processedPrompt = `<break time="0.5s" />${processedPrompt}`;
+        }
+
+        // Adjust settings based on Output Format (Righteous Quality)
+        const voiceSettings = {
+          stability: style.includes('rapper') ? 0.35 : 0.55,
+          similarity_boost: 0.8,
+          style: style.includes('rapper') ? 0.65 : 1.0, // Crank style for rap/righteous
+          use_speaker_boost: true
+        };
+
+        // Output specific optimizations
+        if (outputFormat === 'tv') {
+          voiceSettings.stability = 0.65; // More stable for TV broadcast
+        } else if (outputFormat === 'podcast') {
+          voiceSettings.similarity_boost = 0.9; // More natural personality
+        } else if (outputFormat === 'music') {
+          voiceSettings.style = 0.85; // Extra expressive for Billboard vibes
         }
 
         const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
@@ -3403,14 +3427,9 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           },
           body: JSON.stringify({
             text: processedPrompt,
-            model_id: 'eleven_turbo_v2_5', // UPGRADED TO V2.5 (High Speed, High Quality)
-            voice_settings: {
-              stability: style.includes('rapper') ? 0.35 : 0.55, // Lower stability = more expressive rap
-              similarity_boost: 0.8,
-              style: style.includes('rapper') ? 0.65 : 0.0, // Higher style = more vivid delivery
-              use_speaker_boost: true
-            },
-            language_code: langCode // EXPLICIT LANGUAGE GUARD (Stops hallucinations)
+            model_id: 'eleven_multilingual_v2', // v2 supports better inflection than turbo for rap
+            voice_settings: voiceSettings,
+            language_code: langCode
           })
         });
 
@@ -3423,6 +3442,9 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           logger.info('✅ Premium ElevenLabs vocal generated');
         } else {
           const errorData = await elResponse.json().catch(() => ({}));
+          if (elResponse.status === 402 || elResponse.status === 401) {
+            systemCreditIssue = true;
+          }
           logger.warn('ElevenLabs failed, falling back...', { error: errorData });
         }
       } catch (elevenLabsError) {
@@ -3683,7 +3705,16 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
       });
     } else {
       logger.error('❌ All vocal generation methods failed');
-      res.status(503).json({ error: 'Vocal generation failed', details: 'Check API key configuration' });
+      
+      if (systemCreditIssue) {
+        return res.status(503).json({ 
+          error: 'System Maintenance: Out of Credits', 
+          details: 'The platform is currently undergoing maintenance as we top up our AI engine credits. Your personal credits were NOT charged. Please try again in a few minutes.',
+          isSystemCreditIssue: true
+        });
+      }
+      
+      res.status(503).json({ error: 'Vocal generation failed', details: 'Check API key configuration or system quota' });
     }
   } catch (error) {
     logger.error('Vocal generation error', { error: error.message });
@@ -3702,7 +3733,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     const { 
       prompt, bpm: rawBpm = 90, durationSeconds: rawDuration = 30, genre = 'hip-hop', mood = 'chill',
       referenceAudio, engine = 'auto', highMusicality = true, seed = -1, stem = 'Full Mix',
-      quality = 'standard'
+      quality = 'standard', outputFormat = 'music'
     } = req.body;
 
     const bpm = parseInt(rawBpm) || 90;
@@ -3713,15 +3744,34 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     const falKey = process.env.FAL_KEY || process.env.FAL_API_KEY;
 
-    logger.info('Generating professional music/beat', { prompt: prompt.substring(0, 50), bpm, engine });
+    logger.info('Generating professional music/beat', { 
+      prompt: prompt.substring(0, 50), 
+      bpm, 
+      engine,
+      outputFormat,
+      hasStability: !!stabilityKey,
+      hasReplicate: !!replicateKey,
+      hasFal: !!falKey
+    });
 
-    let qualityTags = 'High-fidelity studio recording, professional arrangement, clear soundstage, cinematic production';
-    const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${qualityTags}. Professional studio quality.`;
+    let qualityTags = 'Billboard 100 top charts, high-fidelity studio recording, professional arrangement, clear soundstage, cinematic production, industry-standard mixing, righteous quality';
+    
+    // Output specific quality adjustments
+    if (outputFormat === 'tv') {
+      qualityTags += ', broadcast ready, clear dialogue space, background mastered';
+    } else if (outputFormat === 'social') {
+      qualityTags += ', punchy bass, mobile speaker optimized, viral aesthetic';
+    } else if (outputFormat === 'podcast') {
+      qualityTags += ', ducked for voice, warm low-end, professional stingers';
+    }
+
+    const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${qualityTags}. Professional studio quality, superior to industry standard.`;
 
     // Engine Selection Logic - Favor Stability for Premium/Long, MusicGPT for standard rhythmic beats
     let finalEngine = engine;
-    if (engine === 'auto' || !engine) {
+    if (engine === 'auto' || !engine || engine === 'music-gpt') {
       // Prioritize Stability AI 2.5 when quality is 'premium' (User Request V3.5)
+      // Even if user selected 'music-gpt', if they want premium/high-musicality, Stability is a better match
       if (quality === 'premium' && stabilityKey) {
         finalEngine = 'stability';
       } else if (durationSeconds > 60 && stabilityKey) {
@@ -3735,6 +3785,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
 
     let audioUrl = null;
     let provider = null;
+    let systemCreditIssue = false;
 
     // ═══════════════════════════════════════════════════════════════════
     // 1. Stability AI Stable Audio 2.5 (PRIMARY FOR PREMIUM/LONG FORM)
@@ -3748,7 +3799,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
         formData.append('duration', Math.min(durationSeconds, 180).toString());
         formData.append('model', 'stable-audio-2.5');
         formData.append('output_format', 'mp3');
-        formData.append('steps', '10');
+        formData.append('steps', '8');
         if (seed > 0) formData.append('seed', seed.toString());
 
 
@@ -3766,55 +3817,74 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
           } else {
             logger.warn('Stability returned too little audio data', { length: data.audio?.length });
           }
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          // SYSTEM CREDIT ISSUE DETECTION
+          if (response.status === 402 || (errData.name === 'payment_required')) {
+            systemCreditIssue = true;
+          }
+          logger.error('Stability AI API error', { 
+            status: response.status, 
+            error: errData.message || errData.name || errData.error || 'Unknown error',
+            fullError: JSON.stringify(errData)
+          });
         }
-      } catch (err) { logger.warn('Stability failed'); }
+      } catch (err) { 
+        logger.error('Stability AI request failed', { error: err.message }); 
+      }
     }
 
     // 2. Replicate Music GPT (Fallback)
     if (replicateKey && !audioUrl) {
       try {
-        logger.info('Using Replicate Music GPT');
-        const startResponse = await fetch('https://api.replicate.com/v1/predictions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${replicateKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            version: 'b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38',
-            input: { 
-              prompt: musicPrompt, 
-              duration: Math.min(durationSeconds, 60), 
-              model_version: 'stereo-large', 
-              output_format: 'mp3',
-              normalization_strategy: 'peak',
-              seed: seed > 0 ? seed : undefined
+        logger.info('Using Replicate Music GPT (SDK)');
+        const replicate = new Replicate({ auth: replicateKey });
+        
+        // Use facebook/musicgen-large via SDK (handles polling automatically)
+        const output = await replicate.run(
+          "facebook/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38",
+          {
+            input: {
+              prompt: musicPrompt,
+              duration: Math.min(durationSeconds, 60),
+              model_version: "stereo-large",
+              output_format: "mp3"
             }
-          })
-
-        });
-
-        if (startResponse.ok) {
-          let result = await startResponse.json();
-          for (let i = 0; i < 40 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
-            await new Promise(r => setTimeout(r, 2000));
-            const poll = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
-              headers: { 'Authorization': `Bearer ${replicateKey}` }
-            });
-            result = await poll.json();
           }
+        );
 
-          if (result.status === 'succeeded' && result.output) {
-            const directUrl = Array.isArray(result.output) ? result.output[0] : result.output;
-            const audioData = await fetch(directUrl).then(r => r.arrayBuffer());
-            
+        if (output) {
+          const directUrl = Array.isArray(output) ? output[0] : output;
+          logger.info('Replicate generated audio URL', { directUrl });
+          
+          const audioResponse = await fetch(directUrl);
+          if (audioResponse.ok) {
+            const audioData = await audioResponse.arrayBuffer();
             if (audioData.byteLength > 100) {
               audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
               provider = 'music-gpt';
               logger.info('Successfully fetched audio from Replicate', { size: audioData.byteLength });
             } else {
-              logger.warn('Replicate returned a successful status but empty/tiny audio data');
+              logger.warn('Replicate audio data too small', { size: audioData.byteLength });
             }
+          } else {
+            logger.error('Failed to download audio from Replicate URL', { 
+              status: audioResponse.status, 
+              url: directUrl 
+            });
           }
         }
-      } catch (err) { logger.warn('Music GPT failed'); }
+      } catch (err) { 
+        // Detect system credit issues specifically
+        const isQuotaError = err.message?.includes('402') || err.message?.toLowerCase().includes('payment');
+        if (isQuotaError) {
+          systemCreditIssue = true;
+        }
+        logger.error('Music GPT (Replicate SDK) failed', { 
+          error: err.message,
+          isPossibleCreditIssue: isQuotaError 
+        });
+      }
     }
 
     // 3. FAL.ai (Last Fallback)
@@ -3831,8 +3901,15 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
           const audioData = await fetch(falUrl).then(r => r.arrayBuffer());
           audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
           provider = 'beatoven';
+        } else {
+          if (response.status === 402 || response.status === 401) {
+            systemCreditIssue = true;
+          }
         }
-      } catch (err) { logger.warn('FAL failed'); }
+      } catch (err) { 
+        if (err.message.includes('402')) systemCreditIssue = true;
+        logger.error('FAL failed', { error: err.message });
+      }
     }
 
     if (audioUrl) {
@@ -3867,8 +3944,19 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
       });
     } else {
       // If we reach here, ALL AI providers failed. 
-      // Instead of a random Pixabay link, let's return a 500 so the frontend can handle it correctly.
       logger.error('All audio generation attempts failed');
+      
+      if (systemCreditIssue) {
+        // CASE 1: System/Platform runs out of credits (App-side issue)
+        return res.status(503).json({ 
+          error: 'System Maintenance: Out of Credits', 
+          details: 'The platform is currently undergoing maintenance as we top up our AI engine credits. Your personal credits were NOT charged. Please try again in a few minutes.',
+          isRealGeneration: false,
+          isSystemCreditIssue: true
+        });
+      }
+
+      // CASE 2: Global/Generic failure
       res.status(500).json({ 
         error: 'AI Generation Failed', 
         details: 'All audio models are currently busy or reached their quota. Please try again in a few minutes.',
@@ -3890,10 +3978,12 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
     let { prompt, referenceImage, durationSeconds = 8, audioUrl = null, vocalUrl = null } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
+    let systemCreditIssue = false;
+
     // SYNC AUGMENTATION: If audio or vocals are provided, enhance the prompt to ensure the video engine "sees" the sound
     let enhancedPrompt = prompt;
     if (audioUrl || vocalUrl) {
-      enhancedPrompt = `${prompt}. Synchronize movements and energy with a ${req.body.style || 'dynamic'} beat. The video should feel like a high-fidelity music video performance with rhythmic cuts and energetic motion matching the audio flow.`;
+      enhancedPrompt = `${prompt}. Synchronize movements and energy with a ${req.body.style || 'dynamic'} beat. The video should feel like a high-fidelity Billboard-ready music video performance with rhythmic cuts, cinematic lighting, professional color grading, and energetic motion matching the audio flow accurately. Righteous quality, superior visual fidelity.`;
       logger.info('🎬 Augmenting video prompt for audio synchronization', { hasAudio: !!audioUrl, hasVocals: !!vocalUrl });
     }
 
@@ -3944,11 +4034,12 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
               })
             });
 
-
             if (response.ok) {
                 const operationData = await response.json();
                 logger.info('Veo 3.0 Fast operation started', { name: operationData.name });
                 return await handleVeoOperation(operationData, apiKey, res);
+            } else if (response.status === 402 || response.status === 429) {
+                systemCreditIssue = true;
             }
             
             const errorText = await response.text();
@@ -3974,6 +4065,8 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
                 const veo2Data = await veo2Response.json();
                 logger.info('Veo 2.0 operation started', { name: veo2Data.name });
                 return await handleVeoOperation(veo2Data, apiKey, res);
+            } else if (veo2Response.status === 402 || veo2Response.status === 429) {
+                systemCreditIssue = true;
             }
             
             const veo2Error = await veo2Response.text();
@@ -4020,6 +4113,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
              });
         }
       } catch (repError) {
+        if (repError.message?.includes('402')) systemCreditIssue = true;
         logger.error('Replicate fallback generation also failed', { error: repError.message });
       }
     } else {
@@ -4031,6 +4125,14 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
     // ═══════════════════════════════════════════════════════════════════
     logger.error('Video generation failed - all API attempts exhausted');
     
+    if (systemCreditIssue) {
+      return res.status(503).json({ 
+        error: 'System Maintenance: Out of Credits', 
+        details: 'The platform is currently undergoing maintenance as we top up our AI engine credits. Your personal credits were NOT charged. Please try again in a few minutes.',
+        isSystemCreditIssue: true
+      });
+    }
+
     // Return helpful error with setup instructions
     return res.status(503).json({ 
       error: 'Video Generation Unavailable', 

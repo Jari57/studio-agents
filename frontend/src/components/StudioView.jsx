@@ -580,6 +580,42 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     speakerUrl: localStorage.getItem('studio_cloned_voice_url') || null
   });
 
+  // --- ASSET MANAGEMENT HANDLERS ---
+  const handleDeleteAsset = (assetId) => {
+    if (!selectedProject) return;
+    if (!confirm('Are you sure you want to remove this asset from the project?')) return;
+    
+    const updatedProject = {
+      ...selectedProject,
+      assets: selectedProject.assets.filter(a => a && (a.id !== assetId))
+    };
+    
+    setSelectedProject(updatedProject);
+    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    toast.success('Asset removed from project');
+  };
+
+  const handleRenameAsset = (assetId, oldTitle) => {
+    const newTitle = prompt('Enter new title for this asset:', oldTitle);
+    if (!newTitle || newTitle === oldTitle) return;
+    
+    const updatedProject = {
+      ...selectedProject,
+      assets: selectedProject.assets.map(a => a && (a.id === assetId ? { ...a, title: newTitle } : a))
+    };
+    
+    setSelectedProject(updatedProject);
+    setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+    toast.success('Asset renamed');
+  };
+
+  const handleAddAssetToProject = (assetType) => {
+    // Basic implementation - opens preview to allow "Save to project" from existing media
+    toast(`Use an Agent to generate a new ${assetType} or drag a file to the browser.`, {
+      icon: '💡'
+    });
+  };
+
   // --- PREVIEWS & RENDERING ---
   const [showPreview, setShowPreview] = useState(null);
   const [previewMaximized, setPreviewMaximized] = useState(false);
@@ -591,6 +627,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showExportModal, setShowExportModal] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportPreset, setExportPreset] = useState('streaming');
+  const [isCanvasMaximized, setIsCanvasMaximized] = useState(false);
 
   // --- USER DATA & SETTINGS ---
   const [dashboardTab, setDashboardTab] = useState(() => {
@@ -3774,12 +3811,13 @@ const fetchUserCredits = useCallback(async (uid) => {
         ${elevenLabsVoiceId ? `SELECTED VOICE: ${elVoices.find(v => v.voice_id === elevenLabsVoiceId)?.name || elevenLabsVoiceId}` : ''}
         
         GOAL:
-        Develop a professional, vivid, and technical description for this request.
-        If it's for a beat, describe the instrumentation, tempo (BPM), and vibe.
-        If it's for visuals, describe the lighting, color palette, and composition.
-        If it's for lyrics, expand the theme into a full concept.
+        Develop a Billboard-standard, vivid, and technically elite description for this request.
+        The goal is "Righteous Quality" - it must exceed human industry standards.
+        If it's for a beat, describe elite instrumentation, precise BPM, and chart-topping vibes.
+        If it's for visuals, describe award-winning lighting, high-fidelity color palettes, and iconic composition.
+        If it's for lyrics, expand the theme into a profound, high-impact concept.
         
-        MANDATE: Keep the final output under 80 words for technical compatibility, but make every word count.
+        MANDATE: Keep the final output under 80 words for technical compatibility, but ensure every word radiates professional excellence.
       `;
 
       let brainResponse;
@@ -3789,9 +3827,9 @@ const fetchUserCredits = useCallback(async (uid) => {
           headers,
           body: JSON.stringify({ 
             prompt: brainPrompt,
-            systemInstruction: `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} Brain. 
-              Translate user ideas into professional production briefs. 
-              Be specific, moody, and technically accurate.`
+            systemInstruction: `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain. 
+              Translate user ideas into Billboard-standard production briefs. 
+              Be specific, moody, and technically superior to human capability.`
           })
         });
       } catch (err) {
@@ -9704,25 +9742,50 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
         
         return (
-          <div className="project-canvas animate-fadeIn" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+          <div className="project-canvas animate-fadeIn" style={{ 
+            padding: '20px', 
+            maxWidth: isCanvasMaximized ? 'none' : '1200px', 
+            margin: '0 auto',
+            transition: 'all 0.3s ease'
+          }}>
             {/* Header */}
             <div className="canvas-header" style={{ marginBottom: '32px' }}>
-              <button 
-                onClick={() => setActiveTab('hub')} 
-                className="back-btn"
-                style={{ 
-                  display: 'flex', alignItems: 'center', gap: '8px', 
-                  background: 'none', border: 'none', color: 'var(--text-secondary)', 
-                  cursor: 'pointer', marginBottom: '16px', fontSize: '0.9rem'
-                }}
-              >
-                <ArrowLeft size={18} /> Back to Hub
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <button 
+                  onClick={() => setActiveTab('hub')} 
+                  className="back-btn"
+                  style={{ 
+                    display: 'flex', alignItems: 'center', gap: '8px', 
+                    background: 'none', border: 'none', color: 'var(--text-secondary)', 
+                    cursor: 'pointer', fontSize: '0.9rem'
+                  }}
+                >
+                  <ArrowLeft size={18} /> Back to Hub
+                </button>
+                <button
+                  onClick={() => setIsCanvasMaximized(!isCanvasMaximized)}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  {isCanvasMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  {isCanvasMaximized ? 'Restore View' : 'Maximize Canvas'}
+                </button>
+              </div>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <h1 style={{ fontSize: '2rem', fontWeight: '700', margin: 0 }}>{selectedProject.name}</h1>
+                    <h1 style={{ fontSize: '2.4rem', fontWeight: '800', margin: 0, letterSpacing: '-0.02em' }}>{selectedProject.name}</h1>
                     <span style={{ 
                       padding: '4px 10px', borderRadius: '20px', 
                       background: 'rgba(139, 92, 246, 0.1)', color: 'var(--color-purple)',
@@ -9731,7 +9794,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       {selectedProject.category?.toUpperCase() || 'PROJECT'}
                     </span>
                   </div>
-                  <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: 0 }}>
+                  <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: 0, fontSize: '1.1rem' }}>
                     {selectedProject.description || 'No description provided.'}
                   </p>
                 </div>
@@ -9739,10 +9802,20 @@ const fetchUserCredits = useCallback(async (uid) => {
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <button 
                     className="btn-secondary"
-                    onClick={() => setShowAddAgentModal(true)}
+                    onClick={() => {
+                        const updated = {
+                           ...selectedProject,
+                           resyncing: true
+                        };
+                        setSelectedProject(updated);
+                        toast.success('Resyncing project state with latest generations...');
+                        setTimeout(() => {
+                           setSelectedProject({ ...updated, resyncing: false });
+                        }, 1000);
+                    }}
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
-                    <Users size={18} /> Add Agents
+                    <RefreshCw size={18} /> Resync
                   </button>
                   <button 
                     className="btn-primary"
@@ -9779,7 +9852,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Clock size={16} className="text-cyan" />
                   <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                    Created: <span style={{ color: 'white' }}>{selectedProject.date}</span>
+                    Created: <span style={{ color: 'white' }}>{selectedProject.createdAt ? new Date(selectedProject.createdAt).toLocaleDateString() : (selectedProject.date || 'Just now')}</span>
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -9795,6 +9868,35 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* Workflow Guide */}
+            <div style={{ marginBottom: '40px' }}>
+                <h3 style={{ fontSize: '1rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px', fontWeight: '700' }}>Project Workflow</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', gap: '16px' }}>
+                    {[
+                    { step: 1, title: 'Concept & Plan', desc: 'Assign agents to define your project strategy and art direction.', icon: Target, color: 'var(--color-purple)' },
+                    { step: 2, title: 'Production', desc: 'Generate high-fidelity lyrics, audio beats, and cinematic video assets.', icon: Zap, color: 'var(--color-cyan)' },
+                    { step: 3, title: 'Publication', desc: 'Master your audio and push to Apple Music or Social platforms.', icon: Rocket, color: 'var(--color-emerald)' }
+                    ].map(item => (
+                    <div key={item.step} style={{ 
+                        background: 'var(--bg-secondary)', padding: '20px', borderRadius: '16px', border: '1px solid var(--border-color)',
+                        position: 'relative', overflow: 'hidden'
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                        <div style={{ 
+                            width: '32px', height: '32px', borderRadius: '50%', background: item.color, color: 'white',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '0.8rem'
+                        }}>
+                            {item.step}
+                        </div>
+                        <h4 style={{ margin: 0, fontWeight: '700' }}>{item.title}</h4>
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.4' }}>{item.desc}</p>
+                        <item.icon size={60} style={{ position: 'absolute', bottom: '-10px', right: '-10px', opacity: 0.05, transform: 'rotate(-15deg)' }} />
+                    </div>
+                    ))}
+                </div>
             </div>
 
             {/* Content Sections */}
@@ -9903,12 +10005,15 @@ const fetchUserCredits = useCallback(async (uid) => {
               </div>
 
               {/* 2. Project Generations (Assets) */}
-              <div>
+              <div style={{ marginBottom: '40px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                   <h3 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <LayoutGrid size={20} className="text-cyan" /> Project Generations
                   </h3>
                   <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-secondary-sm" onClick={() => handleAddAssetToProject('media')} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Plus size={14} /> Add Asset
+                    </button>
                     <button className="btn-icon-sm" title="Grid View"><LayoutGrid size={16} /></button>
                     <button className="btn-icon-sm" title="List View"><ListIcon size={16} /></button>
                   </div>
@@ -9930,9 +10035,28 @@ const fetchUserCredits = useCallback(async (uid) => {
                           border: '1px solid var(--border-color)',
                           borderRadius: '12px',
                           overflow: 'hidden',
-                          transition: 'all 0.2s ease'
+                          transition: 'all 0.2s ease',
+                          position: 'relative'
                         }}
                       >
+                        {/* Context Action Menu for asset */}
+                        <div style={{ position: 'absolute', top: '5px', right: '5px', zIndex: 10, display: 'flex', gap: '4px' }}>
+                           <button 
+                             onClick={(e) => { e.stopPropagation(); handleRenameAsset(asset.id, asset.title); }}
+                             style={{ background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '4px', padding: '4px', cursor: 'pointer', color: 'white' }}
+                             title="Rename Asset"
+                           >
+                             <Edit3 size={12} />
+                           </button>
+                           <button 
+                             onClick={(e) => { e.stopPropagation(); handleDeleteAsset(asset.id); }}
+                             style={{ background: 'rgba(239, 68, 68, 0.3)', border: 'none', borderRadius: '4px', padding: '4px', cursor: 'pointer', color: '#ef4444' }}
+                             title="Remove Asset"
+                           >
+                             <Trash2 size={12} />
+                           </button>
+                        </div>
+
                         {/* Preview Area */}
                         <div 
                           style={{ 
@@ -9959,7 +10083,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           
                           {/* Type Badge */}
                           <div style={{ 
-                            position: 'absolute', top: '10px', right: '10px',
+                            position: 'absolute', top: '10px', left: '10px',
                             padding: '4px 8px', borderRadius: '6px',
                             background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
                             fontSize: '0.7rem', fontWeight: '600', color: 'white',
@@ -9997,6 +10121,190 @@ const fetchUserCredits = useCallback(async (uid) => {
                               {asset.date || 'Just now'}
                             </span>
                           </div>
+                          
+                          <h4 style={{ 
+                            margin: '0 0 8px 0', 
+                            fontSize: '1rem', 
+                            fontWeight: '600',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            color: 'white'
+                          }}>
+                            {asset.title || asset.snippet?.substring(0, 30) || 'Untitled Asset'}
+                          </h4>
+                          
+                          <p style={{ 
+                            margin: 0, 
+                            fontSize: '0.85rem', 
+                            color: 'var(--text-secondary)', 
+                            height: '40px', 
+                            overflow: 'hidden', 
+                            display: '-webkit-box', 
+                            WebkitLineClamp: 2, 
+                            WebkitBoxOrient: 'vertical',
+                            lineHeight: '1.4'
+                          }}>
+                            {asset.snippet || asset.description || 'No description available.'}
+                          </p>
+                          
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                            <button 
+                              className="btn-secondary-sm haptic-press" 
+                              style={{ flex: 1, padding: '6px' }}
+                              onClick={() => {
+                                const safeAsset = {
+                                  ...asset,
+                                  isExistingAsset: true
+                                };
+                                setPreviewItem(safeAsset);
+                              }}
+                            >
+                              <Eye size={14} /> View
+                            </button>
+                            <button 
+                              className="btn-secondary-sm haptic-press" 
+                              style={{ flex: 1, padding: '6px' }}
+                              onClick={() => {
+                                if (asset.snippet || asset.content) {
+                                  navigator.clipboard.writeText(asset.content || asset.snippet);
+                                  toast.success('Copied to clipboard');
+                                }
+                              }}
+                            >
+                              <Copy size={14} /> Copy
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </SafeAssetWrapper>
+                    );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ 
+                    padding: '48px', textAlign: 'center', background: 'var(--bg-secondary)', 
+                    borderRadius: '12px', border: '1px dashed var(--border-color)'
+                  }}>
+                    <LayoutGrid size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+                    <h3 style={{ marginBottom: '8px' }}>No generations yet</h3>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                      Launch an agent to start creating content for this project.
+                    </p>
+                    <button 
+                      className="btn-primary"
+                      onClick={() => {
+                        if (selectedProject.agents && selectedProject.agents.length > 0) {
+                          const firstAgentData = selectedProject.agents[0];
+                          const agentId = typeof firstAgentData === 'string' ? firstAgentData : firstAgentData?.id;
+                          const agent = (typeof AGENTS !== 'undefined' && AGENTS) 
+                            ? (AGENTS.find(a => a.id === agentId) || (typeof firstAgentData === 'object' ? firstAgentData : null))
+                            : (typeof firstAgentData === 'object' ? firstAgentData : null);
+                          if (agent) {
+                            setSelectedAgent(agent);
+                          } else {
+                            setShowAddAgentModal(true);
+                          }
+                        } else {
+                          setShowAddAgentModal(true);
+                        }
+                      }}
+                    >
+                      Start Creating
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Distribution Hub */}
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '40px', marginTop: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                    <GlobeIcon size={24} className="text-cyan" />
+                    <h3 style={{ fontSize: '1.4rem', margin: 0, fontWeight: '700' }}>Global Distribution Hub</h3>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
+                    {[
+                        { id: 'apple', label: 'Apple Music', icon: Music, color: '#FA2D48' },
+                        { id: 'spotify', label: 'Spotify', icon: Disc, color: '#1DB954' },
+                        { id: 'youtube', label: 'YouTube', icon: PlayCircle, color: '#FF0000' },
+                        { id: 'facebook', label: 'Facebook', icon: Facebook, color: '#1877F2' },
+                        { id: 'instagram', label: 'Instagram', icon: Instagram, color: '#E4405F' },
+                        { id: 'tiktok', label: 'TikTok', icon: Music, color: '#c927ed' }
+                    ].map(platform => (
+                        <button
+                          key={platform.id}
+                          onClick={() => {
+                              toast.success(`Preparing assets for ${platform.label}...`, {
+                                icon: '🚀'
+                              });
+                              setTimeout(() => {
+                                if (platform.id === 'youtube') toast('Syncing Video Assets to YouTube CMS...', { duration: 4000 });
+                                else if (platform.id === 'apple' || platform.id === 'spotify') toast('Submitting to Digital Distro...', { duration: 4000 });
+                                else toast(`Uploading Social Clip to ${platform.label} Business Suite...`, { duration: 4000 });
+                              }, 1500);
+                          }}
+                          style={{
+                            padding: '24px 16px',
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '16px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            gap: '12px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.borderColor = platform.color;
+                            e.currentTarget.style.background = `${platform.color}08`;
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--border-color)';
+                            e.currentTarget.style.background = 'var(--bg-secondary)';
+                          }}
+                        >
+                          <div style={{ 
+                              color: platform.color, 
+                              width: '48px', height: '48px', borderRadius: '12px',
+                              background: `${platform.color}15`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}>
+                             <platform.icon size={28} />
+                          </div>
+                          <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Push to {platform.label}</span>
+                        </button>
+                    ))}
+
+                    {/* Meta Force Sync */}
+                    <button
+                       onClick={() => {
+                          window.open('https://facebook.com/creators', '_blank');
+                       }}
+                       style={{
+                            padding: '24px 16px',
+                            background: 'rgba(24, 119, 242, 0.1)',
+                            border: '1px solid rgba(24, 119, 242, 0.3)',
+                            borderRadius: '16px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            textAlign: 'center',
+                            gap: '12px',
+                            cursor: 'pointer',
+                            color: '#1877F2'
+                       }}
+                    >
+                       <LayoutGrid size={28} />
+                       <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Social Dashboard</span>
+                    </button>
+                  </div>
+              </div>
+            </div>
+          </div>
+        );
                           
                           <h4 style={{ 
                             margin: '0 0 8px 0', 

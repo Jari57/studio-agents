@@ -1314,6 +1314,7 @@ export default function StudioOrchestratorV2({
   const [isListening, setIsListening] = useState(false);
   const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
   const [vocalQuality, setVocalQuality] = useState('premium'); // 'standard' or 'premium'
+  const [outputFormat, setOutputFormat] = useState('music'); // music, social, podcast, tv (Righteous Quality)
   const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
   const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
   const [generatingVocal, setGeneratingVocal] = useState(false);
@@ -1735,14 +1736,16 @@ export default function StudioOrchestratorV2({
         
         const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
         
-        const systemPrompt = `You are ${agent.name}, a professional ${agent.category} specialist. 
-        Create content for a ${style} song about: "${songIdea}" in ${language}.
-        Be creative, professional, and match the genre's style.
+        const systemPrompt = `You are ${agent.name}, an elite Billboard-standard ${agent.category} specialist. 
+        Your mission is to create a track that will dominate the Top 100 charts. 
+        Create righteous quality content for a ${style} song about: "${songIdea}" in ${language}.
+        The focus is on professional excellence that exceeds human artist capabilities.
+        Output Format: ${outputFormat || 'music'} (Ensure the style matches ${outputFormat}).
         ${contextLyrics ? `HERE ARE THE LYRICS FOR THE SONG - USE THEM TO INSPIRE THE VIBE: "${contextLyrics.substring(0, 1000)}"` : ''}
-        ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse 1], [Chorus], [Bridge]. ALSO INCLUDE Suno-style vocal/style tags in brackets like [Hard Hitting Rap] or [Soulful Vocals] to guide the performance. Do not include any intro/preamble like "Here are the lyrics".' : ''}
-        ${slot === 'audio' ? `Briefly describe a high-quality beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Use simple genre descriptors (e.g., "Heavy Trap", "Lo-fi Chill"). DO NOT use complex technical jargon or overly verbose descriptions. Keep it under 60 words for maximum AI compatibility.` : ''}
-        ${slot === 'visual' ? 'Describe a striking album cover or concept in detail for image generation.' : ''}
-        ${slot === 'video' ? 'Write a creative image to video concept/storyboard with scene descriptions.' : ''}`;
+        ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse 1], [Chorus], [Bridge]. Use high-impact, chart-topping wordplay. ALSO INCLUDE precise Suno-style vocal/style tags in brackets like [Hard Hitting Rap] or [Soulful Vocals] to guide the performance. Do not include any intro/preamble.' : ''}
+        ${slot === 'audio' ? `Briefly describe a high-fidelity Billboard-ready beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Use evocative genre descriptors. Your goal is a sonic masterpiece. Keep it under 60 words for maximum AI compatibility.` : ''}
+        ${slot === 'visual' ? 'Describe a striking, iconic album cover identity in detail for high-resolution image generation.' : ''}
+        ${slot === 'video' ? 'Write a cinematic storyboard with precise scene descriptions for a professional music video or motion visual.' : ''}`;
         
         console.log(`[handleGenerate] Starting generation for ${slot} with agent:`, agent.name);
         
@@ -1946,6 +1949,8 @@ export default function StudioOrchestratorV2({
                           structure === 'Loop' ? 15 : 30),
           referenceAudio: audioDnaUrl,
           engine: musicEngine || 'music-gpt',
+          quality: 'premium', // Ensure high-fidelity selection in backend
+          outputFormat: outputFormat, // music, social, podcast, tv
           highMusicality: highMusicality, // Send Udio-style musicality flag
           seed: seed,
           stem: stemType
@@ -2014,25 +2019,39 @@ export default function StudioOrchestratorV2({
         const errData = data || {};
         console.error('[Orchestrator] Audio generation failed:', errData);
         
-        // Show helpful setup message for 503 errors
-        if (response.status === 503 && errData.setup) {
+        // DISTINGUISH BETWEEN USER AND SYSTEM CREDIT ISSUES
+        if (errData.isSystemCreditIssue || response.status === 503) {
           toast.error(
-            <div>
-              <strong>Audio API Not Ready</strong>
-              <p style={{ fontSize: '12px', marginTop: '4px' }}>{errData.details || 'The model is still loading'}</p>
+            <div style={{ padding: '4px' }}>
+              <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Zap size={14} color="#fbbf24" fill="#fbbf24" />
+                System Maintenance
+              </div>
+              <p style={{ fontSize: '12px', marginTop: '4px', opacity: 0.9 }}>
+                The AI engine is currently being refilled with credits. Your personal balance was not affected.
+              </p>
             </div>, 
-            { id: 'gen-audio', duration: 8000 }
+            { id: 'gen-audio', duration: 8000, style: { borderLeft: '4px solid #fbbf24' } }
+          );
+        } else if (errData.isUserCreditIssue || response.status === 403) {
+          toast.error(
+            <div style={{ padding: '4px' }}>
+              <div style={{ fontWeight: 'bold' }}>Insufficient Credits</div>
+              <p style={{ fontSize: '12px', marginTop: '4px' }}>
+                You have run out of generation credits. Please buy more to continue creating.
+              </p>
+            </div>, 
+            { id: 'gen-audio', duration: 6000 }
           );
         } else {
           toast.error(errData.details || errData.error || `Audio generation failed (${response.status})`, { id: 'gen-audio' });
         }
       }
     } catch (err) {
-      console.error('[Orchestrator] Vocal generation catch block:', err);
-      toast.error(`Generation failed: ${err.message}`, { id: 'gen-vocals' });
+      console.error('[Orchestrator] Audio generation catch block:', err);
+      toast.error(`Generation failed: ${err.message}`, { id: 'gen-audio' });
     } finally {
-      setGeneratingVocal(false);
-      setGeneratingMedia(prev => ({ ...prev, vocals: false }));
+      setGeneratingMedia(prev => ({ ...prev, audio: false }));
     }
   };
 
@@ -2084,6 +2103,7 @@ export default function StudioOrchestratorV2({
           language: language || 'English',
           duration: duration || 30,
           quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
+          outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
           speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
           elevenLabsVoiceId: (vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null,
           backingTrackUrl: mediaUrls.audio // Add backing track for sync/context if available
@@ -2398,7 +2418,7 @@ export default function StudioOrchestratorV2({
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: `Album cover art, highly detailed, professional: ${visualPrompt.substring(0, 600)}`,
+          prompt: `Iconic Billboard-standard album cover art, hyper-detailed, professional photography or elite digital art, righteous quality, award-winning composition: ${visualPrompt.substring(0, 800)}`,
           referenceImage: visualDnaUrl
         })
       });
@@ -2587,7 +2607,7 @@ export default function StudioOrchestratorV2({
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: `Cinematic image to video, professional visual: ${videoPrompt.substring(0, 500)}`,
+          prompt: `Elite cinematic music video visual, professional motion design, high-fidelity righteous quality, award-winning storyboard: ${videoPrompt.substring(0, 700)}`,
           referenceImage: visualDnaUrl || videoDnaUrl,
           referenceVideo: videoDnaUrl,
           visualId: referencedVisualId,
@@ -4178,6 +4198,28 @@ export default function StudioOrchestratorV2({
                     </optgroup>
                   )}
                 </optgroup>
+              </select>
+
+              {/* Righteous Quality / Output Format Selector */}
+              <select
+                value={outputFormat}
+                onChange={(e) => setOutputFormat(e.target.value)}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: 'rgba(0,0,0,0.3)',
+                  border: '1px solid #fbbf24',
+                  color: 'white',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+                title="Select Righteous Quality Output Format"
+              >
+                <option value="music">🎵 Billboard Music Mix</option>
+                <option value="social">📱 Social Media Ready</option>
+                <option value="podcast">🎙️ Broadcast Podcast</option>
+                <option value="tv">📺 TV/Commercial Ready</option>
               </select>
 
               {/* Voice Sample Upload */}
