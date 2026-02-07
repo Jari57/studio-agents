@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS } from '../constants';
 import toast from 'react-hot-toast';
-import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase';
+import { db, auth, doc, setDoc, updateDoc, increment, getDoc, arrayUnion } from '../firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
@@ -1433,6 +1433,7 @@ export default function StudioOrchestratorV2({
           if (userData.videoDnaUrl) setVideoDnaUrl(userData.videoDnaUrl);
           if (userData.lyricsDnaUrl) setLyricsDnaUrl(userData.lyricsDnaUrl);
           if (userData.voiceSampleUrl) setVoiceSampleUrl(userData.voiceSampleUrl);
+          if (userData.dnaArtifacts) setDnaArtifacts(userData.dnaArtifacts);
           console.log('[Orchestrator] User DNA profile loaded');
         }
       } catch (err) {
@@ -1479,6 +1480,66 @@ export default function StudioOrchestratorV2({
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════════
 
+<<<<<<< HEAD
+  const [mediaUrls, setMediaUrls] = useState({
+    audio: null,
+    image: null,
+    video: null,
+    vocals: null,
+    lyricsVocal: null // Unified key for lyrics+vocal
+  });
+  
+  const [generatingMedia, setGeneratingMedia] = useState({
+    audio: false,
+    image: false,
+    video: false,
+    vocals: false
+  });
+  
+  const [speakingSlot, setSpeakingSlot] = useState(null);
+  const [projectName, setProjectName] = useState('');
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
+  const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
+  const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
+  const [generatingVocal, setGeneratingVocal] = useState(false);
+  const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
+  const [creatingFinalMix, setCreatingFinalMix] = useState(false);
+  const [finalMixPreview, setFinalMixPreview] = useState(null);
+  const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
+  const [musicVideoUrl, setMusicVideoUrl] = useState(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
+  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
+  const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
+  const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
+  const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
+  const [isUploadingSample, setIsUploadingSample] = useState(false);
+  const [savedVoices, setSavedVoices] = useState([]); // List of voices saved in Firestore
+  const [loadingVoices, setLoadingVoices] = useState(false);
+
+  // New DNA States for other agents
+  const [visualDnaUrl, setVisualDnaUrl] = useState(null);
+  const [audioDnaUrl, setAudioDnaUrl] = useState(null);
+  const [videoDnaUrl, setVideoDnaUrl] = useState(null); // Image used for image-to-video
+  const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null); // Text file or PDF as reference
+  const [dnaArtifacts, setDnaArtifacts] = useState([]); // List of all stored DNA artifacts
+  const [isUploadingDna, setIsUploadingDna] = useState({ visual: false, audio: false, video: false, lyrics: false });
+  const [showDnaVault, setShowDnaVault] = useState(false);
+  
+  // const speechSynthRef = useRef(null); - removed (unused)
+  const recognitionRef = useRef(null);
+  const vocalAudioRef = useRef(null);
+  
+  // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
+  const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
+  const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
+  
+=======
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
   // Check if there's any generated content that hasn't been saved
   const hasUnsavedContent = () => {
     const hasContent = Object.values(safeOutputs).some(Boolean) || Object.values(safeMediaUrls).some(Boolean);
@@ -2026,10 +2087,11 @@ export default function StudioOrchestratorV2({
         }
       }
     } catch (err) {
-      console.error('[Orchestrator] Audio generation catch block:', err);
-      toast.error(`Generation failed: ${err.message}`, { id: 'gen-audio' });
+      console.error('[Orchestrator] Vocal generation catch block:', err);
+      toast.error(`Generation failed: ${err.message}`, { id: 'gen-vocals' });
     } finally {
-      setGeneratingMedia(prev => ({ ...prev, audio: false }));
+      setGeneratingVocal(false);
+      setGeneratingMedia(prev => ({ ...prev, vocals: false }));
     }
   };
 
@@ -2276,11 +2338,22 @@ export default function StudioOrchestratorV2({
             if (auth.currentUser?.uid) {
               try {
                 const userRef = doc(db, 'users', auth.currentUser?.uid);
+                const newArtifact = {
+                  id: `dna-${Date.now()}`,
+                  type: slot,
+                  url: url,
+                  name: file.name,
+                  timestamp: Date.now()
+                };
+                
                 await updateDoc(userRef, {
                   [`${slot}DnaUrl`]: url,
+                  dnaArtifacts: arrayUnion(newArtifact),
                   lastDnaUpdate: Date.now()
                 });
-                console.log(`[Orchestrator] Persisted ${slot} DNA to profile`);
+                
+                setDnaArtifacts(prev => [newArtifact, ...(prev || [])]);
+                console.log(`[Orchestrator] Persisted ${slot} DNA to profile and vault`);
               } catch (saveErr) {
                 console.warn(`[Orchestrator] Failed to persist ${slot} DNA:`, saveErr);
               }
@@ -2574,10 +2647,17 @@ export default function StudioOrchestratorV2({
         headers,
         body: JSON.stringify({
           prompt: `Cinematic image to video, professional visual: ${videoPrompt.substring(0, 500)}`,
+<<<<<<< HEAD
+          referenceImage: videoDnaUrl,
+          duration: duration,
+          audioUrl: mediaUrls.audio,
+          vocalUrl: mediaUrls.vocals || mediaUrls.lyricsVocal
+=======
           referenceImage: visualDnaUrl || videoDnaUrl,
           referenceVideo: videoDnaUrl,
           visualId: referencedVisualId,
           duration: duration
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
         })
       });
       
@@ -2928,16 +3008,25 @@ export default function StudioOrchestratorV2({
       const videoAsset = {
         id: `mvideo-${Date.now()}`,
         title: 'Professional Music Video',
+<<<<<<< HEAD
+        type: 'video',
+=======
         type: 'video', // StudioView recognizes 'video'
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
         agent: 'Orchestrator Sync',
         content: `Professional synced production for "${songIdea}"`,
         videoUrl: formatVideoSrc(musicVideoUrl),
         date: new Date().toLocaleDateString(),
         createdAt: new Date().toISOString(),
         isPremium: true,
+<<<<<<< HEAD
+        color: 'agent-ec4899'
+      };
+=======
         color: 'agent-ec4899' // Pinkish
       };
       console.log('[Orchestrator] Adding high-fidelity music video asset');
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
       assets.push(videoAsset);
     }
 
@@ -2946,7 +3035,11 @@ export default function StudioOrchestratorV2({
       const mixAsset = {
         id: `fmix-${Date.now()}`,
         title: 'Full Production Master',
+<<<<<<< HEAD
+        type: 'pro',
+=======
         type: 'pro', // StudioView uses 'pro' for full production
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
         agent: 'Studio Orchestrator',
         content: typeof finalMixPreview === 'string' ? finalMixPreview : JSON.stringify(finalMixPreview),
         audioUrl: formatAudioSrc(mediaUrls.audio),
@@ -2954,9 +3047,14 @@ export default function StudioOrchestratorV2({
         imageUrl: formatImageSrc(mediaUrls.image),
         date: new Date().toLocaleDateString(),
         createdAt: new Date().toISOString(),
+<<<<<<< HEAD
+        color: 'agent-4f46e5'
+      };
+=======
         color: 'agent-4f46e5' // Indigo
       };
       console.log('[Orchestrator] Adding final mix master asset');
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
       assets.push(mixAsset);
     }
     
@@ -2977,6 +3075,7 @@ export default function StudioOrchestratorV2({
       musicalBars: bars,
       useBars,
       date: existingProject?.date || new Date().toLocaleDateString(),
+      createdAt: existingProject?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       agents: Object.values(selectedAgents).filter(Boolean).map(id => {
         const agent = AGENTS.find(a => a.id === id);
@@ -3568,88 +3667,250 @@ export default function StudioOrchestratorV2({
           </div>
 
           {showDnaVault && (
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', 
-              gap: '10px',
-              marginTop: '12px',
-              animation: 'fadeIn 0.3s ease'
-            }}>
-              {/* Visual DNA */}
-              <div style={{
-                padding: '12px',
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
+            <div style={{ marginTop: '16px', animation: 'fadeIn 0.3s ease' }}>
+              {/* DNA Explanation Section */}
+              <div style={{ 
+                padding: '16px', 
+                background: 'rgba(168, 85, 247, 0.05)', 
+                borderRadius: '12px', 
+                border: '1px solid rgba(168, 85, 247, 0.15)',
+                marginBottom: '20px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <ImageIcon size={18} color="#ec4899" />
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  <CircleHelp size={20} color="#a855f7" style={{ marginTop: '2px' }} />
                   <div>
-                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Visual DNA</div>
-                    <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {visualDnaUrl ? 'Reference Active' : 'No Image'}
-                    </div>
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', color: '#a855f7', fontWeight: 'bold', fontFamily: 'Georgia, serif' }}>What is DNA?</h4>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.5', fontFamily: 'Georgia, serif' }}>
+                      DNA (Digital Narrative Artifacts) allows you to "seed" the AI with specific creative references. 
+                      By uploading visual moodboards, audio references, or lyrical contexts, the agents can better understand 
+                      and mirror your unique artistic direction. Select an artifact below to set it as the active DNA reference 
+                      for your creative session.
+                    </p>
                   </div>
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {visualDnaUrl && <button onClick={() => setVisualDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
-                  <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
-                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('visual', e)} />
-                    {isUploadingDna.visual ? <Loader2 size={12} className="spin" /> : 'Upload'}
-                  </label>
                 </div>
               </div>
 
-              {/* Audio DNA */}
-              <div style={{
-                padding: '12px',
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', 
+                gap: '10px',
+                marginBottom: '20px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Music size={18} color="#06b6d4" />
-                  <div>
-                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Audio DNA</div>
-                    <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {audioDnaUrl ? 'Ref Active' : 'No Beat'}
+                {/* Visual DNA */}
+                <div style={{
+                  padding: '12px',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <ImageIcon size={18} color="#ec4899" />
+                    <div>
+                      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Visual DNA</div>
+                      <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {visualDnaUrl ? 'Reference Active' : 'No Image'}
+                      </div>
                     </div>
                   </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {visualDnaUrl && <button onClick={() => setVisualDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
+                    <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('visual', e)} />
+                      {isUploadingDna.visual ? <Loader2 size={12} className="spin" /> : 'Upload'}
+                    </label>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {audioDnaUrl && <button onClick={() => setAudioDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
-                  <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
-                    <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('audio', e)} />
-                    {isUploadingDna.audio ? <Loader2 size={12} className="spin" /> : 'Upload'}
-                  </label>
+
+                {/* Audio DNA */}
+                <div style={{
+                  padding: '12px',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Music size={18} color="#06b6d4" />
+                    <div>
+                      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Audio DNA</div>
+                      <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {audioDnaUrl ? 'Ref Active' : 'No Beat'}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {audioDnaUrl && <button onClick={() => setAudioDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
+                    <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
+                      <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('audio', e)} />
+                      {isUploadingDna.audio ? <Loader2 size={12} className="spin" /> : 'Upload'}
+                    </label>
+                  </div>
+                </div>
+
+                {/* Lyrics DNA */}
+                <div style={{
+                  padding: '12px',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <FileText size={18} color="#a855f7" />
+                    <div>
+                      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Lyrics DNA</div>
+                      <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {lyricsDnaUrl ? 'Text Ready' : 'No Context'}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {lyricsDnaUrl && <button onClick={() => setLyricsDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
+                    <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
+                      <input type="file" style={{ display: 'none' }} onChange={(e) => handleUploadDna('lyrics', e)} />
+                      {isUploadingDna.lyrics ? <Loader2 size={12} className="spin" /> : 'Upload'}
+                    </label>
+                  </div>
+                </div>
+
+                {/* Video/Profile DNA */}
+                <div style={{
+                  padding: '12px',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <VideoIcon size={18} color="#f59e0b" />
+                    <div>
+                      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Seed DNA</div>
+                      <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {videoDnaUrl ? 'Profile Active' : 'No Seed'}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {videoDnaUrl && <button onClick={() => setVideoDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
+                    <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
+                      <input type="file" style={{ display: 'none' }} onChange={(e) => handleUploadDna('video', e)} />
+                      {isUploadingDna.video ? <Loader2 size={12} className="spin" /> : 'Upload'}
+                    </label>
+                  </div>
                 </div>
               </div>
 
-              {/* Lyrics DNA */}
-              <div style={{
-                padding: '12px',
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <FileText size={18} color="#a855f7" />
-                  <div>
-                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Lyrics DNA</div>
-                    <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {lyricsDnaUrl ? 'Text Ready' : 'No Context'}
-                    </div>
+              {/* Stored Artifacts Repository */}
+              {dnaArtifacts && dnaArtifacts.length > 0 && (
+                <div style={{ 
+                  marginTop: '12px',
+                  padding: '16px',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.05)'
+                }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600' }}>Stored Vault Artifacts</h4>
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '8px',
+                    maxHeight: '240px',
+                    overflowY: 'auto',
+                    paddingRight: '4px'
+                  }}>
+                    {dnaArtifacts.slice().reverse().map((artifact) => (
+                      <div key={artifact.id} style={{
+                        padding: '10px 12px',
+                        background: 'rgba(0,0,0,0.2)',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(255,255,255,0.03)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        transition: 'all 0.2s'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                          <div style={{ 
+                            width: '32px', 
+                            height: '32px', 
+                            borderRadius: '8px', 
+                            background: 'rgba(255,255,255,0.05)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            {artifact.type === 'visual' && <ImageIcon size={16} color="#ec4899" />}
+                            {artifact.type === 'audio' && <Music size={16} color="#06b6d4" />}
+                            {artifact.type === 'lyrics' && <FileText size={16} color="#a855f7" />}
+                            {artifact.type === 'video' && <VideoIcon size={16} color="#f59e0b" />}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {artifact.name}
+                            </div>
+                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>
+                              {artifact.type.charAt(0).toUpperCase() + artifact.type.slice(1)} • {new Date(artifact.timestamp).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button
+                            onClick={() => {
+                              if (artifact.type === 'visual') setVisualDnaUrl(artifact.url);
+                              if (artifact.type === 'audio') setAudioDnaUrl(artifact.url);
+                              if (artifact.type === 'video') setVideoDnaUrl(artifact.url);
+                              if (artifact.type === 'lyrics') setLyricsDnaUrl(artifact.url);
+                              toast.success(`${artifact.type.charAt(0).toUpperCase() + artifact.type.slice(1)} activated!`);
+                            }}
+                            style={{
+                              padding: '5px 10px',
+                              background: 'rgba(168, 85, 247, 0.15)',
+                              border: '1px solid rgba(168, 85, 247, 0.3)',
+                              borderRadius: '6px',
+                              color: '#a855f7',
+                              fontSize: '0.7rem',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            Activate
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm('Remove this DNA artifact?')) return;
+                              try {
+                                const newArtifacts = dnaArtifacts.filter(a => a.id !== artifact.id);
+                                setDnaArtifacts(newArtifacts);
+                                const userRef = doc(db, 'users', auth.currentUser?.uid);
+                                await updateDoc(userRef, { dnaArtifacts: newArtifacts });
+                                toast.success('Artifact removed');
+                              } catch (err) {
+                                console.error('Failed to remove artifact:', err);
+                              }
+                            }}
+                            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', padding: '4px' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
+<<<<<<< HEAD
+              )}
+=======
                 <div style={{ display: 'flex', gap: '6px' }}>
                   {lyricsDnaUrl && <button onClick={() => setLyricsDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
                   <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
@@ -3773,6 +4034,7 @@ export default function StudioOrchestratorV2({
                   {vocalQuality === 'premium' ? 'ACTIVATED' : 'ACTIVATE'}
                 </button>
               </div>
+>>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
             </div>
           )}
 
@@ -3864,8 +4126,9 @@ export default function StudioOrchestratorV2({
                   padding: '12px',
                   maxHeight: '150px',
                   overflowY: 'auto',
-                  fontSize: '0.85rem',
+                  fontSize: '0.9rem',
                   lineHeight: '1.6',
+                  fontFamily: "'Georgia', 'Times New Roman', serif",
                   color: 'rgba(255,255,255,0.85)',
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
@@ -5126,8 +5389,9 @@ export default function StudioOrchestratorV2({
                   minHeight: previewMaximized ? '300px' : '180px',
                   maxHeight: previewMaximized ? '400px' : '200px',
                   overflowY: 'auto',
-                  fontSize: '0.9rem',
+                  fontSize: '1rem',
                   lineHeight: '1.7',
+                  fontFamily: "'Georgia', 'Times New Roman', serif",
                   color: safeOutputs.lyrics ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.4)',
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',

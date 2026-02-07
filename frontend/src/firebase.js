@@ -18,6 +18,7 @@ import {
   setDoc, 
   updateDoc,
   increment,
+  arrayUnion,
   enableIndexedDbPersistence
 } from 'firebase/firestore';
 import { 
@@ -156,6 +157,7 @@ export {
   setDoc,
   updateDoc,
   increment,
+  arrayUnion,
   ref,
   getDownloadURL
 };

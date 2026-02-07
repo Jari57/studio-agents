@@ -1051,6 +1051,7 @@ function ProjectHubV3({
                       <div className="card-meta">
                         <span className="meta-time">
                           <Clock size={12} />
+                          {project.createdAt && !project.updatedAt ? 'Created ' : ''}
                           {formatRelativeTime(project.updatedAt || project.createdAt)}
                         </span>
                         <span className="meta-visibility">

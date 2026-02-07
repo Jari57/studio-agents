@@ -163,7 +163,7 @@ const AGENT_WHITEPAPER = {
   },
   'master': {
     fullName: 'Mastering Lab AI',
-    version: '3.0.0',
+    version: '3.5.0',
     releaseDate: 'September 2024',
     tagline: 'Major Label Sound, Indie Budget',
     overview: 'Mastering Lab applies professional-grade audio mastering using neural networks trained by Grammy-winning engineers. It analyzes your mix and applies precise EQ, compression, limiting, and stereo enhancement.',

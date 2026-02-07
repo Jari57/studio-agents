@@ -2593,11 +2593,27 @@ app.delete('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
 // GENERATION ROUTE (with optional Firebase auth) - 1 credit for text/lyrics
 app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generationLimiter, async (req, res) => {
   try {
-    const { prompt, systemInstruction, model: requestedModel, referenceUrl, duration, language } = req.body;
+    const { 
+      prompt, 
+      systemInstruction, 
+      model: requestedModel, 
+      referenceUrl, 
+      duration, 
+      language,
+      visualDnaUrl,
+      audioDnaUrl,
+      lyricsDnaUrl,
+      videoDnaUrl
+    } = req.body;
 
     // Log auth status
     if (req.user) {
-      logger.info('🔐 Authenticated generation request', { uid: req.user.uid, hasReference: !!referenceUrl, duration, language });
+      logger.info('🔐 Authenticated generation request', { 
+        uid: req.user.uid, 
+        hasReference: !!referenceUrl || !!visualDnaUrl || !!audioDnaUrl || !!lyricsDnaUrl || !!videoDnaUrl, 
+        duration, 
+        language 
+      });
     }
 
     // 🛡️ INPUT VALIDATION & SANITIZATION
@@ -2615,10 +2631,13 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
     if (language) sanitizedPrompt += `\nResponse Language: ${language}`;
 
     const sanitizedSystemInstruction = sanitizeInput(systemInstruction || '', 2000);
-    // For more advanced use, we could fetch the text content here
-    if (referenceUrl) {
-      sanitizedPrompt = `${sanitizedPrompt} (Style Reference: ${referenceUrl}). Please match the tone and structure found at this source.`;
-    }
+    
+    // Inject DNA references into the prompt for the AI to consider
+    if (referenceUrl) sanitizedPrompt = `${sanitizedPrompt} (Reference Context: ${referenceUrl}).`;
+    if (visualDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Visual DNA: ${visualDnaUrl}). Please consider these visual aesthetics in your response.`;
+    if (audioDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Audio DNA: ${audioDnaUrl}). Use this as a sonic/tonal reference.`;
+    if (lyricsDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Lyrical DNA: ${lyricsDnaUrl}). Match the writing style or context found here.`;
+    if (videoDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Seed/Video DNA: ${videoDnaUrl}).`;
     
     // 🛡️ Validate model name (only allow known Gemini models)
     const allowedModels = [
@@ -3393,15 +3412,17 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           },
           body: JSON.stringify({
             text: processedPrompt,
-            model_id: 'eleven_turbo_v2_5',
+            model_id: 'eleven_turbo_v2_5', // UPGRADED TO V2.5 (High Speed, High Quality)
             voice_settings: {
-              stability: 0.55,
+              stability: style.includes('rapper') ? 0.35 : 0.55, // Lower stability = more expressive rap
               similarity_boost: 0.8,
-              style: 0.0,
+              style: style.includes('rapper') ? 0.65 : 0.0, // Higher style = more vivid delivery
               use_speaker_boost: true
-            }
+            },
+            language_code: langCode // EXPLICIT LANGUAGE GUARD (Stops hallucinations)
           })
         });
+
 
         if (elResponse.ok) {
           const audioBuffer = await elResponse.arrayBuffer();
@@ -3453,9 +3474,11 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           // Poll for success (max 2 minutes)
           for (let i = 0; i < 60 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
             await new Promise(r => setTimeout(r, 2000));
-            const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+            
+            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
               headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
+
             if (pollResponse.ok) {
               result = await pollResponse.json();
               if (result.status === 'succeeded') {
@@ -3505,8 +3528,12 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${replicateKey}`, 'Content-Type': 'application/json' },
+          headers: {
+            'Authorization': `Bearer ${replicateKey}`,
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({
+
             version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
             input: {
               prompt: barkPrompt.substring(0, 1000),
@@ -3522,9 +3549,11 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           let result = prediction;
           for (let i = 0; i < 90 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
             await new Promise(r => setTimeout(r, 2000));
-            const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+            
+            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
               headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
+
             if (pollResponse.ok) {
               result = await pollResponse.json();
               if (result.status === 'succeeded') {
@@ -3681,7 +3710,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
   try {
     const { 
       prompt, bpm: rawBpm = 90, durationSeconds: rawDuration = 30, genre = 'hip-hop', mood = 'chill',
-      referenceAudio, engine = 'auto', highMusicality = true, seed = -1, stem = 'Full Mix' 
+      referenceAudio, engine = 'auto', highMusicality = true, seed = -1, stem = 'Full Mix',
+      quality = 'standard'
     } = req.body;
 
     const bpm = parseInt(rawBpm) || 90;
@@ -3697,11 +3727,29 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     let qualityTags = 'High-fidelity studio recording, professional arrangement, clear soundstage, cinematic production';
     const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${qualityTags}. Professional studio quality.`;
 
+    // Engine Selection Logic - Favor Stability for Premium/Long, MusicGPT for standard rhythmic beats
+    let finalEngine = engine;
+    if (engine === 'auto' || !engine) {
+      // Prioritize Stability AI 2.5 when quality is 'premium' (User Request V3.5)
+      if (quality === 'premium' && stabilityKey) {
+        finalEngine = 'stability';
+      } else if (durationSeconds > 60 && stabilityKey) {
+        // Stability is better at 60s+ tracks
+        finalEngine = 'stability';
+      } else {
+        // MusicGen (Music GPT) is better at short rhythmic beats
+        finalEngine = 'music-gpt';
+      }
+    }
+
     let audioUrl = null;
     let provider = null;
 
-    // 1. Stability AI (Priority for auto or stability)
-    if (stabilityKey && (engine === 'auto' || engine === 'stability')) {
+    // ═══════════════════════════════════════════════════════════════════
+    // 1. Stability AI Stable Audio 2.5 (PRIMARY FOR PREMIUM/LONG FORM)
+    // ═══════════════════════════════════════════════════════════════════
+    if (stabilityKey && (finalEngine === 'stability')) {
+
       try {
         logger.info('Using Stability AI');
         const formData = new FormData();
@@ -3709,7 +3757,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
         formData.append('duration', Math.min(durationSeconds, 180).toString());
         formData.append('model', 'stable-audio-2.5');
         formData.append('output_format', 'mp3');
+        formData.append('steps', '10');
         if (seed > 0) formData.append('seed', seed.toString());
+
 
         const response = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
           method: 'POST',
@@ -3738,8 +3788,16 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
           headers: { 'Authorization': `Bearer ${replicateKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             version: 'b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38',
-            input: { prompt: `${genre} ${mood} beat, ${bpm} BPM. ${prompt}`, duration: Math.min(durationSeconds, 60) }
+            input: { 
+              prompt: musicPrompt, 
+              duration: Math.min(durationSeconds, 60), 
+              model_version: 'stereo-large', 
+              output_format: 'mp3',
+              normalization_strategy: 'peak',
+              seed: seed > 0 ? seed : undefined
+            }
           })
+
         });
 
         if (startResponse.ok) {
@@ -3838,15 +3896,18 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
 // Video generation charges 15 credits (expensive)
 app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), generationLimiter, async (req, res) => {
   try {
-    let { prompt, referenceImage, referenceVideo, durationSeconds = 8 } = req.body;
+    let { prompt, referenceImage, durationSeconds = 8, audioUrl = null, vocalUrl = null } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
-    // Handle reference mapping (referenceVideo -> referenceImage)
-    if (!referenceImage && referenceVideo) referenceImage = referenceVideo;
-
-    durationSeconds = parseInt(durationSeconds) || 8;
+    // SYNC AUGMENTATION: If audio or vocals are provided, enhance the prompt to ensure the video engine "sees" the sound
+    let enhancedPrompt = prompt;
+    if (audioUrl || vocalUrl) {
+      enhancedPrompt = `${prompt}. Synchronize movements and energy with a ${req.body.style || 'dynamic'} beat. The video should feel like a high-fidelity music video performance with rhythmic cuts and energetic motion matching the audio flow.`;
+      logger.info('🎬 Augmenting video prompt for audio synchronization', { hasAudio: !!audioUrl, hasVocals: !!vocalUrl });
+    }
 
     // FAST-FAIL/MOCK for test prompts to save time and API costs during build/CI
+
     if (prompt.toLowerCase().includes('test video') || prompt.toLowerCase() === 'test') {
       logger.info('Handling test video prompt with mock response');
       return res.json({
@@ -3859,7 +3920,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
     }
 
     logger.info('Starting video generation', { 
-      promptLength: prompt.length, 
+      promptLength: enhancedPrompt.length, 
       hasReference: !!referenceImage,
       durationSeconds 
     });
@@ -3874,7 +3935,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
             logger.info('Trying Veo 3.0 Fast as primary video generator...');
             
             // Build instances with image if provided
-            const instance = { prompt: prompt };
+            const instance = { prompt: enhancedPrompt };
             if (referenceImage) {
               instance.image = { image_url: referenceImage };
             }
@@ -3891,6 +3952,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
                 }
               })
             });
+
 
             if (response.ok) {
                 const operationData = await response.json();
