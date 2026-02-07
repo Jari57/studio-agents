@@ -10305,11 +10305,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               </div>
             </div>
           );
-        }
 
-      case 'resources': {
-                            {asset.title || asset.snippet?.substring(0, 30) || 'Untitled Asset'}
-                          </h4>
       case 'resources': {
         // Quick navigation cards - consolidated UI/UX
         const quickNavItems = [
