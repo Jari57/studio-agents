@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const BACKEND_URL = 'http://localhost:3000';
+const BACKEND_URL = 'http://localhost:3001';
 
 test('Manual Video Generation Test', async ({ request }) => {
     test.setTimeout(180000); // 3 minutes

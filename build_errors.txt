@@ -1,0 +1,43 @@
+﻿
+> studio-agents-frontend@3.5.0 build
+> vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mΓ£ô[39m 28 modules transformed.
+
+Γ£¿ [vite-plugin-compression]:algorithm=gzip - compressed file successfully: 
+dist/C:/Users/jari5/studio-agents/frontend/assets/icons-CA7aqiD0.js.gz                  24.88kb / gzip: 8.48kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/NewsHub-px3_0vNa.js.gz                12.29kb / gzip: 3.60kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/MultiAgentDemo-Ca_9wCVY.js.gz         15.93kb / gzip: 5.13kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/QuickWorkflow-CTgYjGdC.js.gz          16.31kb / gzip: 4.99kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/index-CZhXBGxI.js.gz                  33.81kb / gzip: 12.86kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/ProjectHubV3-DphSKzuM.js.gz           72.33kb / gzip: 14.15kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/WhitepapersPage-Bc5Se6l5.js.gz        24.19kb / gzip: 8.12kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/LegalResourcesPage-CSXwnP_l.js.gz     56.93kb / gzip: 20.09kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/LandingPage-8QswIB1o.js.gz            114.63kb / gzip: 27.02kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/StudioOrchestratorV2-B99vRk1h.js.gz   105.36kb / gzip: 25.41kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/index-CTbyPTcp.css.gz                 211.69kb / gzip: 36.17kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/react-vendor-IsfVT3T0.js.gz           191.82kb / gzip: 60.27kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/StudioView-BLneQ3bt.js.gz             427.47kb / gzip: 91.35kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/firebase-W-WeeevT.js.gz               415.53kb / gzip: 125.00kb
+
+
+
+Γ£¿ [vite-plugin-compression]:algorithm=brotliCompress - compressed file successfully: 
+dist/C:/Users/jari5/studio-agents/frontend/assets/icons-CA7aqiD0.js.br                  24.88kb / brotliCompress: 7.36kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/MultiAgentDemo-Ca_9wCVY.js.br         15.93kb / brotliCompress: 4.46kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/NewsHub-px3_0vNa.js.br                12.29kb / brotliCompress: 3.17kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/index-CZhXBGxI.js.br                  33.81kb / brotliCompress: 10.92kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/QuickWorkflow-CTgYjGdC.js.br          16.31kb / brotliCompress: 4.38kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/ProjectHubV3-DphSKzuM.js.br           72.33kb / brotliCompress: 12.21kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/WhitepapersPage-Bc5Se6l5.js.br        24.19kb / brotliCompress: 6.57kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/LegalResourcesPage-CSXwnP_l.js.br     56.93kb / brotliCompress: 16.73kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/LandingPage-8QswIB1o.js.br            114.63kb / brotliCompress: 22.32kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/index-CTbyPTcp.css.br                 211.69kb / brotliCompress: 29.54kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/StudioOrchestratorV2-B99vRk1h.js.br   105.36kb / brotliCompress: 21.00kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/react-vendor-IsfVT3T0.js.br           191.82kb / brotliCompress: 51.89kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/StudioView-BLneQ3bt.js.br             427.47kb / brotliCompress: 69.71kb
+dist/C:/Users/jari5/studio-agents/frontend/assets/firebase-W-WeeevT.js.br               415.53kb / brotliCompress: 106.08kb
+
+

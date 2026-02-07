@@ -2720,38 +2720,21 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
         requestedModel: requestedModel || 'default'
       });
     } catch (primaryError) {
-      // Fallback logic for 429 (Quota) or 404 (Model Not Found) or 500
+      // Fallback logic for 429 (Quota), 404 (Model Not Found), or 500 (Internal Error)
       const isQuotaError = String(primaryError).includes('429');
-      const isModelError = String(primaryError).includes('404') || String(primaryError).includes('not found');
-      
-      logger.warn('Primary model failed, attempting fallback', { error: primaryError.message, model: desiredModel });
-      
-      try {
-        // Fallback to gemini-1.5-flash as it's the most stable/available
-        const fallbackModelId = "gemini-1.5-flash";
-        const fallbackModel = genAI.getGenerativeModel({ model: fallbackModelId, systemInstruction: sanitizedSystemInstruction || undefined });
-        const fallbackResult = await fallbackModel.generateContent(sanitizedPrompt);
-        text = fallbackResult.response.text();
-        usedModel = fallbackModelId;
-        
-        if (!text || text.trim().length < 2) {
-          text = "I'm sorry, I couldn't generate a detailed response. Please try again with a more specific prompt.";
-        }
-      } catch (fallbackError) {
-        logger.error('All generation models failed', { error: fallbackError.message });
-        throw fallbackError;
-      }
-    }
       const isNotFoundError = String(primaryError).includes('404') || String(primaryError).includes('not found');
       const isFallbackCandidate = isQuotaError || isNotFoundError || String(primaryError).includes('500');
       
+      logger.warn('Primary model failed, attempting fallback chain', { 
+        error: primaryError.message, 
+        model: desiredModel 
+      });
+
       if (isFallbackCandidate && desiredModel !== 'gemini-1.5-flash-latest') {
-        // Try stable latest if it wasn't the first attempt
-        const tryModel = desiredModel === 'gemini-2.0-flash' ? 'gemini-1.5-flash-latest' : 'gemini-2.0-flash';
+        // Try stable latest flash if it wasn't the first attempt
+        const tryModel = (desiredModel === 'gemini-2.0-flash') ? 'gemini-1.5-flash-latest' : 'gemini-2.0-flash';
         
-        logger.warn(`Primary model ${desiredModel} failed. Falling back to ${tryModel}.`, { 
-          error: primaryError.message 
-        });
+        logger.info(`🔄 Falling back to ${tryModel}...`);
         
         try {
           const fallbackModel = genAI.getGenerativeModel({ 
@@ -2765,15 +2748,19 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
           text = response.text();
           usedModel = tryModel;
           
-          logger.info('Fallback generation successful', { 
+          if (!text || text.trim().length < 2) {
+            throw new Error("Fallback model returned empty output");
+          }
+
+          logger.info('✅ Fallback generation successful', { 
             ip: req.ip,
             duration: `${Date.now() - startTime}ms`,
             model: tryModel
           });
         } catch (secondaryError) {
-          // Final fallback to gemini-1.5-flash-8b (cheapest/most likely up) if secondary attempt failed
+          // Final fallback to gemini-1.5-flash-8b if secondary attempt failed
           if (tryModel !== 'gemini-1.5-flash-8b') {
-            logger.warn(`Secondary model ${tryModel} failed. Final fallback to gemini-1.5-flash-8b.`);
+            logger.warn(`❌ Secondary model ${tryModel} failed. Final fallback to gemini-1.5-flash-8b.`);
             
             try {
               const thirdModel = genAI.getGenerativeModel({ 
@@ -2785,9 +2772,13 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
               const response = await result.response;
               text = response.text();
               usedModel = 'gemini-1.5-flash-8b';
-              logger.info('Final fallback successful', { model: 'gemini-1.5-flash-8b' });
+              
+              if (!text || text.trim().length < 2) {
+                text = "I'm sorry, I couldn't generate a detailed response. Please try again with a more specific prompt.";
+              }
+              logger.info('✅ Final fallback successful', { model: 'gemini-1.5-flash-8b' });
             } catch (thirdError) {
-              logger.error('Triple model failure. Returning original error.', { error: thirdError.message });
+              logger.error('🚨 Triple model failure. Returning original error.', { error: thirdError.message });
               throw primaryError; 
             }
           } else {

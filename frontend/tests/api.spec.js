@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test';
  * until we have a test user token strategy.
  */
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 
 test.describe('Backend API Health', () => {
   

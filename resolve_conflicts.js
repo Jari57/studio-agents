@@ -38,13 +38,11 @@ function resolveConflicts(filePath) {
 }
 
 const files = [
-    'backend/server.js',
-    'frontend/src/components/StudioView.jsx',
-    'frontend/src/components/StudioOrchestratorV2.jsx'
+    'c:/Users/jari5/whip-montez-live/backend/server.js'
 ];
 
 files.forEach(file => {
-    const fullPath = path.resolve('c:/Users/jari5/studio-agents', file);
+    const fullPath = path.resolve(file);
     if (fs.existsSync(fullPath)) {
         resolveConflicts(fullPath);
     } else {
