@@ -11531,7 +11531,8 @@ const fetchUserCredits = useCallback(async (uid) => {
         }}>
           <Sparkles size={48} style={{ color: '#a855f7', marginBottom: '16px' }} />
           <h2 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--text-primary)' }}>
-            Welcome to Studio Agents
+            Welcome to Studio Agents V3.5
+            <span style={{ fontSize: '0.8rem', color: 'var(--color-purple)', display: 'block', marginTop: '4px', fontWeight: 'bold', letterSpacing: '2px' }}>PRO EDITION</span>
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
             Sign in to access your AI-powered creative studio
@@ -11725,7 +11726,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             <Sparkles size={20} color="white" />
           </div>
           <div className="logo-text">
-            <span className="studio-name">STUDIO AGENTS</span>
+            <span className="studio-name">STUDIO AGENTS <span style={{ color: 'var(--color-purple)', fontSize: '0.6em', verticalAlign: 'middle', marginLeft: '8px', border: '1px solid var(--color-purple)', padding: '2px 6px', borderRadius: '4px' }}>V3.5</span></span>
             <span className="studio-sub">AI ECOSYSTEM</span>
             <span className="studio-domain">studioagentsai.com</span>
           </div>

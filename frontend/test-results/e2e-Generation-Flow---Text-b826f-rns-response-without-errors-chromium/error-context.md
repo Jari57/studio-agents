@@ -1,0 +1,305 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - banner [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - img [ref=e8]
+        - generic [ref=e11]: Studio Agents
+      - button "Sign In" [ref=e13] [cursor=pointer]:
+        - img [ref=e14]
+        - text: Sign In
+  - generic [ref=e18]:
+    - img [ref=e21]
+    - heading "STOP PITCHING. START RELEASING." [level=1] [ref=e26]
+    - paragraph [ref=e27]:
+      - text: The world’s first AI Record Label in your pocket.
+      - text: 16 Expert Agents. One Full-Suite Studio. Zero Gatekeepers.
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - img [ref=e30]
+        - generic [ref=e32]:
+          - strong [ref=e33]: "4.9"
+          - text: App Store
+      - generic [ref=e34]:
+        - img [ref=e35]
+        - generic [ref=e40]:
+          - strong [ref=e41]: 127K
+          - text: Artists
+    - generic [ref=e42]:
+      - button "Launch Your Studio — Free" [ref=e43] [cursor=pointer]:
+        - img [ref=e44]
+        - text: Launch Your Studio — Free
+        - img [ref=e48]
+      - button "Watch AI Orchestration in Action" [ref=e50] [cursor=pointer]:
+        - img [ref=e51]
+        - generic [ref=e53]: Watch AI Orchestration in Action
+    - generic [ref=e54]:
+      - generic [ref=e55] [cursor=pointer]:
+        - generic [ref=e56]:
+          - generic [ref=e57]:
+            - img [ref=e59]
+            - generic [ref=e64]: Manual Control
+          - heading "Studio Workflow" [level=3] [ref=e65]
+          - paragraph [ref=e66]: Full creative control. Hand-pick your agents and craft your vision step by step.
+        - generic [ref=e67]:
+          - generic [ref=e68]:
+            - generic [ref=e69]: "1"
+            - generic [ref=e70]:
+              - generic [ref=e71]: Define Your Vision
+              - generic [ref=e72]: Use the Project Wizard to name your masterpiece and select your studio vibe.
+          - generic [ref=e73]:
+            - generic [ref=e74]: "2"
+            - generic [ref=e75]:
+              - generic [ref=e76]: Assemble Your Team
+              - generic [ref=e77]: Choose from 16 specialized AI agents for lyrics, beats, and production.
+          - generic [ref=e78]:
+            - generic [ref=e79]: "3"
+            - generic [ref=e80]:
+              - generic [ref=e81]: Launch & Amplify
+              - generic [ref=e82]: Use Marketing agents to build your rollout plan and sync socials.
+        - generic [ref=e83]:
+          - generic [ref=e84]: Enter Studio
+          - img [ref=e86]
+      - generic [ref=e88] [cursor=pointer]:
+        - generic [ref=e89]:
+          - generic [ref=e90]:
+            - img [ref=e92]
+            - generic [ref=e94]: Automated
+          - heading "AI Production Pipeline" [level=3] [ref=e95]
+          - paragraph [ref=e96]: Transform a single idea into a complete release package. Our multi-agent orchestrator handles lyrics, beats, visuals, and marketing in one automated flow.
+        - generic [ref=e97]:
+          - generic [ref=e98]:
+            - generic [ref=e99]: "4"
+            - generic [ref=e100]: Agents
+          - generic [ref=e102]:
+            - generic [ref=e103]: 1-Click
+            - generic [ref=e104]: Workflow
+        - generic [ref=e105]:
+          - generic [ref=e106]: Launch Pipeline
+          - img [ref=e108]
+    - generic [ref=e113]:
+      - generic [ref=e114]:
+        - img [ref=e115]
+        - generic [ref=e118]: 2min Setup
+      - generic [ref=e119]:
+        - img [ref=e120]
+        - generic [ref=e122]: No Credit Card
+    - generic [ref=e124]: Explore the future
+  - generic [ref=e126]:
+    - generic [ref=e127]:
+      - heading "MEET YOUR DREAM TEAM" [level=2] [ref=e128]
+      - paragraph [ref=e129]: 16 AI specialists. One studio.
+      - paragraph [ref=e130]: From lyrics to mastering—your team handles it all.
+      - generic [ref=e131]:
+        - generic [ref=e132]:
+          - generic [ref=e133]: "4"
+          - generic [ref=e134]: Free Agents
+        - generic [ref=e135]:
+          - generic [ref=e136]: 24/7
+          - generic [ref=e137]: Live
+        - generic [ref=e138]:
+          - generic [ref=e139]: ∞
+          - generic [ref=e140]: Creates
+    - generic [ref=e141]:
+      - generic [ref=e142]:
+        - button "View Agent Whitepaper" [ref=e143] [cursor=pointer]:
+          - img [ref=e144]
+        - img [ref=e148]
+        - generic [ref=e151]:
+          - heading "Ghostwriter" [level=3] [ref=e152]
+          - paragraph [ref=e153]: Music Creation
+        - button "Launch Agent" [ref=e154] [cursor=pointer]
+      - generic [ref=e155]:
+        - button "View Agent Whitepaper" [ref=e156] [cursor=pointer]:
+          - img [ref=e157]
+        - img [ref=e161]
+        - generic [ref=e164]:
+          - heading "Music GPT" [level=3] [ref=e165]
+          - paragraph [ref=e166]: Pro Producer
+        - button "Launch Agent" [ref=e167] [cursor=pointer]
+      - generic [ref=e168]:
+        - button "View Agent Whitepaper" [ref=e169] [cursor=pointer]:
+          - img [ref=e170]
+        - img [ref=e174]
+        - generic [ref=e177]:
+          - heading "Album Artist 2.0" [level=3] [ref=e178]
+          - paragraph [ref=e179]: Visual Identity
+        - button "Launch Agent" [ref=e180] [cursor=pointer]
+      - generic [ref=e181]:
+        - button "View Agent Whitepaper" [ref=e182] [cursor=pointer]:
+          - img [ref=e183]
+        - img [ref=e187]
+        - generic [ref=e190]:
+          - heading "Video Creator 2.5" [level=3] [ref=e191]
+          - paragraph [ref=e192]: Visual Identity
+        - button "Launch Agent" [ref=e193] [cursor=pointer]
+  - generic [ref=e194]:
+    - generic [ref=e195]:
+      - generic [ref=e196]: Pricing
+      - heading "Simple, Transparent Pricing" [level=2] [ref=e197]
+    - generic [ref=e198]:
+      - generic [ref=e199]:
+        - generic [ref=e200]:
+          - heading "Free" [level=3] [ref=e201]
+          - generic [ref=e203]: $0
+        - list [ref=e204]:
+          - listitem [ref=e205]:
+            - img [ref=e207]
+            - generic [ref=e209]: 3 uses per agent
+          - listitem [ref=e210]:
+            - img [ref=e212]
+            - generic [ref=e214]: 10s audio output
+          - listitem [ref=e215]:
+            - img [ref=e217]
+            - generic [ref=e219]: Basic features
+          - listitem [ref=e220]:
+            - img [ref=e222]
+            - generic [ref=e224]: Session access
+        - button "Start Free Trial" [ref=e225] [cursor=pointer]
+      - generic [ref=e226]:
+        - generic [ref=e227]:
+          - heading "Creator" [level=3] [ref=e228]
+          - generic [ref=e229]:
+            - generic [ref=e230]: $14.99
+            - generic [ref=e231]: /month
+        - list [ref=e232]:
+          - listitem [ref=e233]:
+            - img [ref=e235]
+            - generic [ref=e237]: 100 uses/month
+          - listitem [ref=e238]:
+            - img [ref=e240]
+            - generic [ref=e242]: 30s audio output
+          - listitem [ref=e243]:
+            - img [ref=e245]
+            - generic [ref=e247]: Save creations
+          - listitem [ref=e248]:
+            - img [ref=e250]
+            - generic [ref=e252]: Priority processing
+        - button "Start Free Trial" [ref=e253] [cursor=pointer]
+      - generic [ref=e254]:
+        - generic [ref=e255]:
+          - heading "Studio Pro" [level=3] [ref=e256]
+          - generic [ref=e257]:
+            - generic [ref=e258]: $49.99
+            - generic [ref=e259]: /month
+        - list [ref=e260]:
+          - listitem [ref=e261]:
+            - img [ref=e263]
+            - generic [ref=e265]: 2,000 uses/month
+          - listitem [ref=e266]:
+            - img [ref=e268]
+            - generic [ref=e270]: 60s audio output
+          - listitem [ref=e271]:
+            - img [ref=e273]
+            - generic [ref=e275]: All Creator features
+          - listitem [ref=e276]:
+            - img [ref=e278]
+            - generic [ref=e280]: API access
+          - listitem [ref=e281]:
+            - img [ref=e283]
+            - generic [ref=e285]: Team collab
+          - listitem [ref=e286]:
+            - img [ref=e288]
+            - generic [ref=e290]: Analytics
+        - button "Start Free Trial" [ref=e291] [cursor=pointer]
+      - generic [ref=e292]:
+        - generic [ref=e293]: Most Popular
+        - generic [ref=e294]: Limited Time
+        - generic [ref=e295]: Limited to first 1000 users
+        - generic [ref=e296]:
+          - heading "🔥 Early Bird Lifetime" [level=3] [ref=e297]
+          - generic [ref=e298]:
+            - generic [ref=e299]: $49
+            - generic [ref=e300]: one-time
+        - list [ref=e301]:
+          - listitem [ref=e302]:
+            - img [ref=e304]
+            - generic [ref=e306]: Unlimited everything forever
+          - listitem [ref=e307]:
+            - img [ref=e309]
+            - generic [ref=e311]: Future updates included
+          - listitem [ref=e312]:
+            - img [ref=e314]
+            - generic [ref=e316]: Priority Support
+          - listitem [ref=e317]:
+            - img [ref=e319]
+            - generic [ref=e321]: Commercial License
+          - listitem [ref=e322]:
+            - img [ref=e324]
+            - generic [ref=e326]: Founder Badge
+        - button "Get Lifetime Access" [ref=e327] [cursor=pointer]
+      - generic [ref=e328]:
+        - generic [ref=e329]:
+          - heading "Lifetime Access" [level=3] [ref=e330]
+          - generic [ref=e331]:
+            - generic [ref=e332]: $49
+            - generic [ref=e333]: $99
+            - generic [ref=e334]: one-time
+        - list [ref=e335]:
+          - listitem [ref=e336]:
+            - img [ref=e338]
+            - generic [ref=e340]: Unlimited everything forever
+          - listitem [ref=e341]:
+            - img [ref=e343]
+            - generic [ref=e345]: Future updates included
+          - listitem [ref=e346]:
+            - img [ref=e348]
+            - generic [ref=e350]: Priority Support
+          - listitem [ref=e351]:
+            - img [ref=e353]
+            - generic [ref=e355]: Commercial License
+          - listitem [ref=e356]:
+            - img [ref=e358]
+            - generic [ref=e360]: Founder Badge
+        - button "Start Free Trial" [ref=e361] [cursor=pointer]
+  - generic [ref=e362]:
+    - generic [ref=e363]:
+      - heading "Experience Parallel Intelligence" [level=2] [ref=e364]
+      - paragraph [ref=e365]: Watch our specialized agents work in sync to build your entire release package in seconds.
+    - generic [ref=e366]: Loading demo...
+    - generic [ref=e367]:
+      - paragraph [ref=e368]: Ready to start creating?
+      - button "Start Free" [ref=e369] [cursor=pointer]:
+        - img [ref=e370]
+        - text: Start Free
+        - img [ref=e372]
+    - generic [ref=e374]:
+      - generic [ref=e375]:
+        - generic [ref=e376]: 🎵 Case Study
+        - heading "The Lost Tapes of Whip Montez" [level=3] [ref=e377]:
+          - text: The Lost Tapes of
+          - link "Whip Montez" [ref=e378] [cursor=pointer]:
+            - /url: https://whipmontez.com
+        - paragraph [ref=e379]: We built Studio Agents by resurrecting the lost archives of a Brooklyn MC who vanished before the digital age.
+      - button "Enter The Archive" [ref=e380] [cursor=pointer]:
+        - img [ref=e381]
+        - text: Enter The Archive
+  - generic [ref=e383]:
+    - heading "Stop Waiting for Permission." [level=2] [ref=e384]
+    - paragraph [ref=e385]: Your global rollout starts here. No major label required.
+    - button "Launch Studio Suite" [ref=e386] [cursor=pointer]:
+      - generic [ref=e387]: Launch Studio Suite
+      - img [ref=e388]
+  - button "Investor Pitch Deck" [ref=e391] [cursor=pointer]:
+    - img [ref=e392]
+    - generic [ref=e395]: Investor Pitch Deck
+  - contentinfo [ref=e396]:
+    - generic [ref=e397]:
+      - generic [ref=e398]:
+        - img [ref=e399]
+        - generic [ref=e402]: STUDIO AGENTS AI
+      - generic [ref=e403]:
+        - button "Whitepapers" [ref=e404] [cursor=pointer]
+        - generic [ref=e405]: •
+        - button "Legal & Copyright" [ref=e406] [cursor=pointer]
+        - generic [ref=e407]: •
+        - button "Privacy Policy" [ref=e408] [cursor=pointer]
+        - generic [ref=e409]: •
+        - button "Terms of Service" [ref=e410] [cursor=pointer]
+      - paragraph [ref=e411]: © 2025 studioagentsai.com • Built for the next generation of creators.
+  - generic [ref=e413]:
+    - paragraph [ref=e414]: We use cookies to enhance your creative experience and analyze site traffic.
+    - button "Accept" [ref=e416] [cursor=pointer]
+```

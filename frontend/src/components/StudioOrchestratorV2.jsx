@@ -3066,7 +3066,7 @@ export default function StudioOrchestratorV2({
             <Zap size={isMobile ? 22 : 26} color="white" />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.4rem', fontWeight: '700' }}>Studio Orchestrator</h2>
+            <h2 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.4rem', fontWeight: '700' }}>Studio Orchestrator <span style={{ color: 'var(--color-purple)', fontSize: '0.6em', border: '1px solid var(--color-purple)', padding: '1px 4px', borderRadius: '4px', marginLeft: '6px' }}>V3.5</span></h2>
             <p style={{ margin: 0, fontSize: isMobile ? '0.75rem' : '0.8rem', color: 'var(--text-secondary)' }}>
               4 AI Generators • One Unified Pipeline
             </p>

@@ -765,7 +765,7 @@ if (isDevelopment) {
   app.get('/', (req, res) => {
     res.json({ 
       status: 'ok', 
-      message: 'Studio Agents Backend API', 
+      message: 'Studio Agents V3.5 Backend API', 
       mode: 'development',
       endpoints: {
         health: '/api/health',
@@ -970,7 +970,7 @@ const genAI = new GoogleGenerativeAI(apiKey);
 
 // ROOT ROUTE (Health Check)
 app.get('/', (req, res) => {
-  res.send('Studio Agents Backend System Online. Uplink Established.');
+  res.send('Studio Agents V3.5 Backend Online. High-Fidelity Uplink Established.');
 });
 
 //  MONITORING DASHBOARD
@@ -3359,14 +3359,31 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIORITY -1: ElevenLabs (Premium / Indistinguishable Quality)
+    // PRIORITY -1: ElevenLabs (V3.5 High-Fidelity / Premium)
     // ═══════════════════════════════════════════════════════════════
     // If ElevenLabs key is present, try it first for 'cloned', if a voice ID is provided, or if premium quality is requested
-    if (elevenLabsKey && !audioUrl && (style === 'cloned' || req.body.elevenLabsVoiceId || req.body.quality === 'premium')) {
+    if (elevenLabsKey && !audioUrl && (style === 'cloned' || req.body.elevenLabsVoiceId || req.body.quality === 'premium' || style.includes('rapper'))) {
       try {
-        const voiceId = req.body.elevenLabsVoiceId || 'pNInz6obpgDQGcFmaJgB'; // Default high-quality Adam voice if none provided
-        logger.info('🎤 Using ElevenLabs for premium vocal generation', { voiceId, quality: req.body.quality });
+        // Voice ID logic: Choose a voice that matches the request
+        let voiceId = req.body.elevenLabsVoiceId;
         
+        if (!voiceId) {
+          // V3.5 CURATED VOICE MAPPING for Rap/Premium
+          if (style === 'rapper') voiceId = 'pNInz6obpgDQGcFmaJgB'; // Adam (Good for mature rap)
+          else if (style === 'rapper-female') voiceId = 'Lcf7NAZ7x9YVvj6S7YhL'; // Female Rapper (Alice)
+          else if (style === 'singer') voiceId = 'MF3mGyEYCl7XYW7ANnSM'; // Emotional Singer
+          else voiceId = 'pNInz6obpgDQGcFmaJgB'; // Default Adam
+        }
+
+        logger.info('🎤 Using ElevenLabs V3.5 High-Fidelity', { voiceId, quality: req.body.quality, style });
+        
+        // RAP FORMATTING: Add rhythmic pauses for TTS if it's a rap style
+        let processedPrompt = prompt;
+        if (style.includes('rapper')) {
+           // Add slight pauses after sentences/lines to maintain rhythm
+           processedPrompt = prompt.replace(/\.(?!\d)/g, '... ').replace(/\n/g, '; ');
+        }
+
         const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
           method: 'POST',
           headers: {
@@ -3375,8 +3392,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            text: prompt,
-            model_id: 'eleven_multilingual_v2',
+            text: processedPrompt,
+            model_id: 'eleven_turbo_v2_5',
             voice_settings: {
               stability: 0.55,
               similarity_boost: 0.8,
