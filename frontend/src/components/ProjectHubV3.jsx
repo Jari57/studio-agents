@@ -104,29 +104,6 @@ function DiscoverFeed({ onRemix, onPlay, playingAudio }) {
     </div>
   );
 }
-                      }}
-                      style={{ 
-                        background: 'rgba(255,255,255,0.05)', 
-                        border: '1px solid rgba(255,255,255,0.1)', 
-                        borderRadius: '8px', 
-                        padding: '8px',
-                        color: 'rgba(255,255,255,0.4)',
-                        cursor: 'pointer'
-                      }}
-                      title="Report Content"
-                    >
-                      <AlertTriangle size={14} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-}
 
 /**
  * ProjectHubV3 - CapCut/Captions-inspired modern project management

@@ -10299,110 +10299,17 @@ const fetchUserCredits = useCallback(async (uid) => {
                     >
                        <LayoutGrid size={28} />
                        <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Social Dashboard</span>
-                    </button>
-                  </div>
+                      </button>
+                    </div>
+                </div>
               </div>
             </div>
-          </div>
-        );
-                          
-                          <h4 style={{ 
-                            margin: '0 0 8px 0', 
-                            fontSize: '1rem', 
-                            fontWeight: '600',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            color: 'white'
-                          }}>
+          );
+        }
+
+      case 'resources': {
                             {asset.title || asset.snippet?.substring(0, 30) || 'Untitled Asset'}
                           </h4>
-                          
-                          <p style={{ 
-                            margin: 0, 
-                            fontSize: '0.85rem', 
-                            color: 'var(--text-secondary)', 
-                            height: '40px', 
-                            overflow: 'hidden', 
-                            display: '-webkit-box', 
-                            WebkitLineClamp: 2, 
-                            WebkitBoxOrient: 'vertical',
-                            lineHeight: '1.4'
-                          }}>
-                            {asset.snippet || asset.description || 'No description available.'}
-                          </p>
-                          
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                            <button 
-                              className="btn-secondary-sm haptic-press" 
-                              style={{ flex: 1, padding: '6px' }}
-                              onClick={() => {
-                                const safeAsset = {
-                                  ...asset,
-                                  isExistingAsset: true
-                                };
-                                setPreviewItem(safeAsset);
-                              }}
-                            >
-                              <Eye size={14} /> View
-                            </button>
-                            <button 
-                              className="btn-secondary-sm haptic-press" 
-                              style={{ flex: 1, padding: '6px' }}
-                              onClick={() => {
-                                if (asset.snippet || asset.content) {
-                                  navigator.clipboard.writeText(asset.content || asset.snippet);
-                                  toast.success('Copied to clipboard');
-                                }
-                              }}
-                            >
-                              <Copy size={14} /> Copy
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </SafeAssetWrapper>
-                    );
-                    })}
-                  </div>
-                ) : (
-                  <div style={{ 
-                    padding: '48px', textAlign: 'center', background: 'var(--bg-secondary)', 
-                    borderRadius: '12px', border: '1px dashed var(--border-color)'
-                  }}>
-                    <LayoutGrid size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                    <h3 style={{ marginBottom: '8px' }}>No generations yet</h3>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-                      Launch an agent to start creating content for this project.
-                    </p>
-                    <button 
-                      className="btn-primary"
-                      onClick={() => {
-                        if (selectedProject.agents && selectedProject.agents.length > 0) {
-                          const firstAgentData = selectedProject.agents[0];
-                          const agentId = typeof firstAgentData === 'string' ? firstAgentData : firstAgentData?.id;
-                          const agent = (typeof AGENTS !== 'undefined' && AGENTS) 
-                            ? (AGENTS.find(a => a.id === agentId) || (typeof firstAgentData === 'object' ? firstAgentData : null))
-                            : (typeof firstAgentData === 'object' ? firstAgentData : null);
-                          if (agent) {
-                            setSelectedAgent(agent);
-                          } else {
-                            setShowAddAgentModal(true);
-                          }
-                        } else {
-                          setShowAddAgentModal(true);
-                        }
-                      }}
-                    >
-                      Start Creating
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-
       case 'resources': {
         // Quick navigation cards - consolidated UI/UX
         const quickNavItems = [
