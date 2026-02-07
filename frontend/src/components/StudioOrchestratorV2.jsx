@@ -1342,6 +1342,7 @@ export default function StudioOrchestratorV2({
   const [audioDnaUrl, setAudioDnaUrl] = useState(null);
   const [videoDnaUrl, setVideoDnaUrl] = useState(null); // Image used for image-to-video
   const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null); // Text file or PDF as reference
+  const [dnaArtifacts, setDnaArtifacts] = useState([]); // List of all stored DNA artifacts
   const [referencedAudioId, setReferencedAudioId] = useState('');
   const [referencedVisualId, setReferencedVisualId] = useState('');
   const [isUploadingDna, setIsUploadingDna] = useState({ visual: false, audio: false, video: false, lyrics: false });
@@ -1480,66 +1481,6 @@ export default function StudioOrchestratorV2({
   // HELPERS
   // ═══════════════════════════════════════════════════════════════════════════════
 
-<<<<<<< HEAD
-  const [mediaUrls, setMediaUrls] = useState({
-    audio: null,
-    image: null,
-    video: null,
-    vocals: null,
-    lyricsVocal: null // Unified key for lyrics+vocal
-  });
-  
-  const [generatingMedia, setGeneratingMedia] = useState({
-    audio: false,
-    image: false,
-    video: false,
-    vocals: false
-  });
-  
-  const [speakingSlot, setSpeakingSlot] = useState(null);
-  const [projectName, setProjectName] = useState('');
-  const [showCreateProject, setShowCreateProject] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [voiceStyle, setVoiceStyle] = useState('rapper'); // For AI vocal generation (rapper, singer, etc)
-  const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
-  const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
-  const [generatingVocal, setGeneratingVocal] = useState(false);
-  const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
-  const [creatingFinalMix, setCreatingFinalMix] = useState(false);
-  const [finalMixPreview, setFinalMixPreview] = useState(null);
-  const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
-  const [musicVideoUrl, setMusicVideoUrl] = useState(null);
-  const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
-  const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
-  const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
-  const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
-  const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
-  const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
-  const [isUploadingSample, setIsUploadingSample] = useState(false);
-  const [savedVoices, setSavedVoices] = useState([]); // List of voices saved in Firestore
-  const [loadingVoices, setLoadingVoices] = useState(false);
-
-  // New DNA States for other agents
-  const [visualDnaUrl, setVisualDnaUrl] = useState(null);
-  const [audioDnaUrl, setAudioDnaUrl] = useState(null);
-  const [videoDnaUrl, setVideoDnaUrl] = useState(null); // Image used for image-to-video
-  const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null); // Text file or PDF as reference
-  const [dnaArtifacts, setDnaArtifacts] = useState([]); // List of all stored DNA artifacts
-  const [isUploadingDna, setIsUploadingDna] = useState({ visual: false, audio: false, video: false, lyrics: false });
-  const [showDnaVault, setShowDnaVault] = useState(false);
-  
-  // const speechSynthRef = useRef(null); - removed (unused)
-  const recognitionRef = useRef(null);
-  const vocalAudioRef = useRef(null);
-  
-  // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
-  const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
-  const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
-  
-=======
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
   // Check if there's any generated content that hasn't been saved
   const hasUnsavedContent = () => {
     const hasContent = Object.values(safeOutputs).some(Boolean) || Object.values(safeMediaUrls).some(Boolean);
@@ -2647,17 +2588,12 @@ export default function StudioOrchestratorV2({
         headers,
         body: JSON.stringify({
           prompt: `Cinematic image to video, professional visual: ${videoPrompt.substring(0, 500)}`,
-<<<<<<< HEAD
-          referenceImage: videoDnaUrl,
-          duration: duration,
-          audioUrl: mediaUrls.audio,
-          vocalUrl: mediaUrls.vocals || mediaUrls.lyricsVocal
-=======
           referenceImage: visualDnaUrl || videoDnaUrl,
           referenceVideo: videoDnaUrl,
           visualId: referencedVisualId,
-          duration: duration
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
+          duration: duration,
+          audioUrl: mediaUrls.audio,
+          vocalUrl: mediaUrls.vocals || mediaUrls.lyricsVocal
         })
       });
       
@@ -3008,25 +2944,16 @@ export default function StudioOrchestratorV2({
       const videoAsset = {
         id: `mvideo-${Date.now()}`,
         title: 'Professional Music Video',
-<<<<<<< HEAD
-        type: 'video',
-=======
         type: 'video', // StudioView recognizes 'video'
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
         agent: 'Orchestrator Sync',
         content: `Professional synced production for "${songIdea}"`,
         videoUrl: formatVideoSrc(musicVideoUrl),
         date: new Date().toLocaleDateString(),
         createdAt: new Date().toISOString(),
         isPremium: true,
-<<<<<<< HEAD
-        color: 'agent-ec4899'
-      };
-=======
         color: 'agent-ec4899' // Pinkish
       };
       console.log('[Orchestrator] Adding high-fidelity music video asset');
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
       assets.push(videoAsset);
     }
 
@@ -3035,11 +2962,7 @@ export default function StudioOrchestratorV2({
       const mixAsset = {
         id: `fmix-${Date.now()}`,
         title: 'Full Production Master',
-<<<<<<< HEAD
-        type: 'pro',
-=======
         type: 'pro', // StudioView uses 'pro' for full production
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
         agent: 'Studio Orchestrator',
         content: typeof finalMixPreview === 'string' ? finalMixPreview : JSON.stringify(finalMixPreview),
         audioUrl: formatAudioSrc(mediaUrls.audio),
@@ -3047,14 +2970,9 @@ export default function StudioOrchestratorV2({
         imageUrl: formatImageSrc(mediaUrls.image),
         date: new Date().toLocaleDateString(),
         createdAt: new Date().toISOString(),
-<<<<<<< HEAD
-        color: 'agent-4f46e5'
-      };
-=======
         color: 'agent-4f46e5' // Indigo
       };
       console.log('[Orchestrator] Adding final mix master asset');
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
       assets.push(mixAsset);
     }
     
@@ -3908,9 +3826,6 @@ export default function StudioOrchestratorV2({
                     ))}
                   </div>
                 </div>
-<<<<<<< HEAD
-              )}
-=======
                 <div style={{ display: 'flex', gap: '6px' }}>
                   {lyricsDnaUrl && <button onClick={() => setLyricsDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
                   <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
@@ -4034,7 +3949,6 @@ export default function StudioOrchestratorV2({
                   {vocalQuality === 'premium' ? 'ACTIVATED' : 'ACTIVATE'}
                 </button>
               </div>
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
             </div>
           )}
 

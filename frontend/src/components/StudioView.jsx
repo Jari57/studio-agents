@@ -512,14 +512,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [videoDnaUrl, setVideoDnaUrl] = useState(null);
   const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null);
   const [voiceSampleUrl, setVoiceSampleUrl] = useState(null);
-<<<<<<< HEAD
   const [dnaArtifacts, setDnaArtifacts] = useState([]);
-=======
   const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(localStorage.getItem('studio_elevenlabs_voice_id') || '');
   const [elVoices, setElVoices] = useState([]);
   const [referencedAudioId, setReferencedAudioId] = useState('');
   const [referencedVisualId, setReferencedVisualId] = useState('');
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
   const [isUploadingDna, setIsUploadingDna] = useState({});
   const [isUploadingSample, setIsUploadingSample] = useState(false);
   const [showDnaVault, setShowDnaVault] = useState(false);
@@ -3222,14 +3219,9 @@ const fetchUserCredits = useCallback(async (uid) => {
           style: voiceSettings.style || 'rapper',  // rapper, rapper-female, singer, singer-female
           rapStyle: voiceSettings.rapStyle || 'aggressive',  // aggressive, melodic, trap, drill, boom-bap, fast, chill, hype
           genre: voiceSettings.genre || 'hip-hop',  // hip-hop, r&b, pop, soul, trap, drill
-<<<<<<< HEAD
-          speakerUrl: voiceSettings.speakerUrl,
-          quality: 'premium' // V3.5 DEFAULT: Always prefer premium High-Fidelity vocals
-=======
           speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
           elevenLabsVoiceId: elevenLabsVoiceId,
-          quality: (elevenLabsVoiceId || voiceSampleUrl) ? 'premium' : 'standard'
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
+          quality: 'premium' // V3.5 DEFAULT: Always prefer premium High-Fidelity vocals
         })
       });
 
@@ -5186,24 +5178,6 @@ const fetchUserCredits = useCallback(async (uid) => {
                            </button>
                          </div>
                        </div>
-<<<<<<< HEAD
-                       <div style={{ 
-                         flex: 1,
-                         overflowY: 'auto',
-                         padding: '20px',
-                         background: 'rgba(0,0,0,0.3)',
-                         borderRadius: '12px',
-                         border: '1px solid rgba(255,255,255,0.05)'
-                       }}>
-                         <pre style={{ 
-                           margin: 0,
-                           fontFamily: "'Georgia', 'Times New Roman', serif",
-                           fontSize: '1rem',
-                           lineHeight: '1.8',
-                           color: 'rgba(255,255,255,0.95)',
-                           whiteSpace: 'pre-wrap',
-                           wordWrap: 'break-word'
-=======
 
                        {/* Audio Player section */}
                        {canvasPreviewAsset.audioUrl && (
@@ -5216,7 +5190,6 @@ const fetchUserCredits = useCallback(async (uid) => {
                            display: 'flex',
                            alignItems: 'center',
                            gap: '16px'
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
                          }}>
                            <div className="pulse-icon" style={{ flexShrink: 0 }}>
                               <Music size={24} className="text-purple" />
@@ -7865,7 +7838,6 @@ const fetchUserCredits = useCallback(async (uid) => {
                     overflow: 'hidden',
                     transition: 'all 0.3s ease'
                   }}>
-<<<<<<< HEAD
                     {/* DNA Explanation Section */}
                     {showDnaVault && (
                       <div style={{ 
@@ -7886,21 +7858,6 @@ const fetchUserCredits = useCallback(async (uid) => {
                         </div>
                       </div>
                     )}
-=======
-                    {/* Educational Section for DNA */}
-                    <div style={{
-                      padding: '12px',
-                      background: 'rgba(168, 85, 247, 0.05)',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(168, 85, 247, 0.1)',
-                      marginBottom: '8px'
-                    }}>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: '0.85rem', color: '#a855f7', fontWeight: 'bold', fontFamily: 'Georgia, serif' }}>What is DNA?</h4>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.4', fontFamily: 'Georgia, serif' }}>
-                        Studio DNA captures your artistic identity. Uploading reference images, audio, or lyrics allows the AI to "inherit" your style, ensuring every generation feels like your personal creation.
-                      </p>
-                    </div>
->>>>>>> 666b1a2d6a504e2d8a70b65f7a42a55d48f0a806
 
                     {/* Visual DNA Upload */}
                     <div className="reference-upload-card" style={{
