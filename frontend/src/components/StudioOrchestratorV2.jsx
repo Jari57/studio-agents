@@ -3826,14 +3826,7 @@ export default function StudioOrchestratorV2({
                     ))}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {lyricsDnaUrl && <button onClick={() => setLyricsDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
-                  <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
-                    <input type="file" style={{ display: 'none' }} onChange={(e) => handleUploadDna('lyrics', e)} />
-                    {isUploadingDna.lyrics ? <Loader2 size={12} className="spin" /> : 'Upload'}
-                  </label>
-                </div>
-              </div>
+              )}
 
               {/* Audio ID Reference - New for Audio_ID support */}
               <div style={{
@@ -3867,34 +3860,6 @@ export default function StudioOrchestratorV2({
                     fontFamily: 'monospace'
                   }}
                 />
-              </div>
-
-              {/* Video/Profile DNA */}
-              <div style={{
-                padding: '12px',
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <VideoIcon size={18} color="#f59e0b" />
-                  <div>
-                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Seed DNA</div>
-                    <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {videoDnaUrl ? 'Profile Active' : 'No Seed'}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {videoDnaUrl && <button onClick={() => setVideoDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
-                  <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
-                    <input type="file" style={{ display: 'none' }} onChange={(e) => handleUploadDna('video', e)} />
-                    {isUploadingDna.video ? <Loader2 size={12} className="spin" /> : 'Upload'}
-                  </label>
-                </div>
               </div>
 
               {/* ElevenLabs Premium Toggle */}
