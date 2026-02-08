@@ -5206,8 +5206,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                      <div style={{ 
                        width: '100%', 
                        height: '100%',
-                       minHeight: '400px',
-                       padding: '32px', 
+                       minHeight: isMobile ? '300px' : '400px',
+                       padding: isMobile ? '16px' : '32px', 
                        display: 'flex', 
                        flexDirection: 'column',
                        background: 'linear-gradient(180deg, rgba(6, 182, 212, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)'
@@ -5293,7 +5293,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                          <div style={{ 
                            flex: 1,
                            overflowY: 'auto',
-                           padding: '24px',
+                           padding: isMobile ? '16px' : '24px',
                            background: 'rgba(0,0,0,0.3)',
                            borderRadius: '12px',
                            border: '1px solid rgba(255,255,255,0.05)',
@@ -5302,7 +5302,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                            <div style={{ 
                              margin: 0,
                              fontFamily: "'Georgia', 'Times New Roman', serif",
-                             fontSize: '1.15rem',
+                             fontSize: isMobile ? '1rem' : '1.15rem',
                              lineHeight: '1.8',
                              color: 'rgba(255,255,255,0.9)',
                              whiteSpace: 'pre-wrap',
@@ -5322,7 +5322,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                    )}
                    
                    {/* Quick Actions Overlay */}
-                   <div style={{ position: 'absolute', top: '16px', right: '16px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                   <div style={{ position: 'absolute', top: isMobile ? '8px' : '16px', right: isMobile ? '8px' : '16px', display: 'flex', gap: '8px', zIndex: 10 }}>
                      <button 
                        onClick={() => {
                          try {
@@ -5359,8 +5359,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                        }}
                        className="btn-icon-circle glass"
                        title="Download"
+                       style={{ width: isMobile ? '32px' : '40px', height: isMobile ? '32px' : '40px' }}
                      >
-                       <Download size={18} />
+                       <Download size={isMobile ? 14 : 18} />
                      </button>
                      <button 
                        onClick={() => {
@@ -5370,9 +5371,18 @@ const fetchUserCredits = useCallback(async (uid) => {
                          }
                        }}
                        className="btn-icon-circle glass"
-                       title="Fullscreen"
+                       title="Fullscreen / Open"
+                       style={{ width: isMobile ? '32px' : '40px', height: isMobile ? '32px' : '40px' }}
                      >
-                       <Maximize2 size={18} />
+                       <Maximize2 size={isMobile ? 14 : 18} />
+                     </button>
+                     <button 
+                       onClick={() => setCanvasPreviewAsset(null)}
+                       className="btn-icon-circle glass"
+                       title="Close Monitor"
+                       style={{ width: isMobile ? '32px' : '40px', height: isMobile ? '32px' : '40px', background: 'rgba(239, 68, 68, 0.2)' }}
+                     >
+                       <X size={isMobile ? 14 : 18} />
                      </button>
                    </div>
                  </>
@@ -16256,7 +16266,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: previewMaximized ? '0' : '20px'
+            padding: previewMaximized ? '0' : (isMobile ? '8px' : '20px')
           }}
         >
           {/* Navigation Arrows */}
@@ -16392,16 +16402,16 @@ const fetchUserCredits = useCallback(async (uid) => {
             className="modal-content" 
             onClick={e => e.stopPropagation()} 
             style={{ 
-              maxWidth: previewMaximized ? '98vw' : (safePreview.type === 'image' ? '90vw' : '85vw'), 
-              maxHeight: previewMaximized ? '98vh' : '85vh',
-              width: previewMaximized ? '98vw' : (safePreview.type === 'image' ? 'auto' : '100%'),
-              height: previewMaximized ? '98vh' : 'auto',
+              maxWidth: previewMaximized ? '100vw' : (safePreview.type === 'image' ? (isMobile ? '95vw' : '90vw') : (isMobile ? '95vw' : '85vw')), 
+              maxHeight: previewMaximized ? '100vh' : (isMobile ? '92vh' : '85vh'),
+              width: previewMaximized ? '100vw' : (safePreview.type === 'image' ? 'auto' : '100%'),
+              height: previewMaximized ? '100vh' : 'auto',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
               background: 'rgba(10,10,15,0.99)',
-              borderRadius: previewMaximized ? '8px' : '16px',
-              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: (previewMaximized || isMobile) ? '0' : '16px',
+              border: previewMaximized ? 'none' : '1px solid rgba(255,255,255,0.1)',
               boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
               transition: 'all 0.3s ease'
             }}
@@ -16409,7 +16419,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             {/* Header */}
             <div className="modal-header" style={{ 
               borderBottom: '1px solid rgba(255,255,255,0.1)', 
-              padding: '1rem 1.5rem', 
+              padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem', 
               flexShrink: 0,
               display: 'flex',
               justifyContent: 'space-between',
@@ -16510,11 +16520,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                       alignItems: 'center', 
                       gap: '6px',
                       fontSize: '0.85rem',
-                      padding: '8px 16px'
+                      padding: isMobile ? '8px' : '8px 16px'
                     }}
                   >
                     <Zap size={16} />
-                    Use in Orchestrator
+                    {!isMobile && "Use in Orchestrator"}
                   </button>
                 )}
                 <button className="modal-close" onClick={() => { 
@@ -16718,21 +16728,24 @@ const fetchUserCredits = useCallback(async (uid) => {
               {(safePreview.type === 'text' || safePreview.type === 'lyrics' || safePreview.type === 'vocal' || safePreview.type === 'audio' || safePreview.type === 'hook' || safePreview.type === 'verse' || safePreview.type === 'concept') && (
                 <div style={{ 
                   width: '100%', 
-                  maxWidth: previewMaximized ? '800px' : '650px', 
-                  maxHeight: previewMaximized ? '85vh' : '75vh',
+                  maxWidth: previewMaximized ? '1200px' : '900px', 
+                  maxHeight: '100%',
                   overflow: 'auto',
-                  padding: '2.5rem',
-                  background: 'rgba(20, 20, 30, 0.9)',
+                  padding: isMobile ? '1.5rem' : '3rem',
+                  background: 'rgba(20, 20, 30, 0.4)',
                   borderRadius: '16px',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
+                  border: isMobile ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                  boxShadow: isMobile ? 'none' : '0 10px 40px rgba(0,0,0,0.5)',
+                  flex: 1
                 }}>
                   <div style={{ 
-                    fontSize: previewMaximized ? '1.2rem' : '1.1rem', 
+                    fontSize: previewMaximized ? '1.4rem' : '1.15rem', 
                     lineHeight: '1.8',
                     color: 'var(--text-primary)',
                     whiteSpace: 'pre-wrap',
-                    fontFamily: "'Georgia', 'Times New Roman', serif"
+                    fontFamily: "'Georgia', 'Times New Roman', serif",
+                    margin: '0 auto',
+                    maxWidth: '800px'
                   }}>
                     {(() => {
                       // Use helper for robust text extraction
@@ -16869,7 +16882,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     }
                   }}
                   style={{
-                    padding: '10px 20px',
+                    padding: isMobile ? '8px 12px' : '10px 20px',
                     borderRadius: '8px',
                     border: 'none',
                     background: 'linear-gradient(135deg, var(--color-cyan), var(--color-purple))',
@@ -16879,10 +16892,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                     alignItems: 'center',
                     gap: '8px',
                     fontWeight: '600',
-                    fontSize: '0.85rem'
+                    fontSize: '0.8rem'
                   }}
                 >
-                  <RefreshCw size={16} /> Re-run with {safePreview.asset?.agent}
+                  <RefreshCw size={14} /> {isMobile ? "Regen" : `Re-run with ${safePreview.asset?.agent}`}
                 </button>
               )}
 
@@ -16911,7 +16924,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   toast.success('Asset loaded into Orchestrator!');
                 }}
                 style={{
-                  padding: '10px 20px',
+                  padding: isMobile ? '8px 12px' : '10px 20px',
                   borderRadius: '8px',
                   border: '1px solid rgba(168, 85, 247, 0.5)',
                   background: 'rgba(168, 85, 247, 0.2)',
@@ -16921,10 +16934,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                   alignItems: 'center',
                   gap: '8px',
                   fontWeight: '600',
-                  fontSize: '0.85rem'
+                  fontSize: '0.8rem'
                 }}
               >
-                <Sparkles size={16} /> Use in Orchestrator
+                <Sparkles size={14} /> {isMobile ? "Use" : "Use in Orchestrator"}
               </button>
 
               {/* Download Button (for media) */}
@@ -16946,7 +16959,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     }
                   }}
                   style={{
-                    padding: '10px 20px',
+                    padding: isMobile ? '8px 12px' : '10px 20px',
                     borderRadius: '8px',
                     border: '1px solid rgba(255,255,255,0.2)',
                     background: 'rgba(255,255,255,0.1)',
@@ -16955,10 +16968,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    fontSize: '0.85rem'
+                    fontSize: '0.8rem'
                   }}
                 >
-                  <Download size={16} /> Download
+                  <Download size={14} /> {isMobile ? "Save" : "Download"}
                 </button>
               )}
             </div>
