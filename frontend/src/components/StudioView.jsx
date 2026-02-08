@@ -1044,14 +1044,69 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
     
     try {
+      // --- AUTHORITATIVE MEDIA UPLOAD (V3.5.1 FIX) ---
+      // Scan for base64/blob media and move to storage BEFORE Firestore hits 1MB/413 limit
+      let updatedAssets = null;
+      if (project.assets && Array.isArray(project.assets)) {
+        for (let i = 0; i < project.assets.length; i++) {
+          const asset = project.assets[i];
+          if (!asset) continue;
+
+          const mediaSpecs = [
+            { key: "imageUrl", folder: "images", mime: "image/png" },
+            { key: "audioUrl", folder: "audio", mime: "audio/mp3" },
+            { key: "videoUrl", folder: "video", mime: "video/mp4" },
+            { key: "vocalUrl", folder: "vocal", mime: "audio/wav" }
+          ];
+
+          let assetMod = false;
+          let newAsset = null;
+
+          for (const spec of mediaSpecs) {
+            const val = asset[spec.key];
+            if (typeof val === "string" && (val.startsWith("data:") || val.startsWith("blob:"))) {
+              console.log(`[TRACE:${traceId}] Auto-uploading media: ${asset.id}.${spec.key}`);
+              try {
+                if (!newAsset) newAsset = { ...asset };
+                const res = val.startsWith("data:") 
+                  ? await uploadBase64(val, uid, spec.folder, spec.mime)
+                  : await (async () => {
+                      const b = await fetch(val).then(r => r.blob());
+                      return uploadFile(b, uid, spec.folder, `${Date.now()}.${spec.mime.split("/")[1]}`);
+                    })();
+                newAsset[spec.key] = res.url;
+                newAsset[spec.key + "StoragePath"] = res.path;
+                assetMod = true;
+              } catch (upErr) { console.warn("Media sync failed:", upErr); }
+            }
+          }
+
+          if (assetMod) {
+            if (!updatedAssets) updatedAssets = [...project.assets];
+            updatedAssets[i] = newAsset;
+          }
+        }
+      }
+
+      const activeProject = updatedAssets ? { ...project, assets: updatedAssets } : project;
+      
+      // Update local state if we swapped base64 for URLs to prevent redundant uploads
+      if (updatedAssets) {
+        setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === project.id ? activeProject : p) : prev);
+        if (selectedProject?.id === project.id) {
+          setSelectedProject(activeProject);
+        }
+      }
+
       // Robust Sanitization: Deep-clone serializable fields only
       // We specifically handle the 'assets' array to ensure one bad asset doesn't break the whole project save
       const sanitizedProject = {};
-      for (const [key, value] of Object.entries(project)) {
+      for (const [key, value] of Object.entries(activeProject)) {
         if (value === undefined || value === null || typeof value === 'function') continue;
         
         if (key === 'assets' && Array.isArray(value)) {
           sanitizedProject.assets = value.map(asset => {
+            if (!asset || typeof asset !== 'object') return asset;
             const sanitizedAsset = {};
             for (const [aKey, aValue] of Object.entries(asset)) {
               if (aValue === undefined || typeof aValue === 'function') continue;
@@ -1167,7 +1222,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Debounced cloud sync when projects change (only if logged in AND Firebase ready)
   useEffect(() => {
     // CRITICAL: Check both user state AND auth.currentUser to ensure Firebase is ready
-    if (!user?.uid || projects.length === 0 || !auth?.currentUser) return;
+    // Also skip if we are currently mid-manual-save to avoid conflicts
+    if (!user?.uid || projects.length === 0 || !auth?.currentUser || isSaving) return;
     
     // Clear existing timeout
     if (syncTimeoutRef.current) {
@@ -2028,47 +2084,52 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           }
           
           console.log('[SaveAsset] Adding new asset to project:', projectId, asset.id);
-          return {
+          const updatedProject = {
             ...p,
-            assets: [...existingAssets, asset],
+            assets: [asset, ...existingAssets],
             progress: Math.min(100, (p.progress || 0) + 10),
             updatedAt: new Date().toISOString()
           };
+
+          // SIDE EFFECT: Save to cloud if logged in AND Firebase is ready
+          // We call this OUTSIDE the return to avoid side-effects in state updater where possible, 
+          // although inside the callback is the only place we have the guaranteed latest project state.
+          // To be safer, we use a microtask or a brief timeout.
+          if (user && auth?.currentUser) {
+            setTimeout(() => {
+              saveProjectToCloud(user?.uid, updatedProject)
+                .then((success) => {
+                  if (success) {
+                    updateSaveStatus('saved');
+                    triggerHapticFeedback('success');
+                  } else {
+                    updateSaveStatus('idle');
+                    console.log('[SaveAsset] Cloud save deferred - will retry on next sync');
+                  }
+                })
+                .catch(err => {
+                  console.error('Failed to save updated project to cloud:', err);
+                  updateSaveStatus('error');
+                  triggerHapticFeedback('error');
+                })
+                .finally(() => {
+                  pendingOperationsRef.current.delete(operationId);
+                });
+            }, 0);
+          } else {
+            // Local save only (guest mode or Firebase not ready)
+            updateSaveStatus('saved');
+            triggerHapticFeedback('success');
+            pendingOperationsRef.current.delete(operationId);
+            if (user && !auth?.currentUser) {
+              console.log('[SaveAsset] Local save only - Firebase not ready yet');
+            }
+          }
+
+          return updatedProject;
         }
         return p;
       });
-
-      // Save to cloud if logged in AND Firebase is ready
-      const updatedProject = newProjects.find(p => p.id === projectId);
-      if (updatedProject && user && auth?.currentUser) {
-        saveProjectToCloud(user?.uid, updatedProject)
-          .then((success) => {
-            if (success) {
-              updateSaveStatus('saved');
-              triggerHapticFeedback('success');
-            } else {
-              // Save returned false (token not ready) - mark as pending, will retry via debounced sync
-              updateSaveStatus('idle');
-              console.log('[SaveAsset] Cloud save deferred - will retry on next sync');
-            }
-          })
-          .catch(err => {
-            console.error('Failed to save updated project to cloud:', err);
-            updateSaveStatus('error');
-            triggerHapticFeedback('error');
-          })
-          .finally(() => {
-            pendingOperationsRef.current.delete(operationId);
-          });
-      } else {
-        // Local save only (guest mode or Firebase not ready)
-        updateSaveStatus('saved');
-        triggerHapticFeedback('success');
-        pendingOperationsRef.current.delete(operationId);
-        if (user && !auth?.currentUser) {
-          console.log('[SaveAsset] Local save only - Firebase not ready yet');
-        }
-      }
 
       return newProjects;
     });
@@ -4097,6 +4158,9 @@ const fetchUserCredits = useCallback(async (uid) => {
           
           newItem.mimeType = data.mimeType || 'audio/wav';
           
+          // CRITICAL: Ensure type is set to audio or vocal for proper UI rendering
+          newItem.type = isSpeechAgent ? 'vocal' : 'audio';
+          
           // Show appropriate message based on whether it's real AI generation or sample
           if (data.isRealGeneration) {
             newItem.snippet = `🎵 AI Generated Beat: "${prompt}"`;
@@ -4112,7 +4176,6 @@ const fetchUserCredits = useCallback(async (uid) => {
             newItem.snippet = `🎵 Generated audio for: "${prompt}"`;
           }
           
-          newItem.type = 'audio';
           newItem.isRealGeneration = data.isRealGeneration;
           newItem.isSample = data.isSample;
           
@@ -4154,7 +4217,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           newItem.audioUrl = `data:${mimeType};base64,${data.audio}`;
           newItem.mimeType = mimeType;
           newItem.snippet = `🎵 Generated audio for: "${prompt}"`;
-          newItem.type = 'audio';
+          newItem.type = isSpeechAgent ? 'vocal' : 'audio';
           console.log('Audio (from data.audio) created:', { type: newItem.type });
         } else if (data.type === 'synthesis' && data.params) {
           // Synthesis parameters for client-side generation
@@ -4240,21 +4303,6 @@ const fetchUserCredits = useCallback(async (uid) => {
       });
       setMediaLoadError(null); // Clear any previous media errors
       
-      // AUTO-SYNC TO SELECTED PROJECT (PERSISTENCE FIX)
-      if (targetProjectSnapshot) {
-         console.log('[handleGenerate] Auto-syncing to project:', targetProjectSnapshot.id);
-         const safeAssets = Array.isArray(targetProjectSnapshot.assets) ? targetProjectSnapshot.assets : [];
-         const updatedProject = {
-           ...targetProjectSnapshot,
-           assets: [newItem, ...safeAssets.filter(a => a && a.id !== newItem.id)]
-         };
-         setSelectedProject(updatedProject);
-         setProjects(prev => {
-           const safePrev = Array.isArray(prev) ? prev : [];
-           return safePrev.map(p => p?.id === updatedProject.id ? updatedProject : p);
-         });
-      }
-
       safeOpenGenerationPreview(newItem);
       setPreviewPrompt(prompt);
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
@@ -4290,239 +4338,152 @@ const fetchUserCredits = useCallback(async (uid) => {
   // targetProject can be: 'hub' (just save to hub), project object (save to specific project), or 'new:ProjectName' (create new project)
   const handleSavePreview = async (destination = 'hub', targetProject = null) => {
     if (!previewItem) return;
-    if (isSaving) return; // Prevent double-save
+    if (isSaving) return;
     
     setIsSaving(true);
-    setPreviewSaveMode(false); // Close save options view
-    const toastId = toast.loading('Syncing to cloud...', { icon: '☁️' });
+    setPreviewSaveMode(false);
+    const toastId = toast.loading('Synchronizing to cloud...', { icon: '☁️' });
     
     // 3-minute timeout
-    const SAVE_TIMEOUT = 180000; // 3 minutes in ms
+    const SAVE_TIMEOUT = 180000;
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Save timed out after 3 minutes')), SAVE_TIMEOUT)
+      setTimeout(() => reject(new Error('Save timed out')), SAVE_TIMEOUT)
     );
     
     try {
-      // Ensure agent field is set
+      // Create local item copy
       const itemToSave = {
         ...previewItem,
         agent: previewItem.agent || selectedAgent?.name || 'Unknown Agent',
         savedAt: new Date().toISOString()
       };
       
-      // Determine which project to save to (Priority: Manual Target > Generation Context > Current State)
+      const uid = isLoggedIn ? localStorage.getItem('studio_user_id') : null;
+
+      // 1. AUTHORITATIVE MEDIA UPLOAD (Prevents base64 bloat)
+      if (uid) {
+        try {
+          if (itemToSave.imageUrl?.startsWith('data:') || itemToSave.imageUrl?.startsWith('blob:')) {
+            const res = itemToSave.imageUrl.startsWith('data:') 
+              ? await uploadBase64(itemToSave.imageUrl, uid, 'images', 'image/png')
+              : await (async () => {
+                  const blob = await fetch(itemToSave.imageUrl).then(r => r.blob());
+                  return uploadFile(blob, uid, 'images', `${Date.now()}.png`);
+                })();
+            itemToSave.imageUrl = res.url;
+            itemToSave.imageStoragePath = res.path;
+          }
+          if (itemToSave.audioUrl?.startsWith('data:') || itemToSave.audioUrl?.startsWith('blob:')) {
+            const res = itemToSave.audioUrl.startsWith('data:') 
+              ? await uploadBase64(itemToSave.audioUrl, uid, 'audio', 'audio/mp3')
+              : await (async () => {
+                  const blob = await fetch(itemToSave.audioUrl).then(r => r.blob());
+                  return uploadFile(blob, uid, 'audio', `${Date.now()}.mp3`);
+                })();
+            itemToSave.audioUrl = res.url;
+            itemToSave.audioStoragePath = res.path;
+          }
+        } catch (uploadErr) {
+          console.error('[SavePreview] Upload failed:', uploadErr);
+        }
+      }
+
+      // 2. STATE UPDATES
+      let finalProject = null;
       let projectToUpdate = targetProject || previewItem.projectSnapshot || selectedProject;
       
-      // Handle "new:ProjectName" format - create new project
       if (typeof targetProject === 'string' && targetProject.startsWith('new:')) {
         const newProjectName = targetProject.substring(4);
-        const newProject = {
+        finalProject = {
           id: String(Date.now()),
           name: newProjectName,
           category: 'Music Creation',
-          description: '',
-          agents: [],
-          workflow: 'custom',
-          date: new Date().toLocaleDateString(),
-          status: 'Active',
-          progress: 0,
           assets: [itemToSave],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
-        setProjects(prev => [newProject, ...prev]);
-        setSelectedProject(newProject);
-        projectToUpdate = newProject;
+        // Explicitly update both projects and selectedProject
+        setProjects(prev => [finalProject, ...Array.isArray(prev) ? prev : []]);
+        setSelectedProject(finalProject);
         toast.success(`Project "${newProjectName}" created!`);
       } else if (projectToUpdate) {
-        // Add to existing project
-        const safeAssets = Array.isArray(projectToUpdate.assets) ? projectToUpdate.assets : [];
-        const updatedProject = {
+        finalProject = {
           ...projectToUpdate,
-          assets: [itemToSave, ...safeAssets.filter(a => a.id !== itemToSave.id)]
+          assets: [itemToSave, ...Array.isArray(projectToUpdate.assets) ? projectToUpdate.assets.filter(a => a && a.id !== itemToSave.id) : []],
+          updatedAt: new Date().toISOString()
         };
-        setSelectedProject(updatedProject);
+        setSelectedProject(finalProject);
+        // Correctly update the project in the projects list, adding it if not found
         setProjects(prev => {
-          const safePrev = Array.isArray(prev) ? prev : [];
-          // Replace the old project with the updated one
-          return safePrev.map(p => p?.id === updatedProject.id ? updatedProject : p);
+          const list = Array.isArray(prev) ? prev : [];
+          const exists = list.some(p => p && p.id === finalProject.id);
+          if (exists) {
+            return list.map(p => (p && p.id === finalProject.id) ? finalProject : p);
+          } else {
+            return [finalProject, ...list];
+          }
         });
-        projectToUpdate = updatedProject;
       } else {
-        // No project context - save as a "Standalone" project so it shows in Hub
-        const standloneProject = {
+        finalProject = {
           id: String(Date.now()),
-          name: itemToSave.title || `Asset: ${itemToSave.agent}`,
-          category: itemToSave.agent || 'AI Generated',
-          description: itemToSave.prompt || '',
-          agents: [itemToSave.agent],
-          workflow: 'standalone',
-          date: new Date().toLocaleDateString(),
-          status: 'Completed',
-          progress: 100,
+          name: itemToSave.title || 'Studio Asset',
+          category: 'Standalone',
           assets: [itemToSave],
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
-        setProjects(prev => [standloneProject, ...prev]);
-        toast.success('Saved to your collection');
-        projectToUpdate = standloneProject;
+        setProjects(prev => [finalProject, ...Array.isArray(prev) ? prev : []]);
+        setSelectedProject(finalProject);
+        toast.success('Saved to collection');
       }
-      // If no project selected and no targetProject, just save to hub (no modal needed)
 
-      // Save to Backend if logged in
-      if (isLoggedIn) {
-        const uid = localStorage.getItem('studio_user_id');
-        if (uid) {
-          // Upload media files to Firebase Storage (if they are base64 or blob URLs)
+      // 3. CLOUD SYNC (Direct API call for immediate persistence)
+      if (isLoggedIn && uid && finalProject) {
+        const saveHeaders = { 'Content-Type': 'application/json' };
+        if (auth?.currentUser) {
           try {
-            // Upload image if it's base64
-            if (itemToSave.imageUrl && (itemToSave.imageUrl.startsWith('data:') || itemToSave.imageUrl.startsWith('blob:'))) {
-              console.log('📤 Uploading image to Firebase Storage...');
-              if (itemToSave.imageUrl.startsWith('data:')) {
-                const result = await uploadBase64(itemToSave.imageUrl, uid, 'images', 'image/png');
-                itemToSave.imageUrl = result.url;
-                itemToSave.imageStoragePath = result.path;
-              } else if (itemToSave.imageUrl.startsWith('blob:')) {
-                const response = await fetch(itemToSave.imageUrl);
-                const blob = await response.blob();
-                const result = await uploadFile(blob, uid, 'images', `${Date.now()}.png`);
-                itemToSave.imageUrl = result.url;
-                itemToSave.imageStoragePath = result.path;
-              }
-            }
-            // Upload audio if it's base64 or blob
-            if (itemToSave.audioUrl && (itemToSave.audioUrl.startsWith('data:') || itemToSave.audioUrl.startsWith('blob:'))) {
-              console.log('📤 Uploading audio to Firebase Storage...');
-              if (itemToSave.audioUrl.startsWith('data:')) {
-                const result = await uploadBase64(itemToSave.audioUrl, uid, 'audio', 'audio/mp3');
-                itemToSave.audioUrl = result.url;
-                itemToSave.audioStoragePath = result.path;
-              } else if (itemToSave.audioUrl.startsWith('blob:')) {
-                const response = await fetch(itemToSave.audioUrl);
-                const blob = await response.blob();
-                const result = await uploadFile(blob, uid, 'audio', `${Date.now()}.mp3`);
-                itemToSave.audioUrl = result.url;
-                itemToSave.audioStoragePath = result.path;
-              }
-            }
-            // Upload video if it's base64 or blob
-            if (itemToSave.videoUrl && (itemToSave.videoUrl.startsWith('data:') || itemToSave.videoUrl.startsWith('blob:'))) {
-              console.log('📤 Uploading video to Firebase Storage...');
-              if (itemToSave.videoUrl.startsWith('data:')) {
-                const result = await uploadBase64(itemToSave.videoUrl, uid, 'video', 'video/mp4');
-                itemToSave.videoUrl = result.url;
-                itemToSave.videoStoragePath = result.path;
-              } else if (itemToSave.videoUrl.startsWith('blob:')) {
-                const response = await fetch(itemToSave.videoUrl);
-                const blob = await response.blob();
-                const result = await uploadFile(blob, uid, 'video', `${Date.now()}.mp4`);
-                itemToSave.videoUrl = result.url;
-                itemToSave.videoStoragePath = result.path;
-              }
-            }
-          } catch (uploadErr) {
-            console.warn('Media upload to Firebase Storage failed, using original URLs:', uploadErr);
-            // Continue with original URLs - don't block save
-          }
-
-          const saveHeaders = { 'Content-Type': 'application/json' };
-          
-          // Wait for token if user is logged in but Firebase isn't ready
-          let currentAuth = auth?.currentUser;
-          if (!currentAuth && isLoggedIn) {
-            console.log('Waiting for Firebase auth state to rehydrate...');
-            for (let i = 0; i < 5; i++) {
-              await new Promise(r => setTimeout(r, 500));
-              currentAuth = auth?.currentUser;
-              if (currentAuth) break;
-            }
-          }
-
-          if (currentAuth) {
-            try {
-              const token = await currentAuth.getIdToken();
-              saveHeaders['Authorization'] = `Bearer ${token}`;
-            } catch (tokenErr) {
-              console.warn('Could not get auth token for save:', tokenErr);
-            }
-          }
-          
-          // Create save promises with proper error handling
-          const savePromises = [];
-          
-          // Save to projects collection
-          savePromises.push(
-            fetch(`${BACKEND_URL}/api/projects`, {
-              method: 'POST',
-              headers: saveHeaders,
-              body: JSON.stringify({ userId: uid, project: projectToUpdate })
-            }).then(res => {
-              if (!res.ok) throw new Error(`Project save failed: ${res.status}`);
-              return res.json();
-            })
-          );
-          
-          // Also log to generations history
-          savePromises.push(
-            fetch(`${BACKEND_URL}/api/user/generations`, {
-              method: 'POST',
-              headers: saveHeaders,
-              body: JSON.stringify({
-                type: itemToSave.type || 'text',
-                agent: itemToSave.agent,
-                prompt: previewPrompt || itemToSave.snippet,
-                output: itemToSave.content || itemToSave.snippet,
-                metadata: {
-                  projectId: itemToSave.id,
-                  imageUrl: itemToSave.imageUrl,
-                  audioUrl: itemToSave.audioUrl,
-                  videoUrl: itemToSave.videoUrl
-                }
-              })
-            }).then(res => {
-              if (!res.ok) console.warn('Generation log returned non-OK status:', res.status);
-              return res.json().catch(() => ({}));
-            })
-          );
-          
-          // Race against timeout
-          await Promise.race([
-            Promise.all(savePromises),
-            timeoutPromise
-          ]);
-          
-          setUserCredits(prev => Math.max(0, prev - 1));
-          toast.success('✅ Saved & synced to cloud!', { id: toastId });
-        } else {
-          toast.success('Saved locally!', { id: toastId });
+            const token = await auth.currentUser.getIdToken();
+            saveHeaders['Authorization'] = `Bearer ${token}`;
+          } catch (tErr) { console.warn('Auth error:', tErr); }
         }
+        
+        const savePromises = [
+          fetch(`${BACKEND_URL}/api/projects`, {
+            method: 'POST',
+            headers: saveHeaders,
+            body: JSON.stringify({ userId: uid, project: finalProject })
+          }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Sync failed') })),
+          
+          fetch(`${BACKEND_URL}/api/user/generations`, {
+            method: 'POST',
+            headers: saveHeaders,
+            body: JSON.stringify({
+              type: itemToSave.type,
+              agent: itemToSave.agent,
+              prompt: previewPrompt || itemToSave.snippet,
+              output: itemToSave.snippet,
+              metadata: { projectId: finalProject.id, audioUrl: itemToSave.audioUrl }
+            })
+          }).catch(() => ({}))
+        ];
+
+        await Promise.race([Promise.all(savePromises), timeoutPromise]);
+        toast.success('✅ Synced to cloud!', { id: toastId });
       } else {
-        setFreeGenerationsUsed(prev => prev + 1);
-        toast.success('Saved to your Hub!', { id: toastId });
+        toast.success('Saved locally', { id: toastId });
       }
 
-      // Clear preview and navigate
       setPreviewItem(null);
-      setPreviewPrompt('');
-      setPreviewView('lyrics');
       setActiveTab(destination);
-      if (destination === 'hub') {
-        setSelectedAgent(null);
-      }
     } catch (error) {
       console.error('Save error:', error);
-      if (error.message.includes('timed out')) {
-        toast.error('Save timed out after 3 minutes. Your work is saved locally - it will sync when connection improves.', { id: toastId });
-      } else {
-        toast.error(`Save failed: ${error.message}. Your work is saved locally.`, { id: toastId });
-      }
-      // Still close the modal - local save succeeded
-      setPreviewItem(null);
-      setPreviewPrompt('');
+      toast.error(`Error: ${error.message}`, { id: toastId });
     } finally {
+      setIsGenerating(false);
       setIsSaving(false);
     }
   };
+
 
   // Discard the preview and go back to agent
   const handleDiscardPreview = () => {
