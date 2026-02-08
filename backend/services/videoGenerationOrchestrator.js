@@ -55,7 +55,9 @@ async function generateVideoSegments(
   prompts, // Array of prompts for each segment
   duration = 5, // Duration per segment in seconds
   replicateKey,
-  logger
+  logger,
+  imageUrl = null,
+  videoUrl = null
 ) {
   try {
     if (!replicateKey) {
@@ -64,7 +66,9 @@ async function generateVideoSegments(
 
     if (logger) logger.info('Starting multi-segment video generation', {
       segments: prompts.length,
-      durationPerSegment: duration
+      durationPerSegment: duration,
+      hasImageUrl: !!imageUrl,
+      hasVideoUrl: !!videoUrl
     });
 
     const replicate = new Replicate({ auth: replicateKey });
@@ -73,23 +77,42 @@ async function generateVideoSegments(
     // Generate each segment sequentially (rate limiting)
     for (let i = 0; i < prompts.length; i++) {
       try {
-        if (logger) logger.info(`Generating segment ${i + 1}/${prompts.length}`, {
+        if (logger) logger.info(`Processing segment ${i + 1}/${prompts.length}`, {
           prompt: prompts[i].substring(0, 50)
         });
+
+        // If we have a videoUrl and it's the first segment, use it instead of generating
+        if (i === 0 && videoUrl) {
+          if (logger) logger.info('Using provided videoUrl for first segment');
+          segments.push({
+            url: videoUrl,
+            prompt: prompts[i],
+            duration,
+            segmentIndex: i
+          });
+          continue;
+        }
 
         // Add delay between requests to avoid rate limiting
         if (i > 0) {
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
 
+        const inputPayload = {
+          prompt: prompts[i],
+          prompt_optimizer: true,
+          duration: Math.min(duration, 5) // Minimax max is 5s
+        };
+
+        // Use image as first frame if provided (usually for the first segment)
+        if (imageUrl && i === 0) {
+          inputPayload.first_frame_image = imageUrl;
+        }
+
         const output = await replicate.run(
           "minimax/video-01",
           {
-            input: {
-              prompt: prompts[i],
-              prompt_optimizer: true,
-              duration: Math.min(duration, 5) // Minimax max is 5s
-            }
+            input: inputPayload
           }
         );
 
@@ -199,7 +222,9 @@ async function generateSyncedMusicVideo(
   songTitle, // Title for metadata
   requestedDuration = 30, // 30, 60, or 180 seconds
   replicateKey,
-  logger
+  logger,
+  imageUrl = null,
+  videoUrl = null
 ) {
   const tempDir = path.join(__dirname, '../../backend', 'temp');
   const outputDir = path.join(__dirname, '../../backend', 'videos');
@@ -261,7 +286,9 @@ async function generateSyncedMusicVideo(
       segmentPrompts,
       Math.ceil(requestedDuration / numSegments),
       replicateKey,
-      logger
+      logger,
+      imageUrl,
+      videoUrl
     );
 
     // Step 3: Compose video with beat sync

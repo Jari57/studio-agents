@@ -3397,15 +3397,15 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         if (style.includes('rapper')) {
            // Add slight pauses after sentences/lines to maintain rhythm
            processedPrompt = prompt.replace(/\.(?!\d)/g, '... ').replace(/\n/g, '; ');
-           // Add emphasis for Billboard quality
-           processedPrompt = `<break time="0.5s" />${processedPrompt}`;
+           // Add high-fidelity breath and emphasis markers for Billboard quality
+           processedPrompt = `[breath] ${processedPrompt}`;
         }
 
         // Adjust settings based on Output Format (Righteous Quality)
         const voiceSettings = {
-          stability: style.includes('rapper') ? 0.35 : 0.55,
-          similarity_boost: 0.8,
-          style: style.includes('rapper') ? 0.65 : 1.0, // Crank style for rap/righteous
+          stability: style.includes('rapper') ? 0.45 : 0.55,
+          similarity_boost: 0.85,
+          style: style.includes('rapper') ? 0.75 : 0.45, // Crank style for rap/righteous
           use_speaker_boost: true
         };
 
@@ -3413,12 +3413,18 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         if (outputFormat === 'tv') {
           voiceSettings.stability = 0.65; // More stable for TV broadcast
         } else if (outputFormat === 'podcast') {
-          voiceSettings.similarity_boost = 0.9; // More natural personality
+          voiceSettings.similarity_boost = 0.95; // More natural personality
         } else if (outputFormat === 'music') {
-          voiceSettings.style = 0.85; // Extra expressive for Billboard vibes
+          voiceSettings.style = 0.95; // Extra expressive for Billboard vibes
+          voiceSettings.stability = 0.40; // More emotive
         }
 
-        const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        // Use the highest quality model available
+        const model_id = 'eleven_multilingual_v2';
+        // Request 192kbps MP3 for studio quality
+        const output_format = 'mp3_44100_192';
+
+        const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${output_format}`, {
           method: 'POST',
           headers: {
             'Accept': 'audio/mpeg',
@@ -3427,7 +3433,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
           },
           body: JSON.stringify({
             text: processedPrompt,
-            model_id: 'eleven_multilingual_v2', // v2 supports better inflection than turbo for rap
+            model_id: model_id,
             voice_settings: voiceSettings,
             language_code: langCode
           })
@@ -3492,8 +3498,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
               headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
 
-            if (pollResponse.ok) {
-              result = await pollResponse.json();
+            if (statusResponse.ok) {
+              result = await statusResponse.json();
               if (result.status === 'succeeded') {
                 let outputUrl = result.output;
                 if (Array.isArray(outputUrl)) outputUrl = outputUrl[0];
@@ -3567,8 +3573,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
               headers: { 'Authorization': `Bearer ${replicateKey}` }
             });
 
-            if (pollResponse.ok) {
-              result = await pollResponse.json();
+            if (statusResponse.ok) {
+              result = await statusResponse.json();
               if (result.status === 'succeeded') {
                 let outputUrl = result.output;
                 if (Array.isArray(outputUrl)) outputUrl = outputUrl[0];
@@ -6701,6 +6707,8 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, checkCreditsFor('vid
     const { 
       audioUrl, 
       videoPrompt, 
+      imageUrl,
+      videoUrl,
       songTitle = 'Untitled',
       duration = 30, // 30, 60, or 180 seconds
       style = 'cinematic'
@@ -6725,7 +6733,9 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, checkCreditsFor('vid
       duration: requestedDuration,
       title: songTitle,
       style,
-      audioUrl: audioUrl.substring(0, 50)
+      audioUrl: audioUrl.substring(0, 50),
+      hasImageUrl: !!imageUrl,
+      hasVideoUrl: !!videoUrl
     });
 
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
@@ -6758,7 +6768,9 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, checkCreditsFor('vid
         songTitle,
         requestedDuration,
         replicateKey,
-        logger
+        logger,
+        imageUrl,
+        videoUrl
       ).then(result => {
         if (logger) logger.info('Background video generation complete', {
           jobId,
@@ -6787,7 +6799,9 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, checkCreditsFor('vid
       songTitle,
       requestedDuration,
       replicateKey,
-      logger
+      logger,
+      imageUrl,
+      videoUrl
     );
 
     if (result.success) {

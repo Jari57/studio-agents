@@ -555,6 +555,12 @@ function GeneratorCard({
                         src={formatAudioSrc(mediaUrl)}
                         controls
                         style={{ flex: 1, height: '32px' }}
+                        onPlay={(e) => {
+                          // Stop all other audio and video elements to ensure only one plays
+                          document.querySelectorAll('audio, video').forEach(el => {
+                            if (el !== e.target) el.pause();
+                          });
+                        }}
                       />
                     </div>
                   )}
@@ -942,7 +948,8 @@ function ProductionControlHub({
   const hasBeat = !!mediaUrls.audio;
   const hasVocals = !!mediaUrls.vocals || !!outputs.lyrics;
   const hasVideo = !!mediaUrls.video;
-  const isSyncAvailable = hasBeat && (hasVideo || hasVocals);
+  const hasVisual = !!mediaUrls.image;
+  const isSyncAvailable = hasBeat && (hasVideo || hasVocals || hasVisual);
   const isSyncComplete = !!musicVideoUrl;
 
   return (
@@ -1933,6 +1940,10 @@ export default function StudioOrchestratorV2({
       
       console.log('[handleGenerateAudio] Making API call to:', `${BACKEND_URL}/api/generate-audio`);
 
+      // Check if we have a referenced audio asset to use as seed
+      const activeReferencedAudio = assets?.find(a => a.id === referencedAudioId) || 
+                                   assets?.find(a => a.type === 'audio' || a.type === 'vocal');
+
       const response = await fetch(`${BACKEND_URL}/api/generate-audio`, {
         method: 'POST',
         headers,
@@ -1947,7 +1958,7 @@ export default function StudioOrchestratorV2({
                           structure === 'Radio Edit' ? 150 :
                           structure === 'Extended' ? 180 :
                           structure === 'Loop' ? 15 : 30),
-          referenceAudio: audioDnaUrl,
+          referenceAudio: activeReferencedAudio?.audioUrl || audioDnaUrl,
           engine: musicEngine || 'music-gpt',
           quality: 'premium', // Ensure high-fidelity selection in backend
           outputFormat: outputFormat, // music, social, podcast, tv
@@ -1989,16 +2000,29 @@ export default function StudioOrchestratorV2({
           // AUTO-SYNC TO EXISTING PROJECT: Add the audio asset to the project library immediately
           if (existingProject && (onSaveToProject || onCreateProject)) {
             const saveFunc = onSaveToProject || onCreateProject;
-            console.log(`[handleGenerateAudio] Auto-syncing audio to project: ${existingProject.id}`);
+            
+            // Count existing versions
+            const audioVersions = (existingProject.assets || []).filter(a => a.type === 'audio').length;
+            const versionLabel = audioVersions > 0 ? ` (Take ${audioVersions + 1})` : '';
+
+            console.log(`[handleGenerateAudio] Auto-syncing audio to project: ${existingProject.id} as version ${audioVersions + 1}`);
             
             const audioAsset = {
               id: `audio-${Date.now()}`,
-              title: 'Beat Lab Production',
+              title: `Beat Lab Production${versionLabel}`,
               type: 'audio',
               agent: 'Beat Lab',
               content: cleanAudioPromptText.substring(0, 500),
               audioUrl: finalUrl,
               mimeType: data.mimeType || 'audio/mpeg',
+              version: audioVersions + 1,
+              settings: {
+                genre: style,
+                mood: mood,
+                bpm: projectBpm,
+                engine: musicEngine,
+                referencedAudioId: activeReferencedAudio?.id
+              },
               createdAt: new Date().toISOString()
             };
             
@@ -2091,11 +2115,15 @@ export default function StudioOrchestratorV2({
       
       const selectedVoice = voiceMapping[voiceStyle] || 'rapper-male-1';
 
+      // Check if we have a referenced audio asset to use as DNA/Style seed
+      const activeReferencedAudio = assets?.find(a => a.id === referencedAudioId) || 
+                                   assets?.find(a => a.type === 'audio' || a.type === 'vocal');
+
       const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: cleanLyrics.substring(0, 1500), // Increased limit to match StudioView
+          prompt: cleanLyrics.substring(0, 1500), 
           voice: selectedVoice,
           style: voiceStyle,
           rapStyle: rapStyle,
@@ -2104,9 +2132,9 @@ export default function StudioOrchestratorV2({
           duration: duration || 30,
           quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
           outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
-          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
+          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : (activeReferencedAudio?.audioUrl || null),
           elevenLabsVoiceId: (vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null,
-          backingTrackUrl: mediaUrls.audio // Add backing track for sync/context if available
+          backingTrackUrl: mediaUrls.audio 
         })
       });
 
@@ -2133,16 +2161,28 @@ export default function StudioOrchestratorV2({
         // AUTO-SYNC TO EXISTING PROJECT: Add the vocal asset to the project library immediately
         if (existingProject && (onSaveToProject || onCreateProject)) {
           const saveFunc = onSaveToProject || onCreateProject;
-          console.log(`[handleGenerateVocals] Auto-syncing vocals to project: ${existingProject.id}`);
+          
+          // Count existing versions to label this one
+          const vocalVersions = (existingProject.assets || []).filter(a => a.type === 'vocal').length;
+          const versionLabel = vocalVersions > 0 ? ` (Take ${vocalVersions + 1})` : '';
+
+          console.log(`[handleGenerateVocals] Auto-syncing vocals to project: ${existingProject.id} as version ${vocalVersions + 1}`);
           
           const vocalAsset = {
             id: `vocal-${Date.now()}`,
-            title: 'Vocal Performance',
+            title: `Vocal Performance${versionLabel}`,
             type: 'vocal',
             agent: 'Ghostwriter',
             content: cleanLyrics.substring(0, 500),
             audioUrl: data.audioUrl,
             mimeType: data.mimeType || 'audio/wav',
+            version: vocalVersions + 1,
+            settings: {
+              voice: selectedVoice,
+              style: voiceStyle,
+              quality: vocalQuality,
+              referencedAudioId: activeReferencedAudio?.id
+            },
             createdAt: new Date().toISOString()
           };
           
@@ -2776,7 +2816,7 @@ export default function StudioOrchestratorV2({
     // PREVENT DUPLICATE CALLS
     if (generatingMusicVideo) return;
 
-    if (!mediaUrls.audio || !outputs.video) {
+    if (!mediaUrls.audio || (!outputs.video && !mediaUrls.image)) {
       toast.error('Need beat audio and video concept to sync');
       return;
     }
@@ -2801,7 +2841,9 @@ export default function StudioOrchestratorV2({
         },
         body: JSON.stringify({
           audioUrl: mediaUrls.audio,
-          videoPrompt: outputs.video,
+          videoPrompt: outputs.video || `A high-fidelity cinematic music video for a ${style} song`,
+          imageUrl: mediaUrls.image,
+          videoUrl: mediaUrls.video,
           songTitle: songIdea || 'Untitled',
           style: style || 'cinematic',
           duration: structure === 'Extended' ? 180 : (structure === 'Radio Edit' ? 150 : (structure === 'Full Song' ? 90 : 60)) // Sync video duration to structure
@@ -3019,7 +3061,7 @@ export default function StudioOrchestratorV2({
         const agent = AGENTS.find(a => a.id === id);
         return agent?.name || id;
       }),
-      assets,
+      assets: [...(existingProject?.assets || []), ...assets],
       coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
     };
     
