@@ -484,6 +484,22 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [authRetryCount, setAuthRetryCount] = useState(0);
   const [userToken, setUserToken] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userProfile, setUserProfile] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_user_profile');
+      return saved ? JSON.parse(saved) : {
+        stageName: '', genre: 'Hip Hop / Rap', targetDemographic: 'Gen Z',
+        language: 'English', bio: '', credits: 500, memberSince: new Date().getFullYear(),
+        plan: 'Free', location: 'Los Angeles, CA', website: ''
+      };
+    } catch (_e) { return { stageName: '', genre: 'Hip Hop / Rap', bio: '', credits: 500, memberSince: new Date().getFullYear(), plan: 'Free', location: 'Los Angeles, CA', website: '' }; }
+  });
+  const [socialConnections, setSocialConnections] = useState(() => {
+    try {
+      const saved = localStorage.getItem('studio_agents_socials');
+      return saved ? JSON.parse(saved) : { instagram: false, tiktok: false, twitter: false, spotify: false };
+    } catch (_e) { return { instagram: false, tiktok: false, twitter: false, spotify: false }; }
+  });
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [authMode, setAuthMode] = useState('login'); 
   const [authEmail, setAuthEmail] = useState('');
@@ -525,6 +541,26 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   // --- PROJECTS & ASSETS ---
   const [selectedProject, setSelectedProject] = useState(null);
+  const [projects, setProjects] = useState(() => {
+    try {
+      const uid = localStorage.getItem('studio_user_id') || 'guest';
+      const saved = localStorage.getItem(`studio_projects_${uid}`) || localStorage.getItem('studio_agents_projects');
+      if (saved) {
+        let parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.sort((a, b) => {
+          const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+          return bTime - aTime;
+        });
+      }
+      return [];
+    } catch (_e) {
+      console.error('[StudioView] Failed to parse projects from localStorage', _e);
+      return [];
+    }
+  });
+
   const [isCreatingVocal, setIsCreatingVocal] = useState(false);
   const [visualDnaUrl, setVisualDnaUrl] = useState(null);
   const [audioDnaUrl, setAudioDnaUrl] = useState(null);
@@ -714,23 +750,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return localStorage.getItem(`studio_news_${uid}`) || '';
   });
 
-  const [userProfile, setUserProfile] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_user_profile');
-      return saved ? JSON.parse(saved) : {
-        stageName: '', genre: 'Hip Hop / Rap', targetDemographic: 'Gen Z',
-        language: 'English', bio: '', credits: 500, memberSince: new Date().getFullYear(),
-        plan: 'Free', location: 'Los Angeles, CA', website: ''
-      };
-    } catch (_e) { return { stageName: '', genre: 'Hip Hop / Rap', bio: '', credits: 500, memberSince: new Date().getFullYear(), plan: 'Free', location: 'Los Angeles, CA', website: '' }; }
-  });
-  const [socialConnections, setSocialConnections] = useState(() => {
-    try {
-      const saved = localStorage.getItem('studio_agents_socials');
-      return saved ? JSON.parse(saved) : { instagram: false, tiktok: false, twitter: false, spotify: false };
-    } catch (_e) { return { instagram: false, tiktok: false, twitter: false, spotify: false }; }
-  });
-
   // REAL STATS CALCULATION - Based on user project activity
   const performanceStats = useMemo(() => {
     const projectCount = projects.length || 0;
@@ -793,26 +812,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const textareaRef = useRef(null);
   const previewAudioRef = useRef(null);
   const canvasAudioRef = useRef(null);
-
-  const [projects, setProjects] = useState(() => {
-    try {
-      const uid = localStorage.getItem('studio_user_id') || 'guest';
-      const saved = localStorage.getItem(`studio_projects_${uid}`) || localStorage.getItem('studio_agents_projects');
-      if (saved) {
-        let parsed = JSON.parse(saved);
-        if (!Array.isArray(parsed)) return [];
-        return parsed.sort((a, b) => {
-          const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
-          const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
-          return bTime - aTime;
-        });
-      }
-      return [];
-    } catch (_e) {
-      console.error('[StudioView] Failed to parse projects from localStorage', _e);
-      return [];
-    }
-  });
 
   const [backingTrack, setBackingTrack] = useState(null);
   useEffect(() => {
