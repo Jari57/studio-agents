@@ -252,6 +252,26 @@ const PROJECT_CATEGORIES = [
 
 const PROJECT_CREDIT_COST = 2;
 
+const CREDIT_COSTS = {
+  'text': 1,
+  'lyrics': 1,
+  'generate': 1,
+  'vocal': 2,
+  'speech': 2,
+  'voice': 2,
+  'beat': 5,
+  'audio': 5,
+  'music': 5,
+  'image': 3,
+  'video': 15,
+  'video-synced': 20,
+  'orchestrate': 8,
+  'translate': 1,
+  'mix': 10,
+  'master': 15,
+  'default': 1
+};
+
 // Voice Command Definitions for Whisperer-style UI
 const VOICE_COMMANDS = [
   { command: 'open [agent]', description: 'Launch an agent', example: '"Open Ghostwriter"', category: 'Navigation' },
@@ -1344,25 +1364,27 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   };
   
   // Check if user can generate (has free uses left or is subscribed)
-  const canGenerate = () => {
+  const canGenerate = (featureType = 'default') => {
     // Admins always have access
     if (isAdmin) {
       console.log('[Credits] Admin access granted');
       return true;
     }
 
+    const cost = CREDIT_COSTS[featureType] || CREDIT_COSTS['default'];
+
     // If logged in, prioritize credits
     if (isLoggedIn) {
-      console.log(`[Credits] Checking for logged in user. Credits: ${userCredits}, Plan: ${userPlan}`);
-      if (userCredits > 0) return true;
+      console.log(`[Credits] Checking for logged in user. Credits: ${userCredits}, Plan: ${userPlan}, Cost: ${cost}`);
+      if (userCredits >= cost) return true;
 
       const plan = (userPlan || 'Free').toLowerCase();
-      if (plan === 'pro' || plan === 'lifetime access') {
-        console.log(`[Credits] Access granted due to plan: ${plan}`);
+      if ((plan === 'pro' || plan === 'lifetime access') && cost <= 1) {
+        console.log(`[Credits] Access granted for low-cost feature due to plan: ${plan}`);
         return true;
       }
       
-      console.warn('[Credits] Logged in but no credits/plan');
+      console.warn('[Credits] Logged in but insufficient credits');
       return false;
     }
     
@@ -3660,6 +3682,27 @@ const fetchUserCredits = useCallback(async (uid) => {
       return;
     }
 
+    // Identify feature type and cost
+    const isImageAgent = agentId === 'album' || agentId === 'visual-art' || agentId === 'cover-art' || agentId === 'art';
+    const isVideoAgent = agentId === 'video' || agentId === 'video-creator' || agentId === 'video-gen' || agentId === 'sora' || agentId === 'veo';
+    const isAudioAgent = ['beat', 'sample', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film', 'sample-master', 'score-edit', 'drop-zone'].includes(agentId);
+    const isSpeechAgent = ['vocal', 'vocal-arch', 'vocal-gen', 'vocal-performer', 'vocal-performance', 'vocal-lab', 'vocal-labs', 'podcast', 'voiceover'].includes(agentId) && agentId !== 'ghost';
+    const isMasterAgent = agentId === 'master' || agentId === 'master-lab';
+
+    let featureType = 'text';
+    if (isImageAgent) featureType = 'image';
+    if (isVideoAgent) featureType = 'video';
+    if (isAudioAgent) featureType = 'beat';
+    if (isSpeechAgent) featureType = 'vocal';
+    if (isMasterAgent) featureType = 'master';
+    
+    // Synced video check (Advanced DNA pipeline)
+    if (isVideoAgent && (audioDnaUrl || backingTrack || referencedAudioId)) {
+        featureType = 'video-synced';
+    }
+
+    const cost = CREDIT_COSTS[featureType] || 1;
+
     // Demo mode - return mock response without hitting API
     if (getDemoModeState()) {
       setIsGenerating(true);
@@ -3686,12 +3729,12 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     // Check if user can generate (free limit or credits)
-    if (!canGenerate()) {
+    if (!canGenerate(featureType)) {
       if (!isLoggedIn) {
         toast.error(`You've used your ${FREE_GENERATION_LIMIT} free generations! Sign in to continue.`);
         setShowLoginModal(true);
       } else {
-        toast.error("Out of credits! Please purchase more or upgrade.");
+        toast.error(`Insufficient credits! ${targetAgentSnapshot.name} needs ${cost} credits.`);
         setDashboardTab('subscription');
         setActiveTab('mystudio');
       }
@@ -3699,10 +3742,6 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     setIsGenerating(true);
-    const isImageAgent = agentId === 'album' || agentId === 'visual-art' || agentId === 'cover-art';
-    const isVideoAgent = agentId === 'video' || agentId === 'video-creator' || agentId === 'video-gen' || agentId === 'sora' || agentId === 'veo';
-    const isAudioAgent = ['beat', 'sample', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film'].includes(agentId);
-    const isSpeechAgent = ['vocal', 'vocal-arch', 'vocal-gen', 'vocal-performer', 'vocal-performance', 'vocal-lab', 'vocal-labs', 'podcast', 'voiceover'].includes(agentId) && agentId !== 'ghost';
 
     const toastId = toast.loading(
       (isVideoAgent || isSpeechAgent || isAudioAgent) 
@@ -3711,19 +3750,10 @@ const fetchUserCredits = useCallback(async (uid) => {
     );
     
     try {
-      // DEDUCT CREDIT / TRACK FREE USE
+      // OPTIMISTIC CREDIT DEDUCTION (Authoritative deduction happens in backend)
       if (isLoggedIn && user && !isAdmin) {
-        try {
-          const userRef = doc(db, "users", user?.uid);
-          await updateDoc(userRef, {
-            credits: increment(-1)
-          });
-          setUserCredits(prev => Math.max(0, prev - 1));
-          console.log("[Credits] Deducted 1 credit for generation");
-        } catch (creditErr) {
-          console.error("Failed to deduct credit:", creditErr);
-          // Continue anyway but log it
-        }
+        setUserCredits(prev => Math.max(0, prev - cost));
+        console.log(`[Credits] Optimistically deducted ${cost} for ${featureType}`);
       } else if (!isLoggedIn) {
         setFreeGenerationsUsed(prev => {
           const newVal = prev + 1;
@@ -3842,6 +3872,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           method: 'POST',
           headers,
           body: JSON.stringify({ 
+            ...brainBody,
             prompt: brainPrompt,
             systemInstruction: `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain. 
               Translate user ideas into Billboard-standard production briefs. 
@@ -4246,6 +4277,10 @@ const fetchUserCredits = useCallback(async (uid) => {
       Analytics.errorOccurred('generation_failed', error.message);
     } finally {
       setIsGenerating(false);
+      // AUTHORITATIVE CREDIT SYNC (Backend has already processed transaction)
+      if (isLoggedIn && user?.uid) {
+        fetchUserCredits(user.uid);
+      }
     }
   };
   
