@@ -3743,11 +3743,11 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     // Identify feature type and cost
-    const isImageAgent = agentId === 'album' || agentId === 'visual-art' || agentId === 'cover-art' || agentId === 'art';
-    const isVideoAgent = agentId === 'video' || agentId === 'video-creator' || agentId === 'video-gen' || agentId === 'sora' || agentId === 'veo';
-    const isAudioAgent = ['beat', 'sample', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film', 'sample-master', 'score-edit', 'drop-zone'].includes(agentId);
-    const isSpeechAgent = ['vocal', 'vocal-arch', 'vocal-gen', 'vocal-performer', 'vocal-performance', 'vocal-lab', 'vocal-labs', 'podcast', 'voiceover'].includes(agentId) && agentId !== 'ghost';
-    const isMasterAgent = agentId === 'master' || agentId === 'master-lab';
+    const isImageAgent = ['album', 'visual-art', 'cover-art', 'art', 'video-art', 'flux'].includes(agentId);
+    const isVideoAgent = ['video', 'video-creator', 'video-gen', 'sora', 'veo', 'kling'].includes(agentId);
+    const isAudioAgent = ['beat', 'sample', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film', 'sample-master', 'score-edit', 'drop-zone', 'music-architect', 'audio-gen', 'video-scorer'].includes(agentId);
+    const isSpeechAgent = ['vocal', 'vocal-arch', 'vocal-gen', 'vocal-performer', 'vocal-performance', 'vocal-lab', 'vocal-labs', 'podcast', 'voiceover', 'voice-gen', 'voice-cloner'].includes(agentId) && agentId !== 'ghost';
+    const isMasterAgent = ['master', 'master-lab', 'mastering'].includes(agentId);
 
     let featureType = 'text';
     if (isImageAgent) featureType = 'image';
@@ -3762,6 +3762,16 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     const cost = CREDIT_COSTS[featureType] || 1;
+    
+    console.log('[handleGenerate] Pipeline Check:', { 
+      agentId, 
+      featureType, 
+      cost,
+      isAudioAgent, 
+      isSpeechAgent,
+      isVideoAgent,
+      hasContext: !!contextLyrics
+    });
 
     // Demo mode - return mock response without hitting API
     if (getDemoModeState()) {
@@ -3860,20 +3870,20 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
       }
 
-      if (agentId === 'ghost' || agentId === 'ghost-1') {
-        customInstruction = 'Write ONLY the lyrics (verses, hooks, chorus). USE CLEAR LABELS like [Verse 1], [Chorus], [Bridge]. Do not include any "Here are the lyrics" text or preamble.';
-      } else if (agentId === 'vocal-arch' || agentId === 'voiceover') {
-        customInstruction = 'Describe the vocal performance style, tone, and character in detail (e.g., "Energetic female vocal with a soulful grit and rapid-fire delivery").';
-        if (contextLyrics) customInstruction += ` Use these lyrics: "${contextLyrics.substring(0, 500)}"`;
-      } else if (agentId === 'beat' || agentId === 'sample') {
-        customInstruction = 'Briefly describe a high-quality beat/instrumental concept. Focus on mood, tempo, and key instruments. Keep it simple and effective for an AI generator.';
+      if (agentId === 'ghost' || agentId === 'ghost-1' || agentId === 'lyrics') {
+        customInstruction = 'Write ONLY the lyrics (verses, hooks, chorus). USE CLEAR LABELS like [Verse 1], [Chorus], [Bridge]. Do not include any "Here are the lyrics" text or preamble. Write high-fidelity emotional lyrics.';
+      } else if (isSpeechAgent) {
+        customInstruction = 'Describe the vocal performance style, tone, and character in detail (e.g., "Energetic female vocal with a soulful grit and rapid-fire delivery"). Focus on professional performance qualities.';
+        if (contextLyrics) customInstruction += ` Use these lyrics as the based for the vocal performance: "${contextLyrics.substring(0, 500)}"`;
+      } else if (isAudioAgent) {
+        customInstruction = 'Briefly describe a high-quality beat/instrumental concept. Focus on mood, tempo, instrumentation, and key instruments. Keep it under 60 words for maximum AI compatibility.';
         if (contextLyrics) customInstruction += ` Use the vibe of these lyrics to inspire the beat: "${contextLyrics.substring(0, 300)}"`;
-      } else if (agentId === 'album') {
-        customInstruction = 'Describe a striking album cover or concept in detail for image generation. Focus on composition, colors, and mood.';
+      } else if (isImageAgent) {
+        customInstruction = 'Describe a striking album cover or concept in detail for image generation. Focus on composition, colors, and artistic style.';
         if (contextLyrics) customInstruction += ` Incorporate themes from these lyrics: "${contextLyrics.substring(0, 200)}"`;
-      } else if (agentId === 'video-creator') {
-        customInstruction = 'Write a creative image to video concept/storyboard with scene descriptions and visual transitions.';
-        if (contextLyrics) customInstruction += ` Match the narrative of these lyrics: "${contextLyrics.substring(0, 300)}"`;
+      } else if (isVideoAgent) {
+        customInstruction = 'Write a creative image to video concept or storyboard with scene descriptions, cinematic lighting, and professional visual transitions.';
+        if (contextLyrics) customInstruction += ` Match the narrative and energy of these lyrics: "${contextLyrics.substring(0, 300)}"`;
       }
 
       let brainBody = {
@@ -3962,7 +3972,8 @@ const fetchUserCredits = useCallback(async (uid) => {
           prompt: expandedPrompt, 
           model: selectedModel, 
           referenceImage: visualDnaUrl,
-          visualId: referencedVisualId 
+          visualId: referencedVisualId,
+          quality: 'premium'
         };
       } else if (isVideoAgent) {
         finalEndpoint = '/api/generate-video';
@@ -3972,20 +3983,23 @@ const fetchUserCredits = useCallback(async (uid) => {
           referenceImage: visualDnaUrl || videoDnaUrl, // Pass visual DNA as preferred image reference
           referenceVideo: videoDnaUrl,
           visualId: referencedVisualId,
-          durationSeconds: voiceSettings.duration || 30,
+          durationSeconds: voiceSettings.duration || 8, // Default to 8s for Veo
           audioUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
-          audioId: referencedAudioId
+          audioId: referencedAudioId,
+          style: voiceSettings.style || 'dynamic'
         };
       } else if (isAudioAgent) {
         finalEndpoint = '/api/generate-audio';
         finalBody = { 
           prompt: expandedPrompt, 
-          bpm: 90, 
+          bpm: voiceSettings.bpm || 90, 
           genre: voiceSettings.genre || (agentId === 'beat' ? 'hip-hop' : 'sample'),
           mood: 'creative', 
           durationSeconds: voiceSettings.duration || 30,
           referenceAudio: audioDnaUrl,
-          audioId: referencedAudioId
+          audioId: referencedAudioId,
+          quality: 'premium', // Ensure high-fidelity
+          engine: 'auto'
         };
       } else if (isSpeechAgent) {
         finalEndpoint = '/api/generate-speech';
@@ -3993,7 +4007,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           prompt: expandedPrompt, 
           voice: voiceSettings.voiceName || 'rapper-male-1', 
           elevenLabsVoiceId: elevenLabsVoiceId, // Use premium voice if selected
-          quality: (elevenLabsVoiceId || voiceSampleUrl) ? 'premium' : 'standard',
+          quality: 'premium', // FORCE PREMIUM for Vocal Lab
           style: voiceSettings.style || 'rapper',
           genre: voiceSettings.genre || 'hip-hop',
           rapStyle: voiceSettings.rapStyle || 'aggressive',
@@ -4007,7 +4021,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       // If it's a media agent, run execution phase
       if (finalEndpoint !== '/api/generate') {
-        console.log(`[Studio] Starting Phase 2 (Execution) calling ${finalEndpoint}`);
+        console.log(`[Studio] Starting Phase 2 (Execution) calling ${finalEndpoint}`, finalBody);
         try {
           response = await fetch(`${BACKEND_URL}${finalEndpoint}`, {
             method: 'POST',
@@ -4016,7 +4030,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           });
         } catch (mediaErr) {
           console.error('[Studio] Execution Phase Failed:', mediaErr);
-          throw new Error(`Media generation failed. Server may be unreachable.`);
+          throw new Error(`Media generation service unreachable. Please check your connection or try again later.`);
         }
       } else {
         // Text-only agents skip phase 2 and use brain result directly
@@ -4032,19 +4046,38 @@ const fetchUserCredits = useCallback(async (uid) => {
         const text = await response.text();
         console.error('Expected JSON but got:', text.substring(0, 100));
         // Use brain description as fallback if generation failed
-        data = brainData;
-        data._isFallback = true;
+        data = {
+          ...brainData,
+          _isFallback: true,
+          _errText: text.substring(0, 100)
+        };
       }
       
       // Debug logging
       console.log('API Response:', { 
+        endpoint: finalEndpoint,
         ok: response.ok, 
         status: response.status,
-        isAudioAgent,
-        isSpeechAgent,
         hasAudioUrl: !!data.audioUrl,
-        hasError: !!data.error
+        hasVideoUrl: !!data.videoUrl,
+        hasImageUrl: !!data.imageUrl,
+        isFallback: !!data._isFallback
       });
+
+      if (!response.ok) {
+        console.error('[Studio] Execution Phase Error:', data.error || data.details || response.status);
+        
+        // Map common errors to user-friendly messages
+        if (response.status === 403) {
+          toast.error("Insufficient credits for media generation.", { id: toastId });
+        } else if (response.status === 401) {
+          toast.error("Please log in to use AI media generation.", { id: toastId });
+        } else if (response.status === 503 || response.status === 504) {
+          toast.error("Media server is currently overloaded or out of credits. Try again in a minute.", { id: toastId });
+        } else {
+          toast.error(`Media generation failed: ${data.error || 'Server error'}`, { id: toastId });
+        }
+      }
       
       // Handle different response types
       let newItem = {
@@ -4065,7 +4098,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         newItem.fallbackNote = data._fallbackType === 'image' 
           ? '🎨 Visual concept (image generation coming soon)'
           : '🎬 Video concept (video generation coming soon)';
-      } else if (agentId === 'album' && (data.predictions || data.images || data.output)) {
+      } else if (isImageAgent && (data.predictions || data.images || data.output)) {
         // Handle Image Response (Flux / Imagen / Nano Banana)
         console.log('Image response received:', { hasOutput: !!data.output, hasPredictions: !!data.predictions, hasImages: !!data.images });
         
@@ -4085,7 +4118,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                newItem.type = 'image';
            }
         }
-      } else if (agentId === 'video-creator' && (data.predictions || data.video || (data.output && (data.type === 'video' || data.type === 'image')))) {
+      } else if (isVideoAgent && (data.predictions || data.video || (data.output && (data.type === 'video' || data.type === 'image')))) {
         // Handle Video Response (Veo) - multiple response formats
         console.log('Video response received:', { hasOutput: !!data.output, type: data.type, hasPredictions: !!data.predictions });
         
@@ -4161,19 +4194,18 @@ const fetchUserCredits = useCallback(async (uid) => {
           // CRITICAL: Ensure type is set to audio or vocal for proper UI rendering
           newItem.type = isSpeechAgent ? 'vocal' : 'audio';
           
-          // Show appropriate message based on whether it's real AI generation or sample
           if (data.isRealGeneration) {
-            newItem.snippet = `🎵 AI Generated Beat: "${prompt}"`;
-            toast.success('Beat generated with MusicGen AI!');
+            newItem.snippet = isSpeechAgent ? `🎤 AI Generated Vocals: "${prompt}"` : `🎵 AI Generated Beat: "${prompt}"`;
+            toast.success(isSpeechAgent ? 'Vocals generated with ElevenLabs V3.5!' : 'Beat generated with MusicGen AI!');
           } else if (data.isSample) {
-            newItem.snippet = `🎵 Sample Beat (Preview)`;
+            newItem.snippet = isSpeechAgent ? `🎤 Sample Vocal (Preview)` : `🎵 Sample Beat (Preview)`;
             newItem.billingMessage = data.message;
-            toast.info(data.message || 'Using sample - configure Replicate for custom beats', { 
+            toast.info(data.message || 'Using sample - configure API keys for custom generation', { 
               duration: 5000,
               icon: '⚠️'
             });
           } else {
-            newItem.snippet = `🎵 Generated audio for: "${prompt}"`;
+            newItem.snippet = isSpeechAgent ? `🎤 Generated vocals for: "${prompt}"` : `🎵 Generated audio for: "${prompt}"`;
           }
           
           newItem.isRealGeneration = data.isRealGeneration;
@@ -16984,7 +17016,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
               {showAgentHelpModal.capabilities && (
                 <div className="help-section">
-                  <h3><Shield size={16} className="text-purple" /> Expertise & Capabilities</h3>
+                  <h3><Shield size={16} className="text-purple" /> Mission-Critical Wheel House Information</h3>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {showAgentHelpModal.capabilities.map((cap, i) => (
                       <span key={i} style={{ 
