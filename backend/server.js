@@ -3805,9 +3805,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
         formData.append('duration', Math.min(durationSeconds, 180).toString());
         formData.append('model', 'stable-audio-2.5');
         formData.append('output_format', 'mp3');
-        formData.append('steps', '8');
+        formData.append('steps', '50'); // Increased quality for V3.5
+        formData.append('cfg_scale', '7'); // Standard creative scale
         if (seed > 0) formData.append('seed', seed.toString());
-
 
         const response = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
           method: 'POST',
@@ -3843,18 +3843,19 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     // 2. Replicate Music GPT (Fallback)
     if (replicateKey && !audioUrl) {
       try {
-        logger.info('Using Replicate Music GPT (SDK)');
-        const replicate = new Replicate({ auth: replicateKey });
-        
-        // Use facebook/musicgen-large via SDK (handles polling automatically)
+        const replicateMode = (outputFormat === 'social' || outputFormat === 'tv' || quality === 'premium') ? 'stereo-large' : 'large';
+        logger.info(`Using Replicate Music GPT (${replicateMode})`);
+
+        // Use specifically tuned parameters for high-musicality
         const output = await replicate.run(
           "facebook/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38",
           {
             input: {
               prompt: musicPrompt,
-              duration: Math.min(durationSeconds, 60),
-              model_version: "stereo-large",
-              output_format: "mp3"
+              duration: Math.min(durationSeconds, 65),
+              model_version: replicateMode,
+              output_format: "mp3",
+              normalization_strategy: "loudness"
             }
           }
         );
