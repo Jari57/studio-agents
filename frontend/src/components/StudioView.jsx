@@ -3763,6 +3763,20 @@ const fetchUserCredits = useCallback(async (uid) => {
 
     const cost = CREDIT_COSTS[featureType] || 1;
     
+    // Lyrical Context: Try to find lyrics in the current project to inform other agents
+    let contextLyrics = '';
+    if (targetProjectSnapshot?.assets) {
+      const lyricsAsset = targetProjectSnapshot.assets.find(a => 
+        a.type === 'lyrics' || 
+        a.id?.includes('lyrics') || 
+        a.agent?.toLowerCase().includes('ghost')
+      );
+      if (lyricsAsset) {
+        contextLyrics = lyricsAsset.content || lyricsAsset.snippet || '';
+        console.log('[Studio] Found context lyrics for generation');
+      }
+    }
+
     console.log('[handleGenerate] Pipeline Check:', { 
       agentId, 
       featureType, 
@@ -3857,7 +3871,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       let customInstruction = '';
       
       // Lyrical Context: Try to find lyrics in the current project to inform other agents
-      let contextLyrics = '';
+      // (Moved to top of function for TDZ safety)
       if (targetProjectSnapshot?.assets) {
         const lyricsAsset = targetProjectSnapshot.assets.find(a => 
           a.type === 'lyrics' || 
