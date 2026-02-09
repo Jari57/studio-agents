@@ -3678,6 +3678,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
   async function handleGenerate() {
     console.log('[handleGenerate] Button click detected');
+    let contextLyrics = ''; // Hoisted for TDZ safety
     
     // PREVENT DUPLICATE CALLS
     if (isGenerating) {
@@ -3764,7 +3765,6 @@ const fetchUserCredits = useCallback(async (uid) => {
     const cost = CREDIT_COSTS[featureType] || 1;
     
     // Lyrical Context: Try to find lyrics in the current project to inform other agents
-    let contextLyrics = '';
     if (targetProjectSnapshot?.assets) {
       const lyricsAsset = targetProjectSnapshot.assets.find(a => 
         a.type === 'lyrics' || 
