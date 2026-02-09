@@ -17017,6 +17017,83 @@ const fetchUserCredits = useCallback(async (uid) => {
               {showAgentHelpModal.capabilities && (
                 <div className="help-section">
                   <h3><Shield size={16} className="text-purple" /> Mission-Critical Wheel House Information</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '8px' }}>
+                    {showAgentHelpModal.capabilities.map((cap, idx) => (
+                      <div key={idx} style={{ 
+                        fontSize: '0.75rem', 
+                        padding: '8px 12px', 
+                        background: 'rgba(168, 85, 247, 0.05)', 
+                        border: '1px solid rgba(168, 85, 247, 0.1)',
+                        borderRadius: '8px',
+                        color: 'var(--text-primary)',
+                        textAlign: 'center',
+                        fontWeight: '500'
+                      }}>
+                        {cap}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {showAgentHelpModal.features && (
+                <div className="help-section">
+                  <h3><ListIcon size={16} className="text-purple" /> Core Features</h3>
+                  <div className="onboarding-steps-list">
+                    {showAgentHelpModal.features.map((feature, idx) => (
+                      <div key={idx} style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '10px', 
+                        padding: '10px 14px', 
+                        background: 'rgba(255,255,255,0.02)', 
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        borderRadius: '10px',
+                        marginBottom: '6px'
+                      }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-purple)' }} />
+                        <p style={{ fontSize: '0.85rem', margin: 0 }}>{feature}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {showAgentHelpModal.proTips && (
+                <div className="help-section pro-tip-box" style={{ background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1), transparent)', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
+                  <h3 style={{ color: 'var(--color-purple)' }}><Award size={16} /> Advanced Pro Tips</h3>
+                  <div className="onboarding-steps-list" style={{ gap: '8px', background: 'none', border: 'none', padding: 0 }}>
+                    {showAgentHelpModal.proTips.map((tip, idx) => (
+                      <p key={idx} style={{ fontSize: '0.9rem', margin: 0, paddingLeft: '12px', borderLeft: '2px solid var(--color-purple)', textAlign: 'left' }}>{tip}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {showAgentHelpModal.examples && (
+                <div className="help-section">
+                   <h3 style={{ fontSize: '0.9rem' }}><Rocket size={16} className="text-cyan" /> Elite Elite Performance Samples</h3>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                     {showAgentHelpModal.examples.map((ex, idx) => (
+                       <div key={idx} style={{ 
+                         padding: '12px', 
+                         background: 'rgba(0,0,0,0.2)', 
+                         borderRadius: '8px', 
+                         fontSize: '0.85rem', 
+                         color: 'var(--color-cyan)',
+                         border: '1px solid rgba(6, 182, 212, 0.1)',
+                         fontFamily: 'monospace'
+                       }}>
+                         "{ex}"
+                       </div>
+                     ))}
+                   </div>
+                </div>
+              )}
+
+              {showAgentHelpModal.onboarding && (
+                <div className="help-section">
+                  <h3><Shield size={16} className="text-purple" /> Mission-Critical Wheel House Information</h3>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {showAgentHelpModal.capabilities.map((cap, i) => (
                       <span key={i} style={{ 
