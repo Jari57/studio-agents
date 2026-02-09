@@ -3579,8 +3579,8 @@ export default function StudioOrchestratorV2({
                     return a.tier === 'free'; // Default/Free tier
                   }).filter(a => {
                     // Additional filter for logic pairing
-                    if (slot.key === 'lyrics') return a.category === 'Music Creation' || a.id === 'ghost';
-                    if (slot.key === 'audio') return a.category === 'Pro Producer' || a.category === 'Music Creation' || a.id === 'beat';
+                    if (slot.key === 'lyrics') return a.category === 'Music Creation' || a.category === 'Pro Performer' || a.id === 'ghost' || a.id === 'vocal-arch';
+                    if (slot.key === 'audio') return a.category === 'Pro Producer' || a.category === 'Music Creation' || a.id === 'beat' || a.id === 'beat-arch';
                     if (slot.key === 'visual') return a.category === 'Visual Identity' || a.id === 'album';
                     if (slot.key === 'video') return a.category === 'Visual Identity' || a.id === 'video-creator';
                     return true;
@@ -4603,7 +4603,7 @@ export default function StudioOrchestratorV2({
             slot={slot.key}
             agentId={selectedAgents[slot.key]}
             icon={slot.icon}
-            title={slot.title}
+            title={selectedAgents[slot.key] ? AGENTS.find(a => a.id === selectedAgents[slot.key])?.name : slot.title}
             subtitle={slot.subtitle}
             color={slot.color}
             output={outputs[slot.key]}
