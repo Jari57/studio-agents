@@ -680,7 +680,7 @@ const allowedOrigins = isDevelopment
   'https://studioagentsai.com',
   'https://www.studioagentsai.com',
   'https://studio-agents.vercel.app',
-  'https://restored-os-whip-montez-production.up.railway.app',
+  'https://web-production-b5922.up.railway.app',
   process.env.FRONTEND_URL]
   : [
       process.env.FRONTEND_URL,
@@ -692,37 +692,17 @@ const allowedOrigins = isDevelopment
   'https://www.studioagentsai.com',
   'https://studio-agents.vercel.app',
   'https://studio-agents-backend-production.up.railway.app',
+  'https://web-production-b5922.up.railway.app',
   'https://restored-os-whip-montez-production.up.railway.app',
     ].filter(Boolean);
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in the explicit whitelist
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      return callback(null, true);
-    }
-
-    // Allow all Vercel and Railway deployments (dynamic previews)
-    if (origin.endsWith('.vercel.app') || origin.endsWith('.railway.app')) {
-      return callback(null, true);
-    }
-
-    // Allow localhost in development
-    if (isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
-      return callback(null, true);
-    }
-
-    logger.warn('🚫 CORS blocked', { origin, allowedOrigins });
-    callback(null, false);
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400 // Cache preflight for 24 hours
+  maxAge: 86400
 }));
 
 app.use(express.json({ limit: '50mb' }));

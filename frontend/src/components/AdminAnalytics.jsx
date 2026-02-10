@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const AdminAnalytics = ({ BACKEND_URL, auth }) => {
+const AdminAnalytics = ({ BACKEND_URL = '', auth }) => {
   const [stats, setStats] = useState({
     totalUsers: 1420,
     activeDAU: 342,
