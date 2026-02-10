@@ -3676,7 +3676,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   };
 
-  async function handleGenerate() {
+  async function handleGenerate(promptOverride = null) {
     console.log('[handleGenerate] Button click detected');
     let contextLyrics = ''; // Hoisted for TDZ safety
     
@@ -3706,8 +3706,8 @@ const fetchUserCredits = useCallback(async (uid) => {
       return;
     }
     
-    // Attempt to find prompt from multiple sources (Responsive Layout fallback)
-    let promptValue = textareaRef.current?.value || '';
+    // Determine the actual prompt to use (Respecting override from tools/orchestrator)
+    let promptValue = promptOverride || textareaRef.current?.value || '';
     
     if (!promptValue) {
       const allTextareas = document.querySelectorAll('.studio-textarea');
@@ -3972,7 +3972,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
 
       const brainData = await brainResponse.json();
-      const expandedPrompt = brainData.output;
+      const expandedPrompt = brainData.output || '';
       console.log(`[Studio] Brain output for execution:`, expandedPrompt.substring(0, 50) + '...');
 
       // PHASE 2: EXECUTION - Call media generators with expanded description
@@ -4048,23 +4048,27 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
       } else {
         // Text-only agents skip phase 2 and use brain result directly
-        response = brainResponse; // Reuse brain response as "success"
+        response = brainResponse; // Reuse brain response object
       }
 
-      // Safely parse JSON
+      // Safely parse JSON (Avoid re-parsing brainData if it's already read)
       let data;
-      const contentType = response?.headers?.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
+      if (finalEndpoint === '/api/generate') {
+        data = brainData;
       } else {
-        const text = await response.text();
-        console.error('Expected JSON but got:', text.substring(0, 100));
-        // Use brain description as fallback if generation failed
-        data = {
-          ...brainData,
-          _isFallback: true,
-          _errText: text.substring(0, 100)
-        };
+        const contentType = response?.headers?.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          const text = await response.text();
+          console.error('Expected JSON but got:', text.substring(0, 100));
+          // Use brain description as fallback if generation failed
+          data = {
+            ...brainData,
+            _isFallback: true,
+            _errText: text.substring(0, 100)
+          };
+        }
       }
       
       // Debug logging

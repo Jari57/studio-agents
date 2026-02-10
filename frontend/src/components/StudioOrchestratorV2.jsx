@@ -1748,7 +1748,7 @@ export default function StudioOrchestratorV2({
         Create righteous quality content for a ${style} song about: "${songIdea}" in ${language}.
         The focus is on professional excellence that exceeds human artist capabilities.
         Output Format: ${outputFormat || 'music'} (Ensure the style matches ${outputFormat}).
-        ${contextLyrics ? `HERE ARE THE LYRICS FOR THE SONG - USE THEM TO INSPIRE THE VIBE: "${contextLyrics.substring(0, 1000)}"` : ''}
+        ${contextLyrics ? `HERE ARE THE LYRICS FOR THE SONG - USE THEM TO INSPIRE THE VIBE: "${String(contextLyrics).substring(0, 1000)}"` : ''}
         ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse 1], [Chorus], [Bridge]. Use high-impact, chart-topping wordplay. ALSO INCLUDE precise Suno-style vocal/style tags in brackets like [Hard Hitting Rap] or [Soulful Vocals] to guide the performance. Do not include any intro/preamble.' : ''}
         ${slot === 'audio' ? `Briefly describe a high-fidelity Billboard-ready beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Use evocative genre descriptors. Your goal is a sonic masterpiece. Keep it under 60 words for maximum AI compatibility.` : ''}
         ${slot === 'visual' ? 'Describe a striking, iconic album cover identity in detail for high-resolution image generation.' : ''}
