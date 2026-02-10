@@ -995,6 +995,8 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ==================== END VOICES API ====================
+
 // DEBUG: Show which env vars are present (not values)
 app.get('/api/debug-env', (req, res) => {
   const envVars = Object.keys(process.env)
