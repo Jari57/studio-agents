@@ -6836,7 +6836,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               {dashboardTab === 'admin' && (
                 <Suspense fallback={<div className="loading-spinner">Loading Analytics...</div>}>
                   <SectionErrorBoundary name="AdminAnalytics">
-                    <AdminAnalytics />
+                    <AdminAnalytics BACKEND_URL={BACKEND_URL} auth={auth} />
                   </SectionErrorBoundary>
                 </Suspense>
               )}

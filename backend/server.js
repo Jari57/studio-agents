@@ -680,7 +680,7 @@ const allowedOrigins = isDevelopment
   'https://studioagentsai.com',
   'https://www.studioagentsai.com',
   'https://studio-agents.vercel.app',
-  'https://web-production-b5922.up.railway.app',
+  'https://restored-os-whip-montez-production.up.railway.app',
   process.env.FRONTEND_URL]
   : [
       process.env.FRONTEND_URL,
@@ -692,7 +692,6 @@ const allowedOrigins = isDevelopment
   'https://www.studioagentsai.com',
   'https://studio-agents.vercel.app',
   'https://studio-agents-backend-production.up.railway.app',
-  'https://web-production-b5922.up.railway.app',
   'https://restored-os-whip-montez-production.up.railway.app',
     ].filter(Boolean);
 

@@ -7,7 +7,7 @@ const isLocal = window.location.hostname === 'localhost' ||
                 window.location.port === '5173' || 
                 window.location.port === '3000';
 
-export const BACKEND_URL = isLocal ? 'http://localhost:3001' : ''; 
+export const BACKEND_URL = isLocal ? 'http://localhost:3001' : 'https://restored-os-whip-montez-production.up.railway.app'; 
 
 // AGENTS ordered for logical 2-column pairing on mobile
 // Row 1: Lyrics + Beats (core music creation)
