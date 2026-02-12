@@ -403,6 +403,7 @@ test.describe('Sanity Checks', () => {
       { method: 'GET', path: '/api/models' },
       { method: 'GET', path: '/api/investor-access/check?email=test@test.com' },
       { method: 'POST', path: '/api/generate' },
+      { method: 'GET', path: '/api/v2/voices' },
       { method: 'GET', path: '/api/user/profile' },
       { method: 'GET', path: '/api/user/projects' },
       { method: 'GET', path: '/api/user/generations' }

@@ -9,10 +9,11 @@ const path = require('path');
 const fs = require('fs');
 const { spawnSync } = require('child_process');
 const { analyzeMusicBeats } = require('./beatDetectionService');
-const { 
-  composeVideoWithBeats, 
+const {
+  composeVideoWithBeats,
   createBeatSyncedVideo,
-  getVideoMetadata 
+  getVideoMetadata,
+  downloadFile
 } = require('./videoCompositionService');
 
 let ffmpegReadyCache = null;

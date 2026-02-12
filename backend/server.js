@@ -16,12 +16,16 @@ const Replicate = require('replicate');
 const emailService = require('./services/emailService');
 const userPreferencesService = require('./services/userPreferencesService');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
-const { 
+const {
   getVideoMetadata
 } = require('./services/videoCompositionService');
 const {
   generateSyncedMusicVideo
 } = require('./services/videoGenerationOrchestrator');
+const {
+  mixAudioFromUrls,
+  getMixPreset
+} = require('./services/audioMixingService');
 
 // Audio processing imports
 let WaveFile;
@@ -163,7 +167,9 @@ const CREDIT_COSTS = {
   
   // Mix/Master (combines multiple operations)
   'mix': 10,
+  'mixing': 10,
   'master': 15,
+  'mastering': 15,
   
   // Default fallback
   'default': 1
@@ -1064,7 +1070,7 @@ app.get('/api/models', async (req, res) => {
 
 // ==================== ELEVENLABS VOICES API ====================
 // List available ElevenLabs professional voices
-app.get('/api/voices', async (req, res) => {
+app.get('/api/v2/voices', async (req, res) => {
   try {
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
     if (!elevenLabsKey) {
@@ -3014,6 +3020,348 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// ONE-CLICK MUSIC VIDEO GENERATOR 🚀
+// Complete end-to-end workflow: Lyrics → Beat → Vocals → Mix → Video
+// THE INVESTOR SHOWCASE FEATURE
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/generate-complete-music-video', verifyFirebaseToken, checkCreditsFor('orchestrate'), generationLimiter, async (req, res) => {
+  try {
+    const {
+      concept,          // e.g., "dark trap song about success"
+      genre = 'hip-hop',
+      style = 'rapper',
+      bpm = 140,
+      duration = 30,
+      language = 'en',
+      voice = 'rapper-male-1',
+      visualStyle = 'cinematic'
+    } = req.body;
+
+    if (!concept) {
+      return res.status(400).json({
+        error: 'Missing required field',
+        required: ['concept']
+      });
+    }
+
+    logger.info('🎬 ONE-CLICK MUSIC VIDEO GENERATION STARTED', {
+      concept: concept.substring(0, 50),
+      genre,
+      style,
+      bpm,
+      duration
+    });
+
+    const startTime = Date.now();
+    const results = {
+      concept,
+      genre,
+      style,
+      steps: []
+    };
+
+    // STEP 1: Generate Lyrics
+    logger.info('Step 1/6: Generating lyrics...');
+    const lyricsPrompt = `Write ${duration}-second ${genre} lyrics about: ${concept}. Format: ${duration >= 60 ? '2-3 verses with hooks' : '1 verse with hook'}. Style: ${style}. Keep it ${language === 'en' ? 'English' : language}.`;
+
+    const lyricsSystemInstruction = `You are a professional ${genre} lyricist. Write compelling, rhythmic lyrics following ${style} flow patterns. Keep length appropriate for ${duration} seconds at ${bpm} BPM. Output ONLY the lyrics, no commentary.`;
+
+    const lyricsResponse = await genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' }).generateContent({
+      contents: [{ role: 'user', parts: [{ text: lyricsPrompt }] }],
+      systemInstruction: lyricsSystemInstruction
+    });
+
+    const lyrics = lyricsResponse.response.text();
+    results.steps.push({ step: 1, name: 'Lyrics Generated', output: lyrics.substring(0, 100) + '...', success: true });
+    logger.info('✅ Step 1 complete: Lyrics generated', { length: lyrics.length });
+
+    // STEP 2: Generate Beat
+    logger.info('Step 2/6: Generating beat...');
+    const beatPrompt = `${genre} instrumental beat, ${bpm} BPM, ${duration} seconds. Dark, moody, professional studio quality. Billboard-ready production.`;
+
+    // Call internal audio generation
+    const beatUrl = await generateAudioInternal({
+      prompt: beatPrompt,
+      bpm,
+      durationSeconds: duration,
+      genre,
+      mood: 'dark',
+      quality: 'premium',
+      outputFormat: 'music'
+    }, logger);
+
+    results.steps.push({ step: 2, name: 'Beat Generated', output: 'Beat audio created', success: true });
+    logger.info('✅ Step 2 complete: Beat generated');
+
+    // STEP 3: Generate Vocals
+    logger.info('Step 3/6: Generating vocals...');
+
+    const vocalUrl = await generateVocalsInternal({
+      prompt: lyrics,
+      voice,
+      style,
+      genre,
+      language,
+      duration,
+      outputFormat: 'music'
+    }, logger);
+
+    results.steps.push({ step: 3, name: 'Vocals Generated', output: 'Vocal performance created', success: true });
+    logger.info('✅ Step 3 complete: Vocals generated');
+
+    // STEP 4: Mix Audio (Vocals + Beat)
+    logger.info('Step 4/6: Professional mixing...');
+
+    const mixedAudioPath = path.join(__dirname, 'temp', `complete_mix_${Date.now()}.mp3`);
+
+    const mixResult = await mixAudioFromUrls(vocalUrl, beatUrl, {
+      outputPath: mixedAudioPath,
+      vocalVolume: 0.90,
+      beatVolume: 0.55,
+      autoDuck: true,
+      compression: true,
+      lufsTarget: -14,
+      outputFormat: 'music',
+      preset: style.includes('rapper') ? 'rapper-over-beat' : 'singer-over-beat'
+    }, logger);
+
+    // Convert mixed audio to data URL
+    const mixedAudioBuffer = fs.readFileSync(mixedAudioPath);
+    const mixedAudioUrl = `data:audio/mpeg;base64,${mixedAudioBuffer.toString('base64')}`;
+    fs.unlinkSync(mixedAudioPath); // Cleanup
+
+    results.steps.push({ step: 4, name: 'Professional Mix Complete', output: 'Billboard-ready audio', success: true });
+    logger.info('✅ Step 4 complete: Professional mix created');
+
+    // STEP 5: Generate Album Artwork
+    logger.info('Step 5/6: Generating album artwork...');
+
+    const artworkPrompt = `Album cover art for ${genre} song about ${concept}. ${visualStyle} aesthetic, professional, high-quality, 16:9 aspect ratio.`;
+
+    const imageUrl = await generateImageInternal({
+      prompt: artworkPrompt
+    }, logger);
+
+    results.steps.push({ step: 5, name: 'Album Artwork Generated', output: 'Cover art created', success: true });
+    logger.info('✅ Step 5 complete: Album artwork generated');
+
+    // STEP 6: Generate Beat-Synced Music Video
+    logger.info('Step 6/6: Generating beat-synced music video...');
+
+    const videoPrompt = `${concept}. ${visualStyle} cinematography, ${genre} music video vibes, professional lighting, dynamic camera movements.`;
+
+    const videoResult = await generateSyncedMusicVideo(
+      mixedAudioUrl,
+      videoPrompt,
+      concept.substring(0, 30), // Title
+      Math.min(duration, 30), // Max 30s for quick demo
+      process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN,
+      logger,
+      imageUrl, // Use album art as first frame
+      null
+    );
+
+    results.steps.push({ step: 6, name: 'Music Video Generated', output: 'Beat-synced video complete', success: true });
+    logger.info('✅ Step 6 complete: Music video generated');
+
+    const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+
+    logger.info('🎉 ONE-CLICK MUSIC VIDEO COMPLETE', {
+      concept: concept.substring(0, 50),
+      totalTime: `${totalTime}s`,
+      allStepsSuccessful: true
+    });
+
+    res.json({
+      success: true,
+      message: 'Complete music video generated successfully',
+      concept,
+      outputs: {
+        lyrics,
+        beatUrl,
+        vocalUrl,
+        mixedAudioUrl,
+        albumArtUrl: imageUrl,
+        musicVideoUrl: videoResult.videoUrl
+      },
+      metadata: {
+        genre,
+        style,
+        bpm,
+        duration,
+        language,
+        processingTime: `${totalTime}s`,
+        quality: 'billboard-ready'
+      },
+      steps: results.steps,
+      videoMetadata: {
+        bpm: videoResult.bpm,
+        beatCount: videoResult.beatCount,
+        segments: videoResult.segments,
+        duration: videoResult.duration
+      }
+    });
+
+  } catch (error) {
+    logger.error('ONE-CLICK MUSIC VIDEO GENERATION FAILED', { error: error.message, stack: error.stack });
+
+    res.status(500).json({
+      error: 'Music video generation failed',
+      details: error.message,
+      partialResults: results
+    });
+  }
+});
+
+// Helper function: Internal audio generation (no HTTP overhead)
+async function generateAudioInternal(options, logger) {
+  const {
+    prompt, bpm = 90, durationSeconds = 30, genre = 'hip-hop', mood = 'chill',
+    quality = 'standard', outputFormat = 'music'
+  } = options;
+
+  const stabilityKey = process.env.STABILITY_API_KEY;
+  const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+
+  let qualityTags = 'Billboard 100 top charts, high-fidelity studio recording, professional arrangement';
+  const musicPrompt = `${genre} ${mood} instrumental beat, ${bpm} BPM. ${prompt}. ${qualityTags}`;
+
+  // Try Stability AI first (premium)
+  if (stabilityKey) {
+    try {
+      const FormData = require('form-data');
+      const formData = new FormData();
+      formData.append('prompt', musicPrompt);
+      formData.append('duration', Math.min(durationSeconds, 180).toString());
+      formData.append('model', 'stable-audio-2.5');
+      formData.append('output_format', 'mp3');
+
+      const response = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${stabilityKey}`, 'Accept': 'application/json' },
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.audio && data.audio.length > 500) {
+          return `data:audio/mpeg;base64,${data.audio}`;
+        }
+      }
+    } catch (err) {
+      logger.warn('Stability failed, trying Replicate...', { error: err.message });
+    }
+  }
+
+  // Fallback to Replicate
+  if (replicateKey) {
+    const replicate = new Replicate({ auth: replicateKey });
+    const output = await replicate.run(
+      "facebook/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38",
+      {
+        input: {
+          prompt: musicPrompt,
+          duration: Math.min(durationSeconds, 65),
+          model_version: 'large',
+          output_format: "mp3"
+        }
+      }
+    );
+
+    const directUrl = Array.isArray(output) ? output[0] : output;
+    const audioResponse = await fetch(directUrl);
+    const audioData = await audioResponse.arrayBuffer();
+    return `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
+  }
+
+  throw new Error('No audio generation provider available');
+}
+
+// Helper function: Internal vocals generation
+async function generateVocalsInternal(options, logger) {
+  const {
+    prompt, voice = 'rapper-male-1', style = 'rapper', genre = 'hip-hop',
+    language = 'en', duration = 30, outputFormat = 'music'
+  } = options;
+
+  const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+
+  if (!elevenLabsKey) {
+    throw new Error('ElevenLabs API key not configured');
+  }
+
+  // Map voice styles to ElevenLabs voice IDs
+  const voiceIdMap = {
+    'rapper': 'pNInz6obpgDQGcFmaJgB', // Adam
+    'rapper-female': 'Lcf7NAZ7x9YVvj6S7YhL', // Alice
+    'singer': 'MF3mGyEYCl7XYW7ANnSM', // Emotional Singer
+    'narrator': 'onwK4e9ZLuTAKqWW03af' // Documentary
+  };
+
+  const voiceId = voiceIdMap[style] || voiceIdMap['rapper'];
+
+  const voiceSettings = {
+    stability: style.includes('rapper') ? 0.45 : 0.55,
+    similarity_boost: 0.85,
+    style: style.includes('rapper') ? 0.75 : 0.45,
+    use_speaker_boost: true
+  };
+
+  const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_192`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'audio/mpeg',
+      'xi-api-key': elevenLabsKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      text: prompt,
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: voiceSettings,
+      language_code: language
+    })
+  });
+
+  if (!elResponse.ok) {
+    throw new Error(`ElevenLabs failed: ${elResponse.status}`);
+  }
+
+  const audioBuffer = await elResponse.arrayBuffer();
+  return `data:audio/mpeg;base64,${Buffer.from(audioBuffer).toString('base64')}`;
+}
+
+// Helper function: Internal image generation
+async function generateImageInternal(options, logger) {
+  const { prompt } = options;
+  const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+
+  if (!replicateKey) {
+    throw new Error('Replicate API key not configured');
+  }
+
+  const replicate = new Replicate({ auth: replicateKey });
+
+  const output = await replicate.run(
+    "black-forest-labs/flux-schnell",
+    {
+      input: {
+        prompt,
+        aspect_ratio: "16:9",
+        output_format: "jpg",
+        output_quality: 90
+      }
+    }
+  );
+
+  const imageUrl = Array.isArray(output) ? output[0] : output;
+
+  // Download and convert to base64
+  const response = await fetch(imageUrl);
+  const buffer = await response.arrayBuffer();
+  return `data:image/jpeg;base64,${Buffer.from(buffer).toString('base64')}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // VIDEO FRAME EXTRACTION (Fallback for image from video)
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/extract-video-frame', verifyFirebaseToken, async (req, res) => {
@@ -3308,16 +3656,17 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCreditsFor('image'), g
 // Vocal/speech generation charges 2 credits
 app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), generationLimiter, async (req, res) => {
   try {
-    const { 
-      prompt, 
-      voice = 'rapper-male-1', 
+    const {
+      prompt,
+      voice = 'rapper-male-1',
       style = 'rapper',  // rapper, rapper-female, singer, singer-female, narrator, spoken, cloned
       rapStyle = 'aggressive', // aggressive, chill, melodic, fast, trap, oldschool, storytelling, hype
       genre = 'hip-hop', // hip-hop, r&b, pop, soul, trap, drill, boom-bap
       language = 'en',   // en, es, fr, de, it, pt, ja, ko, zh
       speakerUrl = null, // Reference audio for voice cloning (XTTS)
       duration = 30,      // Requested length
-      outputFormat = 'social' // social, podcast, tv, music
+      outputFormat = 'social', // social, podcast, tv, music
+      backingTrackUrl = null // Backing track for vocal mixing (optional)
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
@@ -3954,6 +4303,117 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
   } catch (error) {
     logger.error('Global audio error', { error: error.message });
     res.status(500).json({ error: 'Audio generation failed', details: error.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// PROFESSIONAL AUDIO MIXING & MASTERING
+// Billboard-ready vocal + beat mixing with auto-ducking and mastering
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/mix-audio', verifyFirebaseToken, checkCreditsFor('mixing'), generationLimiter, async (req, res) => {
+  try {
+    const {
+      vocalUrl,
+      beatUrl,
+      vocalVolume,
+      beatVolume,
+      autoDuck = true,
+      compression = true,
+      lufsTarget,
+      outputFormat = 'music',
+      preset = null  // e.g., 'rapper-over-beat', 'singer-over-beat', 'social-viral'
+    } = req.body;
+
+    if (!vocalUrl || !beatUrl) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        required: ['vocalUrl', 'beatUrl']
+      });
+    }
+
+    logger.info('Professional audio mixing requested', {
+      preset,
+      outputFormat,
+      autoDuck,
+      compression,
+      hasCustomVolumes: !!(vocalVolume || beatVolume)
+    });
+
+    // Get preset or use custom settings
+    let mixOptions = preset ? getMixPreset(preset) : {
+      vocalVolume: vocalVolume || 0.85,
+      beatVolume: beatVolume || 0.60,
+      autoDuck,
+      compression,
+      lufsTarget: lufsTarget || -14,
+      outputFormat
+    };
+
+    // Override preset with custom values if provided
+    if (!preset) {
+      mixOptions = {
+        vocalVolume: vocalVolume || 0.85,
+        beatVolume: beatVolume || 0.60,
+        autoDuck,
+        compression,
+        lufsTarget: lufsTarget || -14,
+        outputFormat
+      };
+    } else if (vocalVolume !== undefined || beatVolume !== undefined || lufsTarget !== undefined) {
+      // Allow preset override
+      if (vocalVolume !== undefined) mixOptions.vocalVolume = vocalVolume;
+      if (beatVolume !== undefined) mixOptions.beatVolume = beatVolume;
+      if (lufsTarget !== undefined) mixOptions.lufsTarget = lufsTarget;
+    }
+
+    // Create output path
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const outputPath = path.join(tempDir, `mixed_${Date.now()}.mp3`);
+    mixOptions.outputPath = outputPath;
+
+    // Mix the audio
+    const result = await mixAudioFromUrls(vocalUrl, beatUrl, mixOptions, logger);
+
+    if (result.success) {
+      // Convert to base64 for response
+      const audioBuffer = fs.readFileSync(outputPath);
+      const base64Audio = audioBuffer.toString('base64');
+      const audioUrl = `data:audio/mpeg;base64,${base64Audio}`;
+
+      // Cleanup temp file
+      try {
+        fs.unlinkSync(outputPath);
+      } catch (_e) { /* ignore */ }
+
+      logger.info('Professional mix complete', {
+        quality: result.quality,
+        lufs: mixOptions.lufsTarget,
+        outputFormat: mixOptions.outputFormat
+      });
+
+      res.json({
+        success: true,
+        audioUrl,
+        quality: result.quality,
+        provider: 'ffmpeg-professional',
+        processing: result.processing,
+        format: mixOptions.outputFormat,
+        mimeType: 'audio/mpeg',
+        message: 'Billboard-ready professional mix complete'
+      });
+    } else {
+      throw new Error('Mixing failed');
+    }
+
+  } catch (error) {
+    logger.error('Audio mixing error', { error: error.message });
+    res.status(500).json({
+      error: 'Professional mixing failed',
+      details: error.message
+    });
   }
 });
 

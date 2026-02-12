@@ -1411,7 +1411,7 @@ export default function StudioOrchestratorV2({
     const fetchElVoices = async () => {
       setLoadingElVoices(true);
       try {
-        const response = await fetch(`${BACKEND_URL}/api/voices`);
+        const response = await fetch(`${BACKEND_URL}/api/v2/voices`);
         if (response.ok) {
           const voices = await response.json();
           setElVoices(voices);
@@ -1940,9 +1940,8 @@ export default function StudioOrchestratorV2({
       
       console.log('[handleGenerateAudio] Making API call to:', `${BACKEND_URL}/api/generate-audio`);
 
-      // Check if we have a referenced audio asset to use as seed
-      const activeReferencedAudio = assets?.find(a => a.id === referencedAudioId) || 
-                                   assets?.find(a => a.type === 'audio' || a.type === 'vocal');
+      // DNA reference audio (using audioDnaUrl from state)
+      const activeReferencedAudio = null; // TODO: Implement asset lookup if needed
 
       const response = await fetch(`${BACKEND_URL}/api/generate-audio`, {
         method: 'POST',
@@ -2115,9 +2114,8 @@ export default function StudioOrchestratorV2({
       
       const selectedVoice = voiceMapping[voiceStyle] || 'rapper-male-1';
 
-      // Check if we have a referenced audio asset to use as DNA/Style seed
-      const activeReferencedAudio = assets?.find(a => a.id === referencedAudioId) || 
-                                   assets?.find(a => a.type === 'audio' || a.type === 'vocal');
+      // DNA reference audio (using voiceSampleUrl from state)
+      const activeReferencedAudio = null; // TODO: Implement asset lookup if needed
 
       const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
         method: 'POST',

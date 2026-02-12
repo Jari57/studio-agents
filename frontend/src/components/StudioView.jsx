@@ -823,7 +823,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   useEffect(() => {
     const fetchElVoices = async () => {
       try {
-        const response = await fetch(`${BACKEND_URL}/api/voices`);
+        const response = await fetch(`${BACKEND_URL}/api/v2/voices`);
         if (response.ok) {
           const data = await response.json();
           // Handle both object {voices: []} and direct array [] responses
@@ -3707,8 +3707,14 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
     
     // Determine the actual prompt to use (Respecting override from tools/orchestrator)
-    let promptValue = promptOverride || textareaRef.current?.value || '';
-    
+    // Ensure promptValue is always a string
+    let promptValue = '';
+    if (promptOverride) {
+      promptValue = typeof promptOverride === 'string' ? promptOverride : String(promptOverride);
+    } else if (textareaRef.current?.value) {
+      promptValue = textareaRef.current.value;
+    }
+
     if (!promptValue) {
       const allTextareas = document.querySelectorAll('.studio-textarea');
       for (const ta of allTextareas) {

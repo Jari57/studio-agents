@@ -15,6 +15,9 @@
     "build:clean": "powershell -File scripts/cleanup-build.ps1 && npm run build",
     "clean": "powershell -File scripts/cleanup-build.ps1",
     "install:all": "npm ci && cd backend && npm ci && cd ../frontend && npm ci",
-    "start": "cd backend && npm start"
+    "start": "cd backend && npm start",
+    "deploy:dev": "powershell -ExecutionPolicy Bypass -File deploy-dev.ps1",
+    "deploy:prod": "powershell -ExecutionPolicy Bypass -File deploy-prod.ps1",
+    "deploy": "npm run deploy:prod"
   }
 }
