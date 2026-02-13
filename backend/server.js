@@ -4005,10 +4005,49 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
 
     if (audioUrl) {
       logger.info('🎤 Vocal generation successful', { provider });
-      
+
       let permanentUrl = null;
       let storagePath = null;
-      
+
+      // MIX WITH BACKING TRACK IF PROVIDED
+      if (backingTrackUrl) {
+        try {
+          logger.info('🎚️ Mixing vocal with backing track');
+          const tempDir = path.join(__dirname, 'temp');
+          if (!fs.existsSync(tempDir)) {
+            fs.mkdirSync(tempDir, { recursive: true });
+          }
+          const mixedOutputPath = path.join(tempDir, `mixed_vocal_${Date.now()}.mp3`);
+
+          // Use professional mixing preset for vocals over beat
+          const mixOptions = {
+            vocalVolume: 0.90,
+            beatVolume: 0.55,
+            autoDuck: true,
+            compression: true,
+            lufsTarget: -14,
+            outputFormat: outputFormat || 'music',
+            outputPath: mixedOutputPath
+          };
+
+          const { mixAudioFromUrls } = require('./services/audioMixingService');
+          const mixResult = await mixAudioFromUrls(audioUrl, backingTrackUrl, mixOptions, logger);
+
+          if (mixResult && mixResult.outputPath && fs.existsSync(mixResult.outputPath)) {
+            // Read mixed audio and convert to base64
+            const mixedAudioBuffer = fs.readFileSync(mixResult.outputPath);
+            audioUrl = `data:audio/mpeg;base64,${mixedAudioBuffer.toString('base64')}`;
+            logger.info('✅ Vocal successfully mixed with backing track');
+
+            // Clean up temp file
+            try { fs.unlinkSync(mixResult.outputPath); } catch {}
+          }
+        } catch (mixErr) {
+          logger.warn('Vocal mixing failed, returning dry vocal', { error: mixErr.message });
+          // Continue with unmixed vocal
+        }
+      }
+
       if (req.user && req.body.saveToCloud !== false) {
         const bucket = getStorageBucket();
         if (bucket) {
@@ -4135,8 +4174,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
         formData.append('duration', Math.min(durationSeconds, 180).toString());
         formData.append('model', 'stable-audio-2.5');
         formData.append('output_format', 'mp3');
-        formData.append('steps', '50'); // Increased quality for V3.5
-        formData.append('cfg_scale', '7'); // Standard creative scale
+        formData.append('steps', '100'); // MAXIMUM quality for billboard level
+        formData.append('cfg_scale', '12'); // HIGHEST fidelity for righteous quality
         if (seed > 0) formData.append('seed', seed.toString());
 
         const response = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
@@ -4423,8 +4462,14 @@ app.post('/api/mix-audio', verifyFirebaseToken, checkCreditsFor('mixing'), gener
 // Video generation charges 15 credits (expensive)
 app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), generationLimiter, async (req, res) => {
   try {
-    let { prompt, referenceImage, durationSeconds = 8, audioUrl = null, vocalUrl = null } = req.body;
+    let { prompt, referenceImage, durationSeconds = 8, audioUrl = null, vocalUrl = null, audioDuration = null } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    // If audio/vocals are provided, match their duration (up to 30s for beat-sync videos)
+    if ((audioUrl || vocalUrl) && audioDuration) {
+      durationSeconds = Math.min(Math.max(audioDuration, 8), 30); // 8-30 seconds for beat-synced videos
+      logger.info('📹 Video duration matched to audio', { audioDuration, durationSeconds });
+    }
 
     let systemCreditIssue = false;
 

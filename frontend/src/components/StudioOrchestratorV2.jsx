@@ -1051,18 +1051,22 @@ function ProductionControlHub({
             })}
           </div>
 
-          {/* DAW Timeline View (Pro Feature) */}
+          {/* DAW Timeline View (Billboard Production Timeline) */}
           <div style={{
-            marginTop: '20px',
-            background: 'rgba(0,0,0,0.3)',
-            borderRadius: '12px',
-            padding: '16px',
-            border: '1px solid rgba(255,255,255,0.05)',
-            display: isMobile ? 'none' : 'block'
+            marginTop: '24px',
+            background: 'linear-gradient(135deg, rgba(0,0,0,0.5), rgba(30,30,40,0.5))',
+            borderRadius: '16px',
+            padding: '20px',
+            border: '2px solid rgba(34, 211, 238, 0.3)',
+            boxShadow: '0 8px 32px rgba(34, 211, 238, 0.1)',
+            display: 'block' // ALWAYS visible - removed mobile hide
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: '700', textTransform: 'uppercase' }}>Production Timeline</span>
-              <span style={{ fontSize: '0.7rem', color: '#818cf8', fontWeight: '700' }}>{orchestratorBpm} BPM • STEREO</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <span style={{ fontSize: '0.85rem', color: '#22d3ee', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🎚️ Production Timeline</span>
+                <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>Billboard-Quality Multi-Track Sync</div>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: '#818cf8', fontWeight: '700', background: 'rgba(129, 140, 248, 0.1)', padding: '6px 12px', borderRadius: '8px' }}>{orchestratorBpm} BPM • STEREO</span>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -2650,6 +2654,7 @@ export default function StudioOrchestratorV2({
           referenceVideo: videoDnaUrl,
           visualId: referencedVisualId,
           duration: duration,
+          audioDuration: duration, // Pass audio duration for video sync
           audioUrl: mediaUrls.audio,
           vocalUrl: mediaUrls.vocals || mediaUrls.lyricsVocal
         })
