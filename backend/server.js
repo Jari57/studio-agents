@@ -436,7 +436,7 @@ const verifyFirebaseToken = async (req, res, next) => {
 };
 
 // Require auth middleware - blocks unauthenticated requests
-const _requireAuth = (req, res, next) => {
+const requireAuth = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
@@ -703,7 +703,15 @@ const allowedOrigins = isDevelopment
     ].filter(Boolean);
 
 app.use(cors({
-  origin: true,
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, server-to-server, same-origin)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    logger.warn('CORS blocked origin:', origin);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
@@ -821,8 +829,8 @@ if (isDevelopment) {
 // Fingerprint-based user tracking for rate limiting (IPv6-safe)
 const createFingerprint = (req) => {
   const ipHash = ipKeyGenerator(req); // IPv6-safe IP normalization
-  // Use authenticated user ID (from Firebase token) OR body userId OR anon
-  const userId = req.user?.uid || req.body?.userId || 'anon';
+  // Use authenticated user ID only - never trust request body for fingerprinting
+  const userId = req.user?.uid || 'anon';
   const userAgent = req.headers['user-agent'] || 'unknown';
   const components = `${ipHash}-${userId}-${userAgent}`;
   return crypto.createHash('md5').update(components).digest('hex');
@@ -852,8 +860,8 @@ const apiLimiter = rateLimit({
 // Apply rate limiting to API routes only
 app.use('/api/', apiLimiter);
 
-// Diagnostic endpoint to check backend health and firebase status
-app.get('/api/debug-status', (req, res) => {
+// Diagnostic endpoint to check backend health and firebase status (admin only)
+app.get('/api/debug-status', verifyFirebaseToken, requireAdmin, (req, res) => {
   res.json({
     status: 'online',
     timestamp: new Date().toISOString(),
@@ -1003,8 +1011,8 @@ app.get('/api/health', (req, res) => {
 
 // ==================== END VOICES API ====================
 
-// DEBUG: Show which env vars are present (not values)
-app.get('/api/debug-env', (req, res) => {
+// DEBUG: Show which env vars are present (not values) - admin only
+app.get('/api/debug-env', verifyFirebaseToken, requireAdmin, (req, res) => {
   const envVars = Object.keys(process.env)
     .filter(k => k.includes('FIREBASE') || k.includes('GEMINI') || k.includes('NODE') || k.includes('PORT') || k.includes('RAILWAY'))
     .reduce((acc, k) => {
@@ -1020,21 +1028,15 @@ app.get('/api/debug-env', (req, res) => {
 });
 
 // MODELS ROUTE - returns available models that support generateContent
-// ==================== DIAGNOSTIC: Check which APIs are configured ====================
-app.get('/api/status/apis', (req, res) => {
-  // List ALL env keys for debugging (names only, not values)
-  const allKeys = Object.keys(process.env).sort();
+// ==================== DIAGNOSTIC: Check which APIs are configured (admin only) ====================
+app.get('/api/status/apis', verifyFirebaseToken, requireAdmin, (req, res) => {
   const status = {
     gemini: !!process.env.GEMINI_API_KEY,
     uberduck: !!process.env.UBERDUCK_API_KEY,
-    uberduckKeyLength: process.env.UBERDUCK_API_KEY?.length || 0,
     replicate: !!(process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN),
-    replicateKeyLength: (process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN)?.length || 0,
     stability: !!process.env.STABILITY_API_KEY,
     fal: !!process.env.FAL_KEY || !!process.env.FAL_API_KEY,
     firebaseAdmin: firebaseInitialized,
-    totalEnvVars: allKeys.length,
-    allEnvVarNames: allKeys, // Show ALL env var names
     message: 'Audio generation requires uberduck, replicate, stability, or fal API key.'
   };
   res.json(status);
@@ -1784,6 +1786,12 @@ app.delete('/api/user/generations/:id', verifyFirebaseToken, async (req, res) =>
 // ============================================================================
 // SESSION LOGGING (for security & analytics)
 // ============================================================================
+
+// GET /api/user/admin-status - Check if authenticated user is an admin (server-side verification)
+app.get('/api/user/admin-status', verifyFirebaseToken, requireAuth, (req, res) => {
+  const isAdmin = ADMIN_EMAILS.includes(req.user.email?.toLowerCase());
+  res.json({ isAdmin });
+});
 
 // POST /api/user/session - Log user session/login
 app.post('/api/user/session', verifyFirebaseToken, async (req, res) => {
@@ -2811,7 +2819,7 @@ app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generati
 // AGENT MODEL ORCHESTRATOR (AMO) - Combine up to 4 agent outputs
 // ═══════════════════════════════════════════════════════════════════
 // Orchestration charges 8 credits (multi-step workflow)
-app.post('/api/orchestrate', verifyFirebaseToken, _requireAuth, checkCreditsFor('orchestrate'), async (req, res) => {
+app.post('/api/orchestrate', verifyFirebaseToken, requireAuth, checkCreditsFor('orchestrate'), async (req, res) => {
   try {
     const { agentOutputs, projectName, projectDescription } = req.body;
     
@@ -6415,19 +6423,17 @@ const STRIPE_CREDIT_PACKS = {
 // No need for a second initialization here
 
 // POST /api/stripe/create-checkout-session - Create a Stripe Checkout session
-app.post('/api/stripe/create-checkout-session', async (req, res) => {
+app.post('/api/stripe/create-checkout-session', verifyFirebaseToken, requireAuth, async (req, res) => {
   if (!stripe) {
     return res.status(503).json({ error: 'Payment system not configured' });
   }
 
-  const { tier, userId, userEmail, successUrl, cancelUrl } = req.body;
+  const userId = req.user.uid;
+  const userEmail = req.user.email || '';
+  const { tier, successUrl, cancelUrl } = req.body;
 
   if (!tier || !['creator', 'studio', 'lifetime'].includes(tier)) {
     return res.status(400).json({ error: 'Invalid subscription tier' });
-  }
-
-  if (!userId) {
-    return res.status(400).json({ error: 'User must be logged in to subscribe' });
   }
 
   const priceId = STRIPE_PRICES[tier];
@@ -6478,20 +6484,18 @@ app.post('/api/stripe/create-checkout-session', async (req, res) => {
 });
 
   // POST /api/stripe/create-credits-checkout-session - Create a Stripe Checkout session for credits
-  app.post('/api/stripe/create-credits-checkout-session', verifyFirebaseToken, async (req, res) => {
+  app.post('/api/stripe/create-credits-checkout-session', verifyFirebaseToken, requireAuth, async (req, res) => {
     if (!stripe) {
       return res.status(503).json({ error: 'Payment system not configured' });
     }
 
-    const { amount, userId, userEmail, successUrl, cancelUrl } = req.body;
+    const userId = req.user.uid;
+    const userEmail = req.user.email || '';
+    const { amount, successUrl, cancelUrl } = req.body;
     const packAmount = String(amount);
 
     if (!amount || !STRIPE_CREDIT_PACKS[packAmount]) {
       return res.status(400).json({ error: 'Invalid credit pack amount' });
-    }
-
-    if (!userId) {
-      return res.status(400).json({ error: 'User must be logged in to buy credits' });
     }
 
     const priceId = STRIPE_CREDIT_PACKS[packAmount];
@@ -6553,16 +6557,14 @@ app.post('/api/stripe/create-checkout-session', async (req, res) => {
     let event;
 
     try {
-      if (STRIPE_WEBHOOK_SECRET) {
-        event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
-      } else {
-        // For testing without webhook signature verification
-        event = JSON.parse(req.body.toString());
-        logger.warn('⚠️ Webhook signature verification skipped (no secret configured)');
+      if (!STRIPE_WEBHOOK_SECRET) {
+        logger.error('STRIPE_WEBHOOK_SECRET not configured - rejecting webhook');
+        return res.status(500).json({ error: 'Webhook not configured' });
       }
+      event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
     } catch (err) {
-      logger.error('❌ Webhook signature verification failed', { error: err.message });
-      return res.status(400).send(`Webhook Error: ${err.message}`);
+      logger.error('Webhook signature verification failed', { error: err.message });
+      return res.status(400).json({ error: 'Webhook verification failed' });
     }
 
     logger.info('💳 Webhook received', { type: event.type });
@@ -6796,12 +6798,8 @@ async function handlePaymentFailed(invoice) {
 }
 
 // GET /api/stripe/subscription-status - Check user's subscription status
-app.get('/api/stripe/subscription-status', async (req, res) => {
-  const { userId } = req.query;
-
-  if (!userId) {
-    return res.status(400).json({ error: 'userId required' });
-  }
+app.get('/api/stripe/subscription-status', verifyFirebaseToken, requireAuth, async (req, res) => {
+  const userId = req.user.uid;
 
   const db = getFirestoreDb();
   if (!db) {
@@ -6842,16 +6840,13 @@ app.get('/api/stripe/subscription-status', async (req, res) => {
 });
 
 // POST /api/stripe/create-portal-session - Customer portal for managing subscription
-app.post('/api/stripe/create-portal-session', async (req, res) => {
+app.post('/api/stripe/create-portal-session', verifyFirebaseToken, requireAuth, async (req, res) => {
   if (!stripe) {
     return res.status(503).json({ error: 'Payment system not configured' });
   }
 
-  const { userId, returnUrl } = req.body;
-
-  if (!userId) {
-    return res.status(400).json({ error: 'userId required' });
-  }
+  const userId = req.user.uid;
+  const { returnUrl } = req.body;
 
   try {
     // Get customer ID from Firebase
@@ -6887,15 +6882,13 @@ app.post('/api/stripe/create-portal-session', async (req, res) => {
 // POST /api/projects - Save a project
 app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
   const { userId, project } = req.body;
-  
-  // Security Hardening for Revenue Readiness:
-  // In production, strictly enforce that the authenticated user matches the target ID.
-  if (!isDevelopment && (!req.user || req.user.uid !== userId)) {
+
+  // Always enforce that the authenticated user matches the target ID
+  if (!req.user || req.user.uid !== userId) {
      return res.status(401).json({ error: 'Unauthorized: ID mismatch or not logged in' });
   }
 
-  // Allow fallback in dev mode or if auth token is verified matching
-  const targetUserId = req.user ? req.user.uid : userId;
+  const targetUserId = req.user.uid;
 
   if (!targetUserId) {
     return res.status(401).json({ error: 'User ID required' });
@@ -6942,13 +6935,13 @@ app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
 app.put('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
   const projectId = req.params.id;
   const { userId, project, lastUpdatedAt } = req.body;
-  
-  // Security Hardening
-  if (!isDevelopment && (!req.user || req.user.uid !== userId)) {
+
+  // Always enforce auth
+  if (!req.user || req.user.uid !== userId) {
     return res.status(401).json({ error: 'Unauthorized: ID mismatch or not logged in' });
   }
 
-  const targetUserId = req.user ? req.user.uid : userId;
+  const targetUserId = req.user.uid;
 
   if (!targetUserId) {
     return res.status(401).json({ error: 'User ID required' });
@@ -7006,13 +6999,13 @@ app.put('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
 // GET /api/projects - Get user projects
 app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
   const userId = req.query.userId;
-  
-  // Security Hardening for Revenue Readiness:
-  if (!isDevelopment && (!req.user || req.user.uid !== userId)) {
+
+  // Always enforce auth
+  if (!req.user || req.user.uid !== userId) {
     return res.status(401).json({ error: 'Unauthorized: ID mismatch or not logged in' });
   }
 
-  const targetUserId = req.user ? req.user.uid : userId;
+  const targetUserId = req.user.uid;
 
   if (!targetUserId) {
     return res.status(401).json({ error: 'User ID required' });
@@ -7060,13 +7053,13 @@ app.get('/api/projects', verifyFirebaseToken, async (req, res) => {
 // DELETE /api/projects/:id - Delete a project
 app.delete('/api/projects/:id', verifyFirebaseToken, async (req, res) => {
   const projectId = req.params.id;
-  const userId = req.query.userId;
-  const targetUserId = req.user ? req.user.uid : userId;
-  const projectName = req.query.projectName || projectId; // Pass project name for notification
+  const projectName = req.query.projectName || projectId;
 
-  if (!targetUserId) {
-    return res.status(401).json({ error: 'User ID required' });
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
   }
+
+  const targetUserId = req.user.uid;
 
   try {
     const db = getFirestoreDb();
@@ -7110,7 +7103,9 @@ const HOST = '0.0.0.0'; // Bind to all interfaces for Railway
 /**
  * Beat Detection Endpoint (Test Version - No Auth Required)
  * Analyzes audio file and returns beat markers and BPM
+ * Only available in development mode
  */
+if (isDevelopment) {
 app.post('/api/analyze-beats-test', async (req, res) => {
   try {
     const { audioUrl } = req.body;
@@ -7477,6 +7472,7 @@ app.post('/api/video-metadata-test', async (req, res) => {
     });
   }
 });
+} // end isDevelopment test endpoints
 
 /**
  * Video Metadata Endpoint (Production - Firebase Auth Required)

@@ -141,17 +141,17 @@ test.describe('Generation Endpoint', () => {
 
 test.describe('Stripe Endpoints', () => {
 
-  test('Subscription status requires userId', async ({ request }) => {
+  test('Subscription status requires auth', async ({ request }) => {
     const response = await request.get(`${BACKEND_URL}/api/stripe/subscription-status`);
-    // Should fail or return no subscription
-    expect([400, 200]).toContain(response.status());
+    // Should fail without auth token
+    expect([400, 401]).toContain(response.status());
   });
 
-  test('Create checkout requires valid tier and userId', async ({ request }) => {
+  test('Create checkout requires auth and valid tier', async ({ request }) => {
     const response = await request.post(`${BACKEND_URL}/api/stripe/create-checkout`, {
       data: { tier: 'creator' }
     });
-    // Should fail due to missing userId or Stripe not configured (503) or not found (404)
+    // Should fail due to missing auth (401), Stripe not configured (503), or not found (404)
     expect([400, 401, 404, 500, 503]).toContain(response.status());
   });
 

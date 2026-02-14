@@ -2291,20 +2291,34 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           setAuthChecking(false); // Auth check complete
           
           // Get and store token
+          let token = null;
           try {
-            const token = await currentUser.getIdToken();
+            token = await currentUser.getIdToken();
             setUserToken(token);
           } catch (tokenErr) {
             console.error("Error getting user token:", tokenErr);
           }
           
-          // Check if admin account
-          const adminStatus = isAdminEmail(currentUser.email);
+          // Check if admin account (server-side verification)
+          let adminStatus = false;
+          if (token) {
+            try {
+              const adminRes = await fetch(`${BACKEND_URL}/api/user/admin-status`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              if (adminRes.ok) {
+                const adminData = await adminRes.json();
+                adminStatus = adminData.isAdmin === true;
+              }
+            } catch (adminErr) {
+              console.error("Admin status check failed:", adminErr);
+            }
+          }
           setIsAdmin(adminStatus);
           if (adminStatus) {
-            console.log('🔐 Admin access granted:', currentUser.email);
+            console.log('Admin access granted:', currentUser.email);
             setUserPlan('Lifetime Access');
-            setUserCredits(999999); // Unlimited credits for admin
+            setUserCredits(999999);
             toast.success('Welcome, Administrator!', { icon: '🔐' });
           }
           
