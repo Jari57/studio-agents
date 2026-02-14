@@ -5,14 +5,16 @@ export const useSwipeNavigation = (sections, activeSection, navigateTo) => {
   const touchStartY = useRef(null);
   const touchEndX = useRef(null);
   const touchEndY = useRef(null);
+  const swiped = useRef(false);
 
-  const minSwipeDistance = 50;
+  const minSwipeDistance = 100;
 
   const onTouchStart = (e) => {
     touchStartX.current = e.targetTouches[0].clientX;
     touchStartY.current = e.targetTouches[0].clientY;
     touchEndX.current = null;
     touchEndY.current = null;
+    swiped.current = false;
   };
 
   const onTouchMove = (e) => {
@@ -22,12 +24,13 @@ export const useSwipeNavigation = (sections, activeSection, navigateTo) => {
 
   const onTouchEnd = () => {
     if (!touchStartX.current || !touchEndX.current) return;
-    
+
     const distanceX = touchStartX.current - touchEndX.current;
     const distanceY = touchStartY.current - touchEndY.current;
     const isHorizontalSwipe = Math.abs(distanceX) > Math.abs(distanceY);
 
     if (isHorizontalSwipe && Math.abs(distanceX) > minSwipeDistance) {
+      swiped.current = true;
       const currentIndex = sections.indexOf(activeSection);
       if (distanceX > 0) {
         // Swipe Left -> Next Section
@@ -43,5 +46,5 @@ export const useSwipeNavigation = (sections, activeSection, navigateTo) => {
     }
   };
 
-  return { onTouchStart, onTouchMove, onTouchEnd };
+  return { onTouchStart, onTouchMove, onTouchEnd, swiped };
 };

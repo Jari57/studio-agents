@@ -851,21 +851,21 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             </div>
           </div>
 
-          {/* CTA Buttons - High Conversion & Professional */}
-          <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', maxWidth: '440px', marginTop: '12px' }}>
-            
+          {/* CTA Buttons - Distinct Destinations */}
+          <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '440px', marginTop: '12px' }}>
+
             <button
-              onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'resources')}
+              onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'mystudio')}
               className="cta-button-primary haptic-press"
-              style={{ 
-                width: '100%', 
-                justifyContent: 'center', 
-                padding: '22px 24px',
+              style={{
+                width: '100%',
+                justifyContent: 'center',
+                padding: '20px 24px',
                 borderRadius: '24px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
-                fontSize: '1.25rem',
+                fontSize: '1.2rem',
                 fontWeight: '900',
                 background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 50%, #d946ef 100%)',
                 boxShadow: '0 20px 40px rgba(124, 58, 237, 0.4), inset 0 2px 0 rgba(255,255,255,0.2)',
@@ -874,34 +874,62 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 letterSpacing: '-0.3px'
               }}
             >
-              <Music size={22} fill="currentColor" />
-              {isLoggedMember ? 'Return to Your Studio' : 'Launch Your Studio — Free'}
-              <ChevronRight size={22} />
+              <Music size={20} fill="currentColor" />
+              Launch Your Studio
+              <ArrowRight size={20} />
             </button>
 
-            <button
-              onClick={() => onEnter(false, false, 'resources')}
-              className="glass-button haptic-press"
-              style={{ 
-                width: '100%', 
-                justifyContent: 'center', 
-                padding: '18px 24px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '24px',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '1rem',
-                fontWeight: '600',
-                transition: 'all 0.3s ease'
-              }}
-            >
-              <Play size={18} fill="currentColor" />
-              <span>Watch AI Orchestration in Action</span>
-            </button>
+            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+              <button
+                onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'agents')}
+                className="glass-button haptic-press"
+                style={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  padding: '16px 16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '20px',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <Sparkles size={16} />
+                <span>AI Agents</span>
+                <ArrowRight size={16} />
+              </button>
+
+              <button
+                onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'resources')}
+                className="glass-button haptic-press"
+                style={{
+                  flex: 1,
+                  justifyContent: 'center',
+                  padding: '16px 16px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '20px',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <GlobeIcon size={16} />
+                <span>Resources</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
 
           </div>
 
@@ -1621,7 +1649,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           Your global rollout starts here. No major label required.
         </p>
         <button
-          onClick={() => handleCtaClick('start')}
+          onClick={() => handleCtaClick('start', 'mystudio')}
           className="cta-button-premium haptic-press"
           style={{
             padding: '24px 48px',
@@ -1639,7 +1667,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           }}
         >
           <span>Launch Studio Suite</span>
-          <ChevronRight size={28} />
+          <ArrowRight size={28} />
         </button>
       </section>
 
@@ -1694,7 +1722,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
 
       {/* Mobile Sticky Bottom CTA */}
       <div className="mobile-sticky-cta">
-        <button onClick={() => handleCtaClick('start')} className="sticky-cta-btn haptic-press" style={{ 
+        <button onClick={() => handleCtaClick('start', 'mystudio')} className="sticky-cta-btn haptic-press" style={{ 
           background: 'linear-gradient(135deg, #a855f7, #7c3aed)', 
           borderRadius: '20px',
           boxShadow: '0 10px 30px rgba(124, 58, 237, 0.4)',
@@ -1702,7 +1730,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         }}>
           <Music size={18} fill="white" />
           <span style={{ fontWeight: '800', letterSpacing: '0.5px' }}>LAUNCH STUDIO</span>
-          <ChevronRight size={18} />
+          <ArrowRight size={18} />
         </button>
       </div>
 
@@ -2108,7 +2136,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           className="modal-overlay animate-fadeIn" 
           style={{ zIndex: 10000, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
           onClick={() => setShowShowcase(false)}
-          onTouchEnd={(e) => { if (e.target === e.currentTarget) setShowShowcase(false); }}
         >
           <div 
             className="legal-modal animate-scaleIn" 
@@ -2127,7 +2154,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 <Sparkles size={24} />
                 RESTORED OS: The Lost Tapes
               </h2>
-              <button className="modal-close" onClick={() => setShowShowcase(false)} onTouchEnd={(e) => { e.preventDefault(); setShowShowcase(false); }}><X size={20} /></button>
+              <button className="modal-close" onClick={() => setShowShowcase(false)}><X size={20} /></button>
             </div>
             
             <div className="modal-body" style={{ padding: '24px' }}>
@@ -2318,7 +2345,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           className="modal-overlay animate-fadeIn" 
           style={{ zIndex: 10000, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
           onClick={() => setShowMarketing(false)}
-          onTouchEnd={(e) => { if (e.target === e.currentTarget) setShowMarketing(false); }}
         >
           <div 
             className="legal-modal animate-scaleIn" 
@@ -2337,7 +2363,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 <Rocket size={24} style={{ color: 'var(--color-purple)' }} />
                 The Independent Artist's Edge
               </h2>
-              <button className="modal-close" onClick={() => setShowMarketing(false)} onTouchEnd={(e) => { e.preventDefault(); setShowMarketing(false); }}><X size={20} /></button>
+              <button className="modal-close" onClick={() => setShowMarketing(false)}><X size={20} /></button>
             </div>
             
             <div className="modal-body" style={{ padding: '24px' }}>
@@ -2542,7 +2568,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           className="modal-overlay animate-fadeIn" 
           style={{ zIndex: 10001, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
           onClick={() => setShowInvestorPitch(false)}
-          onTouchEnd={(e) => { if (e.target === e.currentTarget) setShowInvestorPitch(false); }}
         >
           <div 
             className="legal-modal animate-scaleIn" 
@@ -2572,7 +2597,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   The AI-Native Label Disrupting a $30B Industry
                 </p>
               </div>
-              <button className="modal-close" onClick={() => setShowInvestorPitch(false)} onTouchEnd={(e) => { e.preventDefault(); setShowInvestorPitch(false); }}><X size={20} /></button>
+              <button className="modal-close" onClick={() => setShowInvestorPitch(false)}><X size={20} /></button>
             </div>
             
             {/* Tabs */}
@@ -3764,7 +3789,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             className="modal-overlay animate-fadeIn" 
             style={{ zIndex: 10002, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
             onClick={() => { setShowAgentWhitepaper(false); setSelectedWhitepaperAgent(null); }}
-            onTouchEnd={(e) => { if (e.target === e.currentTarget) { setShowAgentWhitepaper(false); setSelectedWhitepaperAgent(null); } }}
           >
             <div 
               className="legal-modal animate-scaleIn" 
@@ -3844,7 +3868,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     </p>
                   </div>
                 </div>
-                <button className="modal-close" onClick={() => { setShowAgentWhitepaper(false); setSelectedWhitepaperAgent(null); }} onTouchEnd={(e) => { e.preventDefault(); setShowAgentWhitepaper(false); setSelectedWhitepaperAgent(null); }}><X size={20} /></button>
+                <button className="modal-close" onClick={() => { setShowAgentWhitepaper(false); setSelectedWhitepaperAgent(null); }}><X size={20} /></button>
               </div>
               
               {/* Navigation Tabs */}

@@ -10627,6 +10627,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       case 'resources': {
         // Quick navigation cards - consolidated UI/UX
         const quickNavItems = [
+          { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-yellow)' },
           { id: 'agents', icon: Sparkles, label: 'AI Agents', desc: 'Your creative team', color: 'var(--color-purple)' },
           { id: 'mystudio', icon: Folder, label: 'My Studio', desc: 'Projects & assets', color: 'var(--color-cyan)' },
           { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-pink)' },
@@ -10634,7 +10635,6 @@ const fetchUserCredits = useCallback(async (uid) => {
           { id: 'whitepapers', icon: FileText, label: 'Whitepapers', desc: 'Technical documentation', color: 'var(--color-indigo)' },
           { id: 'legal', icon: Shield, label: 'Legal Center', desc: 'Terms & licensing', color: 'var(--color-red)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-orange)' },
-          { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-yellow)' },
           { id: 'hub', icon: FolderPlus, label: 'Project Hub', desc: 'Shared by Studio Agent users', color: 'var(--color-blue)' },
           { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-purple)' },
         ];
@@ -12511,14 +12511,13 @@ const fetchUserCredits = useCallback(async (uid) => {
           <div 
             className="media-player-overlay animate-fadeIn"
             onClick={() => setPlayingItem(null)}
-            onTouchEnd={() => setPlayingItem(null)}
           >
             <div 
               className="media-player-container animate-fadeInUp"
               onClick={(e) => e.stopPropagation()}
               onTouchEnd={(e) => e.stopPropagation()}
             >
-              <button className="player-close" onClick={() => setPlayingItem(null)} onTouchEnd={(e) => { e.preventDefault(); setPlayingItem(null); }}>
+              <button className="player-close" onClick={() => setPlayingItem(null)}>
                 <X size={24} />
               </button>
               
@@ -13437,9 +13436,9 @@ const fetchUserCredits = useCallback(async (uid) => {
 
         {/* External Save Modal */}
         {showExternalSaveModal && (
-          <div className="modal-overlay" onClick={() => setShowExternalSaveModal(false)} onTouchEnd={() => setShowExternalSaveModal(false)}>
+          <div className="modal-overlay" onClick={() => setShowExternalSaveModal(false)}>
             <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => setShowExternalSaveModal(false)} onTouchEnd={(e) => { e.preventDefault(); setShowExternalSaveModal(false); }}><X size={20} /></button>
+              <button className="modal-close" onClick={() => setShowExternalSaveModal(false)}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
                   <Cloud size={24} color="white" />
@@ -14792,9 +14791,9 @@ const fetchUserCredits = useCallback(async (uid) => {
 
         {/* Login Modal */}
         {showLoginModal && (
-          <div className="modal-overlay" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); setAuthMode('login'); setAuthEmail(''); setAuthPassword(''); }} onTouchEnd={() => { setShowLoginModal(false); setSelectedPlan(null); }}>
+          <div className="modal-overlay" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); setAuthMode('login'); setAuthEmail(''); setAuthPassword(''); }}>
             <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-              <button className="modal-close" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); setAuthMode('login'); }} onTouchEnd={(e) => { e.preventDefault(); setShowLoginModal(false); setSelectedPlan(null); }}><X size={20} /></button>
+              <button className="modal-close" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); setAuthMode('login'); }}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
                   <Sparkles size={24} color="white" />
@@ -14959,7 +14958,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
         {/* Add/Edit Payment Method Modal */}
         {showAddPaymentModal && (
-          <div className="modal-overlay" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }} onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}>
+          <div className="modal-overlay" style={{ overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }} onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}>
             <div 
               className="modal-content animate-fadeInUp" 
               onClick={(e) => e.stopPropagation()} 
@@ -14979,7 +14978,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </div>
                   <h2 style={{ margin: 0 }}>{editingPayment ? 'Edit Payment Method' : 'Payment Methods'}</h2>
                 </div>
-                <button className="modal-close" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }} onTouchEnd={(e) => { e.preventDefault(); setShowAddPaymentModal(false); setEditingPayment(null); }}><X size={20} /></button>
+                <button className="modal-close" onClick={() => { setShowAddPaymentModal(false); setEditingPayment(null); }}><X size={20} /></button>
               </div>
 
               <div className="modal-body" style={{ padding: '1.5rem', overflow: 'visible', flex: 1 }}>
