@@ -4289,14 +4289,31 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     }
 
     if (audioUrl) {
-      // PERSIST TO FIRESTORE IF USER IS AUTHENTICATED
+      // UPLOAD TO FIREBASE STORAGE FOR PERMANENT URL
       let permanentUrl = null;
+      let storagePath = null;
+
       if (req.user && req.user.uid) {
+        const bucket = getStorageBucket();
+        if (bucket) {
+          try {
+            const fileName = `beat_${genre}_${bpm}bpm_${Date.now()}.mp3`;
+            const result = await uploadToStorage(audioUrl, req.user.uid, fileName, 'audio/mpeg');
+            permanentUrl = result.url;
+            storagePath = result.path;
+            logger.info('📤 Beat uploaded to Firebase Storage', { path: storagePath });
+          } catch (uploadErr) {
+            logger.warn('Firebase Storage upload failed for beat', { error: uploadErr.message });
+          }
+        }
+
+        // Save metadata to Firestore (with permanent URL, not base64)
         try {
           const db = getFirestoreDb();
           if (db) {
             await db.collection('users').doc(req.user.uid).collection('assets').add({
-              url: audioUrl,
+              url: permanentUrl || audioUrl,
+              storagePath: storagePath,
               assetType: 'audio',
               provider: provider,
               prompt: prompt,
@@ -4311,12 +4328,12 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
         }
       }
 
-      res.json({ 
-        audioUrl, 
-        provider, 
-        duration: durationSeconds, 
+      res.json({
+        audioUrl: permanentUrl || audioUrl,
+        provider,
+        duration: durationSeconds,
         isRealGeneration: true,
-        mimeType: 'audio/mpeg' 
+        mimeType: 'audio/mpeg'
       });
     } else {
       // If we reach here, ALL AI providers failed. 
@@ -4427,6 +4444,22 @@ app.post('/api/mix-audio', verifyFirebaseToken, checkCreditsFor('mixing'), gener
         fs.unlinkSync(outputPath);
       } catch (_e) { /* ignore */ }
 
+      // Upload to Firebase Storage for permanent URL
+      let permanentUrl = null;
+      if (req.user && req.user.uid) {
+        const bucket = getStorageBucket();
+        if (bucket) {
+          try {
+            const fileName = `mix_${Date.now()}.mp3`;
+            const uploadResult = await uploadToStorage(audioUrl, req.user.uid, fileName, 'audio/mpeg');
+            permanentUrl = uploadResult.url;
+            logger.info('📤 Mix uploaded to Firebase Storage', { path: uploadResult.path });
+          } catch (uploadErr) {
+            logger.warn('Firebase Storage upload failed for mix', { error: uploadErr.message });
+          }
+        }
+      }
+
       logger.info('Professional mix complete', {
         quality: result.quality,
         lufs: mixOptions.lufsTarget,
@@ -4435,7 +4468,7 @@ app.post('/api/mix-audio', verifyFirebaseToken, checkCreditsFor('mixing'), gener
 
       res.json({
         success: true,
-        audioUrl,
+        audioUrl: permanentUrl || audioUrl,
         quality: result.quality,
         provider: 'ffmpeg-professional',
         processing: result.processing,
@@ -4954,11 +4987,28 @@ app.post('/api/master-audio', verifyFirebaseToken, async (req, res) => {
     // Get processed audio as buffer
     const processedBuffer = Buffer.from(wav.toBuffer());
     const processedBase64 = processedBuffer.toString('base64');
+    const audioUrl = `data:audio/wav;base64,${processedBase64}`;
+
+    // Upload to Firebase Storage for permanent URL
+    let permanentUrl = null;
+    if (req.user && req.user.uid) {
+      const bucket = getStorageBucket();
+      if (bucket) {
+        try {
+          const fileName = `master_${preset || 'custom'}_${Date.now()}.wav`;
+          const uploadResult = await uploadToStorage(audioUrl, req.user.uid, fileName, 'audio/wav');
+          permanentUrl = uploadResult.url;
+          logger.info('📤 Mastered audio uploaded to Firebase Storage', { path: uploadResult.path });
+        } catch (uploadErr) {
+          logger.warn('Firebase Storage upload failed for master', { error: uploadErr.message });
+        }
+      }
+    }
 
     // Response with mastered audio
     res.json({
       audio: processedBase64,
-      audioUrl: `data:audio/wav;base64,${processedBase64}`,
+      audioUrl: permanentUrl || audioUrl,
       mimeType: 'audio/wav',
       specs: {
         sampleRate: finalSampleRate,
