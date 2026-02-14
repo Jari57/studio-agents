@@ -187,25 +187,6 @@ function getCreditCost(featureType, options = {}) {
   return CREDIT_COSTS[featureType] || CREDIT_COSTS['default'];
 }
 
-// Hardcoded Firebase config (Railway env vars not working)
-// The private key is split to avoid GitHub secret scanning
-const FIREBASE_CONFIG = {
-  type: 'service_account',
-  project_id: 'studioagents-app',
-  private_key_id: '4f9aafecec75ab4e23decdec5a0212046fd78697',
-  client_email: 'firebase-adminsdk-fbsvc@studioagents-app.iam.gserviceaccount.com',
-  client_id: '101326229195887107234',
-  auth_uri: 'https://accounts.google.com/o/oauth2/auth',
-  token_uri: 'https://oauth2.googleapis.com/token',
-  auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
-  client_x509_cert_url: 'https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40studioagents-app.iam.gserviceaccount.com',
-  universe_domain: 'googleapis.com'
-};
-
-// Private key stored as base64 to avoid GitHub detection (decode at runtime)
-const FIREBASE_PRIVATE_KEY_B64 = 'LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2UUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktjd2dnU2pBZ0VBQW9JQkFRQzh5OWlpc1FBUkliTTMKdkJYVzc5VlNDMXMxSTh' +
-  'FTGVvMHp3Y2RQWHpUS1FKMTUxTGhLK2c1ZTNZUTQ2VGxGd3NaZTZ1ODNQZkIxNjZjcAp3SjZJUkFtYUh4eDkydHRlL0pkcEl6aGJLL01oVXFVU1k0OUhGZXFEdE9SZVNJblQ2UWRMWVBoeXV5R3c5eVNOClJtZGorWkhzL2grdEIvRGFTdGhZMmI3ZmF4bnAwYVlDRDNhUzBVU0dUUEs1SGkwQ1ZDcE90TTcvK28vL2FLT2EKSEs2YjJoZzl6aHprMGVRNG5QOHMybElvbFg0cnV1RkovbzdlNjhYemZzTWNuYlVxMkJIZktNaVRnWm9QRnZMQQpLREFUekp3bXYwb01HcWNidDdET05WeEVGejlEV3o5N1F0MTJjc3lNcnF2QnZJeDAxNTg2UkFUcXJlVUNSTUFpCjN2ZTVRS1BuQWdNQkFBRUNnZ0VBUmp4YnVxSzRrS2NGNGwweGpzV29pWjQ1N3puKzdrTklWcEhua1FxdE8vVHYKNE13WFI2VmhSVCtKbWhhQnZRY3AvMVBOYkxLNVMxVkEyaEtUcDhRUUFtdENrVHVqVXVJTGZneWhRYUhIRUlXTApiWnptUjU3S29QYmg0b1YvNlBzUFFLYXhweFVoQXBIZTRrUG40TlNPeWlqOEpjWUhmMTVLd0RzNWZDcCsrSEhuCk5DLzh0Qi9CVW1lc1JNNUdUclV3eXAxKzlJbGZ4cExJeGJ5di9lZGxFUmNpMTJwQ29iUzllczhIS00rN2VnM0cKOW1xeUNiZXB2by9HTit0SHJCSElOMk42aWhyQW9jbkN5UWdaWGlidzY0RFZRZnhnQ0cvcFU3d0JzUXdrZTFMNApQcnBsTWJJVEJEWDJiSUYydU5vMEtNMTZ5MXBUamVzYlMxWDh6enZCYVFLQmdRRHFZb1Y2RE9RU3h5eGpFWTdmCjBNTjhTdlZOMmJqUVIwaU95WHZyMFJKVXhhRXpCaHlKZFhLc0lIMlhTQzRTbHVNaUhabSsyb1c4T0NGdUdzVVUKbGxDekd2cFdYZU1ubU9SZWpWaXFKYmowbkFNMThhV0JBMHpFalQ1cVphODRBdUJKdHBocXNPeWs4dTErT0VJVQpxSlM3SmlQYzJaWnJpbk5NTnIxZ0V0UER0UUtCZ1FET05RdlVqeDZsQU5DcmxGYlBla0JVSXdqMDA4NjZsZFpGCitHc0dYUi8reEtwbzkyYytwTTVWQnVyNzZrWnRJSTJGc2NvRVlGR01Obml0SXdLcHVOVThLc2VwbjBta1BJY08KUTA2c2VRZS9LWWRKZ2hYMHJ6Z05qWXhJRXJLd0tQOWo2b3NESDlUZ1JYQ2k2VkFaSUhOdXBaTTY0bTJ6aDhWdAptTVRZTTUrQ3F3S0JnQlZNSEhySm54UEJ1MXZKSmFWYXI5aWthd1BHNjg4cEd3TzJkU2NwV1RRUXZTUUl3eUVPClpmd1QrN1Y2WG8xYjNvbWtET3RWcWQ4L2JuSTF4b0NuWSsvU1hMcnFUeEN6Q05VNm5McmhNSnd4Yk8xQzV0b0IKTmNHS1lBaUU4dFh4RlBZOXZEMjlrOU10SzcxVFdWWE5ONjZGdWE2QXF2VmNvRHRsb2ZHUDVHUWRBb0dBSU5CbQpNb3dYNTFBSzVOTDFRWTBGd1ozVnBnZ3lwSlNGaFpyemhRNjZzYk1nSHhZSHN2dE03bERzZ2V3VkN2YWNMc05OCkQ0YzRVdVMwTFhFZDBsNWNhSGV5VURiTjVEblJrQjU3M1l4aEJEV2Fsc01CdFc5UXJ5OXdQR1BsVlkwZ253aksKMkZOdmI4VDlHSitpSkcxNmtRZitOdWVqWjJkYXJvY2FCQUdyQjRNQ2dZRUFnQWliL1B5eXMyd3JpZ0xrZFFscwpTSGdHOVg1blgxbXRxOHdYSGE1L0M0Z2RzczBxeURzbDNONWZOR1pTSHQrYlJxOFAyY2hpQjVxUXNGakpNVDM2CmxkaDB5Sy8ySG1PbWRXenUyeFdXeFNwcXVNQWRxN2lHendlTThIdi9BZTcxdGRZWVZMV2lzQnJVOWJ1RTIxWjEKd1N5OUhjTERJUjhRelJzWEZIT3JBaU09Ci0tLS0tRU5EIFBSSVZBVEUgS0VZLS0tLS0K';
-
 try {
   // Check for service account credentials (multiple methods supported)
   const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -223,23 +204,10 @@ try {
     hasProjectId: !!projectId,
     hasClientEmail: !!clientEmail,
     hasPrivateKey: !!privateKey,
-    hasHardcodedConfig: !!FIREBASE_CONFIG,
     privateKeyLength: privateKey ? privateKey.length : 0
   });
-  
-  // PRIORITY: Use hardcoded config (workaround for Railway env var issues)
-  if (!admin.apps.length && FIREBASE_CONFIG && FIREBASE_PRIVATE_KEY_B64) {
-    const privateKeyDecoded = Buffer.from(FIREBASE_PRIVATE_KEY_B64, 'base64').toString('utf8');
-    const serviceAccount = {
-      ...FIREBASE_CONFIG,
-      private_key: privateKeyDecoded
-    };
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
-    firebaseInitialized = true;
-    logger.info('🔥 Firebase Admin initialized from hardcoded config');
-  } else if (!admin.apps.length && serviceAccountBase64) {
+
+  if (!admin.apps.length && serviceAccountBase64) {
     // WORKAROUND: Decode base64-encoded service account (avoids special char issues)
     const decoded = Buffer.from(serviceAccountBase64, 'base64').toString('utf8');
     const serviceAccount = JSON.parse(decoded);
@@ -280,8 +248,7 @@ try {
     firebaseInitialized = true;
     logger.info('🔥 Firebase Admin already initialized');
   } else {
-    logger.warn('⚠️ Firebase Admin not configured - auth features disabled');
-    logger.warn('   Set FIREBASE_SERVICE_ACCOUNT_BASE64 or FIREBASE_SERVICE_ACCOUNT (JSON)');
+    logger.error('CRITICAL: Firebase Admin not configured - set FIREBASE_SERVICE_ACCOUNT_BASE64 env var');
   }
 } catch (error) {
   logger.error('❌ Firebase Admin initialization failed:', error.message);
@@ -704,8 +671,11 @@ const allowedOrigins = isDevelopment
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, server-to-server, same-origin)
-    if (!origin) return callback(null, true);
+    // Allow requests with no origin only in development (mobile apps, curl, server-to-server, same-origin)
+    if (!origin) {
+      if (isDevelopment) return callback(null, true);
+      return callback(new Error('Origin required'));
+    }
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -839,7 +809,7 @@ const createFingerprint = (req) => {
 // RATE LIMITING - Enhanced with fingerprinting
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5000, // Increased limit to 5000 requests per windowMs to prevent false positives
+  max: 1000, // Limit to 1000 requests per windowMs
   keyGenerator: createFingerprint,
   handler: (req, res) => {
     logger.warn('⚠️ Rate limit exceeded', {

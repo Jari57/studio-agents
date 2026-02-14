@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useSafeAsync } from '../hooks/useSafeAsync';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
+import DOMPurify from 'dompurify';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
   auth, 
@@ -16686,15 +16687,15 @@ const fetchUserCredits = useCallback(async (uid) => {
                   lineHeight: '1.7',
                   color: 'var(--text-primary)'
                 }}
-                dangerouslySetInnerHTML={{ 
-                  __html: showResourceContent.content
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(showResourceContent.content
                     .replace(/^# (.*$)/gm, '<h1 style="font-size: 1.5rem; margin: 1.5rem 0 1rem; color: var(--text-primary);">$1</h1>')
                     .replace(/^## (.*$)/gm, '<h2 style="font-size: 1.2rem; margin: 1.25rem 0 0.75rem; color: var(--color-cyan);">$1</h2>')
                     .replace(/^### (.*$)/gm, '<h3 style="font-size: 1rem; margin: 1rem 0 0.5rem; color: var(--color-purple);">$1</h3>')
                     .replace(/^\*\*(.*?)\*\*/gm, '<strong>$1</strong>')
                     .replace(/^- (.*$)/gm, '<li style="margin-left: 1.5rem; margin-bottom: 0.25rem;">$1</li>')
                     .replace(/^\d+\. (.*$)/gm, '<li style="margin-left: 1.5rem; margin-bottom: 0.25rem;">$1</li>')
-                    .replace(/\n\n/g, '<br/><br/>')
+                    .replace(/\n\n/g, '<br/><br/>'))
                 }}
               />
             </div>
