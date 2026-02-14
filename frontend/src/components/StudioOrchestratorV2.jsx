@@ -205,7 +205,7 @@ function GeneratorCard({
 
       {/* Header - Agent style */}
       <div className="generator-card-header" style={{
-        padding: isMobile ? '12px' : '1.25rem',
+        padding: isMobile ? '10px' : '1.25rem',
         display: 'flex',
         alignItems: 'center',
         gap: isMobile ? '10px' : '12px',
@@ -417,7 +417,7 @@ function GeneratorCard({
                   flex: 1,
                   overflow: 'auto',
                   cursor: 'pointer',
-                  maxHeight: isExpanded ? (isMobile ? '300px' : '400px') : (isMobile ? '150px' : '280px'),
+                  maxHeight: isExpanded ? (isMobile ? '50vh' : '400px') : (isMobile ? '200px' : '280px'),
                   transition: 'max-height 0.3s ease',
                   position: 'relative'
                 }}
@@ -3191,9 +3191,9 @@ export default function StudioOrchestratorV2({
         className="orchestrator-scroll-container"
         style={{ 
           flex: 1, 
-          padding: isMobile ? '12px 10px' : '16px', 
-          maxWidth: '1200px', 
-          margin: '0 auto', 
+          padding: isMobile ? '8px 6px' : '16px',
+          maxWidth: '1200px',
+          margin: '0 auto',
           width: '100%',
           overflowY: 'auto',
           overflowX: 'hidden',

@@ -15415,6 +15415,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             >
               <X size={20} />
             </button>
+            <div className="modal-body" style={{ padding: '1.5rem', textAlign: 'center' }}>
             <div className="logo-box" style={{ width: '64px', height: '64px', margin: '0 auto 1.5rem', background: 'rgba(239, 68, 68, 0.1)' }}>
               <Activity size={32} color="var(--color-red)" />
             </div>
@@ -15433,6 +15434,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             >
               <RefreshCw size={16} style={{ marginRight: '8px' }} /> Retry Connection
             </button>
+            </div>
           </div>
         </div>
       )}
@@ -16043,20 +16045,16 @@ const fetchUserCredits = useCallback(async (uid) => {
       {/* Onboarding Modal - Simple Welcome */}
       {showOnboarding && (
         <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content onboarding-modal" style={{ 
-            maxWidth: '500px', 
-            width: '90%', 
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            padding: window.innerWidth < 768 ? '24px' : '40px', 
-            textAlign: 'center',
+          <div className="modal-content onboarding-modal" style={{
+            maxWidth: '500px',
+            width: '90%',
             position: 'relative'
           }}>
-            <button 
+            <button
               onClick={handleSkipOnboarding}
-              style={{ 
+              style={{
                 position: 'absolute',
-                top: '16px', 
+                top: '16px',
                 right: '16px',
                 background: 'rgba(255, 255, 255, 0.1)',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -16068,13 +16066,14 @@ const fetchUserCredits = useCallback(async (uid) => {
                 justifyContent: 'center',
                 cursor: 'pointer',
                 color: 'white',
-                padding: 0
+                padding: 0,
+                zIndex: 10
               }}
             >
               <X size={20} />
             </button>
 
-            <div style={{ marginBottom: '32px' }}>
+            <div className="modal-body" style={{ padding: window.innerWidth < 768 ? '24px' : '40px', textAlign: 'center' }}>
               <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎧</div>
               <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>
                 {onboardingSteps[0].title}
@@ -16085,15 +16084,15 @@ const fetchUserCredits = useCallback(async (uid) => {
               <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
                 {onboardingSteps[0].detail}
               </p>
-            </div>
 
-            <button 
-              className="cta-button-premium"
-              onClick={completeOnboarding}
-              style={{ width: '100%', padding: '16px', fontSize: '1.1rem' }}
-            >
-              Enter Studio →
-            </button>
+              <button
+                className="cta-button-premium"
+                onClick={completeOnboarding}
+                style={{ width: '100%', padding: '16px', fontSize: '1.1rem', marginTop: '32px' }}
+              >
+                Enter Studio →
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -16101,12 +16100,12 @@ const fetchUserCredits = useCallback(async (uid) => {
       {/* Project Type Choice Modal - Studio Creation vs AI Pipeline */}
       {showProjectTypeChoice && (
         <div className="modal-overlay animate-fadeIn" onClick={() => setShowProjectTypeChoice(false)} style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px', width: '90%', padding: '32px' }}>
-            <button 
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px', width: '90%' }}>
+            <button
               onClick={() => setShowProjectTypeChoice(false)}
-              style={{ 
+              style={{
                 position: 'absolute',
-                top: '16px', 
+                top: '16px',
                 right: '16px',
                 background: 'rgba(255, 255, 255, 0.1)',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -16118,16 +16117,18 @@ const fetchUserCredits = useCallback(async (uid) => {
                 justifyContent: 'center',
                 cursor: 'pointer',
                 color: 'white',
-                padding: 0
+                padding: 0,
+                zIndex: 10
               }}
             >
               <X size={20} />
             </button>
 
-            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-              <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Create New Project</h2>
-              <p style={{ color: 'var(--text-secondary)' }}>Choose how you want to build your project</p>
-            </div>
+            <div className="modal-body" style={{ padding: '32px' }}>
+              <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Create New Project</h2>
+                <p style={{ color: 'var(--text-secondary)' }}>Choose how you want to build your project</p>
+              </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Studio Creation Option */}
@@ -16205,6 +16206,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </p>
                 </div>
               </button>
+            </div>
             </div>
           </div>
         </div>
@@ -16524,7 +16526,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: previewMaximized ? '0' : (isMobile ? '8px' : '20px')
+            padding: (previewMaximized || isMobile) ? '0' : '20px'
           }}
         >
           {/* Navigation Arrows */}
@@ -16660,10 +16662,10 @@ const fetchUserCredits = useCallback(async (uid) => {
             className="modal-content" 
             onClick={e => e.stopPropagation()} 
             style={{ 
-              maxWidth: previewMaximized ? '100vw' : (safePreview.type === 'image' ? (isMobile ? '95vw' : '90vw') : (isMobile ? '95vw' : '85vw')), 
-              maxHeight: previewMaximized ? '100vh' : (isMobile ? '92vh' : '85vh'),
-              width: previewMaximized ? '100vw' : (safePreview.type === 'image' ? 'auto' : '100%'),
-              height: previewMaximized ? '100vh' : 'auto',
+              maxWidth: previewMaximized ? '100vw' : (isMobile ? '100vw' : (safePreview.type === 'image' ? '90vw' : '85vw')),
+              maxHeight: previewMaximized ? '100vh' : (isMobile ? '100vh' : '85vh'),
+              width: previewMaximized ? '100vw' : (isMobile ? '100vw' : (safePreview.type === 'image' ? 'auto' : '100%')),
+              height: previewMaximized ? '100vh' : (isMobile ? '100vh' : 'auto'),
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
@@ -17826,10 +17828,10 @@ const fetchUserCredits = useCallback(async (uid) => {
           }}>
             <button className="modal-close" onClick={() => setShowExportModal(null)}><X size={20} /></button>
             
-            <div style={{ padding: '24px' }}>
-              <h2 style={{ 
-                fontSize: '1.4rem', 
-                fontWeight: '700', 
+            <div className="modal-body" style={{ padding: '24px' }}>
+              <h2 style={{
+                fontSize: '1.4rem',
+                fontWeight: '700',
                 marginBottom: '8px',
                 display: 'flex',
                 alignItems: 'center',

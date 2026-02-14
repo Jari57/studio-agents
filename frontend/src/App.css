@@ -4003,7 +4003,8 @@ select optgroup {
   /* Simplified transition - no transform to prevent flickering */
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  isolation: isolate;
   /* Prevent layout shift and flickering */
   will-change: box-shadow;
   backface-visibility: hidden;
@@ -5982,12 +5983,32 @@ select optgroup {
   background: var(--color-bg-secondary);
   width: 100%;
   max-width: min(92vw, 700px);
+  max-height: 90vh;
   border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 1.5rem;
   position: relative;
   text-align: center;
   margin: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-content:has(.modal-body) {
+  padding: 0;
+}
+
+.modal-header {
+  flex-shrink: 0;
+  padding: 1.25rem 1.25rem 0.75rem;
+  position: relative;
+}
+
+.modal-footer {
+  flex-shrink: 0;
+  padding: 0.75rem 1.25rem 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 @media (max-width: 640px) {
@@ -5998,8 +6019,14 @@ select optgroup {
 
   .modal-content {
     padding: 1.25rem;
-    border-radius: 20px;
+    border-radius: 16px;
     max-width: 100%;
+    max-height: 95vh;
+    margin: 0.5rem;
+  }
+
+  .modal-content:has(.modal-body) {
+    padding: 0;
   }
 }
 
@@ -10384,12 +10411,12 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   pointer-events: auto !important;
 }
 
-/* Ensure modal content doesn't overflow */
+/* Ensure modal content uses flex layout */
 .modal-content,
 .legal-modal {
-  overflow: hidden !important;
-  display: flex !important;
-  flex-direction: column !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-body {
