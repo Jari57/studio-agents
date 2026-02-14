@@ -5193,14 +5193,16 @@ const fetchUserCredits = useCallback(async (uid) => {
                  <>
                    {/* 1. Video Player (Highest Priority) */}
                    {canvasPreviewAsset.videoUrl && (
-                     <video 
-                       src={formatVideoSrc(canvasPreviewAsset.videoUrl)} 
-                       controls 
+                     <video
+                       src={formatVideoSrc(canvasPreviewAsset.videoUrl)}
+                       controls
+                       playsInline
                        style={{ width: '100%', maxHeight: '500px', objectFit: 'contain' }}
                        onError={(e) => {
-                         console.warn('[AssetViewer] Video failed to load:', canvasPreviewAsset.videoUrl);
+                         console.warn('[AssetViewer] Video failed to load:', canvasPreviewAsset.videoUrl?.substring(0, 80));
                          e.target.style.display = 'none';
-                         e.target.parentElement?.querySelector('.media-error-fallback')?.style?.setProperty('display', 'flex');
+                         const fallback = e.target.parentElement?.querySelector('.media-error-fallback');
+                         if (fallback) fallback.style.display = 'flex';
                        }}
                      />
                    )}
@@ -5690,17 +5692,21 @@ const fetchUserCredits = useCallback(async (uid) => {
                          />
                        ) : asset.videoUrl ? (
                          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                           <video 
+                           <video
                              src={formatVideoSrc(asset.videoUrl)}
                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                              muted
-                             preload="metadata"
-                             onLoadedData={(e) => {
-                               // Seek to 1 second for thumbnail frame
-                               if (e.target.currentTime === 0) e.target.currentTime = 1;
+                             playsInline
+                             preload="auto"
+                             onLoadedMetadata={(e) => {
+                               const seekTime = Math.min(1, e.target.duration * 0.1 || 0);
+                               if (e.target.currentTime === 0 && seekTime > 0) {
+                                 e.target.currentTime = seekTime;
+                               }
                              }}
                              onError={(e) => {
                                console.warn('[AssetCard] Video failed to load:', asset.videoUrl?.substring(0, 50));
+                               e.target.parentElement.style.background = 'linear-gradient(135deg, #1a1a2e, #16213e)';
                                e.target.style.display = 'none';
                              }}
                            />
@@ -9538,14 +9544,17 @@ const fetchUserCredits = useCallback(async (uid) => {
                             <Icon size={20} style={{ color: '#22c55e' }} />
                           </div>
                           <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '8px' }}>{agent.category}</p>
-                          <span style={{ 
-                            padding: '2px 6px', 
-                            background: 'rgba(34, 197, 94, 0.15)', 
-                            color: '#22c55e', 
-                            borderRadius: '6px', 
-                            fontSize: '0.6rem', 
-                            fontWeight: '600' 
+                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '4px' }}>{agent.category}</p>
+                          {(agent.description || agent.desc) && (
+                            <p style={{ fontSize: '0.6rem', color: 'var(--text-tertiary, rgba(255,255,255,0.35))', lineHeight: '1.3', marginBottom: '8px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{agent.description || agent.desc}</p>
+                          )}
+                          <span style={{
+                            padding: '2px 6px',
+                            background: 'rgba(34, 197, 94, 0.15)',
+                            color: '#22c55e',
+                            borderRadius: '6px',
+                            fontSize: '0.6rem',
+                            fontWeight: '600'
                           }}>FREE</span>
                         </div>
                       );
@@ -9616,14 +9625,17 @@ const fetchUserCredits = useCallback(async (uid) => {
                             <Icon size={20} style={{ color: '#fbbf24' }} />
                           </div>
                           <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '8px' }}>{agent.category}</p>
-                          <span style={{ 
-                            padding: '2px 6px', 
-                            background: 'rgba(251, 191, 36, 0.15)', 
-                            color: '#fbbf24', 
-                            borderRadius: '6px', 
-                            fontSize: '0.6rem', 
-                            fontWeight: '600' 
+                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '4px' }}>{agent.category}</p>
+                          {(agent.description || agent.desc) && (
+                            <p style={{ fontSize: '0.6rem', color: 'var(--text-tertiary, rgba(255,255,255,0.35))', lineHeight: '1.3', marginBottom: '8px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{agent.description || agent.desc}</p>
+                          )}
+                          <span style={{
+                            padding: '2px 6px',
+                            background: 'rgba(251, 191, 36, 0.15)',
+                            color: '#fbbf24',
+                            borderRadius: '6px',
+                            fontSize: '0.6rem',
+                            fontWeight: '600'
                           }}>MONTHLY</span>
                         </div>
                       );
@@ -9695,14 +9707,17 @@ const fetchUserCredits = useCallback(async (uid) => {
                             <Icon size={20} style={{ color: '#a855f7' }} />
                           </div>
                           <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '8px' }}>{agent.category}</p>
-                          <span style={{ 
-                            padding: '2px 6px', 
-                            background: 'rgba(168, 85, 247, 0.15)', 
-                            color: '#a855f7', 
-                            borderRadius: '6px', 
-                            fontSize: '0.6rem', 
-                            fontWeight: '600' 
+                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '4px' }}>{agent.category}</p>
+                          {(agent.description || agent.desc) && (
+                            <p style={{ fontSize: '0.6rem', color: 'var(--text-tertiary, rgba(255,255,255,0.35))', lineHeight: '1.3', marginBottom: '8px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{agent.description || agent.desc}</p>
+                          )}
+                          <span style={{
+                            padding: '2px 6px',
+                            background: 'rgba(168, 85, 247, 0.15)',
+                            color: '#a855f7',
+                            borderRadius: '6px',
+                            fontSize: '0.6rem',
+                            fontWeight: '600'
                           }}>PRO</span>
                         </div>
                       );

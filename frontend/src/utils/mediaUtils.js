@@ -34,7 +34,7 @@ export const formatImageSrc = (imageData) => {
 
 export const formatAudioSrc = (audioData) => {
   if (!audioData) return '';
-  
+
   if (typeof audioData === 'string') {
     // Already a Blob URL - highest performance fallback
     if (audioData.startsWith('blob:')) {
@@ -50,43 +50,74 @@ export const formatAudioSrc = (audioData) => {
     // This fixes "fail to play but works in download" by avoiding huge strings in src attributes
     if (audioData.startsWith('data:')) {
       // If it's a small data URI (e.g. sample), keep it
-      if (audioData.length < 100000) return audioData; 
-      
+      if (audioData.length < 100000) return audioData;
+
       try {
         const parts = audioData.split(',');
-        if (parts.length !== 2) return audioData;
-        const mime = parts[0].match(/:(.*?);/)[1];
-        const bstr = atob(parts[1]);
+        if (parts.length !== 2) {
+          console.warn('[formatAudioSrc] Invalid data URI format');
+          return audioData;
+        }
+
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        if (!mimeMatch) {
+          console.warn('[formatAudioSrc] Could not extract MIME type');
+          return audioData;
+        }
+
+        const mime = mimeMatch[1];
+
+        // Validate base64 string
+        const base64 = parts[1];
+        if (!base64 || base64.length < 100) {
+          console.warn('[formatAudioSrc] Base64 data too short or empty');
+          return audioData;
+        }
+
+        const bstr = atob(base64);
         let n = bstr.length;
         const u8arr = new Uint8Array(n);
         while (n--) {
           u8arr[n] = bstr.charCodeAt(n);
         }
+
+        // Create blob with proper MIME type
         const blob = new Blob([u8arr], { type: mime });
-        return URL.createObjectURL(blob);
+
+        // Verify blob is not empty
+        if (blob.size === 0) {
+          console.warn('[formatAudioSrc] Created empty blob, returning original');
+          return audioData;
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+        console.log('[formatAudioSrc] Converted to blob:', { originalSize: audioData.length, blobSize: blob.size, mime });
+        return blobUrl;
       } catch (e) {
-        console.warn('Failed to convert audio data URI to blob:', e);
+        console.error('[formatAudioSrc] Failed to convert audio data URI to blob:', e.message);
+        // Return original if conversion fails - browser might still be able to handle it
         return audioData;
       }
     }
-    
+
     // Raw base64 - add data URL prefix
     if (audioData.length > 100) {
       return formatAudioSrc(`data:audio/mpeg;base64,${audioData}`);
     }
-    
+
     return audioData;
   }
-  
+
   if (typeof audioData === 'object') {
     if (audioData.url) return formatAudioSrc(audioData.url);
     if (audioData.audio) return formatAudioSrc(audioData.audio);
+    if (audioData.audioUrl) return formatAudioSrc(audioData.audioUrl);
     if (Array.isArray(audioData) && audioData[0]) {
       const first = audioData[0];
-      return typeof first === 'string' ? formatAudioSrc(first) : (formatAudioSrc(first.url || first.audio || ''));
+      return typeof first === 'string' ? formatAudioSrc(first) : (formatAudioSrc(first.url || first.audio || first.audioUrl || ''));
     }
   }
-  
+
   return '';
 };
 
