@@ -1,7 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import './App.css';
-import './mobile-fixes.css';
 import { suppressExtensionErrors } from './utils/suppressExtensionErrors';
 import { AGENTS } from './constants';
 
