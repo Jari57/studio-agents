@@ -6,6 +6,10 @@
 backend/.env
 frontend/.env
 
+# --- Claude temp files ---
+tmpclaude-*
+**/tmpclaude-*
+
 # --- Dependencies ---
 node_modules/
 

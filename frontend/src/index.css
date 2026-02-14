@@ -4,7 +4,14 @@
    ============================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-@import "tailwindcss";
+
+/* Base resets (replaces tailwind preflight) */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Utility classes (formerly tailwind) */
+.p-8 { padding: 2rem; }
+.text-center { text-align: center; }
+.text-yellow-400 { color: #facc15; }
 
 :root {
   /* Typography - Modern Sans Stack */
