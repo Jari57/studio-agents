@@ -874,7 +874,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 letterSpacing: '-0.3px'
               }}
             >
-              <Music size={20} fill="currentColor" />
+              <Sparkles size={20} fill="currentColor" />
               Launch Your Studio
               <ArrowRight size={20} />
             </button>
@@ -1720,19 +1720,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </div>
       </footer>
 
-      {/* Mobile Sticky Bottom CTA */}
-      <div className="mobile-sticky-cta">
-        <button onClick={() => handleCtaClick('start', 'mystudio')} className="sticky-cta-btn haptic-press" style={{ 
-          background: 'linear-gradient(135deg, #a855f7, #7c3aed)', 
-          borderRadius: '20px',
-          boxShadow: '0 10px 30px rgba(124, 58, 237, 0.4)',
-          border: '1px solid rgba(255,255,255,0.2)'
-        }}>
-          <Music size={18} fill="white" />
-          <span style={{ fontWeight: '800', letterSpacing: '0.5px' }}>LAUNCH STUDIO</span>
-          <ArrowRight size={18} />
-        </button>
-      </div>
+
 
       {/* Auth Modal - Sign In with Google or Email */}
       {showAuthModal && (

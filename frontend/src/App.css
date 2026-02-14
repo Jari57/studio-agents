@@ -1784,41 +1784,8 @@ select optgroup {
   box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
 }
 
-/* --- Mobile Sticky CTA --- */
-.mobile-sticky-cta {
-  display: none;
-  position: fixed;
-  bottom: 2rem;
-  left: 1.5rem;
-  right: 1.5rem;
-  z-index: 999;
-  animation: fadeInUp 0.5s ease-out 1s both;
-}
-
-.sticky-cta-btn {
-  width: 100%;
-  background: var(--gradient-vibrant);
-  background-size: 200% auto;
-  color: white;
-  border: none;
-  padding: 1.25rem;
-  border-radius: 20px;
-  font-weight: 800;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  box-shadow: 0 15px 30px rgba(168, 85, 247, 0.4);
-  animation: shimmer 3s linear infinite;
-}
-
+/* --- Agents Section --- */
 @media (max-width: 768px) {
-  .mobile-sticky-cta {
-    display: block;
-  }
-  
-  /* Agents Section Mobile Fix */
   .agents-section {
     padding: 3rem 1rem;
     overflow: visible;
@@ -6896,17 +6863,6 @@ select optgroup {
     box-sizing: border-box; /* Prevent padding from causing overflow */
   }
 
-  .mobile-sticky-cta {
-    position: fixed;
-    bottom: 20px;
-    left: 0;
-    right: 0;
-    padding: 0 20px;
-    z-index: 1000;
-    display: block;
-    animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
   /* Compact agent cards for 2-column mobile layout */
   .agent-icon-box {
     width: 40px;
@@ -6972,22 +6928,6 @@ select optgroup {
 @keyframes slideUpFade {
   from { transform: translateY(100%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
-}
-
-.sticky-cta-btn {
-  width: 100%;
-  background: var(--gradient-vibrant);
-  border: none;
-  border-radius: 16px;
-  padding: 16px;
-  color: white;
-  font-weight: 700;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  box-shadow: 0 10px 30px rgba(168, 85, 247, 0.4);
 }
 /* --- End Native Mobile Enhancements --- */
 
@@ -8573,13 +8513,6 @@ html, body {
     display: none !important;
   }
 
-  /* Ensure Sticky CTA is visible and touchable */
-  .mobile-sticky-cta {
-    display: block !important;
-    bottom: 1.5rem !important;
-    z-index: 10000 !important;
-  }
-
   /* 2. Reduce Typography Sizes */
   .hero-title {
     font-size: 1.75rem !important;
@@ -9767,7 +9700,6 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
 .card-action,
 .btn-pill,
 .play-preview-btn,
-.sticky-cta-btn,
 .plan-button-native,
 .add-payment-btn,
 .secondary-button,
@@ -9808,7 +9740,7 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
 }
 
 /* Premium Button Style (Gradient) */
-.cta-button-premium, .sticky-cta-btn {
+.cta-button-premium {
   background: var(--gradient-vibrant);
   background-size: 200% auto;
   color: white;
@@ -9822,7 +9754,7 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   box-shadow: 0 6px 16px rgba(168, 85, 247, 0.4);
 }
 
-.cta-button-premium:hover, .sticky-cta-btn:hover {
+.cta-button-premium:hover {
   background-position: right center;
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(168, 85, 247, 0.4);
