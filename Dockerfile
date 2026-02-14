@@ -20,5 +20,6 @@ WORKDIR /app/backend
 COPY --from=backend-builder /app/backend ./
 ENV NODE_ENV=production
 ENV PORT=3000
+# Force rebuild 2026-02-13
 EXPOSE 3000
 CMD ["node", "server.js"]
