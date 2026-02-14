@@ -7,7 +7,7 @@ import {
   Settings, CheckCircle2, Lock as LockIcon, User, Database as DatabaseIcon, CircleHelp,
   ChevronRight, ChevronUp
 } from 'lucide-react';
-import { BACKEND_URL, AGENTS } from '../constants';
+import { BACKEND_URL, AGENTS, getAgentHex } from '../constants';
 import toast from 'react-hot-toast';
 import { db, auth, doc, setDoc, updateDoc, increment, getDoc, arrayUnion } from '../firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
@@ -182,13 +182,15 @@ function GeneratorCard({
   };
 
   const agent = AGENTS.find(a => a.id === agentId);
+  const agentColor = agent ? getAgentHex(agent) : color;
 
   return (
-    <div className="generator-card-unified" style={{
+    <div className={`generator-card-unified ${agent?.colorClass || ''}`} style={{
       minHeight: isMobile ? 'auto' : '380px',
       padding: 0,
       touchAction: 'manipulation',
-      WebkitTapHighlightColor: 'transparent'
+      WebkitTapHighlightColor: 'transparent',
+      borderTop: `3px solid ${agentColor}`
     }}>
       {/* Glow effect */}
       <div style={{
@@ -197,7 +199,7 @@ function GeneratorCard({
         left: '-50%',
         width: '200%',
         height: '200%',
-        background: `radial-gradient(circle at center, ${color}08 0%, transparent 50%)`,
+        background: `radial-gradient(circle at center, ${agentColor}08 0%, transparent 50%)`,
         pointerEvents: 'none'
       }} />
 
@@ -251,6 +253,16 @@ function GeneratorCard({
               }}>BETA</span>
             )}
           </p>
+          {agent?.capabilities && agent.capabilities.length > 0 && (
+            <div className="agent-cap-pills" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
+              {agent.category && (
+                <span style={{ padding: '1px 5px', background: `${agentColor}1A`, color: agentColor, borderRadius: '4px', fontSize: '0.55rem', fontWeight: '600' }}>{agent.category}</span>
+              )}
+              {agent.capabilities.slice(0, 2).map((cap, i) => (
+                <span key={i} style={{ padding: '1px 5px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', borderRadius: '4px', fontSize: '0.55rem' }}>{cap}</span>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* DNA DNA DNA - Upload Reference Button */}

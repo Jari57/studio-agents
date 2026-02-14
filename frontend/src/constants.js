@@ -579,3 +579,17 @@ export const AGENTS = [
       getStarted: 'Score Clip'
     }
 ];
+
+export const AGENT_COLOR_HEX = {
+  'agent-purple':  '#a855f7',
+  'agent-cyan':    '#06b6d4',
+  'agent-orange':  '#f97316',
+  'agent-red':     '#ef4444',
+  'agent-pink':    '#ec4899',
+  'agent-indigo':  '#6366f1',
+  'agent-emerald': '#10b981',
+};
+
+export function getAgentHex(agent) {
+  return AGENT_COLOR_HEX[agent?.colorClass] || '#a855f7';
+}
