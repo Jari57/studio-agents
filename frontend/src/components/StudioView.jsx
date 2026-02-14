@@ -1509,6 +1509,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   useEffect(() => {
     if (pendingProjectNav && selectedProject) {
       console.log('[StudioView] Safe navigation: project ready, switching to project_canvas');
+      setSelectedAgent(null);
       setActiveTab('project_canvas');
       setPendingProjectNav(false);
     }
