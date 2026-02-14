@@ -112,7 +112,7 @@ async function mixAudioProfessional(options, logger) {
       // When vocals play, slightly reduce beat volume for clarity
       if (autoDuck) {
         // Use sidechaincompress to duck beat when vocals are present
-        filterComplex.push(`[beat][vocal]sidechaincompress=threshold=0.1:ratio=4:attack=10:release=200:makeup=2[beat_ducked]`);
+        filterComplex.push(`[beat][vocal]sidechaincompress=threshold=0.15:ratio=2.5:attack=15:release=350:makeup=1.5[beat_ducked]`);
         filterComplex.push(`[vocal][beat_ducked]amix=inputs=2:duration=longest:weights=1.0 0.95[mixed]`);
       } else {
         // Simple mix without ducking
@@ -122,8 +122,8 @@ async function mixAudioProfessional(options, logger) {
       // === COMPRESSION ===
       // Professional mastering-grade compression
       if (compression) {
-        filterComplex.push(`[mixed]acompressor=threshold=-20dB:ratio=4:attack=5:release=50:makeup=6dB[compressed]`);
-        filterComplex.push(`[compressed]alimiter=limit=0.95:attack=5:release=50[limited]`);
+        filterComplex.push(`[mixed]acompressor=threshold=-16dB:ratio=2.5:attack=10:release=100:makeup=4dB[compressed]`);
+        filterComplex.push(`[compressed]alimiter=limit=0.92:attack=3:release=80[limited]`);
       }
 
       // === LOUDNESS NORMALIZATION ===
