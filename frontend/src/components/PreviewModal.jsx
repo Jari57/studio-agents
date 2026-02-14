@@ -299,14 +299,21 @@ export function PreviewModal({
                 <audio
                   src={formatAudioSrc(mediaUrl)}
                   controls
+                  crossOrigin="anonymous"
                   autoPlay
                   style={{
                     width: '100%',
                     height: '54px',
                     borderRadius: '8px'
                   }}
-                  onError={(_e) => {
-                    console.warn('[PreviewModal] Audio failed to load');
+                  onError={(e) => {
+                    console.warn('[PreviewModal] Audio failed to load, code:', e.target.error?.code);
+                    // Retry without crossOrigin for Firebase Storage URLs
+                    if (mediaUrl?.startsWith('http') && !e.target.dataset.retried) {
+                      e.target.dataset.retried = 'true';
+                      e.target.removeAttribute('crossorigin');
+                      e.target.src = mediaUrl;
+                    }
                   }}
                 />
               </div>

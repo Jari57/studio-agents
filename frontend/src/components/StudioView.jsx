@@ -1054,7 +1054,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
           const mediaSpecs = [
             { key: "imageUrl", folder: "images", mime: "image/png" },
-            { key: "audioUrl", folder: "audio", mime: "audio/mp3" },
+            { key: "audioUrl", folder: "audio", mime: "audio/mpeg" },
             { key: "videoUrl", folder: "video", mime: "video/mp4" },
             { key: "vocalUrl", folder: "vocal", mime: "audio/wav" }
           ];
@@ -5287,11 +5287,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                            <div className="pulse-icon" style={{ flexShrink: 0 }}>
                               <Music size={24} className="text-purple" />
                            </div>
-                           <audio 
+                           <audio
                              ref={canvasAudioRef}
                              key={canvasPreviewAsset.id || canvasPreviewAsset.audioUrl}
-                             src={formatAudioSrc(canvasPreviewAsset.audioUrl)} 
-                             controls 
+                             src={formatAudioSrc(canvasPreviewAsset.audioUrl)}
+                             controls
+                             crossOrigin="anonymous"
                              style={{ flex: 1, height: '36px' }}
                              onPlay={(e) => {
                                // Mutual exclusion: pause all other media
@@ -5299,8 +5300,18 @@ const fetchUserCredits = useCallback(async (uid) => {
                                  if (el !== e.target) el.pause();
                                });
                              }}
-                             onError={() => {
-                               console.warn('[AssetViewer] Audio failed to load');
+                             onError={(e) => {
+                               console.warn('[AssetViewer] Audio failed to load, code:', e.target.error?.code);
+                               // Retry without crossOrigin for Firebase Storage URLs
+                               const rawUrl = canvasPreviewAsset.audioUrl;
+                               if (rawUrl && !e.target.dataset.retried) {
+                                 e.target.dataset.retried = 'true';
+                                 if (rawUrl.startsWith('http')) {
+                                   e.target.removeAttribute('crossorigin');
+                                   e.target.src = rawUrl;
+                                   return;
+                                 }
+                               }
                                toast.error('Could not load audio file');
                              }}
                            />
@@ -13975,9 +13986,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                           }}>
                             <Music size={40} color={isPreviewPlaying ? 'white' : 'var(--text-secondary)'} />
                           </div>
-                          <audio 
-                            controls 
-                            src={formatAudioSrc(previewItem.audioUrl)} 
+                          <audio
+                            controls
+                            crossOrigin="anonymous"
+                            src={formatAudioSrc(previewItem.audioUrl)}
                             style={{ width: '100%', opacity: isPreviewMediaLoading ? 0 : 1 }}
                             onLoadedData={() => setIsPreviewMediaLoading(false)}
                             onCanPlay={() => setIsPreviewMediaLoading(false)}
@@ -13985,7 +13997,14 @@ const fetchUserCredits = useCallback(async (uid) => {
                             onPause={() => setIsPreviewPlaying(false)}
                             onEnded={() => setIsPreviewPlaying(false)}
                             onError={(e) => {
-                              console.error('Audio failed to load:', e.target.error?.message, previewItem.audioUrl?.substring(0, 100));
+                              console.error('Audio failed to load:', e.target.error?.code, e.target.error?.message, previewItem.audioUrl?.substring(0, 100));
+                              // Retry without crossOrigin for Firebase Storage
+                              if (previewItem.audioUrl?.startsWith('http') && !e.target.dataset.retried) {
+                                e.target.dataset.retried = 'true';
+                                e.target.removeAttribute('crossorigin');
+                                e.target.src = previewItem.audioUrl;
+                                return;
+                              }
                               setMediaLoadError({ type: 'audio', url: previewItem.audioUrl });
                               setIsPreviewMediaLoading(false);
                             }}
@@ -16609,11 +16628,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                   }}>
                     <Music size={previewMaximized ? 48 : 36} style={{ color: 'white' }} />
                   </div>
-                  <audio 
+                  <audio
                     ref={previewAudioRef}
                     key={safePreview.asset?.id || safePreview.url || 'audio-preview'}
-                    src={safePreview.url}
+                    src={safePreview.url || formatAudioSrc(safePreview.asset?.audioUrl)}
                     controls
+                    crossOrigin="anonymous"
                     style={{ width: '100%' }}
                     autoPlay={false}
                     controlsList="nodownload"
@@ -16624,8 +16644,31 @@ const fetchUserCredits = useCallback(async (uid) => {
                       });
                     }}
                     onError={(e) => {
-                      console.error('[AudioPreview] Error:', e.target.error?.message || 'Unknown error', 'URL:', safePreview.url?.substring(0, 50));
-                      // Show user-friendly error
+                      const errorCode = e.target.error?.code;
+                      const errorMsg = e.target.error?.message || 'Unknown error';
+                      const srcUrl = safePreview.url || '';
+                      console.error('[AudioPreview] Error:', errorMsg, 'code:', errorCode, 'URL type:', srcUrl.startsWith('data:') ? 'base64' : srcUrl.startsWith('blob:') ? 'blob' : srcUrl.startsWith('http') ? 'remote' : 'unknown');
+
+                      // Retry: if remote URL failed, try re-formatting through formatAudioSrc
+                      const rawAudioUrl = safePreview.asset?.audioUrl;
+                      if (rawAudioUrl && !e.target.dataset.retried) {
+                        e.target.dataset.retried = 'true';
+                        const retryUrl = formatAudioSrc(rawAudioUrl);
+                        if (retryUrl && retryUrl !== srcUrl) {
+                          console.log('[AudioPreview] Retrying with reformatted URL');
+                          e.target.src = retryUrl;
+                          return;
+                        }
+                        // If raw URL is a remote URL, try without crossOrigin
+                        if (rawAudioUrl.startsWith('http')) {
+                          console.log('[AudioPreview] Retrying without crossOrigin');
+                          e.target.removeAttribute('crossorigin');
+                          e.target.src = rawAudioUrl;
+                          return;
+                        }
+                      }
+
+                      // Show user-friendly error after all retries exhausted
                       const container = e.target.parentElement;
                       if (container && !container.querySelector('.audio-error-msg')) {
                         const errDiv = document.createElement('div');
