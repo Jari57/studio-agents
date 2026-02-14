@@ -695,6 +695,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [pipelineFilter, setPipelineFilter] = useState(null);
   const [editingProjectName, setEditingProjectName] = useState(false);
   const [projectNameDraft, setProjectNameDraft] = useState('');
+  const [canvasCarouselIndex, setCanvasCarouselIndex] = useState(0);
+  const carouselTouchStartX = useRef(null);
   // --- CANVAS COMPUTED VALUES ---
   const detailPanelAsset = canvasPreviewAsset;
   const setDetailPanelAsset = setCanvasPreviewAsset;
@@ -726,6 +728,27 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     const completed = pipelineStatus.filter(s => s.status === 'complete').length;
     return Math.round((completed / PRODUCTION_STAGES.length) * 100);
   }, [pipelineStatus]);
+
+  // Reset carousel when filter changes
+  useEffect(() => { setCanvasCarouselIndex(0); }, [assetFilter, pipelineFilter]);
+  // Clamp carousel index when filtered list shrinks
+  useEffect(() => {
+    if (canvasCarouselIndex >= filteredCanvasAssets.length && filteredCanvasAssets.length > 0) {
+      setCanvasCarouselIndex(filteredCanvasAssets.length - 1);
+    }
+  }, [filteredCanvasAssets.length, canvasCarouselIndex]);
+  // Carousel swipe handlers
+  const handleCarouselTouchStart = (e) => { carouselTouchStartX.current = e.touches[0].clientX; };
+  const handleCarouselTouchEnd = (e) => {
+    if (carouselTouchStartX.current === null) return;
+    const diff = carouselTouchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 60) {
+      if (diff > 0 && canvasCarouselIndex < filteredCanvasAssets.length - 1) setCanvasCarouselIndex(i => i + 1);
+      else if (diff < 0 && canvasCarouselIndex > 0) setCanvasCarouselIndex(i => i - 1);
+    }
+    carouselTouchStartX.current = null;
+  };
+
   const [previewSaveMode, setPreviewSaveMode] = useState(false);
   const [newProjectNameInPreview, setNewProjectNameInPreview] = useState('');
   const [isPreviewMediaLoading, setIsPreviewMediaLoading] = useState(false);
@@ -5470,8 +5493,202 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
               </div>
 
-              {/* Asset Grid */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '12px' : '20px 24px' }}>
+              {/* Asset Grid / Mobile Carousel */}
+              {isMobile ? (
+                /* ═══ MOBILE CAROUSEL VIEW ═══ */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  {filteredCanvasAssets.length > 0 ? (
+                    <>
+                      {/* Counter + Nav */}
+                      <div style={{
+                        padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        borderBottom: '1px solid rgba(255,255,255,0.04)'
+                      }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
+                          {canvasCarouselIndex + 1} of {filteredCanvasAssets.length}
+                        </span>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            disabled={canvasCarouselIndex === 0}
+                            onClick={() => setCanvasCarouselIndex(i => i - 1)}
+                            style={{
+                              width: '32px', height: '32px', borderRadius: '8px', border: 'none',
+                              background: canvasCarouselIndex === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.08)',
+                              color: canvasCarouselIndex === 0 ? 'rgba(255,255,255,0.2)' : 'white',
+                              cursor: canvasCarouselIndex === 0 ? 'default' : 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <button
+                            disabled={canvasCarouselIndex >= filteredCanvasAssets.length - 1}
+                            onClick={() => setCanvasCarouselIndex(i => i + 1)}
+                            style={{
+                              width: '32px', height: '32px', borderRadius: '8px', border: 'none',
+                              background: canvasCarouselIndex >= filteredCanvasAssets.length - 1 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.08)',
+                              color: canvasCarouselIndex >= filteredCanvasAssets.length - 1 ? 'rgba(255,255,255,0.2)' : 'white',
+                              cursor: canvasCarouselIndex >= filteredCanvasAssets.length - 1 ? 'default' : 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Carousel Card */}
+                      {(() => {
+                        const asset = filteredCanvasAssets[canvasCarouselIndex];
+                        if (!asset) return null;
+                        const agentObj = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.name === asset.agent || a.id === asset.agent) : null;
+                        const agentColor = agentObj?.color || 'var(--color-purple)';
+                        return (
+                          <div
+                            style={{ flex: 1, overflowY: 'auto', padding: '8px 10px 12px', WebkitOverflowScrolling: 'touch' }}
+                            onTouchStart={handleCarouselTouchStart}
+                            onTouchEnd={handleCarouselTouchEnd}
+                          >
+                            <div style={{
+                              background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
+                              border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden',
+                              borderLeft: `3px solid ${agentColor}`
+                            }}>
+                              {/* Title bar */}
+                              <div style={{
+                                padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '8px',
+                                borderBottom: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)'
+                              }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: agentColor, flexShrink: 0 }} />
+                                <div style={{
+                                  flex: 1, fontWeight: 600, fontSize: '0.95rem', color: 'white',
+                                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                                }}>
+                                  {asset.title || 'Untitled'}
+                                </div>
+                                <span style={{
+                                  fontSize: '0.65rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)',
+                                  padding: '2px 8px', borderRadius: '8px', flexShrink: 0
+                                }}>
+                                  {asset.type}
+                                </span>
+                              </div>
+
+                              {/* Media/Content area */}
+                              {asset.videoUrl ? (
+                                <video
+                                  src={formatVideoSrc(asset.videoUrl)}
+                                  controls playsInline
+                                  style={{ width: '100%', maxHeight: '50vh', background: '#000' }}
+                                  onPlay={(e) => { document.querySelectorAll('audio, video').forEach(el => { if (el !== e.target) el.pause(); }); }}
+                                />
+                              ) : asset.imageUrl ? (
+                                <img
+                                  src={formatImageSrc(asset.imageUrl)}
+                                  alt={asset.title || 'Asset'}
+                                  style={{ width: '100%', maxHeight: '50vh', objectFit: 'contain', background: '#000' }}
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              ) : asset.audioUrl ? (
+                                <div style={{ padding: '16px' }}>
+                                  <div style={{
+                                    background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '12px',
+                                    border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', gap: '12px'
+                                  }}>
+                                    <div className="pulse-icon" style={{ flexShrink: 0 }}>
+                                      <Music size={20} className="text-purple" />
+                                    </div>
+                                    <audio
+                                      src={formatAudioSrc(asset.audioUrl)}
+                                      controls crossOrigin="anonymous"
+                                      style={{ flex: 1, height: '36px' }}
+                                      onPlay={(e) => { document.querySelectorAll('audio, video').forEach(el => { if (el !== e.target) el.pause(); }); }}
+                                    />
+                                  </div>
+                                  {(asset.content || asset.snippet) && (
+                                    <div style={{
+                                      marginTop: '12px', whiteSpace: 'pre-wrap', fontSize: '0.9rem',
+                                      lineHeight: '1.7', color: 'rgba(255,255,255,0.85)', wordWrap: 'break-word'
+                                    }}>
+                                      {asset.content || asset.snippet}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (asset.content || asset.snippet) ? (
+                                <div style={{
+                                  padding: '16px', whiteSpace: 'pre-wrap', fontSize: '0.95rem',
+                                  lineHeight: '1.8', color: 'rgba(255,255,255,0.9)',
+                                  fontFamily: "'Georgia', 'Times New Roman', serif",
+                                  maxHeight: '55vh', overflowY: 'auto', wordWrap: 'break-word'
+                                }}>
+                                  {asset.content || asset.snippet}
+                                </div>
+                              ) : (
+                                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                                  No preview available
+                                </div>
+                              )}
+
+                              {/* Footer */}
+                              <div style={{
+                                padding: '10px 14px', borderTop: '1px solid rgba(255,255,255,0.05)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                              }}>
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                  {asset.agent} &bull; {asset.date}
+                                </span>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  {(asset.audioUrl || asset.videoUrl || asset.imageUrl) && (
+                                    <button
+                                      onClick={() => {
+                                        const mediaUrl = formatAudioSrc(asset.audioUrl) || formatVideoSrc(asset.videoUrl) || formatImageSrc(asset.imageUrl);
+                                        if (mediaUrl) {
+                                          const link = document.createElement('a');
+                                          link.href = mediaUrl;
+                                          link.download = asset.title || 'asset';
+                                          link.click();
+                                        }
+                                      }}
+                                      style={{
+                                        width: '30px', height: '30px', borderRadius: '8px', border: 'none',
+                                        background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)',
+                                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                      }}
+                                    >
+                                      <Download size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <div style={{
+                      padding: '40px 20px', textAlign: 'center',
+                      background: 'rgba(255,255,255,0.02)', borderRadius: '16px',
+                      border: '2px dashed rgba(255,255,255,0.05)', margin: '12px'
+                    }}>
+                      <Layers size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+                      <h3 style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                        {pipelineFilter || assetFilter !== 'all' ? 'No matching assets' : 'No generations yet'}
+                      </h3>
+                      <p style={{ color: 'var(--text-secondary)', opacity: 0.7, maxWidth: '400px', margin: '0 auto 24px auto' }}>
+                        {pipelineFilter || assetFilter !== 'all'
+                          ? 'Try a different filter or generate new assets.'
+                          : 'Start by opening the Orchestrator or uploading files.'}
+                      </p>
+                      <button className="btn-pill primary" onClick={() => setShowOrchestrator(true)}>
+                        <Sparkles size={16} /> Start Creating
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+              /* ═══ DESKTOP GRID VIEW ═══ */
+              <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
                 {filteredCanvasAssets.length > 0 ? (
                   <div style={{
                     display: 'grid',
@@ -5642,10 +5859,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </div>
                 )}
               </div>
+              )}
             </div>
 
-            {/* RIGHT: DETAIL PANEL */}
-            {detailPanelAsset && (
+            {/* RIGHT: DETAIL PANEL - hidden on mobile since carousel is the viewer */}
+            {detailPanelAsset && !isMobile && (
               <div style={{
                 flex: isMobile ? '1' : '0 0 45%',
                 display: 'flex', flexDirection: 'column', overflow: 'hidden',
