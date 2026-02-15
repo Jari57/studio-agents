@@ -226,6 +226,63 @@ const DashboardView = ({
         <div className="dashboard-main-content">
           {dashboardTab === 'overview' && (
             <div className="dashboard-view-overview animate-fadeIn">
+              {/* AI Production Pipeline — Launch Orchestrator CTA */}
+              <div 
+                onClick={() => setShowOrchestrator(true)}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(6, 182, 212, 0.15) 50%, rgba(236, 72, 153, 0.08) 100%)',
+                  borderRadius: '20px',
+                  padding: '28px 32px',
+                  marginBottom: '24px',
+                  border: '1px solid rgba(168, 85, 247, 0.25)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+                  e.currentTarget.style.boxShadow = '0 8px 40px rgba(168, 85, 247, 0.2)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.25)';
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'radial-gradient(circle at 80% 50%, rgba(6, 182, 212, 0.1) 0%, transparent 50%)', pointerEvents: 'none' }} />
+                <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{
+                      width: '52px', height: '52px', borderRadius: '14px',
+                      background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 4px 16px rgba(168, 85, 247, 0.4)'
+                    }}>
+                      <Zap size={26} color="white" />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: '0 0 4px 0', fontSize: '1.2rem', fontWeight: '700', color: 'white' }}>
+                        AI Production Pipeline
+                      </h3>
+                      <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                        1 idea → lyrics, beats, vocals, artwork & video — all AI-generated
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '10px 24px', borderRadius: '12px',
+                    background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                    color: 'white', fontSize: '0.9rem', fontWeight: '700',
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    boxShadow: '0 4px 16px rgba(168, 85, 247, 0.3)'
+                  }}>
+                    <Rocket size={16} /> Launch Orchestrator
+                  </div>
+                </div>
+              </div>
+
               {/* Artist Profile & Command Center */}
               <div className="artist-profile-header animate-fadeIn" style={{
                 background: 'linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%)',

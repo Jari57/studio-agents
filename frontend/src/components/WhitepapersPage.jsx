@@ -4,6 +4,7 @@ import {
   Zap, ArrowLeft, CheckCircle, Info, AlertTriangle, 
   Target, Shield, Code, TrendingUp, Sparkles, Star
 } from 'lucide-react';
+import { AGENT_WHITEPAPER, DEFAULT_WHITEPAPER } from '../data/agentWhitepapers';
 
 const FormattedContent = ({ content, accentColor = '#8b5cf6' }) => {
   if (!content) return null;
@@ -362,6 +363,37 @@ The goal: Let you focus on creating while we handle the complexity of staying co
   ];
 
   const getAgentWhitepaperData = (agent) => {
+    // Use rich shared whitepaper data if available for this agent
+    const sharedData = AGENT_WHITEPAPER[agent?.id];
+    if (sharedData) {
+      // Map flat whitepaper fields into the { heading, content } sections shape the renderer expects
+      const sections = [
+        { heading: 'Overview', content: sharedData.overview || '' },
+        { heading: 'The Problem We Solve', content: sharedData.problemSolved || '' },
+        { heading: 'Technical Stack', content: (sharedData.technicalStack || []).map(t => `• ${t}`).join('\n') },
+        { heading: 'Key Features', content: (sharedData.keyFeatures || []).map(f => `• **${f.name}** — ${f.desc}`).join('\n') },
+        { heading: 'When to Use', content: (sharedData.whenToUse || []).map(w => `• ${w}`).join('\n') },
+        { heading: 'When NOT to Use', content: (sharedData.whenNotToUse || []).map(w => `• ${w}`).join('\n') },
+        { heading: 'Workflow Integration', content: sharedData.workflowIntegration || '' },
+        { heading: 'Example Prompts', content: (sharedData.examplePrompts || []).map(p => `• ${p}`).join('\n') },
+        { heading: 'Output Formats', content: (sharedData.outputFormats || []).map(o => `• ${o}`).join('\n') },
+        { heading: 'Limitations', content: (sharedData.limitations || []).map(l => `• ${l}`).join('\n') },
+        { heading: 'Pricing & Metrics', content: `${sharedData.pricing || ''}\n\n**Performance:** ${sharedData.successMetrics || 'N/A'}` }
+      ].filter(s => s.content.trim());
+
+      return {
+        id: agent.id,
+        title: sharedData.fullName || agent.name,
+        category: 'Agent Documentation',
+        icon: agent.icon,
+        color: agent.tier === 'free' ? '#22c55e' : agent.tier === 'monthly' ? '#fbbf24' : '#a855f7',
+        readTime: `${Math.max(5, sections.length)} min`,
+        summary: sharedData.tagline || agent.description || agent.desc,
+        sections
+      };
+    }
+    // Fallback: use generic template for agents without custom whitepaper data
+    const fallback = DEFAULT_WHITEPAPER;
     return {
       id: agent.id,
       title: `${agent.name}: Technical Deep Dive`,

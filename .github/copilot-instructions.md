@@ -1,97 +1,89 @@
-# Repo guidance for AI coding agents
+# Studio Agents — AI Coding Agent Guide (studio-agents)
 
-This repository is a two-part app: a Node/Express backend that proxies Google Gemini (Gemini SDK) and a React/Vite frontend using Firebase. Use these notes to make productive, low-risk code changes.
+This is the **main development repo** for Studio Agents, an AI-powered music production platform with 16 specialized agents for lyrics, beats, vocals, video, and more. Backend on Railway, frontend on Vercel, Firebase for auth/data/storage.
 
-## Quick architecture (big picture)
-- **Backend:** `backend/server.js` — Express API that reads `backend/.env` for `GEMINI_API_KEY`, initializes `GoogleGenerativeAI`, and exposes `POST /api/generate` which returns JSON `{ output: string }`.
-- **Frontend:** `frontend/src/App.jsx` — single-file React app (many UI sections) that uses Firebase for auth/firestore and calls the backend via `callGemini()` to generate text. `BACKEND_URL` is toggled by `isLocal` (localhost:3001) or production placeholder.
-- **Integration flow:** Frontend -> POST `/api/generate` -> Backend uses `@google/generative-ai` -> responds `{ output }`. Firebase is used locally for state/auth (keys are bundled in `App.jsx`).
+## Architecture
 
-## How to run / developer workflows
-- Start backend (ensure `backend/.env` contains `GEMINI_API_KEY`):
+```
+frontend/          React 19 + Vite 7 (ES modules)
+  src/App.jsx        Hash-based router, lazy-loads all views
+  src/constants.js   BACKEND_URL auto-detection + AGENTS array (16 agent definitions)
+  src/firebase.js    Firebase SDK init (Auth, Firestore, Storage) + upload/delete helpers
+  src/components/    StudioView (main UI), LandingPage, StudioOrchestratorV2,
+                     ProjectHubV3, AdminAnalytics, MultiAgentDemo, etc.
+  src/hooks/         useSafeAsync, useVoice, useLazyLoadImages, useSwipeNavigation
+  src/utils/         demoMode (code "pitch"), errorMonitoring, analytics, mediaUtils
+
+backend/           Express 5 + CommonJS (Node 18+)
+  server.js          Single ~7000-line file — all routes, middleware, AI integrations
+  services/          emailService, beatDetectionService, videoCompositionService,
+                     videoGenerationOrchestrator, audioMixingService, userPreferencesService
+  .env               GEMINI_API_KEY, FIREBASE_*, ELEVENLABS_API_KEY, REPLICATE_API_*, STRIPE_*
+```
+
+## Deployment & URLs
+
+- **Backend (Railway):** Dockerfile → `sh -c 'cd /app/backend && node server.js'` on port 3001
+  - Production: `https://web-production-b5922.up.railway.app`
+- **Frontend (Vercel):** `cd frontend && npm run build` → `frontend/dist`
+  - `vercel.json` rewrites `/api/*` to the Railway backend
+- **Firebase project:** `studioagents-app` — shared with the whip-montez-live repo
+
+## Critical conventions
+
+- **BACKEND_URL detection:** `frontend/src/constants.js` checks `window.location.hostname`/port. Localhost → `http://localhost:3001`, production → empty string (Vercel rewrites handle it).
+- **Firebase config is in source code** (`frontend/src/firebase.js`). Do NOT move to env vars — it's intentional for client-side SDK. Backend uses Firebase Admin with service account from env vars.
+- **Hash-based routing:** `#/`, `#/studio/{tab}`, `#/whitepapers`, `#/legal`. No react-router — uses `window.location.hash` + `hashchange` listener in `App.jsx`.
+- **Agent definitions live in `constants.js`** as the `AGENTS` array (id, name, category, tier, capabilities, etc.). Adding an agent = adding an entry here + handling in `StudioView.jsx`.
+- **server.js is one large file.** All routes, middleware, and integrations are co-located. Key sections are marked with `// ====` banners.
+
+## Auth & credits
+
+- Firebase Auth (Google, Email/Password, Apple Sign-In). Token verified backend-side via `verifyFirebaseToken` middleware.
+- **Admin emails** hardcoded in `server.js` (`ADMIN_EMAILS` array). Admin middleware: `requireAdmin`.
+- **Credit system:** `CREDIT_COSTS` object in `server.js` defines per-feature costs (text=1, beat=5, video=15, etc.). `checkCreditsFor(type)` middleware deducts credits via Firestore transactions. Admins bypass credit checks.
+- **Tiers:** free (4 agents), monthly (8 agents), pro (all 16), lifetime.
+
+## AI integrations (all in server.js)
+
+| Service | Model | Route | Env var |
+|---------|-------|-------|---------|
+| Google Gemini | `gemini-2.0-flash` (fallback: 1.5-flash) | `POST /api/generate` | `GEMINI_API_KEY` |
+| Replicate | Flux 1.1 Pro | `POST /api/generate-image` | `REPLICATE_API_TOKEN` |
+| Replicate | MusicGen | `POST /api/generate-audio` | `REPLICATE_API_TOKEN` |
+| Replicate | BARK | `POST /api/generate-speech` | `REPLICATE_API_TOKEN` |
+| Stripe | Payments/subscriptions | `POST /api/stripe/*` | `STRIPE_SECRET_KEY` |
+
+## Running locally
 
 ```powershell
-cd backend
-# install if needed
-npm install
-node server.js
+# Backend (needs backend/.env with API keys)
+cd backend && npm install && node server.js    # http://localhost:3001
+
+# Frontend (separate terminal)
+cd frontend && npm install && npm run dev      # http://localhost:5173
 ```
 
-- Start frontend (Vite):
+## Testing
 
 ```powershell
-cd frontend
-npm install
-npm run dev
+cd frontend && npx playwright test       # E2E tests
+cd frontend && npx playwright test --ui  # Interactive test UI
+cd frontend && npm run check:circular    # Check for circular dependencies
 ```
 
-- Debug tips:
-  - Backend logs API key loading and will print a substring of the key or an explicit missing-key error.
-  - Frontend logs attempts to contact the backend (see `callGemini()` in `frontend/src/App.jsx`) and returns clear strings on failure: `ERROR: BACKEND OFFLINE...` or `CONNECTION ERROR: BACKEND UNREACHABLE.`
+## Key patterns
 
-## API contract (be explicit)
-- Request: `POST /api/generate` with JSON body `{ "prompt": string, "systemInstruction": string }`.
-- Success response: `200 { "output": string }`.
-- Error response: `500 { "error": "AI Generation Failed", "details": string }`.
+- **Lazy loading:** All heavy components use `React.lazy()` in `App.jsx`
+- **Demo mode:** Activated via code "pitch" or `?demo=pitch` — returns mock data, skips credits (`frontend/src/utils/demoMode.js`)
+- **Middleware chain:** `verifyFirebaseToken → requireAdmin/checkCreditsFor → rateLimiter → handler`
+- **Error handling:** Winston logger (file + console), Morgan for HTTP logs, `ErrorBoundary.jsx` on frontend
+- **Vite build:** Chunk splitting (firebase, react, icons, vendor), gzip+brotli compression, terser minification
+- **Offline persistence:** Firestore `enableIndexedDbPersistence` is enabled in `firebase.js` for resilience on flaky connections
 
-Example curl (local):
+## What NOT to do
 
-```bash
-curl -X POST http://localhost:3001/api/generate -H "Content-Type: application/json" \
-  -d '{"prompt":"write a 4-line hook","systemInstruction":"be lyrical"}'
-```
-
-## Project-specific conventions & patterns
-- The frontend bundles Firebase config directly inside `frontend/src/App.jsx` — do not assume an external config file or env var for Firebase.
-- `isLocal` in `App.jsx` detects `window.location.hostname` and switches `BACKEND_URL` to `http://localhost:3001/api/generate`. When changing endpoints update that constant.
-- The backend intentionally resolves `.env` with `path.resolve(__dirname, '.env')` in `server.js`; place API key in `backend/.env` (not the repo root `.env`).
- - The backend `package.json` includes a `start` script (`npm start` -> `node server.js`). The project uses CommonJS (`"type":"commonjs"`).
-
-## CI (example)
-- A lightweight GitHub Actions workflow was added at `.github/workflows/node-ci.yml` that:
-  - checks out the repo, sets up Node 18
-  - installs frontend deps and runs `npm run build` in `frontend/`
-  - installs backend deps (does not run the server)
-  - This keeps CI safe from requiring `GEMINI_API_KEY` or running external services.
-
-Example: the workflow's path is `.github/workflows/node-ci.yml` and it intentionally avoids running `node server.js`.
-
-## Env check helper
-- A helper script `backend/check_env.js` was added to print whether `GEMINI_API_KEY` is present in `backend/.env` or the environment. It intentionally hides the value and exits `0` so CI doesn't fail when secrets are absent.
-- CI runs this script as an informational step (`.github/workflows/node-ci.yml`) so maintainers can see if the key is configured locally/CI without exposing secrets.
-
-## Model discovery endpoint
-- A diagnostic endpoint was added at `GET /api/models`. It calls the SDK's `listModels()` (when available) and returns an array of model names that support `generateContent`.
-- Usage:
-
-```powershell
-# Start backend
-cd backend
-npm ci
-npm start
-
-# From a new shell, list supported models
-curl http://localhost:3001/api/models
-```
-
-- If the SDK version doesn't support `listModels()` the endpoint returns `501` with an explanatory message. If it does return models, pick one that looks like a `gemini` model and set `GENERATIVE_MODEL` in `backend/.env`.
-
-## Key files to inspect for changes
-- `backend/server.js` — model selection (currently `gemini-1.5-flash`), SDK initialization, error handling, and `.env` loading.
-- `frontend/src/App.jsx` — UI, `callGemini()` wrapper, `BACKEND_URL`, Firebase init, and sample usage of generation results (e.g., `Ghostwriter`, `AROffice`).
-- `frontend/package.json` and `vite.config.js` — dev scripts and build behavior.
-
-## External integrations & risks
-- Uses `@google/generative-ai` in the backend; changes to model or SDK usage must be made in `backend/server.js` and tested locally with a valid `GEMINI_API_KEY`.
-- Uses Firebase (auth + Firestore) directly in the frontend. Keys are present in source — avoid committing alternative secret keys. Treat the Firebase project as live.
-- Frontend contains a simple wallet/META mask integration for a mock minting flow (`PressingPlant`) — this is a UI stub and not production-ready.
-
-## What the AI agent should not do
-- Do not commit new secrets or leak full API keys in source. The backend logs only an 8-character substring of the key by design.
-- Avoid changing Firebase config unless instructed — it's intentionally hard-coded in `App.jsx`.
-
-## Small actionable examples for changes
-- To change the model: edit `model: "gemini-1.5-flash"` in `backend/server.js`.
-- To change backend URL used by the frontend, update `BACKEND_URL` in `frontend/src/App.jsx` or wire it to env vars.
-
-If anything looks incomplete or you'd like more examples (unit tests, CI, or a start script), tell me which area to expand and I will iterate.
+- Do not commit secrets or full API keys. Backend logs only 8-char key substrings.
+- Do not refactor `server.js` into multiple route files unless explicitly asked — the single-file pattern is intentional.
+- Do not change Firebase config in `firebase.js` unless instructed. The Firebase project is live.
+- Do not remove `ADMIN_EMAILS` or `DEMO_ACCOUNTS` constants — they're used for testing and demos.

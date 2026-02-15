@@ -5,9 +5,9 @@ test.describe('Studio Agents UI Regression', () => {
   test('Landing page loads and displays title', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveTitle(/Studio Agents/i);
-    // Check for hero section or main content area
-    const heroSection = page.locator('.hero-section, .landing-hero, [class*="hero"]').first();
-    await expect(heroSection).toBeVisible({ timeout: 10000 });
+    // Check for main content area (About Us section renders first after hero removal)
+    const mainContent = page.locator('.landing-page, [class*="landing"], [class*="about"]').first();
+    await expect(mainContent).toBeVisible({ timeout: 10000 });
   });
 
   test('Navigation to Studio works via CTA', async ({ page }) => {

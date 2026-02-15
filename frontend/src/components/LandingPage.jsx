@@ -1,376 +1,13 @@
-import React, { useState, useEffect, Suspense } from 'react';
+﻿import React, { useState, useEffect, Suspense } from 'react';
 import toast from 'react-hot-toast';
-import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LayoutGrid, LogIn, LogOut, User } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LogIn, LogOut } from 'lucide-react';
 import { AGENTS } from '../constants';
 import { auth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
+import { AGENT_WHITEPAPER, DEFAULT_WHITEPAPER } from '../data/agentWhitepapers';
 
 // Lazy loaded complex components (standardizing to React.lazy to prevent 'lazy is not defined' error)
 const MultiAgentDemo = React.lazy(() => import('./MultiAgentDemo'));
-
-// Comprehensive Agent Whitepaper Data
-const AGENT_WHITEPAPER = {
-  'ghost': {
-    fullName: 'Ghostwriter AI',
-    version: '3.2.1',
-    releaseDate: 'October 2024',
-    tagline: 'Your AI Co-Writer for Every Genre',
-    overview: 'Ghostwriter is Studio Agents\' flagship lyric generation engine, designed to function as an always-available, infinitely patient songwriting partner. Built on a proprietary Large Language Model (LLM) fine-tuned on millions of professionally written songs, it understands not just words—but rhythm, cadence, and emotional resonance.',
-    problemSolved: 'Writer\'s block costs artists an estimated 40% of their creative time. Traditional co-writing sessions are expensive ($500-2000/session) and require scheduling coordination. Ghostwriter eliminates both barriers, providing instant, unlimited lyrical ideation.',
-    technicalStack: ['Google Gemini Pro (Base LLM)', 'Custom Rhyme Scheme Analyzer', 'Syllable-Flow Mapping Engine', 'Genre-Specific Vocabulary Models', 'Sentiment & Emotion Classifier'],
-    keyFeatures: [
-      { name: 'Multi-Genre Fluency', desc: 'Trained on 50+ genres from Hip-Hop to Country, K-Pop to Death Metal' },
-      { name: 'Flow Mapping', desc: 'Visualizes syllable placement for precise rhythmic delivery' },
-      { name: 'Reference Artist Mode', desc: 'Mimics the stylistic patterns of legendary writers (Jay-Z, Taylor Swift, etc.)' },
-      { name: 'Rhyme Density Control', desc: 'Adjust from simple AABB to complex internal rhyme schemes' },
-      { name: 'Metaphor Generator', desc: 'Creates unique, non-cliché metaphors based on your theme' }
-    ],
-    whenToUse: [
-      'You have a melody but no words',
-      'You\'re stuck on a specific verse or bridge',
-      'You need 10 hook options in 10 minutes',
-      'You want to explore a genre you\'re unfamiliar with',
-      'You need lyrics for a client project on a deadline'
-    ],
-    whenNotToUse: [
-      'You need lyrics for commercial sync (check licensing)',
-      'You want 100% human-written for purist projects',
-      'The song requires highly personal autobiographical content'
-    ],
-    workflowIntegration: 'Inject Ghostwriter at the ideation phase. Use it to generate 5-10 concept directions, then refine your favorite with iterative prompts. Export the final lyrics with Flow Map to your DAW for recording.',
-    examplePrompts: [
-      '"Write a 16-bar verse about losing a friend to success, in the style of 90s East Coast hip-hop. Use internal rhymes and vivid street imagery."',
-      '"Create 5 hook options for a summer pop anthem about first love. Keep it radio-friendly and catchy."',
-      '"Generate a melancholic bridge about missed opportunities for an indie folk song. Use nature metaphors."'
-    ],
-    outputFormats: ['Plain Text', 'Flow Map (PDF)', 'Teleprompter Mode', 'DAW Marker Export'],
-    limitations: ['Cannot generate audio/vocals', 'May occasionally produce clichés (use Refine)', 'Reference Artist mode is stylistic, not impersonation'],
-    pricing: 'Included in all paid plans. Free tier: 10 generations/month.',
-    successMetrics: '94% user satisfaction | Avg. 3.2 refinements per final lyric | 12M+ lyrics generated'
-  },
-  'beat': {
-    fullName: 'Beat Lab Pro',
-    version: '2.8.0',
-    releaseDate: 'November 2024',
-    tagline: 'Production Ideas at the Speed of Thought',
-    overview: 'Beat Lab is your AI production assistant, combining algorithmic composition with a curated sample library. It generates drum patterns, chord progressions, and melodic ideas that are musically coherent and genre-appropriate.',
-    problemSolved: 'Producers spend 60% of their time on ideation and sound selection. Beat Lab compresses this phase by providing instant, theory-correct musical foundations—freeing you to focus on arrangement and mixing.',
-    technicalStack: ['Markov Chain Pattern Generator', 'Music Theory Logic Engine', 'Sample Metadata AI', 'BPM & Key Detection', 'MIDI Export Pipeline'],
-    keyFeatures: [
-      { name: 'Genre-Locked Generation', desc: 'Patterns guaranteed to fit Hip-Hop, EDM, Pop, R&B, and more' },
-      { name: 'Chord Progression Logic', desc: 'Follows harmonic rules while allowing creative tension' },
-      { name: 'Sample Sourcing', desc: 'Suggests royalty-free samples that match your vibe' },
-      { name: 'MIDI Export', desc: 'Drag patterns directly into any DAW' },
-      { name: 'Variation Engine', desc: 'Auto-generates B-sections and fills' }
-    ],
-    whenToUse: [
-      'Starting a new beat from scratch',
-      'You need a chord progression that "works"',
-      'You want drum pattern inspiration',
-      'You\'re producing in an unfamiliar genre',
-      'You need 20 beat ideas for a sample pack'
-    ],
-    whenNotToUse: [
-      'You need a fully mixed beat (use full DAW)',
-      'You want to play everything live',
-      'You need audio stems (use Beat Architect)'
-    ],
-    workflowIntegration: 'Use Beat Lab at project start. Generate a foundation (drums + chords), export MIDI, then build your arrangement in your DAW. Return to Beat Lab for variations.',
-    examplePrompts: [
-      '"Generate a dark trap drum pattern at 140 BPM with minimal hi-hat rolls"',
-      '"Suggest a jazz-infused chord progression in F minor for a lo-fi beat"',
-      '"Create a reggaeton drum pattern with a modern dembow rhythm"'
-    ],
-    outputFormats: ['MIDI Files', 'Pattern Preview (Audio)', 'Sample Pack Links', 'Theory Analysis PDF'],
-    limitations: ['Patterns are MIDI only (no audio)', 'Complex polyrhythms may need manual editing', 'Sample suggestions are external links'],
-    pricing: 'Included in all paid plans. Free tier: 5 patterns/month.',
-    successMetrics: '89% export-to-DAW rate | 4.8M patterns generated | Avg. session: 12 minutes'
-  },
-  'album': {
-    fullName: 'Album Artist AI',
-    version: '4.0.0',
-    releaseDate: 'December 2024',
-    tagline: 'Your Visual Identity, Perfected',
-    overview: 'Album Artist transforms your musical vision into stunning visual art. Powered by Imagen 3, Google\'s most advanced image generation model, it creates cover art, social media kits, and brand assets that are platform-optimized and print-ready.',
-    problemSolved: 'Professional cover art costs $200-2000 and takes 2-4 weeks. Album Artist delivers unlimited, high-quality artwork in minutes—ensuring every single, EP, and album looks major-label quality.',
-    technicalStack: ['Imagen 3 (Google)', 'Resolution Upscaler', 'Platform Optimizer', 'Typography Engine', 'Color Palette Extractor'],
-    keyFeatures: [
-      { name: 'Multi-Style Generation', desc: 'From photorealistic to abstract, anime to oil painting' },
-      { name: 'Social Kit Export', desc: 'Pre-sized assets for Spotify, Instagram, YouTube, TikTok' },
-      { name: 'Typography Integration', desc: 'Add artist name and title with curated fonts' },
-      { name: 'Brand Palette', desc: 'Extract and apply consistent colors across all assets' },
-      { name: 'Print-Ready Export', desc: '300 DPI output for physical merch and vinyl' }
-    ],
-    whenToUse: [
-      'You need cover art for a new release',
-      'You want a consistent visual brand',
-      'You need social media graphics fast',
-      'You\'re designing merch',
-      'You want to visualize your album concept'
-    ],
-    whenNotToUse: [
-      'You need photography of yourself (use a photographer)',
-      'You want hand-drawn illustration style (commission an artist)',
-      'Legal requires specific image licensing'
-    ],
-    workflowIntegration: 'Generate art after your music is mixed. Use the "Mood" from your track as the prompt foundation. Export Social Kit before release day.',
-    examplePrompts: [
-      '"A cyberpunk cityscape at night, neon purple and cyan, cinematic lighting, for a synthwave album"',
-      '"Minimalist abstract shapes in warm earth tones for an indie folk EP, modern and clean"',
-      '"Dark surrealist portrait with glitch effects for a trap single, high contrast"'
-    ],
-    outputFormats: ['3000x3000 Cover (Spotify/Apple)', 'Social Kit (IG, YT, TikTok)', 'Print-Ready (300 DPI)', 'Brand Board PDF'],
-    limitations: ['Cannot generate real human faces (AI policy)', 'Text rendering may need refinement', 'Complex logos should be vector (use external)'],
-    pricing: 'Included in all paid plans. Free tier: 3 covers/month.',
-    successMetrics: '97% Spotify acceptance rate | 2.1M covers generated | Avg. 4 variations per final'
-  },
-  'video-creator': {
-    fullName: 'Video Creator (Veo 3)',
-    version: '1.5.0 BETA',
-    releaseDate: 'December 2024',
-    tagline: 'Cinematic AI Video for Music',
-    overview: 'Video Creator harnesses Veo 3, Google\'s revolutionary video generation model, to create music videos, visualizers, and cinematic content. Describe a scene and watch it come to life.',
-    problemSolved: 'Music videos cost $5,000-500,000 and require crews, locations, and weeks of production. Video Creator enables any artist to visualize their music with cinematic quality in minutes.',
-    technicalStack: ['Veo 3 (Google DeepMind)', 'Audio-Video Sync Engine', 'Style Transfer Pipeline', 'Motion Interpolation', '4K Upscaler'],
-    keyFeatures: [
-      { name: 'Scene Generation', desc: 'Create any scene from text description' },
-      { name: 'Music Sync', desc: 'Upload audio to sync visuals to beat' },
-      { name: 'Style Transfer', desc: 'Apply cinematic looks (Film Noir, Anime, etc.)' },
-      { name: 'Camera Control', desc: 'Specify drone shots, close-ups, tracking' },
-      { name: 'Loop Mode', desc: 'Perfect for visualizers and social content' }
-    ],
-    whenToUse: [
-      'You need a music video but have no budget',
-      'You want visualizers for streaming platforms',
-      'You need social content (TikTok, Reels)',
-      'You\'re creating a visual album',
-      'You want to pitch a video concept to a director'
-    ],
-    whenNotToUse: [
-      'You need footage of yourself (film it)',
-      'You require broadcast-quality output (use post-production)',
-      'Complex narrative with dialogue'
-    ],
-    workflowIntegration: 'Use after music is mastered. Upload audio, describe scenes for each section, generate clips, then edit together in your video editor.',
-    examplePrompts: [
-      '"A slow-motion shot of rain falling on a city street at night, neon reflections, cinematic, melancholic"',
-      '"Drone shot flying over a desert at golden hour, vast and empty, epic scale"',
-      '"Abstract liquid metal morphing in sync with bass drops, chrome and purple"'
-    ],
-    outputFormats: ['1080p MP4', '4K MP4 (Pro)', 'Loop GIF', 'Vertical (9:16)'],
-    limitations: ['BETA - occasional artifacts', 'Max 30 seconds per generation', 'Human faces may be inconsistent'],
-    pricing: 'Pro plan only during beta. 5 videos/month included.',
-    successMetrics: 'BETA | 340K videos generated | 78% user satisfaction (improving)'
-  },
-  'master': {
-    fullName: 'Mastering Lab AI',
-    version: '3.5.0',
-    releaseDate: 'September 2024',
-    tagline: 'Major Label Sound, Indie Budget',
-    overview: 'Mastering Lab applies professional-grade audio mastering using neural networks trained by Grammy-winning engineers. It analyzes your mix and applies precise EQ, compression, limiting, and stereo enhancement.',
-    problemSolved: 'Professional mastering costs $50-500 per track and requires 3-5 day turnaround. Mastering Lab delivers studio-quality masters in under 60 seconds, with unlimited revisions.',
-    technicalStack: ['Neural Mastering Network', 'LUFS Analyzer', 'Spectral EQ AI', 'Stereo Imaging Engine', 'Multi-Format Encoder'],
-    keyFeatures: [
-      { name: 'Platform Presets', desc: 'Optimized for Spotify, Apple, YouTube, Vinyl' },
-      { name: 'Reference Matching', desc: 'Match the sonic profile of a reference track' },
-      { name: 'A/B Testing', desc: 'Compare original vs. master in real-time' },
-      { name: 'Stem Mastering', desc: 'Upload stems for more control (Pro)' },
-      { name: 'Multi-Format Export', desc: 'WAV, FLAC, MP3, and platform-specific' }
-    ],
-    whenToUse: [
-      'Your mix is done and ready for release',
-      'You need a quick master for pitching',
-      'You\'re releasing to streaming platforms',
-      'You want to compare mastering options',
-      'You\'re on a budget but need quality'
-    ],
-    whenNotToUse: [
-      'Your mix has significant issues (fix in mix)',
-      'You need analog warmth (hire a mastering engineer)',
-      'Major label release (consider hybrid approach)'
-    ],
-    workflowIntegration: 'Use as the final step before distribution. Upload your mixdown (-6dB headroom), select platform, and download your master.',
-    examplePrompts: [
-      '"Master for Spotify, warm and punchy, reference: Drake - God\'s Plan"',
-      '"Vinyl-ready master, preserve dynamics, add analog warmth"',
-      '"Loud and aggressive master for EDM, maximize impact"'
-    ],
-    outputFormats: ['WAV 24-bit', 'WAV 16-bit', 'FLAC', 'MP3 320kbps', 'Platform-Specific'],
-    limitations: ['Cannot fix bad mixes', 'Stem mastering requires Pro plan', 'Some genres may need manual tweaking'],
-    pricing: 'Included in all paid plans. Free tier: 2 masters/month.',
-    successMetrics: '92% Spotify loudness compliance | 1.8M tracks mastered | 4.7★ rating'
-  },
-  'trend': {
-    fullName: 'Trend Hunter AI',
-    version: '2.5.0',
-    releaseDate: 'November 2024',
-    tagline: 'Know What\'s Next Before Everyone Else',
-    overview: 'Trend Hunter monitors social media, streaming platforms, and music charts in real-time to identify emerging trends, viral sounds, and optimal release timing.',
-    problemSolved: 'Artists miss trend windows by 2-4 weeks because they lack data access. Trend Hunter surfaces insights that typically cost $10K+ from music intelligence firms.',
-    technicalStack: ['Social Listening AI', 'Streaming Analytics API', 'Viral Prediction Model', 'Hashtag Analyzer', 'Release Timing Engine'],
-    keyFeatures: [
-      { name: 'Trend Radar', desc: 'Real-time visualization of emerging sounds' },
-      { name: 'Viral Prediction', desc: 'AI scores tracks for viral potential' },
-      { name: 'Release Timing', desc: 'Optimal day/time for your genre' },
-      { name: 'Hashtag Strategy', desc: 'Which tags are gaining momentum' },
-      { name: 'Competitor Analysis', desc: 'What\'s working for similar artists' }
-    ],
-    whenToUse: [
-      'Planning your next single',
-      'Deciding when to release',
-      'Creating content for TikTok',
-      'Understanding your competitive landscape',
-      'Pitching to playlists'
-    ],
-    whenNotToUse: [
-      'You don\'t care about commercial success',
-      'Your genre is extremely niche',
-      'You prefer artistic purity over trends'
-    ],
-    workflowIntegration: 'Check Trend Hunter before starting a new project to align with current momentum. Return before release to optimize timing.',
-    examplePrompts: [
-      '"What sounds are trending in Hip-Hop on TikTok this week?"',
-      '"When is the best time to release an R&B single?"',
-      '"What hashtags should I use for my indie rock release?"'
-    ],
-    outputFormats: ['Trend Report PDF', 'Release Calendar', 'Hashtag List', 'Competitor Dashboard'],
-    limitations: ['Trends change rapidly', 'Not all genres have equal data', 'Predictions are probabilistic'],
-    pricing: 'Included in all paid plans. Free tier: 1 report/month.',
-    successMetrics: '73% trend prediction accuracy | 890K reports generated'
-  },
-  'social': {
-    fullName: 'Social Pilot AI',
-    version: '2.2.0',
-    releaseDate: 'October 2024',
-    tagline: 'Your 24/7 Social Media Manager',
-    overview: 'Social Pilot creates, schedules, and optimizes social media content across all platforms. From captions to carousels, it keeps your audience engaged without burning you out.',
-    problemSolved: 'Artists spend 15+ hours/week on social media, often with inconsistent results. Social Pilot reduces this to 2 hours/week while improving engagement.',
-    technicalStack: ['Multi-Platform API', 'Caption Generator', 'Optimal Timing AI', 'Engagement Predictor', 'Hashtag Optimizer'],
-    keyFeatures: [
-      { name: 'Caption Generator', desc: 'Platform-optimized copy in your voice' },
-      { name: 'Content Calendar', desc: 'Automated scheduling across platforms' },
-      { name: 'Engagement Timing', desc: 'Post when your audience is active' },
-      { name: 'Carousel Creator', desc: 'Multi-image posts for Instagram' },
-      { name: 'Analytics Dashboard', desc: 'Track performance across platforms' }
-    ],
-    whenToUse: [
-      'You need consistent social presence',
-      'You\'re launching a new release',
-      'You want to grow your following',
-      'You\'re tired of writing captions',
-      'You need a content strategy'
-    ],
-    whenNotToUse: [
-      'You prefer spontaneous posting',
-      'Your content is highly personal/reactive',
-      'You have a dedicated social media team'
-    ],
-    workflowIntegration: 'Set up your release campaign in Social Pilot. Generate a month of content, schedule it, and monitor analytics.',
-    examplePrompts: [
-      '"Write 10 Instagram captions for my new single release"',
-      '"Create a TikTok content strategy for the next month"',
-      '"What are the best posting times for my R&B audience?"'
-    ],
-    outputFormats: ['Caption Library', 'Content Calendar', 'Carousel Templates', 'Analytics Report'],
-    limitations: ['Cannot post automatically (requires approval)', 'TikTok video creation is separate', 'Engagement varies by account'],
-    pricing: 'Included in all paid plans. Free tier: 5 posts/month.',
-    successMetrics: '67% avg. engagement increase | 2.3M posts generated'
-  },
-  'collab': {
-    fullName: 'Collab Connect AI',
-    version: '1.8.0',
-    releaseDate: 'November 2024',
-    tagline: 'Find Your Perfect Creative Partner',
-    overview: 'Collab Connect matches you with collaborators based on your sound, style, and goals. From producers to vocalists to engineers, find your next creative partner.',
-    problemSolved: 'Finding the right collaborator takes weeks of networking and often results in mismatched creative visions. Collab Connect surfaces compatible artists instantly.',
-    technicalStack: ['Artist Matching Algorithm', 'Sound Analysis AI', 'Goal Alignment Engine', 'Portfolio Analyzer', 'Communication Hub'],
-    keyFeatures: [
-      { name: 'Sound Matching', desc: 'Find artists whose style complements yours' },
-      { name: 'Goal Alignment', desc: 'Match based on career objectives' },
-      { name: 'Portfolio Review', desc: 'Preview their work before connecting' },
-      { name: 'In-App Messaging', desc: 'Communicate without sharing personal info' },
-      { name: 'Collab Contracts', desc: 'Built-in split sheet templates' }
-    ],
-    whenToUse: [
-      'You need a feature artist',
-      'You want a producer for your project',
-      'You need a mixing/mastering engineer',
-      'You want to expand your network',
-      'You\'re looking for songwriting partners'
-    ],
-    whenNotToUse: [
-      'You prefer working alone',
-      'You have an established network',
-      'You need a specific named artist'
-    ],
-    workflowIntegration: 'Upload your work to create your profile. Browse matches, connect, and use built-in tools to manage the collaboration.',
-    examplePrompts: [
-      '"Find producers who make dark trap beats in Atlanta"',
-      '"Match me with female vocalists for R&B features"',
-      '"Show me mixing engineers who specialize in Hip-Hop"'
-    ],
-    outputFormats: ['Match List', 'Artist Profiles', 'Split Sheet Template', 'Collaboration Dashboard'],
-    limitations: ['Depends on user base in your genre/location', 'Cannot guarantee response rates', 'Quality varies by user'],
-    pricing: 'Included in all paid plans. Free tier: 3 matches/month.',
-    successMetrics: '12K+ collaborations formed | 84% match satisfaction'
-  },
-  'release': {
-    fullName: 'Release Manager AI',
-    version: '2.0.0',
-    releaseDate: 'December 2024',
-    tagline: 'Your Personal A&R Team',
-    overview: 'Release Manager orchestrates your entire release campaign—from metadata to marketing timeline to playlist pitching. It\'s the A&R department in your pocket.',
-    problemSolved: 'Independent artists miss critical release steps, resulting in poor discoverability and wasted marketing spend. Release Manager ensures nothing falls through the cracks.',
-    technicalStack: ['Release Timeline Engine', 'Metadata Optimizer', 'Playlist Pitch Generator', 'Marketing Calendar AI', 'Analytics Integration'],
-    keyFeatures: [
-      { name: 'Release Timeline', desc: 'Countdown with daily tasks' },
-      { name: 'Metadata Optimization', desc: 'Perfect your song info for discovery' },
-      { name: 'Playlist Pitch', desc: 'AI-written pitches for Spotify curators' },
-      { name: 'Marketing Calendar', desc: 'Coordinated social, PR, and paid' },
-      { name: 'Post-Release Analysis', desc: 'Track performance vs. goals' }
-    ],
-    whenToUse: [
-      'You\'re releasing new music',
-      'You want to maximize first-week streams',
-      'You need a coordinated campaign',
-      'You\'re pitching to playlists',
-      'You want to learn release best practices'
-    ],
-    whenNotToUse: [
-      'You have a label handling release',
-      'You\'re releasing casually (no promo)',
-      'You have a dedicated manager'
-    ],
-    workflowIntegration: 'Start Release Manager 4-6 weeks before release. Follow the daily tasks. Use generated assets and pitches across your campaign.',
-    examplePrompts: [
-      '"Create a 6-week release campaign for my debut EP"',
-      '"Write a Spotify playlist pitch for my new single"',
-      '"What should I post the week before release?"'
-    ],
-    outputFormats: ['Release Timeline', 'Playlist Pitch Docs', 'Marketing Calendar', 'Post-Release Report'],
-    limitations: ['Cannot submit to DSPs (use distributor)', 'Playlist placement not guaranteed', 'Requires your active participation'],
-    pricing: 'Included in all paid plans. Free tier: 1 release/month.',
-    successMetrics: '340% avg. first-week stream increase | 45K releases managed'
-  }
-};
-
-// Default whitepaper for agents without detailed data
-const DEFAULT_WHITEPAPER = {
-  version: '1.0.0',
-  releaseDate: 'December 2024',
-  tagline: 'AI-Powered Music Creation',
-  overview: 'This agent is part of Studio Agents\' comprehensive AI toolkit for music creation and career development.',
-  problemSolved: 'Reduces time and cost while improving quality of music production workflows.',
-  technicalStack: ['Google Gemini', 'Custom ML Models', 'Cloud Processing'],
-  keyFeatures: [],
-  whenToUse: ['When you need AI assistance for this task'],
-  whenNotToUse: ['When manual control is required'],
-  workflowIntegration: 'Integrate at the appropriate stage of your music production workflow.',
-  examplePrompts: ['Describe your needs and the AI will assist'],
-  outputFormats: ['Digital Export'],
-  limitations: ['See agent-specific documentation'],
-  pricing: 'Included in paid plans.',
-  successMetrics: 'High user satisfaction'
-};
+const SingleAgentDemo = React.lazy(() => import('./SingleAgentDemo'));
 
 export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStartTour }) {
   console.log("LandingPage: Rendering...");
@@ -379,10 +16,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [showPrivacy, setShowPrivacy] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showShowcase, setShowShowcase] = useState(false);
-  const [showMarketing, setShowMarketing] = useState(false);
   const [showInvestorPitch, setShowInvestorPitch] = useState(false);
 
-  // 🚀 Check if already logged in via Firebase OR localStorage
+  // ðŸš€ Check if already logged in via Firebase OR localStorage
   const [isLoggedMember, setIsLoggedMember] = useState(false);
   useEffect(() => {
     if (!auth) {
@@ -510,7 +146,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     try {
       if (authMode === 'signup') {
         const result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
-        // 📧 Send email verification and sign out until verified
+        // ðŸ“§ Send email verification and sign out until verified
         try {
           await sendEmailVerification(result.user);
           setAuthError('Account created! Please verify your email to log in. Check your inbox.');
@@ -528,7 +164,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       } else {
         const result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
         
-        // 📧 Check if email is verified
+        // ðŸ“§ Check if email is verified
         if (!result.user.emailVerified) {
           setAuthError('Email not verified. A new verification link has been sent to your inbox.');
           try {
@@ -600,7 +236,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const handleCtaClick = (action = 'start', targetTab = 'resources') => {
     if (isTransitioning) return; // Prevent clicks during transition
     
-    // 🚀 Check if already logged in via Firebase OR localStorage
+    // ðŸš€ Check if already logged in via Firebase OR localStorage
     const hasUserId = localStorage.getItem('studio_user_id');
     const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
     const isActuallyLogged = !!(auth?.currentUser || hasUserId || isGuest);
@@ -693,7 +329,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   
   // Backend API for investor access validation
   const INVESTOR_API_URL = isLocal 
-    ? 'http://localhost:3000/api/investor-access'
+    ? 'http://localhost:3001/api/investor-access'
     : '/api/investor-access';
   
   const handleInvestorAccessSubmit = async () => {
@@ -841,645 +477,249 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </div>
       </header>
 
-      {/* Stars background */}
-      <div className="stars-overlay"></div>
-
-      {/* Hero Section - Punchy & Mobile-Native */}
-      <section className="hero-section">
-        <div className="hero-glow"></div>
-
-        <div className="hero-content-wrapper">
-          {/* Logo/Icon */}
-          <div className="logo-container">
-            <div className="logo-box studio-logo-large animate-float">
-              <Sparkles size={64} color="white" />
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          ABOUT US SECTION - Story, Agent Grid, Vision, Stats
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <section style={{ padding: '80px 20px 40px', maxWidth: '900px', margin: '0 auto' }}>
+        {/* Studio Agents Brand */}
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            <div style={{
+              width: '56px', height: '56px',
+              background: 'linear-gradient(135deg, #a855f7 0%, #06b6d4 100%)',
+              borderRadius: '16px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <Sparkles size={32} color="white" />
             </div>
           </div>
-
-          {/* Main Title - Industry Disruptive */}
-          <h1 className="hero-title" style={{ marginBottom: '16px', lineHeight: '1.1' }}>
-            <span className="gradient-text-vibrant" style={{ fontSize: '1.15em', letterSpacing: '-1.5px', fontWeight: '900' }}>
-              STOP PITCHING. START RELEASING.
-            </span>
+          <h1 style={{ fontSize: 'clamp(2rem, 6vw, 3rem)', fontWeight: '900', letterSpacing: '-1.5px', lineHeight: '1.1', marginBottom: '12px' }}>
+            <span className="gradient-text-vibrant">The Studio Agents</span>
           </h1>
-
-          {/* Subtitle - Professional Value Prop */}
-          <p className="hero-subtitle" style={{ maxWidth: '420px', margin: '0 auto 24px', fontSize: '1.1rem', lineHeight: '1.5', color: 'white' }}>
-            The world’s first AI Record Label in your pocket. 
-            <br />
-            <span style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.6)', fontWeight: '400' }}>
-              16 Expert Agents. One Full-Suite Studio. Zero Gatekeepers.
-            </span>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
+            The world's first AI Record Label in your pocket.
           </p>
+        </div>
 
-          {/* Trust Badges - Hard Stats */}
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            gap: '20px', 
-            marginBottom: '24px',
-            flexWrap: 'wrap'
+        {/* The Story */}
+        <div style={{ marginBottom: '48px' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '16px', textAlign: 'center' }}>
+            <span className="gradient-text-cyan-purple">The Story</span>
+          </h2>
+          <div style={{ maxWidth: '700px', margin: '0 auto', color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.8' }}>
+            <p style={{ marginBottom: '12px' }}>
+              Studio Agents was born from a simple frustration: making music is easyâ€”releasing it professionally shouldn't require a record label. We built the platform that independent artists deserveâ€”16 specialized AI agents that handle everything from lyrics and beats to mastering, video, and marketing.
+            </p>
+            <p>
+              Every agent is trained on professional workflows, not just generic AI. Whether you're a bedroom producer or a touring artist, Studio Agents gives you the same production pipeline that major labels useâ€”at a fraction of the cost, available 24/7.
+            </p>
+          </div>
+        </div>
+
+        {/* Agent Grid - All 8 visible (free + monthly tier) */}
+        <div style={{ marginBottom: '48px' }}>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center' }}>
+            <span className="gradient-text-vibrant">Meet the Agents</span>
+          </h2>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            gap: '16px',
+            maxWidth: '860px',
+            margin: '0 auto'
           }}>
-            <div className="stat-badge">
-              <Star size={14} style={{ color: '#FFD700' }} />
-              <span><strong>4.9</strong> App Store</span>
-            </div>
-            <div className="stat-badge">
-              <Users size={14} style={{ color: 'var(--color-cyan)' }} />
-              <span><strong>127K</strong> Artists</span>
-            </div>
+            {AGENTS.slice(0, 8).map((agent, i) => {
+              const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
+              const tierColors = {
+                free: { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)', text: '#22c55e', label: 'Free' },
+                monthly: { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: 'Creator' },
+                pro: { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.3)', text: '#eab308', label: 'Pro' }
+              };
+              const tier = tierColors[agent.tier] || tierColors.free;
+
+              return (
+                <div
+                  key={agent.id}
+                  className="haptic-press"
+                  style={{
+                    padding: '20px 16px',
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '16px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    position: 'relative'
+                  }}
+                  onClick={() => handleCtaClick('agent', 'agents')}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                >
+                  {/* Tier badge */}
+                  <div style={{
+                    position: 'absolute', top: '10px', right: '10px',
+                    padding: '3px 8px', borderRadius: '8px',
+                    background: tier.bg, border: `1px solid ${tier.border}`,
+                    fontSize: '0.6rem', fontWeight: '700', color: tier.text,
+                    textTransform: 'uppercase', letterSpacing: '0.05em'
+                  }}>{tier.label}</div>
+
+                  <div style={{
+                    width: '40px', height: '40px', borderRadius: '12px',
+                    background: 'rgba(168, 85, 247, 0.15)',
+                    border: '1px solid rgba(168, 85, 247, 0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: '12px'
+                  }}>
+                    <Icon size={20} style={{ color: '#a855f7' }} />
+                  </div>
+                  <h3 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
+                  <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.4' }}>
+                    {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
+                  </p>
+
+                  {/* Whitepaper button */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
+                    style={{
+                      marginTop: '10px', padding: '4px 10px', borderRadius: '8px',
+                      background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.3)',
+                      color: '#a855f7', fontSize: '0.65rem', fontWeight: '600',
+                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                    }}
+                  >
+                    <FileText size={10} /> Whitepaper
+                  </button>
+                </div>
+              );
+            })}
           </div>
+        </div>
 
-          {/* CTA Buttons - Distinct Destinations */}
-          <div className="hero-cta-container" style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', maxWidth: '440px', marginTop: '12px' }}>
-
-            <button
-              onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'mystudio')}
-              className="cta-button-primary haptic-press"
-              style={{
-                width: '100%',
-                justifyContent: 'center',
-                padding: '20px 24px',
-                borderRadius: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                fontSize: '1.2rem',
-                fontWeight: '900',
-                background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 50%, #d946ef 100%)',
-                boxShadow: '0 20px 40px rgba(124, 58, 237, 0.4), inset 0 2px 0 rgba(255,255,255,0.2)',
-                border: 'none',
-                color: 'white',
-                letterSpacing: '-0.3px'
-              }}
-            >
-              <Sparkles size={20} fill="currentColor" />
-              Launch Your Studio
-              <ArrowRight size={20} />
-            </button>
-
-            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-              <button
-                onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'agents')}
-                className="glass-button haptic-press"
-                style={{
-                  flex: 1,
-                  justifyContent: 'center',
-                  padding: '16px 16px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '20px',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <Sparkles size={16} />
-                <span>AI Agents</span>
-                <ArrowRight size={16} />
-              </button>
-
-              <button
-                onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'resources')}
-                className="glass-button haptic-press"
-                style={{
-                  flex: 1,
-                  justifyContent: 'center',
-                  padding: '16px 16px',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '20px',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  transition: 'all 0.3s ease'
-                }}
-              >
-                <GlobeIcon size={16} />
-                <span>Resources</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
-
-          </div>
-
-          {/* ═══════════════════════════════════════════════════════════════
-              WORKFLOW CARDS CONTAINER - Wider on Desktop
-              ═══════════════════════════════════════════════════════════════ */}
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '20px', 
-            width: '100%', 
-            maxWidth: '600px',
-            marginTop: '24px'
+        {/* The Vision - Two Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '40px' }}>
+          <div style={{
+            padding: '24px', borderRadius: '16px',
+            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%)',
+            border: '1px solid rgba(168, 85, 247, 0.2)'
           }}>
+            <Target size={24} style={{ color: '#a855f7', marginBottom: '12px' }} />
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px' }}>Our Mission</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+              Democratize professional music production. Every artist deserves a full production teamâ€”AI makes it possible for everyone.
+            </p>
+          </div>
+          <div style={{
+            padding: '24px', borderRadius: '16px',
+            background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)',
+            border: '1px solid rgba(6, 182, 212, 0.2)'
+          }}>
+            <Rocket size={24} style={{ color: '#06b6d4', marginBottom: '12px' }} />
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px' }}>The Future</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+              We're building toward a world where talent is the only barrier to entry. AI handles the restâ€”production, distribution, marketing, analytics.
+            </p>
+          </div>
+        </div>
 
-            {/* ═══════════════════════════════════════════════════════════════
-                STUDIO WORKFLOW CARD - Premium Design with 3-Step Process
-                ═══════════════════════════════════════════════════════════════ */}
-            <div 
-              className="haptic-press" 
-              style={{ 
-                width: '100%', 
-                padding: '0',
-                background: 'linear-gradient(145deg, #8b5cf6 0%, #7c3aed 50%, #06b6d4 100%)',
-                boxShadow: '0 20px 60px rgba(139, 92, 246, 0.4), 0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-                border: 'none',
-                borderRadius: '28px',
-                cursor: 'pointer',
-                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                overflow: 'hidden',
-                position: 'relative'
-              }}
-              onClick={() => onEnter(false, false)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 32px 80px rgba(139, 92, 246, 0.5), 0 12px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 20px 60px rgba(139, 92, 246, 0.4), 0 8px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)';
-              }}
-            >
-              {/* Decorative gradient overlay */}
+        {/* Stats Grid */}
+        <div style={{
+          display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '48px'
+        }}>
+          {[
+            { value: '16', label: 'AI Agents' },
+            { value: '24/7', label: 'Available' },
+            { value: 'âˆž', label: 'Creations' },
+            { value: '100%', label: 'Independent' }
+          ].map((stat, i) => (
+            <div key={i} style={{
+              textAlign: 'center', padding: '16px 20px',
+              background: 'rgba(255,255,255,0.03)', borderRadius: '12px',
+              border: '1px solid rgba(255,255,255,0.06)', minWidth: '80px'
+            }}>
               <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '100%',
-                background: 'radial-gradient(ellipse at top right, rgba(255,255,255,0.15) 0%, transparent 50%)',
-                pointerEvents: 'none'
-              }} />
-              
-              {/* Header Section */}
-              <div style={{ padding: '32px 32px 24px', position: 'relative' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                  <div style={{ 
-                    background: 'rgba(255,255,255,0.2)', 
-                    backdropFilter: 'blur(10px)',
-                    padding: '14px', 
-                    borderRadius: '16px',
-                    border: '1px solid rgba(255,255,255,0.1)'
-                  }}>
-                    <LayoutGrid size={28} color="white" />
-                  </div>
-                  <div style={{
-                    background: 'rgba(255,255,255,0.15)',
-                    backdropFilter: 'blur(10px)',
-                    padding: '6px 14px',
-                    borderRadius: '20px',
-                    fontSize: '0.75rem',
-                    fontWeight: '700',
-                    color: 'white',
-                    letterSpacing: '1px',
-                    textTransform: 'uppercase'
-                  }}>
-                    Manual Control
-                  </div>
-                </div>
-                
-                <h3 style={{ 
-                  fontWeight: '900', 
-                  fontSize: '1.5rem', 
-                  color: 'white', 
-                  letterSpacing: '-0.5px', 
-                  marginBottom: '10px',
-                  textShadow: '0 2px 10px rgba(0,0,0,0.2)'
-                }}>
-                  Studio Workflow
-                </h3>
-                <p style={{ 
-                  fontSize: '0.95rem', 
-                  opacity: 0.9, 
-                  fontWeight: '500', 
-                  color: 'white', 
-                  lineHeight: '1.6',
-                  maxWidth: '320px'
-                }}>
-                  Full creative control. Hand-pick your agents and craft your vision step by step.
-                </p>
-              </div>
-              
-              {/* Steps Section */}
-              <div style={{ 
-                background: 'rgba(0,0,0,0.2)', 
-                backdropFilter: 'blur(20px)',
-                padding: '24px 32px 28px',
-                borderTop: '1px solid rgba(255,255,255,0.1)'
-              }}>
-                {/* Step 1 */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '18px' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '10px',
-                    background: 'rgba(255,255,255,0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: '800',
-                    fontSize: '0.9rem',
-                    color: 'white',
-                    flexShrink: 0
-                  }}>1</div>
-                  <div>
-                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'white', marginBottom: '4px' }}>Define Your Vision</div>
-                    <div style={{ fontSize: '0.85rem', opacity: 0.8, color: 'white', lineHeight: '1.5' }}>
-                      Use the Project Wizard to name your masterpiece and select your studio vibe.
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Step 2 */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', marginBottom: '18px' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '10px',
-                    background: 'rgba(255,255,255,0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: '800',
-                    fontSize: '0.9rem',
-                    color: 'white',
-                    flexShrink: 0
-                  }}>2</div>
-                  <div>
-                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'white', marginBottom: '4px' }}>Assemble Your Team</div>
-                    <div style={{ fontSize: '0.85rem', opacity: 0.8, color: 'white', lineHeight: '1.5' }}>
-                      Choose from 16 specialized AI agents for lyrics, beats, and production.
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Step 3 */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '10px',
-                    background: 'rgba(255,255,255,0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: '800',
-                    fontSize: '0.9rem',
-                    color: 'white',
-                    flexShrink: 0
-                  }}>3</div>
-                  <div>
-                    <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'white', marginBottom: '4px' }}>Launch & Amplify</div>
-                    <div style={{ fontSize: '0.85rem', opacity: 0.8, color: 'white', lineHeight: '1.5' }}>
-                      Use Marketing agents to build your rollout plan and sync socials.
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* CTA Footer */}
-              <div style={{ 
-                padding: '20px 32px',
-                background: 'rgba(255,255,255,0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'white' }}>Enter Studio</span>
-                <div style={{
-                  background: 'white',
-                  borderRadius: '50%',
-                  width: '36px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <ChevronRight size={18} color="#8b5cf6" />
-                </div>
-              </div>
+                fontSize: '1.5rem', fontWeight: '900',
+                background: 'linear-gradient(135deg, #a855f7, #06b6d4)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
+              }}>{stat.value}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</div>
             </div>
-
-            {/* ═══════════════════════════════════════════════════════════════
-                AI PRODUCTION PIPELINE CARD - Premium Glassmorphism Design
-                ═══════════════════════════════════════════════════════════════ */}
-            <div 
-              className="haptic-press" 
-              style={{ 
-                width: '100%', 
-                padding: '0',
-                background: 'linear-gradient(145deg, rgba(6, 182, 212, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%)', 
-                border: '1px solid rgba(6, 182, 212, 0.25)',
-                borderRadius: '28px',
-                cursor: 'pointer',
-                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                overflow: 'hidden',
-                position: 'relative',
-                backdropFilter: 'blur(20px)'
-              }}
-              onClick={() => onEnter(false, true)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)';
-                e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.6)';
-                e.currentTarget.style.boxShadow = '0 32px 80px rgba(6, 182, 212, 0.25), 0 0 60px rgba(6, 182, 212, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.borderColor = 'rgba(6, 182, 212, 0.25)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              {/* Animated gradient background */}
-              <div style={{
-                position: 'absolute',
-                top: '-50%',
-                left: '-50%',
-                width: '200%',
-                height: '200%',
-                background: 'conic-gradient(from 180deg, transparent, rgba(6, 182, 212, 0.1), transparent 30%)',
-                animation: 'spin 8s linear infinite',
-                pointerEvents: 'none',
-                opacity: 0.5
-              }} />
-              
-              {/* Header Section */}
-              <div style={{ padding: '32px 32px 24px', position: 'relative' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                  <div style={{ 
-                    background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(139, 92, 246, 0.3))', 
-                    backdropFilter: 'blur(10px)',
-                    padding: '14px', 
-                    borderRadius: '16px',
-                    border: '1px solid rgba(6, 182, 212, 0.2)'
-                  }}>
-                    <Zap size={28} color="#06b6d4" />
-                  </div>
-                  <div style={{
-                    background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2))',
-                    backdropFilter: 'blur(10px)',
-                    padding: '6px 14px',
-                    borderRadius: '20px',
-                    fontSize: '0.75rem',
-                    fontWeight: '700',
-                    color: '#06b6d4',
-                    letterSpacing: '1px',
-                    textTransform: 'uppercase',
-                    border: '1px solid rgba(6, 182, 212, 0.2)'
-                  }}>
-                    Automated
-                  </div>
-                </div>
-                
-                <h3 style={{ 
-                  fontWeight: '900', 
-                  fontSize: '1.5rem', 
-                  color: 'white', 
-                  letterSpacing: '-0.5px', 
-                  marginBottom: '10px'
-                }}>
-                  AI Production Pipeline
-                </h3>
-                <p style={{ 
-                  fontSize: '0.95rem', 
-                  opacity: 0.75, 
-                  fontWeight: '500', 
-                  color: 'white', 
-                  lineHeight: '1.6',
-                  maxWidth: '340px'
-                }}>
-                  Transform a single idea into a complete release package. Our multi-agent orchestrator handles lyrics, beats, visuals, and marketing in one automated flow.
-                </p>
-              </div>
-              
-              {/* Stats Section */}
-              <div style={{ 
-                padding: '24px 32px',
-                background: 'rgba(6, 182, 212, 0.05)',
-                borderTop: '1px solid rgba(6, 182, 212, 0.15)',
-                borderBottom: '1px solid rgba(6, 182, 212, 0.15)',
-                display: 'flex',
-                gap: '24px'
-              }}>
-                {/* Stat 1 */}
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{
-                    fontSize: '2rem',
-                    fontWeight: '900',
-                    background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    marginBottom: '4px'
-                  }}>4</div>
-                  <div style={{
-                    fontSize: '0.75rem',
-                    fontWeight: '600',
-                    color: 'rgba(255,255,255,0.6)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px'
-                  }}>Agents</div>
-                </div>
-                
-                {/* Divider */}
-                <div style={{
-                  width: '1px',
-                  background: 'linear-gradient(to bottom, transparent, rgba(6, 182, 212, 0.3), transparent)'
-                }} />
-                
-                {/* Stat 2 */}
-                <div style={{ flex: 1, textAlign: 'center' }}>
-                  <div style={{
-                    fontSize: '2rem',
-                    fontWeight: '900',
-                    background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    marginBottom: '4px'
-                  }}>1-Click</div>
-                  <div style={{
-                    fontSize: '0.75rem',
-                    fontWeight: '600',
-                    color: 'rgba(255,255,255,0.6)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px'
-                  }}>Workflow</div>
-                </div>
-              </div>
-              
-              {/* CTA Footer */}
-              <div style={{ 
-                padding: '20px 32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                position: 'relative'
-              }}>
-                <span style={{ fontWeight: '700', fontSize: '0.95rem', color: '#06b6d4' }}>Launch Pipeline</span>
-                <div style={{
-                  background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)',
-                  borderRadius: '50%',
-                  width: '36px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 4px 20px rgba(6, 182, 212, 0.4)'
-                }}>
-                  <Rocket size={18} color="white" />
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Quick Value Props */}
-          <div className="hero-features-list" style={{ marginTop: '20px' }}>
-            <div className="feature-pill haptic-press">
-              <Clock size={16} className="text-cyan" />
-              <span>2min Setup</span>
-            </div>
-            <div className="feature-pill haptic-press">
-              <Crown size={16} className="text-purple" />
-              <span>No Credit Card</span>
-            </div>
-          </div>
-
-          {/* Scroll indicator */}
-          <div className="scroll-indicator">
-            <div className="scroll-text">Explore the future</div>
-            <div className="scroll-dot"></div>
-          </div>
+          ))}
         </div>
       </section>
 
-      {/* Meet Your Dream Team - Agent Showcase */}
-      <section className="agents-section">
-        <div className="section-header">
-          {/* Stacked Title - Like Hero */}
-          <h2 className="section-title" style={{ 
-            fontSize: 'clamp(1.6rem, 5vw, 2.2rem)',
-            lineHeight: '1.2',
-            marginBottom: '8px'
-          }}>
-            <span className="gradient-text-vibrant">
-              MEET YOUR DREAM TEAM
-            </span>
-          </h2>
-          <p style={{ 
-            fontSize: 'clamp(0.9rem, 3vw, 1.1rem)', 
-            color: 'var(--text-primary)', 
-            marginBottom: '4px',
-            fontWeight: '500'
-          }}>
-            16 AI specialists. One studio.
-          </p>
-          <p style={{ 
-            fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)', 
-            color: 'var(--text-secondary)',
-            marginBottom: '20px'
-          }}>
-            From lyrics to mastering—your team handles it all.
-          </p>
-          
-          {/* Compact Stats Row */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '16px',
-            marginBottom: '24px',
-            flexWrap: 'wrap'
-          }}>
-            {[
-              { value: '4', label: 'Free Agents' },
-              { value: '24/7', label: 'Live' },
-              { value: '∞', label: 'Creates' }
-            ].map((stat, i) => (
-              <div key={i} className="stat-badge" style={{ 
-                padding: '6px 12px',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '20px',
-                border: '1px solid rgba(255,255,255,0.1)'
-              }}>
-                <span style={{ fontWeight: '700', color: 'white' }}>{stat.value}</span>
-                <span style={{ color: 'var(--text-secondary)', marginLeft: '4px', fontSize: '0.8rem' }}>{stat.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="agents-studio-grid" style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          {AGENTS.filter(a => a.tier === 'free').map((agent, i) => {
-            const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
-            const key = agent.id || agent.name;
-
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          NAVIGATION BUTTONS - Quick access to studio sections
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <section style={{ padding: '0 20px 60px', maxWidth: '700px', margin: '0 auto' }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          Jump Into the Studio
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+          {[
+            { label: 'AI Orchestrator', icon: Zap, tab: 'mystudio', color: '#06b6d4', desc: 'Full auto pipeline' },
+            { label: 'Agents', icon: Sparkles, tab: 'agents', color: '#a855f7', desc: '16 AI specialists' },
+            { label: 'Resources', icon: GlobeIcon, tab: 'resources', color: '#22c55e', desc: 'Guides & tools' },
+            { label: 'Social Media Hub', icon: TrendingUp, tab: 'activity', color: '#ec4899', desc: 'Content & socials' }
+          ].map((item, i) => {
+            const BtnIcon = item.icon;
             return (
-              <div 
-                key={key} 
-                className={`agent-studio-card ${agent.colorClass} animate-fadeInUp haptic-press`}
-                style={{ animationDelay: `${i * 0.1}s`, position: 'relative' }}
-                onClick={() => handleCtaClick('agent', agent.id)}
+              <button
+                key={i}
+                onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', item.tab)}
+                className="haptic-press"
+                style={{
+                  padding: '20px 16px', borderRadius: '16px',
+                  background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'white', cursor: 'pointer', textAlign: 'left',
+                  transition: 'all 0.3s ease', display: 'flex', flexDirection: 'column', gap: '8px'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = item.color; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; }}
               >
-                {/* Whitepaper Gear Button */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
-                  title="View Agent Whitepaper"
-                  style={{
-                    position: 'absolute',
-                    top: '10px',
-                    left: '10px',
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: 'rgba(139, 92, 246, 0.2)',
-                    border: '1px solid rgba(139, 92, 246, 0.4)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    zIndex: 10,
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.5)';
-                    e.currentTarget.style.transform = 'rotate(45deg) scale(1.1)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.2)';
-                    e.currentTarget.style.transform = 'rotate(0deg) scale(1)';
-                  }}
-                >
-                  <Settings size={14} style={{ color: 'var(--color-purple)' }} />
-                </button>
-                
-                <div className="agent-studio-icon">
-                  {Icon ? <Icon size={24} /> : <Sparkles size={24} />}
-                </div>
-                <div className="agent-studio-info">
-                  <h3>{agent.name}</h3>
-                  <p>{agent.category}</p>
-                </div>
-                <button 
-                  className="agent-launch-btn"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCtaClick('agent', agent.id);
-                  }}
-                >
-                  Launch Agent
-                </button>
-              </div>
+                <BtnIcon size={22} style={{ color: item.color }} />
+                <div style={{ fontWeight: '700', fontSize: '0.95rem' }}>{item.label}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item.desc}</div>
+                <ArrowRight size={16} style={{ color: item.color, alignSelf: 'flex-end' }} />
+              </button>
             );
           })}
+        </div>
+      </section>
+
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          DEMO SECTIONS - Single Agent Demo + Multi-Agent Demo
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <section style={{ padding: '0 20px 60px', maxWidth: '900px', margin: '0 auto' }}>
+        {/* Single Agent Demo */}
+        <div style={{ marginBottom: '48px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
+              Try an <span className="gradient-text-vibrant">Agent</span>
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              Pick one agent, give it an idea, and see what it creates.
+            </p>
+          </div>
+          <Suspense fallback={<div style={{ minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
+            <SingleAgentDemo />
+          </Suspense>
+        </div>
+
+        {/* Multi-Agent Demo */}
+        <div>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
+              Experience <span className="gradient-text-cyan-blue">Parallel Intelligence</span>
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '600px', margin: '0 auto' }}>
+              Watch our specialized agents work in sync to build your entire release package in seconds.
+            </p>
+          </div>
+          <Suspense fallback={<div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
+            <MultiAgentDemo />
+          </Suspense>
         </div>
       </section>
 
@@ -1512,7 +752,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               features: ['2,000 uses/month', '60s audio output', 'All Creator features', 'API access', 'Team collab', 'Analytics']
             },
             {
-              name: '🔥 Early Bird Lifetime',
+              name: 'ðŸ”¥ Early Bird Lifetime',
               price: '$49',
               period: 'one-time',
               features: ['Unlimited everything forever', 'Future updates included', 'Priority Support', 'Commercial License', 'Founder Badge'],
@@ -1581,45 +821,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </div>
       </section>
 
-      {/* Live Demo Section - Multi-Agent Demo */}
-      <section className="demo-section" style={{ padding: '80px 20px', background: 'var(--color-bg-secondary)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-          <h2 style={{ fontSize: '2.5rem', fontWeight: '800', marginBottom: '16px' }}>
-            Experience <span className="gradient-text-cyan-blue">Parallel Intelligence</span>
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '700px', margin: '0 auto' }}>
-            Watch our specialized agents work in sync to build your entire release package in seconds.
-          </p>
-        </div>
-        
-        <Suspense fallback={<div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
-          <MultiAgentDemo />
-        </Suspense>
-        
-        <div style={{ textAlign: 'center', marginTop: '48px' }}>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-            Ready to start creating?
-          </p>
-          <button 
-            onClick={() => handleCtaClick('start')}
-            className="cta-button-primary haptic-press"
-            style={{ 
-              padding: '18px 32px',
-              borderRadius: '16px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '10px',
-              fontSize: '1.1rem',
-              fontWeight: '700'
-            }}
-          >
-            <Zap size={20} />
-            Start Free
-            <ChevronRight size={18} />
-          </button>
-        </div>
-        
-        {/* Whip Montez Case Study - Below Demo */}
+      {/* Whip Montez Case Study */}
+      <section style={{ padding: '40px 20px', maxWidth: '700px', margin: '0 auto' }}>
         <div style={{
           maxWidth: '600px',
           margin: '48px auto 0',
@@ -1646,7 +849,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               marginBottom: '10px',
               textTransform: 'uppercase'
             }}>
-              🎵 Case Study
+              ðŸŽµ Case Study
             </div>
             <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '8px', color: 'white' }}>
               The Lost Tapes of <a href="https://whipmontez.com" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff41', textDecoration: 'underline' }}>Whip Montez</a>
@@ -1748,14 +951,14 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           </div>
           <div className="footer-links">
             <button className="footer-link" onClick={() => window.location.hash = '#/whitepapers'}>Whitepapers</button>
-            <span className="footer-divider">•</span>
+            <span className="footer-divider">â€¢</span>
             <button className="footer-link" onClick={() => window.location.hash = '#/legal'}>Legal & Copyright</button>
-            <span className="footer-divider">•</span>
+            <span className="footer-divider">â€¢</span>
             <button className="footer-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
-            <span className="footer-divider">•</span>
+            <span className="footer-divider">â€¢</span>
             <button className="footer-link" onClick={() => setShowTerms(true)}>Terms of Service</button>
           </div>
-          <p>&copy; 2025 studioagentsai.com • Built for the next generation of creators.</p>
+          <p>&copy; 2026 studioagentsai.com â€¢ Built for the next generation of creators.</p>
         </div>
       </footer>
 
@@ -2054,7 +1257,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     onClick={() => { setAuthMode('login'); setAuthError(''); }}
                     style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', fontSize: '0.85rem' }}
                   >
-                    ← Back to sign in
+                    â† Back to sign in
                   </button>
                 )}
               </div>
@@ -2139,7 +1342,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               <p>We collect information you provide directly to us, such as when you create an account, subscribe to our newsletter, or request customer support. This may include your name, email address, and payment information.</p>
               
               <h3>2. How We Use Your Information</h3>
-              <p>We use the information we collect to provide, maintain, and improve our services, to develop new ones, and to protect our company and our users. We also use this information to offer you tailored content – like giving you more relevant search results and ads.</p>
+              <p>We use the information we collect to provide, maintain, and improve our services, to develop new ones, and to protect our company and our users. We also use this information to offer you tailored content â€“ like giving you more relevant search results and ads.</p>
               
               <h3>3. Cookies & Tracking</h3>
               <p>We use cookies and similar technologies to collect information about your activity, browser, and device. This helps us remember your preferences and understand how you use our app.</p>
@@ -2265,7 +1468,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   letterSpacing: '0.2em',
                   textTransform: 'uppercase'
                 }}>
-                  Brooklyn, NY • 1999-2003
+                  Brooklyn, NY â€¢ 1999-2003
                 </p>
               </div>
 
@@ -2300,7 +1503,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 </p>
                 
                 <p style={{ color: '#ccc', fontSize: '0.95rem', lineHeight: '1.7' }}>
-                  So we built an <strong style={{ color: '#00ff41' }}>Alternative Reality Experience (ARE)</strong>—using AI to reconstruct what could have been. What if Whip had modern tools? What if she had Studio Agents?
+                  So we built an <strong style={{ color: '#00ff41' }}>Alternative Reality Experience (ARE)</strong>â€”using AI to reconstruct what could have been. What if Whip had modern tools? What if she had Studio Agents?
                 </p>
               </div>
 
@@ -2397,229 +1600,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </div>
       )}
 
-      {/* Marketing Modal - The Full Pitch */}
-      {showMarketing && (
-        <div 
-          className="modal-overlay animate-fadeIn" 
-          style={{ zIndex: 10000, overflowY: 'auto', WebkitOverflowScrolling: 'touch', alignItems: 'flex-start', padding: '1rem' }}
-          onClick={() => setShowMarketing(false)}
-        >
-          <div 
-            className="legal-modal animate-scaleIn" 
-            style={{ 
-              maxWidth: 'min(92vw, 700px)',
-              width: '100%',
-              margin: '1rem auto',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onTouchEnd={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Rocket size={24} style={{ color: 'var(--color-purple)' }} />
-                The Independent Artist's Edge
-              </h2>
-              <button className="modal-close" onClick={() => setShowMarketing(false)}><X size={20} /></button>
-            </div>
-            
-            <div className="modal-body" style={{ padding: '24px' }}>
-              {/* The Problem */}
-              <div style={{ marginBottom: '28px' }}>
-                <h3 style={{ 
-                  fontSize: '1.25rem', 
-                  fontWeight: '700',
-                  marginBottom: '16px',
-                  color: 'white'
-                }}>
-                  The Old Way Is Broken
-                </h3>
-                
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(2, 1fr)', 
-                  gap: '12px' 
-                }}>
-                  {[
-                    { stat: '$15,000', label: 'Avg cost to release an album', icon: DollarSign },
-                    { stat: '6-12 months', label: 'Traditional timeline', icon: Clock },
-                    { stat: '97%', label: 'Artists never recoup costs', icon: TrendingUp },
-                    { stat: '40+ hours', label: 'Wasted on admin per release', icon: Target }
-                  ].map((item, i) => (
-                    <div key={i} style={{
-                      padding: '16px',
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      borderRadius: '14px',
-                      border: '1px solid rgba(239, 68, 68, 0.2)',
-                      textAlign: 'center'
-                    }}>
-                      <item.icon size={20} style={{ color: '#ef4444', marginBottom: '6px' }} />
-                      <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#ef4444' }}>
-                        {item.stat}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>
-                        {item.label}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* The Solution */}
-              <div style={{ marginBottom: '28px' }}>
-                <h3 style={{ 
-                  fontSize: '1.25rem', 
-                  fontWeight: '700',
-                  marginBottom: '16px',
-                  color: 'white'
-                }}>
-                  The Studio Agents Way
-                </h3>
-                
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: 'repeat(2, 1fr)', 
-                  gap: '12px' 
-                }}>
-                  {[
-                    { stat: '$60', label: 'Per year (lifetime $99)', icon: DollarSign },
-                    { stat: '2 weeks', label: 'Average release cycle', icon: Clock },
-                    { stat: '127K+', label: 'Active artists', icon: Users },
-                    { stat: '847K', label: 'Songs created', icon: Music }
-                  ].map((item, i) => (
-                    <div key={i} style={{
-                      padding: '16px',
-                      background: 'rgba(34, 197, 94, 0.1)',
-                      borderRadius: '14px',
-                      border: '1px solid rgba(34, 197, 94, 0.2)',
-                      textAlign: 'center'
-                    }}>
-                      <item.icon size={20} style={{ color: '#22c55e', marginBottom: '6px' }} />
-                      <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#22c55e' }}>
-                        {item.stat}
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>
-                        {item.label}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* What You Get */}
-              <div style={{ marginBottom: '28px' }}>
-                <h3 style={{ 
-                  fontSize: '1.1rem', 
-                  fontWeight: '700',
-                  marginBottom: '16px',
-                  color: 'white'
-                }}>
-                  {AGENTS.length} Specialists. One Subscription.
-                </h3>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {AGENTS.filter(a => a.tier === 'free').map((agent) => {
-                    const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
-                    return (
-                      <div key={agent.id} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '12px 14px',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        borderRadius: '12px',
-                        border: '1px solid rgba(255, 255, 255, 0.08)'
-                      }}>
-                        <div style={{ 
-                          width: '32px', 
-                          height: '32px', 
-                          borderRadius: '8px',
-                          background: 'rgba(139, 92, 246, 0.2)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
-                          {Icon ? <Icon size={16} style={{ color: 'var(--color-purple)' }} /> : <Sparkles size={16} style={{ color: 'var(--color-purple)' }} />}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <span style={{ fontWeight: '600', color: 'white', marginRight: '8px' }}>{agent.name}</span>
-                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{agent.description}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div style={{ 
-                    textAlign: 'center', 
-                    padding: '10px', 
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.85rem' 
-                  }}>
-                    + {AGENTS.filter(a => a.tier !== 'free').length} more agents with subscription
-                  </div>
-                </div>
-              </div>
-
-              {/* The Math */}
-              <div style={{
-                padding: '20px',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)',
-                borderRadius: '16px',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
-                marginBottom: '20px'
-              }}>
-                <h4 style={{ 
-                  color: 'white', 
-                  fontSize: '1rem', 
-                  fontWeight: '600',
-                  marginBottom: '16px',
-                  textAlign: 'center'
-                }}>
-                  The Math Doesn't Lie
-                </h4>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Traditional</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#ef4444', textDecoration: 'line-through' }}>$15K+</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <ArrowRight size={24} style={{ color: 'var(--text-secondary)' }} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>Studio Agents</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#22c55e' }}>$99</div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>lifetime</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Trust */}
-              <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginBottom: '8px' }}>
-                  {[1,2,3,4,5].map(i => <Star key={i} size={16} style={{ fill: '#FFD700', color: '#FFD700' }} />)}
-                </div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Rated 4.9/5 by 127,000+ artists
-                </p>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button 
-                className="cta-button-primary"
-                onClick={() => { setShowMarketing(false); handleCtaClick('start'); }}
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                <Zap size={18} />
-                Start Creating Free
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Investor Pitch Deck Modal - VC-Ready Full Presentation */}
       {showInvestorPitch && (
         <div 
@@ -2649,7 +1629,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               <div>
                 <h2 style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
                   <Briefcase size={24} style={{ color: 'var(--color-purple)' }} />
-                  Studio Agents — Investor Pitch
+                  Studio Agents â€” Investor Pitch
                 </h2>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
                   The AI-Native Label Disrupting a $30B Industry
@@ -2701,7 +1681,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   >
                     {isLocked ? <LockIcon size={12} /> : <tab.icon size={14} />}
                     {tab.label}
-                    {isLocked && <span style={{ fontSize: '0.6rem', marginLeft: '2px' }}>🔒</span>}
+                    {isLocked && <span style={{ fontSize: '0.6rem', marginLeft: '2px' }}>ðŸ”’</span>}
                   </button>
                 );
               })}
@@ -2744,7 +1724,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                         color: 'white',
                         marginBottom: '12px'
                       }}>
-                        ✅ Request Submitted
+                        âœ… Request Submitted
                       </h3>
                       <p style={{ 
                         color: 'var(--text-secondary)', 
@@ -2956,7 +1936,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       Replace Record Labels with AI Agents
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
-                      We're building the world's first <strong style={{ color: 'white' }}>AI-native record label</strong> — 
+                      We're building the world's first <strong style={{ color: 'white' }}>AI-native record label</strong> â€” 
                       a platform where 16 specialized AI agents handle everything from songwriting to distribution, 
                       giving independent artists the firepower of a major label at 1/100th the cost.
                     </p>
@@ -2970,7 +1950,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   }}>
                     {[
                       { title: 'The Problem', desc: 'Labels take 80-90% of revenue, control artists for 7+ years, and 97% of signed artists never recoup', color: '#ef4444' },
-                      { title: 'Our Solution', desc: '16 AI agents replace the entire label infrastructure — A&R, production, marketing, distribution — at $60/year', color: '#22c55e' },
+                      { title: 'Our Solution', desc: '16 AI agents replace the entire label infrastructure â€” A&R, production, marketing, distribution â€” at $60/year', color: '#22c55e' },
                       { title: 'The Vision', desc: 'Become the default platform for independent music creation, making labels obsolete within 10 years', color: '#8b5cf6' }
                     ].map((item, i) => (
                       <div key={i} style={{
@@ -3007,7 +1987,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       margin: 0,
                       fontStyle: 'italic'
                     }}>
-                      "We're building the <span style={{ color: 'var(--color-cyan)' }}>Shopify for music creation</span> — 
+                      "We're building the <span style={{ color: 'var(--color-cyan)' }}>Shopify for music creation</span> â€” 
                       a platform where AI agents replace the entire record label stack. Artists keep 100% ownership, 
                       pay $60/year instead of $15K+ upfront, and ship music 10x faster."
                     </p>
@@ -3261,7 +2241,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       { value: '127K+', label: 'Active Artists', growth: '+340% YoY' },
                       { value: '847K', label: 'Songs Created', growth: '+520% YoY' },
                       { value: '92%', label: 'Day-30 Retention', growth: 'Top 5% for SaaS' },
-                      { value: '4.9★', label: 'App Rating', growth: '12K+ reviews' }
+                      { value: '4.9â˜…', label: 'App Rating', growth: '12K+ reviews' }
                     ].map((item, i) => (
                       <div key={i} style={{
                         padding: '18px 12px',
@@ -3311,7 +2291,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                         background: 'linear-gradient(180deg, var(--color-purple), var(--color-cyan))'
                       }} />
                       {[
-                        { date: 'Q1 2024', milestone: 'Public Beta Launch — 5K signups in first week' },
+                        { date: 'Q1 2024', milestone: 'Public Beta Launch â€” 5K signups in first week' },
                         { date: 'Q2 2024', milestone: 'Hit 50K users, launched all 16 agents' },
                         { date: 'Q3 2024', milestone: '100K users, partnerships with 3 major distributors' },
                         { date: 'Q4 2024', milestone: 'Mobile app launch, 127K users, $2.1M ARR run rate' }
@@ -3342,7 +2322,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     border: '1px solid rgba(139, 92, 246, 0.2)'
                   }}>
                     <h4 style={{ color: 'white', fontSize: '0.9rem', fontWeight: '600', marginBottom: '12px' }}>
-                      User Love ❤️
+                      User Love â¤ï¸
                     </h4>
                     <div style={{ 
                       display: 'grid', 
@@ -3350,8 +2330,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       gap: '12px' 
                     }}>
                       {[
-                        '"This replaced my entire creative team. I released an EP in 2 weeks." — @IndieRapper',
-                        '"The Ghostwriter agent writes hooks better than most writers I\'ve paid." — Producer, ATL'
+                        '"This replaced my entire creative team. I released an EP in 2 weeks." â€” @IndieRapper',
+                        '"The Ghostwriter agent writes hooks better than most writers I\'ve paid." â€” Producer, ATL'
                       ].map((quote, i) => (
                         <div key={i} style={{
                           padding: '14px',
@@ -3519,7 +2499,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     </h4>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
                       By 2030, we aim to be the <strong style={{ color: 'white' }}>default infrastructure</strong> for 
-                      independent music — replacing the need for labels, distributors, and traditional production companies entirely.
+                      independent music â€” replacing the need for labels, distributors, and traditional production companies entirely.
                     </p>
                   </div>
                 </div>
@@ -3659,7 +2639,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     textAlign: 'center'
                   }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '8px', letterSpacing: '1px' }}>
-                      TARGET VALUATION — SERIES A
+                      TARGET VALUATION â€” SERIES A
                     </div>
                     <div style={{ 
                       fontSize: '2.5rem', 
@@ -3669,7 +2649,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       WebkitTextFillColor: 'transparent',
                       marginBottom: '8px'
                     }}>
-                      $50M — $75M
+                      $50M â€” $75M
                     </div>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
                       Based on 25-35x ARR multiples for high-growth AI SaaS

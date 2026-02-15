@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2
 } from 'lucide-react';
 import { useSafeAsync } from '../hooks/useSafeAsync';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
@@ -513,10 +513,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     } catch (_e) { return { stageName: '', genre: 'Hip Hop / Rap', bio: '', credits: 500, memberSince: new Date().getFullYear(), plan: 'Free', location: 'Los Angeles, CA', website: '' }; }
   });
   const [socialConnections, setSocialConnections] = useState(() => {
+    const defaults = { instagram: false, tiktok: false, twitter: false, spotify: false, facebook: false, youtube: false, soundcloud: false, threads: false, linkedin: false };
     try {
       const saved = localStorage.getItem('studio_agents_socials');
-      return saved ? JSON.parse(saved) : { instagram: false, tiktok: false, twitter: false, spotify: false };
-    } catch (_e) { return { instagram: false, tiktok: false, twitter: false, spotify: false }; }
+      return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+    } catch (_e) { return defaults; }
   });
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [authMode, setAuthMode] = useState('login'); 
@@ -799,16 +800,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [paymentMethods, setPaymentMethods] = useState(() => {
     try {
       const saved = localStorage.getItem('studio_agents_payments');
-      return saved ? JSON.parse(saved) : [
-        { id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true },
-        { id: 'pm_2', type: 'Mastercard', last4: '8888', expiry: '09/25', isDefault: false }
-      ];
-    } catch (_e) { return [{ id: 'pm_1', type: 'Visa', last4: '4242', expiry: '12/26', isDefault: true }]; }
+      return saved ? JSON.parse(saved) : [];
+    } catch (_e) { return []; }
   });
   const [bankAccounts, setBankAccounts] = useState(() => {
     try {
       const saved = localStorage.getItem('studio_agents_banks');
-      return saved ? JSON.parse(saved) : [ { id: 'ba_1', bankName: 'Chase Bank', last4: '1234', type: 'Checking' } ];
+      return saved ? JSON.parse(saved) : [];
     } catch (_e) { return []; }
   });
   const [notifications, setNotifications] = useState([
@@ -4919,12 +4917,37 @@ const fetchUserCredits = useCallback(async (uid) => {
       return;
     }
 
-    if (platform === 'instagram' || platform === 'facebook') {
+    if (platform === 'instagram' || platform === 'facebook' || platform === 'threads') {
       window.location.href = `${BACKEND_URL}/api/meta/auth?returnUrl=${returnUrl}`;
       return;
     }
 
-    // Placeholder for other platforms
+    if (platform === 'youtube') {
+      window.location.href = `${BACKEND_URL}/api/youtube/auth?returnUrl=${returnUrl}`;
+      return;
+    }
+
+    if (platform === 'spotify') {
+      window.location.href = `${BACKEND_URL}/api/spotify/auth?returnUrl=${returnUrl}`;
+      return;
+    }
+
+    if (platform === 'linkedin') {
+      window.location.href = `${BACKEND_URL}/api/linkedin/auth?returnUrl=${returnUrl}`;
+      return;
+    }
+
+    if (platform === 'tiktok') {
+      window.location.href = `${BACKEND_URL}/api/tiktok/auth?returnUrl=${returnUrl}`;
+      return;
+    }
+
+    if (platform === 'soundcloud') {
+      window.location.href = `${BACKEND_URL}/api/soundcloud/auth?returnUrl=${returnUrl}`;
+      return;
+    }
+
+    // Fallback for any unhandled platform
     toast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} coming soon!`, { icon: '🚧' });
   };
 
@@ -8286,9 +8309,11 @@ const fetchUserCredits = useCallback(async (uid) => {
           { id: 'marketing', icon: TrendingUp, label: 'About Us', desc: 'Our mission & vision', color: 'var(--color-yellow)' },
           { id: 'agents', icon: Sparkles, label: 'AI Agents', desc: 'Your creative team', color: 'var(--color-purple)' },
           { id: 'mystudio', icon: Folder, label: 'My Studio', desc: 'Projects & assets', color: 'var(--color-cyan)' },
-          { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-pink)' },
+          { id: 'activity', icon: Music, label: 'Social Media Hub', desc: 'Content & social management', color: 'var(--color-pink)' },
           { id: 'news', icon: GlobeIcon, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-emerald)' },
           { id: 'whitepapers', icon: FileText, label: 'Whitepapers', desc: 'Technical documentation', color: 'var(--color-indigo)' },
+          { id: 'orchestrator', icon: Zap, label: 'AI Production Pipeline', desc: '1 idea → full release package', color: 'var(--color-cyan)' },
+          { id: 'workflow', icon: LayoutGrid, label: 'Studio Workflow', desc: 'Step-by-step manual control', color: 'var(--color-purple)' },
           { id: 'legal', icon: Shield, label: 'Legal Center', desc: 'Terms & licensing', color: 'var(--color-red)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-orange)' },
           { id: 'hub', icon: FolderPlus, label: 'Project Hub', desc: 'Shared by Studio Agent users', color: 'var(--color-blue)' },
@@ -8317,6 +8342,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                     onClick={() => {
                       if (item.id === 'legal' || item.id === 'whitepapers') {
                         window.location.hash = `#/${item.id}`;
+                      } else if (item.id === 'orchestrator') {
+                        setActiveTab('mystudio');
+                        setShowOrchestrator(true);
+                      } else if (item.id === 'workflow') {
+                        setActiveTab('mystudio');
+                        setDashboardTab('overview');
                       } else {
                         setActiveTab(item.id);
                       }
@@ -8374,7 +8405,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       case 'marketing':
         return (
           <div className="marketing-view animate-fadeInUp" style={{ paddingBottom: '80px' }}>
-            {/* Hero Section */}
+            {/* Hero Section - Pitch content moved from landing page */}
             <div className="marketing-hero" style={{ 
               textAlign: 'center', 
               padding: '60px 20px', 
@@ -8396,11 +8427,14 @@ const fetchUserCredits = useCallback(async (uid) => {
                 <Sparkles size={14} />
                 <span>The Future of Music Creation</span>
               </div>
-              <h1 style={{ fontSize: '3rem', fontWeight: '800', marginBottom: '16px', lineHeight: '1.1' }}>
-                The Studio <span className="text-gradient-purple">Agents</span>
+              <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: '900', marginBottom: '12px', lineHeight: '1.1', letterSpacing: '-1.5px' }}>
+                <span className="text-gradient-purple">STOP PITCHING. START RELEASING.</span>
               </h1>
-              <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto' }}>
-                An AI-powered record label in your pocket. 16 specialized agents working 24/7 to build your career.
+              <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 16px' }}>
+                The world's first AI Record Label in your pocket.
+              </p>
+              <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.5)', maxWidth: '500px', margin: '0 auto' }}>
+                16 Expert Agents. One Full-Suite Studio. Zero Gatekeepers.
               </p>
             </div>
 
@@ -8438,7 +8472,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               </div>
             </section>
 
-            {/* Meet the Agents Section - Deep Linking enabled */}
+            {/* Meet the Agents Section - Enhanced with descriptions, tier badges, whitepaper buttons */}
             <section className="marketing-section" style={{ padding: '0 20px 60px' }}>
               <div className="section-header" style={{ marginBottom: '30px' }}>
                 <h2 style={{ fontSize: '2rem', marginBottom: '10px' }}>The Specialized AI Team</h2>
@@ -8452,6 +8486,12 @@ const fetchUserCredits = useCallback(async (uid) => {
               }}>
                 {(AGENTS || []).slice(0, 8).map(agent => {
                   const Icon = agent.icon || Sparkles;
+                  const tierColors = {
+                    free: { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)', text: '#22c55e', label: 'Free' },
+                    monthly: { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: 'Creator' },
+                    pro: { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.3)', text: '#eab308', label: 'Pro' }
+                  };
+                  const tier = tierColors[agent.tier] || tierColors.free;
                   return (
                     <div 
                       key={agent.id}
@@ -8468,25 +8508,60 @@ const fetchUserCredits = useCallback(async (uid) => {
                         padding: '24px',
                         cursor: 'pointer',
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '16px',
-                        transition: 'all 0.2s ease'
+                        flexDirection: 'column',
+                        gap: '12px',
+                        transition: 'all 0.2s ease',
+                        position: 'relative'
                       }}
                     >
-                      <div className={`agent-icon-mini ${agent.colorClass}`} style={{
-                        width: '56px',
-                        height: '56px',
-                        borderRadius: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <Icon size={28} />
+                      {/* Tier badge */}
+                      <div style={{
+                        position: 'absolute', top: '12px', right: '12px',
+                        padding: '3px 10px', borderRadius: '10px',
+                        background: tier.bg, border: `1px solid ${tier.border}`,
+                        fontSize: '0.65rem', fontWeight: '700', color: tier.text,
+                        textTransform: 'uppercase', letterSpacing: '0.05em'
+                      }}>{tier.label}</div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div className={`agent-icon-mini ${agent.colorClass}`} style={{
+                          width: '56px',
+                          height: '56px',
+                          borderRadius: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <Icon size={28} />
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700' }}>{agent.name}</h3>
+                          <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{agent.category}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700' }}>{agent.name}</h3>
-                        <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{agent.category}</p>
-                      </div>
+
+                      {/* Description */}
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', lineHeight: '1.5' }}>
+                        {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music production agent'}
+                      </p>
+
+                      {/* Whitepaper button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.hash = '#/whitepapers';
+                        }}
+                        style={{
+                          alignSelf: 'flex-start',
+                          padding: '5px 12px', borderRadius: '10px',
+                          background: 'rgba(139, 92, 246, 0.12)', border: '1px solid rgba(139, 92, 246, 0.3)',
+                          color: '#a855f7', fontSize: '0.7rem', fontWeight: '600',
+                          cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px'
+                        }}
+                      >
+                        <FileText size={11} /> View Whitepaper
+                      </button>
                     </div>
                   );
                 })}
@@ -8552,42 +8627,22 @@ const fetchUserCredits = useCallback(async (uid) => {
                 gridTemplateColumns: 'repeat(2, 1fr)', 
                 gap: '15px' 
               }}>
-                <div className="stat-card" style={{ 
-                  background: 'rgba(255,255,255,0.03)', 
-                  padding: '20px', 
-                  borderRadius: '16px', 
-                  textAlign: 'center' 
-                }}>
-                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--color-purple)', marginBottom: '5px' }}>16</div>
-                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Specialized Agents</div>
-                </div>
-                <div className="stat-card" style={{ 
-                  background: 'rgba(255,255,255,0.03)', 
-                  padding: '20px', 
-                  borderRadius: '16px', 
-                  textAlign: 'center' 
-                }}>
-                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--color-cyan)', marginBottom: '5px' }}>24/7</div>
-                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Availability</div>
-                </div>
-                <div className="stat-card" style={{ 
-                  background: 'rgba(255,255,255,0.03)', 
-                  padding: '20px', 
-                  borderRadius: '16px', 
-                  textAlign: 'center' 
-                }}>
-                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--color-green)', marginBottom: '5px' }}>∞</div>
-                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Creative Potential</div>
-                </div>
-                <div className="stat-card" style={{ 
-                  background: 'rgba(255,255,255,0.03)', 
-                  padding: '20px', 
-                  borderRadius: '16px', 
-                  textAlign: 'center' 
-                }}>
-                  <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--color-orange)', marginBottom: '5px' }}>100%</div>
-                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Royalty Free</div>
-                </div>
+                {[
+                  { value: '16', label: 'Specialized Agents', color: 'var(--color-purple)' },
+                  { value: '24/7', label: 'Availability', color: 'var(--color-cyan)' },
+                  { value: '∞', label: 'Creative Potential', color: 'var(--color-green)' },
+                  { value: '100%', label: 'Royalty Free', color: 'var(--color-orange)' }
+                ].map((stat, i) => (
+                  <div key={i} className="stat-card" style={{ 
+                    background: 'rgba(255,255,255,0.03)', 
+                    padding: '20px', 
+                    borderRadius: '16px', 
+                    textAlign: 'center' 
+                  }}>
+                    <div style={{ fontSize: '2.5rem', fontWeight: '800', color: stat.color, marginBottom: '5px' }}>{stat.value}</div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{stat.label}</div>
+                  </div>
+                ))}
               </div>
             </section>
 
@@ -8603,10 +8658,22 @@ const fetchUserCredits = useCallback(async (uid) => {
             </div>
           </div>
         );
-      case 'activity':
+      case 'activity': {
+        const SOCIAL_PLATFORMS = [
+          { id: 'instagram', name: 'Instagram', icon: '📸', color: '#E1306C', desc: 'Photos & Stories' },
+          { id: 'tiktok', name: 'TikTok', icon: '🎵', color: '#00f2ea', desc: 'Short-form video' },
+          { id: 'twitter', name: 'X / Twitter', icon: '𝕏', color: '#1DA1F2', desc: 'Posts & threads' },
+          { id: 'spotify', name: 'Spotify', icon: '🎧', color: '#1DB954', desc: 'Music streaming' },
+          { id: 'facebook', name: 'Facebook', icon: '📘', color: '#1877F2', desc: 'Pages & groups' },
+          { id: 'youtube', name: 'YouTube', icon: '▶️', color: '#FF0000', desc: 'Video & shorts' },
+          { id: 'soundcloud', name: 'SoundCloud', icon: '☁️', color: '#ff5500', desc: 'Audio streaming' },
+          { id: 'threads', name: 'Threads', icon: '🧵', color: '#000000', desc: 'Text-based social' },
+          { id: 'linkedin', name: 'LinkedIn', icon: '💼', color: '#0A66C2', desc: 'Professional network' }
+        ];
+        const socialSubTab = activitySection || 'connections';
         return (
           <div className="music-hub-view animate-fadeInUp" style={{ paddingBottom: '100px' }}>
-            {/* Music Hub Header - Studio Orchestrator Style */}
+            {/* Social Media Hub Header */}
             <div className="orchestrator-header" style={{
               background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(6, 182, 212, 0.15) 50%, rgba(236, 72, 153, 0.15) 100%)',
               borderRadius: '24px',
@@ -8620,58 +8687,44 @@ const fetchUserCredits = useCallback(async (uid) => {
               <div style={{ position: 'relative', zIndex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
                   <div style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '16px',
+                    width: '56px', height: '56px', borderRadius: '16px',
                     background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                     boxShadow: '0 8px 32px rgba(168, 85, 247, 0.4)'
                   }}>
-                    <Music size={28} color="white" />
+                    <Share2 size={28} color="white" />
                   </div>
                   <div>
                     <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: '700', background: 'linear-gradient(90deg, white, rgba(255,255,255,0.8))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                      Music Hub
+                      Social Media Hub
                     </h1>
                     <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                      Trending AI Creations — Discover what's hot on Udio, Suno & beyond
+                      Connect accounts, manage content & discover trending AI creations
                     </p>
                   </div>
                 </div>
                 
-                {/* Section Tabs */}
+                {/* Sub-navigation tabs */}
                 <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
                   {[
-                    { id: 'all', label: 'All Trends', icon: Zap },
-                    { id: 'news', label: 'Music News', icon: GlobeIcon },
-                    { id: 'soundcloud', label: 'SoundCloud', icon: Cloud },
-                    { id: 'youtube', label: 'YouTube', icon: PlayCircle },
-                    { id: 'releases', label: 'New Releases', icon: Disc },
-                    { id: 'reddit', label: 'Community', icon: MessageSquare }
+                    { id: 'connections', label: 'Connected Accounts', icon: Link2 },
+                    { id: 'all', label: 'Content Feed', icon: Zap },
+                    { id: 'share', label: 'Share & Cross-Post', icon: Share2 }
                   ].map(tab => (
                     <button
                       key={tab.id}
                       onClick={() => {
-                        setActivitySection?.(tab.id) || localStorage.setItem('musicHubSection', tab.id);
-                        fetchActivity(1, tab.id);
+                        setActivitySection?.(tab.id);
+                        if (tab.id === 'all') fetchActivity(1, 'all');
                       }}
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '10px 20px',
-                        borderRadius: '12px',
-                        border: 'none',
-                        background: (activitySection || localStorage.getItem('musicHubSection') || 'all') === tab.id 
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        padding: '10px 20px', borderRadius: '12px', border: 'none',
+                        background: socialSubTab === tab.id
                           ? 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))'
                           : 'rgba(255,255,255,0.08)',
-                        color: 'white',
-                        fontSize: '0.9rem',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
+                        color: 'white', fontSize: '0.9rem', fontWeight: '600',
+                        cursor: 'pointer', transition: 'all 0.2s ease'
                       }}
                     >
                       <tab.icon size={16} />
@@ -8682,12 +8735,116 @@ const fetchUserCredits = useCallback(async (uid) => {
               </div>
             </div>
 
-            {/* Music Hub Content Grid */}
-            <div className="music-hub-grid" style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-              gap: '20px'
-            }}>
+            {/* === Connected Accounts === */}
+            {socialSubTab === 'connections' && (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', marginBottom: '32px' }}>
+                  {SOCIAL_PLATFORMS.map(p => {
+                    const connected = socialConnections[p.id];
+                    return (
+                      <div key={p.id} style={{
+                        background: connected ? `${p.color}10` : 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${connected ? p.color + '40' : 'rgba(255,255,255,0.08)'}`,
+                        borderRadius: '16px', padding: '20px',
+                        display: 'flex', alignItems: 'center', gap: '16px',
+                        transition: 'all 0.3s ease'
+                      }}>
+                        <div style={{
+                          width: '48px', height: '48px', borderRadius: '14px',
+                          background: connected ? p.color : 'rgba(255,255,255,0.08)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '1.4rem', flexShrink: 0,
+                          boxShadow: connected ? `0 4px 16px ${p.color}40` : 'none'
+                        }}>
+                          {p.icon}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: '600', color: 'white', marginBottom: '2px' }}>{p.name}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{p.desc}</div>
+                          {connected && <div style={{ fontSize: '0.75rem', color: p.color, marginTop: '4px', fontWeight: '600' }}>✓ Connected</div>}
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (connected) {
+                              const updated = { ...socialConnections, [p.id]: false };
+                              setSocialConnections(updated);
+                              localStorage.setItem('studio_agents_socials', JSON.stringify(updated));
+                              toast(`Disconnected from ${p.name}`, { icon: '🔌' });
+                            } else {
+                              handleConnectSocial(p.id);
+                            }
+                          }}
+                          style={{
+                            padding: '8px 16px', borderRadius: '10px', border: 'none',
+                            background: connected ? 'rgba(255,255,255,0.08)' : `${p.color}`,
+                            color: connected ? 'var(--text-secondary)' : 'white',
+                            fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
+                            transition: 'all 0.2s ease', whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {connected ? 'Disconnect' : 'Connect'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Connection stats */}
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
+                  padding: '24px', border: '1px solid rgba(255,255,255,0.06)',
+                  display: 'flex', justifyContent: 'space-around', flexWrap: 'wrap', gap: '16px'
+                }}>
+                  {[
+                    { label: 'Connected', value: Object.values(socialConnections).filter(Boolean).length, color: 'var(--color-emerald)' },
+                    { label: 'Available', value: SOCIAL_PLATFORMS.length, color: 'var(--color-cyan)' },
+                    { label: 'Pending', value: 0, color: 'var(--color-amber)' }
+                  ].map(stat => (
+                    <div key={stat.label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2rem', fontWeight: '700', color: stat.color }}>{stat.value}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '4px' }}>{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* === Content Feed (existing trending content) === */}
+            {socialSubTab === 'all' && (
+              <div>
+                {/* Source filter tabs */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'all', label: 'All', icon: Zap },
+                    { id: 'news', label: 'Music News', icon: GlobeIcon },
+                    { id: 'soundcloud', label: 'SoundCloud', icon: Cloud },
+                    { id: 'youtube', label: 'YouTube', icon: PlayCircle },
+                    { id: 'releases', label: 'Releases', icon: Disc },
+                    { id: 'reddit', label: 'Community', icon: MessageSquare }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => fetchActivity(1, tab.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        padding: '8px 14px', borderRadius: '10px', border: 'none',
+                        background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)',
+                        fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <tab.icon size={14} />
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Music Hub Content Grid */}
+                <div className="music-hub-grid" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+                  gap: '20px'
+                }}>
               {activityFeed.map((item, idx) => (
                 <div 
                   key={`${item.id}-${idx}`} 
@@ -8867,9 +9024,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </div>
                 </div>
               ))}
-            </div>
+                </div>
 
-            {/* No Image Cards (for releases without images) */}
+                {/* No Image Cards (for releases without images) */}
             {activityFeed.filter(item => !item.imageUrl).length > 0 && (
               <div style={{ marginTop: '32px' }}>
                 <h3 style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -9012,11 +9169,111 @@ const fetchUserCredits = useCallback(async (uid) => {
 
             {!hasMoreActivity && activityFeed.length > 0 && (
               <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                <p>🎵 You've explored all the latest music content. Check back soon!</p>
+                <p>🎵 You've explored all the latest content. Check back soon!</p>
+              </div>
+            )}
+              </div>
+            )}
+
+            {/* === Share & Cross-Post === */}
+            {socialSubTab === 'share' && (
+              <div>
+                {/* Share Content Section */}
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)', borderRadius: '20px',
+                  border: '1px solid rgba(255,255,255,0.08)', padding: '32px', marginBottom: '24px'
+                }}>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '1.3rem', fontWeight: '700', color: 'white' }}>
+                    Share Your Creations
+                  </h3>
+                  <p style={{ margin: '0 0 24px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    Cross-post your AI-generated content to connected platforms
+                  </p>
+
+                  {/* Content to Share */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: '600' }}>Content</label>
+                    <textarea
+                      placeholder="Write your post caption, or paste text from your AI generations..."
+                      style={{
+                        width: '100%', minHeight: '120px', background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
+                        padding: '16px', color: 'white', fontSize: '0.95rem', resize: 'vertical',
+                        outline: 'none', fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+
+                  {/* Target Platforms */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: '600' }}>
+                      Post to ({Object.values(socialConnections).filter(Boolean).length} connected)
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {SOCIAL_PLATFORMS.filter(p => socialConnections[p.id]).map(p => (
+                        <div key={p.id} style={{
+                          display: 'flex', alignItems: 'center', gap: '8px',
+                          padding: '8px 16px', borderRadius: '10px',
+                          background: `${p.color}20`, border: `1px solid ${p.color}40`,
+                          fontSize: '0.85rem', color: 'white', cursor: 'pointer'
+                        }}>
+                          <span>{p.icon}</span> {p.name}
+                          <CheckCircle size={14} style={{ color: p.color }} />
+                        </div>
+                      ))}
+                      {Object.values(socialConnections).filter(Boolean).length === 0 && (
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '8px' }}>
+                          No accounts connected. <button onClick={() => setActivitySection?.('connections')} style={{ color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: 'inherit' }}>Connect accounts →</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Share Button */}
+                  <button
+                    onClick={() => toast('Cross-posting coming soon! Connect your accounts to get ready.', { icon: '🚀' })}
+                    style={{
+                      padding: '14px 32px', borderRadius: '12px', border: 'none',
+                      background: Object.values(socialConnections).filter(Boolean).length > 0
+                        ? 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))'
+                        : 'rgba(255,255,255,0.1)',
+                      color: 'white', fontSize: '1rem', fontWeight: '600',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Share2 size={18} /> Share to {Object.values(socialConnections).filter(Boolean).length} Platform{Object.values(socialConnections).filter(Boolean).length !== 1 ? 's' : ''}
+                  </button>
+                </div>
+
+                {/* Recent Projects to Share */}
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)', borderRadius: '20px',
+                  border: '1px solid rgba(255,255,255,0.08)', padding: '32px'
+                }}>
+                  <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: '700', color: 'white' }}>
+                    Recent Creations
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    Your AI-generated content will appear here for easy sharing. Head to the Studio to create something amazing!
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('mystudio')}
+                    style={{
+                      marginTop: '16px', padding: '10px 20px', borderRadius: '10px',
+                      border: '1px solid var(--color-purple)', background: 'transparent',
+                      color: 'var(--color-purple)', fontSize: '0.9rem', fontWeight: '600',
+                      cursor: 'pointer', transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Open Studio →
+                  </button>
+                </div>
               </div>
             )}
           </div>
         );
+      }
       case 'news':
         return (
           <Suspense fallback={<LazyFallback />}>
@@ -9944,7 +10201,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             onClick={() => { setActiveTab('activity'); setSelectedAgent(null); }}
           >
             <MessageSquare size={20} />
-            <span>Music Hub</span>
+            <span>Social Media Hub</span>
           </button>
           <button 
             className={`nav-link ${activeTab === 'resources' ? 'active' : ''}`}
