@@ -1321,7 +1321,8 @@ export default function StudioOrchestratorV2({
     image: null,
     video: null,
     vocals: null,
-    lyricsVocal: null // Unified key for lyrics+vocal
+    lyricsVocal: null, // Unified key for lyrics+vocal
+    mixedAudio: null   // Vocal + beat mixed master
   });
   
   const [generatingMedia, setGeneratingMedia] = useState({
@@ -1813,16 +1814,17 @@ REQUIREMENTS:
             });
             console.log(`[handleGenerate] ${slot} generated successfully`);
             
-            // Auto-triggering of media generators
+            // Track media generation promises so we can sequence the pipeline
             if (slot === 'audio') {
-              setTimeout(() => handleGenerateAudio(data.output), 500);
-            } else if (slot === 'lyrics') {
-              setTimeout(() => handleGenerateVocals(data.output), 800);
+              // Beat description ready → queue beat audio generation (starts immediately)
+              pipelinePromises.beatAudio = handleGenerateAudio(data.output);
             } else if (slot === 'visual') {
-              setTimeout(() => handleGenerateImage(data.output), 1100);
+              pipelinePromises.image = handleGenerateImage(data.output);
             } else if (slot === 'video') {
-              setTimeout(() => handleGenerateVideo(data.output), 1400);
+              // Save video description for later — video gen needs mixed audio first
+              pipelinePromises.videoDescription = data.output;
             }
+            // NOTE: lyrics→vocals is handled AFTER beat completes (see pipeline sequencing below)
             return data.output;
           } else {
             const errorText = await response.text();
@@ -1856,9 +1858,43 @@ REQUIREMENTS:
         }
       }
       
+      // Track promises for pipeline sequencing
+      const pipelinePromises = { beatAudio: null, image: null, videoDescription: null };
+
       // All other slots run in parallel using the (optional) lyrics context
       const otherSlots = activeSlots.filter(([s]) => s !== 'lyrics');
       await Promise.all(otherSlots.map(([slot, agentId]) => generateForSlot(slot, agentId, lyricsResult)));
+
+      // ═══════════════════════════════════════════════════════════
+      // PIPELINE SEQUENCING: vocals wait for beat, video waits for mix
+      // ═══════════════════════════════════════════════════════════
+
+      // Wait for beat audio to finish (if it was queued)
+      if (pipelinePromises.beatAudio) {
+        await pipelinePromises.beatAudio;
+        console.log('[Pipeline] Beat audio ready, proceeding to vocals');
+      }
+
+      // Generate vocals AFTER beat is ready (so backingTrackUrl works and backend mixes them)
+      if (lyricsResult && activeSlots.find(([s]) => s === 'lyrics')) {
+        console.log('[Pipeline] Starting vocal generation with beat URL for mixing');
+        await handleGenerateVocals(lyricsResult);
+        console.log('[Pipeline] Vocals (mixed with beat) complete');
+      }
+
+      // Wait for image to finish
+      if (pipelinePromises.image) {
+        await pipelinePromises.image;
+      }
+
+      // Generate video LAST — it now gets mixed audio (vocal+beat) instead of just beat
+      if (pipelinePromises.videoDescription) {
+        console.log('[Pipeline] Starting video generation with mixed audio');
+        await handleGenerateVideo(pipelinePromises.videoDescription);
+      }
+
+      // Auto-create final mix preview
+      setTimeout(() => handleCreateFinalMix(), 500);
       
       toast.dismiss('gen-all');
       toast.success('Generation complete!');
@@ -2199,10 +2235,13 @@ REQUIREMENTS:
       }
 
       if (response.ok && data.audioUrl) {
-        setMediaUrls(prev => ({ 
-          ...prev, 
+        // If backend mixed vocals with beat (backingTrackUrl was provided), store as mixedAudio too
+        const wasMixed = !!(mediaUrls.audio); // beat was available → backend mixed
+        setMediaUrls(prev => ({
+          ...prev,
           vocals: data.audioUrl,
-          lyricsVocal: data.audioUrl 
+          lyricsVocal: data.audioUrl,
+          ...(wasMixed ? { mixedAudio: data.audioUrl } : {})
         }));
         // Ensure outputs.vocals is set so the asset is included in the project save
         setOutputs(prev => ({ 
@@ -2716,8 +2755,8 @@ REQUIREMENTS:
           visualId: referencedVisualId,
           duration: duration,
           audioDuration: duration, // Pass audio duration for video sync
-          audioUrl: mediaUrls.audio,
-          vocalUrl: mediaUrls.vocals || mediaUrls.lyricsVocal
+          audioUrl: mediaUrls.mixedAudio || mediaUrls.audio, // Prefer mixed vocal+beat
+          vocalUrl: mediaUrls.mixedAudio ? null : (mediaUrls.vocals || mediaUrls.lyricsVocal) // Skip if already in mix
         })
       });
       
@@ -2812,32 +2851,65 @@ REQUIREMENTS:
     }
   };
 
-  // Create final mix - combines all outputs into a single product
+  // Create final mix - combines vocals + beat + mixes into mastered audio
   const handleCreateFinalMix = async () => {
     // PREVENT DUPLICATE CALLS
     if (creatingFinalMix) return;
 
-    // Check if at least one output exists
-    const activeOutputs = Object.entries(selectedAgents)
-      .filter(([, agent]) => agent !== null)
-      .map(([key]) => key);
-    
-    const hasActiveOutputs = activeOutputs.some(key => outputs[key]);
-    if (!hasActiveOutputs) {
-      toast.error('Generate at least one output first');
+    // Need at least vocals or beat
+    const hasVocals = !!(mediaUrls.vocals || mediaUrls.lyricsVocal);
+    const hasBeat = !!mediaUrls.audio;
+
+    if (!hasVocals && !hasBeat) {
+      toast.error('Generate vocals and/or beat first');
       return;
     }
 
     setCreatingFinalMix(true);
-    toast.loading('Creating final mix (~15 seconds)...', { id: 'final-mix' });
 
     try {
-      // Compile all outputs into a final product summary
+      let finalAudioUrl = mediaUrls.mixedAudio; // May already exist from pipeline
+
+      // If we have both vocals and beat but no mixed version, call the mixing endpoint
+      if (!finalAudioUrl && hasVocals && hasBeat) {
+        toast.loading('Mixing vocals + beat into master (~15s)...', { id: 'final-mix' });
+
+        const headers = await getHeaders();
+        const response = await fetch(`${BACKEND_URL}/api/create-final-mix`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            vocalUrl: mediaUrls.vocals || mediaUrls.lyricsVocal,
+            beatUrl: mediaUrls.audio,
+            style: voiceStyle || 'rapper',
+            outputFormat: outputFormat || 'music',
+            genre: genre || style
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          finalAudioUrl = data.mixedAudioUrl;
+          setMediaUrls(prev => ({ ...prev, mixedAudio: finalAudioUrl }));
+          console.log('[FinalMix] Mixed audio created via /api/create-final-mix', data.preset);
+        } else {
+          const err = await response.json().catch(() => ({}));
+          console.warn('[FinalMix] Mixing failed, using individual tracks', err);
+        }
+      }
+
+      // If only one track available, use it as the "mix"
+      if (!finalAudioUrl) {
+        finalAudioUrl = mediaUrls.vocals || mediaUrls.lyricsVocal || mediaUrls.audio;
+      }
+
+      // Compile all outputs into the final product
       const finalMix = {
         id: `mix-${Date.now()}`,
         title: `${songIdea} - Complete Mix`,
         description: `Full production of "${songIdea}" with lyrics, beat, visual, and video`,
         created: new Date().toISOString(),
+        mixedAudioUrl: finalAudioUrl,
         components: {
           lyrics: {
             content: outputs.lyrics,
@@ -2847,7 +2919,8 @@ REQUIREMENTS:
           audio: {
             content: outputs.audio,
             agent: AGENTS.find(a => a.id === selectedAgents.audio)?.name || 'Beat Maker',
-            audioUrl: mediaUrls.audio || null
+            audioUrl: mediaUrls.audio || null,
+            mixedAudioUrl: finalAudioUrl || null
           },
           visual: {
             content: outputs.visual,
@@ -2866,7 +2939,7 @@ REQUIREMENTS:
       };
 
       setFinalMixPreview(finalMix);
-      toast.success('Final mix ready!', { id: 'final-mix' });
+      toast.success(finalAudioUrl ? 'Master mix ready!' : 'Final mix ready!', { id: 'final-mix' });
     } catch (err) {
       console.error('Final mix error:', err);
       toast.error('Failed to create final mix', { id: 'final-mix' });
@@ -2904,7 +2977,7 @@ REQUIREMENTS:
           ...headers
         },
         body: JSON.stringify({
-          audioUrl: mediaUrls.audio,
+          audioUrl: mediaUrls.mixedAudio || mediaUrls.audio, // Prefer mixed vocal+beat
           videoPrompt: outputs.video || `A high-fidelity cinematic music video for a ${style} song`,
           imageUrl: mediaUrls.image,
           videoUrl: mediaUrls.video,
@@ -2985,6 +3058,20 @@ REQUIREMENTS:
       a.download = `${songIdea || 'media'}-${slot}`;
       a.click();
     }
+  };
+
+  // Download the final mixed master (vocal + beat combined)
+  const handleDownloadMasterMix = () => {
+    const mixUrl = mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl;
+    if (!mixUrl) {
+      toast.error('No master mix available — create a final mix first');
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = mixUrl.startsWith('data:') ? mixUrl : mixUrl;
+    a.download = `${songIdea || 'master'}-final-mix.mp3`;
+    a.click();
+    toast.success('Downloading master mix');
   };
 
   // Delete handler
@@ -5768,6 +5855,31 @@ REQUIREMENTS:
                   </>
                 )}
               </button>
+
+              {(mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl) && (
+                <button
+                  onClick={handleDownloadMasterMix}
+                  style={{
+                    flex: 1,
+                    minWidth: '140px',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    background: 'rgba(249, 115, 22, 0.5)',
+                    border: '1px solid rgba(249, 115, 22, 0.6)',
+                    color: '#f97316',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.95rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Download size={16} />
+                  Download Master
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -4853,6 +4853,81 @@ app.post('/api/mix-audio', verifyFirebaseToken, checkCreditsFor('mixing'), gener
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// CREATE FINAL MIX - Combines vocals + beat into mastered track
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/create-final-mix', verifyFirebaseToken, generationLimiter, async (req, res) => {
+  try {
+    const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '' } = req.body;
+
+    if (!vocalUrl || !beatUrl) {
+      return res.status(400).json({ error: 'Both vocalUrl and beatUrl are required' });
+    }
+
+    logger.info('🎚️ Creating final mix', { style, outputFormat, genre });
+
+    const { mixAudioFromUrls, getMixPreset } = require('./services/audioMixingService');
+
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    const outputPath = path.join(tempDir, `final_mix_${Date.now()}.mp3`);
+
+    // Pick preset based on style
+    const presetName = style.includes('singer') ? 'singer-over-beat'
+      : outputFormat === 'social' ? 'social-viral'
+      : outputFormat === 'podcast' ? 'podcast-intro'
+      : outputFormat === 'tv' ? 'tv-commercial'
+      : 'rapper-over-beat';
+
+    const preset = getMixPreset(presetName);
+
+    const mixResult = await mixAudioFromUrls(vocalUrl, beatUrl, {
+      ...preset,
+      outputFormat,
+      outputPath
+    }, logger);
+
+    if (!mixResult || !mixResult.outputPath || !fs.existsSync(mixResult.outputPath)) {
+      return res.status(500).json({ error: 'Mixing failed — no output produced' });
+    }
+
+    // Read mixed audio
+    const mixedBuffer = fs.readFileSync(mixResult.outputPath);
+    let mixedAudioUrl = `data:audio/mpeg;base64,${mixedBuffer.toString('base64')}`;
+
+    // Upload to Cloud Storage for permanent URL
+    let permanentUrl = null;
+    if (req.user) {
+      const bucket = getStorageBucket();
+      if (bucket) {
+        try {
+          const fileName = `final_mix_${style}_${Date.now()}.mp3`;
+          const result = await uploadToStorage(mixedAudioUrl, req.user.uid, fileName, 'audio/mpeg');
+          permanentUrl = result.url;
+        } catch (uploadErr) {
+          logger.warn('Final mix cloud upload failed (using base64 fallback)', uploadErr.message);
+        }
+      }
+    }
+
+    // Cleanup temp file
+    try { fs.unlinkSync(mixResult.outputPath); } catch {}
+
+    logger.info('✅ Final mix created', { provider: 'ffmpeg-professional', preset: presetName });
+
+    res.json({
+      mixedAudioUrl: permanentUrl || mixedAudioUrl,
+      provider: 'ffmpeg-professional',
+      quality: mixResult.quality || 'billboard-ready',
+      preset: presetName,
+      processing: mixResult.processing
+    });
+  } catch (err) {
+    logger.error('Final mix error:', err);
+    res.status(500).json({ error: 'Failed to create final mix', details: safeErrorDetail(err) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // VIDEO GENERATION ROUTE (Multi-Model: Replicate -> Veo -> Fallback)
 // ═══════════════════════════════════════════════════════════════════
 // Video generation charges 15 credits (expensive)

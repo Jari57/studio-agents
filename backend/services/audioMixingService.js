@@ -5,16 +5,32 @@
  */
 
 const ffmpeg = require('fluent-ffmpeg');
+const ffmpegStatic = require('ffmpeg-static');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
+
+// Wire the bundled ffmpeg binary so it works on Railway/Heroku/etc.
+ffmpeg.setFfmpegPath(ffmpegStatic);
 
 /**
  * Download audio file from URL
  */
 function downloadAudio(url, destPath) {
   return new Promise((resolve, reject) => {
+    // Handle base64 data URLs (vocals/beats returned as data: URIs from AI providers)
+    if (url.startsWith('data:')) {
+      try {
+        const base64Data = url.split(',')[1];
+        if (!base64Data) return reject(new Error('Invalid data URL — no base64 payload'));
+        fs.writeFileSync(destPath, Buffer.from(base64Data, 'base64'));
+        return resolve(destPath);
+      } catch (err) {
+        return reject(err);
+      }
+    }
+
     const protocol = url.startsWith('https') ? https : http;
     const file = fs.createWriteStream(destPath);
 
