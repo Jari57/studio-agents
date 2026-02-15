@@ -9849,6 +9849,35 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   }
 }
 
+@media (max-width: 768px) {
+  .project-canvas-view {
+    min-height: auto;
+    height: auto;
+  }
+  
+  .project-canvas-view audio {
+    min-height: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .project-canvas-view {
+    font-size: 0.92rem;
+  }
+  
+  .project-canvas-view .btn-pill {
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    min-height: 44px;
+  }
+  
+  .project-canvas-view .btn-icon-circle {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 
 /* --- Agent Active View Fixes (Mobile Cutoff) --- */
 .agent-active-view {

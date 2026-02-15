@@ -114,7 +114,7 @@ export default function CanvasView({
   const handleCarouselTouchEnd = (e) => {
     if (carouselTouchStartX.current === null) return;
     const diff = carouselTouchStartX.current - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 60) {
+    if (Math.abs(diff) > 40) {
       if (diff > 0 && canvasCarouselIndex < filteredCanvasAssets.length - 1) setCanvasCarouselIndex(i => i + 1);
       else if (diff < 0 && canvasCarouselIndex > 0) setCanvasCarouselIndex(i => i - 1);
     }
@@ -137,7 +137,7 @@ export default function CanvasView({
   // ═══════════════════════════════════════════════════════════════════════════════
   return (
     <SectionErrorBoundary name="Project Canvas">
-    <div className="project-canvas-view animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>
+    <div className="project-canvas-view animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', minHeight: isMobile ? 'auto' : '100dvh', position: 'relative' }}>
 
       {/* ═══════════ SECTION A: COMPACT PROJECT HEADER ═══════════ */}
       <div style={{
@@ -219,7 +219,7 @@ export default function CanvasView({
             onClick={() => setShowOrchestrator(true)}
             style={{ fontSize: '0.85rem' }}
           >
-            <Sparkles size={16} /> Open Orchestrator
+            <Sparkles size={16} /> {isMobile ? 'Create' : 'Open Orchestrator'}
           </button>
         </div>
       </div>
@@ -318,7 +318,7 @@ export default function CanvasView({
 
       {/* ═══════════ SECTION C: MAIN WORKSPACE (SPLIT PANEL) ═══════════ */}
       <div style={{
-        display: 'flex', flex: 1, minHeight: isMobile ? '400px' : '500px',
+        display: 'flex', flex: 1, minHeight: isMobile ? 'auto' : '500px',
         position: 'relative', overflow: 'hidden'
       }}>
 
@@ -333,9 +333,10 @@ export default function CanvasView({
           {/* Filter Tabs */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: '8px',
-            padding: isMobile ? '12px' : '14px 24px',
+            padding: isMobile ? '10px 12px' : '14px 24px',
             overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.05)',
-            background: 'rgba(255,255,255,0.02)'
+            background: 'rgba(255,255,255,0.02)',
+            flexWrap: isMobile ? 'wrap' : 'nowrap'
           }}>
             {[
               { key: 'all', label: 'ALL' },
@@ -349,20 +350,21 @@ export default function CanvasView({
                 key={tab.key}
                 onClick={() => { setAssetFilter(tab.key); setPipelineFilter(null); }}
                 style={{
-                  padding: '6px 16px', borderRadius: '20px', fontSize: '0.78rem',
+                  padding: isMobile ? '6px 12px' : '6px 16px', borderRadius: '20px', fontSize: '0.78rem',
                   fontWeight: assetFilter === tab.key && !pipelineFilter ? '600' : '500',
                   background: assetFilter === tab.key && !pipelineFilter
                     ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
                   color: assetFilter === tab.key && !pipelineFilter
                     ? 'var(--color-purple)' : 'var(--text-secondary)',
                   border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  minHeight: '36px'
                 }}
               >
                 {tab.label}
               </button>
             ))}
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', flexShrink: 0 }}>
+            <div style={{ marginLeft: isMobile ? '0' : 'auto', display: 'flex', gap: '8px', flexShrink: 0, width: isMobile ? '100%' : 'auto', marginTop: isMobile ? '4px' : '0' }}>
               <button
                 className="btn-pill"
                 onClick={() => setShowOrchestrator(true)}
@@ -427,27 +429,27 @@ export default function CanvasView({
                         disabled={canvasCarouselIndex === 0}
                         onClick={() => setCanvasCarouselIndex(i => i - 1)}
                         style={{
-                          width: '32px', height: '32px', borderRadius: '8px', border: 'none',
+                          width: '44px', height: '44px', borderRadius: '10px', border: 'none',
                           background: canvasCarouselIndex === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.08)',
                           color: canvasCarouselIndex === 0 ? 'rgba(255,255,255,0.2)' : 'white',
                           cursor: canvasCarouselIndex === 0 ? 'default' : 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}
                       >
-                        <ChevronLeft size={16} />
+                        <ChevronLeft size={18} />
                       </button>
                       <button
                         disabled={canvasCarouselIndex >= filteredCanvasAssets.length - 1}
                         onClick={() => setCanvasCarouselIndex(i => i + 1)}
                         style={{
-                          width: '32px', height: '32px', borderRadius: '8px', border: 'none',
+                          width: '44px', height: '44px', borderRadius: '10px', border: 'none',
                           background: canvasCarouselIndex >= filteredCanvasAssets.length - 1 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.08)',
                           color: canvasCarouselIndex >= filteredCanvasAssets.length - 1 ? 'rgba(255,255,255,0.2)' : 'white',
                           cursor: canvasCarouselIndex >= filteredCanvasAssets.length - 1 ? 'default' : 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center'
                         }}
                       >
-                        <ChevronRight size={16} />
+                        <ChevronRight size={18} />
                       </button>
                     </div>
                   </div>
@@ -553,6 +555,17 @@ export default function CanvasView({
                               {asset.agent} &bull; {asset.date}
                             </span>
                             <div style={{ display: 'flex', gap: '6px' }}>
+                              <button
+                                onClick={() => setDetailPanelAsset(asset)}
+                                style={{
+                                  height: '44px', padding: '0 14px', borderRadius: '10px', border: 'none',
+                                  background: 'rgba(168,85,247,0.15)', color: 'var(--color-purple)',
+                                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  gap: '6px', fontSize: '0.75rem', fontWeight: '600'
+                                }}
+                              >
+                                <Maximize2 size={14} /> Details
+                              </button>
                               {(asset.audioUrl || asset.videoUrl || asset.imageUrl) && (
                                 <button
                                   onClick={() => {
@@ -565,12 +578,12 @@ export default function CanvasView({
                                     }
                                   }}
                                   style={{
-                                    width: '30px', height: '30px', borderRadius: '8px', border: 'none',
+                                    width: '44px', height: '44px', borderRadius: '10px', border: 'none',
                                     background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)',
                                     cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
                                   }}
                                 >
-                                  <Download size={14} />
+                                  <Download size={16} />
                                 </button>
                               )}
                             </div>
@@ -777,27 +790,26 @@ export default function CanvasView({
           )}
         </div>
 
-        {/* RIGHT: DETAIL PANEL - hidden on mobile since carousel is the viewer */}
-        {detailPanelAsset && !isMobile && (
+        {/* RIGHT: DETAIL PANEL - fullscreen overlay on mobile, side panel on desktop */}
+        {detailPanelAsset && (
           <div style={{
-            flex: isMobile ? '1' : '0 0 45%',
+            flex: isMobile ? undefined : '0 0 45%',
             display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            background: 'rgba(0,0,0,0.2)',
+            background: isMobile ? 'var(--color-bg-secondary, #0d0d12)' : 'rgba(0,0,0,0.2)',
             animation: 'detailSlideIn 0.3s ease',
-            position: isMobile ? 'absolute' : 'relative',
+            position: isMobile ? 'fixed' : 'relative',
             inset: isMobile ? 0 : undefined,
-            zIndex: isMobile ? 20 : 1,
-            backgroundColor: isMobile ? 'var(--color-bg-secondary, #0d0d12)' : undefined
+            zIndex: isMobile ? 100 : 1
           }}>
             {/* Detail Header */}
             <div style={{
-              padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+              padding: isMobile ? '12px 16px' : '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
               display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.02)',
               flexShrink: 0
             }}>
               {isMobile && (
-                <button onClick={() => setDetailPanelAsset(null)} className="btn-icon-circle" style={{ flexShrink: 0 }}>
-                  <ArrowLeft size={18} />
+                <button onClick={() => setDetailPanelAsset(null)} className="btn-icon-circle" style={{ flexShrink: 0, width: '44px', height: '44px' }}>
+                  <ArrowLeft size={20} />
                 </button>
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
