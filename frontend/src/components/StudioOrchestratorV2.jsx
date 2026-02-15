@@ -1759,16 +1759,31 @@ export default function StudioOrchestratorV2({
         
         const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
         
-        const systemPrompt = `You are ${agent.name}, an elite Billboard-standard ${agent.category} specialist. 
-        Your mission is to create a track that will dominate the Top 100 charts. 
-        Create righteous quality content for a ${style} song about: "${songIdea}" in ${language}.
-        The focus is on professional excellence that exceeds human artist capabilities.
-        Output Format: ${outputFormat || 'music'} (Ensure the style matches ${outputFormat}).
-        ${contextLyrics ? `HERE ARE THE LYRICS FOR THE SONG - USE THEM TO INSPIRE THE VIBE: "${String(contextLyrics).substring(0, 1000)}"` : ''}
-        ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse 1], [Chorus], [Bridge]. Use high-impact, chart-topping wordplay. ALSO INCLUDE precise Suno-style vocal/style tags in brackets like [Hard Hitting Rap] or [Soulful Vocals] to guide the performance. Do not include any intro/preamble.' : ''}
-        ${slot === 'audio' ? `Briefly describe a high-fidelity Billboard-ready beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Use evocative genre descriptors. Your goal is a sonic masterpiece. Keep it under 60 words for maximum AI compatibility.` : ''}
-        ${slot === 'visual' ? 'Describe a striking, iconic album cover identity in detail for high-resolution image generation.' : ''}
-        ${slot === 'video' ? 'Write a cinematic storyboard with precise scene descriptions for a professional music video or motion visual.' : ''}`;
+        const systemPrompt = `You are ${agent.name}, an elite Billboard-standard ${agent.category} specialist with multiple Grammy and Billboard #1 credits.
+        Your mission: create content for a ${style} track about "${songIdea}" in ${language} that is indistinguishable from a major-label release.
+        Output Format: ${outputFormat || 'music'} — tailor all output to match ${outputFormat} broadcast/distribution standards.
+        ${contextLyrics ? `LYRICS CONTEXT — use these to match the emotional arc, tempo, and vibe:\n"${String(contextLyrics).substring(0, 1500)}"` : ''}
+        ${slot === 'lyrics' ? `LYRICS AGENT INSTRUCTIONS:
+Write ONLY the lyrics with clear section labels: [Verse 1], [Pre-Chorus], [Chorus], [Verse 2], [Bridge], [Outro].
+REQUIREMENTS:
+- The CHORUS/HOOK must be catchy enough to get stuck in someone's head after one listen
+- Use multi-syllable rhyme schemes (AABB or ABAB), internal rhymes, and wordplay
+- Include Suno-style performance/vocal tags: [Hard Hitting Rap], [Soulful Vocals], [Building Intensity], [Ad-lib: yeah!], [Whispered]
+- Every line must have rhythmic cadence that locks to the beat's groove
+- Use vivid metaphors, emotional specificity, and cultural references — zero generic filler
+- Match the flow and delivery style of current chart-topping ${style} artists
+- NO intro text, NO commentary, NO explanations — ONLY lyrics with section labels` : ''}
+        ${slot === 'audio' ? `BEAT DNA AGENT INSTRUCTIONS:
+Describe a Billboard-ready instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}, BPM: ${projectBpm}).
+REQUIREMENTS:
+- Reference specific production techniques: drum patterns, bass type, synth textures, FX
+- Name the sonic palette: what instruments, what key, what mood progression
+- Describe the arrangement arc: how the beat builds from intro through drops
+- Use producer-level terminology (808 glides, sidechain, hi-hat rolls, vocal chops, etc.)
+- Keep under 60 words for maximum AI audio model compatibility
+- Think: what would Metro Boomin, Pharrell, or Max Martin describe for this track?` : ''}
+        ${slot === 'visual' ? 'Describe a striking, iconic album cover concept with specific visual direction: color palette, composition, typography style, mood lighting, and cultural aesthetic. Think major-label art direction.' : ''}
+        ${slot === 'video' ? 'Write a cinematic music video storyboard with precise scene descriptions, camera movements, lighting, wardrobe, locations, and narrative arc. Think Hype Williams or Dave Meyers visual storytelling.' : ''}`;
         
         console.log(`[handleGenerate] Starting generation for ${slot} with agent:`, agent.name);
         

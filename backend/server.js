@@ -999,16 +999,78 @@ app.get('/api/debug-env', verifyFirebaseToken, requireAdmin, (req, res) => {
 
 // MODELS ROUTE - returns available models that support generateContent
 // ==================== DIAGNOSTIC: Check which APIs are configured (admin only) ====================
-app.get('/api/status/apis', verifyFirebaseToken, requireAdmin, (req, res) => {
+app.get('/api/status/apis', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  const stabilityKey = process.env.STABILITY_API_KEY;
+  const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+  const falKey = process.env.FAL_KEY || process.env.FAL_API_KEY;
+  const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+
   const status = {
     gemini: !!process.env.GEMINI_API_KEY,
-    uberduck: !!process.env.UBERDUCK_API_KEY,
-    replicate: !!(process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN),
-    stability: !!process.env.STABILITY_API_KEY,
-    fal: !!process.env.FAL_KEY || !!process.env.FAL_API_KEY,
+    replicate: !!replicateKey,
+    stability: !!stabilityKey,
+    fal: !!falKey,
+    elevenlabs: !!elevenLabsKey,
     firebaseAdmin: firebaseInitialized,
-    message: 'Audio generation requires uberduck, replicate, stability, or fal API key.'
+    audioProviders: {},
+    message: 'Audio generation requires stability, replicate, or fal API key.'
   };
+
+  // Lightweight probe each audio provider (balance check, not generation)
+  const probes = [];
+
+  if (stabilityKey) {
+    probes.push(
+      fetch('https://api.stability.ai/v1/user/balance', {
+        headers: { 'Authorization': `Bearer ${stabilityKey}` }
+      }).then(async r => {
+        const d = await r.json().catch(() => ({}));
+        status.audioProviders.stability = {
+          active: r.ok,
+          credits: d.credits ?? 'unknown',
+          status: r.ok ? 'ok' : `HTTP ${r.status}`,
+        };
+      }).catch(e => { status.audioProviders.stability = { active: false, error: e.message }; })
+    );
+  }
+
+  if (elevenLabsKey) {
+    probes.push(
+      fetch('https://api.elevenlabs.io/v1/user/subscription', {
+        headers: { 'xi-api-key': elevenLabsKey }
+      }).then(async r => {
+        const d = await r.json().catch(() => ({}));
+        status.audioProviders.elevenlabs = {
+          active: r.ok,
+          charactersUsed: d.character_count ?? 'unknown',
+          characterLimit: d.character_limit ?? 'unknown',
+          tier: d.tier ?? 'unknown',
+          status: r.ok ? 'ok' : `HTTP ${r.status}`,
+        };
+      }).catch(e => { status.audioProviders.elevenlabs = { active: false, error: e.message }; })
+    );
+  }
+
+  if (replicateKey) {
+    probes.push(
+      fetch('https://api.replicate.com/v1/account', {
+        headers: { 'Authorization': `Bearer ${replicateKey}` }
+      }).then(async r => {
+        const d = await r.json().catch(() => ({}));
+        status.audioProviders.replicate = {
+          active: r.ok,
+          username: d.username ?? 'unknown',
+          status: r.ok ? 'ok' : `HTTP ${r.status}`,
+        };
+      }).catch(e => { status.audioProviders.replicate = { active: false, error: e.message }; })
+    );
+  }
+
+  if (falKey) {
+    status.audioProviders.fal = { active: true, status: 'key-present (no balance endpoint)' };
+  }
+
+  await Promise.allSettled(probes);
   res.json(status);
 });
 
@@ -3051,9 +3113,35 @@ app.post('/api/generate-complete-music-video', verifyFirebaseToken, checkCredits
 
     // STEP 1: Generate Lyrics
     logger.info('Step 1/6: Generating lyrics...');
-    const lyricsPrompt = `Write ${duration}-second ${genre} lyrics about: ${concept}. Format: ${duration >= 60 ? '2-3 verses with hooks' : '1 verse with hook'}. Style: ${style}. Keep it ${language === 'en' ? 'English' : language}.`;
 
-    const lyricsSystemInstruction = `You are a professional ${genre} lyricist. Write compelling, rhythmic lyrics following ${style} flow patterns. Keep length appropriate for ${duration} seconds at ${bpm} BPM. Output ONLY the lyrics, no commentary.`;
+    const versesNeeded = duration >= 120 ? '3 verses, a pre-chorus, 2 choruses, and a bridge' :
+                         duration >= 60 ? '2 verses, a chorus, and a bridge' :
+                         '1 verse and a catchy chorus/hook';
+
+    const lyricsPrompt = `Write ${genre} song lyrics for a ${duration}-second track at ${bpm} BPM about: ${concept}.
+
+Structure: ${versesNeeded}. Label each section clearly: [Verse 1], [Pre-Chorus], [Chorus], [Bridge], etc.
+
+Requirements:
+- The HOOK/CHORUS must be immediately memorable, singable, and repeat-worthy
+- Use internal rhyme schemes (AABB or ABAB) with multi-syllable rhymes
+- Include rhythmic cadence markers: line breaks match the beat's phrasing
+- Every bar must have 4-beat metric alignment for ${bpm} BPM delivery
+- Use vivid imagery, metaphor, and emotional specificity — no generic filler
+- Style: ${style}. Language: ${language === 'en' ? 'English' : language}.
+- Add Suno-style performance tags in brackets: [Hard Hitting Rap], [Soulful Vocals], [Whispered], [Ad-lib: yeah!], etc.`;
+
+    const lyricsSystemInstruction = `You are a Grammy-winning ${genre} songwriter who has written #1 Billboard hits. You understand song structure, melodic hooks, rhythmic cadence, and emotional storytelling at the highest professional level.
+
+Your lyrics MUST:
+1. Have a KILLER hook/chorus that listeners can't get out of their head
+2. Use sophisticated wordplay — internal rhymes, assonance, consonance, double entendres
+3. Tell a compelling story or paint a vivid emotional picture
+4. Match the rhythm and flow of ${style} delivery at ${bpm} BPM
+5. Include performance direction tags like [with energy], [softly], [building intensity]
+6. Be radio-appropriate — no explicit content unless the style demands it
+
+Keep output to ONLY the lyrics with section labels. No commentary, no explanations. Length must fill exactly ${duration} seconds when performed.`;
 
     const lyricsResponse = await genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' }).generateContent({
       contents: [{ role: 'user', parts: [{ text: lyricsPrompt }] }],
@@ -3066,7 +3154,7 @@ app.post('/api/generate-complete-music-video', verifyFirebaseToken, checkCredits
 
     // STEP 2: Generate Beat
     logger.info('Step 2/6: Generating beat...');
-    const beatPrompt = `${genre} instrumental beat, ${bpm} BPM, ${duration} seconds. Dark, moody, professional studio quality. Billboard-ready production.`;
+    const beatPrompt = `${genre} instrumental beat, ${bpm} BPM, ${duration} seconds. Dark, moody, professionally mixed and mastered. -14 LUFS streaming loudness, punchy 808 bass, crisp hi-hats, wide stereo image, dynamic arrangement with drops and transitions. Billboard-ready production.`;
 
     // Call internal audio generation
     const beatUrl = await generateAudioInternal({
@@ -3710,32 +3798,59 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         }
 
         logger.info('🎤 Using ElevenLabs V3.5 High-Fidelity', { voiceId, quality: req.body.quality, style, outputFormat });
-        
-        // RAP/BILLBOARD FORMATTING: Add rhythmic pauses and emphasis
+
+        // ── BILLBOARD-GRADE VOCAL PREPROCESSING ──
         let processedPrompt = prompt;
+
         if (style.includes('rapper')) {
-           // Add slight pauses after sentences/lines to maintain rhythm
-           processedPrompt = prompt.replace(/\.(?!\d)/g, '... ').replace(/\n/g, '; ');
-           // Add high-fidelity breath and emphasis markers for Billboard quality
-           processedPrompt = `[breath] ${processedPrompt}`;
+          // Rap delivery: rhythmic pauses, breath markers, emphasis for punchlines
+          processedPrompt = prompt
+            .replace(/\[Verse[^\]]*\]/gi, '')  // Strip section labels (not spoken)
+            .replace(/\[Chorus[^\]]*\]/gi, '')
+            .replace(/\[Bridge[^\]]*\]/gi, '')
+            .replace(/\[Pre-Chorus[^\]]*\]/gi, '')
+            .replace(/\[Hook[^\]]*\]/gi, '')
+            .replace(/\[Ad-lib:[^\]]*\]/gi, (m) => m.replace(/\[Ad-lib:\s*/, '').replace(']', '!')) // Convert ad-libs to exclamations
+            .replace(/\[([^\]]*)\]/g, '')  // Strip remaining performance tags
+            .replace(/\.(?!\d)/g, '... ')  // Periods become dramatic pauses
+            .replace(/!+/g, '! ')          // Normalize exclamations
+            .replace(/\n{2,}/g, '\n')      // Collapse blank lines
+            .trim();
+          // Lead with breath for natural vocal onset
+          processedPrompt = `[breath] ${processedPrompt}`;
+        } else if (style.includes('singer')) {
+          // Singing delivery: elongate vowels at line ends, smooth transitions
+          processedPrompt = prompt
+            .replace(/\[([^\]]*)\]/g, '')  // Strip tags
+            .replace(/\n/g, '... ')        // Line breaks become smooth transitions
+            .trim();
+        } else {
+          // General cleanup for any style
+          processedPrompt = prompt
+            .replace(/\[([^\]]*)\]/g, '')
+            .trim();
         }
 
-        // Adjust settings based on Output Format (Righteous Quality)
+        // ── BILLBOARD-GRADE VOICE SETTINGS ──
         const voiceSettings = {
-          stability: style.includes('rapper') ? 0.60 : 0.65,
-          similarity_boost: 0.90,
-          style: style.includes('rapper') ? 0.65 : 0.40,
+          stability: style.includes('rapper') ? 0.50 : 0.60,       // Lower = more expressive variation
+          similarity_boost: 0.92,                                     // High similarity to chosen voice character
+          style: style.includes('rapper') ? 0.75 : 0.50,            // Higher style = more dramatic delivery
           use_speaker_boost: true
         };
 
-        // Output specific optimizations
+        // Output format specializations
         if (outputFormat === 'tv') {
-          voiceSettings.stability = 0.70; // Stable for TV broadcast
+          voiceSettings.stability = 0.70;
+          voiceSettings.style = 0.35;
         } else if (outputFormat === 'podcast') {
-          voiceSettings.similarity_boost = 0.95; // More natural personality
+          voiceSettings.stability = 0.75;
+          voiceSettings.similarity_boost = 0.95;
+          voiceSettings.style = 0.25;
         } else if (outputFormat === 'music') {
-          voiceSettings.style = 0.80; // Expressive for Billboard vibes
-          voiceSettings.stability = 0.55; // Emotive but clean, not glitchy
+          voiceSettings.style = 0.85;       // Maximum expressiveness for music
+          voiceSettings.stability = 0.45;   // Allow natural vocal variation
+          voiceSettings.similarity_boost = 0.88; // Slight flexibility for emotional range
         }
 
         // Use the highest quality model available
@@ -4118,31 +4233,51 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
       hasFal: !!falKey
     });
 
-    let qualityTags = 'Billboard 100 hit, mastered for streaming, punchy drums, deep 808 bass, crisp hi-hats, wide stereo mix, high energy, dynamic arrangement with drops and transitions';
+    // ── BILLBOARD-GRADE PRODUCTION TAGS ──
+    // Core sonic signature: reference-grade mastering chain
+    let qualityTags = 'professionally mixed and mastered, -14 LUFS streaming loudness, wide stereo image, analog warmth, punchy transients, clean low end, sidechain compression on kick-bass, multi-band limiting, high headroom, radio-ready master';
 
-    // Genre-specific production cues for stronger, more authentic beats
+    // Genre-specific production templates modeled after chart-topping producers
     const genreBoosts = {
-      'hip-hop': ', trap 808s, hard-hitting kick, rolling hi-hats, dark atmospheric pads',
-      'trap': ', distorted 808s, rapid hi-hats, ominous synths, heavy bass drops',
-      'pop': ', catchy melodic hooks, bright synths, four-on-the-floor kick, uplifting chords',
-      'r&b': ', smooth Rhodes keys, warm pads, finger snaps, lush vocal chops',
-      'drill': ', sliding 808 bass, aggressive hi-hats, dark piano stabs, menacing atmosphere',
-      'afrobeat': ', polyrhythmic percussion, log drums, shaker patterns, call-and-response melodies',
-      'reggaeton': ', dembow rhythm, perreo bass, reggaeton snare pattern, tropical synths',
-      'lo-fi': ', vinyl crackle, jazz chords, mellow keys, tape saturation, relaxing vibe',
+      'hip-hop': ', Metro Boomin style 808 bass, crisp Roland TR-808 snare, layered hi-hat rolls with swing, dark ambient pads, vinyl texture, Timbaland-style drum programming, sub bass that rattles speakers',
+      'trap': ', distorted 808 glides, rapid triplet hi-hats, Southside-style ominous choir stabs, heavy reverb risers, gun-shot snare layering, dark minor key melodies, aggressive bass drops',
+      'pop': ', Max Martin style chord progressions, bright supersaw synths, four-on-the-floor kick with sidechain, catchy topline-ready melody, Disclosure-style garage bass, euphoric build-ups and drops, tambourine accents',
+      'r&b': ', Neo-soul Rhodes and Wurlitzer keys, warm Juno-106 pads, Timbaland finger snaps, pitched vocal chops, live bass guitar feel, subtle jazz harmony extensions, silk-smooth groove pocket',
+      'drill': ', UK drill sliding 808 bass, aggressive snare rolls, dark minor piano riff, Ghosty-style bouncing hi-hats, menacing string stabs, reverse reverb FX, headroom for aggressive vocal',
+      'afrobeat': ', Afro-fusion polyrhythmic percussion, Burna Boy style log drums, shaker and clave patterns, amapiano bass guitar, call-and-response flute melodies, live percussion feel, dancehall energy',
+      'reggaeton': ', dembow riddim pattern, deep perreo bass, reggaeton snare with room reverb, tropical synth arpeggios, Tainy-style vocal chops, Latin guitar stabs, infectious groove',
+      'lo-fi': ', vinyl crackle and tape hiss, jazz 7th chord Rhodes, mellow Mellotron flute, J Dilla swing quantize, tape saturation warmth, Nujabes-inspired side-chained pads, gentle rain ambience',
+      'rock': ', live drum kit with room mics, overdriven guitar riffs, bass guitar with pick attack, stadium reverb, dynamic verse-chorus energy shift, power chord progressions',
+      'electronic': ', Disclosure-style UK garage bass, pristine digital synths, Arpeggio sequences, white noise risers, crisp claps on 2 and 4, festival-ready drop, sidechain pumping',
+      'latin': ', reggaeton and Latin trap fusion, acoustic guitar flourishes, bongo and conga patterns, brass section stabs, bilingual flow-ready pocket, Bad Bunny style bass bounce',
     };
     qualityTags += (genreBoosts[genre.toLowerCase()] || '');
 
-    // Output specific quality adjustments
-    if (outputFormat === 'tv') {
-      qualityTags += ', broadcast ready, clear dialogue space, background mastered';
-    } else if (outputFormat === 'social') {
-      qualityTags += ', punchy bass, mobile speaker optimized, viral aesthetic';
-    } else if (outputFormat === 'podcast') {
-      qualityTags += ', ducked for voice, warm low-end, professional stingers';
+    // BPM-aware arrangement cues
+    if (bpm >= 140) {
+      qualityTags += ', high energy, fast hi-hats, aggressive tempo, anthem-level intensity';
+    } else if (bpm <= 85) {
+      qualityTags += ', slow groove, spacious arrangement, deep pocket, head-nodding bounce';
     }
 
-    const musicPrompt = `${genre} ${mood} instrumental beat at ${bpm} BPM. ${prompt}. ${qualityTags}`;
+    // Duration-aware structure
+    if (durationSeconds >= 90) {
+      qualityTags += ', multi-section arrangement with intro-verse-chorus-bridge-outro, dynamic builds, breakdown section, energy shifts between sections';
+    } else if (durationSeconds >= 45) {
+      qualityTags += ', verse and chorus sections, clear energy build, satisfying drop or hook moment';
+    }
+
+    // Output specific quality adjustments
+    if (outputFormat === 'tv') {
+      qualityTags += ', broadcast-safe dynamics, clear mid-range for dialogue space, cinematic underscore quality';
+    } else if (outputFormat === 'social') {
+      qualityTags += ', immediately attention-grabbing intro, punchy bass for mobile speakers, viral hook within first 3 seconds';
+    } else if (outputFormat === 'podcast') {
+      qualityTags += ', ducked dynamics for voiceover, warm low-end, minimal high-frequency competition with speech';
+    }
+
+    // Construct the final prompt with clear structure
+    const musicPrompt = `Create a ${genre} ${mood} instrumental beat at ${bpm} BPM. Style: ${prompt}. Production: ${qualityTags}`;
 
     // Engine Selection Logic - Always prefer Stability AI for highest quality
     let finalEngine = engine;
@@ -4225,8 +4360,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
               normalization_strategy: "loudness",
               top_k: 250,
               top_p: 0.0,
-              temperature: 1.0,
-              classifier_free_guidance: 5
+              temperature: 0.85,
+              classifier_free_guidance: 7
             }
           }
         );
