@@ -1266,20 +1266,23 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Load projects from cloud via backend API
   // Accepts optional firebaseUser param so the caller can pass the already-resolved currentUser
   // instead of relying on the global auth.currentUser which may not be set yet (race condition).
-  async function loadProjectsFromCloud(uid, firebaseUser) {
+  // Also accepts optional authTokenOverride to reuse a token already obtained by the caller.
+  async function loadProjectsFromCloud(uid, firebaseUser, authTokenOverride) {
     const traceId = `LOAD-${Date.now()}`;
-    console.log(`[TRACE:${traceId}] loadProjectsFromCloud START`, { hasUid: !!uid, hasFirebaseUser: !!firebaseUser });
+    console.log(`[TRACE:${traceId}] loadProjectsFromCloud START`, { hasUid: !!uid, hasFirebaseUser: !!firebaseUser, hasTokenOverride: !!authTokenOverride });
 
     if (!uid) return [];
     try {
-      // Get auth token from the passed-in user first, fall back to global
-      let authToken = null;
-      const tokenSource = firebaseUser || auth?.currentUser;
-      if (tokenSource) {
-        try {
-          authToken = await tokenSource.getIdToken(true);
-        } catch (tokenErr) {
-          console.warn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
+      // Use pre-fetched token if available, otherwise get one (no force refresh)
+      let authToken = authTokenOverride || null;
+      if (!authToken) {
+        const tokenSource = firebaseUser || auth?.currentUser;
+        if (tokenSource) {
+          try {
+            authToken = await tokenSource.getIdToken();
+          } catch (tokenErr) {
+            console.warn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
+          }
         }
       }
 
@@ -2312,14 +2315,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 const credits = userData.credits || 0;
                 setUserCredits(credits);
                 setUserProfile(prev => ({ ...prev, credits }));
-                
+
                 // Load User DNA / Inspiration files for persistence
                 if (userData.visualDnaUrl) setVisualDnaUrl(userData.visualDnaUrl);
                 if (userData.audioDnaUrl) setAudioDnaUrl(userData.audioDnaUrl);
                 if (userData.videoDnaUrl) setVideoDnaUrl(userData.videoDnaUrl);
                 if (userData.lyricsDnaUrl) setLyricsDnaUrl(userData.lyricsDnaUrl);
                 if (userData.voiceSampleUrl) setVoiceSampleUrl(userData.voiceSampleUrl);
-                
+
                 // Load subscription plan from Firestore
                 // Backend saves: tier, subscriptionTier, subscriptionStatus
                 if (userData.subscriptionStatus === 'active' && userData.tier) {
@@ -2342,35 +2345,47 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   console.log('[Auth] Legacy subscription format loaded:', planName);
                 }
               }
-              
-              // Load and merge projects from cloud
-              // Pass currentUser directly so getIdToken() works even if auth.currentUser isn't set yet
-              const cloudProjects = await loadProjectsFromCloud(currentUser.uid, currentUser);
-              if (cloudProjects.length > 0) {
-                setProjects(prev => {
-                  const merged = mergeProjects(prev, cloudProjects);
-                  console.log(`Merged ${prev.length} local + ${cloudProjects.length} cloud = ${merged.length} projects`);
-                  return merged;
-                });
-                toast.success(`Synced ${cloudProjects.length} projects from cloud`);
-              } else {
-                // Cloud returned 0 projects — could be auth failure or genuinely empty
-                // Check if we have local projects to sync up
-                const localUidKey = `studio_projects_${currentUser.uid}`;
-                const localData = localStorage.getItem(localUidKey);
-                let localProjects = [];
-                try { localProjects = localData ? JSON.parse(localData) : []; } catch(_e) { /* ignore */ }
-
-                if (localProjects.length > 0) {
-                  // We have local projects but cloud returned nothing — restore from local and sync up
-                  console.log(`[Auth] Cloud returned 0 projects but found ${localProjects.length} in localStorage. Restoring.`);
-                  setProjects(localProjects);
-                  syncProjectsToCloud(currentUser.uid, localProjects);
-                }
-              }
             } catch (err) {
               console.error('Failed to fetch user data:', err);
             }
+          }
+
+          // Load projects from cloud INDEPENDENTLY of user data fetch above.
+          // This ensures projects load even if Firestore client getDoc fails.
+          try {
+            let cloudProjects = await loadProjectsFromCloud(currentUser.uid, currentUser, token);
+
+            // If no projects returned and we had no token, retry once after delay
+            if (cloudProjects.length === 0 && !token) {
+              console.log('[Auth] No projects and no token — retrying after 2s...');
+              await new Promise(r => setTimeout(r, 2000));
+              cloudProjects = await loadProjectsFromCloud(currentUser.uid, currentUser);
+            }
+
+            if (cloudProjects.length > 0) {
+              setProjects(prev => {
+                const merged = mergeProjects(prev, cloudProjects);
+                console.log(`Merged ${prev.length} local + ${cloudProjects.length} cloud = ${merged.length} projects`);
+                return merged;
+              });
+              toast.success(`Synced ${cloudProjects.length} projects from cloud`);
+            } else {
+              // Cloud returned 0 projects — could be auth failure or genuinely empty
+              // Check if we have local projects to sync up
+              const localUidKey = `studio_projects_${currentUser.uid}`;
+              const localData = localStorage.getItem(localUidKey);
+              let localProjects = [];
+              try { localProjects = localData ? JSON.parse(localData) : []; } catch(_e) { /* ignore */ }
+
+              if (localProjects.length > 0) {
+                // We have local projects but cloud returned nothing — restore from local and sync up
+                console.log(`[Auth] Cloud returned 0 projects but found ${localProjects.length} in localStorage. Restoring.`);
+                setProjects(localProjects);
+                syncProjectsToCloud(currentUser.uid, localProjects);
+              }
+            }
+          } catch (err) {
+            console.error('Failed to load projects from cloud:', err);
           }
         } else {
           userRef.current = null; // UPDATE REF
