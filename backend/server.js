@@ -2484,13 +2484,24 @@ app.get('/api/user/projects', verifyFirebaseToken, async (req, res) => {
   }
   
   try {
+    // Removed orderBy('updatedAt') — Firestore implicitly filters out docs missing that field,
+    // which causes older projects (without updatedAt) to vanish. Fetch all and sort client-side.
     const snapshot = await db.collection('users').doc(req.user.uid)
       .collection('projects')
-      .orderBy('updatedAt', 'desc')
-      .limit(100)
+      .limit(1000)
       .get();
-    
-    const projects = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const projects = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Convert Firestore Timestamps to ISO strings
+        savedAt: data.savedAt && typeof data.savedAt.toDate === 'function' ? data.savedAt.toDate().toISOString() : data.savedAt,
+        updatedAt: data.updatedAt && typeof data.updatedAt.toDate === 'function' ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+        createdAt: data.createdAt && typeof data.createdAt.toDate === 'function' ? data.createdAt.toDate().toISOString() : data.createdAt
+      };
+    });
     
     res.json(projects);
   } catch (err) {

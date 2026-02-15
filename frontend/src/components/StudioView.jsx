@@ -1016,11 +1016,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           try {
             setProjects(JSON.parse(savedProjects));
           } catch(_e) {
-            setProjects([]);
+            // Don't clear to [] on parse error — let cloud load handle it
+            console.warn('[Isolation] Failed to parse localStorage projects, leaving state untouched');
           }
-        } else {
-          setProjects([]);
         }
+        // NOTE: If no localStorage entry exists for this user, do NOT set projects to [].
+        // The auth listener will load from cloud shortly. Setting [] here causes a race
+        // condition where cloud projects get lost.
         
         // Clear other residue
         setNewsSearch('');
@@ -1262,22 +1264,29 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   }, [projects, user?.uid, auth?.currentUser]);
   
   // Load projects from cloud via backend API
-  async function loadProjectsFromCloud(uid) {
+  // Accepts optional firebaseUser param so the caller can pass the already-resolved currentUser
+  // instead of relying on the global auth.currentUser which may not be set yet (race condition).
+  async function loadProjectsFromCloud(uid, firebaseUser) {
     const traceId = `LOAD-${Date.now()}`;
-    console.log(`[TRACE:${traceId}] loadProjectsFromCloud START`, { hasUid: !!uid });
-    
+    console.log(`[TRACE:${traceId}] loadProjectsFromCloud START`, { hasUid: !!uid, hasFirebaseUser: !!firebaseUser });
+
     if (!uid) return [];
     try {
-      // Get auth token
+      // Get auth token from the passed-in user first, fall back to global
       let authToken = null;
-      if (auth?.currentUser) {
+      const tokenSource = firebaseUser || auth?.currentUser;
+      if (tokenSource) {
         try {
-          authToken = await auth.currentUser.getIdToken(true);
+          authToken = await tokenSource.getIdToken(true);
         } catch (tokenErr) {
           console.warn(`[TRACE:${traceId}] Failed to get auth token:`, tokenErr.message);
         }
       }
-      
+
+      if (!authToken) {
+        console.warn(`[TRACE:${traceId}] No auth token available — backend will reject with 401`);
+      }
+
       // Use backend API to load projects
       const response = await fetch(`${BACKEND_URL}/api/projects?userId=${encodeURIComponent(uid)}`, {
         method: 'GET',
@@ -1318,6 +1327,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       return cloudProjects;
     } catch (err) {
       console.error(`[TRACE:${traceId}] loadProjectsFromCloud ERROR:`, err);
+      toast.error('Could not load projects from cloud. Using local data.');
       return [];
     }
   };
@@ -2334,7 +2344,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               }
               
               // Load and merge projects from cloud
-              const cloudProjects = await loadProjectsFromCloud(currentUser.uid);
+              // Pass currentUser directly so getIdToken() works even if auth.currentUser isn't set yet
+              const cloudProjects = await loadProjectsFromCloud(currentUser.uid, currentUser);
               if (cloudProjects.length > 0) {
                 setProjects(prev => {
                   const merged = mergeProjects(prev, cloudProjects);
@@ -2342,9 +2353,20 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   return merged;
                 });
                 toast.success(`Synced ${cloudProjects.length} projects from cloud`);
-              } else if (projects.length > 0) {
-                // No cloud projects but have local - sync them up
-                syncProjectsToCloud(currentUser.uid, projects);
+              } else {
+                // Cloud returned 0 projects — could be auth failure or genuinely empty
+                // Check if we have local projects to sync up
+                const localUidKey = `studio_projects_${currentUser.uid}`;
+                const localData = localStorage.getItem(localUidKey);
+                let localProjects = [];
+                try { localProjects = localData ? JSON.parse(localData) : []; } catch(_e) { /* ignore */ }
+
+                if (localProjects.length > 0) {
+                  // We have local projects but cloud returned nothing — restore from local and sync up
+                  console.log(`[Auth] Cloud returned 0 projects but found ${localProjects.length} in localStorage. Restoring.`);
+                  setProjects(localProjects);
+                  syncProjectsToCloud(currentUser.uid, localProjects);
+                }
               }
             } catch (err) {
               console.error('Failed to fetch user data:', err);
@@ -4765,83 +4787,34 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   };
 
-  // Load projects from localStorage on mount
+  // Restore projects from localStorage on mount as immediate local state.
+  // Cloud sync is handled by the auth listener (onAuthStateChanged) which has the confirmed currentUser.
+  // Do NOT fetch from backend here — it races with the auth listener and often fails because
+  // auth.currentUser isn't ready yet at this point.
   useEffect(() => {
     const uid = localStorage.getItem('studio_user_id');
-    const savedProjects = localStorage.getItem('studio_agents_projects');
-    let localProjects = [];
-    
+    const uidKey = uid ? `studio_projects_${uid}` : null;
+    const savedProjects = (uidKey && localStorage.getItem(uidKey)) || localStorage.getItem('studio_agents_projects');
+
     if (savedProjects) {
       try {
         const parsed = JSON.parse(savedProjects);
-        if (Array.isArray(parsed)) {
-          localProjects = sanitizeProjects(parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const restored = sanitizeProjects(parsed);
+          setProjects(prev => {
+            // Only restore if current state is empty (avoid overwriting cloud-merged data)
+            if (prev.length === 0) {
+              console.log(`[Mount] Restored ${restored.length} projects from localStorage`);
+              return restored;
+            }
+            return prev;
+          });
         }
       } catch (e) {
-        console.error("Failed to parse projects", e);
+        console.error("Failed to parse projects from localStorage", e);
       }
     }
-
-    if (isLoggedIn && uid) {
-      // Fetch from backend if logged in (with auth token)
-      const fetchProjects = async () => {
-        try {
-          const headers = { 'Content-Type': 'application/json' };
-          
-          // Add auth token if available
-          if (auth?.currentUser) {
-            try {
-              const token = await auth.currentUser.getIdToken();
-              headers['Authorization'] = `Bearer ${token}`;
-            } catch (tokenErr) {
-              console.warn('Could not get auth token for projects fetch:', tokenErr);
-            }
-          }
-          
-          const res = await fetch(`${BACKEND_URL}/api/projects?userId=${uid}`, { headers });
-          
-          if (!res.ok) {
-            console.warn('Failed to fetch projects from server:', res.status);
-            setProjects(localProjects);
-            return;
-          }
-          
-          const data = await res.json();
-          
-          if (data.projects) {
-            // Merge local and remote - sanitize remote data
-            const remoteProjects = sanitizeProjects(data.projects);
-            const allProjects = [...remoteProjects, ...localProjects];
-            const uniqueProjects = Array.from(new Map(allProjects.map(item => [item.id, item])).values());
-            // Sort by updatedAt/savedAt/createdAt descending (newest first)
-            uniqueProjects.sort((a, b) => {
-              const parseDate = (d) => {
-                if (!d) return 0;
-                // Handle Firebase Timestamps if any leak through
-                if (typeof d === 'object' && d.seconds) return d.seconds * 1000;
-                if (typeof d === 'object' && d._seconds) return d._seconds * 1000;
-                const time = new Date(d).getTime();
-                return isNaN(time) ? 0 : time;
-              };
-              const aTime = parseDate(a.updatedAt || a.savedAt || a.createdAt);
-              const bTime = parseDate(b.updatedAt || b.savedAt || b.createdAt);
-              return bTime - aTime;
-            });
-            setProjects(uniqueProjects);
-          } else {
-            setProjects(localProjects);
-          }
-        } catch (err) {
-          console.error("Failed to fetch remote projects", err);
-          setProjects(localProjects);
-        }
-      };
-      
-      fetchProjects();
-    } else {
-      setProjects(localProjects);
-    }
-  }, [isLoggedIn]);
+  }, []);
 
   // Save projects to localStorage whenever they change (with quota handling)
   useEffect(() => {
@@ -5097,17 +5070,15 @@ const fetchUserCredits = useCallback(async (uid) => {
          let authToken = null;
          if (auth?.currentUser) authToken = await auth.currentUser.getIdToken(true);
          
-         const response = await fetch(`${BACKEND_URL}/api/user/projects`, {
+         const response = await fetch(`${BACKEND_URL}/api/projects`, {
            method: 'POST',
            headers: {
              'Content-Type': 'application/json',
              ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
            },
            body: JSON.stringify({
-             name: newProject.name,
-             type: 'song',
-             data: newProject,
-             metadata: { forkedFrom: sampleProject.id, isFork: true }
+             userId: user.uid,
+             project: newProject
            })
          });
          
