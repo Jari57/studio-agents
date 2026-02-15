@@ -5250,7 +5250,6 @@ const fetchUserCredits = useCallback(async (uid) => {
             handleDeletePayment={handleDeletePayment}
             handleSubscribe={handleSubscribe}
             handleTextToVoice={handleTextToVoice}
-            getTimeSince={getTimeSince}
           />
         </Suspense>
       );

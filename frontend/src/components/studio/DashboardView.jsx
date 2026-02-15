@@ -122,8 +122,7 @@ const DashboardView = ({
   fetchAdminData,
   handleDeletePayment,
   handleSubscribe,
-  handleTextToVoice,
-  getTimeSince
+  handleTextToVoice
 }) => {
   return (
     <div className="studio-dashboard animate-fadeInUp">
@@ -312,7 +311,7 @@ const DashboardView = ({
                   <div className="studio-vital-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', minWidth: '320px' }}>
                     <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
                       <Folder size={18} color="var(--color-cyan)" style={{ marginBottom: '8px' }} />
-                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)' }}>{projects.length}</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-primary)' }}>{(projects || []).length}</div>
                       <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Projects</div>
                     </div>
                     <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
@@ -322,7 +321,7 @@ const DashboardView = ({
                     </div>
                     <div className="vital-card" style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
                       <UsersIcon size={18} color="var(--color-purple)" style={{ marginBottom: '8px' }} />
-                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--color-purple)' }}>{managedAgents.filter(a => a.visible).length}</div>
+                      <div style={{ fontSize: '1.4rem', fontWeight: '800', color: 'var(--color-purple)' }}>{(managedAgents || []).filter(a => a.visible).length}</div>
                       <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>Active Agents</div>
                     </div>
                   </div>
@@ -395,11 +394,11 @@ const DashboardView = ({
                     <div className="usage-item">
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
                         <span style={{ color: 'var(--text-secondary)' }}>Agent Slots</span>
-                        <span>{managedAgents.filter(a => a.visible).length} / 16 Used</span>
+                        <span>{(managedAgents || []).filter(a => a.visible).length} / 16 Used</span>
                       </div>
                       <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
                         <div style={{
-                          width: `${(managedAgents.filter(a => a.visible).length / 16) * 100}%`,
+                          width: `${((managedAgents || []).filter(a => a.visible).length / 16) * 100}%`,
                           height: '100%',
                           background: 'var(--color-pink)',
                           boxShadow: '0 0 10px var(--color-pink)'
@@ -417,10 +416,10 @@ const DashboardView = ({
                       gap: '8px'
                     }}>
                       {[
-                        { name: '4K Rendering', active: userPlan.toLowerCase() !== 'free' },
-                        { name: 'Stem Export', active: userPlan.toLowerCase() !== 'free' },
-                        { name: 'Commercial Rights', active: userPlan.toLowerCase() === 'pro' || userPlan.toLowerCase() === 'lifetime' },
-                        { name: 'Priority API', active: userPlan.toLowerCase() === 'pro' || userPlan.toLowerCase() === 'lifetime' }
+                        { name: '4K Rendering', active: (userPlan || '').toLowerCase() !== 'free' },
+                        { name: 'Stem Export', active: (userPlan || '').toLowerCase() !== 'free' },
+                        { name: 'Commercial Rights', active: (userPlan || '').toLowerCase() === 'pro' || (userPlan || '').toLowerCase() === 'lifetime' },
+                        { name: 'Priority API', active: (userPlan || '').toLowerCase() === 'pro' || (userPlan || '').toLowerCase() === 'lifetime' }
                       ].map((feat, i) => (
                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: feat.active ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
                           {feat.active ? <Check size={10} color="var(--color-emerald)" /> : <LockIcon size={10} />}
@@ -437,7 +436,7 @@ const DashboardView = ({
                       <GlobeIcon size={20} className="text-cyan" /> Cloud Integrations
                     </h3>
                     <div style={{ fontSize: '0.75rem', color: 'var(--color-emerald)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '10px' }}>
-                      {Object.values(socialConnections).filter(Boolean).length} Linked
+                      {Object.values(socialConnections || {}).filter(Boolean).length} Linked
                     </div>
                   </div>
 
@@ -482,10 +481,10 @@ const DashboardView = ({
               {/* Audience Insights (Advanced) */}
               <div className="audience-overview" style={{ marginBottom: '24px' }}>
                 {[
-                  { label: 'Monthly Listeners', value: performanceStats.listeners.toLocaleString(), icon: UsersIcon, color: 'var(--color-blue)', trend: performanceStats.growth },
-                  { label: 'Total Streams', value: performanceStats.streams.toLocaleString(), icon: PlayCircle, color: 'var(--color-emerald)', trend: performanceStats.streamTrend },
-                  { label: 'Followers', value: performanceStats.followers.toLocaleString(), icon: Crown, color: 'var(--color-purple)', trend: '+2.3%' },
-                  { label: 'Engagement Rate', value: performanceStats.engagement, icon: TrendingUp, color: 'var(--color-cyan)', trend: '+0.8%' }
+                  { label: 'Monthly Listeners', value: (performanceStats?.listeners || 0).toLocaleString(), icon: UsersIcon, color: 'var(--color-blue)', trend: performanceStats?.growth },
+                  { label: 'Total Streams', value: (performanceStats?.streams || 0).toLocaleString(), icon: PlayCircle, color: 'var(--color-emerald)', trend: performanceStats?.streamTrend },
+                  { label: 'Followers', value: (performanceStats?.followers || 0).toLocaleString(), icon: Crown, color: 'var(--color-purple)', trend: '+2.3%' },
+                  { label: 'Engagement Rate', value: performanceStats?.engagement || '0%', icon: TrendingUp, color: 'var(--color-cyan)', trend: '+0.8%' }
                 ].map((stat, i) => (
                   <div key={i} className="audience-stat-card" style={{ position: 'relative', overflow: 'hidden' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -688,7 +687,6 @@ const DashboardView = ({
                         day: 'numeric',
                         year: createdDate.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
                       });
-                      const _timeSince = getTimeSince(createdDate);
 
                       return (
                         <div
@@ -1057,7 +1055,7 @@ const DashboardView = ({
             </div>
           )}
 
-          {dashboardTab === 'admin' && (
+          {dashboardTab === 'admin' && isAdmin && (
             <Suspense fallback={<div className="loading-spinner">Loading Analytics...</div>}>
               <SectionErrorBoundary name="AdminAnalytics">
                 <AdminAnalytics BACKEND_URL={BACKEND_URL} auth={auth} />
@@ -1556,11 +1554,11 @@ const DashboardView = ({
                         <div key={tier}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
                             <span style={{ textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600', opacity: 0.8 }}>{tier}</span>
-                            <span style={{ fontWeight: '800' }}>{count} <span style={{ color: 'var(--text-secondary)', fontWeight: '400' }}>({Math.round((count / adminStats.users.total) * 100)}%)</span></span>
+                            <span style={{ fontWeight: '800' }}>{count} <span style={{ color: 'var(--text-secondary)', fontWeight: '400' }}>({Math.round((count / (adminStats.users?.total || 1)) * 100)}%)</span></span>
                           </div>
                           <div style={{ width: '100%', height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '5px', overflow: 'hidden' }}>
                             <div style={{
-                              width: `${(count / adminStats.users.total) * 100}%`,
+                              width: `${(count / (adminStats.users?.total || 1)) * 100}%`,
                               height: '100%',
                               borderRadius: '5px',
                               background: tier === 'free' ? 'rgba(255,255,255,0.2)' :
@@ -1639,7 +1637,7 @@ const DashboardView = ({
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Report Generated</span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--color-cyan)' }}>{new Date(adminStats.timestamp).toLocaleTimeString()}</span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--color-cyan)' }}>{adminStats.timestamp ? new Date(adminStats.timestamp).toLocaleTimeString() : 'N/A'}</span>
                       </div>
                     </div>
 

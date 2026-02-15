@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  Sparkles, Zap, Music, ArrowLeft, Save, Check, Edit3, Upload, Layers,
+  Sparkles, Zap, Music, ArrowLeft, Edit3, Upload, Layers,
   ChevronLeft, ChevronRight, X, User, Crown, FileText, Download, Maximize2,
   Copy, Trash2, Share2, Book, Play
 } from 'lucide-react';
