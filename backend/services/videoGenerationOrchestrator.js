@@ -18,34 +18,45 @@ const {
 
 let ffmpegReadyCache = null;
 
+// Resolve ffmpeg binary: prefer system PATH, fall back to ffmpeg-static npm package
+function resolveFfmpegBinary() {
+  // 1. Try system ffmpeg
+  const probe = spawnSync('ffmpeg', ['-version'], { encoding: 'utf-8' });
+  if (!probe.error && probe.status === 0) {
+    return 'ffmpeg'; // system PATH
+  }
+
+  // 2. Try ffmpeg-static npm package
+  try {
+    const ffmpegStatic = require('ffmpeg-static');
+    if (ffmpegStatic) {
+      const staticProbe = spawnSync(ffmpegStatic, ['-version'], { encoding: 'utf-8' });
+      if (!staticProbe.error && staticProbe.status === 0) {
+        return ffmpegStatic;
+      }
+    }
+  } catch (_e) { /* not installed */ }
+
+  return null;
+}
+
 // Quick readiness probe to fail fast when ffmpeg is missing
 function ensureFfmpegAvailable(logger) {
   if (ffmpegReadyCache !== null) {
     return ffmpegReadyCache;
   }
 
-  try {
-    const probe = spawnSync('ffmpeg', ['-version'], { encoding: 'utf-8' });
+  const binary = resolveFfmpegBinary();
 
-    
-    if (probe.error) {
-      throw probe.error;
-    }
-
-    if (probe.status !== 0) {
-      throw new Error(`ffmpeg exited with status ${probe.status}`);
-    }
-
+  if (binary) {
     ffmpegReadyCache = true;
-    if (logger) logger.info('FFmpeg detected for video orchestration');
+    if (logger) logger.info('FFmpeg detected for video orchestration', { binary: binary === 'ffmpeg' ? 'system' : 'ffmpeg-static' });
     return true;
-  } catch (error) {
-    ffmpegReadyCache = false;
-    if (logger) logger.error('FFmpeg missing for video orchestration', {
-      error: error.message
-    });
-    throw new Error('FFmpeg is required for video composition and beat sync. Install it and ensure it is on PATH (e.g., choco install ffmpeg)');
   }
+
+  ffmpegReadyCache = false;
+  if (logger) logger.error('FFmpeg missing for video orchestration — install system ffmpeg or npm ffmpeg-static');
+  throw new Error('FFmpeg is required for video composition and beat sync. Install system ffmpeg or ensure ffmpeg-static is in node_modules.');
 }
 
 /**

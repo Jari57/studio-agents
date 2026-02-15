@@ -10,6 +10,16 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 
+// Use ffmpeg-static as fallback when system ffmpeg is not on PATH
+try {
+  const ffmpegStatic = require('ffmpeg-static');
+  if (ffmpegStatic) {
+    ffmpeg.setFfmpegPath(ffmpegStatic);
+  }
+} catch (_e) {
+  // ffmpeg-static not installed — rely on system ffmpeg
+}
+
 /**
  * Download file from URL
  */
