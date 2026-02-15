@@ -3779,12 +3779,151 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     let systemCreditIssue = false;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+    const sunoApiKey = process.env.SUNO_API_KEY;
+
+    // Determine vocal style category for routing
+    const isSingingStyle = style.includes('singer');
+    const isRapStyle = style.includes('rapper');
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIORITY -1: ElevenLabs (V3.5 High-Fidelity / Premium)
+    // PRIORITY 0: SUNO API — Real AI singing (when API key configured)
     // ═══════════════════════════════════════════════════════════════
-    // Route ALL styles through ElevenLabs when available — it produces the best vocal output
-    if (elevenLabsKey && !audioUrl) {
+    if (sunoApiKey && !audioUrl && isSingingStyle) {
+      try {
+        logger.info('🎵 Using Suno API for real singing vocals', { style, genre });
+
+        const sunoResponse = await fetch('https://studio-api.suno.ai/api/external/generate/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${sunoApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            topic: prompt.substring(0, 1500),
+            tags: `${genre}, ${style.includes('female') ? 'female vocals' : 'male vocals'}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`,
+            make_instrumental: false,
+            is_custom: true
+          })
+        });
+
+        if (sunoResponse.ok) {
+          const sunoData = await sunoResponse.json();
+          const clipId = sunoData.id || sunoData.clip_id || (sunoData.clips && sunoData.clips[0]?.id);
+          if (clipId) {
+            for (let i = 0; i < 60 && !audioUrl; i++) {
+              await new Promise(r => setTimeout(r, 3000));
+              const statusResp = await fetch(`https://studio-api.suno.ai/api/external/clips/?ids=${clipId}`, {
+                headers: { 'Authorization': `Bearer ${sunoApiKey}` }
+              });
+              if (statusResp.ok) {
+                const clips = await statusResp.json();
+                const clip = Array.isArray(clips) ? clips[0] : clips;
+                if (clip?.status === 'complete' && clip?.audio_url) {
+                  const audioResponse = await fetch(clip.audio_url);
+                  if (audioResponse.ok) {
+                    const audioBuffer = await audioResponse.arrayBuffer();
+                    audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioBuffer).toString('base64')}`;
+                    provider = 'suno';
+                    logger.info('✅ Suno singing vocal generated');
+                  }
+                  break;
+                } else if (clip?.status === 'error') {
+                  logger.warn('Suno generation failed:', clip.error_message);
+                  break;
+                }
+              }
+            }
+          }
+        } else {
+          if (sunoResponse.status === 402 || sunoResponse.status === 401) systemCreditIssue = true;
+          logger.warn('Suno API error', { status: sunoResponse.status });
+        }
+      } catch (sunoErr) {
+        logger.error('Suno API failed:', sunoErr.message);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PRIORITY 1 (SINGERS): Bark SINGING mode — produces actual melody
+    // Bark with music note markers generates pitched vocal melody, not flat TTS
+    // ═══════════════════════════════════════════════════════════════
+    if (replicateKey && !audioUrl && isSingingStyle) {
+      try {
+        logger.info('🎵 Using Bark SINGING mode', { style, langCode, genre });
+        let speakerHistory;
+        if (style.includes('female')) {
+          speakerHistory = `v2/${langCode}_speaker_9`;
+        } else {
+          speakerHistory = `v2/${langCode}_speaker_7`;
+        }
+        const singingPrompt = prompt
+          .replace(/\[Verse[^\]]*\]/gi, '')
+          .replace(/\[Chorus[^\]]*\]/gi, '')
+          .replace(/\[Bridge[^\]]*\]/gi, '')
+          .replace(/\[Pre-Chorus[^\]]*\]/gi, '')
+          .replace(/\[Hook[^\]]*\]/gi, '')
+          .replace(/\[Outro[^\]]*\]/gi, '')
+          .replace(/\[Ad-lib:[^\]]*\]/gi, '')
+          .replace(/\[([^\]]*)\]/g, '')
+          .replace(/\n{2,}/g, '\n')
+          .trim();
+        const barkSingingPrompt = `\u266A ${singingPrompt.substring(0, 800)} \u266A`;
+        const response = await fetch('https://api.replicate.com/v1/predictions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${replicateKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
+            input: {
+              prompt: barkSingingPrompt,
+              text_temp: 0.7,
+              waveform_temp: 0.7,
+              history_prompt: speakerHistory
+            }
+          })
+        });
+        if (response.ok) {
+          const prediction = await response.json();
+          let result = prediction;
+          for (let i = 0; i < 90 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
+            await new Promise(r => setTimeout(r, 2000));
+            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+              headers: { 'Authorization': `Bearer ${replicateKey}` }
+            });
+            if (statusResponse.ok) {
+              result = await statusResponse.json();
+              if (result.status === 'succeeded') {
+                let outputUrl = result.output;
+                if (Array.isArray(outputUrl)) outputUrl = outputUrl[0];
+                if (typeof outputUrl === 'object' && outputUrl?.audio_out) outputUrl = outputUrl.audio_out;
+                if (outputUrl && typeof outputUrl === 'string') {
+                  const audioResp = await fetch(outputUrl);
+                  if (audioResp.ok) {
+                    const audioBuf = await audioResp.arrayBuffer();
+                    audioUrl = `data:${audioResp.headers.get('content-type') || 'audio/wav'};base64,${Buffer.from(audioBuf).toString('base64')}`;
+                    provider = 'bark-singing';
+                    logger.info('✅ Bark SINGING vocal generated');
+                    break;
+                  }
+                }
+              } else if (result.status === 'failed') {
+                logger.warn('Bark singing failed, falling through to ElevenLabs');
+                break;
+              }
+            }
+          }
+        }
+      } catch (barkSingErr) {
+        logger.warn('Bark singing mode failed:', barkSingErr.message);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ELEVENLABS: Primary for rappers/narrators, fallback for singers
+    // ═══════════════════════════════════════════════════════════════
+if (elevenLabsKey && !audioUrl) {
       try {
         // Voice ID logic: user-provided > rapStyle-aware mapping > style fallback
         let voiceId = req.body.elevenLabsVoiceId;
@@ -4008,14 +4147,14 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 1: BARK - Expressive speech/vocals via Replicate
+    // BARK SPOKEN - General speech fallback (singers already handled above)
     // ═══════════════════════════════════════════════════════════════
-    if (replicateKey && !audioUrl) {
+    if (replicateKey && !audioUrl && !isSingingStyle) {
       try {
         logger.info('🎤 Using Bark for expressive vocal generation', { style, langCode });
         
         let speakerHistory = `v2/${langCode}_speaker_6`;
-        if (style === 'rapper-female' || style === 'singer-female') {
+        if (style === 'rapper-female') {
           speakerHistory = `v2/${langCode}_speaker_9`;
         } else if (style === 'narrator') {
           speakerHistory = 'announcer';
@@ -4024,7 +4163,6 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
         }
         
         let barkPrompt = prompt;
-        if (style.includes('singer')) barkPrompt = `♪ ${prompt} ♪`;
         
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',

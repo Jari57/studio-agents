@@ -2233,6 +2233,7 @@ REQUIREMENTS:
               voice: selectedVoice,
               style: voiceStyle,
               quality: vocalQuality,
+              provider: data.provider || 'unknown',
               referencedAudioId: activeReferencedAudio?.id
             },
             createdAt: new Date().toISOString()
@@ -2245,7 +2246,17 @@ REQUIREMENTS:
           });
         }
 
-        toast.success('AI Vocals generated!', { id: 'gen-vocals' });
+        const engineLabels = {
+          'suno': 'Suno AI Singing',
+          'bark-singing': 'Bark Singing Engine',
+          'elevenlabs-premium': 'ElevenLabs Premium',
+          'bark': 'Bark Speech',
+          'xtts-v2-clone': 'XTTS Voice Clone',
+          'gemini-tts': 'Gemini TTS',
+          'uberduck-tts': 'Uberduck TTS'
+        };
+        const engineName = engineLabels[data.provider] || data.provider || 'AI';
+        toast.success(`Vocals generated via ${engineName}`, { id: 'gen-vocals' });
       } else {
         const errData = data || {};
         toast.error(errData.details || errData.error || 'Vocal generation failed', { id: 'gen-vocals' });
