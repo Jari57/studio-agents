@@ -2,7 +2,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import toast from 'react-hot-toast';
 import { Sparkles, ArrowRight, Zap, Music, Crown, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LayoutGrid, LogIn, LogOut, User } from 'lucide-react';
 import { AGENTS } from '../constants';
-import { auth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
+import { auth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
 
 // Lazy loaded complex components (standardizing to React.lazy to prevent 'lazy is not defined' error)
 const MultiAgentDemo = React.lazy(() => import('./MultiAgentDemo'));
@@ -450,6 +450,45 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           ? 'Popup blocked by browser.'
           : error.message || 'Failed to sign in.';
       
+      setAuthError(msg);
+      toast.error(msg);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Handle Apple Sign In (required by Apple App Store)
+  const handleAppleSignIn = async () => {
+    if (isTransitioning || authLoading) return;
+
+    setAuthLoading(true);
+    setAuthError('');
+    try {
+      const provider = new OAuthProvider('apple.com');
+      provider.addScope('email');
+      provider.addScope('name');
+      await signInWithPopup(auth, provider);
+
+      setIsTransitioning(true);
+      setShowAuthModal(false);
+
+      setTimeout(() => {
+        if (pendingAction === 'start') {
+          onEnter(true, false, pendingTargetTab);
+        } else {
+          onEnter(false, false, pendingTargetTab);
+        }
+        setPendingTargetTab(null);
+        setIsTransitioning(false);
+      }, 100);
+    } catch (error) {
+      console.error('Apple sign in error:', error);
+      const msg = error.code === 'auth/popup-closed-by-user'
+        ? 'Sign-in cancelled.'
+        : error.code === 'auth/popup-blocked'
+          ? 'Popup blocked by browser.'
+          : error.message || 'Failed to sign in with Apple.';
+
       setAuthError(msg);
       toast.error(msg);
     } finally {
@@ -1835,6 +1874,37 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                   </svg>
                   {authLoading ? 'Signing in...' : 'Continue with Google'}
+                </button>
+              )}
+
+              {/* Apple Sign In - required by Apple App Store */}
+              {authMode !== 'reset' && (
+                <button
+                  onClick={handleAppleSignIn}
+                  disabled={authLoading}
+                  style={{
+                    width: '100%',
+                    padding: '16px 24px',
+                    borderRadius: '14px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: '#000',
+                    color: '#fff',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    cursor: authLoading ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    transition: 'all 0.2s ease',
+                    opacity: authLoading ? 0.7 : 1
+                  }}
+                  className="haptic-press"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                  </svg>
+                  {authLoading ? 'Signing in...' : 'Continue with Apple'}
                 </button>
               )}
 

@@ -1,9 +1,10 @@
 import { initializeApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
-  onAuthStateChanged, 
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  OAuthProvider,
+  onAuthStateChanged,
   signOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -138,14 +139,15 @@ export async function deleteFile(path) {
   }
 }
 
-export { 
-  app, 
-  auth, 
-  db, 
+export {
+  app,
+  auth,
+  db,
   storage,
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  signOut, 
+  GoogleAuthProvider,
+  OAuthProvider,
+  signInWithPopup,
+  signOut,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,

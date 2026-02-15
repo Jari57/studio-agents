@@ -643,6 +643,12 @@ const validatePromptSafety = (prompt) => {
   return { safe: true };
 };
 
+// 🛡️ Safe error detail — hide internal messages in production
+const safeErrorDetail = (err) => {
+  if (isDevelopment) return err && err.message ? err.message : String(err);
+  return undefined; // production: never leak error.message to client
+};
+
 // Enhanced CORS with origin whitelist
 const allowedOrigins = isDevelopment 
   ? [
@@ -657,10 +663,6 @@ const allowedOrigins = isDevelopment
   process.env.FRONTEND_URL]
   : [
       process.env.FRONTEND_URL,
-  'http://localhost:5173', 
-  'http://localhost:3000', 
-  'http://localhost:3001', 
-  'http://127.0.0.1:3001',
   'https://studioagentsai.com',
   'https://www.studioagentsai.com',
   'https://studio-agents.vercel.app',
@@ -1098,7 +1100,7 @@ app.get('/api/models', async (req, res) => {
 
     res.json({ models: supported });
   } catch (err) {
-    res.status(500).json({ error: 'Model listing failed', details: err && err.message ? err.message : String(err) });
+    res.status(500).json({ error: 'Model listing failed', details: safeErrorDetail(err) });
   }
 });
 
@@ -1123,7 +1125,7 @@ app.get('/api/v2/voices', async (req, res) => {
       res.status(response.status).json({ error: 'Failed to fetch voices from ElevenLabs', details: errorData });
     }
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error', details: error.message });
+    res.status(500).json({ error: 'Internal server error', details: safeErrorDetail(error) });
   }
 });
 
@@ -1187,7 +1189,7 @@ app.get('/api/uberduck/voices', async (req, res) => {
       });
     }
   } catch (err) {
-    res.status(500).json({ error: 'Uberduck API error', details: err.message });
+    res.status(500).json({ error: 'Uberduck API error', details: safeErrorDetail(err) });
   }
 });
 
@@ -1265,7 +1267,7 @@ app.post('/api/investor-access/request', apiLimiter, async (req, res) => {
     
   } catch (err) {
     logger.error('Investor access request error:', err);
-    res.status(500).json({ error: 'Access request failed', details: err.message });
+    res.status(500).json({ error: 'Access request failed', details: safeErrorDetail(err) });
   }
 });
 
@@ -1283,7 +1285,7 @@ app.get('/api/investor-access/check', apiLimiter, async (req, res) => {
     
     res.json({ approved: isApproved });
   } catch (err) {
-    res.status(500).json({ error: 'Check failed', details: err.message });
+    res.status(500).json({ error: 'Check failed', details: safeErrorDetail(err) });
   }
 });
 
@@ -1565,7 +1567,7 @@ app.get('/api/user/profile', verifyFirebaseToken, async (req, res) => {
     res.json(userDoc.data());
   } catch (err) {
     logger.error('Get profile error:', err);
-    res.status(500).json({ error: 'Failed to get profile', details: err.message });
+    res.status(500).json({ error: 'Failed to get profile', details: safeErrorDetail(err) });
   }
 });
 
@@ -1607,7 +1609,7 @@ app.put('/api/user/profile', verifyFirebaseToken, async (req, res) => {
     res.json(updated.data());
   } catch (err) {
     logger.error('Update profile error:', err);
-    res.status(500).json({ error: 'Failed to update profile', details: err.message });
+    res.status(500).json({ error: 'Failed to update profile', details: safeErrorDetail(err) });
   }
 });
 
@@ -1626,7 +1628,7 @@ app.get('/api/user/preferences', verifyFirebaseToken, async (req, res) => {
     res.json(preferences);
   } catch (err) {
     logger.error('Get preferences error:', err);
-    res.status(500).json({ error: 'Failed to get preferences', details: err.message });
+    res.status(500).json({ error: 'Failed to get preferences', details: safeErrorDetail(err) });
   }
 });
 
@@ -1646,7 +1648,7 @@ app.put('/api/user/preferences', verifyFirebaseToken, async (req, res) => {
     res.json({ success: true, message: 'Preferences updated' });
   } catch (err) {
     logger.error('Update preferences error:', err);
-    res.status(500).json({ error: 'Failed to update preferences', details: err.message });
+    res.status(500).json({ error: 'Failed to update preferences', details: safeErrorDetail(err) });
   }
 });
 
@@ -1661,7 +1663,7 @@ app.get('/api/user/contact', verifyFirebaseToken, async (req, res) => {
     res.json(contact);
   } catch (err) {
     logger.error('Get contact info error:', err);
-    res.status(500).json({ error: 'Failed to get contact info', details: err.message });
+    res.status(500).json({ error: 'Failed to get contact info', details: safeErrorDetail(err) });
   }
 });
 
@@ -1681,7 +1683,7 @@ app.put('/api/user/contact', verifyFirebaseToken, async (req, res) => {
     res.json({ success: true, message: 'Contact info updated' });
   } catch (err) {
     logger.error('Update contact info error:', err);
-    res.status(500).json({ error: 'Failed to update contact info', details: err.message });
+    res.status(500).json({ error: 'Failed to update contact info', details: safeErrorDetail(err) });
   }
 });
 
@@ -1719,7 +1721,7 @@ app.post('/api/user/generations', verifyFirebaseToken, async (req, res) => {
     res.json({ success: true, id: docRef.id });
   } catch (err) {
     logger.error('Log generation error:', err);
-    res.status(500).json({ error: 'Failed to log generation', details: err.message });
+    res.status(500).json({ error: 'Failed to log generation', details: safeErrorDetail(err) });
   }
 });
 
@@ -1761,7 +1763,7 @@ app.get('/api/user/generations', verifyFirebaseToken, async (req, res) => {
     res.json(generations);
   } catch (err) {
     logger.error('Get generations error:', err);
-    res.status(500).json({ error: 'Failed to get generations', details: err.message });
+    res.status(500).json({ error: 'Failed to get generations', details: safeErrorDetail(err) });
   }
 });
 
@@ -1787,7 +1789,7 @@ app.put('/api/user/generations/:id/favorite', verifyFirebaseToken, async (req, r
     res.json({ success: true, favorite: favorite === true });
   } catch (err) {
     logger.error('Toggle favorite error:', err);
-    res.status(500).json({ error: 'Failed to toggle favorite', details: err.message });
+    res.status(500).json({ error: 'Failed to toggle favorite', details: safeErrorDetail(err) });
   }
 });
 
@@ -1811,7 +1813,7 @@ app.delete('/api/user/generations/:id', verifyFirebaseToken, async (req, res) =>
     res.json({ success: true });
   } catch (err) {
     logger.error('Delete generation error:', err);
-    res.status(500).json({ error: 'Failed to delete generation', details: err.message });
+    res.status(500).json({ error: 'Failed to delete generation', details: safeErrorDetail(err) });
   }
 });
 
@@ -1880,7 +1882,7 @@ app.post('/api/user/session', verifyFirebaseToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     logger.error('Log session error:', err);
-    res.status(500).json({ error: 'Failed to log session', details: err.message });
+    res.status(500).json({ error: 'Failed to log session', details: safeErrorDetail(err) });
   }
 });
 
@@ -1921,7 +1923,7 @@ app.get('/api/user/subscription', verifyFirebaseToken, async (req, res) => {
     });
   } catch (err) {
     logger.error('Get subscription error:', err);
-    res.status(500).json({ error: 'Failed to get subscription', details: err.message });
+    res.status(500).json({ error: 'Failed to get subscription', details: safeErrorDetail(err) });
   }
 });
 
@@ -1949,7 +1951,7 @@ app.get('/api/user/billing', verifyFirebaseToken, async (req, res) => {
     res.json(invoices);
   } catch (err) {
     logger.error('Get billing error:', err);
-    res.status(500).json({ error: 'Failed to get billing history', details: err.message });
+    res.status(500).json({ error: 'Failed to get billing history', details: safeErrorDetail(err) });
   }
 });
 
@@ -1985,7 +1987,7 @@ app.post('/api/user/billing/update-payment', verifyFirebaseToken, async (req, re
     res.json({ url: portalSession.url });
   } catch (err) {
     logger.error('Update payment error:', err);
-    res.status(500).json({ error: 'Failed to create billing portal', details: err.message });
+    res.status(500).json({ error: 'Failed to create billing portal', details: safeErrorDetail(err) });
   }
 });
 
@@ -2020,7 +2022,7 @@ app.get('/api/user/credits', verifyFirebaseToken, async (req, res) => {
     });
   } catch (err) {
     logger.error('Get credits error:', err);
-    res.status(500).json({ error: 'Failed to get credits', details: err.message });
+    res.status(500).json({ error: 'Failed to get credits', details: safeErrorDetail(err) });
   }
 });
 
@@ -2114,7 +2116,7 @@ app.post('/api/user/credits', verifyFirebaseToken, async (req, res) => {
     res.json({ success: true, message: `Added ${amount} credits`, reason });
   } catch (err) {
     logger.error('Add credits error:', err);
-    res.status(500).json({ error: 'Failed to add credits', details: err.message });
+    res.status(500).json({ error: 'Failed to add credits', details: safeErrorDetail(err) });
   }
 });
 
@@ -2176,7 +2178,7 @@ app.post('/api/user/credits/deduct', verifyFirebaseToken, async (req, res) => {
       return res.status(402).json({ error: 'Insufficient credits', required: amount });
     }
     
-    res.status(500).json({ error: 'Failed to deduct credits', details: err.message });
+    res.status(500).json({ error: 'Failed to deduct credits', details: safeErrorDetail(err) });
   }
 });
 
@@ -2202,7 +2204,7 @@ app.get('/api/user/credits/history', verifyFirebaseToken, async (req, res) => {
     res.json(history);
   } catch (err) {
     logger.error('Get credit history error:', err);
-    res.status(500).json({ error: 'Failed to get credit history', details: err.message });
+    res.status(500).json({ error: 'Failed to get credit history', details: safeErrorDetail(err) });
   }
 });
 
@@ -2287,7 +2289,7 @@ app.post('/api/upload-asset', verifyFirebaseToken, async (req, res) => {
     }
   } catch (err) {
     logger.error('Upload asset error:', err);
-    res.status(500).json({ error: 'Failed to upload asset', details: err.message });
+    res.status(500).json({ error: 'Failed to upload asset', details: safeErrorDetail(err) });
   }
 });
 
@@ -2361,7 +2363,7 @@ app.post('/api/upload-from-url', verifyFirebaseToken, async (req, res) => {
     }
   } catch (err) {
     logger.error('Upload from URL error:', err);
-    res.status(500).json({ error: 'Failed to save asset from URL', details: err.message });
+    res.status(500).json({ error: 'Failed to save asset from URL', details: safeErrorDetail(err) });
   }
 });
 
@@ -2398,7 +2400,7 @@ app.get('/api/user/assets', verifyFirebaseToken, async (req, res) => {
     res.json(assets);
   } catch (err) {
     logger.error('Get assets error:', err);
-    res.status(500).json({ error: 'Failed to get assets', details: err.message });
+    res.status(500).json({ error: 'Failed to get assets', details: safeErrorDetail(err) });
   }
 });
 
@@ -2445,7 +2447,7 @@ app.delete('/api/user/assets/:id', verifyFirebaseToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     logger.error('Delete asset error:', err);
-    res.status(500).json({ error: 'Failed to delete asset', details: err.message });
+    res.status(500).json({ error: 'Failed to delete asset', details: safeErrorDetail(err) });
   }
 });
 
@@ -2486,7 +2488,7 @@ app.post('/api/user/projects', verifyFirebaseToken, async (req, res) => {
     res.json({ success: true, id: docRef.id, ...project });
   } catch (err) {
     logger.error('Save project error:', err);
-    res.status(500).json({ error: 'Failed to save project', details: err.message });
+    res.status(500).json({ error: 'Failed to save project', details: safeErrorDetail(err) });
   }
 });
 
@@ -2508,12 +2510,12 @@ app.post('/api/user/delete-account', verifyFirebaseToken, async (req, res) => {
     // 1. Delete all projects
     const projectsRef = db.collection('users').doc(userId).collection('projects');
     const projectsSnapshot = await projectsRef.get();
-    
+
     const batch = db.batch();
     projectsSnapshot.forEach(doc => {
       batch.delete(doc.ref);
     });
-    
+
     // 2. Delete credit history
     const historyRef = db.collection('users').doc(userId).collection('credit_history');
     const historySnapshot = await historyRef.get();
@@ -2521,16 +2523,48 @@ app.post('/api/user/delete-account', verifyFirebaseToken, async (req, res) => {
       batch.delete(doc.ref);
     });
 
-    // 3. Delete the user document itself
+    // 3. Delete any other subcollections (sessions, preferences, generations)
+    const subcollections = ['sessions', 'preferences', 'generations', 'voices', 'assets'];
+    for (const sub of subcollections) {
+      try {
+        const subRef = db.collection('users').doc(userId).collection(sub);
+        const subSnapshot = await subRef.get();
+        subSnapshot.forEach(doc => batch.delete(doc.ref));
+      } catch (_) { /* subcollection may not exist */ }
+    }
+
+    // 4. Delete the user document itself
     batch.delete(db.collection('users').doc(userId));
 
     await batch.commit();
-    
-    logger.info(`✅ Account data wiped for user: ${userId}`);
-    res.json({ success: true, message: 'Account data deleted successfully' });
+
+    // 5. Delete user files from Cloud Storage
+    const bucket = getStorageBucket();
+    if (bucket) {
+      try {
+        const [files] = await bucket.getFiles({ prefix: `users/${userId}/` });
+        if (files.length > 0) {
+          await Promise.all(files.map(file => file.delete().catch(() => {})));
+          logger.info(`🗑️ Deleted ${files.length} storage files for user: ${userId}`);
+        }
+      } catch (storageErr) {
+        logger.warn('Storage cleanup partial failure (non-blocking):', storageErr.message);
+      }
+    }
+
+    // 6. Delete the Firebase Auth account itself (Apple App Store requirement)
+    try {
+      await admin.auth().deleteUser(userId);
+      logger.info(`✅ Firebase Auth account deleted for user: ${userId}`);
+    } catch (authDeleteErr) {
+      logger.warn('Firebase Auth deletion failed (non-blocking):', authDeleteErr.message);
+    }
+
+    logger.info(`✅ Account fully deleted for user: ${userId}`);
+    res.json({ success: true, message: 'Account and all data deleted successfully' });
   } catch (err) {
     logger.error('Account deletion error:', err);
-    res.status(500).json({ error: 'Failed to wipe account data', details: err.message });
+    res.status(500).json({ error: 'Failed to delete account' });
   }
 });
 
@@ -2568,7 +2602,7 @@ app.get('/api/user/projects', verifyFirebaseToken, async (req, res) => {
     res.json(projects);
   } catch (err) {
     logger.error('Get projects error:', err);
-    res.status(500).json({ error: 'Failed to get projects', details: err.message });
+    res.status(500).json({ error: 'Failed to get projects', details: safeErrorDetail(err) });
   }
 });
 
@@ -2601,7 +2635,7 @@ app.put('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
     res.json({ success: true, id });
   } catch (err) {
     logger.error('Update project error:', err);
-    res.status(500).json({ error: 'Failed to update project', details: err.message });
+    res.status(500).json({ error: 'Failed to update project', details: safeErrorDetail(err) });
   }
 });
 
@@ -2625,7 +2659,7 @@ app.delete('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     logger.error('Delete project error:', err);
-    res.status(500).json({ error: 'Failed to delete project', details: err.message });
+    res.status(500).json({ error: 'Failed to delete project', details: safeErrorDetail(err) });
   }
 });
 
@@ -3284,7 +3318,7 @@ Keep output to ONLY the lyrics with section labels. No commentary, no explanatio
 
     res.status(500).json({
       error: 'Music video generation failed',
-      details: error.message,
+      details: safeErrorDetail(error),
       partialResults: results
     });
   }
@@ -3538,7 +3572,7 @@ app.post('/api/extract-video-frame', verifyFirebaseToken, async (req, res) => {
     logger.error('Video frame extraction error', { error: error.message });
     res.status(500).json({ 
       error: 'Frame extraction failed', 
-      details: error.message,
+      details: safeErrorDetail(error),
       extractClientSide: true // Fallback to client-side
     });
   }
@@ -3720,7 +3754,7 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCreditsFor('image'), g
 
   } catch (error) {
     logger.error('Image generation error', { error: error.message });
-    res.status(500).json({ error: 'Image generation failed', details: error.message });
+    res.status(500).json({ error: 'Image generation failed', details: safeErrorDetail(error) });
   }
 });
 
@@ -4382,7 +4416,7 @@ if (elevenLabsKey && !audioUrl) {
     }
   } catch (error) {
     logger.error('Vocal generation error', { error: error.message });
-    res.status(500).json({ error: 'Vocal generation failed', details: error.message });
+    res.status(500).json({ error: 'Vocal generation failed', details: safeErrorDetail(error) });
   }
 });
 
@@ -4688,7 +4722,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
     }
   } catch (error) {
     logger.error('Global audio error', { error: error.message });
-    res.status(500).json({ error: 'Audio generation failed', details: error.message });
+    res.status(500).json({ error: 'Audio generation failed', details: safeErrorDetail(error) });
   }
 });
 
@@ -4814,7 +4848,7 @@ app.post('/api/mix-audio', verifyFirebaseToken, checkCreditsFor('mixing'), gener
     logger.error('Audio mixing error', { error: error.message });
     res.status(500).json({
       error: 'Professional mixing failed',
-      details: error.message
+      details: safeErrorDetail(error)
     });
   }
 });
@@ -5003,7 +5037,7 @@ app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), g
 
   } catch (error) {
     logger.error('Video generation error', { error: error.message });
-    res.status(500).json({ error: 'Video generation failed', details: error.message });
+    res.status(500).json({ error: 'Video generation failed', details: safeErrorDetail(error) });
   }
 });
 
@@ -5189,7 +5223,7 @@ app.post('/api/amo/orchestrate', verifyFirebaseToken, apiLimiter, async (req, re
     
   } catch (error) {
     logger.error('AMO Orchestrator error', { error: error.message });
-    res.status(500).json({ error: 'AMO orchestration failed', details: error.message });
+    res.status(500).json({ error: 'AMO orchestration failed', details: safeErrorDetail(error) });
   }
 });
 
@@ -5360,7 +5394,7 @@ app.post('/api/master-audio', verifyFirebaseToken, async (req, res) => {
 
   } catch (error) {
     logger.error('Audio mastering error', { error: error.message });
-    res.status(500).json({ error: 'Audio mastering failed', details: error.message });
+    res.status(500).json({ error: 'Audio mastering failed', details: safeErrorDetail(error) });
   }
 });
 
@@ -5402,7 +5436,7 @@ app.post('/api/translate', verifyFirebaseToken, checkCreditsFor('translate'), ap
 
   } catch (error) {
     logger.error('Translation error', { error: error.message });
-    res.status(500).json({ error: 'Translation failed', details: error.message });
+    res.status(500).json({ error: 'Translation failed', details: safeErrorDetail(error) });
   }
 });
 
@@ -5911,7 +5945,7 @@ app.get('/api/news', async (req, res) => {
 
   } catch (err) {
     logger.error('News API Error', { error: err.message, stack: err.stack });
-    res.status(500).json({ error: 'Failed to fetch news', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch news', details: safeErrorDetail(err) });
   }
 });
 
@@ -7438,7 +7472,7 @@ app.post('/api/analyze-beats-test', async (req, res) => {
     logger.error('Beat analysis error', { error: error.message });
     res.status(500).json({
       error: 'Beat analysis failed',
-      details: error.message
+      details: safeErrorDetail(error)
     });
   }
 });
@@ -7478,7 +7512,7 @@ app.post('/api/analyze-beats', verifyFirebaseToken, async (req, res) => {
     logger.error('Beat analysis error', { error: error.message });
     res.status(500).json({
       error: 'Beat analysis failed',
-      details: error.message
+      details: safeErrorDetail(error)
     });
   }
 });
@@ -7545,7 +7579,7 @@ app.post('/api/generate-synced-video-test', async (req, res) => {
     logger.error('Synced video generation error', { error: error.message });
     res.status(500).json({
       error: 'Video generation failed',
-      details: error.message
+      details: safeErrorDetail(error)
     });
   }
 });
@@ -7680,7 +7714,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, checkCreditsFor('vid
     logger.error('Synced video generation error', { error: error.message });
     res.status(500).json({
       error: 'Video generation failed',
-      details: error.message
+      details: safeErrorDetail(error)
     });
   }
 });
@@ -7709,7 +7743,7 @@ app.get('/api/video-job-status-test/:jobId', async (req, res) => {
     logger.error('Job status check error', { error: error.message });
     res.status(500).json({
       error: 'Could not check job status',
-      details: error.message
+      details: safeErrorDetail(error)
     });
   }
 });
@@ -7738,7 +7772,7 @@ app.get('/api/video-job-status/:jobId', verifyFirebaseToken, async (req, res) =>
     logger.error('Job status check error', { error: error.message });
     res.status(500).json({
       error: 'Could not check job status',
-      details: error.message
+      details: safeErrorDetail(error)
     });
   }
 });
@@ -7769,7 +7803,7 @@ app.post('/api/video-metadata-test', async (req, res) => {
     logger.error('Metadata extraction error', { error: error.message });
     res.status(500).json({
       error: 'Could not extract metadata',
-      details: error.message
+      details: safeErrorDetail(error)
     });
   }
 });
@@ -7801,7 +7835,7 @@ app.post('/api/video-metadata', verifyFirebaseToken, async (req, res) => {
     logger.error('Metadata extraction error', { error: error.message });
     res.status(500).json({
       error: 'Could not extract metadata',
-      details: error.message
+      details: safeErrorDetail(error)
     });
   }
 });
