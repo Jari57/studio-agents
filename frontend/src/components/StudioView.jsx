@@ -651,8 +651,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [voiceSettings, setVoiceSettings] = useState({
     gender: 'male', region: 'US', language: 'English', style: 'rapper',
     rapStyle: 'aggressive', genre: 'hip-hop', duration: 30, voiceName: 'rapper-male-1',
-    speakerUrl: localStorage.getItem('studio_cloned_voice_url') || null
+    speakerUrl: localStorage.getItem('studio_cloned_voice_url') || null,
+    bpm: 90
   });
+  const [heroGenre, setHeroGenre] = useState('hip-hop');
+  const [heroIntensity, setHeroIntensity] = useState(5);
 
   // --- ASSET MANAGEMENT HANDLERS ---
   const handleDeleteAsset = (assetId) => {
@@ -3419,10 +3422,14 @@ const fetchUserCredits = useCallback(async (uid) => {
         body: JSON.stringify({
           prompt: textToSpeak,
           voice: voiceSettings.voiceName || 'rapper-male-1',
-          style: voiceSettings.style || 'rapper',  // rapper, rapper-female, singer, singer-female
-          rapStyle: voiceSettings.rapStyle || 'aggressive',  // aggressive, melodic, trap, drill, boom-bap, fast, chill, hype
-          genre: voiceSettings.genre || 'hip-hop',  // hip-hop, r&b, pop, soul, trap, drill
+          style: voiceSettings.style || 'rapper',
+          rapStyle: voiceSettings.rapStyle || 'aggressive',
+          genre: voiceSettings.genre || 'hip-hop',
+          language: voiceSettings.language || 'English',
+          duration: voiceSettings.duration || 30,
           speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
+          backingTrackUrl: audioDnaUrl || null,
+          audioId: referencedAudioId || undefined,
           elevenLabsVoiceId: elevenLabsVoiceId,
           quality: (elevenLabsVoiceId || voiceSampleUrl) ? 'premium' : 'standard'
         })
@@ -4084,12 +4091,12 @@ const fetchUserCredits = useCallback(async (uid) => {
         finalBody = { 
           prompt: expandedPrompt, 
           bpm: voiceSettings.bpm || 90, 
-          genre: voiceSettings.genre || (agentId === 'beat' ? 'hip-hop' : 'sample'),
-          mood: 'creative', 
+          genre: heroGenre || voiceSettings.genre || (agentId === 'beat' ? 'hip-hop' : 'sample'),
+          mood: heroIntensity >= 7 ? 'aggressive' : heroIntensity >= 4 ? 'creative' : 'chill', 
           durationSeconds: voiceSettings.duration || 30,
           referenceAudio: audioDnaUrl,
           audioId: referencedAudioId,
-          quality: 'premium', // Ensure high-fidelity
+          quality: 'premium',
           engine: 'auto'
         };
       } else if (isSpeechAgent) {
@@ -5302,18 +5309,23 @@ const fetchUserCredits = useCallback(async (uid) => {
                 <div className="utility-controls">
                   <div className="control-group">
                     <label>Genre / Style</label>
-                    <select className="studio-select">
-                      <option>Hip Hop / Rap</option>
-                      <option>Pop / Modern</option>
-                      <option>R&B / Soul</option>
-                      <option>Electronic / Dance</option>
-                      <option>Rock / Alternative</option>
-                      <option>Lo-Fi / Chill</option>
+                    <select className="studio-select" value={heroGenre} onChange={e => { setHeroGenre(e.target.value); setVoiceSettings(prev => ({ ...prev, genre: e.target.value })); }}>
+                      <option value="hip-hop">Hip Hop / Rap</option>
+                      <option value="pop">Pop / Modern</option>
+                      <option value="r&b">R&B / Soul</option>
+                      <option value="electronic">Electronic / Dance</option>
+                      <option value="rock">Rock / Alternative</option>
+                      <option value="lo-fi">Lo-Fi / Chill</option>
+                      <option value="trap">Trap</option>
+                      <option value="drill">Drill</option>
+                      <option value="afrobeat">Afrobeat</option>
+                      <option value="reggaeton">Reggaeton</option>
+                      <option value="latin">Latin</option>
                     </select>
                   </div>
                   <div className="control-group">
-                    <label>Intensity / Mood</label>
-                    <input type="range" className="studio-slider" min="1" max="10" defaultValue="5" />
+                    <label>Intensity / Mood ({heroIntensity}/10)</label>
+                    <input type="range" className="studio-slider" min="1" max="10" value={heroIntensity} onChange={e => setHeroIntensity(Number(e.target.value))} />
                   </div>
                 </div>
 
@@ -5529,7 +5541,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                                 <label>🎶 Music Genre</label>
                                 <select 
                                   value={voiceSettings.genre || 'r&b'}
-                                  onChange={(e) => setVoiceSettings({...voiceSettings, genre: e.target.value})}
+                                  onChange={(e) => { setVoiceSettings({...voiceSettings, genre: e.target.value}); setHeroGenre(e.target.value); }}
                                   className="settings-select"
                                 >
                                   <option value="r&b">💜 R&B / Soul</option>
@@ -5606,6 +5618,23 @@ const fetchUserCredits = useCallback(async (uid) => {
                                 <option value={180}>3 Minutes (Full Track)</option>
                               </select>
                             </div>
+
+                            {/* BPM Control — visible for audio/beat agents */}
+                            {selectedAgent && ['beat', 'sample', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film', 'sample-master', 'score-edit', 'drop-zone', 'music-architect', 'audio-gen', 'video-scorer'].includes(selectedAgent.id) && (
+                              <div className="settings-field">
+                                <label className="settings-label">BPM</label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <input 
+                                    type="range" 
+                                    min="60" max="200" 
+                                    value={voiceSettings.bpm || 90} 
+                                    onChange={(e) => setVoiceSettings({...voiceSettings, bpm: parseInt(e.target.value)})}
+                                    style={{ flex: 1 }}
+                                  />
+                                  <span style={{ minWidth: '40px', textAlign: 'right', fontSize: '0.85rem', fontWeight: '700', color: 'var(--color-cyan)' }}>{voiceSettings.bpm || 90}</span>
+                                </div>
+                              </div>
+                            )}
                             
                             <p className="settings-info" style={{ marginTop: '8px', opacity: 0.8 }}>
                               {['rapper', 'rapper-female', 'singer', 'singer-female', 'cloned', 'narrator', 'spoken'].includes(voiceSettings.style) ? (
@@ -6781,18 +6810,23 @@ const fetchUserCredits = useCallback(async (uid) => {
                     <div className="utility-controls">
                       <div className="control-group">
                         <label>Genre / Style</label>
-                        <select className="studio-select">
-                          <option>Hip Hop / Rap</option>
-                          <option>Pop / Modern</option>
-                          <option>R&B / Soul</option>
-                          <option>Electronic / Dance</option>
-                          <option>Rock / Alternative</option>
-                          <option>Lo-Fi / Chill</option>
+                        <select className="studio-select" value={heroGenre} onChange={e => { setHeroGenre(e.target.value); setVoiceSettings(prev => ({ ...prev, genre: e.target.value })); }}>
+                          <option value="hip-hop">Hip Hop / Rap</option>
+                          <option value="pop">Pop / Modern</option>
+                          <option value="r&b">R&B / Soul</option>
+                          <option value="electronic">Electronic / Dance</option>
+                          <option value="rock">Rock / Alternative</option>
+                          <option value="lo-fi">Lo-Fi / Chill</option>
+                          <option value="trap">Trap</option>
+                          <option value="drill">Drill</option>
+                          <option value="afrobeat">Afrobeat</option>
+                          <option value="reggaeton">Reggaeton</option>
+                          <option value="latin">Latin</option>
                         </select>
                       </div>
                       <div className="control-group">
-                        <label>Intensity / Mood</label>
-                        <input type="range" className="studio-slider" min="1" max="10" defaultValue="5" />
+                        <label>Intensity / Mood ({heroIntensity}/10)</label>
+                        <input type="range" className="studio-slider" min="1" max="10" value={heroIntensity} onChange={e => setHeroIntensity(Number(e.target.value))} />
                       </div>
                     </div>
 
