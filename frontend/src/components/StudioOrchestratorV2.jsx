@@ -2135,15 +2135,38 @@ REQUIREMENTS:
       // Use the same voice mapping as handleGenerateLyricsVocal
       const voiceMapping = {
         'rapper': 'rapper-male-1',
+        'rapper-melodic': 'rapper-male-1',
+        'rapper-young': 'rapper-male-1',
         'rapper-female': 'rapper-female-1',
+        'rapper-female-melodic': 'rapper-female-1',
         'singer': 'singer-male',
+        'singer-pop': 'singer-male',
         'singer-female': 'singer-female',
+        'singer-female-pop': 'singer-female',
         'narrator': 'narrator',
         'whisper': 'whisper',
         'spoken': 'spoken'
       };
-      
+
       const selectedVoice = voiceMapping[voiceStyle] || 'rapper-male-1';
+
+      // Map expanded voice styles to backend style + rapStyle/genre params
+      let backendStyle = voiceStyle;
+      let backendRapStyle = rapStyle;
+      if (voiceStyle === 'rapper-melodic') {
+        backendStyle = 'rapper';
+        backendRapStyle = 'melodic';
+      } else if (voiceStyle === 'rapper-young') {
+        backendStyle = 'rapper';
+        backendRapStyle = 'trap';
+      } else if (voiceStyle === 'rapper-female-melodic') {
+        backendStyle = 'rapper-female';
+        backendRapStyle = 'melodic';
+      } else if (voiceStyle === 'singer-pop') {
+        backendStyle = 'singer';
+      } else if (voiceStyle === 'singer-female-pop') {
+        backendStyle = 'singer-female';
+      }
 
       // DNA reference audio (using voiceSampleUrl from state)
       const activeReferencedAudio = null; // TODO: Implement asset lookup if needed
@@ -2152,18 +2175,18 @@ REQUIREMENTS:
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: cleanLyrics.substring(0, 1500), 
+          prompt: cleanLyrics.substring(0, 1500),
           voice: selectedVoice,
-          style: voiceStyle,
-          rapStyle: rapStyle,
-          genre: genre,
+          style: backendStyle,
+          rapStyle: backendRapStyle,
+          genre: voiceStyle === 'singer-pop' ? 'pop' : (voiceStyle === 'singer-female-pop' ? 'pop' : genre),
           language: language || 'English',
           duration: duration || 30,
           quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
           outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
           speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : (activeReferencedAudio?.audioUrl || null),
           elevenLabsVoiceId: (vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null,
-          backingTrackUrl: mediaUrls.audio 
+          backingTrackUrl: mediaUrls.audio
         })
       });
 
@@ -4248,13 +4271,22 @@ REQUIREMENTS:
                   outline: 'none'
                 }}
               >
-                <optgroup label="🔥 AI Rappers (Suno/Bark)">
-                  <option value="rapper">🎤 Male Rapper</option>
-                  <option value="rapper-female">💜 Female Rapper</option>
+                <optgroup label="🔥 Male Rappers">
+                  <option value="rapper">🎤 Rapper (Deep / Aggressive)</option>
+                  <option value="rapper-melodic">🎵 Rapper (Melodic / Smooth)</option>
+                  <option value="rapper-young">⚡ Rapper (Young / Trap)</option>
                 </optgroup>
-                <optgroup label="🎵 AI Singers">
+                <optgroup label="💜 Female Rappers">
+                  <option value="rapper-female">💜 Female Rapper (Powerful)</option>
+                  <option value="rapper-female-melodic">🎵 Female Rapper (Melodic)</option>
+                </optgroup>
+                <optgroup label="🎵 Male Singers">
                   <option value="singer">🎤 Male Singer (R&B/Soul)</option>
-                  <option value="singer-female">💫 Female Singer (Pop/R&B)</option>
+                  <option value="singer-pop">🌟 Male Singer (Pop)</option>
+                </optgroup>
+                <optgroup label="💫 Female Singers">
+                  <option value="singer-female">💫 Female Singer (R&B/Soul)</option>
+                  <option value="singer-female-pop">🌟 Female Singer (Pop)</option>
                 </optgroup>
                 <optgroup label="🗣️ Narration">
                   <option value="narrator">📢 Narrator (Deep Voice)</option>
@@ -4369,14 +4401,43 @@ REQUIREMENTS:
                           cursor: 'pointer'
                         }}
                       >
-                        <option value="">Select ElevenLabs Voice (Premium)</option>
-                        <optgroup label="Professional Models">
-                          {elVoices.map(voice => (
-                            <option key={voice.voice_id} value={voice.voice_id}>
-                              {voice.name} ({voice.labels?.accent || voice.labels?.gender || 'Pro'})
-                            </option>
-                          ))}
-                        </optgroup>
+                        <option value="">Auto (Best match for style)</option>
+                        {(() => {
+                          const males = elVoices.filter(v => v.labels?.gender === 'male');
+                          const females = elVoices.filter(v => v.labels?.gender === 'female');
+                          const other = elVoices.filter(v => !v.labels?.gender || (v.labels.gender !== 'male' && v.labels.gender !== 'female'));
+                          return (
+                            <>
+                              {males.length > 0 && (
+                                <optgroup label="Male Voices">
+                                  {males.map(voice => (
+                                    <option key={voice.voice_id} value={voice.voice_id}>
+                                      {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {females.length > 0 && (
+                                <optgroup label="Female Voices">
+                                  {females.map(voice => (
+                                    <option key={voice.voice_id} value={voice.voice_id}>
+                                      {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                              {other.length > 0 && (
+                                <optgroup label="Other Voices">
+                                  {other.map(voice => (
+                                    <option key={voice.voice_id} value={voice.voice_id}>
+                                      {voice.name} ({voice.labels?.accent || voice.labels?.use_case || 'Pro'})
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                            </>
+                          );
+                        })()}
                       </select>
                     ) : (
                       <input
@@ -4478,7 +4539,7 @@ REQUIREMENTS:
               )}
               
               {/* Rap Style Selector - only show for rap voices */}
-              {(voiceStyle === 'rapper' || voiceStyle === 'rapper-female') && (
+              {(voiceStyle === 'rapper' || voiceStyle === 'rapper-female' || voiceStyle === 'rapper-melodic' || voiceStyle === 'rapper-young' || voiceStyle === 'rapper-female-melodic') && (
                 <select
                   value={rapStyle}
                   onChange={(e) => setRapStyle(e.target.value)}
@@ -4507,7 +4568,7 @@ REQUIREMENTS:
               )}
               
               {/* Genre Selector - only show for singers */}
-              {(voiceStyle === 'singer' || voiceStyle === 'singer-female') && (
+              {(voiceStyle === 'singer' || voiceStyle === 'singer-female' || voiceStyle === 'singer-pop' || voiceStyle === 'singer-female-pop') && (
                 <select
                   value={genre}
                   onChange={(e) => setGenre(e.target.value)}

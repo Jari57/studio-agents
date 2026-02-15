@@ -3367,12 +3367,13 @@ async function generateVocalsInternal(options, logger) {
     throw new Error('ElevenLabs API key not configured');
   }
 
-  // Map voice styles to ElevenLabs voice IDs
+  // Map voice styles to ElevenLabs voice IDs — performance-oriented voices
   const voiceIdMap = {
-    'rapper': 'pNInz6obpgDQGcFmaJgB', // Adam
-    'rapper-female': 'Lcf7NAZ7x9YVvj6S7YhL', // Alice
-    'singer': 'MF3mGyEYCl7XYW7ANnSM', // Emotional Singer
-    'narrator': 'onwK4e9ZLuTAKqWW03af' // Documentary
+    'rapper':         'VR6AewLTigWG4xSOukaG', // Arnold — deep, commanding
+    'rapper-female':  'jsCqWAovK2LkecY7zXl4', // Freya — powerful, dynamic
+    'singer':         'ErXwobaYiN019PkySvjV', // Antoni — warm, soulful
+    'singer-female':  '21m00Tcm4TlvDq8ikWAM', // Rachel — warm, emotional
+    'narrator':       'onwK4e9ZLuTAKqWW03af'  // Daniel — documentary
   };
 
   const voiceId = voiceIdMap[style] || voiceIdMap['rapper'];
@@ -3782,19 +3783,65 @@ app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), 
     // ═══════════════════════════════════════════════════════════════
     // PRIORITY -1: ElevenLabs (V3.5 High-Fidelity / Premium)
     // ═══════════════════════════════════════════════════════════════
-    // If ElevenLabs key is present, try it first for 'cloned', if a voice ID is provided, or if premium quality is requested
-    if (elevenLabsKey && !audioUrl && (style === 'cloned' || req.body.elevenLabsVoiceId || req.body.quality === 'premium' || style.includes('rapper'))) {
+    // Route ALL styles through ElevenLabs when available — it produces the best vocal output
+    if (elevenLabsKey && !audioUrl) {
       try {
-        // Voice ID logic: Choose a voice that matches the request
+        // Voice ID logic: user-provided > rapStyle-aware mapping > style fallback
         let voiceId = req.body.elevenLabsVoiceId;
-        
+
         if (!voiceId) {
-          // V3.5 CURATED VOICE MAPPING for Rap/Premium - BILLBOARD READY
-          if (style === 'rapper') voiceId = 'pNInz6obpgDQGcFmaJgB'; // Adam (Good for mature rap)
-          else if (style === 'rapper-female') voiceId = 'Lcf7NAZ7x9YVvj6S7YhL'; // Female Rapper (Alice)
-          else if (style === 'singer') voiceId = 'MF3mGyEYCl7XYW7ANnSM'; // Emotional Singer
-          else if (style === 'narrator') voiceId = 'onwK4e9ZLuTAKqWW03af'; // Deep Documentary
-          else voiceId = 'pNInz6obpgDQGcFmaJgB'; // Default Adam
+          // ── CURATED VOICE ROSTER ──
+          // Each voice chosen for its character, timbre, and suitability for musical delivery
+          const VOICE_MAP = {
+            // Male Rappers — mapped by rapStyle for different delivery characters
+            'rapper': {
+              'aggressive':   'VR6AewLTigWG4xSOukaG', // Arnold — deep, commanding, hard-hitting
+              'melodic':      'ErXwobaYiN019PkySvjV', // Antoni — warm, melodic, smooth
+              'trap':         'TxGEqnHWrfWFTfGW9XjX', // Josh — young energy, dynamic
+              'drill':        'ODq5zmih8GrVes37Dizd', // Patrick — dark, serious tone
+              'boom-bap':     'pNInz6obpgDQGcFmaJgB', // Adam — mature, classic delivery
+              'fast':         'yoZ06aMxZJJ28mfd3POQ', // Sam — quick, articulate
+              'chill':        'cjVigY5qzO86Huf0OWal', // Eric — relaxed, casual flow
+              'hype':         'N2lVS1w4EtoT3dr4eOWO', // Callum — energetic, animated
+              'default':      'VR6AewLTigWG4xSOukaG'  // Arnold as default rapper
+            },
+            // Female Rappers
+            'rapper-female': {
+              'aggressive':   'jsCqWAovK2LkecY7zXl4', // Freya — powerful, dynamic
+              'melodic':      'cgSgspJ2msm6clMCkdW9', // Jessica — expressive, smooth
+              'trap':         'AZnzlk1XvdvUeBnXmlld', // Domi — young, bold energy
+              'drill':        'jsCqWAovK2LkecY7zXl4', // Freya — edgy delivery
+              'chill':        'cgSgspJ2msm6clMCkdW9', // Jessica — laid-back
+              'hype':         'AZnzlk1XvdvUeBnXmlld', // Domi — animated
+              'default':      'jsCqWAovK2LkecY7zXl4'  // Freya as default female rapper
+            },
+            // Male Singers
+            'singer': {
+              'r&b':          'ErXwobaYiN019PkySvjV', // Antoni — warm, soulful
+              'pop':          'TX3LPaxmHKxFdv7VOQHJ', // Liam — clean, bright
+              'hip-hop':      'TxGEqnHWrfWFTfGW9XjX', // Josh — versatile
+              'soul':         'JBFqnCBsd6RMkjVDRZzb', // George — rich, warm
+              'default':      'ErXwobaYiN019PkySvjV'  // Antoni as default singer
+            },
+            // Female Singers
+            'singer-female': {
+              'r&b':          '21m00Tcm4TlvDq8ikWAM', // Rachel — warm, emotional
+              'pop':          'EXAVITQu4vr4xnSDxMaL', // Bella — sweet, clear
+              'soul':         'FGY2WhTYpPnrIDTdsKH5', // Laura — powerful, warm
+              'hip-hop':      'cgSgspJ2msm6clMCkdW9', // Jessica — expressive
+              'default':      '21m00Tcm4TlvDq8ikWAM'  // Rachel as default female singer
+            },
+            // Narration
+            'narrator':       { 'default': 'onwK4e9ZLuTAKqWW03af' }, // Daniel — deep documentary
+            'spoken':         { 'default': 'cjVigY5qzO86Huf0OWal' }, // Eric — natural spoken word
+          };
+
+          const styleMap = VOICE_MAP[style] || VOICE_MAP['rapper'];
+          // For rappers, use rapStyle; for singers, use genre; otherwise default
+          const subKey = style.includes('rapper') ? (rapStyle || 'default') :
+                         style.includes('singer') ? (genre || 'default') :
+                         'default';
+          voiceId = styleMap[subKey] || styleMap['default'] || 'VR6AewLTigWG4xSOukaG';
         }
 
         logger.info('🎤 Using ElevenLabs V3.5 High-Fidelity', { voiceId, quality: req.body.quality, style, outputFormat });
