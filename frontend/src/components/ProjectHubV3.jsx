@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback as _useCallback } from 'react';
 import { 
   Search, Plus, LayoutGrid, List as ListIcon, MoreHorizontal,
-  Play, Trash2, Edit3, Copy, Heart, Clock, Folder,
+  Play, Trash2, Edit3, Copy, Heart, Clock, Folder as FolderIcon,
   Music, Video as VideoIcon, Image as ImageIcon, Mic, FileText, X, Sparkles,
   ChevronRight, Download, Share2, CheckCircle, Archive,
   Pause, Upload, Wand2, Zap, TrendingUp, Star, Eye,
@@ -546,7 +546,7 @@ function ProjectHubV3({
             className={`hub-tab-item ${activeHubTab === 'my-projects' ? 'active' : ''}`}
             onClick={() => setActiveHubTab('my-projects')}
           >
-            <Folder size={18} />
+            <FolderIcon size={18} />
             <span>My Projects</span>
           </button>
           <button 
