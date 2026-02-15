@@ -673,11 +673,10 @@ const allowedOrigins = isDevelopment
 
 app.use(cors({
   origin: function(origin, callback) {
-    // Allow requests with no origin only in development (mobile apps, curl, server-to-server, same-origin)
-    if (!origin) {
-      if (isDevelopment) return callback(null, true);
-      return callback(new Error('Origin required'));
-    }
+    // Allow requests with no origin (same-origin requests, mobile apps, server-to-server)
+    // In production the frontend is served from the same Express server,
+    // so browser fetch() won't include an Origin header — this MUST be allowed.
+    if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
