@@ -499,6 +499,29 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
             The world's first AI Record Label in your pocket.
           </p>
+          <button
+            onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'resources')}
+            className="haptic-press"
+            style={{
+              marginTop: '20px',
+              padding: '12px 28px',
+              background: 'rgba(168, 85, 247, 0.15)',
+              border: '1px solid rgba(168, 85, 247, 0.4)',
+              borderRadius: '14px',
+              color: '#a855f7',
+              fontSize: '0.95rem',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.15)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+          >
+            See What's Possible <ArrowRight size={16} />
+          </button>
         </div>
 
         {/* Mission & Vision */}
@@ -638,48 +661,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       </section>
 
       {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          DEMO SECTIONS - Single Agent Demo + Multi-Agent Demo
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-      <section style={{ padding: '0 20px 60px', maxWidth: '900px', margin: '0 auto' }}>
-        {/* Single Agent Demo */}
-        <div style={{ marginBottom: '48px' }}>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
-              Try an <span className="gradient-text-vibrant">Agent</span>
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              Pick one agent, give it an idea, and see what it creates.
-            </p>
-          </div>
-          <Suspense fallback={<div style={{ minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
-            <SingleAgentDemo />
-          </Suspense>
-        </div>
-
-        {/* Multi-Agent Demo */}
-        <div>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
-              Experience <span className="gradient-text-cyan-blue">Parallel Intelligence</span>
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '600px', margin: '0 auto' }}>
-              Watch our specialized agents work in sync to build your entire release package in seconds.
-            </p>
-          </div>
-          <Suspense fallback={<div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
-            <MultiAgentDemo />
-          </Suspense>
-        </div>
-      </section>
-
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           NAVIGATION BUTTONS - Quick access to studio sections
           â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <section style={{ padding: '0 20px 60px', maxWidth: '900px', margin: '0 auto' }}>
         <h2 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
           Jump Into the Studio
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
           {[
             { label: 'AI Orchestrator', icon: Zap, tab: 'mystudio', color: '#06b6d4', desc: 'Full auto pipeline' },
             { label: 'Agents', icon: Sparkles, tab: 'agents', color: '#a855f7', desc: '16 AI specialists' },
@@ -726,6 +714,41 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </div>
       </section>
 
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          DEMO SECTIONS - Single Agent Demo + Multi-Agent Demo
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <section style={{ padding: '0 20px 60px', maxWidth: '900px', margin: '0 auto' }}>
+        {/* Single Agent Demo */}
+        <div style={{ marginBottom: '48px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
+              Try an <span className="gradient-text-vibrant">Agent</span>
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              Pick one agent, give it an idea, and see what it creates.
+            </p>
+          </div>
+          <Suspense fallback={<div style={{ minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
+            <SingleAgentDemo />
+          </Suspense>
+        </div>
+
+        {/* Multi-Agent Demo */}
+        <div>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
+              Experience <span className="gradient-text-cyan-blue">Parallel Intelligence</span>
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '600px', margin: '0 auto' }}>
+              Watch our specialized agents work in sync to build your entire release package in seconds.
+            </p>
+          </div>
+          <Suspense fallback={<div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
+            <MultiAgentDemo />
+          </Suspense>
+        </div>
+      </section>
+
       {/* Meet the Agents - Full agent grid */}
       <section style={{ padding: '0 20px 60px', maxWidth: '900px', margin: '0 auto' }}>
         <h2 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center' }}>
@@ -733,7 +756,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </h2>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '20px',
           margin: '0 auto'
         }}>

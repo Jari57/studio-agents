@@ -2108,10 +2108,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         if (p.id === projectId) {
           const existingAssets = p.assets || [];
           
-          // Check for duplicate asset by ID or by content hash
+          // Check for duplicate asset by ID, URLs, or content hash
           const isDuplicate = existingAssets.some(existing => 
-            existing.id === asset.id || 
-            (existing.content === asset.content && existing.type === asset.type && existing.agent === asset.agent)
+            existing.id === asset.id ||
+            (asset.audioUrl && existing.audioUrl === asset.audioUrl) ||
+            (asset.url && existing.url === asset.url) ||
+            (asset.videoUrl && existing.videoUrl === asset.videoUrl) ||
+            (asset.imageUrl && existing.imageUrl === asset.imageUrl) ||
+            (existing.content && asset.content && existing.type === asset.type && existing.agent === asset.agent && existing.content.substring(0, 200) === asset.content.substring(0, 200))
           );
           
           if (isDuplicate) {
@@ -3937,9 +3941,11 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       // Auto-translate if not English
       if (voiceSettings.language !== 'English') {
+        const translateHeaders = { 'Content-Type': 'application/json' };
+        if (headers['Authorization']) translateHeaders['Authorization'] = headers['Authorization'];
         const response = await fetch(`${BACKEND_URL}/api/translate`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: translateHeaders,
           body: JSON.stringify({
             text: prompt,
             targetLanguage: 'English',
@@ -4173,9 +4179,20 @@ const fetchUserCredits = useCallback(async (uid) => {
         
         // Map common errors to user-friendly messages
         if (response.status === 403) {
-          toast.error("Insufficient credits for media generation.", { id: toastId });
+          if (data.isUserCreditIssue) {
+            toast.error(`Insufficient credits! ${targetAgentSnapshot.name} needs ${data.required || 'more'} credits.`, { id: toastId });
+            setDashboardTab('subscription');
+            setActiveTab('mystudio');
+          } else {
+            toast.error("Insufficient credits for media generation.", { id: toastId });
+          }
         } else if (response.status === 401) {
-          toast.error("Please log in to use AI media generation.", { id: toastId });
+          if (data.requiresAuth) {
+            toast.error(data.message || `You've used your free generations. Sign in to continue.`, { id: toastId });
+          } else {
+            toast.error("Please log in to use AI media generation.", { id: toastId });
+          }
+          setShowLoginModal(true);
         } else if (response.status === 503 || response.status === 504) {
           toast.error("Media server is currently overloaded or out of credits. Try again in a minute.", { id: toastId });
         } else {
@@ -12583,13 +12600,45 @@ const fetchUserCredits = useCallback(async (uid) => {
               const existingIndex = projects.findIndex(p => p.id === project.id);
               if (existingIndex >= 0) {
                 const existingProject = projects[existingIndex];
-                const existingAssetIds = new Set((existingProject.assets || []).map(a => a.id));
-                const newAssets = (project.assets || []).filter(a => !existingAssetIds.has(a.id));
+                // Build a dedup fingerprint — checks ID, audio URL, image URL, video URL, and content+type+agent
+                const existingAssets = existingProject.assets || [];
+                const existingFingerprints = new Set();
+                for (const a of existingAssets) {
+                  if (a.id) existingFingerprints.add(`id:${a.id}`);
+                  if (a.audioUrl) existingFingerprints.add(`audio:${a.audioUrl}`);
+                  if (a.url) existingFingerprints.add(`url:${a.url}`);
+                  if (a.videoUrl) existingFingerprints.add(`video:${a.videoUrl}`);
+                  if (a.imageUrl) existingFingerprints.add(`img:${a.imageUrl}`);
+                  if (a.content && a.type) existingFingerprints.add(`content:${a.type}:${a.agent || ''}:${a.content.substring(0, 200)}`);
+                }
+                
+                const newAssets = (project.assets || []).filter(a => {
+                  if (a.id && existingFingerprints.has(`id:${a.id}`)) return false;
+                  if (a.audioUrl && existingFingerprints.has(`audio:${a.audioUrl}`)) return false;
+                  if (a.url && existingFingerprints.has(`url:${a.url}`)) return false;
+                  if (a.videoUrl && existingFingerprints.has(`video:${a.videoUrl}`)) return false;
+                  if (a.imageUrl && existingFingerprints.has(`img:${a.imageUrl}`)) return false;
+                  if (a.content && a.type && existingFingerprints.has(`content:${a.type}:${a.agent || ''}:${a.content.substring(0, 200)}`)) return false;
+                  return true;
+                });
+                
+                if (newAssets.length === 0) {
+                  console.log(`[TRACE:${traceId}] onSaveToProject: No new unique assets to add, skipping`);
+                  // Still update non-asset fields
+                  const finalProject = { ...existingProject, ...project, assets: existingAssets, updatedAt: new Date().toISOString() };
+                  const newProjects = [...projects];
+                  newProjects[existingIndex] = finalProject;
+                  setProjects(newProjects);
+                  setSelectedProject(finalProject);
+                  return;
+                }
+                
+                console.log(`[TRACE:${traceId}] onSaveToProject: Adding ${newAssets.length} unique assets (filtered ${(project.assets || []).length - newAssets.length} duplicates)`);
                 
                 const finalProject = {
                   ...existingProject,
                   ...project,
-                  assets: [...(existingProject.assets || []), ...newAssets],
+                  assets: [...existingAssets, ...newAssets],
                   updatedAt: new Date().toISOString()
                 };
                 

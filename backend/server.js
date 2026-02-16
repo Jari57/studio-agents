@@ -446,6 +446,8 @@ const checkCreditsFor = (featureType) => {
     }
     
     if (!req.user) {
+      // Anonymous users: free limit already enforced by requireAuthOrFreeLimit
+      // Skip credit deduction (they don't have accounts)
       return next(); 
     }
 
@@ -797,6 +799,69 @@ if (isDevelopment) {
   app.use(morgan('tiny')); // Brief console output
 }
 
+// =============================================================================
+// ANONYMOUS GENERATION TRACKING (Server-side enforcement)
+// Tracks free-tier usage by IP fingerprint to prevent localStorage abuse
+// =============================================================================
+const ANON_FREE_LIMIT = 3; // Free generations for anonymous users
+const ANON_WINDOW_MS = 24 * 60 * 60 * 1000; // 24-hour window
+const anonGenerationTracker = new Map(); // key: ipHash → { count, expiresAt }
+
+// Clean up expired entries every 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [key, entry] of anonGenerationTracker) {
+    if (now > entry.expiresAt) {
+      anonGenerationTracker.delete(key);
+      cleaned++;
+    }
+  }
+  if (cleaned > 0) logger.debug(`🧹 Cleaned ${cleaned} expired anon tracking entries`);
+}, 30 * 60 * 1000);
+
+// Check and increment anonymous generation count. Returns { allowed, remaining, used }.
+const checkAnonGenerationLimit = (req) => {
+  const ipHash = ipKeyGenerator(req);
+  const now = Date.now();
+  let entry = anonGenerationTracker.get(ipHash);
+
+  if (!entry || now > entry.expiresAt) {
+    entry = { count: 0, expiresAt: now + ANON_WINDOW_MS };
+    anonGenerationTracker.set(ipHash, entry);
+  }
+
+  if (entry.count >= ANON_FREE_LIMIT) {
+    return { allowed: false, remaining: 0, used: entry.count };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: ANON_FREE_LIMIT - entry.count, used: entry.count };
+};
+
+// Middleware: require auth OR allow limited anonymous free generations
+const requireAuthOrFreeLimit = (req, res, next) => {
+  // Authenticated users pass through (credits handled by checkCreditsFor)
+  if (req.user) return next();
+
+  // Anonymous: enforce server-side free generation limit
+  const { allowed, remaining, used } = checkAnonGenerationLimit(req);
+  if (!allowed) {
+    logger.warn(`🚫 Anonymous free limit exceeded`, { ip: req.ip, used });
+    return res.status(401).json({
+      error: 'Free limit reached',
+      message: `You've used your ${ANON_FREE_LIMIT} free generations. Sign in to continue with credits.`,
+      requiresAuth: true,
+      freeUsed: used,
+      freeLimit: ANON_FREE_LIMIT
+    });
+  }
+
+  req.anonGeneration = { remaining, used };
+  logger.info(`🆓 Anonymous generation ${used}/${ANON_FREE_LIMIT}`, { ip: req.ip });
+  next();
+};
+
 // Fingerprint-based user tracking for rate limiting (IPv6-safe)
 const createFingerprint = (req) => {
   const ipHash = ipKeyGenerator(req); // IPv6-safe IP normalization
@@ -1105,7 +1170,7 @@ app.get('/api/models', async (req, res) => {
 
 // ==================== ELEVENLABS VOICES API ====================
 // List available ElevenLabs professional voices
-app.get('/api/v2/voices', async (req, res) => {
+app.get('/api/v2/voices', verifyFirebaseToken, async (req, res) => {
   try {
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
     if (!elevenLabsKey) {
@@ -1130,7 +1195,7 @@ app.get('/api/v2/voices', async (req, res) => {
 
 // ==================== UBERDUCK VOICES API ====================
 // List available Uberduck voices for rap/speech generation
-app.get('/api/uberduck/voices', async (req, res) => {
+app.get('/api/uberduck/voices', verifyFirebaseToken, async (req, res) => {
   try {
     const uberduckKey = process.env.UBERDUCK_API_KEY;
     
@@ -2663,7 +2728,7 @@ app.delete('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
 });
 
 // GENERATION ROUTE (with optional Firebase auth) - 1 credit for text/lyrics
-app.post('/api/generate', verifyFirebaseToken, checkCreditsFor('text'), generationLimiter, async (req, res) => {
+app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('text'), generationLimiter, async (req, res) => {
   try {
     const { 
       prompt, 
@@ -3108,7 +3173,7 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
 // Complete end-to-end workflow: Lyrics → Beat → Vocals → Mix → Video
 // THE INVESTOR SHOWCASE FEATURE
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/generate-complete-music-video', verifyFirebaseToken, checkCreditsFor('orchestrate'), generationLimiter, async (req, res) => {
+app.post('/api/generate-complete-music-video', verifyFirebaseToken, requireAuth, checkCreditsFor('orchestrate'), generationLimiter, async (req, res) => {
   try {
     const {
       concept,          // e.g., "dark trap song about success"
@@ -3581,7 +3646,7 @@ app.post('/api/extract-video-frame', verifyFirebaseToken, async (req, res) => {
 // IMAGE GENERATION ROUTE (Multi-Model: Flux 1.1 Pro -> Nano Banana -> Imagen)
 // ═══════════════════════════════════════════════════════════════════
 // Image generation charges 3 credits
-app.post('/api/generate-image', verifyFirebaseToken, checkCreditsFor('image'), generationLimiter, async (req, res) => {
+app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('image'), generationLimiter, async (req, res) => {
   try {
     const { prompt, aspectRatio = '1:1', model = 'flux', referenceImage } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
@@ -3765,7 +3830,7 @@ app.post('/api/generate-image', verifyFirebaseToken, checkCreditsFor('image'), g
 // PRIORITY 3: Bark for expressive spoken word with emotion
 // ═══════════════════════════════════════════════════════════════════
 // Vocal/speech generation charges 2 credits
-app.post('/api/generate-speech', verifyFirebaseToken, checkCreditsFor('vocal'), generationLimiter, async (req, res) => {
+app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('vocal'), generationLimiter, async (req, res) => {
   try {
     const {
       prompt,
@@ -4425,7 +4490,7 @@ if (elevenLabsKey && !audioUrl) {
 //          2. Replicate MusicGen (fallback)
 // ═══════════════════════════════════════════════════════════════════
 // Beat/music generation charges 5 credits (or 10 for extended duration)
-app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), generationLimiter, async (req, res) => {
+app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('beat'), generationLimiter, async (req, res) => {
   try {
     const { 
       prompt, bpm: rawBpm = 90, durationSeconds: rawDuration = 30, genre = 'hip-hop', mood = 'chill',
@@ -4730,7 +4795,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, checkCreditsFor('beat'), ge
 // PROFESSIONAL AUDIO MIXING & MASTERING
 // Billboard-ready vocal + beat mixing with auto-ducking and mastering
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/mix-audio', verifyFirebaseToken, checkCreditsFor('mixing'), generationLimiter, async (req, res) => {
+app.post('/api/mix-audio', verifyFirebaseToken, requireAuth, checkCreditsFor('mixing'), generationLimiter, async (req, res) => {
   try {
     const {
       vocalUrl,
@@ -4856,7 +4921,7 @@ app.post('/api/mix-audio', verifyFirebaseToken, checkCreditsFor('mixing'), gener
 // ═══════════════════════════════════════════════════════════════════
 // CREATE FINAL MIX - Combines vocals + beat into mastered track
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/create-final-mix', verifyFirebaseToken, generationLimiter, async (req, res) => {
+app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
   try {
     const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '' } = req.body;
 
@@ -4932,7 +4997,7 @@ app.post('/api/create-final-mix', verifyFirebaseToken, generationLimiter, async 
 // VIDEO GENERATION ROUTE (Multi-Model: Replicate -> Veo -> Fallback)
 // ═══════════════════════════════════════════════════════════════════
 // Video generation charges 15 credits (expensive)
-app.post('/api/generate-video', verifyFirebaseToken, checkCreditsFor('video'), generationLimiter, async (req, res) => {
+app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('video'), generationLimiter, async (req, res) => {
   try {
     let { prompt, referenceImage, durationSeconds = 8, audioUrl = null, vocalUrl = null, audioDuration = null } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
@@ -7665,7 +7730,7 @@ app.post('/api/generate-synced-video-test', async (req, res) => {
  * Supports 30s, 60s, and 180s (3 minute) videos
  */
 // Synced video charges 20 credits (complex operation)
-app.post('/api/generate-synced-video', verifyFirebaseToken, checkCreditsFor('video-synced'), generationLimiter, async (req, res) => {
+app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCreditsFor('video-synced'), generationLimiter, async (req, res) => {
   try {
     const { 
       audioUrl, 
