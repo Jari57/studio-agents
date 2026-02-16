@@ -233,7 +233,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   };
   
   // Handle CTA button clicks - show auth modal (with guard)
-  const handleCtaClick = (action = 'start', targetTab = 'resources') => {
+  const handleCtaClick = (action = 'start', targetTab = 'mystudio') => {
     if (isTransitioning) return; // Prevent clicks during transition
     
     // ðŸš€ Check if already logged in via Firebase OR localStorage
@@ -761,7 +761,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   position: 'relative',
                   overflow: 'hidden'
                 }}
-                onClick={() => handleCtaClick('agent', 'agents')}
+                onClick={() => handleCtaClick('agent', agent.id)}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${tier.accent}66`; e.currentTarget.style.transform = 'translateY(-4px)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = `${tier.accent}22`; e.currentTarget.style.transform = 'translateY(0)'; }}
               >

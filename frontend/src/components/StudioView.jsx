@@ -532,16 +532,18 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   });
 
   // --- NAVIGATION & UI ---
+  const VALID_TABS = ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal', 'support', 'profile', 'more'];
   const [activeTab, _setActiveTab] = useState(() => {
     const hash = window.location.hash;
     if (hash.startsWith('#/studio/')) {
       const tab = hash.split('/')[2];
       if (typeof AGENTS !== 'undefined' && AGENTS && AGENTS.some(a => a.id === tab)) return 'agents';
-      return tab;
+      if (VALID_TABS.includes(tab)) return tab;
+      return 'mystudio';
     }
     const uid = localStorage.getItem('studio_user_id') || 'guest';
     const lastTab = localStorage.getItem(`studio_tab_${uid}`);
-    return (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal'].includes(lastTab)) ? lastTab : 'resources';
+    return (lastTab && VALID_TABS.includes(lastTab)) ? lastTab : 'mystudio';
   });
   const [theme, setTheme] = useState(() => localStorage.getItem('studio_theme') || 'dark');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -910,10 +912,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       if (agent) {
         if (activeTab !== 'agents') _setActiveTab('agents');
         if (selectedAgent?.id !== agent.id) setSelectedAgent(agent);
-      } else {
+      } else if (VALID_TABS.includes(tabOrId)) {
         if (tabOrId !== activeTab) {
           _setActiveTab(tabOrId);
         }
+      } else {
+        _setActiveTab('mystudio');
       }
     };
     window.addEventListener('hashchange', handleHashChange);
@@ -932,9 +936,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
   
-  // Swipe Navigation Hook
+  // Swipe Navigation Hook - matches bottom nav order
   const swipeHandlers = useSwipeNavigation(
-    ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing'],
+    ['agents', 'hub', 'mystudio', 'activity', 'resources'],
     activeTab,
     setActiveTab
   );
@@ -1784,7 +1788,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     console.log('[StudioView] Deep link check - initialTab:', initialTab);
     
     // 1. Handle standard top-level tabs
-    const standardTabs = ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub'];
+    const standardTabs = ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'support', 'profile', 'more'];
     if (standardTabs.includes(initialTab)) {
       setActiveTab(initialTab);
       return;

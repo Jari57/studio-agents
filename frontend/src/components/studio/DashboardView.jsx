@@ -225,66 +225,10 @@ const DashboardView = ({
         {/* Dashboard Content Area */}
         <div className="dashboard-main-content">
           {dashboardTab === 'overview' && (
-            <div className="dashboard-view-overview animate-fadeIn">
-              {/* AI Production Pipeline — Launch Orchestrator CTA */}
-              <div 
-                onClick={() => setShowOrchestrator(true)}
-                style={{
-                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(6, 182, 212, 0.15) 50%, rgba(236, 72, 153, 0.08) 100%)',
-                  borderRadius: '20px',
-                  padding: '28px 32px',
-                  marginBottom: '24px',
-                  border: '1px solid rgba(168, 85, 247, 0.25)',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.5)';
-                  e.currentTarget.style.boxShadow = '0 8px 40px rgba(168, 85, 247, 0.2)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.25)';
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'radial-gradient(circle at 80% 50%, rgba(6, 182, 212, 0.1) 0%, transparent 50%)', pointerEvents: 'none' }} />
-                <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{
-                      width: '52px', height: '52px', borderRadius: '14px',
-                      background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 4px 16px rgba(168, 85, 247, 0.4)'
-                    }}>
-                      <Zap size={26} color="white" />
-                    </div>
-                    <div>
-                      <h3 style={{ margin: '0 0 4px 0', fontSize: '1.2rem', fontWeight: '700', color: 'white' }}>
-                        AI Production Pipeline
-                      </h3>
-                      <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                        1 idea → lyrics, beats, vocals, artwork & video — all AI-generated
-                      </p>
-                    </div>
-                  </div>
-                  <div style={{
-                    padding: '10px 24px', borderRadius: '12px',
-                    background: 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
-                    color: 'white', fontSize: '0.9rem', fontWeight: '700',
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    boxShadow: '0 4px 16px rgba(168, 85, 247, 0.3)'
-                  }}>
-                    <Rocket size={16} /> Launch Orchestrator
-                  </div>
-                </div>
-              </div>
-
+            <div className="dashboard-view-overview animate-fadeIn" style={{ display: 'flex', flexDirection: 'column' }}>
               {/* Artist Profile & Command Center */}
               <div className="artist-profile-header animate-fadeIn" style={{
+                order: 1,
                 background: 'linear-gradient(135deg, var(--color-bg-secondary) 0%, var(--color-bg-tertiary) 100%)',
                 borderRadius: '24px',
                 padding: '24px',
@@ -408,7 +352,7 @@ const DashboardView = ({
               </div>
 
               {/* Feature Utilization & Smart Insights */}
-              <div className="dashboard-grid-two-cols" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+              <div className="dashboard-grid-two-cols" style={{ order: 6, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '24px' }}>
                 <div className="dashboard-card usage-insights-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '20px', border: '1px solid var(--border-color)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                     <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -536,7 +480,7 @@ const DashboardView = ({
               </div>
 
               {/* Audience Insights (Advanced) */}
-              <div className="audience-overview" style={{ marginBottom: '24px' }}>
+              <div className="audience-overview" style={{ order: 7, marginBottom: '24px' }}>
                 {[
                   { label: 'Monthly Listeners', value: (performanceStats?.listeners || 0).toLocaleString(), icon: UsersIcon, color: 'var(--color-blue)', trend: performanceStats?.growth },
                   { label: 'Total Streams', value: (performanceStats?.streams || 0).toLocaleString(), icon: PlayCircle, color: 'var(--color-emerald)', trend: performanceStats?.streamTrend },
@@ -567,10 +511,11 @@ const DashboardView = ({
               {/* Profile Completion Pulse (Optional) */}
               {!userProfile.stageName && (
                 <div className="profile-nudge-card animate-fadeInUp" style={{
-                  background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.2) 0%, rgba(168, 85, 247, 0.05) 100%)',
-                  border: '1px solid var(--color-purple)',
-                  borderRadius: '12px',
-                  padding: '16px 24px',
+                  order: 2,
+                  background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  borderRadius: '24px',
+                  padding: '24px',
                   marginBottom: '24px',
                   display: 'flex',
                   alignItems: 'center',
@@ -598,6 +543,7 @@ const DashboardView = ({
 
               {/* AI Production Pipeline Card - NEW PRIMARY ACTION */}
               <div className="dashboard-card orchestrator-promo-card animate-fadeInUp" style={{
+                order: 4,
                 marginBottom: '24px',
                 background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%)',
                 border: '1px solid rgba(139, 92, 246, 0.3)',
@@ -650,11 +596,27 @@ const DashboardView = ({
               </div>
 
               {/* Workflow Onboarding Card */}
-              <div className="dashboard-card workflow-card" style={{ marginBottom: '24px', background: 'var(--color-bg-secondary)', border: '1px solid var(--border-color)' }}>
-                <div className="card-header">
-                  <h3><Sparkles size={18} className="text-cyan" /> Studio Workflow</h3>
+              <div className="dashboard-card workflow-card animate-fadeInUp" style={{
+                order: 3,
+                marginBottom: '24px',
+                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
+                border: '1px solid rgba(6, 182, 212, 0.3)',
+                borderRadius: '24px',
+                padding: '24px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1 }}>
+                  <Sparkles size={120} color="var(--color-cyan)" />
                 </div>
-                <div className="workflow-steps-mini" style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)', padding: '10px', borderRadius: '12px', color: 'white' }}>
+                      <Sparkles size={24} />
+                    </div>
+                    <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.5px' }}>Studio Workflow</h2>
+                  </div>
+                <div className="workflow-steps-mini" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {[
                     {
                       step: 1,
@@ -701,10 +663,11 @@ const DashboardView = ({
                     <Folder size={14} /> Open Existing
                   </button>
                 </div>
+                </div>
               </div>
 
               {/* Recent Projects Section */}
-              <section className="dashboard-card recent-projects-card" style={{ marginBottom: '24px' }}>
+              <section className="dashboard-card recent-projects-card" style={{ order: 8, marginBottom: '24px' }}>
                 <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Folder size={18} className="text-cyan" /> Your Projects
@@ -908,7 +871,7 @@ const DashboardView = ({
               </section>
 
               {/* Brand Strategy Section */}
-              <section className="dashboard-card brand-strategy-card" style={{ marginBottom: '24px' }}>
+              <section className="dashboard-card brand-strategy-card" style={{ order: 9, marginBottom: '24px' }}>
                 <div className="card-header">
                   <h3><Target size={18} /> Build Your Legacy</h3>
                   <Zap size={18} className="text-yellow-400" />
@@ -933,7 +896,7 @@ const DashboardView = ({
                 </div>
               </section>
 
-              <div className="dashboard-grid">
+              <div className="dashboard-grid" style={{ order: 10 }}>
                 {/* Dynamic Project Checklist */}
                 <div className="dashboard-card onboarding-card" style={{ border: '1px solid rgba(168, 85, 247, 0.3)', background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.05) 0%, rgba(0,0,0,0) 100%)' }}>
                   <div className="card-header">
@@ -1008,50 +971,6 @@ const DashboardView = ({
                   </div>
                 </div>
 
-                {/* Social Connections */}
-                <section className="dashboard-card">
-                  <div className="card-header">
-                    <h3><Share2 size={18} /> Social Ecosystem</h3>
-                    <span className="status-badge online">Live</span>
-                  </div>
-                  <div className="connection-list">
-                    <div className="connection-item">
-                      <div className="connection-info">
-                        <div className="icon-box twitter-bg">
-                          <Twitter size={20} />
-                        </div>
-                        <div>
-                          <p className="connection-name">X (Twitter)</p>
-                          <p className="connection-status">{socialConnections.twitter ? `@${twitterUsername || 'Connected'}` : 'Not Connected'}</p>
-                        </div>
-                      </div>
-                      <button
-                        className={`btn-connect ${socialConnections.twitter ? 'connected' : ''}`}
-                        onClick={() => handleConnectSocial('twitter')}
-                      >
-                        {socialConnections.twitter ? 'Manage' : 'Connect'}
-                      </button>
-                    </div>
-                    <div className="connection-item">
-                      <div className="connection-info">
-                        <div className="icon-box instagram-bg">
-                          <Instagram size={20} />
-                        </div>
-                        <div>
-                          <p className="connection-name">Instagram</p>
-                          <p className="connection-status">{socialConnections.instagram ? (metaName || 'Connected') : 'Not Connected'}</p>
-                        </div>
-                      </div>
-                      <button
-                        className={`btn-connect ${socialConnections.instagram ? 'connected' : ''}`}
-                        onClick={() => handleConnectSocial('instagram')}
-                      >
-                        {socialConnections.instagram ? 'Manage' : 'Connect'}
-                      </button>
-                    </div>
-                  </div>
-                </section>
-
                 {/* Storage Connections */}
                 <section className="dashboard-card">
                   <div className="card-header">
@@ -1078,6 +997,59 @@ const DashboardView = ({
                     </div>
                   </div>
                 </section>
+              </div>
+
+              {/* Social Ecosystem - Standalone */}
+              <div className="dashboard-card social-ecosystem-card animate-fadeInUp" style={{
+                order: 5,
+                marginBottom: '24px',
+                background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)',
+                border: '1px solid rgba(236, 72, 153, 0.3)',
+                borderRadius: '24px',
+                padding: '24px',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <div className="card-header">
+                  <h3><Share2 size={18} /> Social Ecosystem</h3>
+                  <span className="status-badge online">Live</span>
+                </div>
+                <div className="connection-list">
+                  <div className="connection-item">
+                    <div className="connection-info">
+                      <div className="icon-box twitter-bg">
+                        <Twitter size={20} />
+                      </div>
+                      <div>
+                        <p className="connection-name">X (Twitter)</p>
+                        <p className="connection-status">{socialConnections.twitter ? `@${twitterUsername || 'Connected'}` : 'Not Connected'}</p>
+                      </div>
+                    </div>
+                    <button
+                      className={`btn-connect ${socialConnections.twitter ? 'connected' : ''}`}
+                      onClick={() => handleConnectSocial('twitter')}
+                    >
+                      {socialConnections.twitter ? 'Manage' : 'Connect'}
+                    </button>
+                  </div>
+                  <div className="connection-item">
+                    <div className="connection-info">
+                      <div className="icon-box instagram-bg">
+                        <Instagram size={20} />
+                      </div>
+                      <div>
+                        <p className="connection-name">Instagram</p>
+                        <p className="connection-status">{socialConnections.instagram ? (metaName || 'Connected') : 'Not Connected'}</p>
+                      </div>
+                    </div>
+                    <button
+                      className={`btn-connect ${socialConnections.instagram ? 'connected' : ''}`}
+                      onClick={() => handleConnectSocial('instagram')}
+                    >
+                      {socialConnections.instagram ? 'Manage' : 'Connect'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
