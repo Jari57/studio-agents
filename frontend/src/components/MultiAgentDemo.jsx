@@ -53,12 +53,12 @@ function AgentOutputCard({ icon: Icon, title, color, output, isLoading, delay = 
   return (
     <div style={{
       background: 'rgba(0,0,0,0.4)',
-      borderRadius: '16px',
-      padding: '16px',
+      borderRadius: '20px',
+      padding: '20px',
       border: `1px solid ${color}22`,
       position: 'relative',
       overflow: 'hidden',
-      minHeight: '140px'
+      minHeight: '175px'
     }}>
       {/* Glow effect */}
       <div style={{
@@ -81,19 +81,19 @@ function AgentOutputCard({ icon: Icon, title, color, output, isLoading, delay = 
         zIndex: 1
       }}>
         <div style={{
-          width: '32px',
-          height: '32px',
-          borderRadius: '10px',
+          width: '40px',
+          height: '40px',
+          borderRadius: '12px',
           background: `${color}20`,
           border: `1px solid ${color}40`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          {Icon ? <Icon size={16} color={color} /> : <Sparkles size={16} color={color} />}
+          {Icon ? <Icon size={20} color={color} /> : <Sparkles size={20} color={color} />}
         </div>
         <span style={{ 
-          fontSize: '0.8rem', 
+          fontSize: '0.9rem', 
           fontWeight: '600',
           color: color,
           textTransform: 'uppercase',
@@ -576,8 +576,8 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
       {/* Agent Outputs Grid */}
       <div className="agent-outputs-grid" style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '16px'
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: '20px'
       }}>
         <AgentOutputCard
           icon={Mic2}
@@ -737,7 +737,8 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
         @keyframes bounce {
           0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
           40% { transform: scale(1); opacity: 1; }
-        
+        }
+
         @keyframes shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }

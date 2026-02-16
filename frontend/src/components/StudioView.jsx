@@ -6236,7 +6236,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         />
                       ) : currentPreview.type === 'video' && currentPreview.videoUrl ? (
                         <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
-                          <video src={formatVideoSrc(currentPreview.videoUrl)} style={{ width: '100%', height: '220px', objectFit: 'cover', cursor: 'pointer' }} onClick={() => safeOpenGenerationPreview(currentPreview)} />
+                          <video src={formatVideoSrc(currentPreview.videoUrl)} style={{ width: '100%', height: '220px', objectFit: 'cover', cursor: 'pointer' }} onClick={() => safeOpenGenerationPreview(currentPreview)} onError={(e) => { e.target.style.display = 'none'; }} />
                           {currentPreview.audioUrl && (
                             <div style={{ position: 'absolute', bottom: '10px', right: '10px', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', color: 'var(--color-cyan)', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '800' }}>
                               <Music size={12} /> SYNCED AUDIO
@@ -6264,6 +6264,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                                    controls 
                                    src={formatAudioSrc(currentPreview.audioUrl)} 
                                    style={{ width: '100%', height: '36px', marginBottom: '8px' }}
+                                   onError={(e) => { console.warn('[Audio] Failed to load:', e.target.src); e.target.style.opacity = '0.4'; }}
                                    onPlay={(e) => {
                                       const container = e.target.parentElement;
                                       const backingAudio = container.querySelector('.preview-backing-audio');
@@ -6285,10 +6286,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                                       }
                                    }}
                                  />
-                                 <audio className="preview-backing-audio" src={formatAudioSrc(currentPreview.backingTrackUrl)} style={{ display: 'none' }} />
+                                 <audio className="preview-backing-audio" src={formatAudioSrc(currentPreview.backingTrackUrl)} style={{ display: 'none' }} onError={(e) => { console.warn('[BackingAudio] Failed to load:', e.target.src); }} />
                                </>
                              ) : (
-                               <audio controls src={formatAudioSrc(currentPreview.audioUrl)} style={{ width: '100%', height: '36px', marginBottom: '8px' }} />
+                               <audio controls src={formatAudioSrc(currentPreview.audioUrl)} style={{ width: '100%', height: '36px', marginBottom: '8px' }} onError={(e) => { console.warn('[Audio] Failed to load:', e.target.src); e.target.style.opacity = '0.4'; }} />
                              )}
                              <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                "{currentPreview.snippet?.substring(0, 80)}..."
@@ -11602,7 +11603,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           }}>
             <div className="modal-content animate-fadeInUp" onClick={(e) => {
               e.stopPropagation();
-            }} style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            }} style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'auto', display: 'flex', flexDirection: 'column', position: 'relative' }}>
               <div className="modal-header" style={{ flexShrink: 0, paddingBottom: '0.5rem', position: 'relative' }}>
                 <button 
                   className="modal-close" 

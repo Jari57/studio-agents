@@ -516,86 +516,6 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           </div>
         </div>
 
-        {/* Agent Grid - All 8 visible (free + monthly tier) */}
-        <div style={{ marginBottom: '48px' }}>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center' }}>
-            <span className="gradient-text-vibrant">Meet the Agents</span>
-          </h2>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            gap: '16px',
-            maxWidth: '860px',
-            margin: '0 auto'
-          }}>
-            {AGENTS.slice(0, 8).map((agent, i) => {
-              const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
-              const tierColors = {
-                free: { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)', text: '#22c55e', label: 'Free' },
-                monthly: { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: 'Creator' },
-                pro: { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.3)', text: '#eab308', label: 'Pro' }
-              };
-              const tier = tierColors[agent.tier] || tierColors.free;
-
-              return (
-                <div
-                  key={agent.id}
-                  className="haptic-press"
-                  style={{
-                    padding: '20px 16px',
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '16px',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    position: 'relative'
-                  }}
-                  onClick={() => handleCtaClick('agent', 'agents')}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                >
-                  {/* Tier badge */}
-                  <div style={{
-                    position: 'absolute', top: '10px', right: '10px',
-                    padding: '3px 8px', borderRadius: '8px',
-                    background: tier.bg, border: `1px solid ${tier.border}`,
-                    fontSize: '0.6rem', fontWeight: '700', color: tier.text,
-                    textTransform: 'uppercase', letterSpacing: '0.05em'
-                  }}>{tier.label}</div>
-
-                  <div style={{
-                    width: '40px', height: '40px', borderRadius: '12px',
-                    background: 'rgba(168, 85, 247, 0.15)',
-                    border: '1px solid rgba(168, 85, 247, 0.3)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    marginBottom: '12px'
-                  }}>
-                    <Icon size={20} style={{ color: '#a855f7' }} />
-                  </div>
-                  <h3 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
-                  <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.4' }}>
-                    {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
-                  </p>
-
-                  {/* Whitepaper button */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
-                    style={{
-                      marginTop: '10px', padding: '4px 10px', borderRadius: '8px',
-                      background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.3)',
-                      color: '#a855f7', fontSize: '0.65rem', fontWeight: '600',
-                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
-                    }}
-                  >
-                    <FileText size={10} /> Whitepaper
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         {/* The Vision - Two Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '40px' }}>
           <div style={{
@@ -649,6 +569,41 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       </section>
 
       {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          DEMO SECTIONS - Single Agent Demo + Multi-Agent Demo
+          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      <section style={{ padding: '0 20px 60px', maxWidth: '900px', margin: '0 auto' }}>
+        {/* Single Agent Demo */}
+        <div style={{ marginBottom: '48px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
+              Try an <span className="gradient-text-vibrant">Agent</span>
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              Pick one agent, give it an idea, and see what it creates.
+            </p>
+          </div>
+          <Suspense fallback={<div style={{ minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
+            <SingleAgentDemo />
+          </Suspense>
+        </div>
+
+        {/* Multi-Agent Demo */}
+        <div>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
+              Experience <span className="gradient-text-cyan-blue">Parallel Intelligence</span>
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '600px', margin: '0 auto' }}>
+              Watch our specialized agents work in sync to build your entire release package in seconds.
+            </p>
+          </div>
+          <Suspense fallback={<div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
+            <MultiAgentDemo />
+          </Suspense>
+        </div>
+      </section>
+
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           NAVIGATION BUTTONS - Quick access to studio sections
           â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       <section style={{ padding: '0 20px 60px', maxWidth: '700px', margin: '0 auto' }}>
@@ -688,38 +643,83 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-          DEMO SECTIONS - Single Agent Demo + Multi-Agent Demo
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* Meet the Agents - Full agent grid */}
       <section style={{ padding: '0 20px 60px', maxWidth: '900px', margin: '0 auto' }}>
-        {/* Single Agent Demo */}
-        <div style={{ marginBottom: '48px' }}>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
-              Try an <span className="gradient-text-vibrant">Agent</span>
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              Pick one agent, give it an idea, and see what it creates.
-            </p>
-          </div>
-          <Suspense fallback={<div style={{ minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
-            <SingleAgentDemo />
-          </Suspense>
-        </div>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center' }}>
+          <span className="gradient-text-vibrant">Meet the Agents</span>
+        </h2>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          gap: '16px',
+          maxWidth: '860px',
+          margin: '0 auto'
+        }}>
+          {AGENTS.slice(0, 8).map((agent, i) => {
+            const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
+            const tierColors = {
+              free: { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)', text: '#22c55e', label: 'Free' },
+              monthly: { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: 'Creator' },
+              pro: { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.3)', text: '#eab308', label: 'Pro' }
+            };
+            const tier = tierColors[agent.tier] || tierColors.free;
 
-        {/* Multi-Agent Demo */}
-        <div>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
-              Experience <span className="gradient-text-cyan-blue">Parallel Intelligence</span>
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '600px', margin: '0 auto' }}>
-              Watch our specialized agents work in sync to build your entire release package in seconds.
-            </p>
-          </div>
-          <Suspense fallback={<div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', borderRadius: '24px' }}>Loading demo...</div>}>
-            <MultiAgentDemo />
-          </Suspense>
+            return (
+              <div
+                key={agent.id}
+                className="haptic-press"
+                style={{
+                  padding: '20px 16px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  position: 'relative'
+                }}
+                onClick={() => handleCtaClick('agent', 'agents')}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                {/* Tier badge */}
+                <div style={{
+                  position: 'absolute', top: '10px', right: '10px',
+                  padding: '3px 8px', borderRadius: '8px',
+                  background: tier.bg, border: `1px solid ${tier.border}`,
+                  fontSize: '0.6rem', fontWeight: '700', color: tier.text,
+                  textTransform: 'uppercase', letterSpacing: '0.05em'
+                }}>{tier.label}</div>
+
+                <div style={{
+                  width: '40px', height: '40px', borderRadius: '12px',
+                  background: 'rgba(168, 85, 247, 0.15)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  marginBottom: '12px'
+                }}>
+                  <Icon size={20} style={{ color: '#a855f7' }} />
+                </div>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
+                <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.4' }}>
+                  {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
+                </p>
+
+                {/* Whitepaper button */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
+                  style={{
+                    marginTop: '10px', padding: '4px 10px', borderRadius: '8px',
+                    background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.3)',
+                    color: '#a855f7', fontSize: '0.65rem', fontWeight: '600',
+                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                  }}
+                >
+                  <FileText size={10} /> Whitepaper
+                </button>
+              </div>
+            );
+          })}
         </div>
       </section>
 
