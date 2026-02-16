@@ -7363,15 +7363,16 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </span>
                     </div>
                     {/* FREE TIER Grid */}
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(2, 1fr)',
-                      gap: '12px'
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gap: '20px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'free').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       const ac = getAgentHex(agent);
+                      const tierStyle = { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)', text: '#22c55e', label: 'Free' };
                       return (
                         <div
                           key={agent.id}
@@ -7386,56 +7387,51 @@ const fetchUserCredits = useCallback(async (uid) => {
                             }
                           }}
                           style={{
-                            padding: '16px',
-                            background: isLocked ? 'rgba(255,255,255,0.02)' : `linear-gradient(145deg, ${ac}14 0%, rgba(255,255,255,0.03) 100%)`,
-                            border: `1px solid ${ac}33`,
-                            borderLeft: `3px solid ${ac}`,
-                            borderRadius: '16px',
+                            padding: '20px',
+                            background: 'rgba(0,0,0,0.4)',
+                            border: `1px solid ${ac}22`,
+                            borderRadius: '20px',
+                            minHeight: '175px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
+                            overflow: 'hidden',
                             opacity: isLocked ? 0.6 : 1
                           }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${ac}66`; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = `${ac}22`; e.currentTarget.style.transform = 'translateY(0)'; }}
                         >
-                          {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
-                          {agent.isBeta && <span style={{ position: 'absolute', top: '8px', right: isLocked ? '28px' : '8px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '1px 6px', borderRadius: '6px', fontSize: '0.55rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
+                          {/* Glow effect */}
+                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: `radial-gradient(circle at top left, ${ac}15, transparent 70%)`, pointerEvents: 'none' }} />
+                          {/* Tier badge */}
+                          <div style={{ position: 'absolute', top: '12px', right: '12px', padding: '4px 10px', borderRadius: '10px', background: tierStyle.bg, border: `1px solid ${tierStyle.border}`, fontSize: '0.65rem', fontWeight: '700', color: tierStyle.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{tierStyle.label}</div>
+                          {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '14px', right: '70px', opacity: 0.5 }} />}
+                          {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '90px' : '70px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
                           <div style={{
                             width: '40px',
                             height: '40px',
                             borderRadius: '12px',
-                            background: `linear-gradient(135deg, ${ac}33, ${ac}1A)`,
+                            background: `${ac}22`,
+                            border: `1px solid ${ac}44`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginBottom: '10px'
+                            marginBottom: '12px'
                           }}>
                             <Icon size={20} style={{ color: ac }} />
                           </div>
-                          <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '4px' }}>{agent.category}</p>
-                          {(agent.description || agent.desc) && (
-                            <p style={{ fontSize: '0.6rem', color: 'var(--text-tertiary, rgba(255,255,255,0.35))', lineHeight: '1.3', marginBottom: '6px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{agent.description || agent.desc}</p>
-                          )}
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
+                          <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5' }}>
+                            {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
+                          </p>
                           {agent.capabilities && agent.capabilities.length > 0 && (
-                            <div className="agent-cap-pills" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
                               {agent.capabilities.slice(0, 2).map((cap, i) => (
-                                <span key={i} style={{ padding: '1px 6px', background: `${ac}1A`, color: ac, borderRadius: '6px', fontSize: '0.55rem', fontWeight: '500' }}>{cap}</span>
+                                <span key={i} style={{ padding: '2px 8px', background: `${ac}1A`, color: ac, borderRadius: '8px', fontSize: '0.65rem', fontWeight: '500' }}>{cap}</span>
                               ))}
                             </div>
                           )}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{
-                              padding: '2px 6px',
-                              background: 'rgba(34, 197, 94, 0.15)',
-                              color: '#22c55e',
-                              borderRadius: '6px',
-                              fontSize: '0.6rem',
-                              fontWeight: '600'
-                            }}>FREE</span>
-                            {agent.getStarted && (
-                              <span style={{ fontSize: '0.55rem', color: ac, fontWeight: '600', opacity: 0.8 }}>{agent.getStarted} →</span>
-                            )}
-                          </div>
                         </div>
                       );
                     })}
@@ -7459,15 +7455,16 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </span>
                     </div>
                     {/* MONTHLY TIER Grid */}
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(2, 1fr)',
-                      gap: '12px'
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gap: '20px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       const ac = getAgentHex(agent);
+                      const tierStyle = { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: 'Creator' };
                       return (
                         <div
                           key={agent.id}
@@ -7482,56 +7479,51 @@ const fetchUserCredits = useCallback(async (uid) => {
                             }
                           }}
                           style={{
-                            padding: '16px',
-                            background: isLocked ? 'rgba(255,255,255,0.02)' : `linear-gradient(145deg, ${ac}14 0%, rgba(255,255,255,0.03) 100%)`,
-                            border: `1px solid ${ac}33`,
-                            borderLeft: `3px solid ${ac}`,
-                            borderRadius: '16px',
+                            padding: '20px',
+                            background: 'rgba(0,0,0,0.4)',
+                            border: `1px solid ${ac}22`,
+                            borderRadius: '20px',
+                            minHeight: '175px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
+                            overflow: 'hidden',
                             opacity: isLocked ? 0.6 : 1
                           }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${ac}66`; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = `${ac}22`; e.currentTarget.style.transform = 'translateY(0)'; }}
                         >
-                          {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
-                          {agent.isBeta && <span style={{ position: 'absolute', top: '8px', right: isLocked ? '28px' : '8px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '1px 6px', borderRadius: '6px', fontSize: '0.55rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
+                          {/* Glow effect */}
+                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: `radial-gradient(circle at top left, ${ac}15, transparent 70%)`, pointerEvents: 'none' }} />
+                          {/* Tier badge */}
+                          <div style={{ position: 'absolute', top: '12px', right: '12px', padding: '4px 10px', borderRadius: '10px', background: tierStyle.bg, border: `1px solid ${tierStyle.border}`, fontSize: '0.65rem', fontWeight: '700', color: tierStyle.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{tierStyle.label}</div>
+                          {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '14px', right: '80px', opacity: 0.5 }} />}
+                          {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '100px' : '80px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
                           <div style={{
                             width: '40px',
                             height: '40px',
                             borderRadius: '12px',
-                            background: `linear-gradient(135deg, ${ac}33, ${ac}1A)`,
+                            background: `${ac}22`,
+                            border: `1px solid ${ac}44`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginBottom: '10px'
+                            marginBottom: '12px'
                           }}>
                             <Icon size={20} style={{ color: ac }} />
                           </div>
-                          <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '4px' }}>{agent.category}</p>
-                          {(agent.description || agent.desc) && (
-                            <p style={{ fontSize: '0.6rem', color: 'var(--text-tertiary, rgba(255,255,255,0.35))', lineHeight: '1.3', marginBottom: '6px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{agent.description || agent.desc}</p>
-                          )}
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
+                          <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5' }}>
+                            {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
+                          </p>
                           {agent.capabilities && agent.capabilities.length > 0 && (
-                            <div className="agent-cap-pills" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
                               {agent.capabilities.slice(0, 2).map((cap, i) => (
-                                <span key={i} style={{ padding: '1px 6px', background: `${ac}1A`, color: ac, borderRadius: '6px', fontSize: '0.55rem', fontWeight: '500' }}>{cap}</span>
+                                <span key={i} style={{ padding: '2px 8px', background: `${ac}1A`, color: ac, borderRadius: '8px', fontSize: '0.65rem', fontWeight: '500' }}>{cap}</span>
                               ))}
                             </div>
                           )}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{
-                              padding: '2px 6px',
-                              background: 'rgba(251, 191, 36, 0.15)',
-                              color: '#fbbf24',
-                              borderRadius: '6px',
-                              fontSize: '0.6rem',
-                              fontWeight: '600'
-                            }}>MONTHLY</span>
-                            {agent.getStarted && (
-                              <span style={{ fontSize: '0.55rem', color: ac, fontWeight: '600', opacity: 0.8 }}>{agent.getStarted} →</span>
-                            )}
-                          </div>
                         </div>
                       );
                     })}
@@ -7556,15 +7548,16 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </span>
                     </div>
                     {/* PRO TIER Grid */}
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: 'repeat(2, 1fr)',
-                      gap: '12px'
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gap: '20px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'pro').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
                       const ac = getAgentHex(agent);
+                      const tierStyle = { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.3)', text: '#eab308', label: 'Pro' };
                       return (
                         <div
                           key={agent.id}
@@ -7579,56 +7572,51 @@ const fetchUserCredits = useCallback(async (uid) => {
                             }
                           }}
                           style={{
-                            padding: '16px',
-                            background: isLocked ? 'rgba(255,255,255,0.02)' : `linear-gradient(145deg, ${ac}14 0%, rgba(255,255,255,0.03) 100%)`,
-                            border: `1px solid ${ac}33`,
-                            borderLeft: `3px solid ${ac}`,
-                            borderRadius: '16px',
+                            padding: '20px',
+                            background: 'rgba(0,0,0,0.4)',
+                            border: `1px solid ${ac}22`,
+                            borderRadius: '20px',
+                            minHeight: '175px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
+                            overflow: 'hidden',
                             opacity: isLocked ? 0.6 : 1
                           }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${ac}66`; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = `${ac}22`; e.currentTarget.style.transform = 'translateY(0)'; }}
                         >
-                          {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '8px', right: '8px', opacity: 0.5 }} />}
-                          {agent.isBeta && <span style={{ position: 'absolute', top: '8px', right: isLocked ? '28px' : '8px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '1px 6px', borderRadius: '6px', fontSize: '0.55rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
+                          {/* Glow effect */}
+                          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: `radial-gradient(circle at top left, ${ac}15, transparent 70%)`, pointerEvents: 'none' }} />
+                          {/* Tier badge */}
+                          <div style={{ position: 'absolute', top: '12px', right: '12px', padding: '4px 10px', borderRadius: '10px', background: tierStyle.bg, border: `1px solid ${tierStyle.border}`, fontSize: '0.65rem', fontWeight: '700', color: tierStyle.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{tierStyle.label}</div>
+                          {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '14px', right: '60px', opacity: 0.5 }} />}
+                          {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '80px' : '60px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
                           <div style={{
                             width: '40px',
                             height: '40px',
                             borderRadius: '12px',
-                            background: `linear-gradient(135deg, ${ac}33, ${ac}1A)`,
+                            background: `${ac}22`,
+                            border: `1px solid ${ac}44`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginBottom: '10px'
+                            marginBottom: '12px'
                           }}>
                             <Icon size={20} style={{ color: ac }} />
                           </div>
-                          <h4 style={{ fontWeight: '700', fontSize: '0.85rem', marginBottom: '4px' }}>{agent.name}</h4>
-                          <p style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', lineHeight: '1.3', marginBottom: '4px' }}>{agent.category}</p>
-                          {(agent.description || agent.desc) && (
-                            <p style={{ fontSize: '0.6rem', color: 'var(--text-tertiary, rgba(255,255,255,0.35))', lineHeight: '1.3', marginBottom: '6px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{agent.description || agent.desc}</p>
-                          )}
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
+                          <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5' }}>
+                            {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
+                          </p>
                           {agent.capabilities && agent.capabilities.length > 0 && (
-                            <div className="agent-cap-pills" style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
                               {agent.capabilities.slice(0, 2).map((cap, i) => (
-                                <span key={i} style={{ padding: '1px 6px', background: `${ac}1A`, color: ac, borderRadius: '6px', fontSize: '0.55rem', fontWeight: '500' }}>{cap}</span>
+                                <span key={i} style={{ padding: '2px 8px', background: `${ac}1A`, color: ac, borderRadius: '8px', fontSize: '0.65rem', fontWeight: '500' }}>{cap}</span>
                               ))}
                             </div>
                           )}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{
-                              padding: '2px 6px',
-                              background: 'rgba(168, 85, 247, 0.15)',
-                              color: '#a855f7',
-                              borderRadius: '6px',
-                              fontSize: '0.6rem',
-                              fontWeight: '600'
-                            }}>PRO</span>
-                            {agent.getStarted && (
-                              <span style={{ fontSize: '0.55rem', color: ac, fontWeight: '600', opacity: 0.8 }}>{agent.getStarted} →</span>
-                            )}
-                          </div>
                         </div>
                       );
                     })}

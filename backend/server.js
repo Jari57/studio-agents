@@ -3688,7 +3688,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
             'Prefer': 'wait' // Wait for generation to complete
           },
           body: JSON.stringify({
-            version: "flux-1.1-pro", // Use latest Flux Pro
+            model: "black-forest-labs/flux-1.1-pro",
             input: input
           })
         });
@@ -4313,7 +4313,7 @@ if (elevenLabsKey && !audioUrl) {
             }
           }
         }
-      } catch (barkError) { logger.warn('Bark failed, trying fallback'); }
+      } catch (barkError) { logger.warn('Bark failed, trying fallback', { error: barkError.message }); }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -4349,7 +4349,7 @@ if (elevenLabsKey && !audioUrl) {
             logger.info('✅ Gemini TTS generated fallback');
           }
         }
-      } catch (err) { logger.warn('Gemini TTS failed'); }
+      } catch (err) { logger.warn('Gemini TTS failed', { error: err.message }); }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -4387,7 +4387,7 @@ if (elevenLabsKey && !audioUrl) {
             }
           }
         }
-      } catch (err) { logger.error('Uberduck final fallback failed'); }
+      } catch (err) { logger.error('Uberduck final fallback failed', { error: err.message }); }
     }
 
     if (audioUrl) {
@@ -4461,8 +4461,10 @@ if (elevenLabsKey && !audioUrl) {
       res.json({
         audioUrl: permanentUrl || audioUrl,
         temporaryUrl: permanentUrl ? audioUrl : null,
+        mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg',
         provider,
         style,
+        isRealGeneration: true,
         message: `Professional vocal generated via ${provider}`
       });
     } else {
@@ -4760,7 +4762,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         provider,
         duration: durationSeconds,
         isRealGeneration: true,
-        mimeType: 'audio/mpeg'
+        mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg'
       });
     } else {
       // If we reach here, ALL AI providers failed.
@@ -5082,10 +5084,10 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  instances: [{ prompt: prompt }],
+                  instances: [Object.assign({ prompt: enhancedPrompt }, referenceImage ? { image: { image_url: referenceImage } } : {})],
                   parameters: {
                     aspectRatio: "16:9",
-                    durationSeconds: 8,
+                    durationSeconds: Math.min(durationSeconds, 8),
                     sampleCount: 1
                   }
                 })
@@ -5117,7 +5119,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
         const replicate = new Replicate({ auth: replicateKey });
         
         // Truncate prompt for Replicate (Minimax prefers < 1000 characters)
-        const minimaxPrompt = prompt.length > 800 ? prompt.substring(0, 800) + '...' : prompt;
+        const minimaxPrompt = enhancedPrompt.length > 800 ? enhancedPrompt.substring(0, 800) + '...' : enhancedPrompt;
 
         // Using Minimax Video-01 (High quality, 5s)
         const output = await replicate.run(
