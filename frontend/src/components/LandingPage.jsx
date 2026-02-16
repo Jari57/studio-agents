@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import toast from 'react-hot-toast';
 import { Sparkles, ArrowRight, Zap, Music, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LogIn, LogOut } from 'lucide-react';
 import { AGENTS } from '../constants';
@@ -501,18 +501,48 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           </p>
         </div>
 
-        {/* The Story */}
+        {/* The Story - Card Grid */}
         <div style={{ marginBottom: '48px' }}>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '16px', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center' }}>
             <span className="gradient-text-cyan-purple">The Story</span>
           </h2>
-          <div style={{ maxWidth: '700px', margin: '0 auto', color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.8' }}>
-            <p style={{ marginBottom: '12px' }}>
-              Studio Agents was born from a simple frustration: making music is easyâ€”releasing it professionally shouldn't require a record label. We built the platform that independent artists deserveâ€”16 specialized AI agents that handle everything from lyrics and beats to mastering, video, and marketing.
-            </p>
-            <p>
-              Every agent is trained on professional workflows, not just generic AI. Whether you're a bedroom producer or a touring artist, Studio Agents gives you the same production pipeline that major labels useâ€”at a fraction of the cost, available 24/7.
-            </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+            {[
+              { icon: Music, color: '#a855f7', title: 'The Problem', text: 'Making music is easy\u2014releasing it professionally shouldn\'t require a record label. Independent artists deserve better tools.' },
+              { icon: Sparkles, color: '#06b6d4', title: 'The Solution', text: '16 specialized AI agents handle everything: lyrics, beats, mastering, video, marketing\u2014your full production team in one app.' },
+              { icon: Cpu, color: '#22c55e', title: 'Pro Workflows', text: 'Every agent is trained on professional workflows, not generic AI. The same pipeline major labels use\u2014at a fraction of the cost.' },
+              { icon: Users, color: '#ec4899', title: 'For Everyone', text: 'Bedroom producer or touring artist\u2014Studio Agents gives you 24/7 access to a world-class production pipeline.' }
+            ].map((card, i) => {
+              const CardIcon = card.icon;
+              return (
+                <div key={i} style={{
+                  background: 'rgba(0,0,0,0.4)',
+                  borderRadius: '20px',
+                  padding: '20px',
+                  border: `1px solid ${card.color}22`,
+                  minHeight: '175px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  transition: 'all 0.3s ease'
+                }}>
+                  <div style={{
+                    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                    background: `radial-gradient(circle at top left, ${card.color}15, transparent 70%)`,
+                    pointerEvents: 'none'
+                  }} />
+                  <div style={{
+                    width: '40px', height: '40px', borderRadius: '12px',
+                    background: `${card.color}22`, border: `1px solid ${card.color}44`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    marginBottom: '12px'
+                  }}>
+                    <CardIcon size={20} style={{ color: card.color }} />
+                  </div>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '8px', color: 'white' }}>{card.title}</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>{card.text}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -606,11 +636,11 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           NAVIGATION BUTTONS - Quick access to studio sections
           â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
-      <section style={{ padding: '0 20px 60px', maxWidth: '700px', margin: '0 auto' }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+      <section style={{ padding: '0 20px 60px', maxWidth: '900px', margin: '0 auto' }}>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
           Jump Into the Studio
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
           {[
             { label: 'AI Orchestrator', icon: Zap, tab: 'mystudio', color: '#06b6d4', desc: 'Full auto pipeline' },
             { label: 'Agents', icon: Sparkles, tab: 'agents', color: '#a855f7', desc: '16 AI specialists' },
@@ -624,19 +654,33 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', item.tab)}
                 className="haptic-press"
                 style={{
-                  padding: '20px 16px', borderRadius: '16px',
-                  background: 'rgba(255,255,255,0.03)', backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(0,0,0,0.4)',
+                  borderRadius: '20px',
+                  padding: '20px',
+                  border: `1px solid ${item.color}22`,
+                  minHeight: '175px',
                   color: 'white', cursor: 'pointer', textAlign: 'left',
-                  transition: 'all 0.3s ease', display: 'flex', flexDirection: 'column', gap: '8px'
+                  transition: 'all 0.3s ease', display: 'flex', flexDirection: 'column', gap: '10px',
+                  position: 'relative', overflow: 'hidden'
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = item.color; e.currentTarget.style.transform = 'translateY(-4px)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = `${item.color}22`; e.currentTarget.style.transform = 'translateY(0)'; }}
               >
-                <BtnIcon size={22} style={{ color: item.color }} />
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                  background: `radial-gradient(circle at top left, ${item.color}15, transparent 70%)`,
+                  pointerEvents: 'none'
+                }} />
+                <div style={{
+                  width: '40px', height: '40px', borderRadius: '12px',
+                  background: `${item.color}22`, border: `1px solid ${item.color}44`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <BtnIcon size={20} style={{ color: item.color }} />
+                </div>
                 <div style={{ fontWeight: '700', fontSize: '0.95rem' }}>{item.label}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{item.desc}</div>
-                <ArrowRight size={16} style={{ color: item.color, alignSelf: 'flex-end' }} />
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>{item.desc}</div>
+                <ArrowRight size={16} style={{ color: item.color, alignSelf: 'flex-end', marginTop: 'auto' }} />
               </button>
             );
           })}
@@ -650,17 +694,16 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </h2>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-          gap: '16px',
-          maxWidth: '860px',
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: '20px',
           margin: '0 auto'
         }}>
           {AGENTS.slice(0, 8).map((agent, i) => {
             const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
             const tierColors = {
-              free: { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)', text: '#22c55e', label: 'Free' },
-              monthly: { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: 'Creator' },
-              pro: { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.3)', text: '#eab308', label: 'Pro' }
+              free: { bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)', text: '#22c55e', label: 'Free', accent: '#22c55e' },
+              monthly: { bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)', text: '#a855f7', label: 'Creator', accent: '#a855f7' },
+              pro: { bg: 'rgba(234, 179, 8, 0.1)', border: 'rgba(234, 179, 8, 0.3)', text: '#eab308', label: 'Pro', accent: '#eab308' }
             };
             const tier = tierColors[agent.tier] || tierColors.free;
 
@@ -669,39 +712,48 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 key={agent.id}
                 className="haptic-press"
                 style={{
-                  padding: '20px 16px',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '16px',
+                  background: 'rgba(0,0,0,0.4)',
+                  borderRadius: '20px',
+                  padding: '20px',
+                  border: `1px solid ${tier.accent}22`,
+                  minHeight: '175px',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  position: 'relative'
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}
                 onClick={() => handleCtaClick('agent', 'agents')}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.4)'; e.currentTarget.style.transform = 'translateY(-4px)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = `${tier.accent}66`; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = `${tier.accent}22`; e.currentTarget.style.transform = 'translateY(0)'; }}
               >
+                {/* Glow effect */}
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                  background: `radial-gradient(circle at top left, ${tier.accent}15, transparent 70%)`,
+                  pointerEvents: 'none'
+                }} />
+
                 {/* Tier badge */}
                 <div style={{
-                  position: 'absolute', top: '10px', right: '10px',
-                  padding: '3px 8px', borderRadius: '8px',
+                  position: 'absolute', top: '12px', right: '12px',
+                  padding: '4px 10px', borderRadius: '10px',
                   background: tier.bg, border: `1px solid ${tier.border}`,
-                  fontSize: '0.6rem', fontWeight: '700', color: tier.text,
+                  fontSize: '0.65rem', fontWeight: '700', color: tier.text,
                   textTransform: 'uppercase', letterSpacing: '0.05em'
                 }}>{tier.label}</div>
 
                 <div style={{
                   width: '40px', height: '40px', borderRadius: '12px',
-                  background: 'rgba(168, 85, 247, 0.15)',
-                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  background: `${tier.accent}22`,
+                  border: `1px solid ${tier.accent}44`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   marginBottom: '12px'
                 }}>
-                  <Icon size={20} style={{ color: '#a855f7' }} />
+                  <Icon size={20} style={{ color: tier.accent }} />
                 </div>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
-                <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.4' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
+                <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5' }}>
                   {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
                 </p>
 
@@ -709,13 +761,13 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 <button
                   onClick={(e) => { e.stopPropagation(); openAgentWhitepaper(agent); }}
                   style={{
-                    marginTop: '10px', padding: '4px 10px', borderRadius: '8px',
-                    background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.3)',
-                    color: '#a855f7', fontSize: '0.65rem', fontWeight: '600',
-                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px'
+                    marginTop: '12px', padding: '5px 12px', borderRadius: '10px',
+                    background: `${tier.accent}18`, border: `1px solid ${tier.accent}44`,
+                    color: tier.accent, fontSize: '0.7rem', fontWeight: '600',
+                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px'
                   }}
                 >
-                  <FileText size={10} /> Whitepaper
+                  <FileText size={12} /> Whitepaper
                 </button>
               </div>
             );
