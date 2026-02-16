@@ -1104,7 +1104,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 newAsset[spec.key] = res.url;
                 newAsset[spec.key + "StoragePath"] = res.path;
                 assetMod = true;
-              } catch (upErr) { console.warn("Media sync failed:", upErr); }
+              } catch (upErr) {
+                console.warn("Media sync failed:", upErr);
+                toast.error(`Media upload failed for ${spec.key}. Asset saved locally only.`);
+              }
             }
           }
 
@@ -11157,7 +11160,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                      
                      // CRITICAL FIX: Ensure project is synced to cloud immediately when clicking Save
                      if (isLoggedIn && user) {
-                       saveProjectToCloud(user.uid, updatedProject);
+                       saveProjectToCloud(user.uid, updatedProject).catch(err => {
+                         console.error('Cloud save failed:', err);
+                         toast.error('Failed to sync to cloud. Your changes are saved locally.');
+                       });
                      }
                      
                      handleTextToVoice("Project session saved.");
@@ -12640,7 +12646,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                 setSelectedProject(finalProject);
                 
                 if (isLoggedIn && user) {
-                  saveProjectToCloud(user?.uid, finalProject);
+                  saveProjectToCloud(user?.uid, finalProject).catch(err => {
+                    console.error('Cloud save failed:', err);
+                    toast.error('Failed to sync to cloud. Your changes are saved locally.');
+                  });
                 }
               } else {
                 // FALLBACK: If project not found in local state, treat as creation
@@ -12655,7 +12664,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                 setProjects(prev => [finalProject, ...prev]);
                 setSelectedProject(finalProject);
                 if (isLoggedIn && user) {
-                  saveProjectToCloud(user?.uid, finalProject);
+                  saveProjectToCloud(user?.uid, finalProject).catch(err => {
+                    console.error('Cloud save failed:', err);
+                    toast.error('Failed to sync to cloud. Your changes are saved locally.');
+                  });
                 }
               }
             }}
