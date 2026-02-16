@@ -501,6 +501,70 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           </p>
         </div>
 
+        {/* Mission & Vision */}
+        <div style={{ marginBottom: '48px' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center' }}>
+            <span className="gradient-text-vibrant">Mission & Vision</span>
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+            <div style={{
+              background: 'rgba(0,0,0,0.4)',
+              borderRadius: '20px',
+              padding: '20px',
+              border: '1px solid rgba(168, 85, 247, 0.13)',
+              minHeight: '175px',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.3s ease'
+            }}>
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'radial-gradient(circle at top left, rgba(168, 85, 247, 0.08), transparent 70%)',
+                pointerEvents: 'none'
+              }} />
+              <div style={{
+                width: '40px', height: '40px', borderRadius: '12px',
+                background: 'rgba(168, 85, 247, 0.13)', border: '1px solid rgba(168, 85, 247, 0.26)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: '12px'
+              }}>
+                <Target size={20} style={{ color: '#a855f7' }} />
+              </div>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '8px', color: 'white' }}>Our Mission</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                Democratize professional music production. Every artist deserves a full production teamAI makes it possible for everyone.
+              </p>
+            </div>
+            <div style={{
+              background: 'rgba(0,0,0,0.4)',
+              borderRadius: '20px',
+              padding: '20px',
+              border: '1px solid rgba(6, 182, 212, 0.13)',
+              minHeight: '175px',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'all 0.3s ease'
+            }}>
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'radial-gradient(circle at top left, rgba(6, 182, 212, 0.08), transparent 70%)',
+                pointerEvents: 'none'
+              }} />
+              <div style={{
+                width: '40px', height: '40px', borderRadius: '12px',
+                background: 'rgba(6, 182, 212, 0.13)', border: '1px solid rgba(6, 182, 212, 0.26)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: '12px'
+              }}>
+                <Rocket size={20} style={{ color: '#06b6d4' }} />
+              </div>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '8px', color: 'white' }}>The Future</h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                We're building toward a world where talent is the only barrier to entry. AI handles the restproduction, distribution, marketing, analytics.
+              </p>
+            </div>
+          </div>
+        </div>
         {/* The Story - Card Grid */}
         <div style={{ marginBottom: '48px' }}>
           <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center' }}>
@@ -546,53 +610,28 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           </div>
         </div>
 
-        {/* The Vision - Two Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '40px' }}>
-          <div style={{
-            padding: '24px', borderRadius: '16px',
-            background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%)',
-            border: '1px solid rgba(168, 85, 247, 0.2)'
-          }}>
-            <Target size={24} style={{ color: '#a855f7', marginBottom: '12px' }} />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px' }}>Our Mission</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              Democratize professional music production. Every artist deserves a full production teamâ€”AI makes it possible for everyone.
-            </p>
-          </div>
-          <div style={{
-            padding: '24px', borderRadius: '16px',
-            background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(168, 85, 247, 0.05) 100%)',
-            border: '1px solid rgba(6, 182, 212, 0.2)'
-          }}>
-            <Rocket size={24} style={{ color: '#06b6d4', marginBottom: '12px' }} />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '8px' }}>The Future</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-              We're building toward a world where talent is the only barrier to entry. AI handles the restâ€”production, distribution, marketing, analytics.
-            </p>
-          </div>
-        </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - 2x2 */}
         <div style={{
-          display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '48px'
+          display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '48px'
         }}>
           {[
             { value: '16', label: 'AI Agents' },
             { value: '24/7', label: 'Available' },
-            { value: 'âˆž', label: 'Creations' },
+            { value: '', label: 'Creations' },
             { value: '100%', label: 'Independent' }
           ].map((stat, i) => (
             <div key={i} style={{
-              textAlign: 'center', padding: '16px 20px',
-              background: 'rgba(255,255,255,0.03)', borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.06)', minWidth: '80px'
+              textAlign: 'center', padding: '20px 24px',
+              background: 'rgba(0,0,0,0.4)', borderRadius: '16px',
+              border: '1px solid rgba(255,255,255,0.08)'
             }}>
               <div style={{
-                fontSize: '1.5rem', fontWeight: '900',
+                fontSize: '1.75rem', fontWeight: '900',
                 background: 'linear-gradient(135deg, #a855f7, #06b6d4)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
               }}>{stat.value}</div>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</div>
             </div>
           ))}
         </div>
