@@ -829,6 +829,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const pendingOperationsRef = useRef(new Set());
   const syncTimeoutRef = useRef(null);
   const userRef = useRef(null);
+  const authRetryCountRef = useRef(0);
   const sessionTimeoutRef = useRef(null);
   const recognitionRef = useRef(null);
   const textareaRef = useRef(null);
@@ -2406,11 +2407,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           const previousUserId = localStorage.getItem('studio_user_id');
           const wasGuestMode = localStorage.getItem('studio_guest_mode') === 'true';
           
-          if (previousUserId && authRetryCount < 5) {
+          if (previousUserId && authRetryCountRef.current < 5) {
             // We had a session - Firebase might just be slow
             // Wait and retry before clearing
-            console.log('[Auth] Firebase returned null but we have session, retry', authRetryCount + 1);
-            setAuthRetryCount(prev => prev + 1);
+            authRetryCountRef.current += 1;
+            console.log('[Auth] Firebase returned null but we have session, retry', authRetryCountRef.current);
+            setAuthRetryCount(authRetryCountRef.current);
             
             // Keep user logged in from localStorage while we wait
             setIsLoggedIn(true);
@@ -2418,8 +2420,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             
             // Don't clear anything yet - give Firebase a moment
             setTimeout(() => {
-              // FIXED: Use ref to get CURRENT user state (not stale closure)
-              if (!userRef.current && authRetryCount >= 4) {
+              // Use refs to get CURRENT state (not stale closure from useEffect[])
+              if (!userRef.current && authRetryCountRef.current >= 4) {
                 console.log('[Auth] Retry exhausted, clearing session');
                 // Only clear if we are NOT in guest mode
                 if (localStorage.getItem('studio_guest_mode') !== 'true') {
@@ -2430,6 +2432,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   setIsLoggedIn(false);
                 }
                 setAuthChecking(false);
+                authRetryCountRef.current = 0;
                 setAuthRetryCount(0);
               }
             }, 5000); // 5 seconds is safer for slow connections
@@ -2449,6 +2452,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             localStorage.removeItem('studio_user_id');
             setIsLoggedIn(false);
             setAuthChecking(false);
+            authRetryCountRef.current = 0;
             setAuthRetryCount(0);
           }
         }
