@@ -506,7 +506,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center' }}>
             <span className="gradient-text-vibrant">Mission & Vision</span>
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
             <div style={{
               background: 'rgba(0,0,0,0.4)',
               borderRadius: '20px',
@@ -570,7 +570,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center' }}>
             <span className="gradient-text-cyan-purple">The Story</span>
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
             {[
               { icon: Music, color: '#a855f7', title: 'The Problem', text: 'Making music is easy\u2014releasing it professionally shouldn\'t require a record label. Independent artists deserve better tools.' },
               { icon: Sparkles, color: '#06b6d4', title: 'The Solution', text: '16 specialized AI agents handle everything: lyrics, beats, mastering, video, marketing\u2014your full production team in one app.' },
