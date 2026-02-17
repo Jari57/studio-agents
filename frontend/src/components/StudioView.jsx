@@ -1822,7 +1822,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/health`);
+        const res = await fetch(`${BACKEND_URL}/api/health`);
         if (!res.ok) throw new Error('Backend unreachable');
         const data = await res.json();
         setSystemStatus({ 

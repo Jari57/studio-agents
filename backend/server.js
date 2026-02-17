@@ -5205,7 +5205,7 @@ function _generateDemoVideoUrl(prompt) {
 
 // ── Video proxy: store authed URLs in a short-lived map, serve via /api/video-proxy/:id ──
 const videoProxyMap = new Map(); // id → { url, expiresAt }
-const crypto = require('crypto');
+// crypto already imported at top of file
 
 // Cleanup expired entries every 5 minutes
 setInterval(() => {
