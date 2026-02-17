@@ -53,6 +53,12 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup' | 'reset'
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+
+  // Helper: detect orchestrator tab and pass startOrchestrator=true to onEnter
+  const navigateToStudio = (shouldStartWizard, targetTab) => {
+    const isOrchestrator = targetTab === 'orchestrator';
+    onEnter(shouldStartWizard, isOrchestrator, isOrchestrator ? 'mystudio' : targetTab);
+  };
   
   // Handle Google Sign In - with transition guard
   const handleGoogleSignIn = async () => {
@@ -70,11 +76,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       
       // Small delay to let modal close
       setTimeout(() => {
-        if (pendingAction === 'start') {
-          onEnter(true, false, pendingTargetTab);
-        } else {
-          onEnter(false, false, pendingTargetTab);
-        }
+        navigateToStudio(pendingAction === 'start', pendingTargetTab);
         setPendingTargetTab(null);
         setIsTransitioning(false);
       }, 100);
@@ -109,11 +111,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       setShowAuthModal(false);
 
       setTimeout(() => {
-        if (pendingAction === 'start') {
-          onEnter(true, false, pendingTargetTab);
-        } else {
-          onEnter(false, false, pendingTargetTab);
-        }
+        navigateToStudio(pendingAction === 'start', pendingTargetTab);
         setPendingTargetTab(null);
         setIsTransitioning(false);
       }, 100);
@@ -184,11 +182,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       setAuthPassword('');
 
       setTimeout(() => {
-        if (pendingAction === 'start') {
-          onEnter(true, false, pendingTargetTab);
-        } else {
-          onEnter(false, false, pendingTargetTab);
-        }
+        navigateToStudio(pendingAction === 'start', pendingTargetTab);
         setPendingTargetTab(null);
         setIsTransitioning(false);
       }, 100);
@@ -251,7 +245,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       console.log('[LandingPage] User already recognized, entering studio directly');
       setIsTransitioning(true);
       setTimeout(() => {
-        onEnter(finalAction === 'start', false, targetTab);
+        navigateToStudio(finalAction === 'start', targetTab);
         setIsTransitioning(false);
       }, 100);
       return;
@@ -294,13 +288,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     
     // Small delay to let modal close animation complete before navigation
     setTimeout(() => {
-      if (pendingAction === 'start') {
-        console.log('[LandingPage] Calling onEnter(true) with targetTab:', pendingTargetTab);
-        onEnter(true, false, pendingTargetTab);
-      } else {
-        console.log('[LandingPage] Calling onEnter(false) with targetTab:', pendingTargetTab);
-        onEnter(false, false, pendingTargetTab);
-      }
+      console.log('[LandingPage] Guest entering studio with targetTab:', pendingTargetTab);
+      navigateToStudio(pendingAction === 'start', pendingTargetTab);
       // Reset after navigation (in case user comes back)
       setPendingTargetTab(null);
       setIsTransitioning(false);
@@ -669,7 +658,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
           {[
-            { label: 'AI Orchestrator', icon: Zap, tab: 'mystudio', color: '#06b6d4', desc: 'Full auto pipeline' },
+            { label: 'AI Orchestrator', icon: Zap, tab: 'orchestrator', color: '#06b6d4', desc: 'Full auto pipeline' },
             { label: 'Agents', icon: Sparkles, tab: 'agents', color: '#a855f7', desc: '16 AI specialists' },
             { label: 'Resources', icon: GlobeIcon, tab: 'resources', color: '#22c55e', desc: 'Guides & tools' },
             { label: 'Social Media Hub', icon: TrendingUp, tab: 'activity', color: '#ec4899', desc: 'Content & socials' }
