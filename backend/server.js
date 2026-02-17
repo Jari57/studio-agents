@@ -457,6 +457,13 @@ const checkCreditsFor = (featureType) => {
       return next();
     }
 
+    // Skip credit deduction when this is a Brain/prompt-expansion phase
+    // (media agents call /api/generate first to expand the prompt, then call the real media endpoint which charges)
+    if (req.body?.isBrainPhase === true) {
+      logger.info(`🧠 Brain phase — skipping credit deduction for ${req.user.uid}`);
+      return next();
+    }
+
     // Calculate credit cost based on feature and request options
     const options = {
       duration: req.body?.duration || req.body?.durationSeconds || 30

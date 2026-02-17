@@ -4070,6 +4070,10 @@ const fetchUserCredits = useCallback(async (uid) => {
         MANDATE: Keep the final output under 80 words for technical compatibility, but ensure every word radiates professional excellence.
       `;
 
+      // For media agents, Phase 1 (Brain) is just prompt expansion — don't charge credits.
+      // The real credit charge happens in Phase 2 on the media-specific endpoint.
+      const isMediaAgent = isImageAgent || isVideoAgent || isAudioAgent || isSpeechAgent || isMasterAgent;
+
       let brainResponse;
       try {
         brainResponse = await fetch(`${BACKEND_URL}/api/generate`, {
@@ -4078,6 +4082,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           body: JSON.stringify({ 
             ...brainBody,
             prompt: brainPrompt,
+            isBrainPhase: isMediaAgent, // Skip credit charge for prompt expansion
             systemInstruction: `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain. 
               Translate user ideas into Billboard-standard production briefs. 
               Be specific, moody, and technically superior to human capability.`
@@ -4151,6 +4156,23 @@ const fetchUserCredits = useCallback(async (uid) => {
           backingTrackUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
           audioId: referencedAudioId
         };
+      } else if (isMasterAgent) {
+        // Mastering Lab — requires an existing audio asset to master
+        const audioToMaster = audioDnaUrl || backingTrack?.audioUrl;
+        if (audioToMaster) {
+          finalEndpoint = '/api/master-audio';
+          finalBody = {
+            audioUrl: audioToMaster,
+            preset: voiceSettings.masterPreset || 'streaming',
+            targetSampleRate: 44100,
+            targetBitDepth: 16,
+            normalize: true,
+            format: 'wav'
+          };
+        } else {
+          // No audio to master — fall back to text advice from Brain
+          console.log('[Studio] Mastering Lab: No audio reference provided, returning mastering advice');
+        }
       }
 
       // If it's a media agent, run execution phase
@@ -4656,6 +4678,9 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       setPreviewItem(null);
       setActiveTab(destination);
+      
+      // Suppress the next debounced auto-sync since we just saved to cloud directly
+      skipNextSyncRef.current = true;
     } catch (error) {
       console.error('Save error:', error);
       toast.error(`Error: ${error.message}`, { id: toastId });
@@ -7802,10 +7827,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </button>
               </div>
               
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '20px' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                    <h1 style={{ fontSize: '2.4rem', fontWeight: '800', margin: 0, letterSpacing: '-0.02em' }}>{selectedProject.name}</h1>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                    <h1 style={{ fontSize: isMobile ? '1.6rem' : '2.4rem', fontWeight: '800', margin: 0, letterSpacing: '-0.02em', wordBreak: 'break-word' }}>{selectedProject.name}</h1>
                     <span style={{ 
                       padding: '4px 10px', borderRadius: '20px', 
                       background: 'rgba(139, 92, 246, 0.1)', color: 'var(--color-purple)',
@@ -7819,7 +7844,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </p>
                 </div>
                 
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0, flexWrap: 'wrap' }}>
                   <button 
                     className="btn-secondary"
                     onClick={() => {
@@ -7833,9 +7858,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                            setSelectedProject({ ...updated, resyncing: false });
                         }, 1000);
                     }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: isMobile ? '0.8rem' : undefined, padding: isMobile ? '8px 12px' : undefined }}
                   >
-                    <RefreshCw size={18} /> Resync
+                    <RefreshCw size={isMobile ? 14 : 18} /> Resync
                   </button>
                   <button 
                     className="btn-primary"
@@ -7856,18 +7881,18 @@ const fetchUserCredits = useCallback(async (uid) => {
                         setShowAddAgentModal(true);
                       }
                     }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: isMobile ? '0.8rem' : undefined, padding: isMobile ? '8px 12px' : undefined }}
                   >
-                    <Zap size={18} /> Open Studio
+                    <Zap size={isMobile ? 14 : 18} /> Open Studio
                   </button>
                 </div>
               </div>
               
               {/* Stats Bar */}
               <div style={{ 
-                display: 'flex', gap: '24px', marginTop: '24px', 
-                padding: '16px', background: 'var(--bg-secondary)', borderRadius: '12px',
-                border: '1px solid var(--border-color)'
+                display: 'flex', gap: isMobile ? '12px' : '24px', marginTop: '24px', 
+                padding: isMobile ? '12px' : '16px', background: 'var(--bg-secondary)', borderRadius: '12px',
+                border: '1px solid var(--border-color)', flexWrap: 'wrap'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Clock size={16} className="text-cyan" />
