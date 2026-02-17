@@ -885,7 +885,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
     // FALLBACK: Check localStorage for last active tab before defaulting to 'agents'
     const lastTab = localStorage.getItem('studio_active_tab');
-    if (lastTab && ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal'].includes(lastTab)) {
+    if (lastTab && VALID_TABS.includes(lastTab)) {
       return lastTab;
     }
     return 'resources';
@@ -1979,6 +1979,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
     
     toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
+    
+    // Deduct credits for project creation
+    setUserCredits(prev => Math.max(0, prev - PROJECT_CREDIT_COST));
 
     setShowProjectWizard(false);
     setProjectWizardStep(1);
@@ -2027,6 +2030,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     };
     
     toast.success(`Quick project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
+    
+    // Deduct credits for project creation
+    setUserCredits(prev => Math.max(0, prev - PROJECT_CREDIT_COST));
 
     setProjects(prev => [newProject, ...prev]);
     setSelectedProject(newProject);
@@ -2342,7 +2348,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 const userData = userDoc.data();
                 const credits = userData.credits || 0;
                 setUserCredits(credits);
-                setUserProfile(prev => ({ ...prev, credits }));
+                setUserProfile(prev => ({ 
+                  ...prev, 
+                  credits,
+                  // Restore profile fields from Firestore if present
+                  ...(userData.profile || {})
+                }));
 
                 // Load User DNA / Inspiration files for persistence
                 if (userData.visualDnaUrl) setVisualDnaUrl(userData.visualDnaUrl);
@@ -2624,9 +2635,9 @@ const fetchUserCredits = useCallback(async (uid) => {
         setUserCredits(credits);
         setUserProfile(prev => ({ ...prev, credits }));       
       } else {
-        // Initialize new user with 3 trial credits
-        await setDoc(userRef, { credits: 3, tier: 'free', createdAt: new Date() });        
-        setUserCredits(3);
+        // Initialize new user with 25 trial credits (matches backend)
+        await setDoc(userRef, { credits: 25, tier: 'free', createdAt: new Date() });        
+        setUserCredits(25);
       }
     } catch (err) {
       console.error('Failed to fetch credits:', err);
@@ -2926,7 +2937,11 @@ const fetchUserCredits = useCallback(async (uid) => {
 
 // Handle Social OAuth & Payment Callbacks
     useEffect(() => {
-      const params = new URLSearchParams(window.location.search);
+      // Hash-based routing puts query params inside the hash (e.g. #/studio?payment=success)
+      // so we need to parse from both window.location.search AND the hash
+      const hashParts = window.location.hash.split('?');
+      const hashSearch = hashParts.length > 1 ? hashParts[1] : '';
+      const params = new URLSearchParams(window.location.search || hashSearch);
 
       // Twitter Callback
       if (params.get('twitter_connected') === 'true') {
@@ -2995,8 +3010,8 @@ const fetchUserCredits = useCallback(async (uid) => {
           tier,
           userId: user?.uid,
           userEmail: user?.email,
-          successUrl: window.location.origin + '?payment=success',
-          cancelUrl: window.location.origin + '?payment=cancelled'
+          successUrl: window.location.origin + window.location.pathname + '#/studio?payment=success&type=subscription',
+          cancelUrl: window.location.origin + window.location.pathname + '#/studio?payment=cancelled'
         })
       });
 
@@ -9527,8 +9542,16 @@ const fetchUserCredits = useCallback(async (uid) => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button className="cta-button-secondary" onClick={() => setActiveTab('mystudio')}>Cancel</button>
-              <button className="cta-button-premium" onClick={() => { 
+              <button className="cta-button-premium" onClick={async () => { 
                 localStorage.setItem('studio_user_profile', JSON.stringify(userProfile));
+                // Persist profile to Firestore for cross-device sync
+                if (user?.uid && db) {
+                  try {
+                    const { stageName, genre, bio, location, website, targetDemographic, language } = userProfile;
+                    const userRef = doc(db, 'users', user.uid);
+                    await setDoc(userRef, { profile: { stageName, genre, bio, location, website, targetDemographic, language } }, { merge: true });
+                  } catch (err) { console.error('Profile cloud save failed:', err); }
+                }
                 toast.success('Profile saved!'); 
                 setActiveTab('mystudio'); 
               }}>Save Changes</button>

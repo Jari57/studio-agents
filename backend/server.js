@@ -392,7 +392,6 @@ const verifyFirebaseToken = async (req, res, next) => {
     req.user = {
       uid: decodedToken.uid,
       email: decodedToken.email,
-      isPremium: true, // All authenticated users are premium
     };
     logger.debug('🔐 Authenticated user:', { uid: decodedToken.uid });
   } catch (error) {
@@ -457,10 +456,10 @@ const checkCreditsFor = (featureType) => {
       return next();
     }
 
-    // Skip credit deduction when this is a Brain/prompt-expansion phase
-    // (media agents call /api/generate first to expand the prompt, then call the real media endpoint which charges)
-    if (req.body?.isBrainPhase === true) {
-      logger.info(`🧠 Brain phase — skipping credit deduction for ${req.user.uid}`);
+    // Skip credit deduction for Brain/prompt-expansion phase on the text endpoint only
+    // The real media endpoint (image/audio/video) will charge credits
+    if (featureType === 'text' && req.body?.isBrainPhase === true) {
+      logger.info(`🧠 Brain phase (text) — skipping credit deduction for ${req.user.uid}`);
       return next();
     }
 
@@ -922,7 +921,7 @@ app.get('/api/debug-status', verifyFirebaseToken, requireAdmin, (req, res) => {
 // Stricter limit for AI generation (most expensive operation)
 const generationLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 500, // Increased to 500 AI generations per minute for production scaling
+  max: 30, // 30 AI generations per minute per client (prevents abuse)
   keyGenerator: createFingerprint,
   handler: (req, res) => {
     logger.warn('⚠️ AI generation rate limit exceeded', {
@@ -1376,9 +1375,7 @@ app.get('/api/admin/status', verifyFirebaseToken, (req, res) => {
   res.json({ 
     isAdmin,
     authenticated: true,
-    email: req.user.email,
-    isDemoAccount: !!isDemoAccount,
-    demoConfig: isDemoAccount || null
+    ...(isAdmin ? { email: req.user.email, isDemoAccount: !!isDemoAccount, demoConfig: isDemoAccount || null } : {})
   });
 });
 
@@ -2141,8 +2138,8 @@ app.get('/api/credit-costs', (req, res) => {
   });
 });
 
-// POST /api/user/credits - Add credits to user account (admin/purchase)
-app.post('/api/user/credits', verifyFirebaseToken, async (req, res) => {
+// POST /api/user/credits - Add credits to user account (admin only)
+app.post('/api/user/credits', verifyFirebaseToken, requireAdmin, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
@@ -2191,8 +2188,8 @@ app.post('/api/user/credits', verifyFirebaseToken, async (req, res) => {
   }
 });
 
-// POST /api/user/credits/deduct - Deduct credits (internal use)
-app.post('/api/user/credits/deduct', verifyFirebaseToken, async (req, res) => {
+// POST /api/user/credits/deduct - Deduct credits (admin only)
+app.post('/api/user/credits/deduct', verifyFirebaseToken, requireAdmin, async (req, res) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
@@ -3547,7 +3544,7 @@ async function generateImageInternal(options, logger) {
 // ═══════════════════════════════════════════════════════════════════
 // VIDEO FRAME EXTRACTION (Fallback for image from video)
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/extract-video-frame', verifyFirebaseToken, async (req, res) => {
+app.post('/api/extract-video-frame', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
   try {
     const { videoUrl, timestamp = 0 } = req.body;
     
@@ -4930,7 +4927,7 @@ app.post('/api/mix-audio', verifyFirebaseToken, requireAuth, checkCreditsFor('mi
 // ═══════════════════════════════════════════════════════════════════
 // CREATE FINAL MIX - Combines vocals + beat into mastered track
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
+app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCreditsFor('mixing'), generationLimiter, async (req, res) => {
   try {
     const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '' } = req.body;
 
@@ -5076,7 +5073,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
             if (response.ok) {
                 const operationData = await response.json();
                 logger.info('Veo 3.0 Fast operation started', { name: operationData.name });
-                return await handleVeoOperation(operationData, apiKey, res);
+                return await handleVeoOperation(operationData, apiKey, res, req);
             } else if (response.status === 402 || response.status === 429) {
                 systemCreditIssue = true;
             }
@@ -5103,7 +5100,7 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
             if (veo2Response.ok) {
                 const veo2Data = await veo2Response.json();
                 logger.info('Veo 2.0 operation started', { name: veo2Data.name });
-                return await handleVeoOperation(veo2Data, apiKey, res);
+                return await handleVeoOperation(veo2Data, apiKey, res, req);
             } else if (veo2Response.status === 402 || veo2Response.status === 429) {
                 systemCreditIssue = true;
             }
@@ -5206,16 +5203,55 @@ function _generateDemoVideoUrl(prompt) {
   return sampleVideos[index];
 }
 
+// ── Video proxy: store authed URLs in a short-lived map, serve via /api/video-proxy/:id ──
+const videoProxyMap = new Map(); // id → { url, expiresAt }
+const crypto = require('crypto');
+
+// Cleanup expired entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, entry] of videoProxyMap) {
+    if (now > entry.expiresAt) videoProxyMap.delete(id);
+  }
+}, 5 * 60 * 1000);
+
+function createVideoProxyUrl(authenticatedUrl, req) {
+  const id = crypto.randomBytes(16).toString('hex');
+  videoProxyMap.set(id, { url: authenticatedUrl, expiresAt: Date.now() + 30 * 60 * 1000 }); // 30 min TTL
+  // Build absolute URL so frontend can use it directly
+  const origin = `${req.protocol}://${req.get('host')}`;
+  return `${origin}/api/video-proxy/${id}`;
+}
+
+app.get('/api/video-proxy/:id', async (req, res) => {
+  const entry = videoProxyMap.get(req.params.id);
+  if (!entry || Date.now() > entry.expiresAt) {
+    return res.status(404).json({ error: 'Video expired or not found' });
+  }
+  try {
+    const upstream = await fetch(entry.url);
+    if (!upstream.ok) return res.status(502).json({ error: 'Upstream fetch failed' });
+    res.set('Content-Type', upstream.headers.get('content-type') || 'video/mp4');
+    res.set('Cache-Control', 'private, max-age=1800');
+    const { Readable } = require('stream');
+    Readable.fromWeb(upstream.body).pipe(res);
+  } catch (err) {
+    logger.error('Video proxy error', err);
+    res.status(500).json({ error: 'Proxy error' });
+  }
+});
+
 // Helper function to handle Veo long-running operation polling
-async function handleVeoOperation(operationData, apiKey, res) {
+async function handleVeoOperation(operationData, apiKey, res, req) {
   if (!operationData.name) {
     // Direct response (no polling needed)
     if (operationData.generatedVideos?.[0]?.video?.uri) {
       const videoUri = operationData.generatedVideos[0].video.uri;
-      const videoUrl = videoUri.includes('?') 
+      const authedUrl = videoUri.includes('?') 
         ? `${videoUri}&key=${apiKey}` 
         : `${videoUri}?key=${apiKey}`;
-      return res.json({ output: videoUrl, mimeType: 'video/mp4', type: 'video' });
+      const proxyUrl = createVideoProxyUrl(authedUrl, req);
+      return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video' });
     }
     return res.json({ output: operationData, type: 'video' });
   }
@@ -5253,20 +5289,22 @@ async function handleVeoOperation(operationData, apiKey, res) {
       // Try Veo 3.1 format
       if (result?.generatedVideos?.[0]?.video?.uri) {
         const videoUri = result.generatedVideos[0].video.uri;
-        const videoUrl = videoUri.includes('?') 
+        const authedUrl = videoUri.includes('?') 
           ? `${videoUri}&key=${apiKey}` 
           : `${videoUri}?key=${apiKey}`;
-        return res.json({ output: videoUrl, mimeType: 'video/mp4', type: 'video' });
+        const proxyUrl = createVideoProxyUrl(authedUrl, req);
+        return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video' });
       }
       
       // Try older format
       const videoResponse = result?.generateVideoResponse;
       if (videoResponse?.generatedSamples?.[0]?.video) {
         const video = videoResponse.generatedSamples[0].video;
-        const videoUrl = video.uri.includes('?') 
+        const authedUrl = video.uri.includes('?') 
           ? `${video.uri}&key=${apiKey}` 
           : `${video.uri}?key=${apiKey}`;
-        return res.json({ output: videoUrl, mimeType: 'video/mp4', type: 'video' });
+        const proxyUrl = createVideoProxyUrl(authedUrl, req);
+        return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video' });
       }
       
       return res.json({ output: result, type: 'video' });
@@ -5279,7 +5317,7 @@ async function handleVeoOperation(operationData, apiKey, res) {
 // ═══════════════════════════════════════════════════════════════════
 // AMO ORCHESTRATOR ENDPOINT - Multi-Agent Session Processing
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/amo/orchestrate', verifyFirebaseToken, apiLimiter, async (req, res) => {
+app.post('/api/amo/orchestrate', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
   try {
     const { session, tracks, masterSettings } = req.body;
     
@@ -5395,7 +5433,7 @@ function getAgentSystemPrompt(agent, session) {
 // ═══════════════════════════════════════════════════════════════════
 // AUDIO MASTERING ROUTE - Convert to Distribution-Ready Format
 // ═══════════════════════════════════════════════════════════════════
-app.post('/api/master-audio', verifyFirebaseToken, async (req, res) => {
+app.post('/api/master-audio', verifyFirebaseToken, requireAuth, generationLimiter, checkCreditsFor('mastering'), async (req, res) => {
   try {
     const { 
       audioBase64,           // Base64 encoded audio data
@@ -5552,7 +5590,7 @@ app.post('/api/master-audio', verifyFirebaseToken, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════
 
 // Translation charges 1 credit
-app.post('/api/translate', verifyFirebaseToken, checkCreditsFor('translate'), apiLimiter, async (req, res) => {
+app.post('/api/translate', verifyFirebaseToken, requireAuth, checkCreditsFor('translate'), apiLimiter, async (req, res) => {
   try {
     const { text, targetLanguage, sourceLanguage = 'auto' } = req.body;
 
@@ -7630,7 +7668,7 @@ app.post('/api/analyze-beats-test', async (req, res) => {
  * Beat Detection Endpoint (Production - Firebase Auth Required)
  * Analyzes audio file and returns beat markers and BPM
  */
-app.post('/api/analyze-beats', verifyFirebaseToken, async (req, res) => {
+app.post('/api/analyze-beats', verifyFirebaseToken, requireAuth, apiLimiter, async (req, res) => {
   try {
     const { audioUrl } = req.body;
     
@@ -7901,7 +7939,7 @@ app.get('/api/video-job-status-test/:jobId', async (req, res) => {
  * Video Job Status Endpoint (Production - Firebase Auth Required)
  * Check status of long-running video generation jobs
  */
-app.get('/api/video-job-status/:jobId', verifyFirebaseToken, async (req, res) => {
+app.get('/api/video-job-status/:jobId', verifyFirebaseToken, requireAuth, apiLimiter, async (req, res) => {
   try {
     const { jobId } = req.params;
 
@@ -7962,7 +8000,7 @@ app.post('/api/video-metadata-test', async (req, res) => {
  * Video Metadata Endpoint (Production - Firebase Auth Required)
  * Get technical details about a generated video
  */
-app.post('/api/video-metadata', verifyFirebaseToken, async (req, res) => {
+app.post('/api/video-metadata', verifyFirebaseToken, requireAuth, apiLimiter, async (req, res) => {
   try {
     const { videoUrl } = req.body;
 
