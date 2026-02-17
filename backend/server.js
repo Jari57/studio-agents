@@ -5073,7 +5073,33 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
             if (response.ok) {
                 const operationData = await response.json();
                 logger.info('Veo 3.0 Fast operation started', { name: operationData.name });
-                return await handleVeoOperation(operationData, apiKey, res, req);
+                
+                // Direct response (no polling needed)
+                if (!operationData.name) {
+                  if (operationData.generatedVideos?.[0]?.video?.uri) {
+                    const videoUri = operationData.generatedVideos[0].video.uri;
+                    const authedUrl = videoUri.includes('?') ? `${videoUri}&key=${apiKey}` : `${videoUri}?key=${apiKey}`;
+                    const proxyUrl = createVideoProxyUrl(authedUrl, req);
+                    return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-3.0-fast' });
+                  }
+                  return res.json({ output: operationData, type: 'video', source: 'veo-3.0-fast' });
+                }
+                
+                // Async operation: store for frontend polling (avoids Vercel proxy timeout)
+                const opId = crypto.randomBytes(16).toString('hex');
+                pendingVideoOps.set(opId, {
+                  operationName: operationData.name,
+                  apiKey,
+                  source: 'veo-3.0-fast',
+                  createdAt: Date.now(),
+                  attempts: 0,
+                  consecutiveErrors: 0,
+                  status: 'processing',
+                  result: null,
+                  error: null
+                });
+                logger.info('Video operation stored for async polling', { opId, operationName: operationData.name });
+                return res.json({ status: 'processing', operationId: opId, source: 'veo-3.0-fast' });
             } else if (response.status === 402 || response.status === 429) {
                 systemCreditIssue = true;
             }
@@ -5100,7 +5126,33 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
             if (veo2Response.ok) {
                 const veo2Data = await veo2Response.json();
                 logger.info('Veo 2.0 operation started', { name: veo2Data.name });
-                return await handleVeoOperation(veo2Data, apiKey, res, req);
+                
+                // Direct response (no polling needed)
+                if (!veo2Data.name) {
+                  if (veo2Data.generatedVideos?.[0]?.video?.uri) {
+                    const videoUri = veo2Data.generatedVideos[0].video.uri;
+                    const authedUrl = videoUri.includes('?') ? `${videoUri}&key=${apiKey}` : `${videoUri}?key=${apiKey}`;
+                    const proxyUrl = createVideoProxyUrl(authedUrl, req);
+                    return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-2.0' });
+                  }
+                  return res.json({ output: veo2Data, type: 'video', source: 'veo-2.0' });
+                }
+                
+                // Async operation: store for frontend polling (avoids Vercel proxy timeout)
+                const opId = crypto.randomBytes(16).toString('hex');
+                pendingVideoOps.set(opId, {
+                  operationName: veo2Data.name,
+                  apiKey,
+                  source: 'veo-2.0',
+                  createdAt: Date.now(),
+                  attempts: 0,
+                  consecutiveErrors: 0,
+                  status: 'processing',
+                  result: null,
+                  error: null
+                });
+                logger.info('Video operation stored for async polling (Veo 2.0)', { opId, operationName: veo2Data.name });
+                return res.json({ status: 'processing', operationId: opId, source: 'veo-2.0' });
             } else if (veo2Response.status === 402 || veo2Response.status === 429) {
                 systemCreditIssue = true;
             }
@@ -5207,6 +5259,17 @@ function _generateDemoVideoUrl(prompt) {
 const videoProxyMap = new Map(); // id → { url, expiresAt }
 // crypto already imported at top of file
 
+// ── Async video operations: track Veo polls so frontend can check status ──
+const pendingVideoOps = new Map(); // id → { operationName, apiKey, source, createdAt, attempts, consecutiveErrors, status, result, error }
+
+// Cleanup expired pending video ops every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, op] of pendingVideoOps) {
+    if (now - op.createdAt > 10 * 60 * 1000) pendingVideoOps.delete(id); // 10 min TTL
+  }
+}, 5 * 60 * 1000);
+
 // Cleanup expired entries every 5 minutes
 setInterval(() => {
   const now = Date.now();
@@ -5256,98 +5319,100 @@ app.get('/api/video-proxy/:id', async (req, res) => {
   }
 });
 
-// Helper function to handle Veo long-running operation polling
-async function handleVeoOperation(operationData, apiKey, res, req) {
-  if (!operationData.name) {
-    // Direct response (no polling needed)
-    if (operationData.generatedVideos?.[0]?.video?.uri) {
-      const videoUri = operationData.generatedVideos[0].video.uri;
-      const authedUrl = videoUri.includes('?') 
-        ? `${videoUri}&key=${apiKey}` 
-        : `${videoUri}?key=${apiKey}`;
-      const proxyUrl = createVideoProxyUrl(authedUrl, req);
-      return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video' });
-    }
-    return res.json({ output: operationData, type: 'video' });
+// ── Video status endpoint: frontend polls this to check Veo operation progress ──
+app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
+  const op = pendingVideoOps.get(req.params.id);
+  if (!op) {
+    return res.status(404).json({ error: 'Operation not found or expired' });
   }
-  
-  logger.info('Video generation operation started', { operationName: operationData.name });
 
-  // Poll for completion (max 5 minutes with 10s intervals)
-  const maxAttempts = 30; // 30 * 10s = 300s = 5 minutes
-  let attempts = 0;
-  
-  let consecutiveErrors = 0;
-  
-  while (attempts < maxAttempts) {
-    attempts++;
-    await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
-    
-    try {
-      const pollUrl = `https://generativelanguage.googleapis.com/v1beta/${operationData.name}?key=${apiKey}`;
-      const pollResponse = await fetch(pollUrl);
-      
-      if (!pollResponse.ok) {
-        const pollError = await pollResponse.text();
-        logger.error('Poll error', { status: pollResponse.status, error: pollError, attempt: attempts });
-        consecutiveErrors++;
-        if (consecutiveErrors >= 5) {
-          throw new Error(`Video polling failed after ${consecutiveErrors} consecutive errors. Last: ${pollError}`);
-        }
-        continue;
-      }
-      
-      consecutiveErrors = 0; // Reset on successful response
-      const pollData = await pollResponse.json();
-      logger.info('Poll attempt', { attempt: attempts, done: pollData.done });
-      
-      if (pollData.done) {
-        if (pollData.error) {
-          throw new Error(`Video generation failed: ${JSON.stringify(pollData.error)}`);
-        }
-        
-        // Extract video from response (multiple possible formats)
-        const result = pollData.response || pollData.result;
-        
-        // Try Veo 3.1 format
-        if (result?.generatedVideos?.[0]?.video?.uri) {
-          const videoUri = result.generatedVideos[0].video.uri;
-          const authedUrl = videoUri.includes('?') 
-            ? `${videoUri}&key=${apiKey}` 
-            : `${videoUri}?key=${apiKey}`;
-          const proxyUrl = createVideoProxyUrl(authedUrl, req);
-          return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video' });
-        }
-        
-        // Try older format
-        const videoResponse = result?.generateVideoResponse;
-        if (videoResponse?.generatedSamples?.[0]?.video) {
-          const video = videoResponse.generatedSamples[0].video;
-          const authedUrl = video.uri.includes('?') 
-            ? `${video.uri}&key=${apiKey}` 
-            : `${video.uri}?key=${apiKey}`;
-          const proxyUrl = createVideoProxyUrl(authedUrl, req);
-          return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video' });
-        }
-        
-        return res.json({ output: result, type: 'video' });
-      }
-    } catch (pollErr) {
-      // Re-throw intentional errors (generation failed, consecutive errors)
-      if (pollErr.message.includes('Video generation failed') || pollErr.message.includes('consecutive errors')) {
-        throw pollErr;
-      }
-      // Network/parse errors — log and retry
-      logger.error('Poll network error', { error: pollErr.message, attempt: attempts });
-      consecutiveErrors++;
-      if (consecutiveErrors >= 5) {
-        throw new Error(`Video polling failed: ${pollErr.message}`);
-      }
-    }
+  // Already completed — return cached result
+  if (op.status === 'completed') {
+    return res.json(op.result);
   }
-  
-  throw new Error('Video generation timed out after 5 minutes');
-}
+  if (op.status === 'failed') {
+    return res.status(500).json({ status: 'failed', error: op.error });
+  }
+
+  // Check timeout (5 minutes from creation)
+  if (Date.now() - op.createdAt > 5 * 60 * 1000) {
+    op.status = 'failed';
+    op.error = 'Video generation timed out after 5 minutes';
+    return res.status(500).json({ status: 'failed', error: op.error });
+  }
+
+  // Poll Veo API once
+  try {
+    op.attempts++;
+    const pollUrl = `https://generativelanguage.googleapis.com/v1beta/${op.operationName}?key=${op.apiKey}`;
+    const pollResponse = await fetch(pollUrl);
+
+    if (!pollResponse.ok) {
+      const pollError = await pollResponse.text();
+      logger.error('Video status poll error', { status: pollResponse.status, error: pollError, attempt: op.attempts });
+      op.consecutiveErrors++;
+      if (op.consecutiveErrors >= 5) {
+        op.status = 'failed';
+        op.error = `Polling failed after ${op.consecutiveErrors} consecutive errors`;
+        return res.status(500).json({ status: 'failed', error: op.error });
+      }
+      return res.json({ status: 'processing', attempt: op.attempts });
+    }
+
+    op.consecutiveErrors = 0;
+    const pollData = await pollResponse.json();
+    logger.info('Video status poll', { opId: req.params.id, attempt: op.attempts, done: pollData.done });
+
+    if (!pollData.done) {
+      return res.json({ status: 'processing', attempt: op.attempts });
+    }
+
+    // Operation completed
+    if (pollData.error) {
+      op.status = 'failed';
+      op.error = `Video generation failed: ${JSON.stringify(pollData.error)}`;
+      return res.status(500).json({ status: 'failed', error: op.error });
+    }
+
+    const result = pollData.response || pollData.result;
+
+    // Try Veo 3.x format
+    if (result?.generatedVideos?.[0]?.video?.uri) {
+      const videoUri = result.generatedVideos[0].video.uri;
+      const authedUrl = videoUri.includes('?') ? `${videoUri}&key=${op.apiKey}` : `${videoUri}?key=${op.apiKey}`;
+      const proxyUrl = createVideoProxyUrl(authedUrl, req);
+      op.status = 'completed';
+      op.result = { status: 'completed', output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: op.source };
+      return res.json(op.result);
+    }
+
+    // Try older format
+    const videoResponse = result?.generateVideoResponse;
+    if (videoResponse?.generatedSamples?.[0]?.video) {
+      const video = videoResponse.generatedSamples[0].video;
+      const authedUrl = video.uri.includes('?') ? `${video.uri}&key=${op.apiKey}` : `${video.uri}?key=${op.apiKey}`;
+      const proxyUrl = createVideoProxyUrl(authedUrl, req);
+      op.status = 'completed';
+      op.result = { status: 'completed', output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: op.source };
+      return res.json(op.result);
+    }
+
+    // Unknown format — return raw
+    op.status = 'completed';
+    op.result = { status: 'completed', output: result, type: 'video', source: op.source };
+    return res.json(op.result);
+
+  } catch (err) {
+    logger.error('Video status check error', { error: err.message, attempt: op.attempts });
+    op.consecutiveErrors++;
+    if (op.consecutiveErrors >= 5) {
+      op.status = 'failed';
+      op.error = `Polling failed: ${err.message}`;
+      return res.status(500).json({ status: 'failed', error: op.error });
+    }
+    return res.json({ status: 'processing', attempt: op.attempts });
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // AMO ORCHESTRATOR ENDPOINT - Multi-Agent Session Processing

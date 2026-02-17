@@ -4235,8 +4235,41 @@ const fetchUserCredits = useCallback(async (uid) => {
         hasAudioUrl: !!data.audioUrl,
         hasVideoUrl: !!data.videoUrl,
         hasImageUrl: !!data.imageUrl,
-        isFallback: !!data._isFallback
+        isFallback: !!data._isFallback,
+        asyncStatus: data.status,
+        operationId: data.operationId
       });
+
+      // Handle async Veo video operations: poll /api/video-status/:id until complete
+      if (data.status === 'processing' && data.operationId) {
+        console.log('[Studio] Video operation started, polling for completion...', data.operationId);
+        toast.loading('Video generating... this takes 1-3 minutes', { id: toastId });
+        const maxPolls = 36; // 36 × 10s = 6 minutes
+        let pollSuccess = false;
+        for (let i = 0; i < maxPolls; i++) {
+          await new Promise(r => setTimeout(r, 10000));
+          try {
+            const statusRes = await fetch(`${BACKEND_URL}/api/video-status/${data.operationId}`, { headers });
+            const statusData = await statusRes.json();
+            console.log(`[Studio] Video poll ${i + 1}:`, statusData.status);
+            if (statusData.status === 'processing') continue;
+            if (statusData.status === 'completed') {
+              data = statusData;
+              pollSuccess = true;
+              break;
+            }
+            // Failed
+            toast.error(statusData.error || 'Video generation failed', { id: toastId });
+            return;
+          } catch (pollErr) {
+            console.error('[Studio] Video status poll error:', pollErr);
+          }
+        }
+        if (!pollSuccess) {
+          toast.error('Video generation timed out — please try again', { id: toastId });
+          return;
+        }
+      }
 
       if (!response.ok) {
         console.error('[Studio] Execution Phase Error:', data.error || data.details || response.status);

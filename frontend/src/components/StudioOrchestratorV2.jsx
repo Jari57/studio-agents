@@ -2761,13 +2761,46 @@ REQUIREMENTS:
       });
       
       if (response.ok) {
-        const data = await response.json();
+        let data = await response.json();
         console.log('[Orchestrator] Video generation response:', { 
           type: data.type, 
           hasOutput: !!data.output,
           hasVideoUrl: !!data.videoUrl,
-          mimeType: data.mimeType 
+          mimeType: data.mimeType,
+          status: data.status,
+          operationId: data.operationId
         });
+        
+        // Handle async Veo operations: poll /api/video-status/:id until complete
+        if (data.status === 'processing' && data.operationId) {
+          console.log('[Orchestrator] Video operation started, polling for completion...', data.operationId);
+          const maxPolls = 36; // 36 × 10s = 6 minutes
+          let pollSuccess = false;
+          for (let i = 0; i < maxPolls; i++) {
+            await new Promise(r => setTimeout(r, 10000)); // Wait 10s between polls
+            try {
+              const statusRes = await fetch(`${BACKEND_URL}/api/video-status/${data.operationId}`, { headers });
+              const statusData = await statusRes.json();
+              console.log(`[Orchestrator] Video poll ${i + 1}:`, statusData.status);
+              if (statusData.status === 'processing') continue;
+              if (statusData.status === 'completed') {
+                data = statusData; // Replace data with completed result
+                pollSuccess = true;
+                break;
+              }
+              // Failed
+              toast.error(statusData.error || 'Video generation failed', { id: 'gen-video' });
+              return;
+            } catch (pollErr) {
+              console.error('[Orchestrator] Video status poll error:', pollErr);
+              // Continue polling on network errors
+            }
+          }
+          if (!pollSuccess) {
+            toast.error('Video generation timed out — please try again', { id: 'gen-video' });
+            return;
+          }
+        }
         
         // Check if backend returned an image instead of video (fallback case)
         if (data.type === 'image' || (data.mimeType && data.mimeType.startsWith('image/'))) {
