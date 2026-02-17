@@ -334,30 +334,22 @@ export default function CanvasView({
         )}
       </div>
 
-      {/* ═══════════ SECTION C: MAIN WORKSPACE (SPLIT PANEL) ═══════════ */}
+      {/* ═══════════ SECTION C: FULL-VIEW CAROUSEL ═══════════ */}
       <div style={{
-        display: 'flex', flex: 1, minHeight: isMobile ? 'auto' : '500px',
+        display: 'flex', flexDirection: 'column', flex: 1, minHeight: isMobile ? 'auto' : '500px',
         position: 'relative', overflow: 'hidden'
       }}>
 
-        {/* LEFT: ASSET BROWSER */}
+        {/* Filter Tabs + Actions Bar */}
         <div style={{
-          flex: detailPanelAsset && !isMobile ? '0 0 55%' : '1',
-          display: detailPanelAsset && isMobile ? 'none' : 'flex',
-          flexDirection: 'column', overflow: 'hidden',
-          transition: 'flex 0.3s ease',
-          borderRight: detailPanelAsset && !isMobile ? '1px solid rgba(255,255,255,0.06)' : 'none'
+          display: 'flex', alignItems: 'center', gap: '8px',
+          padding: isMobile ? '10px 12px' : '14px 24px',
+          overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.05)',
+          background: 'rgba(255,255,255,0.02)',
+          flexWrap: isMobile ? 'wrap' : 'nowrap'
         }}>
-          {/* Filter Tabs */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            padding: isMobile ? '10px 12px' : '14px 24px',
-            overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.05)',
-            background: 'rgba(255,255,255,0.02)',
-            flexWrap: isMobile ? 'wrap' : 'nowrap'
-          }}>
-            {[
-              { key: 'all', label: 'ALL' },
+          {[
+            { key: 'all', label: 'ALL' },
               { key: 'audio', label: 'Audio' },
               { key: 'vocal', label: 'Vocals' },
               { key: 'visual', label: 'Visual' },
@@ -428,143 +420,350 @@ export default function CanvasView({
             </div>
           </div>
 
-          {/* Asset Grid / Mobile Compact Grid */}
-          {isMobile ? (
-            /* ═══ MOBILE COMPACT GRID ═══ */
-            <div style={{ flex: 1, overflowY: 'auto', padding: '10px', WebkitOverflowScrolling: 'touch' }}>
-              {filteredCanvasAssets.length > 0 ? (
+          {/* ═══ FULL-VIEW CAROUSEL (default) ═══ */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {filteredCanvasAssets.length > 0 ? (() => {
+              const currentAsset = filteredCanvasAssets[canvasCarouselIndex] || filteredCanvasAssets[0];
+              if (!currentAsset) return null;
+              const agentObj = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.name === currentAsset.agent || a.id === currentAsset.agent) : null;
+              const agentColor = agentObj?.color || 'var(--color-purple)';
+              const isTextAsset = ['text', 'lyrics', 'script'].includes((currentAsset.type || '').toLowerCase());
+
+              return (
                 <>
-                  {/* Asset count header */}
+                  {/* Carousel navigation bar */}
                   <div style={{
-                    padding: '4px 4px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: isMobile ? '8px 12px' : '10px 24px',
+                    background: 'rgba(0,0,0,0.15)', borderBottom: '1px solid rgba(255,255,255,0.05)'
                   }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
-                      {filteredCanvasAssets.length} asset{filteredCanvasAssets.length !== 1 ? 's' : ''}
-                    </span>
+                    <button
+                      onClick={() => setCanvasCarouselIndex(i => Math.max(0, i - 1))}
+                      disabled={canvasCarouselIndex === 0}
+                      className="btn-icon-circle glass"
+                      style={{ opacity: canvasCarouselIndex === 0 ? 0.3 : 1, width: '36px', height: '36px' }}
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <div style={{ textAlign: 'center', minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: '600', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {currentAsset.title || 'Untitled'}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: agentColor }} />
+                        {currentAsset.agent} &bull; {canvasCarouselIndex + 1} / {filteredCanvasAssets.length}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setCanvasCarouselIndex(i => Math.min(filteredCanvasAssets.length - 1, i + 1))}
+                      disabled={canvasCarouselIndex >= filteredCanvasAssets.length - 1}
+                      className="btn-icon-circle glass"
+                      style={{ opacity: canvasCarouselIndex >= filteredCanvasAssets.length - 1 ? 0.3 : 1, width: '36px', height: '36px' }}
+                    >
+                      <ChevronRight size={18} />
+                    </button>
                   </div>
 
-                  {/* Compact card grid — all assets closed by default, tap to open detail */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: '10px'
-                  }}>
-                    {filteredCanvasAssets.map((asset, idx) => {
-                      if (!asset) return null;
-                      const assetId = asset.id || `asset-${idx}`;
-                      const agentObj = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.name === asset.agent || a.id === asset.agent) : null;
-                      const agentColor = agentObj?.color || 'var(--color-purple)';
-                      return (
-                        <div
-                          key={assetId}
-                          onClick={() => setDetailPanelAsset(asset)}
-                          style={{
-                            background: 'rgba(255,255,255,0.03)', borderRadius: '14px',
-                            overflow: 'hidden', cursor: 'pointer',
-                            border: '1px solid rgba(255,255,255,0.06)',
-                            borderLeft: `3px solid ${agentColor}`,
-                            transition: 'all 0.2s ease'
+                  {/* Carousel main content area — swipeable */}
+                  <div
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}
+                    onTouchStart={handleCarouselTouchStart}
+                    onTouchEnd={handleCarouselTouchEnd}
+                  >
+                    {/* Media Display */}
+                    <div style={{
+                      minHeight: isMobile ? '200px' : '340px',
+                      maxHeight: isTextAsset ? (isMobile ? '55vh' : '60vh') : (isMobile ? '50vh' : '60vh'),
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: '#000', position: 'relative', overflow: 'hidden'
+                    }}>
+                      {/* Video */}
+                      {currentAsset.videoUrl && (
+                        <video
+                          key={currentAsset.id || canvasCarouselIndex}
+                          src={formatVideoSrc(currentAsset.videoUrl)}
+                          controls playsInline
+                          style={{ width: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      )}
+                      {/* Image */}
+                      {!currentAsset.videoUrl && currentAsset.imageUrl && (
+                        <img
+                          key={currentAsset.id || canvasCarouselIndex}
+                          src={formatImageSrc(currentAsset.imageUrl)}
+                          alt={currentAsset.title || 'Asset'}
+                          style={{ width: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                          onError={(e) => {
+                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"%3E%3Crect fill="%231a1a2e" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23666" font-family="sans-serif"%3EImage unavailable%3C/text%3E%3C/svg%3E';
                           }}
-                        >
-                          {/* Thumbnail */}
-                          <div style={{
-                            width: '100%', aspectRatio: '16/9', background: 'rgba(0,0,0,0.3)',
-                            overflow: 'hidden', position: 'relative', display: 'flex',
-                            alignItems: 'center', justifyContent: 'center'
-                          }}>
-                            {asset.imageUrl ? (
-                              <img
-                                src={formatImageSrc(asset.imageUrl)}
-                                alt={asset.title || 'Asset'}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      )}
+                      {/* Audio + Text (lyrics/scripts) */}
+                      {!currentAsset.videoUrl && !currentAsset.imageUrl && (
+                        <div style={{
+                          width: '100%', padding: isMobile ? '16px' : '32px', display: 'flex', flexDirection: 'column',
+                          background: 'linear-gradient(180deg, rgba(6, 182, 212, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)',
+                          minHeight: '200px', maxHeight: isMobile ? '55vh' : '60vh', overflow: 'hidden'
+                        }}>
+                          {currentAsset.audioUrl && (
+                            <div style={{
+                              marginBottom: '16px', background: 'rgba(0,0,0,0.4)', padding: '14px',
+                              borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)',
+                              display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0
+                            }}>
+                              <div className="pulse-icon" style={{ flexShrink: 0 }}>
+                                <Music size={22} className="text-purple" />
+                              </div>
+                              <audio
+                                ref={canvasAudioRef}
+                                key={currentAsset.id || currentAsset.audioUrl}
+                                src={formatAudioSrc(currentAsset.audioUrl)}
+                                controls crossOrigin="anonymous"
+                                style={{ flex: 1, height: '36px' }}
+                                onPlay={(e) => {
+                                  document.querySelectorAll('audio, video').forEach(el => {
+                                    if (el !== e.target) el.pause();
+                                  });
+                                }}
+                                onError={(e) => {
+                                  const rawUrl = currentAsset.audioUrl;
+                                  if (rawUrl && !e.target.dataset.retried) {
+                                    e.target.dataset.retried = 'true';
+                                    if (rawUrl.startsWith('http')) {
+                                      e.target.removeAttribute('crossorigin');
+                                      e.target.src = rawUrl;
+                                      return;
+                                    }
+                                  }
+                                  toast.error('Could not load audio file');
+                                }}
                               />
-                            ) : asset.videoUrl ? (
-                              <>
-                                <video
-                                  src={formatVideoSrc(asset.videoUrl)}
-                                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                  muted playsInline preload="metadata"
-                                  onError={(e) => { e.target.style.display = 'none'; }}
-                                />
-                                <div style={{
-                                  position: 'absolute', top: '50%', left: '50%',
-                                  transform: 'translate(-50%, -50%)',
-                                  width: '32px', height: '32px', borderRadius: '50%',
-                                  background: 'rgba(0,0,0,0.6)', display: 'flex',
-                                  alignItems: 'center', justifyContent: 'center'
-                                }}>
-                                  <Play size={16} style={{ color: 'white', marginLeft: '2px' }} />
-                                </div>
-                              </>
-                            ) : asset.audioUrl ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                                <Music size={24} style={{ color: 'var(--color-purple)' }} />
-                                <div style={{ width: '50%', height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
-                                  <div style={{ width: '40%', height: '100%', background: 'var(--color-purple)', borderRadius: '2px' }} />
-                                </div>
-                              </div>
-                            ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '6px' }}>
-                                <FileText size={20} style={{ color: 'var(--color-cyan)' }} />
-                                {(asset.content || asset.snippet) && (
-                                  <div style={{
-                                    fontSize: '0.55rem', color: 'var(--text-secondary)', textAlign: 'center',
-                                    overflow: 'hidden', display: '-webkit-box',
-                                    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: '1.2',
-                                    maxWidth: '90%'
-                                  }}>
-                                    {(asset.content || asset.snippet).substring(0, 50)}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            {/* Type Badge */}
-                            <div style={{
-                              position: 'absolute', top: '4px', left: '4px',
-                              background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
-                              padding: '2px 6px', borderRadius: '4px', fontSize: '0.55rem',
-                              color: 'white', display: 'flex', alignItems: 'center', gap: '2px'
-                            }}>
-                              {(asset.type?.toLowerCase() === 'video') && <VideoIcon size={8} />}
-                              {(asset.type?.toLowerCase() === 'audio' || asset.type?.toLowerCase() === 'vocal') && <Music size={8} />}
-                              {(asset.type?.toLowerCase() === 'image' || asset.type?.toLowerCase() === 'visual') && <ImageIcon size={8} />}
-                              {(asset.type?.toLowerCase() === 'text' || asset.type?.toLowerCase() === 'lyrics' || asset.type?.toLowerCase() === 'script') && <FileText size={8} />}
-                              {asset.type}
                             </div>
-                          </div>
-                          {/* Compact info */}
-                          <div style={{ padding: '8px 10px' }}>
+                          )}
+                          {/* Lyrics / Text content — properly styled */}
+                          {(currentAsset.content || currentAsset.snippet) && (
                             <div style={{
-                              fontSize: '0.8rem', fontWeight: '600', color: 'white',
-                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                              marginBottom: '2px'
+                              flex: 1, overflowY: 'auto', padding: isMobile ? '16px' : '24px',
+                              background: 'rgba(0,0,0,0.3)', borderRadius: '12px',
+                              border: '1px solid rgba(255,255,255,0.05)',
+                              boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)'
                             }}>
-                              {asset.title || 'Untitled'}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                               <div style={{
-                                fontSize: '0.65rem', color: 'var(--text-secondary)',
-                                display: 'flex', alignItems: 'center', gap: '3px'
+                                fontFamily: isTextAsset ? "'Georgia', 'Times New Roman', serif" : "'Inter', sans-serif",
+                                fontSize: isMobile ? '1rem' : '1.15rem',
+                                lineHeight: '2',
+                                color: 'rgba(255,255,255,0.92)',
+                                whiteSpace: 'pre-wrap',
+                                wordWrap: 'break-word',
+                                letterSpacing: '0.01em'
                               }}>
-                                <div style={{ width: 5, height: 5, borderRadius: '50%', background: agentColor, flexShrink: 0 }} />
-                                {asset.agent}
-                              </div>
-                              <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>
-                                {asset.date}
+                                {(currentAsset.content || currentAsset.snippet)
+                                  .split('\n')
+                                  .map((line, i) => {
+                                    // Style section headers like [Verse 1], [Chorus], etc.
+                                    if (/^\[.*\]$/.test(line.trim())) {
+                                      return (
+                                        <div key={i} style={{
+                                          color: 'var(--color-purple)',
+                                          fontWeight: '700',
+                                          fontSize: isMobile ? '0.85rem' : '0.95rem',
+                                          textTransform: 'uppercase',
+                                          letterSpacing: '0.1em',
+                                          marginTop: i > 0 ? '20px' : '0',
+                                          marginBottom: '8px',
+                                          fontFamily: "'Inter', sans-serif"
+                                        }}>
+                                          {line.trim()}
+                                        </div>
+                                      );
+                                    }
+                                    // Empty lines = stanza break
+                                    if (line.trim() === '') {
+                                      return <div key={i} style={{ height: '12px' }} />;
+                                    }
+                                    return <div key={i}>{line}</div>;
+                                  })}
                               </div>
                             </div>
-                          </div>
+                          )}
+                          {!currentAsset.audioUrl && !(currentAsset.content || currentAsset.snippet) && (
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                              No preview content available.
+                            </div>
+                          )}
                         </div>
-                      );
-                    })}
+                      )}
+                      {/* Type Badge overlay */}
+                      <div style={{
+                        position: 'absolute', top: '10px', left: '10px',
+                        background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+                        padding: '4px 10px', borderRadius: '8px', fontSize: '0.7rem',
+                        color: 'white', display: 'flex', alignItems: 'center', gap: '4px'
+                      }}>
+                        {(currentAsset.type?.toLowerCase() === 'video') && <VideoIcon size={10} />}
+                        {(currentAsset.type?.toLowerCase() === 'audio' || currentAsset.type?.toLowerCase() === 'vocal') && <Music size={10} />}
+                        {(currentAsset.type?.toLowerCase() === 'image' || currentAsset.type?.toLowerCase() === 'visual') && <ImageIcon size={10} />}
+                        {(currentAsset.type?.toLowerCase() === 'text' || currentAsset.type?.toLowerCase() === 'lyrics' || currentAsset.type?.toLowerCase() === 'script') && <FileText size={10} />}
+                        {currentAsset.type}
+                      </div>
+                    </div>
+
+                    {/* Metadata Grid */}
+                    <div style={{ padding: '12px 20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', flexShrink: 0 }}>
+                      {[
+                        { label: 'Type', value: currentAsset.type || 'Unknown' },
+                        { label: 'Agent', value: currentAsset.agent || 'System' },
+                        { label: 'Created', value: currentAsset.date || 'Unknown' }
+                      ].map(meta => (
+                        <div key={meta.label} style={{
+                          background: 'rgba(255,255,255,0.03)', padding: '8px', borderRadius: '10px', textAlign: 'center'
+                        }}>
+                          <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{meta.label}</div>
+                          <div style={{ fontSize: '0.8rem', fontWeight: '600', color: 'white' }}>{meta.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Dot indicators for carousel position */}
+                    {filteredCanvasAssets.length > 1 && (
+                      <div style={{
+                        display: 'flex', justifyContent: 'center', gap: '6px', padding: '8px 0', flexShrink: 0
+                      }}>
+                        {filteredCanvasAssets.slice(0, 20).map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setCanvasCarouselIndex(i)}
+                            style={{
+                              width: canvasCarouselIndex === i ? '20px' : '8px',
+                              height: '8px',
+                              borderRadius: '4px',
+                              background: canvasCarouselIndex === i ? 'var(--color-purple)' : 'rgba(255,255,255,0.15)',
+                              border: 'none', cursor: 'pointer',
+                              transition: 'all 0.2s ease', padding: 0
+                            }}
+                          />
+                        ))}
+                        {filteredCanvasAssets.length > 20 && (
+                          <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', alignSelf: 'center' }}>+{filteredCanvasAssets.length - 20}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons — sticky at bottom */}
+                  <div style={{
+                    padding: '10px 20px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap',
+                    borderTop: '1px solid rgba(255,255,255,0.05)', flexShrink: 0,
+                    background: 'rgba(0,0,0,0.2)',
+                    ...(isMobile ? { paddingBottom: 'max(16px, env(safe-area-inset-bottom))' } : {})
+                  }}>
+                    <button
+                      onClick={() => {
+                        try {
+                          const mediaUrl = currentAsset.audioUrl || currentAsset.videoUrl || currentAsset.imageUrl;
+                          if (!mediaUrl) {
+                            if (currentAsset.content || currentAsset.snippet) {
+                              const blob = new Blob([currentAsset.content || currentAsset.snippet], { type: 'text/plain' });
+                              const url = URL.createObjectURL(blob);
+                              const link = document.createElement('a');
+                              link.href = url;
+                              link.download = `${currentAsset.title || 'asset'}.txt`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                              URL.revokeObjectURL(url);
+                              toast.success('Text file downloaded');
+                            } else {
+                              toast.error('No downloadable content');
+                            }
+                            return;
+                          }
+                          const link = document.createElement('a');
+                          link.href = mediaUrl;
+                          link.download = currentAsset.title || 'download';
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          toast.success('Download started');
+                        } catch (err) {
+                          toast.error('Download failed');
+                        }
+                      }}
+                      className="btn-pill"
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px' }}
+                    >
+                      <Download size={14} /> Download
+                    </button>
+                    <button
+                      onClick={() => {
+                        const assetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
+                        safeOpenPreview(currentAsset, assetsList);
+                      }}
+                      className="btn-pill"
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px' }}
+                    >
+                      <Maximize2 size={14} /> Fullscreen
+                    </button>
+                    {(currentAsset.content || currentAsset.snippet) && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(currentAsset.content || currentAsset.snippet || '');
+                          toast.success('Text copied');
+                        }}
+                        className="btn-pill"
+                        style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px' }}
+                      >
+                        <Copy size={14} /> Copy
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        toast((t) => (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <span style={{ fontWeight: 600 }}>Delete "{currentAsset.title || 'this asset'}"?</span>
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                              <button
+                                onClick={() => {
+                                  toast.dismiss(t.id);
+                                  const currentAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+                                  const updatedAssets = currentAssets.filter(a => a?.id !== currentAsset.id);
+                                  const updated = { ...selectedProject, assets: updatedAssets, updatedAt: new Date().toISOString() };
+                                  setSelectedProject(updated);
+                                  setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
+                                  // Navigate to next asset or wrap
+                                  if (canvasCarouselIndex >= updatedAssets.length) {
+                                    setCanvasCarouselIndex(Math.max(0, updatedAssets.length - 1));
+                                  }
+                                  toast.success('Asset deleted');
+                                }}
+                                style={{ padding: '6px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                              >Delete</button>
+                              <button
+                                onClick={() => toast.dismiss(t.id)}
+                                style={{ padding: '6px 16px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', cursor: 'pointer' }}
+                              >Cancel</button>
+                            </div>
+                          </div>
+                        ), { duration: 10000, style: { background: '#1a1a2e', color: 'white', borderRadius: '12px' } });
+                      }}
+                      className="btn-pill"
+                      style={{ justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px', background: 'rgba(239,68,68,0.15)', color: 'var(--color-red, #ef4444)' }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </>
-              ) : (
+              );
+            })() : (
+              <div style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: isMobile ? '40px 20px' : '60px', textAlign: 'center'
+              }}>
                 <div style={{
-                  padding: '40px 20px', textAlign: 'center',
                   background: 'rgba(255,255,255,0.02)', borderRadius: '16px',
-                  border: '2px dashed rgba(255,255,255,0.05)', margin: '12px'
+                  border: '2px dashed rgba(255,255,255,0.05)', padding: isMobile ? '40px 20px' : '60px',
+                  maxWidth: '500px'
                 }}>
                   <Layers size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
                   <h3 style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
@@ -572,455 +771,16 @@ export default function CanvasView({
                   </h3>
                   <p style={{ color: 'var(--text-secondary)', opacity: 0.7, maxWidth: '400px', margin: '0 auto 24px auto' }}>
                     {pipelineFilter || assetFilter !== 'all'
-                      ? 'Try a different filter or generate new assets.'
-                      : 'Start by opening the Orchestrator or uploading files.'}
+                      ? 'Try a different filter or generate new assets with the Orchestrator.'
+                      : 'Start by opening the Studio Orchestrator or uploading your own files.'}
                   </p>
                   <button className="btn-pill primary" onClick={() => setShowOrchestrator(true)}>
                     <Sparkles size={16} /> Start Creating
                   </button>
                 </div>
-              )}
-            </div>
-          ) : (
-          /* ═══ DESKTOP GRID VIEW ═══ */
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px' }}>
-            {filteredCanvasAssets.length > 0 ? (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: detailPanelAsset && !isMobile
-                  ? 'repeat(auto-fill, minmax(180px, 1fr))'
-                  : `repeat(auto-fill, minmax(${isMobile ? '160px' : '220px'}, 1fr))`,
-                gap: isMobile ? '12px' : '16px'
-              }}>
-                {filteredCanvasAssets.map((asset, idx) => {
-                  if (!asset || typeof asset !== 'object') return null;
-                  const assetId = asset.id || `asset-${idx}`;
-                  const agentObj = (typeof AGENTS !== 'undefined' && AGENTS)
-                    ? AGENTS.find(a => a.name === asset.agent || a.id === asset.agent)
-                    : null;
-                  const agentColor = agentObj?.color || 'var(--color-purple)';
-                  const isSelected = detailPanelAsset?.id && asset.id && detailPanelAsset.id === asset.id;
-
-                  return (
-                    <SafeAssetWrapper key={assetId} asset={asset}>
-                    <div
-                      onClick={() => setDetailPanelAsset(asset)}
-                      style={{
-                        background: isSelected ? 'rgba(168, 85, 247, 0.08)' : 'rgba(255,255,255,0.03)',
-                        borderRadius: '14px',
-                        overflow: 'hidden',
-                        border: isSelected ? '1px solid var(--color-purple)' : '1px solid rgba(255,255,255,0.06)',
-                        borderLeft: `3px solid ${agentColor}`,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        display: 'flex', flexDirection: 'column'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isSelected) {
-                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                          e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                        }
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}
-                    >
-                      {/* Thumbnail */}
-                      <div style={{
-                        width: '100%', aspectRatio: '16/9', background: 'rgba(0,0,0,0.3)',
-                        overflow: 'hidden', position: 'relative', display: 'flex',
-                        alignItems: 'center', justifyContent: 'center'
-                      }}>
-                        {asset.imageUrl ? (
-                          <img
-                            src={formatImageSrc(asset.imageUrl)}
-                            alt={asset.title || 'Asset'}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => { e.target.style.display = 'none'; }}
-                          />
-                        ) : asset.videoUrl ? (
-                          <>
-                            <video
-                              src={formatVideoSrc(asset.videoUrl)}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              muted playsInline preload="auto"
-                              onLoadedMetadata={(e) => {
-                                const seekTime = Math.min(1, e.target.duration * 0.1 || 0);
-                                if (e.target.currentTime === 0 && seekTime > 0) e.target.currentTime = seekTime;
-                              }}
-                              onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                            <div style={{
-                              position: 'absolute', top: '50%', left: '50%',
-                              transform: 'translate(-50%, -50%)',
-                              width: '36px', height: '36px', borderRadius: '50%',
-                              background: 'rgba(0,0,0,0.6)', display: 'flex',
-                              alignItems: 'center', justifyContent: 'center',
-                              backdropFilter: 'blur(4px)'
-                            }}>
-                              <Play size={18} style={{ color: 'white', marginLeft: '2px' }} />
-                            </div>
-                          </>
-                        ) : asset.audioUrl ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                            <Music size={28} style={{ color: 'var(--color-purple)' }} />
-                            <div style={{ width: '50%', height: '3px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}>
-                              <div style={{ width: '40%', height: '100%', background: 'var(--color-purple)', borderRadius: '2px' }} />
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '8px' }}>
-                            <FileText size={24} style={{ color: 'var(--color-cyan)' }} />
-                            {(asset.content || asset.snippet) && (
-                              <div style={{
-                                fontSize: '0.6rem', color: 'var(--text-secondary)', textAlign: 'center',
-                                overflow: 'hidden', display: '-webkit-box',
-                                WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: '1.3',
-                                maxWidth: '90%'
-                              }}>
-                                {(asset.content || asset.snippet).substring(0, 60)}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {/* Type Badge */}
-                        <div style={{
-                          position: 'absolute', top: '6px', left: '6px',
-                          background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
-                          padding: '3px 7px', borderRadius: '5px', fontSize: '0.6rem',
-                          color: 'white', display: 'flex', alignItems: 'center', gap: '3px'
-                        }}>
-                          {(asset.type?.toLowerCase() === 'video') && <VideoIcon size={9} />}
-                          {(asset.type?.toLowerCase() === 'audio' || asset.type?.toLowerCase() === 'vocal') && <Music size={9} />}
-                          {(asset.type?.toLowerCase() === 'image' || asset.type?.toLowerCase() === 'visual') && <ImageIcon size={9} />}
-                          {(asset.type?.toLowerCase() === 'text' || asset.type?.toLowerCase() === 'lyrics' || asset.type?.toLowerCase() === 'script') && <FileText size={9} />}
-                          {(asset.type?.toLowerCase() === 'pro') && <Crown size={9} />}
-                          {asset.type}
-                        </div>
-                      </div>
-                      {/* Info footer */}
-                      <div style={{ padding: '10px 12px' }}>
-                        <div style={{
-                          fontSize: '0.85rem', fontWeight: '600', color: 'white',
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          marginBottom: '4px'
-                        }}>
-                          {asset.title}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{
-                            fontSize: '0.7rem', color: 'var(--text-secondary)',
-                            display: 'flex', alignItems: 'center', gap: '4px'
-                          }}>
-                            <div style={{
-                              width: '6px', height: '6px', borderRadius: '50%',
-                              background: agentColor, flexShrink: 0
-                            }} />
-                            {asset.agent}
-                          </div>
-                          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                            {asset.date}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    </SafeAssetWrapper>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{
-                padding: isMobile ? '40px 20px' : '60px', textAlign: 'center',
-                background: 'rgba(255,255,255,0.02)', borderRadius: '16px',
-                border: '2px dashed rgba(255,255,255,0.05)'
-              }}>
-                <Layers size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-                <h3 style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                  {pipelineFilter || assetFilter !== 'all' ? 'No matching assets' : 'No generations yet'}
-                </h3>
-                <p style={{ color: 'var(--text-secondary)', opacity: 0.7, maxWidth: '400px', margin: '0 auto 24px auto' }}>
-                  {pipelineFilter || assetFilter !== 'all'
-                    ? 'Try a different filter or generate new assets with the Orchestrator.'
-                    : 'Start by opening the Studio Orchestrator or uploading your own files.'}
-                </p>
-                <button className="btn-pill primary" onClick={() => setShowOrchestrator(true)}>
-                  <Sparkles size={16} /> Start Creating
-                </button>
               </div>
             )}
           </div>
-          )}
-        </div>
-
-        {/* RIGHT: DETAIL PANEL - fullscreen overlay on mobile, side panel on desktop */}
-        {detailPanelAsset && (
-          <div style={{
-            flex: isMobile ? undefined : '0 0 45%',
-            display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            background: isMobile ? 'var(--color-bg-secondary, #0d0d12)' : 'rgba(0,0,0,0.2)',
-            animation: 'detailSlideIn 0.3s ease',
-            position: isMobile ? 'fixed' : 'relative',
-            inset: isMobile ? 0 : undefined,
-            zIndex: isMobile ? 100 : 1
-          }}>
-            {/* Detail Header */}
-            <div style={{
-              padding: isMobile ? '12px 16px' : '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
-              display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.02)',
-              flexShrink: 0
-            }}>
-              {isMobile && (
-                <button onClick={() => setDetailPanelAsset(null)} className="btn-icon-circle" style={{ flexShrink: 0, width: '44px', height: '44px' }}>
-                  <ArrowLeft size={20} />
-                </button>
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: '1rem', fontWeight: '600', color: 'white',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                }}>
-                  {detailPanelAsset.title}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <User size={10} /> {detailPanelAsset.agent} &bull; {detailPanelAsset.date}
-                </div>
-              </div>
-              {!isMobile && (
-                <button onClick={() => setDetailPanelAsset(null)} className="btn-icon-circle glass" title="Close" style={{ flexShrink: 0 }}>
-                  <X size={16} />
-                </button>
-              )}
-            </div>
-
-            {/* Media Display */}
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-              <div style={{
-                minHeight: isMobile ? '200px' : '300px', maxHeight: isMobile ? '45vh' : undefined,
-                display: 'flex', alignItems: 'center',
-                justifyContent: 'center', background: '#000', position: 'relative',
-                overflow: 'hidden'
-              }}>
-                {/* Video */}
-                {detailPanelAsset.videoUrl && (
-                  <video
-                    src={formatVideoSrc(detailPanelAsset.videoUrl)}
-                    controls playsInline
-                    style={{ width: '100%', maxHeight: '400px', objectFit: 'contain' }}
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      const fb = e.target.parentElement?.querySelector('.media-error-fallback');
-                      if (fb) fb.style.display = 'flex';
-                    }}
-                  />
-                )}
-                {/* Image */}
-                {!detailPanelAsset.videoUrl && detailPanelAsset.imageUrl && (
-                  <img
-                    src={formatImageSrc(detailPanelAsset.imageUrl)}
-                    alt={detailPanelAsset.title || 'Asset'}
-                    style={{ width: '100%', maxHeight: '400px', objectFit: 'contain' }}
-                    onError={(e) => {
-                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"%3E%3Crect fill="%231a1a2e" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23666" font-family="sans-serif"%3EImage unavailable%3C/text%3E%3C/svg%3E';
-                    }}
-                  />
-                )}
-                {/* Audio + Text hybrid */}
-                {!detailPanelAsset.videoUrl && !detailPanelAsset.imageUrl && (
-                  <div style={{
-                    width: '100%', padding: isMobile ? '16px' : '32px',
-                    display: 'flex', flexDirection: 'column',
-                    background: 'linear-gradient(180deg, rgba(6, 182, 212, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)',
-                    minHeight: '150px', maxHeight: isMobile ? '40vh' : undefined,
-                    overflow: 'hidden'
-                  }}>
-                    {detailPanelAsset.audioUrl && (
-                      <div style={{
-                        marginBottom: '16px', background: 'rgba(0,0,0,0.4)', padding: '14px',
-                        borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)',
-                        display: 'flex', alignItems: 'center', gap: '14px'
-                      }}>
-                        <div className="pulse-icon" style={{ flexShrink: 0 }}>
-                          <Music size={22} className="text-purple" />
-                        </div>
-                        <audio
-                          ref={canvasAudioRef}
-                          key={detailPanelAsset.id || detailPanelAsset.audioUrl}
-                          src={formatAudioSrc(detailPanelAsset.audioUrl)}
-                          controls crossOrigin="anonymous"
-                          style={{ flex: 1, height: '36px' }}
-                          onPlay={(e) => {
-                            document.querySelectorAll('audio, video').forEach(el => {
-                              if (el !== e.target) el.pause();
-                            });
-                          }}
-                          onError={(e) => {
-                            console.warn('[DetailPanel] Audio error, code:', e.target.error?.code);
-                            const rawUrl = detailPanelAsset.audioUrl;
-                            if (rawUrl && !e.target.dataset.retried) {
-                              e.target.dataset.retried = 'true';
-                              if (rawUrl.startsWith('http')) {
-                                e.target.removeAttribute('crossorigin');
-                                e.target.src = rawUrl;
-                                return;
-                              }
-                            }
-                            toast.error('Could not load audio file');
-                          }}
-                        />
-                      </div>
-                    )}
-                    {(detailPanelAsset.content || detailPanelAsset.snippet) && (
-                      <div style={{
-                        flex: 1, overflowY: 'auto', padding: isMobile ? '14px' : '20px',
-                        background: 'rgba(0,0,0,0.3)', borderRadius: '12px',
-                        border: '1px solid rgba(255,255,255,0.05)',
-                        boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)'
-                      }}>
-                        <div style={{
-                          fontFamily: "'Georgia', 'Times New Roman', serif",
-                          fontSize: isMobile ? '0.95rem' : '1.1rem', lineHeight: '1.8',
-                          color: 'rgba(255,255,255,0.9)', whiteSpace: 'pre-wrap', wordWrap: 'break-word'
-                        }}>
-                          {detailPanelAsset.content || detailPanelAsset.snippet}
-                        </div>
-                      </div>
-                    )}
-                    {!detailPanelAsset.audioUrl && !(detailPanelAsset.content || detailPanelAsset.snippet) && (
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                        No preview content available.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Metadata Grid */}
-              <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                {[
-                  { label: 'Type', value: detailPanelAsset.type || 'Unknown' },
-                  { label: 'Agent', value: detailPanelAsset.agent || 'System' },
-                  { label: 'Created', value: detailPanelAsset.date || 'Unknown' }
-                ].map(meta => (
-                  <div key={meta.label} style={{
-                    background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '10px',
-                    textAlign: 'center'
-                  }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{meta.label}</div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'white' }}>{meta.value}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Action Buttons — sticky on mobile so always visible */}
-              <div style={{
-                padding: '12px 20px 20px', display: 'flex', gap: '8px', flexWrap: 'wrap',
-                borderTop: '1px solid rgba(255,255,255,0.05)',
-                ...(isMobile ? { position: 'sticky', bottom: 0, background: 'var(--color-bg-secondary, #0d0d12)', zIndex: 10, paddingBottom: 'max(20px, env(safe-area-inset-bottom))' } : {})
-              }}>
-                <button
-                  onClick={() => {
-                    try {
-                      const mediaUrl = detailPanelAsset.audioUrl || detailPanelAsset.videoUrl || detailPanelAsset.imageUrl;
-                      if (!mediaUrl) {
-                        if (detailPanelAsset.content || detailPanelAsset.snippet) {
-                          const blob = new Blob([detailPanelAsset.content || detailPanelAsset.snippet], { type: 'text/plain' });
-                          const url = URL.createObjectURL(blob);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = `${detailPanelAsset.title || 'asset'}.txt`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          URL.revokeObjectURL(url);
-                          toast.success('Text file downloaded');
-                        } else {
-                          toast.error('No downloadable content');
-                        }
-                        return;
-                      }
-                      const link = document.createElement('a');
-                      link.href = mediaUrl;
-                      link.download = detailPanelAsset.title || 'download';
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      toast.success('Download started');
-                    } catch (err) {
-                      toast.error('Download failed');
-                    }
-                  }}
-                  className="btn-pill"
-                  style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px' }}
-                >
-                  <Download size={14} /> Download
-                </button>
-                <button
-                  onClick={() => {
-                    const assetsList = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
-                    safeOpenPreview(detailPanelAsset, assetsList);
-                  }}
-                  className="btn-pill"
-                  style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px' }}
-                >
-                  <Maximize2 size={14} /> Fullscreen
-                </button>
-                {(detailPanelAsset.content || detailPanelAsset.snippet) && (
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(detailPanelAsset.content || detailPanelAsset.snippet || '');
-                      toast.success('Text copied');
-                    }}
-                    className="btn-pill"
-                    style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px' }}
-                  >
-                    <Copy size={14} /> Copy Text
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    try {
-                      toast((t) => (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <span style={{ fontWeight: 600 }}>Delete "{detailPanelAsset.title || 'this asset'}"?</span>
-                          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                            <button 
-                              onClick={() => {
-                                toast.dismiss(t.id);
-                                const currentAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
-                                const updatedAssets = currentAssets.filter(a => a?.id !== detailPanelAsset.id);
-                                const updated = { ...selectedProject, assets: updatedAssets, updatedAt: new Date().toISOString() };
-                                setSelectedProject(updated);
-                                setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
-                                setDetailPanelAsset(null);
-                                toast.success('Asset deleted');
-                              }}
-                              style={{ padding: '6px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
-                            >Delete</button>
-                            <button 
-                              onClick={() => toast.dismiss(t.id)}
-                              style={{ padding: '6px 16px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', cursor: 'pointer' }}
-                            >Cancel</button>
-                          </div>
-                        </div>
-                      ), { duration: 10000, style: { background: '#1a1a2e', color: 'white', borderRadius: '12px' } });
-                    } catch (err) {
-                      toast.error('Could not delete asset');
-                    }
-                  }}
-                  className="btn-pill"
-                  style={{ justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px', background: 'rgba(239,68,68,0.15)', color: 'var(--color-red, #ef4444)' }}
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ═══════════ SECTION D: COLLAPSIBLE SIDEBAR (OVERLAY) ═══════════ */}

@@ -1265,10 +1265,12 @@ function ProjectHubV3({
         .projects-grid {
           display: grid;
           gap: 20px;
+          max-width: 600px;
+          margin: 0 auto;
         }
 
         .projects-grid.grid {
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          grid-template-columns: 1fr;
         }
 
         .projects-grid.list {
@@ -1469,7 +1471,7 @@ function ProjectHubV3({
         .project-card.new-project-card {
           border: 2px dashed var(--border-color);
           background: transparent;
-          min-height: 280px;
+          min-height: 250px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -1505,7 +1507,7 @@ function ProjectHubV3({
         }
 
         .card-thumbnail {
-          height: 180px;
+          height: 160px;
           background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%);
           background-size: cover;
           background-position: center;
@@ -2106,7 +2108,7 @@ function ProjectHubV3({
         /* Tablet */
         @media (max-width: 1024px) {
           .projects-grid.grid {
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            grid-template-columns: 1fr;
           }
           
           .hub-filters {
@@ -2169,8 +2171,9 @@ function ProjectHubV3({
           }
 
           .projects-grid.grid {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: 1fr;
             gap: 12px;
+            max-width: 100%;
           }
           
           .project-card.new-project-card {

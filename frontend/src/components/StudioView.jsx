@@ -5570,30 +5570,70 @@ const fetchUserCredits = useCallback(async (uid) => {
                         </button>
                         
                         {showVoiceHelp && (
-                          <div className="voice-settings-dropdown animate-fadeInUp" style={{ width: '280px', right: '40px' }}>
-                            <div className="settings-group">
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Mic size={14} className="text-purple" /> Voice to Text
-                              </label>
-                              <p className="help-text small" style={{ marginTop: '4px' }}>
-                                Click the microphone to dictate your prompt. Speak clearly. Click again to stop.
-                              </p>
+                          <div className="voice-settings-dropdown animate-fadeInUp" style={{ width: isMobile ? '92vw' : '380px', right: isMobile ? '-60px' : '40px', maxHeight: '70vh', overflowY: 'auto', padding: '16px' }}>
+                            <div style={{ marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                              <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: '700', color: 'white', fontFamily: 'Georgia, serif' }}>Vocal Creation Guide</h4>
+                              <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)' }}>Everything you can do with AI vocals</p>
                             </div>
-                            <div className="settings-group">
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Volume2 size={14} className="text-cyan" /> Text to Voice
+
+                            <div className="settings-group" style={{ background: 'rgba(168,85,247,0.06)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
+                                <Mic size={14} style={{ color: '#a855f7' }} /> AI Rapper Voices
                               </label>
-                              <p className="help-text small" style={{ marginTop: '4px' }}>
-                                Click the speaker to hear the AI read the current text. Useful for reviewing lyrics.
-                              </p>
+                              <p className="help-text small" style={{ marginTop: '4px' }}>Male & female rappers with 8 delivery styles: Aggressive, Melodic, Trap, Drill, Boom-Bap, Fast Flow, Chill, and Hype.</p>
+                              <div style={{ marginTop: '6px', padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                                Try: "Spit a 16-bar verse about making it from nothing, aggressive trap flow"
+                              </div>
                             </div>
-                            <div className="settings-group">
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Settings size={14} /> Settings
+
+                            <div className="settings-group" style={{ background: 'rgba(6,182,212,0.06)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
+                                <Music size={14} style={{ color: '#06b6d4' }} /> AI Singer Voices
                               </label>
-                              <p className="help-text small" style={{ marginTop: '4px' }}>
-                                Customize the AI voice gender, accent (US/UK/AU), and language.
-                              </p>
+                              <p className="help-text small" style={{ marginTop: '4px' }}>Male & female singers across R&B/Soul, Pop, Hip-Hop, Country, Rock, and Jazz genres.</p>
+                              <div style={{ marginTop: '6px', padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                                Try: "Sing a soulful R&B hook about summer nights in the city"
+                              </div>
+                            </div>
+
+                            <div className="settings-group" style={{ background: 'rgba(251,191,36,0.06)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
+                                <Mic size={14} style={{ color: '#fbbf24' }} /> Voice Cloning
+                              </label>
+                              <p className="help-text small" style={{ marginTop: '4px' }}>Upload a clear 5-10 second audio clip (.wav/.mp3) and the AI will learn your voice. Use it for every generation after.</p>
+                              <div style={{ marginTop: '6px', padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
+                                Tip: Record in a quiet room, speak naturally, avoid background music
+                              </div>
+                            </div>
+
+                            <div className="settings-group" style={{ background: 'rgba(236,72,153,0.06)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
+                                <Sparkles size={14} style={{ color: '#ec4899' }} /> Premium ElevenLabs
+                              </label>
+                              <p className="help-text small" style={{ marginTop: '4px' }}>Select from premium AI voices with ultra-realistic tone and emotion. Available for Vocal Lab, Vocal Architect, Ghostwriter, Voiceover & Podcast agents.</p>
+                            </div>
+
+                            <div className="settings-group" style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', marginBottom: '8px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
+                                <Volume2 size={14} style={{ color: '#10b981' }} /> Narrator & Spoken Word
+                              </label>
+                              <p className="help-text small" style={{ marginTop: '4px' }}>Deep narrator voice for intros/outros, or spoken word style for poetry and storytelling.</p>
+                            </div>
+
+                            <div style={{ padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', marginBottom: '8px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', fontSize: '0.8rem', color: 'rgba(255,255,255,0.9)' }}>
+                                <Settings size={14} /> Quick Settings
+                              </label>
+                              <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                {['15s', '30s', '1min', '2min', '3min'].map(d => (
+                                  <span key={d} style={{ padding: '2px 8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', fontSize: '0.65rem', color: 'rgba(255,255,255,0.6)' }}>{d}</span>
+                                ))}
+                              </div>
+                              <p className="help-text small" style={{ marginTop: '6px' }}>9 languages supported: English, Spanish, French, German, Italian, Portuguese, Japanese, Korean, Chinese</p>
+                            </div>
+
+                            <div style={{ padding: '8px', background: 'linear-gradient(135deg, rgba(168,85,247,0.1), rgba(6,182,212,0.1))', borderRadius: '8px', textAlign: 'center' }}>
+                              <p style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.7)' }}>Set voice type & style in <strong style={{ color: 'white' }}>Settings</strong>, then type your lyrics and hit <strong style={{ color: '#a855f7' }}>Generate</strong></p>
                             </div>
                           </div>
                         )}
@@ -5964,16 +6004,70 @@ const fetchUserCredits = useCallback(async (uid) => {
                   }}>
                     {/* Educational Section for DNA */}
                     <div style={{
-                      padding: '12px',
+                      padding: '14px',
                       background: 'rgba(168, 85, 247, 0.05)',
                       borderRadius: '10px',
                       border: '1px solid rgba(168, 85, 247, 0.1)',
-                      marginBottom: '8px'
+                      marginBottom: '10px'
                     }}>
-                      <h4 style={{ margin: '0 0 4px 0', fontSize: '0.85rem', color: '#a855f7', fontWeight: 'bold', fontFamily: 'Georgia, serif' }}>What is DNA?</h4>
-                      <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.4', fontFamily: 'Georgia, serif' }}>
-                        Studio DNA captures your artistic identity. Uploading reference images, audio, or lyrics allows the AI to "inherit" your style, ensuring every generation feels like your personal creation.
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: '#a855f7', fontWeight: 'bold', fontFamily: 'Georgia, serif' }}>What is DNA?</h4>
+                      <p style={{ margin: '0 0 10px 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.5', fontFamily: 'Georgia, serif' }}>
+                        Studio DNA captures your artistic identity. Upload references so the AI "inherits" your style — every generation feels like <em>your</em> creation.
                       </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(236,72,153,0.06)', borderRadius: '6px' }}>
+                          <ImageIcon size={14} color="#ec4899" style={{ marginTop: '2px', flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#ec4899' }}>Visual DNA</div>
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Upload mood boards, album art refs, or screenshots. AI matches your aesthetic for covers, videos, and visuals.</div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(6,182,212,0.06)', borderRadius: '6px' }}>
+                          <Music size={14} color="#06b6d4" style={{ marginTop: '2px', flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#06b6d4' }}>Audio DNA</div>
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Reference beats, samples, or backing tracks. The AI inherits tempo, key & vibe for new beats or vocal mixing.</div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(168,85,247,0.06)', borderRadius: '6px' }}>
+                          <FileText size={14} color="#a855f7" style={{ marginTop: '2px', flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#a855f7' }}>Lyrics DNA</div>
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Upload reference lyrics, poetry, or text files. AI learns your writing style, wordplay, and themes.</div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(251,191,36,0.06)', borderRadius: '6px' }}>
+                          <Mic size={14} color="#fbbf24" style={{ marginTop: '2px', flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#fbbf24' }}>Voice Clone</div>
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Upload a 5-10s voice clip to clone your voice. AI sings/raps in your tone for every vocal generation.</div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(239,68,68,0.06)', borderRadius: '6px' }}>
+                          <VideoIcon size={14} color="#ef4444" style={{ marginTop: '2px', flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: '#ef4444' }}>Seed DNA</div>
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Upload a scene, character, or still frame. AI uses it as a starting point for video generation.</div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                          <Hash size={14} color="#06b6d4" style={{ marginTop: '2px', flexShrink: 0 }} />
+                          <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>Audio / Visual IDs</div>
+                            <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.55)', lineHeight: '1.4' }}>Paste an Asset ID from your project to reference existing tracks or visuals across agents.</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: '10px', padding: '8px', background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(6,182,212,0.08))', borderRadius: '6px', textAlign: 'center' }}>
+                        <p style={{ margin: 0, fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)' }}>Upload any combo of DNA slots, then describe what you want — the AI blends them into your generation.</p>
+                      </div>
                     </div>
 
                     {/* Visual DNA Upload */}
@@ -7517,8 +7611,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                     {/* FREE TIER Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                      gap: '20px'
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                      gap: '24px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'free').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
@@ -7539,11 +7633,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                             }
                           }}
                           style={{
-                            padding: '20px',
+                            padding: isMobile ? '20px' : '28px',
                             background: 'rgba(0,0,0,0.4)',
                             border: `1px solid ${ac}22`,
                             borderRadius: '20px',
-                            minHeight: '175px',
+                            minHeight: isMobile ? '175px' : '240px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
@@ -7560,27 +7654,27 @@ const fetchUserCredits = useCallback(async (uid) => {
                           {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '14px', right: '70px', opacity: 0.5 }} />}
                           {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '90px' : '70px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
                           <div style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '12px',
+                            width: isMobile ? '40px' : '52px',
+                            height: isMobile ? '40px' : '52px',
+                            borderRadius: '14px',
                             background: `${ac}22`,
                             border: `1px solid ${ac}44`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginBottom: '12px'
+                            marginBottom: '16px'
                           }}>
-                            <Icon size={20} style={{ color: ac }} />
+                            <Icon size={isMobile ? 20 : 26} style={{ color: ac }} />
                           </div>
-                          <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
-                          <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5' }}>
+                          <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.15rem', fontWeight: '700', marginBottom: '6px', color: 'white' }}>{agent.name}</h3>
+                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
+                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.6' }}>
                             {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
                           </p>
                           {agent.capabilities && agent.capabilities.length > 0 && (
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
                               {agent.capabilities.slice(0, 2).map((cap, i) => (
-                                <span key={i} style={{ padding: '2px 8px', background: `${ac}1A`, color: ac, borderRadius: '8px', fontSize: '0.65rem', fontWeight: '500' }}>{cap}</span>
+                                <span key={i} style={{ padding: '3px 10px', background: `${ac}1A`, color: ac, borderRadius: '8px', fontSize: isMobile ? '0.65rem' : '0.75rem', fontWeight: '500' }}>{cap}</span>
                               ))}
                             </div>
                           )}
@@ -7609,8 +7703,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                     {/* MONTHLY TIER Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                      gap: '20px'
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                      gap: '24px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
@@ -7631,11 +7725,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                             }
                           }}
                           style={{
-                            padding: '20px',
+                            padding: isMobile ? '20px' : '28px',
                             background: 'rgba(0,0,0,0.4)',
                             border: `1px solid ${ac}22`,
                             borderRadius: '20px',
-                            minHeight: '175px',
+                            minHeight: isMobile ? '175px' : '240px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
@@ -7652,27 +7746,27 @@ const fetchUserCredits = useCallback(async (uid) => {
                           {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '14px', right: '80px', opacity: 0.5 }} />}
                           {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '100px' : '80px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
                           <div style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '12px',
+                            width: isMobile ? '40px' : '52px',
+                            height: isMobile ? '40px' : '52px',
+                            borderRadius: '14px',
                             background: `${ac}22`,
                             border: `1px solid ${ac}44`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginBottom: '12px'
+                            marginBottom: '16px'
                           }}>
-                            <Icon size={20} style={{ color: ac }} />
+                            <Icon size={isMobile ? 20 : 26} style={{ color: ac }} />
                           </div>
-                          <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
-                          <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5' }}>
+                          <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.15rem', fontWeight: '700', marginBottom: '6px', color: 'white' }}>{agent.name}</h3>
+                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
+                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.6' }}>
                             {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
                           </p>
                           {agent.capabilities && agent.capabilities.length > 0 && (
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
                               {agent.capabilities.slice(0, 2).map((cap, i) => (
-                                <span key={i} style={{ padding: '2px 8px', background: `${ac}1A`, color: ac, borderRadius: '8px', fontSize: '0.65rem', fontWeight: '500' }}>{cap}</span>
+                                <span key={i} style={{ padding: '3px 10px', background: `${ac}1A`, color: ac, borderRadius: '8px', fontSize: isMobile ? '0.65rem' : '0.75rem', fontWeight: '500' }}>{cap}</span>
                               ))}
                             </div>
                           )}
@@ -7702,8 +7796,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                     {/* PRO TIER Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                      gap: '20px'
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                      gap: '24px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'pro').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
@@ -7724,11 +7818,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                             }
                           }}
                           style={{
-                            padding: '20px',
+                            padding: isMobile ? '20px' : '28px',
                             background: 'rgba(0,0,0,0.4)',
                             border: `1px solid ${ac}22`,
                             borderRadius: '20px',
-                            minHeight: '175px',
+                            minHeight: isMobile ? '175px' : '240px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
@@ -7745,27 +7839,27 @@ const fetchUserCredits = useCallback(async (uid) => {
                           {isLocked && <LockIcon size={14} style={{ position: 'absolute', top: '14px', right: '60px', opacity: 0.5 }} />}
                           {agent.isBeta && <span style={{ position: 'absolute', top: '14px', right: isLocked ? '80px' : '60px', background: 'rgba(245,158,11,0.2)', color: '#f59e0b', padding: '2px 8px', borderRadius: '8px', fontSize: '0.6rem', fontWeight: '700', letterSpacing: '0.5px' }}>BETA</span>}
                           <div style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '12px',
+                            width: isMobile ? '40px' : '52px',
+                            height: isMobile ? '40px' : '52px',
+                            borderRadius: '14px',
                             background: `${ac}22`,
                             border: `1px solid ${ac}44`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            marginBottom: '12px'
+                            marginBottom: '16px'
                           }}>
-                            <Icon size={20} style={{ color: ac }} />
+                            <Icon size={isMobile ? 20 : 26} style={{ color: ac }} />
                           </div>
-                          <h3 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '4px', color: 'white' }}>{agent.name}</h3>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
-                          <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.5' }}>
+                          <h3 style={{ fontSize: isMobile ? '0.95rem' : '1.15rem', fontWeight: '700', marginBottom: '6px', color: 'white' }}>{agent.name}</h3>
+                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>{agent.category}</p>
+                          <p style={{ fontSize: isMobile ? '0.8rem' : '0.9rem', color: 'rgba(255,255,255,0.45)', lineHeight: '1.6' }}>
                             {agent.description || (agent.capabilities && agent.capabilities[0]) || 'AI-powered music creation'}
                           </p>
                           {agent.capabilities && agent.capabilities.length > 0 && (
-                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
                               {agent.capabilities.slice(0, 2).map((cap, i) => (
-                                <span key={i} style={{ padding: '2px 8px', background: `${ac}1A`, color: ac, borderRadius: '8px', fontSize: '0.65rem', fontWeight: '500' }}>{cap}</span>
+                                <span key={i} style={{ padding: '3px 10px', background: `${ac}1A`, color: ac, borderRadius: '8px', fontSize: isMobile ? '0.65rem' : '0.75rem', fontWeight: '500' }}>{cap}</span>
                               ))}
                             </div>
                           )}
