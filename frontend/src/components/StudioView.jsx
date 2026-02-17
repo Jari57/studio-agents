@@ -1053,9 +1053,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Cloud sync state
   const [_projectsSyncing, setProjectsSyncing] = useState(false);
   const [_lastSyncTime, setLastSyncTime] = useState(null);
+  const skipNextSyncRef = useRef(false); // Prevents re-saving projects just loaded from cloud
   
   // Save a single project to Firestore via backend API
-  async function saveProjectToCloud(uid, project) {
+  async function saveProjectToCloud(uid, project, options = {}) {
     const traceId = `SAVE-${Date.now()}`;
     console.log(`[TRACE:${traceId}] saveProjectToCloud START`, {
       hasUid: !!uid,
@@ -1209,7 +1210,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       return true;
     } catch (err) {
       console.error(`[TRACE:${traceId}] Failed to save project to cloud:`, err.message || err);
-      toast.error(`Save failed: ${err.message || 'Network error'}`);
+      if (!options.silent) {
+        toast.error(`Save failed: ${err.message || 'Network error'}`);
+      }
       return false;
     }
   };
@@ -1226,7 +1229,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         if (!project || !project.id) continue;
         
         try {
-          const success = await saveProjectToCloud(uid, project);
+          const success = await saveProjectToCloud(uid, project, { silent: true });
           if (success) successCount++;
         } catch (individualErr) {
           console.error(`Failed to save project ${project?.id}:`, individualErr);
@@ -1237,7 +1240,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         setLastSyncTime(new Date());
         console.log(`Synced ${successCount}/${projectsToSync.length} projects to cloud via API`);
       } else if (projectsToSync.length > 0 && auth?.currentUser) {
-        toast.error('Sync failed - check your internet connection');
+        toast.error(`Sync failed for ${projectsToSync.length} project(s) — check your connection`);
       }
     } catch (err) {
       console.error('Sync failed:', err);
@@ -1254,6 +1257,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     // CRITICAL: Check both user state AND auth.currentUser to ensure Firebase is ready
     // Also skip if we are currently mid-manual-save to avoid conflicts
     if (!user?.uid || projects.length === 0 || !auth?.currentUser || isSaving) return;
+
+    // Skip sync if projects were just loaded from cloud (prevents re-uploading on login)
+    if (skipNextSyncRef.current) {
+      skipNextSyncRef.current = false;
+      return;
+    }
     
     // Clear existing timeout
     if (syncTimeoutRef.current) {
@@ -2299,16 +2308,22 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           let adminStatus = false;
           if (token) {
             try {
+              console.log('[Auth] Checking admin status for:', currentUser.email);
               const adminRes = await fetch(`${BACKEND_URL}/api/user/admin-status`, {
                 headers: { 'Authorization': `Bearer ${token}` }
               });
               if (adminRes.ok) {
                 const adminData = await adminRes.json();
                 adminStatus = adminData.isAdmin === true;
+                console.log('[Auth] Admin status response:', adminData);
+              } else {
+                console.warn('[Auth] Admin status check returned:', adminRes.status, adminRes.statusText);
               }
             } catch (adminErr) {
-              console.error("Admin status check failed:", adminErr);
+              console.error("[Auth] Admin status check failed:", adminErr);
             }
+          } else {
+            console.warn('[Auth] No token available — skipping admin check');
           }
           setIsAdmin(adminStatus);
           if (adminStatus) {
@@ -2376,6 +2391,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             }
 
             if (cloudProjects.length > 0) {
+              skipNextSyncRef.current = true; // Don't re-save projects just loaded from cloud
               setProjects(prev => {
                 const merged = mergeProjects(prev, cloudProjects);
                 console.log(`Merged ${prev.length} local + ${cloudProjects.length} cloud = ${merged.length} projects`);
@@ -2393,8 +2409,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               if (localProjects.length > 0) {
                 // We have local projects but cloud returned nothing — restore from local and sync up
                 console.log(`[Auth] Cloud returned 0 projects but found ${localProjects.length} in localStorage. Restoring.`);
+                skipNextSyncRef.current = true; // Don't let the sync effect double-fire
                 setProjects(localProjects);
-                syncProjectsToCloud(currentUser.uid, localProjects);
+                if (token) {
+                  syncProjectsToCloud(currentUser.uid, localProjects);
+                } else {
+                  console.log('[Auth] Skipping immediate sync — no token available yet');
+                }
               }
             }
           } catch (err) {
