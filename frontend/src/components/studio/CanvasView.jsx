@@ -137,7 +137,7 @@ export default function CanvasView({
   // ═══════════════════════════════════════════════════════════════════════════════
   return (
     <SectionErrorBoundary name="Project Canvas">
-    <div className="project-canvas-view animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', minHeight: isMobile ? 'auto' : '100dvh', position: 'relative' }}>
+    <div className="project-canvas-view animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
 
       {/* ═══════════ SECTION A: COMPACT PROJECT HEADER ═══════════ */}
       <div style={{
