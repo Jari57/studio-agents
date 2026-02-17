@@ -4253,13 +4253,26 @@ const fetchUserCredits = useCallback(async (uid) => {
       if (finalEndpoint !== '/api/generate') {
         console.log(`[Studio] Starting Phase 2 (Execution) calling ${finalEndpoint}`, finalBody);
         try {
-          response = await fetch(`${BACKEND_URL}${finalEndpoint}`, {
+          // Add timeout for video requests to avoid indefinite hanging
+          const fetchOptions = {
             method: 'POST',
             headers,
             body: JSON.stringify(finalBody)
-          });
+          };
+          if (isVideoAgent) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
+            fetchOptions.signal = controller.signal;
+            response = await fetch(`${BACKEND_URL}${finalEndpoint}`, fetchOptions);
+            clearTimeout(timeoutId);
+          } else {
+            response = await fetch(`${BACKEND_URL}${finalEndpoint}`, fetchOptions);
+          }
         } catch (mediaErr) {
           console.error('[Studio] Execution Phase Failed:', mediaErr);
+          if (mediaErr.name === 'AbortError') {
+            throw new Error('Video generation request timed out. The server may be busy — please try again.');
+          }
           throw new Error(`Media generation service unreachable. Please check your connection or try again later.`);
         }
       } else {
@@ -4351,10 +4364,16 @@ const fetchUserCredits = useCallback(async (uid) => {
           }
           setShowLoginModal(true);
         } else if (response.status === 503 || response.status === 504) {
-          toast.error("Media server is currently overloaded or out of credits. Try again in a minute.", { id: toastId });
+          if (data.isSystemCreditIssue) {
+            toast.error("System maintenance: AI credits are being refreshed. Your credits were NOT charged. Try again shortly.", { id: toastId });
+          } else {
+            toast.error("Media server is currently overloaded or out of credits. Try again in a minute.", { id: toastId });
+          }
         } else {
           toast.error(`Media generation failed: ${data.error || 'Server error'}`, { id: toastId });
         }
+        // CRITICAL: Stop processing — do not try to build a result item from error data
+        return;
       }
       
       // Handle different response types
@@ -4618,12 +4637,8 @@ const fetchUserCredits = useCallback(async (uid) => {
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
       setAgentPreviews(prev => ({ ...prev, [targetAgentSnapshot.id]: newItem }));
       
-      // If the response was an error from the backend but we somehow got here, show toast as error
-      if (!response.ok && !data._isFallback) {
-        toast.error(`Agent ${targetAgentSnapshot.name} issue: ${data.error || data.details || 'Check results'}`, { id: toastId });
-      } else {
-        toast.success(`Generation complete! Review your result.`, { id: toastId });
-      }
+      // Success toast (error cases already returned early above)
+      toast.success(`Generation complete! Review your result.`, { id: toastId });
       
       // Track successful generation
       Analytics.contentGenerated(targetAgentSnapshot.id, newItem.type || 'text');

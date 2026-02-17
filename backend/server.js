@@ -5167,38 +5167,54 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
         logger.info('GEMINI_API_KEY not found, skipping Veo');
     }
 
-    // 2. Try Replicate (Minimax) as FALLBACK
+    // 2. Try Replicate (Minimax) as FALLBACK — ASYNC to avoid Vercel proxy timeout
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     if (replicateKey) {
       try {
-        logger.info('Trying Replicate (Minimax) as fallback video generator...');
+        logger.info('Trying Replicate (Minimax) as fallback video generator (async)...');
         const replicate = new Replicate({ auth: replicateKey });
         
         // Truncate prompt for Replicate (Minimax prefers < 1000 characters)
         const minimaxPrompt = enhancedPrompt.length > 800 ? enhancedPrompt.substring(0, 800) + '...' : enhancedPrompt;
 
-        // Using Minimax Video-01 (High quality, 5s)
-        const output = await replicate.run(
-          "minimax/video-01",
-          {
-            input: {
-              prompt: minimaxPrompt,
-              prompt_optimizer: true
-            }
+        // Create prediction async (returns immediately, no blocking)
+        const prediction = await replicate.predictions.create({
+          model: "minimax/video-01",
+          input: {
+            prompt: minimaxPrompt,
+            prompt_optimizer: true
           }
-        );
+        });
         
-        if (output) {
-             logger.info('Replicate (Minimax) fallback generation successful');
-             const videoUrl = String(output);
-             
-             return res.json({
-                output: videoUrl,
-                mimeType: 'video/mp4',
-                type: 'video',
-                source: 'replicate-minimax',
-                message: 'Video generated with Minimax (via Replicate)'
-             });
+        if (prediction && prediction.id) {
+          logger.info('Replicate (Minimax) prediction created', { predictionId: prediction.id, status: prediction.status });
+          
+          // If already completed (unlikely but possible)
+          if (prediction.status === 'succeeded' && prediction.output) {
+            const videoUrl = String(prediction.output);
+            return res.json({
+              output: videoUrl,
+              mimeType: 'video/mp4',
+              type: 'video',
+              source: 'replicate-minimax'
+            });
+          }
+          
+          // Store for async polling (same pattern as Veo)
+          const opId = crypto.randomBytes(16).toString('hex');
+          pendingVideoOps.set(opId, {
+            replicatePredictionId: prediction.id,
+            replicateKey: replicateKey,
+            source: 'replicate-minimax',
+            createdAt: Date.now(),
+            attempts: 0,
+            consecutiveErrors: 0,
+            status: 'processing',
+            result: null,
+            error: null
+          });
+          logger.info('Replicate video operation stored for async polling', { opId, predictionId: prediction.id });
+          return res.json({ status: 'processing', operationId: opId, source: 'replicate-minimax' });
         }
       } catch (repError) {
         if (repError.message?.includes('402')) systemCreditIssue = true;
@@ -5340,9 +5356,48 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
     return res.status(500).json({ status: 'failed', error: op.error });
   }
 
-  // Poll Veo API once
+  // Poll source API once (Veo or Replicate)
   try {
     op.attempts++;
+
+    // ── Replicate prediction polling ──
+    if (op.replicatePredictionId) {
+      const repKey = op.replicateKey;
+      const predUrl = `https://api.replicate.com/v1/predictions/${op.replicatePredictionId}`;
+      const repRes = await fetch(predUrl, {
+        headers: { 'Authorization': `Bearer ${repKey}`, 'Content-Type': 'application/json' }
+      });
+      if (!repRes.ok) {
+        const repErr = await repRes.text();
+        logger.error('Replicate poll error', { status: repRes.status, error: repErr, attempt: op.attempts });
+        op.consecutiveErrors++;
+        if (op.consecutiveErrors >= 5) {
+          op.status = 'failed';
+          op.error = `Replicate polling failed after ${op.consecutiveErrors} consecutive errors`;
+          return res.status(500).json({ status: 'failed', error: op.error });
+        }
+        return res.json({ status: 'processing', attempt: op.attempts });
+      }
+      op.consecutiveErrors = 0;
+      const pred = await repRes.json();
+      logger.info('Replicate poll', { opId: req.params.id, attempt: op.attempts, status: pred.status });
+
+      if (pred.status === 'starting' || pred.status === 'processing') {
+        return res.json({ status: 'processing', attempt: op.attempts });
+      }
+      if (pred.status === 'succeeded' && pred.output) {
+        const videoUrl = typeof pred.output === 'string' ? pred.output : (Array.isArray(pred.output) ? pred.output[0] : String(pred.output));
+        op.status = 'completed';
+        op.result = { status: 'completed', output: videoUrl, mimeType: 'video/mp4', type: 'video', source: op.source };
+        return res.json(op.result);
+      }
+      // Failed or canceled
+      op.status = 'failed';
+      op.error = pred.error || `Replicate prediction ${pred.status}`;
+      return res.status(500).json({ status: 'failed', error: op.error });
+    }
+
+    // ── Veo operation polling ──
     const pollUrl = `https://generativelanguage.googleapis.com/v1beta/${op.operationName}?key=${op.apiKey}`;
     const pollResponse = await fetch(pollUrl);
 
