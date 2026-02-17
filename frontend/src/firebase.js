@@ -10,7 +10,8 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
   sendEmailVerification,
-  getIdToken
+  getIdToken,
+  fetchSignInMethodsForEmail
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -154,6 +155,7 @@ export {
   sendPasswordResetEmail,
   sendEmailVerification,
   getIdToken,
+  fetchSignInMethodsForEmail,
   doc,
   getDoc,
   setDoc,

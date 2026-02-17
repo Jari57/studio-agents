@@ -117,11 +117,18 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       }, 100);
     } catch (error) {
       console.error('Apple sign in error:', error);
-      const msg = error.code === 'auth/popup-closed-by-user'
-        ? 'Sign-in cancelled.'
-        : error.code === 'auth/popup-blocked'
-          ? 'Popup blocked by browser.'
-          : error.message || 'Failed to sign in with Apple.';
+      let msg;
+      if (error.code === 'auth/popup-closed-by-user') {
+        msg = 'Sign-in cancelled.';
+      } else if (error.code === 'auth/popup-blocked') {
+        msg = 'Popup blocked by browser. Please allow popups for this site.';
+      } else if (error.code === 'auth/account-exists-with-different-credential') {
+        msg = 'An account already exists with this email. Try signing in with Google or email/password first.';
+      } else if (error.code === 'auth/operation-not-allowed') {
+        msg = 'Apple Sign-In is not enabled. Please use Google or email/password instead.';
+      } else {
+        msg = error.message || 'Failed to sign in with Apple.';
+      }
 
       setAuthError(msg);
       toast.error(msg);
@@ -191,9 +198,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       let msg = error.message || 'Failed to sign in. Please try again.';
       
       if (error.code === 'auth/email-already-in-use') {
-        msg = 'Email already in use. Try signing in instead.';
+        msg = 'This email is already linked to an Apple or Google account. Try signing in with Apple or Google instead.';
       } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        msg = 'Invalid email or password';
+        msg = 'Invalid email or password. If you signed up with Apple or Google, use that method instead.';
       } else if (error.code === 'auth/weak-password') {
         msg = 'Password should be at least 6 characters';
       }

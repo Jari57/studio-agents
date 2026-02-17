@@ -205,7 +205,7 @@ function GeneratorCard({
 
       {/* Header - Agent style */}
       <div className="generator-card-header" style={{
-        padding: isMobile ? '10px' : '1.25rem',
+        padding: isMobile ? '8px' : '1.25rem',
         display: 'flex',
         alignItems: 'center',
         gap: isMobile ? '10px' : '12px',
@@ -668,7 +668,7 @@ function GeneratorCard({
       {/* Action Bar */}
       {output && !isEditing && (
         <div style={{
-          padding: isMobile ? '8px 10px 10px' : '12px 20px 16px',
+          padding: isMobile ? '6px 8px 8px' : '12px 20px 16px',
           borderTop: '1px solid rgba(255,255,255,0.05)',
           display: 'flex',
           gap: isMobile ? '6px' : '8px',
@@ -969,8 +969,8 @@ function ProductionControlHub({
       background: allComplete 
         ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98))'
         : 'rgba(15, 23, 42, 0.4)',
-      borderRadius: '24px',
-      padding: isMobile ? '20px' : '28px',
+      borderRadius: isMobile ? '16px' : '24px',
+      padding: isMobile ? '14px' : '28px',
       border: '1px solid rgba(255,255,255,0.1)',
       marginTop: '32px',
       position: 'relative',
@@ -3327,7 +3327,7 @@ REQUIREMENTS:
         className="orchestrator-scroll-container"
         style={{ 
           flex: 1, 
-          padding: isMobile ? '8px 6px' : '16px',
+          padding: isMobile ? '8px 4px' : '16px',
           maxWidth: '1200px',
           margin: '0 auto',
           width: '100%',
@@ -3340,9 +3340,9 @@ REQUIREMENTS:
         {/* Input Section */}
         <div style={{ 
           background: 'rgba(255,255,255,0.03)',
-          borderRadius: '16px',
-          padding: isMobile ? '10px' : '16px',
-          marginBottom: isMobile ? '12px' : '20px',
+          borderRadius: isMobile ? '12px' : '16px',
+          padding: isMobile ? '8px' : '16px',
+          marginBottom: isMobile ? '10px' : '20px',
           border: '1px solid rgba(255,255,255,0.06)'
         }}>
           {/* Song Idea Input - Stacks on mobile */}
@@ -4783,8 +4783,9 @@ REQUIREMENTS:
         {/* 4 Generator Cards Grid - 2x2 layout */}
       {/* 4 Generator Cards Grid - 2x2 layout - uses unified CSS */}
       <div className="generator-grid-unified" style={{
-        gap: isMobile ? '0.75rem' : '1rem',
-        touchAction: 'pan-y'
+        gap: isMobile ? '0.6rem' : '1rem',
+        touchAction: 'pan-y',
+        overflow: 'hidden'
       }}>
         {GENERATOR_SLOTS.map(slot => (
           <GeneratorCard

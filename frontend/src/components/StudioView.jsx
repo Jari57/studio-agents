@@ -4986,6 +4986,13 @@ const fetchUserCredits = useCallback(async (uid) => {
   const handleConnectSocial = async (platform) => {
     const returnUrl = encodeURIComponent(window.location.href);
 
+    // Platforms that have NOT YET been implemented on the backend
+    const comingSoonPlatforms = ['youtube', 'spotify', 'linkedin', 'tiktok', 'soundcloud'];
+    if (comingSoonPlatforms.includes(platform)) {
+      toast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} integration coming soon!`, { icon: '🚧', duration: 3000 });
+      return;
+    }
+
     if (platform === 'twitter') {
       try {
         // Check if backend is ready
@@ -4995,10 +5002,10 @@ const fetchUserCredits = useCallback(async (uid) => {
           if (data.configured) {
             window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
           } else {
-            toast.error('Twitter/X integration not yet configured. Contact support.');
+            toast.error('Twitter/X integration not yet configured. Set up API keys in Railway.');
           }
         } else {
-           window.location.href = `${BACKEND_URL}/api/twitter/auth?returnUrl=${returnUrl}`;
+           toast.error('Twitter/X service unavailable. Try again later.');
         }
       } catch (_e) {
         toast.error('Cannot connect to server. Please check your internet connection.');
@@ -5007,32 +5014,21 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     if (platform === 'instagram' || platform === 'facebook' || platform === 'threads') {
-      window.location.href = `${BACKEND_URL}/api/meta/auth?returnUrl=${returnUrl}`;
-      return;
-    }
-
-    if (platform === 'youtube') {
-      window.location.href = `${BACKEND_URL}/api/youtube/auth?returnUrl=${returnUrl}`;
-      return;
-    }
-
-    if (platform === 'spotify') {
-      window.location.href = `${BACKEND_URL}/api/spotify/auth?returnUrl=${returnUrl}`;
-      return;
-    }
-
-    if (platform === 'linkedin') {
-      window.location.href = `${BACKEND_URL}/api/linkedin/auth?returnUrl=${returnUrl}`;
-      return;
-    }
-
-    if (platform === 'tiktok') {
-      window.location.href = `${BACKEND_URL}/api/tiktok/auth?returnUrl=${returnUrl}`;
-      return;
-    }
-
-    if (platform === 'soundcloud') {
-      window.location.href = `${BACKEND_URL}/api/soundcloud/auth?returnUrl=${returnUrl}`;
+      try {
+        // Pre-check if Meta OAuth is configured before redirecting
+        const res = await fetch(`${BACKEND_URL}/api/meta/auth?returnUrl=${returnUrl}`, { redirect: 'manual' });
+        if (res.type === 'opaqueredirect' || res.status === 302 || res.status === 301) {
+          // OAuth redirect is working, follow it
+          window.location.href = `${BACKEND_URL}/api/meta/auth?returnUrl=${returnUrl}`;
+        } else if (res.status === 503) {
+          toast.error('Meta integration not yet configured. Set up API keys in Railway.');
+        } else {
+          window.location.href = `${BACKEND_URL}/api/meta/auth?returnUrl=${returnUrl}`;
+        }
+      } catch (_e) {
+        // If pre-check fails, just try the redirect anyway
+        window.location.href = `${BACKEND_URL}/api/meta/auth?returnUrl=${returnUrl}`;
+      }
       return;
     }
 
@@ -14706,6 +14702,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             <div className="modal-header" style={{ 
               borderBottom: '1px solid rgba(255,255,255,0.1)', 
               padding: isMobile ? '0.75rem 1rem' : '1rem 1.5rem', 
+              paddingTop: isMobile ? 'calc(0.75rem + env(safe-area-inset-top, 0px))' : '1rem',
               flexShrink: 0,
               display: 'flex',
               justifyContent: 'space-between',

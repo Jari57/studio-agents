@@ -5234,10 +5234,25 @@ app.get('/api/video-proxy/:id', async (req, res) => {
     res.set('Content-Type', upstream.headers.get('content-type') || 'video/mp4');
     res.set('Cache-Control', 'private, max-age=1800');
     const { Readable } = require('stream');
-    Readable.fromWeb(upstream.body).pipe(res);
+    const readable = Readable.fromWeb(upstream.body);
+    readable.on('error', (err) => {
+      logger.error('Video proxy stream error', { error: err.message });
+      if (!res.headersSent) {
+        res.status(502).json({ error: 'Video stream interrupted' });
+      } else {
+        res.destroy();
+      }
+    });
+    res.on('close', () => {
+      // Client disconnected — destroy upstream to prevent memory leak
+      readable.destroy();
+    });
+    readable.pipe(res);
   } catch (err) {
     logger.error('Video proxy error', err);
-    res.status(500).json({ error: 'Proxy error' });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Proxy error' });
+    }
   }
 });
 
@@ -5262,52 +5277,72 @@ async function handleVeoOperation(operationData, apiKey, res, req) {
   const maxAttempts = 30; // 30 * 10s = 300s = 5 minutes
   let attempts = 0;
   
+  let consecutiveErrors = 0;
+  
   while (attempts < maxAttempts) {
     attempts++;
     await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
     
-    const pollUrl = `https://generativelanguage.googleapis.com/v1beta/${operationData.name}?key=${apiKey}`;
-    const pollResponse = await fetch(pollUrl);
-    
-    if (!pollResponse.ok) {
-      const pollError = await pollResponse.text();
-      logger.error('Poll error', { status: pollResponse.status, error: pollError });
-      continue;
-    }
-    
-    const pollData = await pollResponse.json();
-    logger.info('Poll attempt', { attempt: attempts, done: pollData.done });
-    
-    if (pollData.done) {
-      if (pollData.error) {
-        throw new Error(`Video generation failed: ${JSON.stringify(pollData.error)}`);
+    try {
+      const pollUrl = `https://generativelanguage.googleapis.com/v1beta/${operationData.name}?key=${apiKey}`;
+      const pollResponse = await fetch(pollUrl);
+      
+      if (!pollResponse.ok) {
+        const pollError = await pollResponse.text();
+        logger.error('Poll error', { status: pollResponse.status, error: pollError, attempt: attempts });
+        consecutiveErrors++;
+        if (consecutiveErrors >= 5) {
+          throw new Error(`Video polling failed after ${consecutiveErrors} consecutive errors. Last: ${pollError}`);
+        }
+        continue;
       }
       
-      // Extract video from response (multiple possible formats)
-      const result = pollData.response || pollData.result;
+      consecutiveErrors = 0; // Reset on successful response
+      const pollData = await pollResponse.json();
+      logger.info('Poll attempt', { attempt: attempts, done: pollData.done });
       
-      // Try Veo 3.1 format
-      if (result?.generatedVideos?.[0]?.video?.uri) {
-        const videoUri = result.generatedVideos[0].video.uri;
-        const authedUrl = videoUri.includes('?') 
-          ? `${videoUri}&key=${apiKey}` 
-          : `${videoUri}?key=${apiKey}`;
-        const proxyUrl = createVideoProxyUrl(authedUrl, req);
-        return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video' });
+      if (pollData.done) {
+        if (pollData.error) {
+          throw new Error(`Video generation failed: ${JSON.stringify(pollData.error)}`);
+        }
+        
+        // Extract video from response (multiple possible formats)
+        const result = pollData.response || pollData.result;
+        
+        // Try Veo 3.1 format
+        if (result?.generatedVideos?.[0]?.video?.uri) {
+          const videoUri = result.generatedVideos[0].video.uri;
+          const authedUrl = videoUri.includes('?') 
+            ? `${videoUri}&key=${apiKey}` 
+            : `${videoUri}?key=${apiKey}`;
+          const proxyUrl = createVideoProxyUrl(authedUrl, req);
+          return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video' });
+        }
+        
+        // Try older format
+        const videoResponse = result?.generateVideoResponse;
+        if (videoResponse?.generatedSamples?.[0]?.video) {
+          const video = videoResponse.generatedSamples[0].video;
+          const authedUrl = video.uri.includes('?') 
+            ? `${video.uri}&key=${apiKey}` 
+            : `${video.uri}?key=${apiKey}`;
+          const proxyUrl = createVideoProxyUrl(authedUrl, req);
+          return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video' });
+        }
+        
+        return res.json({ output: result, type: 'video' });
       }
-      
-      // Try older format
-      const videoResponse = result?.generateVideoResponse;
-      if (videoResponse?.generatedSamples?.[0]?.video) {
-        const video = videoResponse.generatedSamples[0].video;
-        const authedUrl = video.uri.includes('?') 
-          ? `${video.uri}&key=${apiKey}` 
-          : `${video.uri}?key=${apiKey}`;
-        const proxyUrl = createVideoProxyUrl(authedUrl, req);
-        return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video' });
+    } catch (pollErr) {
+      // Re-throw intentional errors (generation failed, consecutive errors)
+      if (pollErr.message.includes('Video generation failed') || pollErr.message.includes('consecutive errors')) {
+        throw pollErr;
       }
-      
-      return res.json({ output: result, type: 'video' });
+      // Network/parse errors — log and retry
+      logger.error('Poll network error', { error: pollErr.message, attempt: attempts });
+      consecutiveErrors++;
+      if (consecutiveErrors >= 5) {
+        throw new Error(`Video polling failed: ${pollErr.message}`);
+      }
     }
   }
   
