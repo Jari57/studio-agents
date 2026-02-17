@@ -1858,14 +1858,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
 
-  // Auto-select first asset for Project Canvas preview (moved from render to avoid infinite re-render)
+  // Pause canvas media when navigating away from project canvas
+  // NOTE: We intentionally do NOT auto-select the first asset anymore.
+  // The user should see the full asset grid/carousel first and click to open details.
   useEffect(() => {
-    if (activeTab === 'project_canvas' && !selectedAgent && selectedProject) {
-      const safeAssets = Array.isArray(selectedProject.assets) ? selectedProject.assets.filter(Boolean) : [];
-      if (!canvasPreviewAsset && safeAssets.length > 0 && safeAssets[0]) {
-        setCanvasPreviewAsset(safeAssets[0]);
-      }
-    } else if (activeTab !== 'project_canvas') {
+    if (activeTab !== 'project_canvas') {
       // Pause canvas audio if we switch tabs
       if (canvasAudioRef.current) {
         canvasAudioRef.current.pause();
@@ -1874,7 +1871,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       const canvasVideo = document.querySelector('.studio-monitor-panel video');
       if (canvasVideo) canvasVideo.pause();
     }
-  }, [activeTab, selectedAgent, selectedProject, canvasPreviewAsset]);
+  }, [activeTab]);
 
   // Keyboard shortcut: Space to play/pause preview media
   useEffect(() => {
@@ -4352,7 +4349,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         else if (data.output && typeof data.output === 'string') {
           if (data.output.startsWith('data:')) {
             newItem.videoUrl = data.output;
-          } else if (data.output.startsWith('http')) {
+          } else if (data.output.startsWith('http') || data.output.startsWith('/api/')) {
             newItem.videoUrl = data.output;
           } else {
             // Assume base64

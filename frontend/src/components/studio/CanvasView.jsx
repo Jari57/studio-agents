@@ -63,8 +63,26 @@ export default function CanvasView({
   // ═══════════════════════════════════════════════════════════════════════════════
   // CANVAS COMPUTED VALUES
   // ═══════════════════════════════════════════════════════════════════════════════
+  
+  // Normalize assets: resolve legacy `asset.url` field into proper videoUrl/imageUrl 
+  // and `asset.name` into `asset.title` for backward compat with old project data
+  const normalizeAsset = (a) => {
+    if (!a || typeof a !== 'object') return a;
+    const normalized = { ...a };
+    // Resolve .name → .title
+    if (!normalized.title && normalized.name) normalized.title = normalized.name;
+    // Resolve generic .url → typed field based on asset type
+    if (normalized.url && !normalized.videoUrl && !normalized.imageUrl && !normalized.audioUrl) {
+      const t = (normalized.type || '').toLowerCase();
+      if (t === 'video') normalized.videoUrl = normalized.url;
+      else if (t === 'image' || t === 'visual') normalized.imageUrl = normalized.url;
+      else if (t === 'audio' || t === 'vocal') normalized.audioUrl = normalized.url;
+    }
+    return normalized;
+  };
+
   const filteredCanvasAssets = useMemo(() => {
-    const safeAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
+    const safeAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean).map(normalizeAsset) : [];
     let filtered = safeAssets;
     if (pipelineFilter) {
       const stage = PRODUCTION_STAGES.find(s => s.key === pipelineFilter);

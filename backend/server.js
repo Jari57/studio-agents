@@ -5281,9 +5281,8 @@ setInterval(() => {
 function createVideoProxyUrl(authenticatedUrl, req) {
   const id = crypto.randomBytes(16).toString('hex');
   videoProxyMap.set(id, { url: authenticatedUrl, expiresAt: Date.now() + 30 * 60 * 1000 }); // 30 min TTL
-  // Build absolute URL so frontend can use it directly
-  const origin = `${req.protocol}://${req.get('host')}`;
-  return `${origin}/api/video-proxy/${id}`;
+  // Return relative path so it works through Vercel's /api/* rewrite in production
+  return `/api/video-proxy/${id}`;
 }
 
 app.get('/api/video-proxy/:id', async (req, res) => {

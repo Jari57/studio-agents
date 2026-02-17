@@ -41,8 +41,8 @@ export const formatAudioSrc = (audioData) => {
       return audioData;
     }
 
-    // Already a standard URL
-    if (audioData.startsWith('http')) {
+    // Already a standard URL or relative API path
+    if (audioData.startsWith('http') || audioData.startsWith('/api/')) {
       return audioData;
     }
 
@@ -125,7 +125,7 @@ export const formatVideoSrc = (videoData) => {
   if (!videoData) return '';
   
   if (typeof videoData === 'string') {
-    if (videoData.startsWith('blob:') || videoData.startsWith('http')) {
+    if (videoData.startsWith('blob:') || videoData.startsWith('http') || videoData.startsWith('/api/')) {
       return videoData;
     }
 

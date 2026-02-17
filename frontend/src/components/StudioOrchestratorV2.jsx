@@ -2603,9 +2603,11 @@ REQUIREMENTS:
           if (existingProject) {
             const imageAsset = {
               id: `img-${Date.now()}`,
+              title: `Album Art - ${new Date().toLocaleTimeString()}`,
               type: 'image',
-              url: imageData,
-              name: `Album Art - ${new Date().toLocaleTimeString()}`,
+              agent: 'Visual Artist',
+              imageUrl: imageData,
+              date: new Date().toLocaleDateString(),
               createdAt: new Date().toISOString()
             };
             
@@ -2819,7 +2821,7 @@ REQUIREMENTS:
           // Handle video response
           const videoUrl = data.videoUrl || data.output || data.video;
           
-          if (videoUrl && typeof videoUrl === 'string' && (videoUrl.startsWith('http') || videoUrl.startsWith('blob:'))) {
+          if (videoUrl && typeof videoUrl === 'string' && (videoUrl.startsWith('http') || videoUrl.startsWith('blob:') || videoUrl.startsWith('/api/'))) {
             setMediaUrls(prev => ({ ...prev, video: videoUrl }));
             toast.success(data.isDemo ? 'Demo video loaded!' : 'Video created!', { id: 'gen-video' });
 
@@ -2827,9 +2829,11 @@ REQUIREMENTS:
             if (existingProject) {
               const videoAsset = {
                 id: `vid-${Date.now()}`,
+                title: `Music Video - ${new Date().toLocaleTimeString()}`,
                 type: 'video',
-                url: videoUrl,
-                name: `Music Video - ${new Date().toLocaleTimeString()}`,
+                agent: 'Video Director',
+                videoUrl: videoUrl,
+                date: new Date().toLocaleDateString(),
                 createdAt: new Date().toISOString()
               };
               
