@@ -2,10 +2,10 @@ import React, { useState, useMemo, useRef, useEffect, useCallback as _useCallbac
 import { 
   Search, Plus, LayoutGrid, List as ListIcon, MoreHorizontal,
   Play, Trash2, Edit3, Copy, Heart, Clock, Folder as FolderIcon,
-  Music, Video as VideoIcon, Image as ImageIcon, Mic, FileText, X, Sparkles,
-  ChevronRight, Download, Share2, CheckCircle, Archive,
-  Pause, Upload, Wand2, Zap, TrendingUp, Star, Eye,
-  Globe as GlobeIcon, Lock as LockIcon, AlertTriangle
+  Music, Video as VideoIcon, Image as ImageIcon, FileText, X, Sparkles,
+  ChevronRight, CheckCircle, Archive,
+  Pause, Wand2, Zap, TrendingUp, Star, Eye,
+  Globe as GlobeIcon, Lock as LockIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { PROJECT_TEMPLATES, createProjectFromTemplate } from '../data/projectTemplates';
@@ -131,6 +131,7 @@ function ProjectHubV3({
   const [editName, setEditName] = useState('');
   const [showContextMenu, setShowContextMenu] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
   const [draggedProject, setDraggedProject] = useState(null);
   const [dragOverProject, setDragOverProject] = useState(null);
   const audioRef = useRef(null);
@@ -233,13 +234,26 @@ function ProjectHubV3({
     }
     
     const count = emptyProjects.length;
-    if (confirm(`Destroy ${count} project(s) with zero assets? This cannot be undone.`)) {
-      emptyProjects.forEach(p => onDeleteProject?.(p.id, true));
-      toast.success(`Atmospheric Cleanup: ${count} dead projects purged!`, {
-        icon: '🔥',
-        style: { background: '#ef4444', color: 'white' }
-      });
-    }
+    toast((t) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <span style={{ fontWeight: 600 }}>Purge {count} empty project{count !== 1 ? 's' : ''}?</span>
+        <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>This cannot be undone.</span>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+          <button 
+            onClick={() => {
+              toast.dismiss(t.id);
+              emptyProjects.forEach(p => onDeleteProject?.(p.id, true));
+              toast.success(`${count} empty projects purged!`, { icon: '🔥', style: { background: '#ef4444', color: 'white' } });
+            }}
+            style={{ padding: '6px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+          >Purge</button>
+          <button 
+            onClick={() => toast.dismiss(t.id)}
+            style={{ padding: '6px 16px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', cursor: 'pointer' }}
+          >Cancel</button>
+        </div>
+      </div>
+    ), { duration: 10000, style: { background: '#1a1a2e', color: 'white', borderRadius: '12px' } });
   }, [projects, onDeleteProject]);
 
   // Get project thumbnail
@@ -304,9 +318,25 @@ function ProjectHubV3({
   const handleDelete = (id, e) => {
     e?.stopPropagation();
     setShowContextMenu(null);
-    if (onDeleteProject) {
-      onDeleteProject(id, e);
-    }
+    // Confirmation before delete
+    const project = projects.find(p => p.id === id);
+    const name = project?.name || 'this project';
+    toast((t) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <span style={{ fontWeight: 600 }}>Delete "{name}"?</span>
+        <span style={{ fontSize: '0.85rem', opacity: 0.8 }}>This cannot be undone.</span>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+          <button 
+            onClick={() => { toast.dismiss(t.id); onDeleteProject?.(id, e); }}
+            style={{ padding: '6px 16px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+          >Delete</button>
+          <button 
+            onClick={() => toast.dismiss(t.id)}
+            style={{ padding: '6px 16px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px', cursor: 'pointer' }}
+          >Cancel</button>
+        </div>
+      </div>
+    ), { duration: 10000, style: { background: '#1a1a2e', color: 'white', borderRadius: '12px' } });
   };
 
   // Handle duplicate
@@ -401,19 +431,25 @@ function ProjectHubV3({
 
   // Create from template
   const handleCreate = () => {
+    if (isCreating) return; // Prevent double-click
     if (!newProjectName.trim()) {
       toast.error('Enter a project name');
       return;
     }
-    const template = selectedTemplate || PROJECT_TEMPLATES[0];
-    const newProject = createProjectFromTemplate(template, newProjectName.trim());
-    setProjects?.(prev => [newProject, ...prev]);
-    onSaveProject?.(newProject);
-    setShowNewProjectModal(false);
-    setNewProjectName('');
-    setSelectedTemplate(null);
-    toast.success('Project created!');
-    onSelectProject?.(newProject);
+    setIsCreating(true);
+    try {
+      const template = selectedTemplate || PROJECT_TEMPLATES[0];
+      const newProject = createProjectFromTemplate(template, newProjectName.trim());
+      setProjects?.(prev => [newProject, ...prev]);
+      onSaveProject?.(newProject)?.catch?.(err => console.warn('Save failed:', err));
+      setShowNewProjectModal(false);
+      setNewProjectName('');
+      setSelectedTemplate(null);
+      toast.success('Project created!');
+      onSelectProject?.(newProject);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   // Play audio preview
@@ -587,7 +623,7 @@ function ProjectHubV3({
             <button className="btn-create-new" onClick={() => setShowNewProjectModal(true)}>
               <Plus size={20} />
               <span>New Project</span>
-              <kbd className="shortcut-hint">⌘N</kbd>
+              <kbd className="shortcut-hint">{navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl+'}N</kbd>
             </button>
           </div>
         </div>
@@ -728,16 +764,22 @@ function ProjectHubV3({
                 <p className="template-label">Quick start with templates:</p>
                 <div className="template-chips">
                   <button className="template-chip" onClick={() => {
+                    const t = PROJECT_TEMPLATES.find(t => t.name?.toLowerCase().includes('music video')) || PROJECT_TEMPLATES[0];
+                    setSelectedTemplate(t);
                     setShowNewProjectModal(true);
                   }}>
                     <Wand2 size={14} /> Music Video
                   </button>
                   <button className="template-chip" onClick={() => {
+                    const t = PROJECT_TEMPLATES.find(t => t.name?.toLowerCase().includes('social')) || PROJECT_TEMPLATES[1];
+                    setSelectedTemplate(t);
                     setShowNewProjectModal(true);
                   }}>
                     <TrendingUp size={14} /> Social Clip
                   </button>
                   <button className="template-chip" onClick={() => {
+                    const t = PROJECT_TEMPLATES.find(t => t.name?.toLowerCase().includes('podcast')) || PROJECT_TEMPLATES[2];
+                    setSelectedTemplate(t);
                     setShowNewProjectModal(true);
                   }}>
                     <Star size={14} /> Podcast
@@ -1234,6 +1276,7 @@ function ProjectHubV3({
         }
 
         .projects-grid.list .project-card {
+          display: flex;
           flex-direction: row;
           height: 100px;
         }
@@ -1242,6 +1285,7 @@ function ProjectHubV3({
           width: 160px;
           height: 100%;
           flex-shrink: 0;
+          border-radius: 16px 0 0 16px;
         }
 
         .projects-grid.list .card-info {
@@ -1256,7 +1300,7 @@ function ProjectHubV3({
           background: var(--bg-secondary);
           border: 1px solid var(--border-color);
           border-radius: 16px;
-          overflow: hidden;
+          overflow: visible;
           cursor: pointer;
           transition: all 0.3s ease;
           position: relative;
@@ -1467,6 +1511,7 @@ function ProjectHubV3({
           background-position: center;
           position: relative;
           overflow: hidden;
+          border-radius: 16px 16px 0 0;
         }
 
         .placeholder-thumb {
@@ -1582,14 +1627,15 @@ function ProjectHubV3({
         .badge.text { background: rgba(16, 185, 129, 0.8); }
 
         .card-info {
-          padding: 16px;
+          padding: 12px;
           position: relative;
+          overflow: hidden;
         }
 
         .card-title {
           font-size: 1rem;
           font-weight: 600;
-          margin: 0 0 8px;
+          margin: 0 0 6px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -1959,6 +2005,7 @@ function ProjectHubV3({
           color: white;
           font-size: 1rem;
           margin-bottom: 20px;
+          box-sizing: border-box;
         }
 
         .modal-form input:focus {
@@ -2695,6 +2742,15 @@ function ProjectHubV3({
           }
           
           .media-overlay {
+            opacity: 1;
+            background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+          }
+          
+          .overlay-actions {
+            gap: 8px;
+          }
+          
+          .overlay-hint {
             display: none;
           }
           
