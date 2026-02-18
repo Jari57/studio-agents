@@ -9,14 +9,14 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 test.describe('Landing Section Order', () => {
 
-  test('Demo sections appear before Jump Into Studio', async ({ page }) => {
+  test('Jump Into Studio appears before Demo sections', async ({ page }) => {
     await page.goto(FRONTEND_URL);
     await page.waitForTimeout(1500);
 
-    const demoY = await page.locator('text=Try an Agent').first().evaluate(el => el.getBoundingClientRect().top + window.scrollY);
     const jumpY = await page.locator('text=Jump Into the Studio').first().evaluate(el => el.getBoundingClientRect().top + window.scrollY);
+    const demoY = await page.locator('text=Try an Agent').first().evaluate(el => el.getBoundingClientRect().top + window.scrollY);
     
-    expect(demoY).toBeLessThan(jumpY);
+    expect(jumpY).toBeLessThan(demoY);
   });
 
   test('Jump Into Studio appears before Meet the Agents', async ({ page }) => {

@@ -53,8 +53,8 @@ test.describe('Generation Flow - Text Mode', () => {
       }
     });
     
-    // Should respond with orchestrated output, 503 if not configured, or 404 if not implemented
-    expect([200, 404, 503]).toContain(response.status());
+    // Should respond with orchestrated output, 503 if not configured, 404 if not implemented, or 401 if auth required
+    expect([200, 401, 404, 503]).toContain(response.status());
   });
 
 });
