@@ -7517,7 +7517,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 renderAgentWorkspace()
               ) : (
                 /* Agent Cards Grid with Whitepapers & Legal */
-                <div className="agents-cards-view" style={{ padding: '16px', overflowY: 'auto' }}>
+                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 2px' : '8px 0 8px 0', overflowY: 'auto' }}>
                   {/* Header with Action Buttons */}
                   <div style={{ 
                     display: 'flex', 
@@ -7605,13 +7605,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                   )}
                   
                   {/* Agent Cards - Separate grids per tier for equal sizing */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {/* FREE TIER Header */}
                     <div style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
                       gap: '12px',
-                      padding: '12px 16px',
+                      padding: '10px 4px',
                       background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.1) 0%, transparent 100%)',
                       borderRadius: '12px'
                     }}>
@@ -7627,7 +7627,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     <div style={{
                       display: 'grid',
                       gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                      gap: '24px'
+                      gap: '16px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'free').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
@@ -7703,7 +7703,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       display: 'flex', 
                       alignItems: 'center', 
                       gap: '12px',
-                      padding: '12px 16px',
+                      padding: '10px 4px',
                       background: 'linear-gradient(90deg, rgba(251, 191, 36, 0.1) 0%, transparent 100%)',
                       borderRadius: '12px'
                     }}>
@@ -7719,7 +7719,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     <div style={{
                       display: 'grid',
                       gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                      gap: '24px'
+                      gap: '16px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
@@ -7796,7 +7796,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       display: 'flex', 
                       alignItems: 'center', 
                       gap: '12px',
-                      padding: '12px 16px',
+                      padding: '10px 4px',
                       background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.1) 0%, transparent 100%)',
                       borderRadius: '12px'
                     }}>
@@ -7812,7 +7812,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     <div style={{
                       display: 'grid',
                       gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                      gap: '24px'
+                      gap: '16px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'pro').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
