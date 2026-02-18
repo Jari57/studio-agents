@@ -1258,7 +1258,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   useEffect(() => {
     // CRITICAL: Check both user state AND auth.currentUser to ensure Firebase is ready
     // Also skip if we are currently mid-manual-save to avoid conflicts
-    if (!user?.uid || projects.length === 0 || !auth?.currentUser || isSaving) return;
+    if (!user?.uid || projects.length === 0 || !auth?.currentUser) return;
 
     // Skip sync if projects were just loaded from cloud (prevents re-uploading on login)
     if (skipNextSyncRef.current) {
@@ -2020,9 +2020,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       socialPlatform: 'instagram'
     });
     
-    // Switch to dashboard to show the new project checklist
+    // Switch to project hub to show the new project
     safeVoiceAnnounce(`Project ${newProject.name} created. Loading your production checklist.`);
-    setActiveTab('mystudio');
+    setActiveTab('hub');
   };
 
   const handleSkipWizard = (targetTab) => {
@@ -4768,24 +4768,23 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       // 3. CLOUD SYNC (Direct API call for immediate persistence)
       if (isLoggedIn && uid && finalProject) {
-        const saveHeaders = { 'Content-Type': 'application/json' };
-        if (auth?.currentUser) {
-          try {
-            const token = await auth.currentUser.getIdToken();
-            saveHeaders['Authorization'] = `Bearer ${token}`;
-          } catch (tErr) { console.warn('Auth error:', tErr); }
-        }
+        // Use saveProjectToCloud which properly sanitizes base64 data
+        // instead of raw fetch that can fail silently with oversized payloads
+        const saveSuccess = await Promise.race([
+          saveProjectToCloud(uid, finalProject, { silent: true }),
+          timeoutPromise
+        ]);
         
-        const savePromises = [
-          fetch(`${BACKEND_URL}/api/projects`, {
-            method: 'POST',
-            headers: saveHeaders,
-            body: JSON.stringify({ userId: uid, project: finalProject })
-          }).then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error || 'Sync failed') })),
-          
+        // Also log the generation (best-effort, non-blocking)
+        try {
+          const genHeaders = { 'Content-Type': 'application/json' };
+          if (auth?.currentUser) {
+            const token = await auth.currentUser.getIdToken();
+            genHeaders['Authorization'] = `Bearer ${token}`;
+          }
           fetch(`${BACKEND_URL}/api/user/generations`, {
             method: 'POST',
-            headers: saveHeaders,
+            headers: genHeaders,
             body: JSON.stringify({
               type: itemToSave.type,
               agent: itemToSave.agent,
@@ -4793,11 +4792,10 @@ const fetchUserCredits = useCallback(async (uid) => {
               output: itemToSave.snippet,
               metadata: { projectId: finalProject.id, audioUrl: itemToSave.audioUrl }
             })
-          }).catch(() => ({}))
-        ];
+          }).catch(() => {});
+        } catch (_) {}
 
-        await Promise.race([Promise.all(savePromises), timeoutPromise]);
-        toast.success('âœ… Synced to cloud!', { id: toastId });
+        toast.success(saveSuccess ? '✅ Synced to cloud!' : 'Saved locally (sync pending)', { id: toastId });
       } else {
         toast.success('Saved locally', { id: toastId });
       }
@@ -4805,8 +4803,9 @@ const fetchUserCredits = useCallback(async (uid) => {
       setPreviewItem(null);
       setActiveTab(destination);
       
-      // Suppress the next debounced auto-sync since we just saved to cloud directly
-      skipNextSyncRef.current = true;
+      // NOTE: We no longer suppress the next debounced sync here.
+      // The direct cloud save above handles immediate persistence,
+      // and the debounced sync acts as a safety net for any state that changed.
     } catch (error) {
       console.error('Save error:', error);
       toast.error(`Error: ${error.message}`, { id: toastId });
@@ -5036,14 +5035,9 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   }, []);
 
-  // Save projects to localStorage whenever they change (with quota handling)
-  useEffect(() => {
-    if (projects && projects.length > 0) {
-      // Limit to 50 projects max to prevent quota issues
-      const projectsToSave = projects.slice(0, 50);
-      safeLocalStorageSet('studio_agents_projects', JSON.stringify(projectsToSave));
-    }
-  }, [projects]);
+  // NOTE: Legacy Effect B removed — Effect A (above, with QuotaExceeded handling + UID-specific keys)
+  // is the single source of truth for localStorage persistence.
+  // Keeping a duplicate unconditional save here caused race conditions and overwrote pruned data.
 
   const handleDeadLink = (e, featureName) => {
     if (e) e.preventDefault();

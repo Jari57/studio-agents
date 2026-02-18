@@ -53,7 +53,6 @@ export default function CanvasView({
   const [editingProjectName, setEditingProjectName] = useState(false);
   const [projectNameDraft, setProjectNameDraft] = useState('');
   const [canvasCarouselIndex, setCanvasCarouselIndex] = useState(0);
-  const [isCanvasMaximized, setIsCanvasMaximized] = useState(false);
   const carouselTouchStartX = useRef(null);
 
   // Alias for clarity
@@ -336,7 +335,7 @@ export default function CanvasView({
 
       {/* ═══════════ SECTION C: FULL-VIEW CAROUSEL ═══════════ */}
       <div style={{
-        display: 'flex', flexDirection: 'column', flex: 1, minHeight: isMobile ? 'auto' : '500px',
+        display: 'flex', flexDirection: 'column', flex: 1, minHeight: isMobile ? 'auto' : '320px',
         position: 'relative', overflow: 'hidden'
       }}>
 
@@ -625,25 +624,38 @@ export default function CanvasView({
                       ))}
                     </div>
 
-                    {/* Dot indicators for carousel position */}
+                    {/* Dot indicators with type icons for carousel position */}
                     {filteredCanvasAssets.length > 1 && (
                       <div style={{
-                        display: 'flex', justifyContent: 'center', gap: '6px', padding: '8px 0', flexShrink: 0
+                        display: 'flex', justifyContent: 'center', gap: '6px', padding: '8px 0', flexShrink: 0,
+                        alignItems: 'center'
                       }}>
-                        {filteredCanvasAssets.slice(0, 20).map((_, i) => (
-                          <button
-                            key={i}
-                            onClick={() => setCanvasCarouselIndex(i)}
-                            style={{
-                              width: canvasCarouselIndex === i ? '20px' : '8px',
-                              height: '8px',
-                              borderRadius: '4px',
-                              background: canvasCarouselIndex === i ? 'var(--color-purple)' : 'rgba(255,255,255,0.15)',
-                              border: 'none', cursor: 'pointer',
-                              transition: 'all 0.2s ease', padding: 0
-                            }}
-                          />
-                        ))}
+                        {filteredCanvasAssets.slice(0, 20).map((asset, i) => {
+                          const isActive = canvasCarouselIndex === i;
+                          const assetType = (asset?.type || '').toLowerCase();
+                          const TypeIcon = assetType === 'video' ? VideoIcon
+                            : (assetType === 'audio' || assetType === 'vocal') ? Music
+                            : (assetType === 'image' || assetType === 'visual') ? ImageIcon
+                            : FileText;
+                          return (
+                            <button
+                              key={i}
+                              onClick={() => setCanvasCarouselIndex(i)}
+                              title={asset?.title || `Asset ${i + 1}`}
+                              style={{
+                                width: isActive ? '24px' : '10px',
+                                height: isActive ? '24px' : '10px',
+                                borderRadius: isActive ? '12px' : '5px',
+                                background: isActive ? 'var(--color-purple)' : 'rgba(255,255,255,0.15)',
+                                border: 'none', cursor: 'pointer',
+                                transition: 'all 0.2s ease', padding: 0,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                              }}
+                            >
+                              {isActive && <TypeIcon size={12} style={{ color: 'white' }} />}
+                            </button>
+                          );
+                        })}
                         {filteredCanvasAssets.length > 20 && (
                           <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', alignSelf: 'center' }}>+{filteredCanvasAssets.length - 20}</span>
                         )}
@@ -748,7 +760,7 @@ export default function CanvasView({
                         ), { duration: 10000, style: { background: '#1a1a2e', color: 'white', borderRadius: '12px' } });
                       }}
                       className="btn-pill"
-                      style={{ justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px', background: 'rgba(239,68,68,0.15)', color: 'var(--color-red, #ef4444)' }}
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px', background: 'rgba(239,68,68,0.15)', color: 'var(--color-red, #ef4444)' }}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -758,11 +770,11 @@ export default function CanvasView({
             })() : (
               <div style={{
                 flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: isMobile ? '40px 20px' : '60px', textAlign: 'center'
+                padding: isMobile ? '24px 16px' : '32px', textAlign: 'center'
               }}>
                 <div style={{
                   background: 'rgba(255,255,255,0.02)', borderRadius: '16px',
-                  border: '2px dashed rgba(255,255,255,0.05)', padding: isMobile ? '40px 20px' : '60px',
+                  border: '2px dashed rgba(255,255,255,0.05)', padding: isMobile ? '32px 16px' : '40px',
                   maxWidth: '500px'
                 }}>
                   <Layers size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
