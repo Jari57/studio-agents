@@ -944,6 +944,13 @@ function ProjectHubV3({
                           {project.isPublic ? 'Public' : 'Private'}
                         </span>
                       </div>
+                      <button
+                        className="btn-open-project"
+                        onClick={(e) => { e.stopPropagation(); onSelectProject?.(project); }}
+                      >
+                        <Folder size={14} />
+                        Open Project
+                      </button>
                     </>
                   )}
 
@@ -1664,6 +1671,34 @@ function ProjectHubV3({
         
         .meta-visibility svg {
           opacity: 0.7;
+        }
+
+        .btn-open-project {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-top: 10px;
+          padding: 8px 16px;
+          background: var(--color-purple);
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          width: 100%;
+          justify-content: center;
+        }
+
+        .btn-open-project:hover {
+          background: var(--color-purple-hover, #7c3aed);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-open-project:active {
+          transform: translateY(0);
         }
 
         .context-btn {
