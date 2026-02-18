@@ -3846,7 +3846,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
       speakerUrl = null, // Reference audio for voice cloning (XTTS)
       duration = 30,      // Requested length
       outputFormat = 'social', // social, podcast, tv, music
-      backingTrackUrl = null // Backing track for vocal mixing (optional)
+      backingTrackUrl = null, // Backing track for vocal mixing (optional)
+      referenceSongUrl = null // Reference song for tone/warmth/vibe matching
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
@@ -3873,6 +3874,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
       language: langCode, 
       hasSpeakerUrl: !!speakerUrl,
       hasElevenLabsId: !!req.body.elevenLabsVoiceId,
+      hasReferenceSong: !!referenceSongUrl,
       quality: req.body.quality
     });
 
@@ -3888,11 +3890,118 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
     const isRapStyle = style.includes('rapper');
 
     // ═══════════════════════════════════════════════════════════════
+    // REFERENCE SONG ANALYSIS — Analyze uploaded reference for tone/warmth/depth/vibe
+    // Uses Gemini to extract sonic characteristics and style descriptors
+    // ═══════════════════════════════════════════════════════════════
+    let refSongAnalysis = null;
+    if (referenceSongUrl && process.env.GEMINI_API_KEY) {
+      try {
+        logger.info('🎵 Analyzing reference song for tone/vibe matching', { url: referenceSongUrl.substring(0, 60) });
+
+        // Fetch the reference audio
+        let audioBase64 = null;
+        let audioMimeType = 'audio/mpeg';
+        if (referenceSongUrl.startsWith('data:')) {
+          // Already base64
+          const match = referenceSongUrl.match(/^data:(audio\/[^;]+);base64,(.+)$/);
+          if (match) {
+            audioMimeType = match[1];
+            audioBase64 = match[2];
+          }
+        } else {
+          // Fetch from URL
+          const audioResp = await fetch(referenceSongUrl);
+          if (audioResp.ok) {
+            audioMimeType = audioResp.headers.get('content-type') || 'audio/mpeg';
+            const buf = await audioResp.arrayBuffer();
+            audioBase64 = Buffer.from(buf).toString('base64');
+          }
+        }
+
+        if (audioBase64) {
+          const geminiApiKey = process.env.GEMINI_API_KEY;
+          const analysisPrompt = `You are a professional music producer and audio engineer. Analyze this reference song/audio and extract its sonic characteristics. Return ONLY a JSON object with these fields:
+{
+  "tone": "warm/bright/dark/neutral/airy/gritty",
+  "warmth": "1-10 scale",
+  "depth": "1-10 scale (reverb, space, layering)",
+  "energy": "1-10 scale",
+  "tempo_feel": "slow/mid/uptempo/fast",
+  "vocal_style": "description of vocal delivery style (e.g. smooth R&B, aggressive rap, breathy pop, soulful, raspy, melodic)",
+  "mood": "primary mood (e.g. melancholic, euphoric, aggressive, dreamy, confident, intimate)",
+  "genre_tags": "comma-separated genre descriptors",
+  "production_style": "lo-fi/hi-fi/analog/digital/cinematic/minimal/lush",
+  "key_characteristics": "2-3 sentence description of the most distinctive sonic qualities that should be matched",
+  "suno_tags": "comma-separated tags optimized for Suno AI music generation to recreate this vibe",
+  "vocal_direction": "specific direction for a vocalist to match this reference's feel and delivery"
+}
+Return ONLY valid JSON, no markdown.`;
+
+          const geminiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: analysisPrompt },
+                  { inlineData: { mimeType: audioMimeType, data: audioBase64 } }
+                ]
+              }],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 1024
+              }
+            })
+          });
+
+          if (geminiResp.ok) {
+            const geminiData = await geminiResp.json();
+            const analysisText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            // Parse JSON from response (strip markdown fences if present)
+            const jsonStr = analysisText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            try {
+              refSongAnalysis = JSON.parse(jsonStr);
+              logger.info('✅ Reference song analyzed', {
+                tone: refSongAnalysis.tone,
+                warmth: refSongAnalysis.warmth,
+                mood: refSongAnalysis.mood,
+                energy: refSongAnalysis.energy
+              });
+            } catch (parseErr) {
+              logger.warn('Failed to parse reference analysis JSON', { raw: analysisText.substring(0, 200) });
+            }
+          } else {
+            logger.warn('Gemini reference analysis failed', { status: geminiResp.status });
+          }
+        }
+      } catch (refErr) {
+        logger.warn('Reference song analysis error (non-fatal):', refErr.message);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // PRIORITY 0: SUNO API — Real AI singing (when API key configured)
     // ═══════════════════════════════════════════════════════════════
     if (sunoApiKey && !audioUrl && isSingingStyle) {
       try {
-        logger.info('🎵 Using Suno API for real singing vocals', { style, genre });
+        logger.info('🎵 Using Suno API for real singing vocals', { style, genre, hasRefAnalysis: !!refSongAnalysis });
+
+        // Build Suno tags — inject reference song analysis if available
+        let sunoTags = `${genre}, ${style.includes('female') ? 'female vocals' : 'male vocals'}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`;
+        let sunoTopic = prompt.substring(0, 1500);
+        if (refSongAnalysis) {
+          // Override tags with reference-derived characteristics
+          const refTags = refSongAnalysis.suno_tags || '';
+          const refMood = refSongAnalysis.mood || '';
+          const refTone = refSongAnalysis.tone || '';
+          const refGenreTags = refSongAnalysis.genre_tags || '';
+          sunoTags = `${refTags}, ${refGenreTags}, ${refMood}, ${refTone} tone, ${style.includes('female') ? 'female vocals' : 'male vocals'}, professional studio recording`.replace(/,\s*,/g, ',').replace(/^,\s*/, '');
+          // Prepend vocal direction to topic for style guidance
+          if (refSongAnalysis.vocal_direction) {
+            sunoTopic = `[Style: ${refSongAnalysis.vocal_direction}]\n\n${sunoTopic}`;
+          }
+          logger.info('🎵 Suno tags enhanced with reference analysis', { tags: sunoTags.substring(0, 100) });
+        }
 
         const sunoResponse = await fetch('https://studio-api.suno.ai/api/external/generate/', {
           method: 'POST',
@@ -3901,8 +4010,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            topic: prompt.substring(0, 1500),
-            tags: `${genre}, ${style.includes('female') ? 'female vocals' : 'male vocals'}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`,
+            topic: sunoTopic,
+            tags: sunoTags,
             make_instrumental: false,
             is_custom: true
           })
@@ -3970,6 +4079,17 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
           .replace(/\n{2,}/g, '\n')
           .trim();
         const barkSingingPrompt = `\u266A ${singingPrompt.substring(0, 800)} \u266A`;
+        // Adjust Bark temperature based on reference analysis
+        let barkTextTemp = 0.7;
+        let barkWaveformTemp = 0.7;
+        if (refSongAnalysis) {
+          // Higher energy = more variation; warmer tone = lower waveform temp
+          const energy = parseInt(refSongAnalysis.energy) || 5;
+          const warmth = parseInt(refSongAnalysis.warmth) || 5;
+          barkTextTemp = Math.max(0.4, Math.min(0.9, 0.5 + (energy * 0.04)));
+          barkWaveformTemp = Math.max(0.4, Math.min(0.9, 0.8 - (warmth * 0.03)));
+          logger.info('🎵 Bark temps tuned from reference', { barkTextTemp, barkWaveformTemp });
+        }
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
@@ -3980,8 +4100,8 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
             version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
             input: {
               prompt: barkSingingPrompt,
-              text_temp: 0.7,
-              waveform_temp: 0.7,
+              text_temp: barkTextTemp,
+              waveform_temp: barkWaveformTemp,
               history_prompt: speakerHistory
             }
           })
@@ -4139,6 +4259,33 @@ if (elevenLabsKey && !audioUrl) {
           voiceSettings.style = 0.85;       // Maximum expressiveness for music
           voiceSettings.stability = 0.45;   // Allow natural vocal variation
           voiceSettings.similarity_boost = 0.88; // Slight flexibility for emotional range
+        }
+
+        // ── REFERENCE SONG VOICE TUNING ──
+        // If reference analysis exists, tune ElevenLabs settings to match the reference's characteristics
+        if (refSongAnalysis) {
+          const warmth = parseInt(refSongAnalysis.warmth) || 5;
+          const energy = parseInt(refSongAnalysis.energy) || 5;
+          const depth = parseInt(refSongAnalysis.depth) || 5;
+
+          // Warmth: higher warmth = more stability (smoother, less harsh)
+          voiceSettings.stability = Math.max(0.35, Math.min(0.85, 0.40 + (warmth * 0.05)));
+          // Energy: higher energy = more style expressiveness
+          voiceSettings.style = Math.max(0.25, Math.min(0.95, 0.30 + (energy * 0.065)));
+          // Depth: higher depth = moderate similarity boost for richer layered feel
+          voiceSettings.similarity_boost = Math.max(0.75, Math.min(0.98, 0.80 + (depth * 0.018)));
+
+          // Prepend vocal direction to the processed prompt for delivery guidance
+          if (refSongAnalysis.vocal_direction) {
+            processedPrompt = `[${refSongAnalysis.vocal_direction}] ${processedPrompt}`;
+          }
+
+          logger.info('🎤 ElevenLabs voice settings tuned from reference', {
+            stability: voiceSettings.stability,
+            style: voiceSettings.style,
+            similarity_boost: voiceSettings.similarity_boost,
+            vocalDirection: refSongAnalysis.vocal_direction?.substring(0, 60)
+          });
         }
 
         // Use the highest quality model available
@@ -4469,7 +4616,10 @@ if (elevenLabsKey && !audioUrl) {
         provider,
         style,
         isRealGeneration: true,
-        message: `Professional vocal generated via ${provider}`
+        referenceAnalysis: refSongAnalysis || null,
+        message: refSongAnalysis 
+          ? `Professional vocal generated via ${provider} — matched to reference (${refSongAnalysis.tone} tone, ${refSongAnalysis.mood} mood)`
+          : `Professional vocal generated via ${provider}`
       });
     } else {
       logger.error('❌ All vocal generation methods failed');

@@ -589,6 +589,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [videoDnaUrl, setVideoDnaUrl] = useState(null);
   const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null);
   const [voiceSampleUrl, setVoiceSampleUrl] = useState(null);
+  const [referenceSongUrl, setReferenceSongUrl] = useState(null);
+  const [isUploadingReferenceSong, setIsUploadingReferenceSong] = useState(false);
   const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(localStorage.getItem('studio_elevenlabs_voice_id') || '');
   const [elVoices, setElVoices] = useState([]);
   const [referencedAudioId, setReferencedAudioId] = useState('');
@@ -3539,6 +3541,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           backingTrackUrl: audioDnaUrl || null,
           audioId: referencedAudioId || undefined,
           elevenLabsVoiceId: elevenLabsVoiceId,
+          referenceSongUrl: referenceSongUrl || null,
           quality: (elevenLabsVoiceId || voiceSampleUrl) ? 'premium' : 'standard'
         })
       });
@@ -4228,7 +4231,8 @@ const fetchUserCredits = useCallback(async (uid) => {
           duration: voiceSettings.duration || 30,
           speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
           backingTrackUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
-          audioId: referencedAudioId
+          audioId: referencedAudioId,
+          referenceSongUrl: referenceSongUrl || null
         };
       } else if (isMasterAgent) {
         // Mastering Lab â€” requires an existing audio asset to master
@@ -6395,6 +6399,77 @@ const fetchUserCredits = useCallback(async (uid) => {
                         </div>
                       </div>
                     )}
+
+                    {/* Reference Song Upload — Style/Tone/Vibe Matching */}
+                    <div className="reference-upload-card" style={{
+                      padding: '10px 12px',
+                      background: referenceSongUrl ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '10px',
+                      border: referenceSongUrl ? '1px solid rgba(16, 185, 129, 0.4)' : ((selectedAgent?.id === 'vocal' || selectedAgent?.id === 'vocal-arch' || selectedAgent?.id === 'vocal-lab') ? '1px dashed rgba(16, 185, 129, 0.4)' : '1px dashed rgba(255, 255, 255, 0.1)'),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          background: referenceSongUrl ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Disc size={16} color="#10b981" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: referenceSongUrl ? '#10b981' : 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: referenceSongUrl ? '600' : '400' }}>Reference Song</div>
+                          <div style={{ fontSize: '0.75rem', color: referenceSongUrl ? '#10b981' : 'rgba(255,255,255,0.5)', fontWeight: '500', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {referenceSongUrl ? 'Tone & Vibe Locked ✓' : 'Match tone, warmth, depth...'}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {referenceSongUrl && (
+                          <button onClick={() => setReferenceSongUrl(null)} style={{ padding: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}><X size={14} /></button>
+                        )}
+                        <label style={{ padding: '5px 10px', background: referenceSongUrl ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)', borderRadius: '6px', fontSize: '0.7rem', cursor: 'pointer', color: referenceSongUrl ? '#10b981' : 'white', fontWeight: referenceSongUrl ? '600' : '400' }}>
+                          <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file || isUploadingReferenceSong) return;
+                            if (file.size > 15 * 1024 * 1024) { toast.error('Reference song too large (max 15MB)'); return; }
+                            setIsUploadingReferenceSong(true);
+                            const loadingId = toast.loading('Uploading reference song...');
+                            try {
+                              const token = user ? await user.getIdToken() : null;
+                              const headers = { 'Content-Type': 'application/json' };
+                              if (token) headers['Authorization'] = `Bearer ${token}`;
+                              const reader = new FileReader();
+                              reader.readAsDataURL(file);
+                              reader.onload = async () => {
+                                try {
+                                  const response = await fetch(`${BACKEND_URL}/api/upload-asset`, {
+                                    method: 'POST', headers,
+                                    body: JSON.stringify({ data: reader.result, fileName: `ref-song-${Date.now()}-${file.name.replace(/\s+/g, '-')}`, mimeType: file.type, assetType: 'audio' })
+                                  });
+                                  const result = await response.json();
+                                  if (response.ok && result.url) {
+                                    setReferenceSongUrl(result.url);
+                                    toast.success('Reference song uploaded! Vocals will match its tone & vibe.', { id: loadingId });
+                                    if (user?.uid) {
+                                      try { const userRef = doc(db, 'users', user?.uid); await updateDoc(userRef, { referenceSongUrl: result.url, lastRefSongUpdate: Date.now() }); } catch (_e) {}
+                                    }
+                                  } else { throw new Error(result.error || 'Upload failed'); }
+                                } catch (err) { toast.error('Failed to upload reference song', { id: loadingId }); }
+                                finally { setIsUploadingReferenceSong(false); }
+                              };
+                              reader.onerror = () => { toast.error('Failed to read file'); setIsUploadingReferenceSong(false); };
+                            } catch (err) { toast.error('Upload failed'); setIsUploadingReferenceSong(false); }
+                          }} />
+                          {isUploadingReferenceSong ? <Loader2 size={12} className="spin" /> : (referenceSongUrl ? 'Replace' : 'Upload Song')}
+                        </label>
+                      </div>
+                    </div>
 
                     {/* Seed DNA (Video/Image Reference for Video Creation) */}
                     <div className="reference-upload-card" style={{
