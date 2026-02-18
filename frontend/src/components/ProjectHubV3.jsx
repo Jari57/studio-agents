@@ -1265,12 +1265,12 @@ function ProjectHubV3({
         .projects-grid {
           display: grid;
           gap: 20px;
-          max-width: 600px;
+          max-width: 100%;
           margin: 0 auto;
         }
 
         .projects-grid.grid {
-          grid-template-columns: 1fr;
+          grid-template-columns: repeat(4, 1fr);
         }
 
         .projects-grid.list {
@@ -2108,7 +2108,7 @@ function ProjectHubV3({
         /* Tablet */
         @media (max-width: 1024px) {
           .projects-grid.grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
           }
           
           .hub-filters {
@@ -2171,7 +2171,7 @@ function ProjectHubV3({
           }
 
           .projects-grid.grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
             gap: 12px;
             max-width: 100%;
           }
@@ -2705,7 +2705,7 @@ function ProjectHubV3({
           }
           
           .projects-grid.grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
           }
           
           .card-thumbnail {
@@ -2724,7 +2724,7 @@ function ProjectHubV3({
           }
           
           .projects-grid.grid {
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(4, 1fr);
             gap: 24px;
           }
           
