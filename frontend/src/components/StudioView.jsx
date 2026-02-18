@@ -7146,7 +7146,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           const Icon = typeof selectedAgent.icon === 'function' ? selectedAgent.icon : Sparkles;
           
           return (
-            <div className="agent-workspace-content">
+            <div className="agent-active-view animate-fadeInUp" style={{ position: 'relative', paddingBottom: '80px' }}>
               {/* Onboarding Nudge */}
               {showNudge && selectedAgent.onboarding && (
                 <div className="agent-nudge-overlay animate-fadeInDown" style={{ marginBottom: '24px' }}>
@@ -7172,16 +7172,20 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
               )}
 
-              <div className="agent-detail-layout" style={{ gridTemplateColumns: '1fr 300px' }}>
+              <div className="agent-detail-layout">
                 <div className="agent-main-panel">
                   <div className="agent-hero-card">
                     <div className={`agent-icon-large ${selectedAgent.colorClass}`}>
                       <Icon size={40} />
                     </div>
                     <div className="agent-hero-info">
-                      <span className="agent-badge">{selectedAgent.category}</span>
-                      <h2>{selectedAgent.name}</h2>
-                      <p>{selectedAgent.description || selectedAgent.desc}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <span className="agent-badge" style={{ background: 'linear-gradient(90deg, var(--color-purple), var(--color-cyan))', color: 'white', fontWeight: '800' }}>{selectedAgent.category}</span>
+                        <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'rgba(255,255,255,0.3)' }} />
+                        <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)', letterSpacing: '1.5px', fontWeight: '800', textTransform: 'uppercase' }}>High-Fidelity Engine</span>
+                      </div>
+                      <h2 style={{ fontSize: '2.4rem', fontWeight: '900', letterSpacing: '-1px', marginBottom: '8px', background: 'linear-gradient(180deg, #fff 0%, rgba(255,255,255,0.7) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{selectedAgent.name}</h2>
+                      <p style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.6)', maxWidth: '600px', lineHeight: '1.6' }}>{selectedAgent.description || selectedAgent.desc}</p>
                     </div>
                   </div>
 
@@ -7213,6 +7217,15 @@ const fetchUserCredits = useCallback(async (uid) => {
                       <div className="prompt-header">
                         <label>Creative Prompt</label>
                         <div className="voice-controls">
+                          {voiceSettings.language !== 'English' && (
+                            <button 
+                              className="btn-pill glass translate-btn"
+                              onClick={handleTranslatePrompt}
+                              title="Translate to English"
+                            >
+                              <Languages size={16} />
+                            </button>
+                          )}
                           <button 
                             className={`btn-pill ${isListening ? 'primary' : 'glass'}`} 
                             onClick={handleVoiceToText}
