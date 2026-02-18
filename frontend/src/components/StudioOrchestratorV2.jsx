@@ -1844,7 +1844,13 @@ REQUIREMENTS:
       let lyricsResult = '';
       
       if (lyricsSlot) {
-        lyricsResult = await generateForSlot(lyricsSlot[0], lyricsSlot[1]);
+        // Skip lyrics generation if already generated with vocals
+        if (outputs.lyrics && (mediaUrls.vocals || mediaUrls.lyricsVocal)) {
+          lyricsResult = outputs.lyrics;
+          console.log('[Orchestrator] Skipping lyrics — already generated');
+        } else {
+          lyricsResult = await generateForSlot(lyricsSlot[0], lyricsSlot[1]);
+        }
       } else if (existingProject?.assets) {
         // Look for existing lyrics in the project to provide context for other agents
         const lyricsAsset = existingProject.assets.find(a => 
@@ -1861,9 +1867,25 @@ REQUIREMENTS:
       // Track promises for pipeline sequencing
       const pipelinePromises = { beatAudio: null, image: null, videoDescription: null };
 
+      // Skip slots that already have generated output + media (avoid redundant API calls)
+      const hasMedia = (slot) => {
+        if (slot === 'audio') return mediaUrls.audio;
+        if (slot === 'visual') return mediaUrls.image;
+        if (slot === 'video') return mediaUrls.video;
+        if (slot === 'lyrics') return mediaUrls.vocals || mediaUrls.lyricsVocal;
+        return false;
+      };
+
       // All other slots run in parallel using the (optional) lyrics context
       const otherSlots = activeSlots.filter(([s]) => s !== 'lyrics');
-      await Promise.all(otherSlots.map(([slot, agentId]) => generateForSlot(slot, agentId, lyricsResult)));
+      const slotsToGenerate = otherSlots.filter(([slot]) => {
+        if (outputs[slot] && hasMedia(slot)) {
+          console.log(`[Orchestrator] Skipping ${slot} — already generated`);
+          return false;
+        }
+        return true;
+      });
+      await Promise.all(slotsToGenerate.map(([slot, agentId]) => generateForSlot(slot, agentId, lyricsResult)));
 
       // ═══════════════════════════════════════════════════════════
       // PIPELINE SEQUENCING: vocals wait for beat, video waits for mix
@@ -1876,7 +1898,7 @@ REQUIREMENTS:
       }
 
       // Generate vocals AFTER beat is ready (so backingTrackUrl works and backend mixes them)
-      if (lyricsResult && activeSlots.find(([s]) => s === 'lyrics')) {
+      if (lyricsResult && activeSlots.find(([s]) => s === 'lyrics') && !(mediaUrls.vocals || mediaUrls.lyricsVocal)) {
         console.log('[Pipeline] Starting vocal generation with beat URL for mixing');
         await handleGenerateVocals(lyricsResult);
         console.log('[Pipeline] Vocals (mixed with beat) complete');
@@ -1888,7 +1910,7 @@ REQUIREMENTS:
       }
 
       // Generate video LAST — it now gets mixed audio (vocal+beat) instead of just beat
-      if (pipelinePromises.videoDescription) {
+      if (pipelinePromises.videoDescription && !mediaUrls.video) {
         console.log('[Pipeline] Starting video generation with mixed audio');
         await handleGenerateVideo(pipelinePromises.videoDescription);
       }
@@ -2438,9 +2460,9 @@ REQUIREMENTS:
             if (slot === 'lyrics') setLyricsDnaUrl(url);
 
             // Industrial Strength Persistence: Save to User Profile
-            if (auth.currentUser?.uid) {
+            if (auth.currentUser?.uid && db) {
               try {
-                const userRef = doc(db, 'users', auth.currentUser?.uid);
+                const userRef = doc(db, 'users', auth.currentUser.uid);
                 const newArtifact = {
                   id: `dna-${Date.now()}`,
                   type: slot,
@@ -2776,10 +2798,11 @@ REQUIREMENTS:
         // Handle async Veo operations: poll /api/video-status/:id until complete
         if (data.status === 'processing' && data.operationId) {
           console.log('[Orchestrator] Video operation started, polling for completion...', data.operationId);
-          const maxPolls = 36; // 36 × 10s = 6 minutes
+          toast.loading('Video rendering in progress...', { id: 'gen-video', duration: 300000 });
+          const maxPolls = 60; // 60 × 5s = 5 minutes
           let pollSuccess = false;
           for (let i = 0; i < maxPolls; i++) {
-            await new Promise(r => setTimeout(r, 10000)); // Wait 10s between polls
+            await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
             try {
               const statusRes = await fetch(`${BACKEND_URL}/api/video-status/${data.operationId}`, { headers });
               const statusData = await statusRes.json();

@@ -3813,9 +3813,9 @@ const fetchUserCredits = useCallback(async (uid) => {
             if (slot === 'lyrics') setLyricsDnaUrl(url);
             
             toast.success(`${slot.charAt(0).toUpperCase() + slot.slice(1)} DNA Attached!`, { id: loadingId });
-            if (user?.uid) {
+            if (user?.uid && db) {
               try {
-                const userRef = doc(db, 'users', user?.uid);
+                const userRef = doc(db, 'users', user.uid);
                 await updateDoc(userRef, {
                   [`${slot}DnaUrl`]: url,
                   lastDnaUpdate: Date.now()
@@ -3887,9 +3887,9 @@ const fetchUserCredits = useCallback(async (uid) => {
             setVoiceSampleUrl(url);
             
             // Industrial Strength Persistence: Save to User Profile
-            if (user?.uid) {
+            if (user?.uid && db) {
               try {
-                const userRef = doc(db, 'users', user?.uid);
+                const userRef = doc(db, 'users', user.uid);
                 await updateDoc(userRef, {
                   voiceSampleUrl: url,
                   lastVoiceUpdate: Date.now()
@@ -4372,11 +4372,11 @@ const fetchUserCredits = useCallback(async (uid) => {
       // Handle async Veo video operations: poll /api/video-status/:id until complete
       if (data.status === 'processing' && data.operationId) {
         console.log('[Studio] Video operation started, polling for completion...', data.operationId);
-        toast.loading('Video generating... this takes 1-3 minutes', { id: toastId });
-        const maxPolls = 36; // 36 × 10s = 6 minutes
+        toast.loading('Video rendering in progress...', { id: toastId, duration: 300000 });
+        const maxPolls = 60; // 60 × 5s = 5 minutes
         let pollSuccess = false;
         for (let i = 0; i < maxPolls; i++) {
-          await new Promise(r => setTimeout(r, 10000));
+          await new Promise(r => setTimeout(r, 5000));
           try {
             const statusRes = await fetch(`${BACKEND_URL}/api/video-status/${data.operationId}`, { headers });
             const statusData = await statusRes.json();
@@ -6501,8 +6501,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                                   if (response.ok && result.url) {
                                     setReferenceSongUrl(result.url);
                                     toast.success('Reference song uploaded! Vocals will match its tone & vibe.', { id: loadingId });
-                                    if (user?.uid) {
-                                      try { const userRef = doc(db, 'users', user?.uid); await updateDoc(userRef, { referenceSongUrl: result.url, lastRefSongUpdate: Date.now() }); } catch (_e) {}
+                                    if (user?.uid && db) {
+                                      try { const userRef = doc(db, 'users', user.uid); await updateDoc(userRef, { referenceSongUrl: result.url, lastRefSongUpdate: Date.now() }); } catch (_e) {}
                                     }
                                   } else { throw new Error(result.error || 'Upload failed'); }
                                 } catch (err) { toast.error('Failed to upload reference song', { id: loadingId }); }
