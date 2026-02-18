@@ -10210,14 +10210,14 @@ const fetchUserCredits = useCallback(async (uid) => {
         {playingItem && (
           <div 
             className="media-player-overlay animate-fadeIn"
-            onClick={() => setPlayingItem(null)}
+            onClick={() => { document.querySelectorAll('audio, video').forEach(el => el.pause()); setPlayingItem(null); }}
           >
             <div 
               className="media-player-container animate-fadeInUp"
               onClick={(e) => e.stopPropagation()}
               onTouchEnd={(e) => e.stopPropagation()}
             >
-              <button className="player-close" onClick={() => setPlayingItem(null)}>
+              <button className="player-close" onClick={() => { document.querySelectorAll('audio, video').forEach(el => el.pause()); setPlayingItem(null); }}>
                 <X size={24} />
               </button>
               
@@ -10252,9 +10252,14 @@ const fetchUserCredits = useCallback(async (uid) => {
                         <video 
                           src={playingItem.videoUrl} 
                           controls={!playingItem.audioUrl} 
-                          autoPlay 
+                          playsInline
                           muted={!!playingItem.audioUrl} // Mute video if we have separate audio track (Mastering case)
                           className="player-video"
+                          onPlay={(e) => {
+                            document.querySelectorAll('audio, video').forEach(el => {
+                              if (el !== e.target) el.pause();
+                            });
+                          }}
                         />
                       ) : playingItem.imageUrl ? (
                         <img 
@@ -10308,9 +10313,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                            <audio 
                             src={playingItem.audioUrl} 
                             controls 
-                            autoPlay 
                             className="player-audio"
                             style={{ width: '100%', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', borderRadius: '30px' }}
+                            onPlay={(e) => {
+                              document.querySelectorAll('audio, video').forEach(el => {
+                                if (el !== e.target) el.pause();
+                              });
+                            }}
                           />
                         </div>
                       )}
@@ -14722,9 +14731,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                   <video 
                     src={safePreview.url}
                     controls
-                    autoPlay
                     playsInline
                     loop
+                    onPlay={(e) => {
+                      document.querySelectorAll('audio, video').forEach(el => {
+                        if (el !== e.target) el.pause();
+                      });
+                    }}
                     onCanPlay={(e) => {
                       // Hide loading placeholder when video can play
                       const placeholder = e.target.previousElementSibling;
