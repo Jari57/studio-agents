@@ -11152,7 +11152,7 @@ html, body, #root {
 
 .agents-split-layout {
   display: grid;
-  grid-template-columns: minmax(60px, 12%) 1fr;
+  grid-template-columns: minmax(60px, 10%) 1fr;
   gap: 0;
   height: calc(100vh - 180px);
   min-height: 600px;
@@ -11167,7 +11167,7 @@ html, body, #root {
   flex-direction: column;
   overflow: hidden;
   min-width: 56px;
-  max-width: 15%;
+  max-width: 10%;
   height: 100%;
   box-sizing: border-box;
 }

@@ -7686,7 +7686,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 renderAgentWorkspace()
               ) : (
                 /* Agent Cards Grid with Whitepapers & Legal */
-                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 2px' : '8px 0 8px 0', overflowY: 'auto' }}>
+                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 2px' : '8px 0 8px 0', overflowY: 'auto', marginLeft: isMobile ? 0 : '-20px' }}>
                   {/* Header with Action Buttons */}
                   <div style={{ 
                     display: 'flex', 
@@ -7795,7 +7795,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     {/* FREE TIER Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
                       gap: '16px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'free').map((agent) => {
@@ -7887,7 +7887,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     {/* MONTHLY TIER Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
                       gap: '16px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
@@ -7980,7 +7980,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     {/* PRO TIER Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
                       gap: '16px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'pro').map((agent) => {
