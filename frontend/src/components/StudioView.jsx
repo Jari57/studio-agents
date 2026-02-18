@@ -1441,6 +1441,32 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setSessionTracks(sessionHistory[newIndex]);
     }
   };
+
+  // Auto-populate session mixer when it opens — sync backing track + project assets
+  useEffect(() => {
+    if (!showStudioSession) return;
+    const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
+    
+    setSessionTracks(prev => {
+      const updates = { ...prev };
+      // Auto-load backing track as the audio track
+      if (backingTrack && !prev.audio) {
+        updates.audio = { title: backingTrack.title, audioUrl: backingTrack.audioUrl, bpm: backingTrack.bpm };
+        if (backingTrack.bpm) updates.bpm = backingTrack.bpm;
+      }
+      // Auto-load first vocal if no vocal track set
+      if (!prev.vocal) {
+        const vocal = assets.find(a => a.type === 'vocal' || a.type === 'synthesis' || (a.type === 'audio' && a.audioUrl && a.agent?.toLowerCase().includes('vocal')));
+        if (vocal) updates.vocal = vocal;
+      }
+      // Auto-load first video/image if no visual track set
+      if (!prev.visual) {
+        const visual = assets.find(a => a.videoUrl || a.imageUrl);
+        if (visual) updates.visual = visual;
+      }
+      return updates;
+    });
+  }, [showStudioSession]);
   
   // Persist helpSearch
   useEffect(() => {
@@ -4463,9 +4489,7 @@ const fetchUserCredits = useCallback(async (uid) => {
            newItem.audioUrl = backingTrack.audioUrl; // Attach audio to video item
            newItem.audioTitle = backingTrack.title;
            newItem.snippet = `ðŸŽ¬ Music Video for: "${backingTrack.title}"`;
-           
-           // Clear backing track state
-           setBackingTrack(null);
+           // Keep backingTrack set so user can re-generate without re-selecting
         }
       } else if ((isAudioAgent || isSpeechAgent) && (data.audioUrl || data.audio || data.type === 'synthesis' || data.description || data.message)) {
         // Handle Audio Response (Lyria/TTS/MusicGen)
@@ -4581,9 +4605,7 @@ const fetchUserCredits = useCallback(async (uid) => {
            newItem.backingTrackTitle = backingTrack.title;
            newItem.snippet = `ðŸŽ¤ Vocals synced to: "${backingTrack.title}"`;
            newItem.type = 'vocal'; // Mark as vocal/song
-           
-           // Clear backing track state
-           setBackingTrack(null);
+           // Keep backingTrack set so user can re-generate without re-selecting
         }
       } else if (data.output) {
         // Handle Text Response
@@ -5384,6 +5406,9 @@ const fetchUserCredits = useCallback(async (uid) => {
             isMobile={isMobile}
             setActiveTab={setActiveTab}
             setShowOrchestrator={setShowOrchestrator}
+            setShowStudioSession={setShowStudioSession}
+            setBackingTrack={setBackingTrack}
+            backingTrack={backingTrack}
             setSelectedAgent={setSelectedAgent}
             setShowAddAgentModal={setShowAddAgentModal}
             AGENTS={AGENTS}
@@ -6514,6 +6539,42 @@ const fetchUserCredits = useCallback(async (uid) => {
                       {lyricsDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#a855f720', color: '#a855f7', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #a855f740' }}><FileText size={10} /> Lyrics DNA Active</div>}
                       {voiceSampleUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#fbbf2420', color: '#fbbf24', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #fbbf2440' }}><Mic size={10} /> Voice Ready</div>}
                       {videoDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#ef444420', color: '#ef4444', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ef444440' }}><VideoIcon size={10} /> Seed DNA Ready</div>}
+                      {backingTrack && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: '#a855f720', color: '#a855f7', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #a855f740', cursor: 'pointer' }} onClick={() => setBackingTrack(null)} title="Click to remove"><Music size={10} /> 🔗 Synced: {backingTrack.title}{backingTrack.bpm ? ` (${backingTrack.bpm} BPM)` : ''} ✕</div>}
+                    </div>
+                  )}
+
+                  {/* Backing Track Sync Banner — shown for vocal/video/speech agents when a beat is synced */}
+                  {backingTrack && (selectedAgent?.id === 'vocal' || selectedAgent?.id === 'video-creator' || selectedAgent?.id === 'voice' || selectedAgent?.category?.toLowerCase().includes('vocal') || selectedAgent?.category?.toLowerCase().includes('video')) && (
+                    <div style={{
+                      padding: '10px 14px', marginBottom: '12px',
+                      background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(6, 182, 212, 0.15))',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      fontSize: '0.8rem'
+                    }}>
+                      <div style={{
+                        width: '32px', height: '32px', borderRadius: '8px',
+                        background: 'rgba(168, 85, 247, 0.2)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                      }}>
+                        <Music size={16} color="var(--color-purple)" />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: '600', color: 'white', marginBottom: '2px' }}>
+                          🔗 Synced to: {backingTrack.title}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                          {selectedAgent?.id === 'video-creator' ? 'Video will match beat timing & BPM' : 'Vocals will sync to this beat'}
+                          {backingTrack.bpm ? ` • ${backingTrack.bpm} BPM` : ''}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setBackingTrack(null)}
+                        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: '4px' }}
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
                   )}
 
@@ -10355,6 +10416,57 @@ const fetchUserCredits = useCallback(async (uid) => {
                     >
                       <Share2 size={18} />
                       <span>Share to Feed</span>
+                    </button>
+                    {/* Use as Backing Track — only for audio items */}
+                    {playingItem.audioUrl && (
+                      <button
+                        className="player-btn secondary"
+                        onClick={() => {
+                          const isAlready = backingTrack && backingTrack.audioUrl === playingItem.audioUrl;
+                          if (isAlready) {
+                            setBackingTrack(null);
+                            toast.success('Backing track cleared');
+                          } else {
+                            setBackingTrack({
+                              title: playingItem.title || 'Untitled Beat',
+                              audioUrl: playingItem.audioUrl,
+                              bpm: playingItem.bpm || null,
+                              id: playingItem.id
+                            });
+                            toast.success(`🎵 "${playingItem.title || 'Beat'}" set as backing track`);
+                          }
+                        }}
+                        style={{
+                          background: (backingTrack && backingTrack.audioUrl === playingItem.audioUrl) ? 'rgba(168, 85, 247, 0.3)' : undefined,
+                          borderColor: (backingTrack && backingTrack.audioUrl === playingItem.audioUrl) ? 'rgba(168, 85, 247, 0.5)' : undefined
+                        }}
+                      >
+                        <Music size={18} />
+                        <span>{(backingTrack && backingTrack.audioUrl === playingItem.audioUrl) ? '🔗 Synced ✓' : '🔗 Sync Track'}</span>
+                      </button>
+                    )}
+                    {/* Open Session Mixer */}
+                    <button
+                      className="player-btn secondary"
+                      onClick={() => {
+                        // Auto-load current item into session tracks
+                        if (playingItem.audioUrl) {
+                          setSessionTracks(prev => ({
+                            ...prev,
+                            audio: playingItem
+                          }));
+                        } else if (playingItem.videoUrl || playingItem.imageUrl) {
+                          setSessionTracks(prev => ({
+                            ...prev,
+                            visual: playingItem
+                          }));
+                        }
+                        setPlayingItem(null);
+                        setShowStudioSession(true);
+                      }}
+                    >
+                      <LayoutGrid size={18} />
+                      <span>Session Mixer</span>
                     </button>
                   </div>
                 </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Sparkles, Zap, Music, ArrowLeft, Edit3, Upload, Layers,
   ChevronLeft, ChevronRight, X, User, Crown, FileText, Download, Maximize2,
-  Copy, Trash2, Share2, Book, Play
+  Copy, Trash2, Share2, Book, Play, LayoutGrid, Link2
 } from 'lucide-react';
 import { UsersIcon, Twitter, Instagram, VideoIcon, ImageIcon } from 'lucide-react';
 
@@ -25,6 +25,9 @@ export default function CanvasView({
   isMobile,
   setActiveTab,
   setShowOrchestrator,
+  setShowStudioSession,
+  setBackingTrack,
+  backingTrack,
   setSelectedAgent,
   setShowAddAgentModal,
   // External utilities
@@ -230,6 +233,14 @@ export default function CanvasView({
             style={{ background: showCanvasSidebar ? 'rgba(168,85,247,0.3)' : undefined }}
           >
             <Layers size={18} />
+          </button>
+          <button
+            className="btn-pill primary"
+            onClick={() => setShowStudioSession(true)}
+            style={{ fontSize: '0.85rem' }}
+            title="Open multi-track session mixer"
+          >
+            <LayoutGrid size={16} /> {isMobile ? 'Mix' : 'Session Mixer'}
           </button>
           <button
             className="btn-pill primary"
@@ -717,6 +728,38 @@ export default function CanvasView({
                     >
                       <Maximize2 size={14} /> Fullscreen
                     </button>
+                    {/* Use as Backing Track — shown for audio/vocal assets */}
+                    {currentAsset.audioUrl && (
+                      <button
+                        onClick={() => {
+                          const isAlready = backingTrack && backingTrack.audioUrl === currentAsset.audioUrl;
+                          if (isAlready) {
+                            setBackingTrack(null);
+                            toast.success('Backing track cleared');
+                          } else {
+                            setBackingTrack({
+                              title: currentAsset.title || 'Untitled Beat',
+                              audioUrl: currentAsset.audioUrl,
+                              bpm: currentAsset.bpm || null,
+                              id: currentAsset.id
+                            });
+                            toast.success(`🎵 "${currentAsset.title || 'Beat'}" set as backing track — vocals & video will sync to it`);
+                          }
+                        }}
+                        className="btn-pill"
+                        style={{
+                          flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px',
+                          background: (backingTrack && backingTrack.audioUrl === currentAsset.audioUrl)
+                            ? 'rgba(168, 85, 247, 0.3)' : 'rgba(6, 182, 212, 0.15)',
+                          color: (backingTrack && backingTrack.audioUrl === currentAsset.audioUrl)
+                            ? 'var(--color-purple)' : 'var(--color-cyan)',
+                          border: (backingTrack && backingTrack.audioUrl === currentAsset.audioUrl)
+                            ? '1px solid rgba(168, 85, 247, 0.4)' : 'none'
+                        }}
+                      >
+                        <Link2 size={14} /> {(backingTrack && backingTrack.audioUrl === currentAsset.audioUrl) ? 'Synced ✓' : 'Sync Track'}
+                      </button>
+                    )}
                     {(currentAsset.content || currentAsset.snippet) && (
                       <button
                         onClick={() => {
