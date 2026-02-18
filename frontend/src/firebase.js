@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import {
   getAuth,
+  browserLocalPersistence,
+  setPersistence,
   signInWithPopup,
   GoogleAuthProvider,
   OAuthProvider,
@@ -50,6 +52,12 @@ let storage;
 try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
+
+  // Explicitly set local persistence so auth survives page refresh and browser restart
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn('Auth persistence setup failed:', err.message);
+  });
+
   db = getFirestore(app);
   storage = getStorage(app);
   

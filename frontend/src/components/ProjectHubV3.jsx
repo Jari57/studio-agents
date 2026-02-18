@@ -123,6 +123,10 @@ function ProjectHubV3({
   const [viewMode, setViewMode] = useState('grid');
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_sort_${uid}`) || 'recent';
+  });
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [newProjectName, setNewProjectName] = useState('');
@@ -207,11 +211,15 @@ function ProjectHubV3({
       return true;
     });
 
-    // 2. Sort by creation date (newest first)
+    // 2. Sort based on user preference
     return result.sort((a, b) => {
-      // Helper to get time value
+      if (sortBy === 'alpha-asc') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'alpha-desc') return (b.name || '').localeCompare(a.name || '');
+
+      // Default: sort by most recent activity (updatedAt, then createdAt)
       const getTime = (p) => {
         if (!p) return 0;
+        if (p.updatedAt) return new Date(p.updatedAt).getTime();
         if (p.createdAt) return new Date(p.createdAt).getTime();
         if (p.date) return new Date(p.date).getTime();
         if (typeof p.id === 'string' && p.id.startsWith('proj-')) {
@@ -220,10 +228,10 @@ function ProjectHubV3({
         }
         return 0;
       };
-      
-      return getTime(b) - getTime(a);
+
+      return sortBy === 'oldest' ? getTime(a) - getTime(b) : getTime(b) - getTime(a);
     });
-  }, [projects, filter, searchQuery, favorites]);
+  }, [projects, filter, searchQuery, favorites, sortBy]);
 
   // Bulk delete empty projects
   const handlePurgeEmptyProjects = _useCallback(() => {
@@ -667,16 +675,34 @@ function ProjectHubV3({
             ))}
           </div>
 
+          <div className="sort-dropdown">
+            <select
+              value={sortBy}
+              onChange={e => {
+                const val = e.target.value;
+                setSortBy(val);
+                const uid = localStorage.getItem('studio_user_id') || 'guest';
+                localStorage.setItem(`studio_sort_${uid}`, val);
+              }}
+              title="Sort projects"
+            >
+              <option value="recent">Most Recent</option>
+              <option value="oldest">Oldest First</option>
+              <option value="alpha-asc">A → Z</option>
+              <option value="alpha-desc">Z → A</option>
+            </select>
+          </div>
+
           <div className="view-switch">
-            <button 
-              className={viewMode === 'grid' ? 'active' : ''} 
+            <button
+              className={viewMode === 'grid' ? 'active' : ''}
               onClick={() => setViewMode('grid')}
               title="Grid view"
             >
               <LayoutGrid size={18} />
             </button>
-            <button 
-              className={viewMode === 'list' ? 'active' : ''} 
+            <button
+              className={viewMode === 'list' ? 'active' : ''}
               onClick={() => setViewMode('list')}
               title="List view"
             >
@@ -948,7 +974,7 @@ function ProjectHubV3({
                         className="btn-open-project"
                         onClick={(e) => { e.stopPropagation(); onSelectProject?.(project); }}
                       >
-                        <Folder size={14} />
+                        <FolderIcon size={14} />
                         Open Project
                       </button>
                     </>
@@ -1242,6 +1268,35 @@ function ProjectHubV3({
         .filter-pill.active {
           background: var(--color-purple);
           border-color: var(--color-purple);
+          color: white;
+        }
+
+        .sort-dropdown select {
+          padding: 10px 14px;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-color);
+          border-radius: 10px;
+          color: white;
+          font-size: 0.85rem;
+          font-weight: 500;
+          cursor: pointer;
+          outline: none;
+          transition: border-color 0.2s;
+          appearance: none;
+          -webkit-appearance: none;
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 10px center;
+          padding-right: 30px;
+        }
+
+        .sort-dropdown select:hover,
+        .sort-dropdown select:focus {
+          border-color: var(--color-purple);
+        }
+
+        .sort-dropdown select option {
+          background: var(--bg-primary);
           color: white;
         }
 
@@ -2198,7 +2253,15 @@ function ProjectHubV3({
             flex-shrink: 0;
             padding: 8px 14px;
           }
-          
+
+          .sort-dropdown {
+            width: 100%;
+          }
+
+          .sort-dropdown select {
+            width: 100%;
+          }
+
           .view-switch {
             display: none;
           }

@@ -591,7 +591,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [voiceSampleUrl, setVoiceSampleUrl] = useState(null);
   const [referenceSongUrl, setReferenceSongUrl] = useState(null);
   const [isUploadingReferenceSong, setIsUploadingReferenceSong] = useState(false);
-  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(localStorage.getItem('studio_elevenlabs_voice_id') || '');
+  const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(() => {
+    const uid = localStorage.getItem('studio_user_id') || 'guest';
+    return localStorage.getItem(`studio_elevenlabs_voice_id_${uid}`) || '';
+  });
   const [elVoices, setElVoices] = useState([]);
   const [referencedAudioId, setReferencedAudioId] = useState('');
   const [referencedVisualId, setReferencedVisualId] = useState('');
@@ -959,6 +962,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       localStorage.removeItem(`studio_agent_${uid}`);
     }
   }, [selectedAgent, user?.uid]);
+
+  // Persist selectedProject ID to localStorage
+  useEffect(() => {
+    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
+    if (selectedProject?.id) {
+      localStorage.setItem(`studio_selected_project_${uid}`, selectedProject.id);
+    }
+  }, [selectedProject, user?.uid]);
 
   useEffect(() => {
     const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
@@ -2452,6 +2463,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 return merged;
               });
               toast.success(`Synced ${cloudProjects.length} projects from cloud`);
+
+              // Auto-select the last-used project or the most recent one
+              const savedProjectId = localStorage.getItem(`studio_selected_project_${currentUser.uid}`);
+              const merged = mergeProjects([], cloudProjects); // get merged for selection
+              const projectToSelect = (savedProjectId && merged.find(p => p.id === savedProjectId)) || merged[0];
+              if (projectToSelect && !selectedProject) {
+                setSelectedProject(projectToSelect);
+              }
             } else {
               // Cloud returned 0 projects â€” could be auth failure or genuinely empty
               // Check if we have local projects to sync up
@@ -2485,22 +2504,28 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           const previousUserId = localStorage.getItem('studio_user_id');
           const wasGuestMode = localStorage.getItem('studio_guest_mode') === 'true';
           
-          if (previousUserId && authRetryCountRef.current < 5) {
+          if (previousUserId && authRetryCountRef.current < 10) {
             // We had a session - Firebase might just be slow
             // Wait and retry before clearing
             authRetryCountRef.current += 1;
             console.log('[Auth] Firebase returned null but we have session, retry', authRetryCountRef.current);
             setAuthRetryCount(authRetryCountRef.current);
-            
+
             // Keep user logged in from localStorage while we wait
             setIsLoggedIn(true);
             setAuthChecking(true); // Still checking
-            
+
+            // Show reconnecting feedback after a few retries
+            if (authRetryCountRef.current === 3) {
+              toast.loading('Reconnecting to your session...', { id: 'auth-retry', duration: 15000 });
+            }
+
             // Don't clear anything yet - give Firebase a moment
             setTimeout(() => {
               // Use refs to get CURRENT state (not stale closure from useEffect[])
-              if (!userRef.current && authRetryCountRef.current >= 4) {
+              if (!userRef.current && authRetryCountRef.current >= 8) {
                 console.log('[Auth] Retry exhausted, clearing session');
+                toast.dismiss('auth-retry');
                 // Only clear if we are NOT in guest mode
                 if (localStorage.getItem('studio_guest_mode') !== 'true') {
                   setUser(null);
@@ -2508,12 +2533,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   setUserCredits(3);
                   localStorage.removeItem('studio_user_id');
                   setIsLoggedIn(false);
+                  toast.error('Session expired — please sign in again');
                 }
                 setAuthChecking(false);
                 authRetryCountRef.current = 0;
                 setAuthRetryCount(0);
               }
-            }, 5000); // 5 seconds is safer for slow connections
+            }, 3000); // 3 seconds per retry — 10 retries = up to 30s total tolerance
           } else if (wasGuestMode) {
             // Guest mode - keep them in without login
             setUser(null);
@@ -6377,7 +6403,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           value={elevenLabsVoiceId}
                           onChange={(e) => {
                             setElevenLabsVoiceId(e.target.value);
-                            localStorage.setItem('studio_elevenlabs_voice_id', e.target.value);
+                            localStorage.setItem(`studio_elevenlabs_voice_id_${user?.uid || localStorage.getItem('studio_user_id') || 'guest'}`, e.target.value);
                             // Clear generic sample if a specific premium voice is chosen
                             if (e.target.value) setVoiceSampleUrl(null);
                           }}

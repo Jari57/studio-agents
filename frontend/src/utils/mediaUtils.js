@@ -134,7 +134,9 @@ export const formatVideoSrc = (videoData) => {
       try {
         const parts = videoData.split(',');
         if (parts.length !== 2) return videoData;
-        const mime = parts[0].match(/:(.*?);/)[1];
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        if (!mimeMatch) return videoData;
+        const mime = mimeMatch[1];
         const bstr = atob(parts[1]);
         let n = bstr.length;
         const u8arr = new Uint8Array(n);
