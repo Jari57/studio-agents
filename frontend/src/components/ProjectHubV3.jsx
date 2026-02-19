@@ -1086,6 +1086,8 @@ function ProjectHubV3({
           max-width: 1400px;
           margin: 0 auto;
           animation: fadeIn 0.4s ease;
+          overflow-x: hidden;
+          box-sizing: border-box;
         }
         
         @keyframes fadeIn {
@@ -1327,6 +1329,8 @@ function ProjectHubV3({
         .projects-grid {
           display: grid;
           gap: 20px;
+          width: 100%;
+          box-sizing: border-box;
         }
 
         .projects-grid.grid {
@@ -1374,10 +1378,11 @@ function ProjectHubV3({
           background: var(--bg-secondary);
           border: 1px solid var(--border-color);
           border-radius: 16px;
-          overflow: visible;
+          overflow: hidden;
           cursor: pointer;
           transition: all 0.3s ease;
           position: relative;
+          min-width: 0;
         }
 
         .project-card:hover {
@@ -2804,15 +2809,16 @@ function ProjectHubV3({
         /* Small phones */
         @media (max-width: 480px) {
           .project-hub-v3 {
-            padding: 12px;
+            padding: 10px;
           }
 
           .projects-grid.grid {
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
           }
 
           .card-thumbnail {
-            height: 160px;
+            height: 120px;
           }
 
           .template-grid {
