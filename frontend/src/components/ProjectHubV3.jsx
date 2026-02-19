@@ -216,10 +216,9 @@ function ProjectHubV3({
       if (sortBy === 'alpha-asc') return (a.name || '').localeCompare(b.name || '');
       if (sortBy === 'alpha-desc') return (b.name || '').localeCompare(a.name || '');
 
-      // Default: sort by most recent activity (updatedAt, then createdAt)
+      // Default: sort by creation date
       const getTime = (p) => {
         if (!p) return 0;
-        if (p.updatedAt) return new Date(p.updatedAt).getTime();
         if (p.createdAt) return new Date(p.createdAt).getTime();
         if (p.date) return new Date(p.date).getTime();
         if (typeof p.id === 'string' && p.id.startsWith('proj-')) {
@@ -290,7 +289,7 @@ function ProjectHubV3({
   // Format relative time
   const formatRelativeTime = (dateStr) => {
     if (!dateStr) return '';
-    
+
     // Handle Firebase Timestamps
     let date;
     if (typeof dateStr === 'object' && dateStr.seconds) {
@@ -300,20 +299,12 @@ function ProjectHubV3({
     } else {
       date = new Date(dateStr);
     }
-    
+
     if (isNaN(date.getTime())) return 'Recently';
-    
-    const now = new Date();
-    const diff = now - date;
-    const mins = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-    
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
+
+    // Show calendar date + time: "Jan 15, 2025 3:42 PM"
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' ' + date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
   };
 
   // Toggle favorite
@@ -958,8 +949,7 @@ function ProjectHubV3({
                       <div className="card-meta">
                         <span className="meta-time">
                           <Clock size={12} />
-                          {project.createdAt && !project.updatedAt ? 'Created ' : ''}
-                          {formatRelativeTime(project.updatedAt || project.createdAt)}
+                          {formatRelativeTime(project.createdAt)}
                         </span>
                         <span className="meta-visibility">
                           {project.isPublic ? (
