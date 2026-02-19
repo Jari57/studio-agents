@@ -26,6 +26,15 @@ const {
   mixAudioFromUrls,
   getMixPreset
 } = require('./services/audioMixingService');
+const {
+  downloadSource,
+  convertAudioToWav,
+  convertAudioToMp3,
+  getMediaInfo,
+  cleanupFiles,
+  ensureTempDir,
+  QUALITY_PRESETS
+} = require('./services/formatConversionService');
 
 // Audio processing imports
 let WaveFile;
@@ -5428,11 +5437,24 @@ const videoProxyMap = new Map(); // id → { url, expiresAt }
 // ── Async video operations: track Veo polls so frontend can check status ──
 const pendingVideoOps = new Map(); // id → { operationName, apiKey, source, createdAt, attempts, consecutiveErrors, status, result, error }
 
+// ── Async format conversions: track MP3→WAV / WAV→MP3 jobs ──
+const pendingConversions = new Map(); // id → { status, convertedUrl?, storagePath?, format, fileSizeBytes?, error?, createdAt }
+let activeConversions = 0;
+const MAX_CONCURRENT_CONVERSIONS = 3;
+
 // Cleanup expired pending video ops every 5 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [id, op] of pendingVideoOps) {
     if (now - op.createdAt > 10 * 60 * 1000) pendingVideoOps.delete(id); // 10 min TTL
+  }
+}, 5 * 60 * 1000);
+
+// Cleanup expired format conversions every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, conv] of pendingConversions) {
+    if (now - conv.createdAt > 30 * 60 * 1000) pendingConversions.delete(id); // 30 min TTL
   }
 }, 5 * 60 * 1000);
 
@@ -5739,8 +5761,9 @@ function getAgentSystemPrompt(agent, session) {
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/master-audio', verifyFirebaseToken, requireAuth, generationLimiter, checkCreditsFor('mastering'), async (req, res) => {
   try {
-    const { 
-      audioBase64,           // Base64 encoded audio data
+    const {
+      audioBase64: rawAudioBase64, // Base64 encoded audio data (direct)
+      audioUrl,              // URL to audio file (alternative to base64)
       targetSampleRate = 44100, // 44.1 kHz for CD quality
       targetBitDepth = 16,   // 16-bit for distribution
       format = 'wav',        // wav or flac
@@ -5748,8 +5771,32 @@ app.post('/api/master-audio', verifyFirebaseToken, requireAuth, generationLimite
       preset = 'streaming'   // streaming, cd, or hires
     } = req.body;
 
+    // Accept either audioBase64 directly or fetch from audioUrl
+    let audioBase64 = rawAudioBase64;
+    if (!audioBase64 && audioUrl) {
+      try {
+        if (audioUrl.startsWith('data:')) {
+          // Extract base64 from data URI
+          const commaIdx = audioUrl.indexOf(',');
+          if (commaIdx !== -1) {
+            audioBase64 = audioUrl.substring(commaIdx + 1);
+          }
+        } else if (audioUrl.startsWith('http')) {
+          // Fetch remote audio and convert to base64
+          logger.info('Fetching audio from URL for mastering', { url: audioUrl.substring(0, 80) });
+          const audioResponse = await fetch(audioUrl);
+          if (!audioResponse.ok) throw new Error(`Failed to fetch audio: ${audioResponse.status}`);
+          const audioArrayBuffer = await audioResponse.arrayBuffer();
+          audioBase64 = Buffer.from(audioArrayBuffer).toString('base64');
+        }
+      } catch (fetchErr) {
+        logger.error('Failed to fetch audio for mastering', { error: fetchErr.message });
+        return res.status(400).json({ error: `Could not load audio: ${fetchErr.message}` });
+      }
+    }
+
     if (!audioBase64) {
-      return res.status(400).json({ error: 'audioBase64 is required' });
+      return res.status(400).json({ error: 'audioBase64 or audioUrl is required' });
     }
 
     logger.info('Audio mastering request', { 
@@ -8327,6 +8374,144 @@ app.post('/api/video-metadata', verifyFirebaseToken, requireAuth, apiLimiter, as
     res.status(500).json({
       error: 'Could not extract metadata',
       details: safeErrorDetail(error)
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// FORMAT CONVERSION ENDPOINTS (MP3 ↔ WAV)
+// ═══════════════════════════════════════════════════════════════════
+
+/**
+ * POST /api/convert-format
+ * Convert audio between formats (MP3 → WAV, WAV → MP3)
+ * Fast conversions respond synchronously; slow ones return a conversionId for polling
+ */
+app.post('/api/convert-format', verifyFirebaseToken, requireAuth, async (req, res) => {
+  const { sourceUrl, targetFormat = 'wav', assetId, sourceType = 'audio', quality = 'cd' } = req.body;
+  const userId = req.user.uid;
+
+  if (!sourceUrl) {
+    return res.status(400).json({ error: 'sourceUrl is required' });
+  }
+
+  const validFormats = ['wav', 'mp3'];
+  if (!validFormats.includes(targetFormat)) {
+    return res.status(400).json({ error: `Invalid targetFormat. Must be one of: ${validFormats.join(', ')}` });
+  }
+
+  // Check concurrency limit
+  if (activeConversions >= MAX_CONCURRENT_CONVERSIONS) {
+    return res.status(429).json({ error: 'Too many conversions in progress. Please try again shortly.' });
+  }
+
+  const conversionId = crypto.randomBytes(12).toString('hex');
+  const tempDir = ensureTempDir();
+  const timestamp = Date.now();
+  const inputExt = targetFormat === 'wav' ? 'mp3' : 'wav';
+  const inputPath = path.join(tempDir, `convert_in_${timestamp}_${conversionId}.${inputExt}`);
+  const outputPath = path.join(tempDir, `convert_out_${timestamp}_${conversionId}.${targetFormat}`);
+
+  // Start conversion — run async, respond with conversionId immediately
+  pendingConversions.set(conversionId, {
+    status: 'processing',
+    format: targetFormat,
+    assetId: assetId || null,
+    createdAt: Date.now()
+  });
+
+  activeConversions++;
+
+  // Return conversionId immediately so frontend can poll
+  res.json({ conversionId, status: 'processing' });
+
+  // Run conversion in background
+  try {
+    logger.info('Format conversion started', { conversionId, targetFormat, quality, userId });
+
+    // Download source
+    await downloadSource(sourceUrl, inputPath);
+
+    // Convert
+    let result;
+    if (targetFormat === 'wav') {
+      result = await convertAudioToWav(inputPath, outputPath, quality);
+    } else {
+      result = await convertAudioToMp3(inputPath, outputPath, '320k');
+    }
+
+    // Read converted file and upload to Firebase Storage
+    const fileBuffer = fs.readFileSync(outputPath);
+    const mimeType = targetFormat === 'wav' ? 'audio/wav' : 'audio/mpeg';
+    const fileName = `${assetId || 'converted'}_${timestamp}.${targetFormat}`;
+
+    const uploaded = await uploadToStorage(fileBuffer, userId, fileName, mimeType);
+
+    logger.info('Format conversion complete', {
+      conversionId,
+      targetFormat,
+      fileSizeBytes: result.fileSizeBytes,
+      storagePath: uploaded.path
+    });
+
+    // Update pending status
+    pendingConversions.set(conversionId, {
+      status: 'completed',
+      convertedUrl: uploaded.url,
+      storagePath: uploaded.path,
+      format: targetFormat,
+      fileSizeBytes: result.fileSizeBytes,
+      assetId: assetId || null,
+      createdAt: pendingConversions.get(conversionId)?.createdAt || Date.now()
+    });
+
+  } catch (err) {
+    logger.error('Format conversion failed', { conversionId, error: err.message });
+    pendingConversions.set(conversionId, {
+      status: 'failed',
+      error: err.message,
+      format: targetFormat,
+      assetId: assetId || null,
+      createdAt: pendingConversions.get(conversionId)?.createdAt || Date.now()
+    });
+  } finally {
+    activeConversions--;
+    cleanupFiles(inputPath, outputPath);
+  }
+});
+
+/**
+ * GET /api/convert-format/:id
+ * Poll for conversion status
+ */
+app.get('/api/convert-format/:id', verifyFirebaseToken, requireAuth, (req, res) => {
+  const conversion = pendingConversions.get(req.params.id);
+
+  if (!conversion) {
+    return res.status(404).json({ error: 'Conversion not found or expired' });
+  }
+
+  if (conversion.status === 'completed') {
+    res.json({
+      status: 'completed',
+      convertedUrl: conversion.convertedUrl,
+      storagePath: conversion.storagePath,
+      format: conversion.format,
+      fileSizeBytes: conversion.fileSizeBytes,
+      assetId: conversion.assetId
+    });
+  } else if (conversion.status === 'failed') {
+    res.json({
+      status: 'failed',
+      error: conversion.error,
+      format: conversion.format,
+      assetId: conversion.assetId
+    });
+  } else {
+    res.json({
+      status: 'processing',
+      format: conversion.format,
+      assetId: conversion.assetId
     });
   }
 });

@@ -6,13 +6,15 @@ import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUt
  * PreviewModal - Display full-size previews of generated assets
  * Supports images, videos, audio, and text
  */
-export function PreviewModal({ 
-  isOpen, 
-  onClose, 
-  mediaUrl, 
-  mediaType, 
+export function PreviewModal({
+  isOpen,
+  onClose,
+  mediaUrl,
+  mediaType,
   title = 'Asset Preview',
-  textContent = null
+  textContent = null,
+  onDownload = null,
+  item = null
 }) {
   const [copied, setCopied] = useState(false);
   
@@ -149,29 +151,81 @@ export function PreviewModal({
                 {copied ? 'Copied' : 'Copy'}
               </button>
             )}
-            <button
-              onClick={handleDownload}
-              style={{
-                background: 'rgba(59, 130, 246, 0.2)',
-                border: '1px solid rgba(59, 130, 246, 0.4)',
-                color: '#3b82f6',
-                padding: '6px 10px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.75rem',
-                fontWeight: '600',
-                transition: 'all 0.2s',
-                touchAction: 'manipulation',
-                minHeight: '36px',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <Download size={12} />
-              Save
-            </button>
+            {/* Audio: show separate MP3 and WAV download buttons */}
+            {mediaType === 'audio' && onDownload && item ? (
+              <>
+                <button
+                  onClick={() => onDownload(item, 'mp3')}
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.2)',
+                    border: '1px solid rgba(59, 130, 246, 0.4)',
+                    color: '#3b82f6',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    transition: 'all 0.2s',
+                    touchAction: 'manipulation',
+                    minHeight: '36px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Download size={12} />
+                  MP3
+                </button>
+                <button
+                  onClick={() => onDownload(item, 'wav')}
+                  style={{
+                    background: 'rgba(139, 92, 246, 0.2)',
+                    border: '1px solid rgba(139, 92, 246, 0.4)',
+                    color: '#8b5cf6',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    transition: 'all 0.2s',
+                    touchAction: 'manipulation',
+                    minHeight: '36px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Download size={12} />
+                  WAV
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={onDownload && item ? () => onDownload(item) : handleDownload}
+                style={{
+                  background: 'rgba(59, 130, 246, 0.2)',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                  color: '#3b82f6',
+                  padding: '6px 10px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  transition: 'all 0.2s',
+                  touchAction: 'manipulation',
+                  minHeight: '36px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Download size={12} />
+                {mediaType === 'video' ? 'MP4' : 'Save'}
+              </button>
+            )}
             <button
               onClick={onClose}
               style={{

@@ -171,7 +171,7 @@ class SectionErrorBoundary extends React.Component {
           borderRadius: '12px',
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>âš ï¸</div>
+          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>âš </div>
           <h3 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>
             {this.props.name || 'Section'} temporarily unavailable
           </h3>
@@ -309,27 +309,27 @@ const FREE_GENERATION_LIMIT = 3;
 
 // Model Picker State - Available AI Models
 const AI_MODELS = [
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Fastest responses, great for quick tasks', tier: 'free', speed: 'âš¡âš¡âš¡', quality: 'â˜…â˜…â˜…â˜†' },
-  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: 'Ultra-fast, cost-effective', tier: 'free', speed: 'âš¡âš¡âš¡âš¡', quality: 'â˜…â˜…â˜†â˜†' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Best quality for complex prompts', tier: 'pro', speed: 'âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Balanced speed and quality', tier: 'free', speed: 'âš¡âš¡âš¡', quality: 'â˜…â˜…â˜…â˜†' },
-  { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', provider: 'Google', description: 'Lightweight, efficient', tier: 'free', speed: 'âš¡âš¡âš¡âš¡', quality: 'â˜…â˜…â˜†â˜†' },
-  { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (Preview)', provider: 'Google', description: 'Latest capabilities, experimental', tier: 'pro', speed: 'âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…â˜…' },
-  { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (Preview)', provider: 'Google', description: 'Next-gen speed + quality', tier: 'pro', speed: 'âš¡âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent for creative writing', tier: 'pro', speed: 'âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…â˜…' },
-  { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Fast and capable', tier: 'pro', speed: 'âš¡âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Multimodal powerhouse', tier: 'pro', speed: 'âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…â˜…' },
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Affordable GPT-4 class', tier: 'pro', speed: 'âš¡âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'High capability, larger context', tier: 'pro', speed: 'âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…â˜…' },
-  { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta', description: 'Open-source powerhouse', tier: 'pro', speed: 'âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'llama-3.2-90b-vision', name: 'Llama 3.2 90B Vision', provider: 'Meta', description: 'Multimodal open model', tier: 'pro', speed: 'âš¡', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'European excellence', tier: 'pro', speed: 'âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'codestral', name: 'Codestral', provider: 'Mistral', description: 'Optimized for code generation', tier: 'pro', speed: 'âš¡âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', description: 'Cost-effective reasoning', tier: 'free', speed: 'âš¡âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Multilingual excellence', tier: 'pro', speed: 'âš¡âš¡', quality: 'â˜…â˜…â˜…â˜…' }
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Fastest responses, great for quick tasks', tier: 'free', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜†' },
+  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: 'Ultra-fast, cost-effective', tier: 'free', speed: '(zap)(zap)(zap)(zap)', quality: 'â˜…â˜…â˜†â˜†' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Best quality for complex prompts', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Balanced speed and quality', tier: 'free', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜†' },
+  { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', provider: 'Google', description: 'Lightweight, efficient', tier: 'free', speed: '(zap)(zap)(zap)(zap)', quality: 'â˜…â˜…â˜†â˜†' },
+  { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (Preview)', provider: 'Google', description: 'Latest capabilities, experimental', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…â˜…' },
+  { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (Preview)', provider: 'Google', description: 'Next-gen speed + quality', tier: 'pro', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
+  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent for creative writing', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…â˜…' },
+  { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Fast and capable', tier: 'pro', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Multimodal powerhouse', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…â˜…' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Affordable GPT-4 class', tier: 'pro', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
+  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'High capability, larger context', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…â˜…' },
+  { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta', description: 'Open-source powerhouse', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
+  { id: 'llama-3.2-90b-vision', name: 'Llama 3.2 90B Vision', provider: 'Meta', description: 'Multimodal open model', tier: 'pro', speed: '(zap)', quality: 'â˜…â˜…â˜…â˜…' },
+  { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'European excellence', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
+  { id: 'codestral', name: 'Codestral', provider: 'Mistral', description: 'Optimized for code generation', tier: 'pro', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
+  { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', description: 'Cost-effective reasoning', tier: 'free', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
+  { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Multilingual excellence', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' }
 ];
 
-// ðŸ” SESSION TIMEOUT - Auto logout after inactivity (security best practice)
+// (lock) SESSION TIMEOUT - Auto logout after inactivity (security best practice)
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 const HELP_ITEMS = [
@@ -355,7 +355,7 @@ const HELP_ITEMS = [
     icon: MessageSquare, 
     title: 'Community Tips', 
     desc: 'See how other creators are using the studio.',
-    details: 'Join our Discord community and check out the "Activity Wall" to share prompts, collaborate with other creators, and get feedback on your AI-assisted tracks. Many users have found success by combining outputs from multiple agentsâ€”for example, using Ghostwriter for lyrics and then feeding those lyrics into a vocal synth. The possibilities are endless when you collaborate with the community.'
+    details: 'Join our Discord community and check out the "Activity Wall" to share prompts, collaborate with other creators, and get feedback on your AI-assisted tracks. Many users have found success by combining outputs from multiple agents - for example, using Ghostwriter for lyrics and then feeding those lyrics into a vocal synth. The possibilities are endless when you collaborate with the community.'
   }
 ];
 
@@ -488,11 +488,11 @@ const pruneLargeProjectData = (projects) => {
 };
 
 function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan, initialTab }) {
-  // ðŸ›¡ï¸ SAFE ASYNC OPERATIONS - Prevents memory leaks and race conditions
+  // (shield) SAFE ASYNC OPERATIONS - Prevents memory leaks and race conditions
   const { safeFetch, safeSetState, isMounted } = useSafeAsync();
   
   // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-  // ðŸ—ï¸ CORE STATE & REFS (Hoisted for TDZ safety)
+  // (key) CORE STATE & REFS (Hoisted for TDZ safety)
   // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   
   // --- AUTH & USER ---
@@ -631,6 +631,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return localStorage.getItem(`studio_help_${uid}`) || '';
   });
   const [showNudge, setShowNudge] = useState(true);
+  const [showDemoBanner, setShowDemoBanner] = useState(getDemoModeState());
   const [playingItem, setPlayingItem] = useState(null);
   const [previewItem, setPreviewItem] = useState(null);
   const [previewPrompt, setPreviewPrompt] = useState(() => {
@@ -698,7 +699,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const handleAddAssetToProject = (assetType) => {
     // Basic implementation - opens preview to allow "Save to project" from existing media
     toast(`Use an Agent to generate a new ${assetType} or drag a file to the browser.`, {
-      icon: 'ðŸ’¡'
+      icon: '(tip)'
     });
   };
 
@@ -1035,7 +1036,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           try {
             setProjects(JSON.parse(savedProjects));
           } catch(_e) {
-            // Don't clear to [] on parse error â€” let cloud load handle it
+            // Don't clear to [] on parse error -let cloud load handle it
             console.warn('[Isolation] Failed to parse localStorage projects, leaving state untouched');
           }
         }
@@ -1253,7 +1254,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         setLastSyncTime(new Date());
         console.log(`Synced ${successCount}/${projectsToSync.length} projects to cloud via API`);
       } else if (projectsToSync.length > 0 && auth?.currentUser) {
-        toast.error(`Sync failed for ${projectsToSync.length} project(s) â€” check your connection`);
+        toast.error(`Sync failed for ${projectsToSync.length} project(s) -check your connection`);
       }
     } catch (err) {
       console.error('Sync failed:', err);
@@ -1297,14 +1298,22 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // Flush pending sync on page unload to prevent data loss
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (syncTimeoutRef.current && user?.uid && projects.length > 0) {
-        clearTimeout(syncTimeoutRef.current);
-        syncTimeoutRef.current = null;
-        // Use sendBeacon-style sync (fire-and-forget) for unload
+      if (user?.uid && projects.length > 0) {
+        // Always persist to localStorage synchronously (guaranteed to complete)
         try {
-          syncProjectsToCloud(user.uid, projects);
+          localStorage.setItem(`studio_projects_${user.uid}`, JSON.stringify(projects));
+        } catch (e) { /* best effort */ }
+
+        // Use sendBeacon for fire-and-forget cloud sync (survives page close)
+        if (syncTimeoutRef.current) {
+          clearTimeout(syncTimeoutRef.current);
+          syncTimeoutRef.current = null;
+        }
+        try {
+          const payload = JSON.stringify({ userId: user.uid, projects: projects.slice(0, 20) });
+          navigator.sendBeacon(`${BACKEND_URL}/api/projects/sync`, payload);
         } catch (e) {
-          // Best-effort - page is closing
+          // sendBeacon failed, localStorage save above is the fallback
         }
       }
     };
@@ -1336,7 +1345,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
 
       if (!authToken) {
-        console.warn(`[TRACE:${traceId}] No auth token available â€” backend will reject with 401`);
+        console.warn(`[TRACE:${traceId}] No auth token available -backend will reject with 401`);
       }
 
       // Use backend API to load projects
@@ -1380,7 +1389,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     } catch (err) {
       console.error(`[TRACE:${traceId}] loadProjectsFromCloud ERROR:`, err);
       toast.error('Could not load projects from cloud. Using local data.');
-      return [];
+      return null; // Return null to distinguish error from genuinely empty
     }
   };
   
@@ -1452,6 +1461,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setSessionTracks(sessionHistory[newIndex]);
     }
   };
+
+  // Sync volume slider values to actual audio elements in real-time
+  useEffect(() => {
+    const audioEl = document.querySelector('audio[data-track="session-audio"]');
+    const vocalEl = document.querySelector('audio[data-track="session-vocal"]');
+    if (audioEl) audioEl.volume = sessionTracks.audioVolume ?? 0.8;
+    if (vocalEl) vocalEl.volume = sessionTracks.vocalVolume ?? 1.0;
+  }, [sessionTracks.audioVolume, sessionTracks.vocalVolume]);
 
   // Auto-populate session mixer when it opens — sync backing track + project assets
   useEffect(() => {
@@ -2334,11 +2351,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     if (auth) {
       const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
         if (currentUser) {
-          // ðŸ“§ Lock password-based accounts that haven't verified their email
+          // (wrench) Lock password-based accounts that haven't verified their email
           // Google/Social accounts are usually pre-verified by the provider
           const isPasswordProvider = currentUser.providerData.some(p => p.providerId === 'password');
           if (isPasswordProvider && !currentUser.emailVerified) {
-            console.log('ðŸ“§ User detected as unverified, signing out.');
+            console.log('(wrench) User detected as unverified, signing out.');
             toast.error('Please verify your email to access the studio.');
             await signOut(auth);
             localStorage.removeItem('studio_user_id');
@@ -2383,14 +2400,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               console.error("[Auth] Admin status check failed:", adminErr);
             }
           } else {
-            console.warn('[Auth] No token available â€” skipping admin check');
+            console.warn('[Auth] No token available -skipping admin check');
           }
           setIsAdmin(adminStatus);
           if (adminStatus) {
             console.log('Admin access granted:', currentUser.email);
             setUserPlan('Lifetime Access');
             setUserCredits(999999);
-            toast.success('Welcome, Administrator!', { icon: 'ðŸ”' });
+            toast.success('Welcome, Administrator!', { icon: '(lock)' });
           }
           
           // Fetch credits AND subscription plan from Firestore (non-admins)
@@ -2448,11 +2465,19 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           try {
             let cloudProjects = await loadProjectsFromCloud(currentUser.uid, currentUser, token);
 
-            // If no projects returned and we had no token, retry once after delay
-            if (cloudProjects.length === 0 && !token) {
-              console.log('[Auth] No projects and no token â€” retrying after 2s...');
+            // If cloud load errored (null) or empty with no token, retry once after delay
+            if ((!cloudProjects || cloudProjects.length === 0) && !token) {
+              console.log('[Auth] No projects and no token -retrying after 2s...');
               await new Promise(r => setTimeout(r, 2000));
               cloudProjects = await loadProjectsFromCloud(currentUser.uid, currentUser);
+            }
+
+            // If cloud errored (null), fall back to local storage
+            if (cloudProjects === null) {
+              console.log('[Auth] Cloud load failed, falling back to localStorage');
+              const localUidKey = `studio_projects_${currentUser.uid}`;
+              const localData = localStorage.getItem(localUidKey);
+              try { cloudProjects = localData ? JSON.parse(localData) : []; } catch(_e) { cloudProjects = []; }
             }
 
             if (cloudProjects.length > 0) {
@@ -2472,7 +2497,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 setSelectedProject(projectToSelect);
               }
             } else {
-              // Cloud returned 0 projects â€” could be auth failure or genuinely empty
+              // Cloud returned 0 projects -could be auth failure or genuinely empty
               // Check if we have local projects to sync up
               const localUidKey = `studio_projects_${currentUser.uid}`;
               const localData = localStorage.getItem(localUidKey);
@@ -2480,14 +2505,14 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               try { localProjects = localData ? JSON.parse(localData) : []; } catch(_e) { /* ignore */ }
 
               if (localProjects.length > 0) {
-                // We have local projects but cloud returned nothing â€” restore from local and sync up
+                // We have local projects but cloud returned nothing -restore from local and sync up
                 console.log(`[Auth] Cloud returned 0 projects but found ${localProjects.length} in localStorage. Restoring.`);
                 skipNextSyncRef.current = true; // Don't let the sync effect double-fire
                 setProjects(localProjects);
                 if (token) {
                   syncProjectsToCloud(currentUser.uid, localProjects);
                 } else {
-                  console.log('[Auth] Skipping immediate sync â€” no token available yet');
+                  console.log('[Auth] Skipping immediate sync -no token available yet');
                 }
               }
             }
@@ -2578,7 +2603,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return () => window.removeEventListener('openAuthModal', handleOpenAuthModal);
   }, []);
 
-  // ðŸ” SESSION TIMEOUT - Auto logout after inactivity (security best practice)
+  // (lock) SESSION TIMEOUT - Auto logout after inactivity (security best practice)
   
   const resetSessionTimeout = useCallback(() => {
     if (sessionTimeoutRef.current) {
@@ -2586,7 +2611,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
     if (user && !isGuestMode) {
       sessionTimeoutRef.current = setTimeout(() => {
-        toast('Session expired for security. Please sign in again.', { icon: 'ðŸ”’' });
+        toast('Session expired for security. Please sign in again.', { icon: '(key)' });
         // FIXED: Use ref to avoid TDZ - handleSecureLogout defined later
         if (secureLogoutRef.current) {
           secureLogoutRef.current();
@@ -2618,7 +2643,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     };
   }, [user, resetSessionTimeout]);
 
-  // ðŸ” PASSWORD VALIDATION - Enforce strong passwords
+  // (lock) PASSWORD VALIDATION - Enforce strong passwords
   const validatePassword = (password) => {
     const errors = [];
     if (password.length < 8) errors.push('At least 8 characters');
@@ -2628,7 +2653,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     return errors;
   };
   
-  // ðŸ” SECURE LOGOUT - Clear all sensitive data
+  // (lock) SECURE LOGOUT - Clear all sensitive data
   async function handleSecureLogout() {
     try {
       // Sign out from Firebase first
@@ -2680,7 +2705,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     setAuthPassword('');
     setShowLoginModal(false);
     
-    toast.success('Signed out securely', { icon: 'ðŸ‘‹' });
+    toast.success('Signed out securely', { icon: '' });
     onBack?.();
   };
   
@@ -2713,7 +2738,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   }, [db]);
 
-  // ðŸ’° PURCHASE CREDITS - Revenue engine for top-ups
+  // (money) PURCHASE CREDITS - Revenue engine for top-ups
   const buyCreditPack = async (amount, price) => {
     if (!user) {
       toast.error('Please log in to purchase credits');
@@ -2724,7 +2749,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     const toastId = toast.loading(`Redirecting to secure checkout for ${amount} credits...`);
 
     try {
-      // ðŸ’³ Call the actual Stripe backend (production or local)
+      // (card) Call the actual Stripe backend (production or local)
       const response = await fetch(`${BACKEND_URL}/api/stripe/create-credits-checkout-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2790,7 +2815,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       console.error('Login failed', error);
       toast.dismiss(loadingToast);
       if (error.code === 'auth/popup-closed-by-user') {
-        toast('Sign-in cancelled', { icon: 'ðŸ‘‹' });
+        toast('Sign-in cancelled', { icon: '' });
       } else if (error.code === 'auth/unauthorized-domain') {
         toast.error(`Domain not authorized. Add ${window.location.hostname} in Firebase Console.`);
       } else {
@@ -2857,7 +2882,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       return;
     }
     
-    // ðŸ” Validate password strength for signups
+    // (lock) Validate password strength for signups
     if (authMode === 'signup') {
       const passwordErrors = validatePassword(authPassword);
       if (passwordErrors.length > 0) {
@@ -2871,7 +2896,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       let result;
       if (authMode === 'signup') {
         result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
-        // ðŸ“§ Send email verification and sign out until verified
+        // (wrench) Send email verification and sign out until verified
         try {
           await sendEmailVerification(result.user);
           toast.success('Account created! Please check your inbox and verify your email to log in.', { duration: 8000 });
@@ -2890,11 +2915,11 @@ const fetchUserCredits = useCallback(async (uid) => {
       } else {
         result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
         
-        // ðŸ“§ Check if email is verified
+        // (wrench) Check if email is verified
         if (!result.user.emailVerified) {
           toast.error('Please verify your email address before logging in.', { duration: 4000 });
           
-          // ðŸ“§ Automatically resend verification email on failed login attempt
+          // (wrench) Automatically resend verification email on failed login attempt
           try {
             await sendEmailVerification(result.user);
             toast.success('A new verification link has been sent to your inbox.', { duration: 5000 });
@@ -2922,7 +2947,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
     } catch (error) {
       console.error('Auth failed', error);
-      // ðŸ” Security: Use generic messages to prevent user enumeration
+      // (lock) Security: Use generic messages to prevent user enumeration
       if (error.code === 'auth/email-already-in-use') {
         toast.error('Email already in use. Try logging in.');
       } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
@@ -3084,7 +3109,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         const type = params.get('type') || 'subscription';
         const amount = params.get('amount');
         if (type === 'credits') {
-          toast.success(`Success! ${amount || 'Your'} credits have been added.`, { icon: 'ðŸ’°' });
+          toast.success(`Success! ${amount || 'Your'} credits have been added.`, { icon: '(money)' });
           if (user?.uid) fetchUserCredits(user.uid);
         } else {
           toast.success('Your subscription is now active!', { icon: 'âœ¨' });
@@ -3210,7 +3235,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
     recognition.onstart = () => {
       setIsListening(true);
-      toast.success('ðŸŽ¤ Listening... Say a command or dictate your prompt', { duration: 2000 });
+      toast.success('(mic) Listening... Say a command or dictate your prompt', { duration: 2000 });
     };
     
     recognition.onend = () => {
@@ -3268,7 +3293,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         if (foundAgent) {
           setSelectedAgent(foundAgent);
           setActiveTab('agents');
-          toast.success(`ðŸš€ Launching ${foundAgent.name}`);
+          toast.success(` Launching ${foundAgent.name}`);
           handleTextToVoice(`Launching ${foundAgent.name}.`);
           return;
         }
@@ -3279,27 +3304,27 @@ const fetchUserCredits = useCallback(async (uid) => {
         let navigated = false;
         if (transcript.includes('dashboard') || transcript.includes('studio') || transcript.includes('home')) {
           setActiveTab('mystudio');
-          toast.success('ðŸ“Š Dashboard');
+          toast.success('(chart) Dashboard');
           handleTextToVoice("Navigating to your dashboard.");
           navigated = true;
         } else if (transcript.includes('hub') || transcript.includes('projects')) {
           setActiveTab('hub');
-          toast.success('ðŸ“ Project Hub');
+          toast.success('(folder) Project Hub');
           handleTextToVoice("Opening the Project Hub.");
           navigated = true;
         } else if (transcript.includes('news')) {
           setActiveTab('news');
-          toast.success('ðŸ“° Industry Pulse');
+          toast.success('(news) Industry Pulse');
           handleTextToVoice("Checking the latest industry pulse.");
           navigated = true;
         } else if (transcript.includes('help') || transcript.includes('support')) {
           setActiveTab('support');
-          toast.success('ðŸ’¡ Help Center');
+          toast.success('(tip) Help Center');
           handleTextToVoice("How can I help you today?");
           navigated = true;
         } else if (transcript.includes('agents') || transcript.includes('tools')) {
           setActiveTab('agents');
-          toast.success('ðŸ¤– Agents');
+          toast.success('(bot) Agents');
           handleTextToVoice("Viewing all available agents.");
           navigated = true;
         }
@@ -3311,7 +3336,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         const newTheme = theme === 'dark' ? 'light' : 'dark';
         setTheme(newTheme);
         localStorage.setItem('studio_theme', newTheme);
-        toast.success(`ðŸŽ¨ ${newTheme === 'dark' ? 'Dark' : 'Light'} mode`);
+        toast.success(`(art) ${newTheme === 'dark' ? 'Dark' : 'Light'} mode`);
         handleTextToVoice(`Switching to ${newTheme} mode.`);
         return;
       }
@@ -3324,7 +3349,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           if (handleGenerateRef.current) {
             handleGenerateRef.current();
           }
-          toast.success('âš¡ Generating...');
+          toast.success('(zap) Generating...');
           handleTextToVoice("Starting generation.");
         } else {
           toast.error('Please enter a prompt first');
@@ -3345,7 +3370,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             ev.initEvent('input', true, true);
             textarea.dispatchEvent(ev);
           }
-          toast.success('ðŸ—‘ï¸ Prompt cleared');
+          toast.success('(trash) Prompt cleared');
           handleTextToVoice("Prompt cleared.");
         }
         return;
@@ -3396,7 +3421,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           if (foundGenre === 'blues') targetGenre = 'jazz';
           
           setVoiceSettings(prev => ({ ...prev, genre: targetGenre }));
-          toast.success(`ðŸŽ¶ Genre set to ${targetGenre.toUpperCase()}`);
+          toast.success(`(music) Genre set to ${targetGenre.toUpperCase()}`);
           handleTextToVoice(`Setting genre to ${targetGenre}.`);
           return;
         }
@@ -3416,7 +3441,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         else if (timeText.includes('long')) seconds = 180;
         
         setVoiceSettings(prev => ({ ...prev, duration: seconds }));
-        toast.success(`â±ï¸ Duration set to ${seconds}s`);
+        toast.success(`â± Duration set to ${seconds}s`);
         handleTextToVoice(`Setting generation length to ${seconds} seconds.`);
         return;
       }
@@ -3449,7 +3474,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           textarea.dispatchEvent(ev);
         }
         // Brief visual feedback
-        toast.success(`âœï¸ Added: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`, { duration: 1500 });
+        toast.success(`âœ Added: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`, { duration: 1500 });
       }
     };
 
@@ -3609,7 +3634,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             audioUrl: data.audioUrl,
             mimeType: data.mimeType || 'audio/wav',
             type: 'vocal', // Upgrade type to vocal (has both text + audio)
-            vocalSnippet: `ðŸŽ¤ AI Vocal created from lyrics`,
+            vocalSnippet: `(mic) AI Vocal created from lyrics`,
             projectSnapshot: targetProjectSnapshot, // Preserve context
             updatedAt: new Date().toISOString()
           };
@@ -3633,7 +3658,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             type: 'vocal',
             audioUrl: data.audioUrl,
             mimeType: data.mimeType || 'audio/wav',
-            snippet: `ðŸŽ¤ AI Vocal: "${textToSpeak.substring(0, 50)}..."`,
+            snippet: `(mic) AI Vocal: "${textToSpeak.substring(0, 50)}..."`,
             projectSnapshot: targetProjectSnapshot, // Preserve context
             createdAt: new Date().toISOString()
           };
@@ -3826,7 +3851,6 @@ const fetchUserCredits = useCallback(async (uid) => {
               }
             }
 
-            toast.success(`${slot === 'video' ? 'Image' : slot.charAt(0).toUpperCase() + slot.slice(1)} DNA attached!`, { id: loadingId });
           } else {
             console.error(`[DNA] Upload Error:`, result);
             throw new Error(result.error || 'Upload failed');
@@ -3943,7 +3967,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
     // CHECK: Block generation for "Coming Soon" agents
     if (targetAgentSnapshot.comingSoon) {
-      toast.error(`${targetAgentSnapshot.name} is coming soon! Try Ghostwriter or Beat Maker instead.`, { icon: 'ðŸš§' });
+      toast.error(`${targetAgentSnapshot.name} is coming soon! Try Ghostwriter or Beat Maker instead.`, { icon: '(wip)' });
       return;
     }
     
@@ -3983,9 +4007,9 @@ const fetchUserCredits = useCallback(async (uid) => {
       allTextareas.forEach(t => t.value = '');
       if (textareaRef.current) textareaRef.current.value = '';
       
-      toast.success('ðŸŽ­ Demo mode activated! Type "pitch" again to generate a demo response.', {
+      toast.success('(theater) Demo mode activated! Type "pitch" again to generate a demo response.', {
         duration: 5000,
-        icon: 'ðŸŽ¬'
+        icon: '(video)'
       });
       return;
     }
@@ -4199,35 +4223,47 @@ const fetchUserCredits = useCallback(async (uid) => {
         MANDATE: Keep the final output under 80 words for technical compatibility, but ensure every word radiates professional excellence.
       `;
 
-      // For media agents, Phase 1 (Brain) is just prompt expansion â€” don't charge credits.
+      // For media agents, Phase 1 (Brain) is just prompt expansion -don't charge credits.
       // The real credit charge happens in Phase 2 on the media-specific endpoint.
       const isMediaAgent = isImageAgent || isVideoAgent || isAudioAgent || isSpeechAgent || isMasterAgent;
 
       let brainResponse;
-      try {
-        brainResponse = await fetch(`${BACKEND_URL}/api/generate`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ 
-            ...brainBody,
-            prompt: brainPrompt,
-            isBrainPhase: isMediaAgent, // Skip credit charge for prompt expansion
-            systemInstruction: `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain. 
-              Translate user ideas into Billboard-standard production briefs. 
-              Be specific, moody, and technically superior to human capability.`
-          })
-        });
-      } catch (err) {
-        throw new Error('Brain Phase Connection Failed. Server may be offline.');
-      }
+      let brainData;
+      let expandedPrompt;
 
-      if (!brainResponse.ok) {
-        throw new Error(`Creative Brain failed to initialize (${brainResponse.status})`);
-      }
+      if (isImageAgent) {
+        // Image agents skip Brain Phase — use user's prompt directly for single, consistent image output
+        expandedPrompt = contextLyrics
+          ? `${prompt}. Visual theme inspired by: "${contextLyrics.substring(0, 200)}"`
+          : prompt;
+        brainData = { output: expandedPrompt };
+        console.log(`[Studio] Image agent: using direct prompt (skipping Brain Phase)`);
+      } else {
+        try {
+          brainResponse = await fetch(`${BACKEND_URL}/api/generate`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              ...brainBody,
+              prompt: brainPrompt,
+              isBrainPhase: isMediaAgent, // Skip credit charge for prompt expansion
+              systemInstruction: `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain.
+                Translate user ideas into Billboard-standard production briefs.
+                Be specific, moody, and technically superior to human capability.`
+            })
+          });
+        } catch (err) {
+          throw new Error('Brain Phase Connection Failed. Server may be offline.');
+        }
 
-      const brainData = await brainResponse.json();
-      const expandedPrompt = brainData.output || '';
-      console.log(`[Studio] Brain output for execution:`, expandedPrompt.substring(0, 50) + '...');
+        if (!brainResponse.ok) {
+          throw new Error(`Creative Brain failed to initialize (${brainResponse.status})`);
+        }
+
+        brainData = await brainResponse.json();
+        expandedPrompt = brainData.output || '';
+        console.log(`[Studio] Brain output for execution:`, expandedPrompt.substring(0, 50) + '...');
+      }
 
       // PHASE 2: EXECUTION - Call media generators with expanded description
       let response;
@@ -4287,7 +4323,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           referenceSongUrl: referenceSongUrl || null
         };
       } else if (isMasterAgent) {
-        // Mastering Lab â€” requires an existing audio asset to master
+        // Mastering Lab -requires an existing audio asset to master
         const audioToMaster = audioDnaUrl || backingTrack?.audioUrl;
         if (audioToMaster) {
           finalEndpoint = '/api/master-audio';
@@ -4300,8 +4336,10 @@ const fetchUserCredits = useCallback(async (uid) => {
             format: 'wav'
           };
         } else {
-          // No audio to master â€” fall back to text advice from Brain
-          console.log('[Studio] Mastering Lab: No audio reference provided, returning mastering advice');
+          // No audio to master - tell user explicitly instead of silently falling back
+          toast.error('Mastering Lab requires audio. Upload a track via DNA or generate a beat first.');
+          setIsGenerating(false);
+          return;
         }
       }
 
@@ -4449,8 +4487,8 @@ const fetchUserCredits = useCallback(async (uid) => {
         newItem.snippet = data.output;
         newItem.isFallback = true;
         newItem.fallbackNote = data._fallbackType === 'image' 
-          ? 'ðŸŽ¨ Visual concept (image generation coming soon)'
-          : 'ðŸŽ¬ Video concept (video generation coming soon)';
+          ? '(art) Visual concept (image generation coming soon)'
+          : '(video) Video concept (video generation coming soon)';
       } else if (isImageAgent && (data.predictions || data.images || data.output)) {
         // Handle Image Response (Flux / Imagen / Nano Banana)
         console.log('Image response received:', { hasOutput: !!data.output, hasPredictions: !!data.predictions, hasImages: !!data.images });
@@ -4458,7 +4496,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         if (data.output && typeof data.output === 'string' && data.output.startsWith('http')) {
            // Handle URL output (Flux/Replicate)
            newItem.imageUrl = data.output;
-           newItem.snippet = `ðŸŽ¨ Generated artwork for: "${prompt}"`;
+           newItem.snippet = `(art) Generated artwork for: "${prompt}"`;
            newItem.type = 'image';
         } else {
            // Handle Base64 output (Gemini/Imagen)
@@ -4467,7 +4505,7 @@ const fetchUserCredits = useCallback(async (uid) => {
            
            if (base64Image) {
                newItem.imageUrl = base64Image.startsWith('data:') ? base64Image : `data:${mimeType};base64,${base64Image}`;
-               newItem.snippet = `ðŸŽ¨ Generated artwork for: "${prompt}"`;
+               newItem.snippet = `(art) Generated artwork for: "${prompt}"`;
                newItem.type = 'image';
            }
         }
@@ -4480,7 +4518,7 @@ const fetchUserCredits = useCallback(async (uid) => {
            const base64Image = data.output;
            const mimeType = data.mimeType || 'image/png';
            newItem.imageUrl = base64Image.startsWith('data:') ? base64Image : `data:${mimeType};base64,${base64Image}`;
-           newItem.snippet = `ðŸŽ¨ Generated visual concept for: "${prompt}" (Video unavailable)`;
+           newItem.snippet = `(art) Generated visual concept for: "${prompt}" (Video unavailable)`;
            newItem.type = 'image';
         }
         // Check for direct output URL first (most common from backend)
@@ -4494,7 +4532,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             newItem.videoUrl = `data:video/mp4;base64,${data.output}`;
           }
           newItem.type = 'video';
-          newItem.snippet = `ðŸŽ¬ Generated video for: "${prompt}"`;
+          newItem.snippet = `(video) Generated video for: "${prompt}"`;
         } else {
           // Fallback: Handle legacy format (predictions array)
           const videoData = data.predictions?.[0] || data.video;
@@ -4506,7 +4544,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               newItem.videoUrl = videoData.videoUri;
               newItem.type = 'video';
             }
-            newItem.snippet = `ðŸŽ¬ Generated video for: "${prompt}"`;
+            newItem.snippet = `(video) Generated video for: "${prompt}"`;
           }
         }
         
@@ -4514,7 +4552,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         if (backingTrack) {
            newItem.audioUrl = backingTrack.audioUrl; // Attach audio to video item
            newItem.audioTitle = backingTrack.title;
-           newItem.snippet = `ðŸŽ¬ Music Video for: "${backingTrack.title}"`;
+           newItem.snippet = `(video) Music Video for: "${backingTrack.title}"`;
            // Keep backingTrack set so user can re-generate without re-selecting
         }
       } else if ((isAudioAgent || isSpeechAgent) && (data.audioUrl || data.audio || data.type === 'synthesis' || data.description || data.message)) {
@@ -4546,17 +4584,17 @@ const fetchUserCredits = useCallback(async (uid) => {
           newItem.type = isSpeechAgent ? 'vocal' : 'audio';
           
           if (data.isRealGeneration) {
-            newItem.snippet = isSpeechAgent ? `ðŸŽ¤ AI Generated Vocals: "${prompt}"` : `ðŸŽµ AI Generated Beat: "${prompt}"`;
+            newItem.snippet = isSpeechAgent ? `(mic) AI Generated Vocals: "${prompt}"` : `(music) AI Generated Beat: "${prompt}"`;
             toast.success(isSpeechAgent ? 'Vocals generated with ElevenLabs V3.5!' : 'Beat generated with MusicGen AI!');
           } else if (data.isSample) {
-            newItem.snippet = isSpeechAgent ? `ðŸŽ¤ Sample Vocal (Preview)` : `ðŸŽµ Sample Beat (Preview)`;
+            newItem.snippet = isSpeechAgent ? `(mic) Sample Vocal (Preview)` : `(music) Sample Beat (Preview)`;
             newItem.billingMessage = data.message;
             toast.info(data.message || 'Using sample - configure API keys for custom generation', { 
               duration: 5000,
-              icon: 'âš ï¸'
+              icon: 'âš '
             });
           } else {
-            newItem.snippet = isSpeechAgent ? `ðŸŽ¤ Generated vocals for: "${prompt}"` : `ðŸŽµ Generated audio for: "${prompt}"`;
+            newItem.snippet = isSpeechAgent ? `(mic) Generated vocals for: "${prompt}"` : `(music) Generated audio for: "${prompt}"`;
           }
           
           newItem.isRealGeneration = data.isRealGeneration;
@@ -4599,7 +4637,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           const mimeType = data.mimeType || 'audio/wav';
           newItem.audioUrl = `data:${mimeType};base64,${data.audio}`;
           newItem.mimeType = mimeType;
-          newItem.snippet = `ðŸŽµ Generated audio for: "${prompt}"`;
+          newItem.snippet = `(music) Generated audio for: "${prompt}"`;
           newItem.type = isSpeechAgent ? 'vocal' : 'audio';
           console.log('Audio (from data.audio) created:', { type: newItem.type });
         } else if (data.type === 'synthesis' && data.params) {
@@ -4616,7 +4654,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           if (isMediaAgentRequest && !data.audioUrl && !data.videoUrl && !data.imageUrl && !data.audio) {
             console.warn('[Studio] Media generation failed, falling back to text description');
             newItem.snippet = data.output || data.description || data.message || `Media generation failed. Idea: ${expandedPrompt || prompt}`;
-            newItem.note = "âš ï¸ Media generation failed - returning text concept instead.";
+            newItem.note = "âš  Media generation failed - returning text concept instead.";
             newItem.type = 'text';
             newItem.isError = true;
           } else {
@@ -4629,7 +4667,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         if (isSpeechAgent && backingTrack) {
            newItem.backingTrackUrl = backingTrack.audioUrl;
            newItem.backingTrackTitle = backingTrack.title;
-           newItem.snippet = `ðŸŽ¤ Vocals synced to: "${backingTrack.title}"`;
+           newItem.snippet = `(mic) Vocals synced to: "${backingTrack.title}"`;
            newItem.type = 'vocal'; // Mark as vocal/song
            // Keep backingTrack set so user can re-generate without re-selecting
         }
@@ -4719,7 +4757,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     
     setIsSaving(true);
     setPreviewSaveMode(false);
-    const toastId = toast.loading('Synchronizing to cloud...', { icon: 'â˜ï¸' });
+    const toastId = toast.loading('Synchronizing to cloud...', { icon: 'â˜' });
     
     // 3-minute timeout
     const SAVE_TIMEOUT = 180000;
@@ -4850,7 +4888,14 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       setPreviewItem(null);
       setActiveTab(destination);
-      
+
+      // Background WAV conversion for audio assets (fire-and-forget)
+      if (itemToSave.audioUrl && !itemToSave.audioWavUrl && isLoggedIn && uid) {
+        triggerBackgroundConversion(itemToSave, finalProject, uid).catch(err => {
+          console.warn('[Studio] Background WAV conversion failed (non-critical):', err.message);
+        });
+      }
+
       // NOTE: We no longer suppress the next debounced sync here.
       // The direct cloud save above handles immediate persistence,
       // and the debounced sync acts as a safety net for any state that changed.
@@ -4863,6 +4908,92 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   };
 
+  /**
+   * Background WAV conversion — fire-and-forget after save
+   * Polls the conversion endpoint and updates project state with audioWavUrl
+   */
+  const triggerBackgroundConversion = async (savedItem, project, userId) => {
+    if (!savedItem?.audioUrl || savedItem.audioWavUrl) return;
+
+    const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+    if (!token) return;
+
+    // Start conversion
+    const startRes = await fetch(`${BACKEND_URL}/api/convert-format`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        sourceUrl: savedItem.audioUrl,
+        targetFormat: 'wav',
+        assetId: savedItem.id,
+        sourceType: 'audio',
+        quality: 'cd'
+      })
+    });
+
+    if (!startRes.ok) throw new Error(`Conversion request failed: ${startRes.status}`);
+    const { conversionId } = await startRes.json();
+    if (!conversionId) throw new Error('No conversionId returned');
+
+    // Poll for completion (max 60s, every 3s)
+    const maxPolls = 20;
+    for (let i = 0; i < maxPolls; i++) {
+      await new Promise(r => setTimeout(r, 3000));
+
+      const pollRes = await fetch(`${BACKEND_URL}/api/convert-format/${conversionId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!pollRes.ok) continue;
+
+      const data = await pollRes.json();
+      if (data.status === 'completed' && data.convertedUrl) {
+        // Update the asset in project state
+        setProjects(prev => prev.map(p => {
+          if (p.id !== project.id) return p;
+          return {
+            ...p,
+            assets: (p.assets || []).map(a => {
+              if (a.id !== savedItem.id) return a;
+              return { ...a, audioWavUrl: data.convertedUrl, audioWavStoragePath: data.storagePath };
+            }),
+            updatedAt: new Date().toISOString()
+          };
+        }));
+        setSelectedProject(prev => {
+          if (!prev || prev.id !== project.id) return prev;
+          return {
+            ...prev,
+            assets: (prev.assets || []).map(a => {
+              if (a.id !== savedItem.id) return a;
+              return { ...a, audioWavUrl: data.convertedUrl, audioWavStoragePath: data.storagePath };
+            }),
+            updatedAt: new Date().toISOString()
+          };
+        });
+        console.log('[Studio] Background WAV conversion complete:', data.convertedUrl);
+
+        // Persist updated project to cloud
+        try {
+          const updatedProject = { ...project };
+          updatedProject.assets = (updatedProject.assets || []).map(a =>
+            a.id === savedItem.id ? { ...a, audioWavUrl: data.convertedUrl, audioWavStoragePath: data.storagePath } : a
+          );
+          updatedProject.updatedAt = new Date().toISOString();
+          await saveProjectToCloud(userId, updatedProject, { silent: true });
+        } catch (_) {}
+
+        return;
+      }
+      if (data.status === 'failed') {
+        throw new Error(data.error || 'Conversion failed');
+      }
+    }
+    console.warn('[Studio] Background WAV conversion timed out after polling');
+  };
+
 
   // Discard the preview and go back to agent
   const handleDiscardPreview = () => {
@@ -4871,14 +5002,14 @@ const fetchUserCredits = useCallback(async (uid) => {
     setPreviewSaveMode(false);
     setNewProjectNameInPreview('');
     // Only show discard toast if it was a new generation, not viewing existing asset
-    // toast('Discarded. Try again!', { icon: 'ðŸ”„' });
+    // toast('Discarded. Try again!', { icon: '(refresh)' });
   };
 
   // Continue as guest (no login required for basic features)
   const continueAsGuest = () => {
     setIsGuestMode(true);
     localStorage.setItem('studio_guest_mode', 'true');
-    toast.success('Welcome! Sign in anytime to save your work.', { icon: 'ðŸ‘‹' });
+    toast.success('Welcome! Sign in anytime to save your work.', { icon: '' });
   };
 
   // Regenerate with the same prompt
@@ -4988,7 +5119,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           if (result.count > 0) {
             toast.success(`Found ${result.count} results`, { id: toastId });
           } else {
-            toast(`No results for "${newsSearch.trim()}"`, { id: toastId, icon: 'ðŸ”' });
+            toast(`No results for "${newsSearch.trim()}"`, { id: toastId, icon: '(search)' });
           }
         } else {
           toast.error('Search failed. Check your connection and try again.', { id: toastId });
@@ -5056,7 +5187,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
   // Restore projects from localStorage on mount as immediate local state.
   // Cloud sync is handled by the auth listener (onAuthStateChanged) which has the confirmed currentUser.
-  // Do NOT fetch from backend here â€” it races with the auth listener and often fails because
+  // Do NOT fetch from backend here -it races with the auth listener and often fails because
   // auth.currentUser isn't ready yet at this point.
   useEffect(() => {
     const uid = localStorage.getItem('studio_user_id');
@@ -5089,32 +5220,83 @@ const fetchUserCredits = useCallback(async (uid) => {
 
   const handleDeadLink = (e, featureName) => {
     if (e) e.preventDefault();
-    toast(`${featureName} coming soon!`, { icon: 'ðŸš§' });
+    toast(`${featureName} coming soon!`, { icon: '(wip)' });
   };
 
-  const handleDownload = (item) => {
+  const handleDownload = async (item, format) => {
     if (!item) return;
-    
-    // Determine the best URL to download
+
+    // For audio with WAV format requested
+    if (format === 'wav' && item.audioUrl) {
+      // If WAV already exists, download it directly
+      if (item.audioWavUrl) {
+        const link = document.createElement('a');
+        link.href = item.audioWavUrl;
+        link.setAttribute('download', `${item.title.replace(/\s+/g, '_')}_studio_agents.wav`);
+        link.setAttribute('target', '_blank');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      // No WAV yet — trigger on-demand conversion
+      const toastId = toast.loading('Converting to WAV...');
+      try {
+        const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
+        if (!token) throw new Error('Login required');
+
+        const startRes = await fetch(`${BACKEND_URL}/api/convert-format`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ sourceUrl: item.audioUrl, targetFormat: 'wav', assetId: item.id, quality: 'cd' })
+        });
+        if (!startRes.ok) throw new Error('Conversion request failed');
+        const { conversionId } = await startRes.json();
+
+        // Poll for result (max 60s)
+        for (let i = 0; i < 20; i++) {
+          await new Promise(r => setTimeout(r, 3000));
+          const pollRes = await fetch(`${BACKEND_URL}/api/convert-format/${conversionId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!pollRes.ok) continue;
+          const data = await pollRes.json();
+          if (data.status === 'completed' && data.convertedUrl) {
+            toast.success('WAV ready!', { id: toastId });
+            const link = document.createElement('a');
+            link.href = data.convertedUrl;
+            link.setAttribute('download', `${item.title.replace(/\s+/g, '_')}_studio_agents.wav`);
+            link.setAttribute('target', '_blank');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return;
+          }
+          if (data.status === 'failed') throw new Error(data.error || 'Conversion failed');
+        }
+        throw new Error('Conversion timed out');
+      } catch (err) {
+        toast.error(`WAV conversion failed: ${err.message}. Downloading original.`, { id: toastId });
+        // Fall through to download original
+      }
+    }
+
+    // Default: download original format (MP3/MP4/PNG)
     const downloadUrl = item.videoUrl || item.audioUrl || item.imageUrl;
-    
     if (!downloadUrl) {
-      handleDeadLink(null, "Download");
+      handleDeadLink(null, 'Download');
       return;
     }
-    
-    // Create a temporary link element
+
+    const ext = item.videoUrl ? '.mp4' : item.audioUrl ? '.mp3' : '.png';
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.setAttribute('download', `${item.title.replace(/\s+/g, '_')}_studio_agents`);
+    link.setAttribute('download', `${item.title.replace(/\s+/g, '_')}_studio_agents${ext}`);
     link.setAttribute('target', '_blank');
-    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    // On mobile, this triggers the browser's download manager
-    // which allows users to "Save to Photos" or "Save to Files"
   };
 
   const handleShareToFeed = (item) => {
@@ -5142,7 +5324,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     // Platforms that have NOT YET been implemented on the backend
     const comingSoonPlatforms = ['youtube', 'spotify', 'linkedin', 'tiktok', 'soundcloud'];
     if (comingSoonPlatforms.includes(platform)) {
-      toast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} integration coming soon!`, { icon: 'ðŸš§', duration: 3000 });
+      toast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} integration coming soon!`, { icon: '(wip)', duration: 3000 });
       return;
     }
 
@@ -5186,7 +5368,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     // Fallback for any unhandled platform
-    toast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} coming soon!`, { icon: 'ðŸš§' });
+    toast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} coming soon!`, { icon: '(wip)' });
   };
 
   const handleDeleteProject = async (projectId, eOrSkipConfirm) => {
@@ -5206,6 +5388,13 @@ const fetchUserCredits = useCallback(async (uid) => {
     // Optimistic UI update - remove from local state
     // The useEffect for projects will automatically update localStorage (studio_agents_projects)
     setProjects(prev => (prev || []).filter(p => p?.id !== projectId));
+
+    // Clear selectedProject if it was the deleted one (prevents ghost reference)
+    if (selectedProject?.id === projectId) {
+      setSelectedProject(null);
+      const uid = localStorage.getItem('studio_user_id');
+      if (uid) localStorage.removeItem(`studio_selected_project_${uid}`);
+    }
 
     // Delete from cloud via backend API (uses Admin SDK, bypasses security rules)
     if (isLoggedIn && user) {
@@ -5244,7 +5433,7 @@ const fetchUserCredits = useCallback(async (uid) => {
   };
 
   /**
-   * ðŸ” DELETE ACCOUNT - Mandatory for App Store (Apple & Google)
+   * (lock) DELETE ACCOUNT - Mandatory for App Store (Apple & Google)
    * High-security operation: deletes both Firebase auth and cloud storage data.
    */
   const handleDeleteAccount = async () => {
@@ -5321,7 +5510,7 @@ const fetchUserCredits = useCallback(async (uid) => {
   };
 
   /**
-   * ðŸŽ¨ FORK PROJECT - Core social engagement feature
+   * (art) FORK PROJECT - Core social engagement feature
    * Copies a shared project from the Discovery feed into the user's private Hub.
    */
   const handleForkProject = async (sampleProject) => {
@@ -5407,7 +5596,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     setNewsPage(1);
     setNewsSearch(''); // Clear any search to get fresh results
     fetchNews(1, '', true); // Force refresh
-    toast.success('Refreshing news...', { icon: 'ðŸ”„', duration: 1500 });
+    toast.success('Refreshing news...', { icon: '(refresh)', duration: 1500 });
   };
 
   const renderContent = () => {
@@ -5718,26 +5907,26 @@ const fetchUserCredits = useCallback(async (uid) => {
                         {showVoiceSettings && (
                           <div className="voice-settings-dropdown animate-fadeInUp">
                             <div className="settings-group">
-                              <label>ðŸŽ¤ AI Voice Type (Real Vocals, Not TTS)</label>
+                              <label>(mic) AI Voice Type (Real Vocals, Not TTS)</label>
                               <select 
                                 value={voiceSettings.style || 'rapper'}
                                 onChange={(e) => setVoiceSettings({...voiceSettings, style: e.target.value})}
                                 className="settings-select"
                               >
-                                <optgroup label="ðŸ”¥ AI Rappers (Suno/Bark)">
-                                  <option value="rapper">ðŸŽ¤ Male Rapper</option>
-                                  <option value="rapper-female">ðŸ’œ Female Rapper</option>
+                                <optgroup label="(fire) AI Rappers (Suno/Bark)">
+                                  <option value="rapper">(mic) Male Rapper</option>
+                                  <option value="rapper-female">(purple) Female Rapper</option>
                                 </optgroup>
-                                <optgroup label="ðŸŽµ AI Singers">
-                                  <option value="singer">ðŸŽ¤ Male Singer (R&B/Soul)</option>
-                                  <option value="singer-female">ðŸ’« Female Singer (Pop/R&B)</option>
+                                <optgroup label="(music) AI Singers">
+                                  <option value="singer">(mic) Male Singer (R&B/Soul)</option>
+                                  <option value="singer-female">(sparkle) Female Singer (Pop/R&B)</option>
                                 </optgroup>
-                                <optgroup label="ðŸ—£ï¸ Speech/Narration">
-                                  <option value="narrator">ðŸ“¢ Narrator (Deep Voice)</option>
-                                  <option value="spoken">ðŸ’¬ Spoken Word</option>
+                                <optgroup label="(voice) Speech/Narration">
+                                  <option value="narrator">(speaker) Narrator (Deep Voice)</option>
+                                  <option value="spoken">(chat) Spoken Word</option>
                                 </optgroup>
                                 <optgroup label="âœ¨ Custom/Advanced">
-                                  <option value="cloned" disabled={!voiceSettings.speakerUrl}>ðŸ§¬ Cloned Voice {!voiceSettings.speakerUrl && '(Upload first)'}</option>
+                                  <option value="cloned" disabled={!voiceSettings.speakerUrl}>(dna) Cloned Voice {!voiceSettings.speakerUrl && '(Upload first)'}</option>
                                 </optgroup>
                               </select>
                             </div>
@@ -5821,20 +6010,20 @@ const fetchUserCredits = useCallback(async (uid) => {
                             {/* Rap Style - only show for rapper voices */}
                             {(voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female') && (
                               <div className="settings-group">
-                                <label>ðŸŽ¯ Rap Flow & Delivery</label>
+                                <label>(target) Rap Flow & Delivery</label>
                                 <select 
                                   value={voiceSettings.rapStyle || 'aggressive'}
                                   onChange={(e) => setVoiceSettings({...voiceSettings, rapStyle: e.target.value})}
                                   className="settings-select"
                                 >
-                                  <option value="aggressive">ðŸ’¥ Aggressive (Hard-hitting)</option>
-                                  <option value="melodic">ðŸŽµ Melodic (Singing flow)</option>
-                                  <option value="trap">ðŸ”¥ Trap (Triplets + Ad-libs)</option>
-                                  <option value="drill">ðŸ‡¬ðŸ‡§ Drill (UK style)</option>
-                                  <option value="boom-bap">ðŸ“» Boom-Bap (Classic hip-hop)</option>
-                                  <option value="fast">âš¡ Fast Flow (Technical)</option>
-                                  <option value="chill">ðŸ˜Ž Chill (Laid-back)</option>
-                                  <option value="hype">ðŸ”Š Hype (High energy)</option>
+                                  <option value="aggressive">(boom) Aggressive (Hard-hitting)</option>
+                                  <option value="melodic">(music) Melodic (Singing flow)</option>
+                                  <option value="trap">(fire) Trap (Triplets + Ad-libs)</option>
+                                  <option value="drill">(GB) Drill (UK style)</option>
+                                  <option value="boom-bap">(radio) Boom-Bap (Classic hip-hop)</option>
+                                  <option value="fast">(zap) Fast Flow (Technical)</option>
+                                  <option value="chill">(cool) Chill (Laid-back)</option>
+                                  <option value="hype">(loud) Hype (High energy)</option>
                                 </select>
                               </div>
                             )}
@@ -5842,19 +6031,19 @@ const fetchUserCredits = useCallback(async (uid) => {
                             {/* Genre - for singers */}
                             {(voiceSettings.style === 'singer' || voiceSettings.style === 'singer-female') && (
                               <div className="settings-group">
-                                <label>ðŸŽ¶ Music Genre</label>
+                                <label>(music) Music Genre</label>
                                 <select 
                                   value={voiceSettings.genre || 'r&b'}
                                   onChange={(e) => { setVoiceSettings({...voiceSettings, genre: e.target.value}); setHeroGenre(e.target.value); }}
                                   className="settings-select"
                                 >
-                                  <option value="r&b">ðŸ’œ R&B / Soul</option>
-                                  <option value="pop">ðŸŒŸ Pop</option>
-                                  <option value="hip-hop">ðŸ”¥ Hip-Hop</option>
-                                  <option value="soul">ðŸŽ· Soul / Gospel</option>
-                                  <option value="country">ðŸŽ¸ Country / Folk</option>
-                                  <option value="rock">ðŸ¤˜ Rock / Metal</option>
-                                  <option value="jazz">ðŸŽº Jazz / Blues</option>
+                                  <option value="r&b">(purple) R&B / Soul</option>
+                                  <option value="pop">(star) Pop</option>
+                                  <option value="hip-hop">(fire) Hip-Hop</option>
+                                  <option value="soul">(sax) Soul / Gospel</option>
+                                  <option value="country">(guitar) Country / Folk</option>
+                                  <option value="rock">(rock) Rock / Metal</option>
+                                  <option value="jazz">(trumpet) Jazz / Blues</option>
                                 </select>
                               </div>
                             )}
@@ -5862,54 +6051,54 @@ const fetchUserCredits = useCallback(async (uid) => {
                             {/* Voice Gender & Region */}
                             <div className="settings-split" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                               <div className="settings-group" style={{ flex: 1 }}>
-                                <label>ðŸ‘¤ Gender</label>
+                                <label>(user) Gender</label>
                                 <select 
                                   value={voiceSettings.gender}
                                   onChange={(e) => setVoiceSettings({...voiceSettings, gender: e.target.value})}
                                   className="settings-select"
                                 >
-                                  <option value="male">ðŸ‘¨ Male</option>
-                                  <option value="female">ðŸ‘© Female</option>
+                                  <option value="male">(man) Male</option>
+                                  <option value="female">(woman) Female</option>
                                 </select>
                               </div>
                               <div className="settings-group" style={{ flex: 1 }}>
-                                <label>ðŸ“ Region / Accent</label>
+                                <label>(location) Region / Accent</label>
                                 <select 
                                   value={voiceSettings.region}
                                   onChange={(e) => setVoiceSettings({...voiceSettings, region: e.target.value})}
                                   className="settings-select"
                                 >
-                                  <option value="US">ðŸ‡ºðŸ‡¸ US</option>
-                                  <option value="UK">ðŸ‡¬ðŸ‡§ UK</option>
-                                  <option value="AU">ðŸ‡¦ðŸ‡º AU</option>
-                                  <option value="IN">ðŸ‡®ðŸ‡³ IN</option>
+                                  <option value="US">(US) US</option>
+                                  <option value="UK">(GB) UK</option>
+                                  <option value="AU">(AU) AU</option>
+                                  <option value="IN">(IN) IN</option>
                                 </select>
                               </div>
                             </div>
 
                             {/* Language Selection */}
                             <div className="settings-group" style={{ marginTop: '8px' }}>
-                              <label>ðŸŒ Language (Voice & Transcription)</label>
+                              <label>(globe) Language (Voice & Transcription)</label>
                               <select 
                                 value={voiceSettings.language}
                                 onChange={(e) => setVoiceSettings({...voiceSettings, language: e.target.value})}
                                 className="settings-select"
                               >
-                                <option value="English">ðŸ‡ºðŸ‡¸ English</option>
-                                <option value="Spanish">ðŸ‡ªðŸ‡¸ Spanish</option>
-                                <option value="French">ðŸ‡«ðŸ‡· French</option>
-                                <option value="German">ðŸ‡©ðŸ‡ª German</option>
-                                <option value="Italian">ðŸ‡®ðŸ‡¹ Italian</option>
-                                <option value="Portuguese">ðŸ‡µðŸ‡¹ Portuguese</option>
-                                <option value="Japanese">ðŸ‡¯ðŸ‡µ Japanese</option>
-                                <option value="Korean">ðŸ‡°ðŸ‡· Korean</option>
-                                <option value="Chinese">ðŸ‡¨ðŸ‡³ Chinese</option>
+                                <option value="English">(US) English</option>
+                                <option value="Spanish">(ES) Spanish</option>
+                                <option value="French">(FR) French</option>
+                                <option value="German">(DE) German</option>
+                                <option value="Italian">(IT) Italian</option>
+                                <option value="Portuguese">(PT) Portuguese</option>
+                                <option value="Japanese">(JP) Japanese</option>
+                                <option value="Korean">(KR) Korean</option>
+                                <option value="Chinese">(CN) Chinese</option>
                               </select>
                             </div>
 
                             {/* Duration Selection */}
                             <div className="settings-group" style={{ marginTop: '8px' }}>
-                              <label>â±ï¸ Generation Duration</label>
+                              <label>â± Generation Duration</label>
                               <select 
                                 value={voiceSettings.duration || 30}
                                 onChange={(e) => setVoiceSettings({...voiceSettings, duration: parseInt(e.target.value)})}
@@ -5923,7 +6112,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                               </select>
                             </div>
 
-                            {/* BPM Control â€” visible for audio/beat agents */}
+                            {/* BPM Control -visible for audio/beat agents */}
                             {selectedAgent && ['beat', 'sample', 'music-gpt', 'beat-maker', 'beat-lab', 'beat-architect', 'beat-arch', 'drum-machine', 'drums', 'instrument', 'drop', 'film', 'sample-master', 'score-edit', 'drop-zone', 'music-architect', 'audio-gen', 'video-scorer'].includes(selectedAgent.id) && (
                               <div className="settings-field">
                                 <label className="settings-label">BPM</label>
@@ -5943,13 +6132,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                             <p className="settings-info" style={{ marginTop: '8px', opacity: 0.8 }}>
                               {['rapper', 'rapper-female', 'singer', 'singer-female', 'cloned', 'narrator', 'spoken'].includes(voiceSettings.style) ? (
                                 <>
-                                  ðŸš€ <strong>AI Vocals Mode</strong> â€” Real AI voices via Replicate & XTTS (30-60s generation time). 
+                                   <strong>AI Vocals Mode</strong> -Real AI voices via Replicate & XTTS (30-60s generation time). 
                                   {(voiceSettings.style === 'rapper' || voiceSettings.style === 'rapper-female') && ` Flow: ${voiceSettings.rapStyle || 'aggressive'}`}
                                   {(voiceSettings.style === 'singer' || voiceSettings.style === 'singer-female') && ` Genre: ${voiceSettings.genre || 'r&b'}`}
                                 </>
                               ) : (
                                 <>
-                                  âš¡ <strong>Instant TTS Mode</strong> â€” Browser voices for quick preview. Switch to a pro style for real AI vocals.
+                                  (zap) <strong>Instant TTS Mode</strong> -Browser voices for quick preview. Switch to a pro style for real AI vocals.
                                 </>
                               )}
                             </p>
@@ -7568,7 +7757,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             setActiveTab('mystudio');
                           }
                         } else if (agent.comingSoon) {
-                          toast.error(`${agent.name} is coming soon!`, { icon: 'ðŸš§' });
+                          toast.error(`${agent.name} is coming soon!`, { icon: '(wip)' });
                         } else {
                           setSelectedAgent(agent);
                           Analytics.agentUsed(agent.id);
@@ -7592,7 +7781,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   borderLeft: '3px solid rgba(139, 92, 246, 0.6)'
                 }}>
                   <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#a855f7', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    <Zap size={12} /> Monthly â€” $4.99/mo
+                    <Zap size={12} /> Monthly -$4.99/mo
                     <span style={{ marginLeft: 'auto', background: 'rgba(139, 92, 246, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
                       {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'monthly').length} agents
                     </span>
@@ -7616,7 +7805,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             setActiveTab('mystudio');
                           }
                         } else if (agent.comingSoon) {
-                          toast.error(`${agent.name} is coming soon!`, { icon: 'ðŸš§' });
+                          toast.error(`${agent.name} is coming soon!`, { icon: '(wip)' });
                         } else {
                           setSelectedAgent(agent);
                           Analytics.agentUsed(agent.id);
@@ -7640,7 +7829,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   borderLeft: '3px solid rgba(234, 179, 8, 0.6)'
                 }}>
                   <h5 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#eab308', fontWeight: '700', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                    <Award size={12} /> Pro â€” $9.99/mo
+                    <Award size={12} /> Pro -$9.99/mo
                     <span style={{ marginLeft: 'auto', background: 'rgba(234, 179, 8, 0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem' }}>
                       {(typeof AGENTS !== 'undefined' ? AGENTS : []).filter(a => a.tier === 'pro').length} agents
                     </span>
@@ -7664,7 +7853,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             setActiveTab('mystudio');
                           }
                         } else if (agent.comingSoon) {
-                          toast.error(`${agent.name} is coming soon!`, { icon: 'ðŸš§' });
+                          toast.error(`${agent.name} is coming soon!`, { icon: '(wip)' });
                         } else {
                           setSelectedAgent(agent);
                           Analytics.agentUsed(agent.id);
@@ -7686,7 +7875,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 renderAgentWorkspace()
               ) : (
                 /* Agent Cards Grid with Whitepapers & Legal */
-                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 2px' : '8px 0 8px 0', overflowY: 'auto', marginLeft: isMobile ? 0 : '-20px' }}>
+                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 2px' : '8px 0 8px 0', overflowY: 'auto', marginLeft: isMobile ? 0 : '-15%' }}>
                   {/* Header with Action Buttons */}
                   <div style={{ 
                     display: 'flex', 
@@ -7702,7 +7891,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         AI Agents Studio
                       </h2>
                       <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        {allAgents.length} specialized agents â€¢ Click any card to start creating
+                        {allAgents.length} specialized agents * Click any card to start creating
                       </p>
                     </div>
                     <div style={{ display: 'flex', gap: '12px' }}>
@@ -7789,14 +7978,14 @@ const fetchUserCredits = useCallback(async (uid) => {
                         Free Tier
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        â€” {(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'free').length : 0} agents included
+                        -{(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'free').length : 0} agents included
                       </span>
                     </div>
                     {/* FREE TIER Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-                      gap: '16px'
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                      gap: '18px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'free').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
@@ -7817,11 +8006,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                             }
                           }}
                           style={{
-                            padding: isMobile ? '20px' : '28px',
+                            padding: isMobile ? '23px' : '32px',
                             background: 'rgba(0,0,0,0.4)',
                             border: `1px solid ${ac}22`,
                             borderRadius: '20px',
-                            minHeight: isMobile ? '175px' : '240px',
+                            minHeight: isMobile ? '200px' : '274px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
@@ -7878,17 +8067,17 @@ const fetchUserCredits = useCallback(async (uid) => {
                     }}>
                       <Zap size={16} style={{ color: '#fbbf24' }} />
                       <span style={{ fontWeight: '700', color: '#fbbf24', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                        Monthly â€” $4.99/mo
+                        Monthly -$4.99/mo
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        â€” {(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'monthly').length : 0} agents
+                        -{(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'monthly').length : 0} agents
                       </span>
                     </div>
                     {/* MONTHLY TIER Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-                      gap: '16px'
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                      gap: '18px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
@@ -7909,11 +8098,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                             }
                           }}
                           style={{
-                            padding: isMobile ? '20px' : '28px',
+                            padding: isMobile ? '23px' : '32px',
                             background: 'rgba(0,0,0,0.4)',
                             border: `1px solid ${ac}22`,
                             borderRadius: '20px',
-                            minHeight: isMobile ? '175px' : '240px',
+                            minHeight: isMobile ? '200px' : '274px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
@@ -7971,17 +8160,17 @@ const fetchUserCredits = useCallback(async (uid) => {
                     }}>
                       <Award size={16} style={{ color: '#a855f7' }} />
                       <span style={{ fontWeight: '700', color: '#a855f7', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                        Pro â€” $9.99/mo
+                        Pro -$9.99/mo
                       </span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        â€” {(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'pro').length : 0} agents
+                        -{(typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.filter(a => a.tier === 'pro').length : 0} agents
                       </span>
                     </div>
                     {/* PRO TIER Grid */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-                      gap: '16px'
+                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                      gap: '18px'
                     }}>
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'pro').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
@@ -8002,11 +8191,11 @@ const fetchUserCredits = useCallback(async (uid) => {
                             }
                           }}
                           style={{
-                            padding: isMobile ? '20px' : '28px',
+                            padding: isMobile ? '23px' : '32px',
                             background: 'rgba(0,0,0,0.4)',
                             border: `1px solid ${ac}22`,
                             borderRadius: '20px',
-                            minHeight: isMobile ? '175px' : '240px',
+                            minHeight: isMobile ? '200px' : '274px',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             position: 'relative',
@@ -8091,6 +8280,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                 
                 // Reset canvas preview asset to avoid stale references
                 setCanvasPreviewAsset(null);
+
+                // Force-save current project before switching (prevents data loss)
+                if (selectedProject && selectedProject.id !== safeProject.id && isLoggedIn && user?.uid) {
+                  const updatedCurrent = { ...selectedProject, updatedAt: new Date().toISOString() };
+                  saveProjectToCloud(user.uid, updatedCurrent, { silent: true }).catch(() => {});
+                }
+
                 setSelectedProject(safeProject);
                 // Use pendingProjectNav flag for safe navigation (prevents race condition)
                 setPendingProjectNav(true);
@@ -8516,15 +8712,15 @@ const fetchUserCredits = useCallback(async (uid) => {
         );
       case 'activity': {
         const SOCIAL_PLATFORMS = [
-          { id: 'instagram', name: 'Instagram', icon: 'ðŸ“¸', color: '#E1306C', desc: 'Photos & Stories' },
-          { id: 'tiktok', name: 'TikTok', icon: 'ðŸŽµ', color: '#00f2ea', desc: 'Short-form video' },
+          { id: 'instagram', name: 'Instagram', icon: '(camera)', color: '#E1306C', desc: 'Photos & Stories' },
+          { id: 'tiktok', name: 'TikTok', icon: '(music)', color: '#00f2ea', desc: 'Short-form video' },
           { id: 'twitter', name: 'X / Twitter', icon: 'ð•', color: '#1DA1F2', desc: 'Posts & threads' },
-          { id: 'spotify', name: 'Spotify', icon: 'ðŸŽ§', color: '#1DB954', desc: 'Music streaming' },
-          { id: 'facebook', name: 'Facebook', icon: 'ðŸ“˜', color: '#1877F2', desc: 'Pages & groups' },
-          { id: 'youtube', name: 'YouTube', icon: 'â–¶ï¸', color: '#FF0000', desc: 'Video & shorts' },
-          { id: 'soundcloud', name: 'SoundCloud', icon: 'â˜ï¸', color: '#ff5500', desc: 'Audio streaming' },
-          { id: 'threads', name: 'Threads', icon: 'ðŸ§µ', color: '#000000', desc: 'Text-based social' },
-          { id: 'linkedin', name: 'LinkedIn', icon: 'ðŸ’¼', color: '#0A66C2', desc: 'Professional network' }
+          { id: 'spotify', name: 'Spotify', icon: '(headphones)', color: '#1DB954', desc: 'Music streaming' },
+          { id: 'facebook', name: 'Facebook', icon: '(book)', color: '#1877F2', desc: 'Pages & groups' },
+          { id: 'youtube', name: 'YouTube', icon: 'â–¶', color: '#FF0000', desc: 'Video & shorts' },
+          { id: 'soundcloud', name: 'SoundCloud', icon: 'â˜', color: '#ff5500', desc: 'Audio streaming' },
+          { id: 'threads', name: 'Threads', icon: '(thread)', color: '#000000', desc: 'Text-based social' },
+          { id: 'linkedin', name: 'LinkedIn', icon: '(work)', color: '#0A66C2', desc: 'Professional network' }
         ];
         const socialSubTab = activitySection || 'connections';
         return (
@@ -8625,7 +8821,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                               const updated = { ...socialConnections, [p.id]: false };
                               setSocialConnections(updated);
                               localStorage.setItem('studio_agents_socials', JSON.stringify(updated));
-                              toast(`Disconnected from ${p.name}`, { icon: 'ðŸ”Œ' });
+                              toast(`Disconnected from ${p.name}`, { icon: '(plug)' });
                             } else {
                               handleConnectSocial(p.id);
                             }
@@ -9025,7 +9221,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
             {!hasMoreActivity && activityFeed.length > 0 && (
               <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                <p>ðŸŽµ You've explored all the latest content. Check back soon!</p>
+                <p>(music) You've explored all the latest content. Check back soon!</p>
               </div>
             )}
               </div>
@@ -9087,7 +9283,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
                   {/* Share Button */}
                   <button
-                    onClick={() => toast('Cross-posting coming soon! Connect your accounts to get ready.', { icon: 'ðŸš€' })}
+                    onClick={() => toast('Cross-posting coming soon! Connect your accounts to get ready.', { icon: '' })}
                     style={{
                       padding: '14px 32px', borderRadius: '12px', border: 'none',
                       background: Object.values(socialConnections).filter(Boolean).length > 0
@@ -9787,8 +9983,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
   const activeProjectSteps = getProjectSteps();
 
-  // Demo mode state for banner visibility
-  const [showDemoBanner, setShowDemoBanner] = useState(getDemoModeState());
+  // Demo mode banner (state declared in main state block above)
 
   // AUTH GATE: Show loading screen only if checking auth AND user isn't ready yet
   // This prevents crashes from race conditions whereLoggedIn is true but user state is null
@@ -10328,7 +10523,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </div>
                   <div className="player-info">
                     <h2>{playingItem.title}</h2>
-                    <p>{playingItem.agent} â€¢ {playingItem.user || 'Your Creation'}</p>
+                    <p>{playingItem.agent} * {playingItem.user || 'Your Creation'}</p>
                   </div>
                 </div>
 
@@ -10349,9 +10544,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                     <>
                       {/* Visual Layer */}
                       {playingItem.videoUrl ? (
-                        <video 
-                          src={playingItem.videoUrl} 
-                          controls={!playingItem.audioUrl} 
+                        <video
+                          src={formatVideoSrc(playingItem.videoUrl)}
+                          controls={!playingItem.audioUrl}
                           playsInline
                           muted={!!playingItem.audioUrl} // Mute video if we have separate audio track (Mastering case)
                           className="player-video"
@@ -10362,8 +10557,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                           }}
                         />
                       ) : playingItem.imageUrl ? (
-                        <img 
-                          src={playingItem.imageUrl} 
+                        <img
+                          src={formatImageSrc(playingItem.imageUrl)}
                           alt={playingItem.title} 
                           className="player-video" 
                           loading="lazy"
@@ -10410,8 +10605,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                       {/* Audio Layer - Overlay if visual exists or just audio */}
                       {playingItem.audioUrl && (
                         <div style={{ position: 'absolute', bottom: '20px', left: '0', right: '0', padding: '0 20px', zIndex: 10 }}>
-                           <audio 
-                            src={playingItem.audioUrl} 
+                           <audio
+                            src={formatAudioSrc(playingItem.audioUrl)}
                             controls 
                             className="player-audio"
                             style={{ width: '100%', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', borderRadius: '30px' }}
@@ -10429,13 +10624,34 @@ const fetchUserCredits = useCallback(async (uid) => {
 
                 <div className="player-footer">
                   <div className="player-actions">
-                    <button 
-                      className="player-btn primary"
-                      onClick={() => handleDownload(playingItem)}
-                    >
-                      <Download size={18} />
-                      <span>Download to Device</span>
-                    </button>
+                    {/* Audio items get MP3 + WAV buttons; others get single download */}
+                    {playingItem.audioUrl && !playingItem.videoUrl ? (
+                      <>
+                        <button
+                          className="player-btn primary"
+                          onClick={() => handleDownload(playingItem, 'mp3')}
+                        >
+                          <Download size={18} />
+                          <span>MP3</span>
+                        </button>
+                        <button
+                          className="player-btn primary"
+                          onClick={() => handleDownload(playingItem, 'wav')}
+                          style={{ background: 'rgba(139, 92, 246, 0.2)', borderColor: 'rgba(139, 92, 246, 0.4)' }}
+                        >
+                          <Download size={18} />
+                          <span>WAV</span>
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="player-btn primary"
+                        onClick={() => handleDownload(playingItem)}
+                      >
+                        <Download size={18} />
+                        <span>{playingItem.videoUrl ? 'Download MP4' : 'Download'}</span>
+                      </button>
+                    )}
                     <button 
                       className="player-btn secondary"
                       onClick={() => handleShareToFeed(playingItem)}
@@ -10515,7 +10731,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Multi-Agent Orchestration</p>
                 </div>
                 <button 
-                  onClick={() => toast("1. Select Beat (Track 1)\n2. Select Vocals (Track 2)\n3. Add a Visual\n4. Press Play to preview\n5. Click Render Master to save", { duration: 6000, icon: 'ðŸŽ›ï¸' })}
+                  onClick={() => toast("1. Select Beat (Track 1)\n2. Select Vocals (Track 2)\n3. Add a Visual\n4. Press Play to preview\n5. Click Render Master to save", { duration: 6000, icon: '(mixer)' })}
                   style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}
                 >
                   <CircleHelp size={14} color="var(--text-secondary)" />
@@ -10557,11 +10773,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                 
                 {/* Audio Elements (Hidden) */}
                 {sessionTracks.audio && (
-                  <audio 
-                    src={sessionTracks.audio.audioUrl} 
+                  <audio
+                    data-track="session-audio"
+                    src={sessionTracks.audio.audioUrl}
                     ref={el => {
                       if (el) {
-                        el.volume = sessionTracks.audioVolume || 0.8;
+                        el.volume = sessionTracks.audioVolume ?? 0.8;
                         if (sessionPlaying) el.play().catch(e => console.log(e));
                         else el.pause();
                       }
@@ -10570,11 +10787,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                   />
                 )}
                 {sessionTracks.vocal && (
-                  <audio 
-                    src={sessionTracks.vocal.audioUrl} 
+                  <audio
+                    data-track="session-vocal"
+                    src={sessionTracks.vocal.audioUrl}
                     ref={el => {
                       if (el) {
-                        el.volume = sessionTracks.vocalVolume || 1.0;
+                        el.volume = sessionTracks.vocalVolume ?? 1.0;
                         if (sessionPlaying) el.play().catch(e => console.log(e));
                         else el.pause();
                       }
@@ -10631,7 +10849,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         }} />
                       </div>
                       <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                        {sessionTracks.generateRealAssets ? 'âš¡ Real Assets' : 'ðŸ“ Text Mode'}
+                        {sessionTracks.generateRealAssets ? '(zap) Real Assets' : '(text) Text Mode'}
                       </span>
                     </div>
                     
@@ -10700,10 +10918,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                     alignItems: 'center'
                   }}>
                     <div>
-                      <strong>âš¡ Real Asset Mode</strong> â€” AI will generate actual audio, images & video
+                      <strong>(zap) Real Asset Mode</strong> -AI will generate actual audio, images & video
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Uses Imagen 4.0 â€¢ Veo 3.0 â€¢ MusicGen
+                      Uses Imagen 4.0 * Veo 3.0 * MusicGen
                     </div>
                   </div>
                 )}
@@ -10731,10 +10949,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                           value={sessionTracks.audioOutputType || 'waveform'}
                           onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, audioOutputType: e.target.value }))}
                         >
-                          <option value="waveform">ðŸŽµ Waveform</option>
-                          <option value="file">ðŸ“ File</option>
-                          <option value="stems">ðŸŽ›ï¸ Stems</option>
-                          <option value="midi">ðŸŽ¹ MIDI</option>
+                          <option value="waveform">(music) Waveform</option>
+                          <option value="file">(folder) File</option>
+                          <option value="stems">(mixer) Stems</option>
+                          <option value="midi">(piano) MIDI</option>
                         </select>
                       </div>
                       <select 
@@ -10748,10 +10966,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                       >
                         <option value="">Select Audio Asset...</option>
                         {(selectedProject?.assets || []).filter(a => a?.audioUrl || a?.type === 'audio' || a?.agent?.includes('Beat') || a?.agent?.includes('Sound')).map(a => (
-                          <option key={a.id} value={a.id}>ðŸŽµ {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                          <option key={a.id} value={a.id}>(music) {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
                         {(selectedProject?.assets || []).filter(a => !a?.audioUrl && a?.type !== 'audio').map(a => (
-                          <option key={a.id} value={a.id}>ðŸ“„ {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                          <option key={a.id} value={a.id}>(doc) {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
                       </select>
                     </div>
@@ -10794,7 +11012,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           <FileAudio size={24} />
                           <div>
                             <div style={{ fontWeight: 600 }}>{sessionTracks.audio.title || 'Audio File'}</div>
-                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{sessionTracks.audio.agent} â€¢ WAV/MP3</div>
+                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{sessionTracks.audio.agent} * WAV/MP3</div>
                           </div>
                           <div style={{ marginLeft: 'auto', fontSize: '0.75rem', opacity: 0.5 }}>~3:24</div>
                         </div>
@@ -10824,7 +11042,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                               }} />
                             ))}
                           </div>
-                          <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>128 BPM â€¢ C Major</div>
+                          <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>128 BPM * C Major</div>
                         </div>
                       )}
                     </div>
@@ -10843,10 +11061,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                           value={sessionTracks.vocalOutputType || 'waveform'}
                           onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, vocalOutputType: e.target.value }))}
                         >
-                          <option value="waveform">ðŸŽµ Waveform</option>
-                          <option value="file">ðŸ“ File</option>
-                          <option value="lyrics">ðŸ“ Lyrics</option>
-                          <option value="adlibs">ðŸŽ¤ Adlibs</option>
+                          <option value="waveform">(music) Waveform</option>
+                          <option value="file">(folder) File</option>
+                          <option value="lyrics">(text) Lyrics</option>
+                          <option value="adlibs">(mic) Adlibs</option>
                         </select>
                       </div>
                       <select 
@@ -10860,10 +11078,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                       >
                         <option value="">Select Vocal/Lyrics Asset...</option>
                         {(selectedProject?.assets || []).filter(a => a?.agent?.includes('Ghost') || a?.agent?.includes('Vocal') || a?.type === 'lyrics').map(a => (
-                          <option key={a.id} value={a.id}>ðŸŽ¤ {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                          <option key={a.id} value={a.id}>(mic) {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
                         {(selectedProject?.assets || []).filter(a => !a?.agent?.includes('Ghost') && !a?.agent?.includes('Vocal') && a?.type !== 'lyrics').map(a => (
-                          <option key={a.id} value={a.id}>ðŸ“„ {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                          <option key={a.id} value={a.id}>(doc) {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
                       </select>
                     </div>
@@ -10904,13 +11122,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                           <FileAudio size={24} />
                           <div>
                             <div style={{ fontWeight: 600 }}>{sessionTracks.vocal.title || 'Vocal File'}</div>
-                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{sessionTracks.vocal.agent} â€¢ WAV</div>
+                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{sessionTracks.vocal.agent} * WAV</div>
                           </div>
                           <div style={{ marginLeft: 'auto', fontSize: '0.75rem', opacity: 0.5 }}>~2:48</div>
                         </div>
                       ) : sessionTracks.vocalOutputType === 'lyrics' ? (
                         <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.85rem', lineHeight: 1.6, maxHeight: '80px', overflow: 'auto' }}>
-                          <div style={{ color: 'var(--color-purple)', marginBottom: '4px', fontSize: '0.7rem' }}>ðŸ“ Lyrics Preview</div>
+                          <div style={{ color: 'var(--color-purple)', marginBottom: '4px', fontSize: '0.7rem' }}>(text) Lyrics Preview</div>
                           {sessionTracks.vocal.content?.substring(0, 200) || sessionTracks.vocal.snippet?.substring(0, 200) || 'No lyrics content...'}
                           {(sessionTracks.vocal.content?.length > 200 || sessionTracks.vocal.snippet?.length > 200) && '...'}
                         </div>
@@ -10946,10 +11164,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                           value={sessionTracks.visualOutputType || 'video'}
                           onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualOutputType: e.target.value }))}
                         >
-                          <option value="video">ðŸŽ¬ Video</option>
-                          <option value="image">ðŸ–¼ï¸ Image</option>
+                          <option value="video">(video) Video</option>
+                          <option value="image">(image) Image</option>
                           <option value="animation">âœ¨ Animation</option>
-                          <option value="thumbnail">ðŸ“· Thumbnail</option>
+                          <option value="thumbnail">(camera) Thumbnail</option>
                         </select>
                       </div>
                       <select 
@@ -10963,10 +11181,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                       >
                         <option value="">Select Visual Asset...</option>
                         {(selectedProject?.assets || []).filter(a => a?.imageUrl || a?.videoUrl || a?.type === 'image' || a?.type === 'video').map(a => (
-                          <option key={a.id} value={a.id}>{a.videoUrl ? 'ðŸŽ¬' : 'ðŸ–¼ï¸'} {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                          <option key={a.id} value={a.id}>{a.videoUrl ? '(video)' : '(image)'} {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
                         {(selectedProject?.assets || []).filter(a => !a?.imageUrl && !a?.videoUrl && a?.type !== 'image' && a?.type !== 'video').map(a => (
-                          <option key={a.id} value={a.id}>ðŸ“„ {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                          <option key={a.id} value={a.id}>(doc) {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
                       </select>
                     </div>
@@ -11011,7 +11229,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           </div>
                           <div style={{ fontSize: '0.8rem', marginLeft: '12px' }}>
                             <div style={{ fontWeight: 600 }}>Animation Sequence</div>
-                            <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>6 keyframes â€¢ 30fps</div>
+                            <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>6 keyframes * 30fps</div>
                           </div>
                         </div>
                       ) : (
@@ -11029,7 +11247,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           </div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--color-pink)' }}>
                             <div style={{ fontWeight: 600 }}>Cover Thumbnail</div>
-                            <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>1280x720 â€¢ YouTube Ready</div>
+                            <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>1280x720 * YouTube Ready</div>
                           </div>
                         </div>
                       )}
@@ -11128,6 +11346,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                      
                      if (agentOutputs.length === 0) {
                        toast.error('Select at least one asset to render');
+                       setIsGenerating(false);
                        return;
                      }
                      
@@ -11218,6 +11437,33 @@ const fetchUserCredits = useCallback(async (uid) => {
                          
                          toast.dismiss('amo-assets');
                        }
+
+                       // Master the audio track if we have one (actual audio processing)
+                       if (generatedAudioUrl) {
+                         try {
+                           toast.loading('Mastering audio...', { id: 'amo-master' });
+                           const masterRes = await fetch(`${BACKEND_URL}/api/master-audio`, {
+                             method: 'POST',
+                             headers,
+                             body: JSON.stringify({
+                               audioUrl: generatedAudioUrl,
+                               preset: 'streaming',
+                               targetSampleRate: sessionTracks.sampleRate || 48000,
+                               targetBitDepth: sessionTracks.bitDepth || 24,
+                               normalize: true,
+                               format: 'wav'
+                             })
+                           });
+                           const masterData = await masterRes.json();
+                           if (masterData.audioUrl) {
+                             generatedAudioUrl = masterData.audioUrl;
+                           }
+                           toast.dismiss('amo-master');
+                         } catch (e) {
+                           console.log('Mastering skipped (backend unavailable):', e.message);
+                           toast.dismiss('amo-master');
+                         }
+                       }
                        
                        // Increment render count
                        updateSessionWithHistory(prev => ({
@@ -11258,19 +11504,15 @@ const fetchUserCredits = useCallback(async (uid) => {
                        };
                        
                        // Update project with master asset
-                       const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets] };
+                       const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets], updatedAt: new Date().toISOString() };
                        setSelectedProject(updated);
                        setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
-                       
-                       // Also save to cloud
+
+                       // Save to cloud
                        if (isLoggedIn) {
                          const uid = localStorage.getItem('studio_user_id');
                          if (uid) {
-                           fetch(`${BACKEND_URL}/api/projects`, {
-                             method: 'POST',
-                             headers,
-                             body: JSON.stringify({ userId: uid, project: updated })
-                           }).catch(err => console.error("Failed to sync to cloud", err));
+                           saveProjectToCloud(uid, updated).catch(err => console.error("Failed to sync master to cloud", err));
                          }
                        }
                        
@@ -11367,7 +11609,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
                 
                 <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '16px 0' }}>
-                  â€” or connect external storage â€”
+                  -or connect external storage  - 
                 </div>
                 
                 <div className="external-storage-grid">
@@ -11381,7 +11623,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </button>
                   <button className="storage-btn" onClick={() => { 
                     // Simulate connection
-                    toast('OneDrive coming soon!', { icon: 'ðŸš§' }); 
+                    toast('OneDrive coming soon!', { icon: '(wip)' }); 
                     setShowExternalSaveModal(false); 
                   }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg" alt="OneDrive" width="24" loading="lazy" />
@@ -11389,7 +11631,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </button>
                   <button className="storage-btn" onClick={() => { 
                     // Simulate connection
-                    toast('Dropbox coming soon!', { icon: 'ðŸš§' }); 
+                    toast('Dropbox coming soon!', { icon: '(wip)' }); 
                     setShowExternalSaveModal(false); 
                   }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Dropbox_Icon.svg" alt="Dropbox" width="24" loading="lazy" />
@@ -11397,7 +11639,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </button>
                   <button className="storage-btn" onClick={() => { 
                     // Simulate connection
-                    toast('iCloud coming soon!', { icon: 'ðŸš§' }); 
+                    toast('iCloud coming soon!', { icon: '(wip)' }); 
                     setShowExternalSaveModal(false); 
                   }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/1/1c/ICloud_logo.svg" alt="iCloud" width="24" loading="lazy" />
@@ -12004,7 +12246,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           borderRadius: '12px',
                           border: '1px solid rgba(239, 68, 68, 0.3)'
                         }}>
-                          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>ðŸŽµ</div>
+                          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>(music)</div>
                           <h4 style={{ color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Audio Unavailable</h4>
                           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                             This audio file has expired or is no longer available. Replicate URLs are temporary.
@@ -12067,7 +12309,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           />
                           {previewItem.audioUrl?.startsWith('http') && (
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-                              ðŸ”— External audio URL (may expire)
+                              (link) External audio URL (may expire)
                             </p>
                           )}
                         </div>
@@ -12078,7 +12320,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       {previewItem.audioUrl ? (
                         <>
                           <div style={{ fontSize: '0.75rem', color: 'var(--color-cyan)', marginBottom: '4px', fontWeight: 'bold' }}>
-                            ðŸŽµ Music Video Mode (Synced to: {previewItem.audioTitle || 'Audio'})
+                            (music) Music Video Mode (Synced to: {previewItem.audioTitle || 'Audio'})
                           </div>
                           <video 
                             controls 
@@ -12148,7 +12390,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       )}
                       {previewItem.videoUrl?.startsWith('http') && (
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          ðŸ”— External video URL (may expire)
+                          (link) External video URL (may expire)
                         </p>
                       )}
                     </div>
@@ -12528,7 +12770,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               const existingIndex = projects.findIndex(p => p.id === project.id);
               if (existingIndex >= 0) {
                 const existingProject = projects[existingIndex];
-                // Build a dedup fingerprint â€” checks ID, audio URL, image URL, video URL, and content+type+agent
+                // Build a dedup fingerprint -checks ID, audio URL, image URL, video URL, and content+type+agent
                 const existingAssets = existingProject.assets || [];
                 const existingFingerprints = new Set();
                 for (const a of existingAssets) {
@@ -12933,7 +13175,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                               {card.brand || 'Card'}
                             </div>
                             <div>
-                              <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>â€¢â€¢â€¢â€¢ â€¢â€¢â€¢â€¢ â€¢â€¢â€¢â€¢ {card.last4}</div>
+                              <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>**** **** **** {card.last4}</div>
                               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Expires {card.expiry}</div>
                             </div>
                           </div>
@@ -13016,7 +13258,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             </div>
                             <div>
                               <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>{bank.bankName}</div>
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{bank.type} â€¢â€¢â€¢â€¢ {bank.last4}</div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{bank.type} **** {bank.last4}</div>
                             </div>
                           </div>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -13220,7 +13462,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               <div className="modal-footer" style={{ borderTop: '1px solid var(--glass-border)', padding: '1rem 1.5rem', flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                   <LockIcon size={14} />
-                  <span>256-bit encryption â€¢ Secured by Stripe</span>
+                  <span>256-bit encryption * Secured by Stripe</span>
                 </div>
               </div>
             </div>
@@ -13885,7 +14127,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     </div>
                     <h2 style={{ marginBottom: '8px' }}>{newProjectData.name}</h2>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                      {PROJECT_CATEGORIES.find(c => c.id === newProjectData.category)?.label} â€¢ {new Date().toLocaleDateString()}
+                      {PROJECT_CATEGORIES.find(c => c.id === newProjectData.category)?.label} * {new Date().toLocaleDateString()}
                     </p>
                     
                     <div className="selected-team-preview" style={{ display: 'flex', justifyContent: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '24px' }}>
@@ -13973,7 +14215,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             </button>
 
             <div className="modal-body" style={{ padding: window.innerWidth < 768 ? '24px' : '40px', textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>ðŸŽ§</div>
+              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>(headphones)</div>
               <h2 style={{ fontSize: '1.75rem', marginBottom: '12px' }}>
                 {onboardingSteps[0].title}
               </h2>
@@ -14186,7 +14428,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     {/* Video Preview */}
                     {agentCreations[showAgentWhitePaper.key].video && (
                       <div style={{ background: 'rgba(236, 72, 153, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(236, 72, 153, 0.3)' }}>
-                        <p style={{ fontSize: '0.8rem', color: 'rgba(236, 72, 153, 1)', marginBottom: '8px', fontWeight: '600' }}>ðŸŽ¬ Video</p>
+                        <p style={{ fontSize: '0.8rem', color: 'rgba(236, 72, 153, 1)', marginBottom: '8px', fontWeight: '600' }}>(video) Video</p>
                         <video 
                           src={agentCreations[showAgentWhitePaper.key].video}
                           controls
@@ -14223,7 +14465,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     {/* Image Preview */}
                     {agentCreations[showAgentWhitePaper.key].image && typeof agentCreations[showAgentWhitePaper.key].image === 'string' && (
                       <div style={{ background: 'rgba(168, 85, 247, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.3)' }}>
-                        <p style={{ fontSize: '0.8rem', color: 'rgba(168, 85, 247, 1)', marginBottom: '8px', fontWeight: '600' }}>ðŸŽ¨ Image</p>
+                        <p style={{ fontSize: '0.8rem', color: 'rgba(168, 85, 247, 1)', marginBottom: '8px', fontWeight: '600' }}>(art) Image</p>
                         <img 
                           src={agentCreations[showAgentWhitePaper.key].image.startsWith?.('data:') || agentCreations[showAgentWhitePaper.key].image.startsWith?.('http') ? agentCreations[showAgentWhitePaper.key].image : `data:image/png;base64,${agentCreations[showAgentWhitePaper.key].image}`}
                           alt="Generated"
@@ -14266,7 +14508,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     {/* Audio Preview */}
                     {agentCreations[showAgentWhitePaper.key].audio && (
                       <div style={{ background: 'rgba(6, 182, 212, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(6, 182, 212, 0.3)', gridColumn: 'span 1' }}>
-                        <p style={{ fontSize: '0.8rem', color: 'rgba(6, 182, 212, 1)', marginBottom: '8px', fontWeight: '600' }}>ðŸŽµ Audio</p>
+                        <p style={{ fontSize: '0.8rem', color: 'rgba(6, 182, 212, 1)', marginBottom: '8px', fontWeight: '600' }}>(music) Audio</p>
                         <audio 
                           src={agentCreations[showAgentWhitePaper.key].audio}
                           controls
@@ -14783,7 +15025,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         const errDiv = document.createElement('div');
                         errDiv.className = 'audio-error-msg';
                         errDiv.style.cssText = 'color: var(--color-red); font-size: 0.85rem; margin-top: 12px;';
-                        errDiv.textContent = 'âš ï¸ Audio failed to load. Try downloading instead.';
+                        errDiv.textContent = 'âš  Audio failed to load. Try downloading instead.';
                         container.appendChild(errDiv);
                       }
                     }}
@@ -15611,7 +15853,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 border: '1px solid rgba(139, 92, 246, 0.2)'
               }}>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-                  ðŸ’¡ <strong style={{ color: 'white' }}>Pro Tip:</strong> Say anything else and it will be added to your prompt as dictation.
+                  (tip) <strong style={{ color: 'white' }}>Pro Tip:</strong> Say anything else and it will be added to your prompt as dictation.
                 </p>
               </div>
             </div>

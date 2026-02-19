@@ -18,8 +18,8 @@ export const formatImageSrc = (imageData) => {
   
   if (typeof imageData !== 'string') return null;
 
-  // Already a URL or data URL
-  if (imageData.startsWith('http') || imageData.startsWith('data:')) {
+  // Already a URL, blob URL, or data URL
+  if (imageData.startsWith('http') || imageData.startsWith('data:') || imageData.startsWith('blob:') || imageData.startsWith('/api/')) {
     return imageData;
   }
   
