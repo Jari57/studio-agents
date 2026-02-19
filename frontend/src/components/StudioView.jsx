@@ -7886,7 +7886,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 renderAgentWorkspace()
               ) : (
                 /* Agent Cards Grid with Whitepapers & Legal */
-                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 2px' : '8px 0 8px 0', overflowY: 'auto', marginLeft: isMobile ? 0 : '-15%' }}>
+                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 12px' : '16px 24px', overflowY: 'auto' }}>
                   {/* Header with Action Buttons */}
                   <div style={{ 
                     display: 'flex', 

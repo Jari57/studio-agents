@@ -4045,7 +4045,7 @@ select optgroup {
 
 /* Agent Cards in Teams Page - Equal sizing */
 .agent-card-large {
-  min-height: 160px;
+  min-height: 182px;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -11335,6 +11335,7 @@ html, body, #root {
   padding: 0;
   padding-bottom: 8px;
   min-width: 0;
+  max-width: 100%;
 }
 
 /* Welcome State when no agent selected */
