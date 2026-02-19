@@ -4789,7 +4789,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             itemToSave.imageStoragePath = res.path;
           }
           if (itemToSave.audioUrl?.startsWith('data:') || itemToSave.audioUrl?.startsWith('blob:')) {
-            const res = itemToSave.audioUrl.startsWith('data:') 
+            const res = itemToSave.audioUrl.startsWith('data:')
               ? await uploadBase64(itemToSave.audioUrl, uid, 'audio', 'audio/mp3')
               : await (async () => {
                   const blob = await fetch(itemToSave.audioUrl).then(r => r.blob());
@@ -4797,6 +4797,17 @@ const fetchUserCredits = useCallback(async (uid) => {
                 })();
             itemToSave.audioUrl = res.url;
             itemToSave.audioStoragePath = res.path;
+          }
+          // Upload video to persistent storage (proxy URLs expire after 30 min)
+          if (itemToSave.videoUrl && !itemToSave.videoStoragePath) {
+            try {
+              const videoBlob = await fetch(itemToSave.videoUrl).then(r => r.blob());
+              const res = await uploadFile(videoBlob, uid, 'videos', `${Date.now()}.mp4`);
+              itemToSave.videoUrl = res.url;
+              itemToSave.videoStoragePath = res.path;
+            } catch (videoUploadErr) {
+              console.warn('[SavePreview] Video upload to storage failed, keeping original URL:', videoUploadErr);
+            }
           }
         } catch (uploadErr) {
           console.error('[SavePreview] Upload failed:', uploadErr);
