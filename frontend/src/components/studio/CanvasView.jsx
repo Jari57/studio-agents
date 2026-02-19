@@ -237,17 +237,17 @@ export default function CanvasView({
           <button
             className="btn-pill primary"
             onClick={() => setShowStudioSession(true)}
-            style={{ fontSize: '0.85rem' }}
+            style={{ fontSize: '0.8rem' }}
             title="Open multi-track session mixer"
           >
-            <LayoutGrid size={16} /> {isMobile ? 'Mix' : 'Session Mixer'}
+            <LayoutGrid size={14} /> {isMobile ? 'Mix' : 'Session Mixer'}
           </button>
           <button
             className="btn-pill primary"
             onClick={() => setShowOrchestrator(true)}
-            style={{ fontSize: '0.85rem' }}
+            style={{ fontSize: '0.8rem' }}
           >
-            <Sparkles size={16} /> {isMobile ? 'Create' : 'Open Orchestrator'}
+            <Sparkles size={14} /> {isMobile ? 'Create' : 'Open Orchestrator'}
           </button>
         </div>
       </div>
@@ -676,10 +676,10 @@ export default function CanvasView({
 
                   {/* Action Buttons — sticky at bottom */}
                   <div style={{
-                    padding: '10px 20px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap',
-                    borderTop: '1px solid rgba(255,255,255,0.05)', flexShrink: 0,
-                    background: 'rgba(0,0,0,0.2)',
-                    ...(isMobile ? { paddingBottom: 'max(16px, env(safe-area-inset-bottom))' } : {})
+                    padding: '12px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap',
+                    borderTop: '1px solid rgba(255,255,255,0.06)', flexShrink: 0,
+                    background: 'rgba(0,0,0,0.15)',
+                    ...(isMobile ? { paddingBottom: 'max(12px, env(safe-area-inset-bottom))' } : {})
                   }}>
                     <button
                       onClick={() => {
@@ -714,7 +714,7 @@ export default function CanvasView({
                         }
                       }}
                       className="btn-pill"
-                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px' }}
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem' }}
                     >
                       <Download size={14} /> Download
                     </button>
@@ -724,7 +724,7 @@ export default function CanvasView({
                         safeOpenPreview(currentAsset, assetsList);
                       }}
                       className="btn-pill"
-                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px' }}
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem' }}
                     >
                       <Maximize2 size={14} /> Fullscreen
                     </button>
@@ -746,16 +746,8 @@ export default function CanvasView({
                             toast.success(`🎵 "${currentAsset.title || 'Beat'}" set as backing track — vocals & video will sync to it`);
                           }
                         }}
-                        className="btn-pill"
-                        style={{
-                          flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px',
-                          background: (backingTrack && backingTrack.audioUrl === currentAsset.audioUrl)
-                            ? 'rgba(168, 85, 247, 0.3)' : 'rgba(6, 182, 212, 0.15)',
-                          color: (backingTrack && backingTrack.audioUrl === currentAsset.audioUrl)
-                            ? 'var(--color-purple)' : 'var(--color-cyan)',
-                          border: (backingTrack && backingTrack.audioUrl === currentAsset.audioUrl)
-                            ? '1px solid rgba(168, 85, 247, 0.4)' : 'none'
-                        }}
+                        className={`btn-pill ${(backingTrack && backingTrack.audioUrl === currentAsset.audioUrl) ? 'primary' : ''}`}
+                        style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem' }}
                       >
                         <Link2 size={14} /> {(backingTrack && backingTrack.audioUrl === currentAsset.audioUrl) ? 'Synced ✓' : 'Sync Track'}
                       </button>
@@ -767,7 +759,7 @@ export default function CanvasView({
                           toast.success('Text copied');
                         }}
                         className="btn-pill"
-                        style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px' }}
+                        style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem' }}
                       >
                         <Copy size={14} /> Copy
                       </button>
@@ -803,7 +795,7 @@ export default function CanvasView({
                         ), { duration: 10000, style: { background: '#1a1a2e', color: 'white', borderRadius: '12px' } });
                       }}
                       className="btn-pill"
-                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', padding: '8px 12px', background: 'rgba(239,68,68,0.15)', color: 'var(--color-red, #ef4444)' }}
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem', color: '#ef4444' }}
                     >
                       <Trash2 size={14} />
                     </button>

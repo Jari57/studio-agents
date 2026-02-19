@@ -50,9 +50,9 @@ const ProjectHub = React.lazy(() => import('./ProjectHubV3')); // CapCut/Caption
 const NewsHub = React.lazy(() => import('./NewsHub'));
 const AdminAnalytics = React.lazy(() => import('./AdminAnalytics'));
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════════
 // PRODUCTION PIPELINE STAGES - Journey from idea to master
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════════
 const PRODUCTION_STAGES = [
   { key: 'idea',    label: 'IDEA',    icon: Sparkles,  color: '#a855f7', colorRgb: '168,85,247', assetTypes: [] },
   { key: 'lyrics',  label: 'LYRICS',  icon: FileText,  color: '#10b981', colorRgb: '16,185,129', assetTypes: ['lyrics', 'text'] },
@@ -63,9 +63,9 @@ const PRODUCTION_STAGES = [
   { key: 'master',  label: 'MASTER',  icon: Crown,     color: '#f59e0b', colorRgb: '245,158,11', assetTypes: ['pro'] },
 ];
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════════
 // SAFE ASSET WRAPPER - Prevents crashes from malformed asset data
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════════
 const SafeAssetWrapper = ({ children, asset, fallback = null }) => {
   try {
     // Validate asset is a proper object
@@ -171,7 +171,7 @@ class SectionErrorBoundary extends React.Component {
           borderRadius: '12px',
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>âš </div>
+          <div style={{ fontSize: '2rem', marginBottom: '12px' }}>⚠</div>
           <h3 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>
             {this.props.name || 'Section'} temporarily unavailable
           </h3>
@@ -309,24 +309,24 @@ const FREE_GENERATION_LIMIT = 3;
 
 // Model Picker State - Available AI Models
 const AI_MODELS = [
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Fastest responses, great for quick tasks', tier: 'free', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜†' },
-  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: 'Ultra-fast, cost-effective', tier: 'free', speed: '(zap)(zap)(zap)(zap)', quality: 'â˜…â˜…â˜†â˜†' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Best quality for complex prompts', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Balanced speed and quality', tier: 'free', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜†' },
-  { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', provider: 'Google', description: 'Lightweight, efficient', tier: 'free', speed: '(zap)(zap)(zap)(zap)', quality: 'â˜…â˜…â˜†â˜†' },
-  { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (Preview)', provider: 'Google', description: 'Latest capabilities, experimental', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…â˜…' },
-  { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (Preview)', provider: 'Google', description: 'Next-gen speed + quality', tier: 'pro', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent for creative writing', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…â˜…' },
-  { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Fast and capable', tier: 'pro', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Multimodal powerhouse', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…â˜…' },
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Affordable GPT-4 class', tier: 'pro', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'High capability, larger context', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…â˜…' },
-  { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta', description: 'Open-source powerhouse', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'llama-3.2-90b-vision', name: 'Llama 3.2 90B Vision', provider: 'Meta', description: 'Multimodal open model', tier: 'pro', speed: '(zap)', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'European excellence', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'codestral', name: 'Codestral', provider: 'Mistral', description: 'Optimized for code generation', tier: 'pro', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', description: 'Cost-effective reasoning', tier: 'free', speed: '(zap)(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' },
-  { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Multilingual excellence', tier: 'pro', speed: '(zap)(zap)', quality: 'â˜…â˜…â˜…â˜…' }
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Fastest responses, great for quick tasks', tier: 'free', speed: '(zap)(zap)(zap)', quality: '★★★☆' },
+  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: 'Ultra-fast, cost-effective', tier: 'free', speed: '(zap)(zap)(zap)(zap)', quality: '★★☆☆' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Best quality for complex prompts', tier: 'pro', speed: '(zap)(zap)', quality: '★★★★' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Balanced speed and quality', tier: 'free', speed: '(zap)(zap)(zap)', quality: '★★★☆' },
+  { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', provider: 'Google', description: 'Lightweight, efficient', tier: 'free', speed: '(zap)(zap)(zap)(zap)', quality: '★★☆☆' },
+  { id: 'gemini-2.5-pro-preview', name: 'Gemini 2.5 Pro (Preview)', provider: 'Google', description: 'Latest capabilities, experimental', tier: 'pro', speed: '(zap)(zap)', quality: '★★★★★' },
+  { id: 'gemini-2.5-flash-preview', name: 'Gemini 2.5 Flash (Preview)', provider: 'Google', description: 'Next-gen speed + quality', tier: 'pro', speed: '(zap)(zap)(zap)', quality: '★★★★' },
+  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Excellent for creative writing', tier: 'pro', speed: '(zap)(zap)', quality: '★★★★★' },
+  { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', description: 'Fast and capable', tier: 'pro', speed: '(zap)(zap)(zap)', quality: '★★★★' },
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Multimodal powerhouse', tier: 'pro', speed: '(zap)(zap)', quality: '★★★★★' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Affordable GPT-4 class', tier: 'pro', speed: '(zap)(zap)(zap)', quality: '★★★★' },
+  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'High capability, larger context', tier: 'pro', speed: '(zap)(zap)', quality: '★★★★★' },
+  { id: 'llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Meta', description: 'Open-source powerhouse', tier: 'pro', speed: '(zap)(zap)', quality: '★★★★' },
+  { id: 'llama-3.2-90b-vision', name: 'Llama 3.2 90B Vision', provider: 'Meta', description: 'Multimodal open model', tier: 'pro', speed: '(zap)', quality: '★★★★' },
+  { id: 'mistral-large', name: 'Mistral Large', provider: 'Mistral', description: 'European excellence', tier: 'pro', speed: '(zap)(zap)', quality: '★★★★' },
+  { id: 'codestral', name: 'Codestral', provider: 'Mistral', description: 'Optimized for code generation', tier: 'pro', speed: '(zap)(zap)(zap)', quality: '★★★★' },
+  { id: 'deepseek-v3', name: 'DeepSeek V3', provider: 'DeepSeek', description: 'Cost-effective reasoning', tier: 'free', speed: '(zap)(zap)(zap)', quality: '★★★★' },
+  { id: 'qwen-2.5-72b', name: 'Qwen 2.5 72B', provider: 'Alibaba', description: 'Multilingual excellence', tier: 'pro', speed: '(zap)(zap)', quality: '★★★★' }
 ];
 
 // (lock) SESSION TIMEOUT - Auto logout after inactivity (security best practice)
@@ -491,9 +491,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   // (shield) SAFE ASYNC OPERATIONS - Prevents memory leaks and race conditions
   const { safeFetch, safeSetState, isMounted } = useSafeAsync();
   
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ═══════════════════════════════════════════════════════════════════════════
   // (key) CORE STATE & REFS (Hoisted for TDZ safety)
-  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // ═══════════════════════════════════════════════════════════════════════════
   
   // --- AUTH & USER ---
   const [user, setUser] = useState(null);
@@ -2049,7 +2049,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
     }
     
-    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: 'âœ¨' });
+    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
     
     // Deduct credits for project creation
     setUserCredits(prev => Math.max(0, prev - PROJECT_CREDIT_COST));
@@ -2100,7 +2100,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       updatedAt: new Date().toISOString()
     };
     
-    toast.success(`Quick project created! -${PROJECT_CREDIT_COST} credits`, { icon: 'âœ¨' });
+    toast.success(`Quick project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
     
     // Deduct credits for project creation
     setUserCredits(prev => Math.max(0, prev - PROJECT_CREDIT_COST));
@@ -2290,7 +2290,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       updatedAt: new Date().toISOString()
     };
     
-    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: 'âœ¨' });
+    toast.success(`Project created! -${PROJECT_CREDIT_COST} credits`, { icon: '✨' });
 
     setProjects(prev => {
       // Check if project with same name was created in last 10s
@@ -3112,7 +3112,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           toast.success(`Success! ${amount || 'Your'} credits have been added.`, { icon: '(money)' });
           if (user?.uid) fetchUserCredits(user.uid);
         } else {
-          toast.success('Your subscription is now active!', { icon: 'âœ¨' });
+          toast.success('Your subscription is now active!', { icon: '✨' });
         }
         // Cleanup URL
         const newUrl = window.location.pathname + window.location.hash;
@@ -3441,7 +3441,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         else if (timeText.includes('long')) seconds = 180;
         
         setVoiceSettings(prev => ({ ...prev, duration: seconds }));
-        toast.success(`â± Duration set to ${seconds}s`);
+        toast.success(`⏱ Duration set to ${seconds}s`);
         handleTextToVoice(`Setting generation length to ${seconds} seconds.`);
         return;
       }
@@ -3474,7 +3474,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           textarea.dispatchEvent(ev);
         }
         // Brief visual feedback
-        toast.success(`âœ Added: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`, { duration: 1500 });
+        toast.success(`✏ Added: "${finalTranscript.substring(0, 30)}${finalTranscript.length > 30 ? '...' : ''}"`, { duration: 1500 });
       }
     };
 
@@ -4591,7 +4591,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             newItem.billingMessage = data.message;
             toast.info(data.message || 'Using sample - configure API keys for custom generation', { 
               duration: 5000,
-              icon: 'âš '
+              icon: '⚠'
             });
           } else {
             newItem.snippet = isSpeechAgent ? `(mic) Generated vocals for: "${prompt}"` : `(music) Generated audio for: "${prompt}"`;
@@ -4654,7 +4654,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           if (isMediaAgentRequest && !data.audioUrl && !data.videoUrl && !data.imageUrl && !data.audio) {
             console.warn('[Studio] Media generation failed, falling back to text description');
             newItem.snippet = data.output || data.description || data.message || `Media generation failed. Idea: ${expandedPrompt || prompt}`;
-            newItem.note = "âš  Media generation failed - returning text concept instead.";
+            newItem.note = "⚠ Media generation failed - returning text concept instead.";
             newItem.type = 'text';
             newItem.isError = true;
           } else {
@@ -4757,7 +4757,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     
     setIsSaving(true);
     setPreviewSaveMode(false);
-    const toastId = toast.loading('Synchronizing to cloud...', { icon: 'â˜' });
+    const toastId = toast.loading('Synchronizing to cloud...', { icon: '☁' });
     
     // 3-minute timeout
     const SAVE_TIMEOUT = 180000;
@@ -5936,7 +5936,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                                   <option value="narrator">(speaker) Narrator (Deep Voice)</option>
                                   <option value="spoken">(chat) Spoken Word</option>
                                 </optgroup>
-                                <optgroup label="âœ¨ Custom/Advanced">
+                                <optgroup label="✨ Custom/Advanced">
                                   <option value="cloned" disabled={!voiceSettings.speakerUrl}>(dna) Cloned Voice {!voiceSettings.speakerUrl && '(Upload first)'}</option>
                                 </optgroup>
                               </select>
@@ -6109,7 +6109,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
                             {/* Duration Selection */}
                             <div className="settings-group" style={{ marginTop: '8px' }}>
-                              <label>â± Generation Duration</label>
+                              <label>⏱ Generation Duration</label>
                               <select 
                                 value={voiceSettings.duration || 30}
                                 onChange={(e) => setVoiceSettings({...voiceSettings, duration: parseInt(e.target.value)})}
@@ -8375,7 +8375,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           { id: 'activity', icon: Music, label: 'Social Media Hub', desc: 'Content & social management', color: 'var(--color-pink)' },
           { id: 'news', icon: GlobeIcon, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-emerald)' },
           { id: 'whitepapers', icon: FileText, label: 'Whitepapers', desc: 'Technical documentation', color: 'var(--color-indigo)' },
-          { id: 'orchestrator', icon: Zap, label: 'AI Production Pipeline', desc: '1 idea â†’ full release package', color: 'var(--color-cyan)' },
+          { id: 'orchestrator', icon: Zap, label: 'AI Production Pipeline', desc: '1 idea → full release package', color: 'var(--color-cyan)' },
           { id: 'workflow', icon: LayoutGrid, label: 'Studio Workflow', desc: 'Step-by-step manual control', color: 'var(--color-purple)' },
           { id: 'legal', icon: Shield, label: 'Legal Center', desc: 'Terms & licensing', color: 'var(--color-red)' },
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-orange)' },
@@ -8693,7 +8693,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 {[
                   { value: '16', label: 'Specialized Agents', color: 'var(--color-purple)' },
                   { value: '24/7', label: 'Availability', color: 'var(--color-cyan)' },
-                  { value: 'âˆž', label: 'Creative Potential', color: 'var(--color-green)' },
+                  { value: '∞', label: 'Creative Potential', color: 'var(--color-green)' },
                   { value: '100%', label: 'Royalty Free', color: 'var(--color-orange)' }
                 ].map((stat, i) => (
                   <div key={i} className="stat-card" style={{ 
@@ -8728,8 +8728,8 @@ const fetchUserCredits = useCallback(async (uid) => {
           { id: 'twitter', name: 'X / Twitter', icon: 'ð•', color: '#1DA1F2', desc: 'Posts & threads' },
           { id: 'spotify', name: 'Spotify', icon: '(headphones)', color: '#1DB954', desc: 'Music streaming' },
           { id: 'facebook', name: 'Facebook', icon: '(book)', color: '#1877F2', desc: 'Pages & groups' },
-          { id: 'youtube', name: 'YouTube', icon: 'â–¶', color: '#FF0000', desc: 'Video & shorts' },
-          { id: 'soundcloud', name: 'SoundCloud', icon: 'â˜', color: '#ff5500', desc: 'Audio streaming' },
+          { id: 'youtube', name: 'YouTube', icon: '▶', color: '#FF0000', desc: 'Video & shorts' },
+          { id: 'soundcloud', name: 'SoundCloud', icon: '☁', color: '#ff5500', desc: 'Audio streaming' },
           { id: 'threads', name: 'Threads', icon: '(thread)', color: '#000000', desc: 'Text-based social' },
           { id: 'linkedin', name: 'LinkedIn', icon: '(work)', color: '#0A66C2', desc: 'Professional network' }
         ];
@@ -8824,7 +8824,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: '600', color: 'white', marginBottom: '2px' }}>{p.name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{p.desc}</div>
-                          {connected && <div style={{ fontSize: '0.75rem', color: p.color, marginTop: '4px', fontWeight: '600' }}>âœ“ Connected</div>}
+                          {connected && <div style={{ fontSize: '0.75rem', color: p.color, marginTop: '4px', fontWeight: '600' }}>✔ Connected</div>}
                         </div>
                         <button
                           onClick={() => {
@@ -9286,7 +9286,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       ))}
                       {Object.values(socialConnections).filter(Boolean).length === 0 && (
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '8px' }}>
-                          No accounts connected. <button onClick={() => setActivitySection?.('connections')} style={{ color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: 'inherit' }}>Connect accounts â†’</button>
+                          No accounts connected. <button onClick={() => setActivitySection?.('connections')} style={{ color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: 'inherit' }}>Connect accounts →</button>
                         </div>
                       )}
                     </div>
@@ -9329,7 +9329,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       cursor: 'pointer', transition: 'all 0.2s ease'
                     }}
                   >
-                    Open Studio â†’
+                    Open Studio →
                   </button>
                 </div>
               </div>
@@ -10231,7 +10231,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               fontSize: '0.9rem'
             }}
           >
-            â† Back to Home
+            ← Back to Home
           </button>
         </div>
       </div>
@@ -11177,7 +11177,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         >
                           <option value="video">(video) Video</option>
                           <option value="image">(image) Image</option>
-                          <option value="animation">âœ¨ Animation</option>
+                          <option value="animation">✨ Animation</option>
                           <option value="thumbnail">(camera) Thumbnail</option>
                         </select>
                       </div>
@@ -11599,7 +11599,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         }
                         
                         if (successCount > 0) {
-                          toast.success(`âœ… Synced ${successCount} project${successCount > 1 ? 's' : ''} to cloud!`, { id: toastId });
+                          toast.success(`✅ Synced ${successCount} project${successCount > 1 ? 's' : ''} to cloud!`, { id: toastId });
                           setLastSyncTime(new Date());
                         } else {
                           toast.error('No projects to sync', { id: toastId });
@@ -13094,7 +13094,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         onClick={() => setAuthMode('login')} 
                         style={{ background: 'none', border: 'none', color: 'var(--color-purple)', cursor: 'pointer', fontWeight: '600' }}
                       >
-                        â† Back to sign in
+                        ← Back to sign in
                       </button>
                     </p>
                   )}
@@ -13999,7 +13999,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: '600', marginBottom: '4px' }}>Full Song Creation</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Lyrics â†’ Beat â†’ Cover Art</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Lyrics → Beat → Cover Art</div>
                       </div>
                       {newProjectData.workflow === 'full_song' && <CheckCircle size={20} className="text-purple" />}
                     </div>
@@ -14027,7 +14027,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: '600', marginBottom: '4px' }}>Social Promotion</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Video â†’ Trends â†’ Social Pilot</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Video → Trends → Social Pilot</div>
                       </div>
                       {newProjectData.workflow === 'social_promo' && <CheckCircle size={20} className="text-cyan" />}
                     </div>
@@ -14242,7 +14242,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 onClick={completeOnboarding}
                 style={{ width: '100%', padding: '16px', fontSize: '1.1rem', marginTop: '32px' }}
               >
-                Enter Studio â†’
+                Enter Studio →
               </button>
             </div>
           </div>
@@ -14924,7 +14924,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         setShowPreview(null);
                         setPreviewMaximized(false);
                         setShowOrchestrator(true);
-                        toast.success(`âœ¨ Added "${asset.title}" to Studio Orchestrator`);
+                        toast.success(`✨ Added "${asset.title}" to Studio Orchestrator`);
                       }
                     }}
                     className="btn-pill primary"
@@ -15036,7 +15036,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         const errDiv = document.createElement('div');
                         errDiv.className = 'audio-error-msg';
                         errDiv.style.cssText = 'color: var(--color-red); font-size: 0.85rem; margin-top: 12px;';
-                        errDiv.textContent = 'âš  Audio failed to load. Try downloading instead.';
+                        errDiv.textContent = '⚠ Audio failed to load. Try downloading instead.';
                         container.appendChild(errDiv);
                       }
                     }}

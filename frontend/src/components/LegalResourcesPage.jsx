@@ -1097,7 +1097,7 @@ Every time your sync airs on TV:
 **Example:**
 $5,000 sync fee for one episode
 + $250 per broadcast
-Ã- 10 airings (original + reruns)
+- 10 airings (original + reruns)
 + International broadcasts
 = $7,500-$15,000 total
 

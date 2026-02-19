@@ -18,7 +18,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const [showShowcase, setShowShowcase] = useState(false);
   const [showInvestorPitch, setShowInvestorPitch] = useState(false);
 
-  // ðŸš€ Check if already logged in via Firebase OR localStorage
+  //  Check if already logged in via Firebase OR localStorage
   const [isLoggedMember, setIsLoggedMember] = useState(false);
   useEffect(() => {
     if (!auth) {
@@ -151,7 +151,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     try {
       if (authMode === 'signup') {
         const result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
-        // ðŸ“§ Send email verification and sign out until verified
+        // (wrench) Send email verification and sign out until verified
         try {
           await sendEmailVerification(result.user);
           setAuthError('Account created! Please verify your email to log in. Check your inbox.');
@@ -169,7 +169,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       } else {
         const result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
         
-        // ðŸ“§ Check if email is verified
+        // (wrench) Check if email is verified
         if (!result.user.emailVerified) {
           setAuthError('Email not verified. A new verification link has been sent to your inbox.');
           try {
@@ -237,7 +237,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const handleCtaClick = (action = 'start', targetTab = 'mystudio') => {
     if (isTransitioning) return; // Prevent clicks during transition
     
-    // ðŸš€ Check if already logged in via Firebase OR localStorage
+    //  Check if already logged in via Firebase OR localStorage
     const hasUserId = localStorage.getItem('studio_user_id');
     const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
     const isActuallyLogged = !!(auth?.currentUser || hasUserId || isGuest);
@@ -473,9 +473,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </div>
       </header>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ═══════════════════════════════════════════════════════════════
           ABOUT US SECTION - Story, Agent Grid, Vision, Stats
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ═══════════════════════════════════════════════════════════════ */}
       <section style={{ padding: '80px 20px 40px', maxWidth: '900px', margin: '0 auto' }}>
         {/* Studio Agents Brand */}
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
@@ -656,9 +656,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ═══════════════════════════════════════════════════════════════
           NAVIGATION BUTTONS - Quick access to studio sections
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ═══════════════════════════════════════════════════════════════ */}
       <section style={{ padding: '0 20px 60px', maxWidth: '900px', margin: '0 auto' }}>
         <h2 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
           Jump Into the Studio
@@ -710,9 +710,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         </div>
       </section>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+      {/* ═══════════════════════════════════════════════════════════════
           DEMO SECTIONS - Single Agent Demo + Multi-Agent Demo
-          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+          ═══════════════════════════════════════════════════════════════ */}
       <section style={{ padding: '0 20px 60px', maxWidth: '900px', margin: '0 auto' }}>
         {/* Single Agent Demo */}
         <div style={{ marginBottom: '48px' }}>
@@ -862,7 +862,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               features: ['2,000 uses/month', '60s audio output', 'All Creator features', 'API access', 'Team collab', 'Analytics']
             },
             {
-              name: 'ðŸ”¥ Early Bird Lifetime',
+              name: '(fire) Early Bird Lifetime',
               price: '$49',
               period: 'one-time',
               features: ['Unlimited everything forever', 'Future updates included', 'Priority Support', 'Commercial License', 'Founder Badge'],
@@ -959,7 +959,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               marginBottom: '10px',
               textTransform: 'uppercase'
             }}>
-              ðŸŽµ Case Study
+              (music) Case Study
             </div>
             <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '8px', color: 'white' }}>
               The Lost Tapes of <a href="https://whipmontez.com" target="_blank" rel="noopener noreferrer" style={{ color: '#00ff41', textDecoration: 'underline' }}>Whip Montez</a>
@@ -1061,14 +1061,14 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           </div>
           <div className="footer-links">
             <button className="footer-link" onClick={() => window.location.hash = '#/whitepapers'}>Whitepapers</button>
-            <span className="footer-divider">â€¢</span>
+            <span className="footer-divider">*</span>
             <button className="footer-link" onClick={() => window.location.hash = '#/legal'}>Legal & Copyright</button>
-            <span className="footer-divider">â€¢</span>
+            <span className="footer-divider">*</span>
             <button className="footer-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>
-            <span className="footer-divider">â€¢</span>
+            <span className="footer-divider">*</span>
             <button className="footer-link" onClick={() => setShowTerms(true)}>Terms of Service</button>
           </div>
-          <p>&copy; 2026 studioagentsai.com â€¢ Built for the next generation of creators.</p>
+          <p>&copy; 2026 studioagentsai.com * Built for the next generation of creators.</p>
         </div>
       </footer>
 
@@ -1367,7 +1367,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     onClick={() => { setAuthMode('login'); setAuthError(''); }}
                     style={{ background: 'none', border: 'none', color: '#a855f7', cursor: 'pointer', fontSize: '0.85rem' }}
                   >
-                    â† Back to sign in
+                    ← Back to sign in
                   </button>
                 )}
               </div>
@@ -1452,7 +1452,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               <p>We collect information you provide directly to us, such as when you create an account, subscribe to our newsletter, or request customer support. This may include your name, email address, and payment information.</p>
               
               <h3>2. How We Use Your Information</h3>
-              <p>We use the information we collect to provide, maintain, and improve our services, to develop new ones, and to protect our company and our users. We also use this information to offer you tailored content â€“ like giving you more relevant search results and ads.</p>
+              <p>We use the information we collect to provide, maintain, and improve our services, to develop new ones, and to protect our company and our users. We also use this information to offer you tailored content -like giving you more relevant search results and ads.</p>
               
               <h3>3. Cookies & Tracking</h3>
               <p>We use cookies and similar technologies to collect information about your activity, browser, and device. This helps us remember your preferences and understand how you use our app.</p>
@@ -1578,7 +1578,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   letterSpacing: '0.2em',
                   textTransform: 'uppercase'
                 }}>
-                  Brooklyn, NY â€¢ 1999-2003
+                  Brooklyn, NY * 1999-2003
                 </p>
               </div>
 
@@ -1613,7 +1613,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                 </p>
                 
                 <p style={{ color: '#ccc', fontSize: '0.95rem', lineHeight: '1.7' }}>
-                  So we built an <strong style={{ color: '#00ff41' }}>Alternative Reality Experience (ARE)</strong>â€”using AI to reconstruct what could have been. What if Whip had modern tools? What if she had Studio Agents?
+                  So we built an <strong style={{ color: '#00ff41' }}>Alternative Reality Experience (ARE)</strong> - using AI to reconstruct what could have been. What if Whip had modern tools? What if she had Studio Agents?
                 </p>
               </div>
 
@@ -1739,7 +1739,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               <div>
                 <h2 style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
                   <Briefcase size={24} style={{ color: 'var(--color-purple)' }} />
-                  Studio Agents â€” Investor Pitch
+                  Studio Agents -Investor Pitch
                 </h2>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
                   The AI-Native Label Disrupting a $30B Industry
@@ -1791,7 +1791,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   >
                     {isLocked ? <LockIcon size={12} /> : <tab.icon size={14} />}
                     {tab.label}
-                    {isLocked && <span style={{ fontSize: '0.6rem', marginLeft: '2px' }}>ðŸ”’</span>}
+                    {isLocked && <span style={{ fontSize: '0.6rem', marginLeft: '2px' }}>(key)</span>}
                   </button>
                 );
               })}
@@ -1834,7 +1834,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                         color: 'white',
                         marginBottom: '12px'
                       }}>
-                        âœ… Request Submitted
+                        ✅ Request Submitted
                       </h3>
                       <p style={{ 
                         color: 'var(--text-secondary)', 
@@ -2046,7 +2046,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       Replace Record Labels with AI Agents
                     </h3>
                     <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
-                      We're building the world's first <strong style={{ color: 'white' }}>AI-native record label</strong> â€” 
+                      We're building the world's first <strong style={{ color: 'white' }}>AI-native record label</strong> -
                       a platform where 16 specialized AI agents handle everything from songwriting to distribution, 
                       giving independent artists the firepower of a major label at 1/100th the cost.
                     </p>
@@ -2060,7 +2060,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                   }}>
                     {[
                       { title: 'The Problem', desc: 'Labels take 80-90% of revenue, control artists for 7+ years, and 97% of signed artists never recoup', color: '#ef4444' },
-                      { title: 'Our Solution', desc: '16 AI agents replace the entire label infrastructure â€” A&R, production, marketing, distribution â€” at $60/year', color: '#22c55e' },
+                      { title: 'Our Solution', desc: '16 AI agents replace the entire label infrastructure -A&R, production, marketing, distribution -at $60/year', color: '#22c55e' },
                       { title: 'The Vision', desc: 'Become the default platform for independent music creation, making labels obsolete within 10 years', color: '#8b5cf6' }
                     ].map((item, i) => (
                       <div key={i} style={{
@@ -2097,7 +2097,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       margin: 0,
                       fontStyle: 'italic'
                     }}>
-                      "We're building the <span style={{ color: 'var(--color-cyan)' }}>Shopify for music creation</span> â€” 
+                      "We're building the <span style={{ color: 'var(--color-cyan)' }}>Shopify for music creation</span> -
                       a platform where AI agents replace the entire record label stack. Artists keep 100% ownership, 
                       pay $60/year instead of $15K+ upfront, and ship music 10x faster."
                     </p>
@@ -2351,7 +2351,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       { value: '127K+', label: 'Active Artists', growth: '+340% YoY' },
                       { value: '847K', label: 'Songs Created', growth: '+520% YoY' },
                       { value: '92%', label: 'Day-30 Retention', growth: 'Top 5% for SaaS' },
-                      { value: '4.9â˜…', label: 'App Rating', growth: '12K+ reviews' }
+                      { value: '4.9★', label: 'App Rating', growth: '12K+ reviews' }
                     ].map((item, i) => (
                       <div key={i} style={{
                         padding: '18px 12px',
@@ -2401,7 +2401,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                         background: 'linear-gradient(180deg, var(--color-purple), var(--color-cyan))'
                       }} />
                       {[
-                        { date: 'Q1 2024', milestone: 'Public Beta Launch â€” 5K signups in first week' },
+                        { date: 'Q1 2024', milestone: 'Public Beta Launch -5K signups in first week' },
                         { date: 'Q2 2024', milestone: 'Hit 50K users, launched all 16 agents' },
                         { date: 'Q3 2024', milestone: '100K users, partnerships with 3 major distributors' },
                         { date: 'Q4 2024', milestone: 'Mobile app launch, 127K users, $2.1M ARR run rate' }
@@ -2432,7 +2432,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     border: '1px solid rgba(139, 92, 246, 0.2)'
                   }}>
                     <h4 style={{ color: 'white', fontSize: '0.9rem', fontWeight: '600', marginBottom: '12px' }}>
-                      User Love â¤ï¸
+                      User Love ❤
                     </h4>
                     <div style={{ 
                       display: 'grid', 
@@ -2440,8 +2440,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       gap: '12px' 
                     }}>
                       {[
-                        '"This replaced my entire creative team. I released an EP in 2 weeks." â€” @IndieRapper',
-                        '"The Ghostwriter agent writes hooks better than most writers I\'ve paid." â€” Producer, ATL'
+                        '"This replaced my entire creative team. I released an EP in 2 weeks." -@IndieRapper',
+                        '"The Ghostwriter agent writes hooks better than most writers I\'ve paid." -Producer, ATL'
                       ].map((quote, i) => (
                         <div key={i} style={{
                           padding: '14px',
@@ -2609,7 +2609,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     </h4>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
                       By 2030, we aim to be the <strong style={{ color: 'white' }}>default infrastructure</strong> for 
-                      independent music â€” replacing the need for labels, distributors, and traditional production companies entirely.
+                      independent music -replacing the need for labels, distributors, and traditional production companies entirely.
                     </p>
                   </div>
                 </div>
@@ -2749,7 +2749,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     textAlign: 'center'
                   }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '8px', letterSpacing: '1px' }}>
-                      TARGET VALUATION â€” SERIES A
+                      TARGET VALUATION -SERIES A
                     </div>
                     <div style={{ 
                       fontSize: '2.5rem', 
@@ -2759,7 +2759,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       WebkitTextFillColor: 'transparent',
                       marginBottom: '8px'
                     }}>
-                      $50M â€” $75M
+                      $50M -$75M
                     </div>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
                       Based on 25-35x ARR multiples for high-growth AI SaaS
