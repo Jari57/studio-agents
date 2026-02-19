@@ -1913,10 +1913,9 @@ select optgroup {
 
 .agents-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 2rem;
-  max-width: 1000px;
-  margin: 0 auto;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+  width: 100%;
 }
 
 .agent-card-premium {
@@ -11333,7 +11332,6 @@ html, body, #root {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0;
-  padding-bottom: 8px;
   min-width: 0;
   max-width: 100%;
 }
@@ -11490,7 +11488,7 @@ html, body, #root {
   
   .agents-main-panel {
     padding: 4px 2px;
-    padding-bottom: 8px;
+    padding-bottom: 0;
     overflow-y: auto;
   }
   
