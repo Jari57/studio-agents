@@ -1340,21 +1340,33 @@ function ProjectHubV3({
         .projects-grid.list .project-card {
           display: flex;
           flex-direction: row;
-          height: 100px;
+          min-height: 100px;
+          height: auto;
         }
 
         .projects-grid.list .card-thumbnail {
-          width: 160px;
-          height: 100%;
+          width: 140px;
+          min-height: 100px;
           flex-shrink: 0;
           border-radius: 16px 0 0 16px;
+          aspect-ratio: 4 / 3;
         }
 
         .projects-grid.list .card-info {
           flex: 1;
           display: flex;
-          align-items: center;
-          justify-content: space-between;
+          flex-direction: column;
+          justify-content: center;
+          min-width: 0;
+        }
+
+        .projects-grid.list .btn-open-project {
+          display: none;
+        }
+
+        .projects-grid.list .context-btn {
+          top: 50%;
+          transform: translateY(-50%);
         }
 
         /* Project Card */
@@ -1692,23 +1704,24 @@ function ProjectHubV3({
           padding: 12px;
           position: relative;
           overflow: hidden;
+          min-width: 0;
         }
 
         .card-title {
-          font-size: 1rem;
+          font-size: clamp(0.85rem, 2.5vw, 1rem);
           font-weight: 600;
           margin: 0 0 6px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          padding-right: 32px;
+          padding-right: 36px;
         }
 
         .card-meta {
           display: flex;
           gap: 16px;
           color: var(--text-secondary);
-          font-size: 0.8rem;
+          font-size: clamp(0.7rem, 2vw, 0.8rem);
         }
 
         .meta-time {
@@ -2267,7 +2280,7 @@ function ProjectHubV3({
           }
 
           .projects-grid.grid {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
             gap: 12px;
           }
           
@@ -2312,15 +2325,10 @@ function ProjectHubV3({
           }
           
           .card-info {
-            padding: 12px;
+            padding: 10px;
           }
-          
-          .card-title {
-            font-size: 0.9rem;
-          }
-          
+
           .card-meta {
-            font-size: 0.75rem;
             gap: 8px;
           }
           
@@ -2794,19 +2802,19 @@ function ProjectHubV3({
         }
 
         /* Small phones */
-        @media (max-width: 400px) {
+        @media (max-width: 480px) {
           .project-hub-v3 {
             padding: 12px;
           }
-          
+
           .projects-grid.grid {
             grid-template-columns: 1fr;
           }
-          
+
           .card-thumbnail {
             height: 160px;
           }
-          
+
           .template-grid {
             grid-template-columns: 1fr;
           }
@@ -2817,12 +2825,12 @@ function ProjectHubV3({
           .project-hub-v3 {
             max-width: 1600px;
           }
-          
+
           .projects-grid.grid {
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 24px;
           }
-          
+
           .card-thumbnail {
             height: 200px;
           }
