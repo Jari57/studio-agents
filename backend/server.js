@@ -5889,7 +5889,7 @@ app.post('/api/master-audio', verifyFirebaseToken, requireAuth, generationLimite
     // Get processed audio as buffer
     const processedBuffer = Buffer.from(wav.toBuffer());
     const processedBase64 = processedBuffer.toString('base64');
-    const audioUrl = `data:audio/wav;base64,${processedBase64}`;
+    const masteredDataUrl = `data:audio/wav;base64,${processedBase64}`;
 
     // Upload to Firebase Storage for permanent URL
     let permanentUrl = null;
@@ -5898,7 +5898,7 @@ app.post('/api/master-audio', verifyFirebaseToken, requireAuth, generationLimite
       if (bucket) {
         try {
           const fileName = `master_${preset || 'custom'}_${Date.now()}.wav`;
-          const uploadResult = await uploadToStorage(audioUrl, req.user.uid, fileName, 'audio/wav');
+          const uploadResult = await uploadToStorage(masteredDataUrl, req.user.uid, fileName, 'audio/wav');
           permanentUrl = uploadResult.url;
           logger.info('📤 Mastered audio uploaded to Firebase Storage', { path: uploadResult.path });
         } catch (uploadErr) {
@@ -5910,7 +5910,7 @@ app.post('/api/master-audio', verifyFirebaseToken, requireAuth, generationLimite
     // Response with mastered audio
     res.json({
       audio: processedBase64,
-      audioUrl: permanentUrl || audioUrl,
+      audioUrl: permanentUrl || masteredDataUrl,
       mimeType: 'audio/wav',
       specs: {
         sampleRate: finalSampleRate,
