@@ -97,6 +97,72 @@ const splitCreativeContent = (text) => {
   return { intro: '', content: text };
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// GENRE PRESETS - Smart defaults per genre
+// ═══════════════════════════════════════════════════════════════════════════════
+const GENRE_PRESETS = {
+  'Trap':             { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 180 },
+  'Drill':            { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 180 },
+  'Modern Hip-Hop':   { bpm: 130, mood: 'Energetic', structure: 'Full Song', duration: 180 },
+  '90s Boom Bap':     { bpm: 90,  mood: 'Chill',     structure: 'Full Song', duration: 180 },
+  'R&B / Soul':       { bpm: 100, mood: 'Dreamy',    structure: 'Full Song', duration: 180 },
+  'Pop':              { bpm: 120, mood: 'Happy',     structure: 'Full Song', duration: 180 },
+  'Rock':             { bpm: 130, mood: 'Energetic', structure: 'Full Song', duration: 180 },
+  'Electronic / EDM': { bpm: 128, mood: 'Energetic', structure: 'Full Song', duration: 180 },
+  'Lo-Fi':            { bpm: 80,  mood: 'Chill',     structure: 'Loop',      duration: 120 },
+  'Afrobeat':         { bpm: 110, mood: 'Energetic', structure: 'Full Song', duration: 180 },
+  'Reggaeton':        { bpm: 95,  mood: 'Energetic', structure: 'Full Song', duration: 180 },
+  'K-Pop':            { bpm: 125, mood: 'Happy',     structure: 'Full Song', duration: 180 },
+  'J-Pop':            { bpm: 130, mood: 'Happy',     structure: 'Full Song', duration: 180 },
+  'Amapiano':         { bpm: 113, mood: 'Chill',     structure: 'Full Song', duration: 180 },
+  'Phonk':            { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 180 },
+  'Dancehall':        { bpm: 100, mood: 'Energetic', structure: 'Full Song', duration: 180 },
+  'Latin Trap':       { bpm: 140, mood: 'Dark',      structure: 'Full Song', duration: 180 },
+  'Country':          { bpm: 110, mood: 'Happy',     structure: 'Full Song', duration: 180 },
+  'Jazz':             { bpm: 120, mood: 'Chill',     structure: 'Full Song', duration: 180 },
+  'Classical':        { bpm: 100, mood: 'Epic',      structure: 'Full Song', duration: 240 },
+  'Gospel':           { bpm: 110, mood: 'Epic',      structure: 'Full Song', duration: 180 },
+  'Reggae':           { bpm: 80,  mood: 'Chill',     structure: 'Full Song', duration: 180 },
+  'Metal':            { bpm: 160, mood: 'Dark',      structure: 'Full Song', duration: 180 },
+  'Punk':             { bpm: 170, mood: 'Energetic', structure: 'Full Song', duration: 120 },
+  'Funk':             { bpm: 110, mood: 'Energetic', structure: 'Full Song', duration: 180 },
+  'Disco':            { bpm: 120, mood: 'Happy',     structure: 'Full Song', duration: 180 },
+  'Synthwave':        { bpm: 118, mood: 'Dreamy',    structure: 'Full Song', duration: 180 },
+  'Indie':            { bpm: 115, mood: 'Dreamy',    structure: 'Full Song', duration: 180 },
+  'Acoustic':         { bpm: 100, mood: 'Chill',     structure: 'Full Song', duration: 180 },
+  'Bollywood':        { bpm: 130, mood: 'Energetic', structure: 'Full Song', duration: 180 },
+  'Afro-Pop':         { bpm: 105, mood: 'Happy',     structure: 'Full Song', duration: 180 },
+  'Cumbia':           { bpm: 95,  mood: 'Happy',     structure: 'Full Song', duration: 180 },
+};
+
+const ALL_GENRES = Object.keys(GENRE_PRESETS);
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ALL LANGUAGES - Global coverage
+// ═══════════════════════════════════════════════════════════════════════════════
+const ALL_LANGUAGES = [
+  'English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese',
+  'Chinese (Mandarin)', 'Chinese (Cantonese)', 'Hindi', 'Arabic', 'Turkish', 'Russian',
+  'Italian', 'Dutch', 'Swedish', 'Norwegian', 'Danish', 'Finnish', 'Polish', 'Czech',
+  'Greek', 'Hebrew', 'Thai', 'Vietnamese', 'Indonesian', 'Malay', 'Filipino/Tagalog',
+  'Swahili', 'Yoruba', 'Zulu', 'Amharic', 'Persian/Farsi', 'Urdu', 'Bengali',
+  'Tamil', 'Telugu', 'Punjabi', 'Ukrainian', 'Romanian', 'Hungarian', 'Croatian', 'Serbian'
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OUTPUT FORMAT PRESETS - Platform-optimized profiles
+// ═══════════════════════════════════════════════════════════════════════════════
+const OUTPUT_PRESETS = {
+  'Full Song Release':  { duration: 180, structure: 'Full Song',  outputFormat: 'music',   useBars: false, icon: '💿' },
+  'TikTok / Reels':     { duration: 30,  structure: 'Chorus',     outputFormat: 'social',  useBars: false, icon: '📱' },
+  'YouTube Music Video': { duration: 180, structure: 'Full Song',  outputFormat: 'music',   useBars: false, icon: '🎬' },
+  'Spotify Single':     { duration: 180, structure: 'Radio Edit', outputFormat: 'music',   useBars: false, icon: '🎧' },
+  'Ad / Commercial':    { duration: 30,  structure: 'Loop',       outputFormat: 'tv',      useBars: false, icon: '📺' },
+  'Podcast Intro':      { duration: 15,  structure: 'Intro',      outputFormat: 'podcast', useBars: false, icon: '🎙️' },
+  'Instagram Story':    { duration: 15,  structure: 'Chorus',     outputFormat: 'social',  useBars: false, icon: '📷' },
+  'DJ Loop':            { duration: 60,  structure: 'Loop',       outputFormat: 'music',   useBars: true,  icon: '🎛️' },
+};
+
 // Skeleton Loader for AI generation
 const SkeletonItem = ({ height = '14px', width = '100%', marginBottom = '8px', opacity = 0.1 }) => (
   <div style={{
@@ -1357,6 +1423,10 @@ export default function StudioOrchestratorV2({
   const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
   const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
   const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
+  const [quickMode, setQuickMode] = useState(true); // Quick Create vs Advanced Mode
+  const [quickGenre, setQuickGenre] = useState('Modern Hip-Hop'); // Genre for Quick Create
+  const [selectedOutputPreset, setSelectedOutputPreset] = useState('Full Song Release'); // Output format preset
+  const [pipelineSteps, setPipelineSteps] = useState([]); // Live progress feed
   const [voiceSampleUrl, setVoiceSampleUrl] = useState(null); // URL of uploaded voice sample for cloning
   const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(localStorage.getItem('studio_elevenlabs_voice_id') || '');
   const [isUploadingSample, setIsUploadingSample] = useState(false);
@@ -1384,6 +1454,38 @@ export default function StudioOrchestratorV2({
   // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
   const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
   const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // HELPERS: Genre & Output Presets
+  // ═══════════════════════════════════════════════════════════════════════════════
+  const applyGenrePreset = useCallback((genreName) => {
+    const preset = GENRE_PRESETS[genreName];
+    if (!preset) return;
+    setStyle(genreName);
+    setProjectBpm(preset.bpm);
+    setMood(preset.mood);
+    setStructure(preset.structure);
+    setDuration(preset.duration);
+  }, []);
+
+  const applyOutputPreset = useCallback((presetName) => {
+    const preset = OUTPUT_PRESETS[presetName];
+    if (!preset) return;
+    setSelectedOutputPreset(presetName);
+    setDuration(preset.duration);
+    setStructure(preset.structure);
+    setOutputFormat(preset.outputFormat);
+    setUseBars(preset.useBars);
+  }, []);
+
+  // Pipeline progress helper
+  const updatePipelineStep = useCallback((stepId, status) => {
+    setPipelineSteps(prev => prev.map(step =>
+      step.id === stepId
+        ? { ...step, status, ...(status === 'active' ? { startTime: Date.now() } : {}), ...(status === 'done' || status === 'error' ? { endTime: Date.now() } : {}) }
+        : step
+    ));
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // EFFECTS
@@ -1747,6 +1849,18 @@ export default function StudioOrchestratorV2({
     
     setIsGenerating(true);
     toast.loading('Generating content...', { id: 'gen-all' });
+
+    // Build pipeline steps based on active slots
+    const steps = [];
+    if (selectedAgents.lyrics) steps.push({ id: 'lyrics', label: 'Writing lyrics', status: 'pending', startTime: null, endTime: null });
+    if (selectedAgents.audio) steps.push({ id: 'beat-desc', label: 'Composing beat description', status: 'pending', startTime: null, endTime: null });
+    if (selectedAgents.visual) steps.push({ id: 'visual-desc', label: 'Designing album art concept', status: 'pending', startTime: null, endTime: null });
+    if (selectedAgents.audio) steps.push({ id: 'beat-audio', label: 'Generating beat audio', status: 'pending', startTime: null, endTime: null });
+    if (selectedAgents.visual) steps.push({ id: 'image', label: 'Creating album artwork', status: 'pending', startTime: null, endTime: null });
+    if (selectedAgents.lyrics) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
+    if (selectedAgents.video) steps.push({ id: 'video', label: 'Producing music video', status: 'pending', startTime: null, endTime: null });
+    steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
+    setPipelineSteps(steps);
     
     try {
       const headers = await getHeaders();
@@ -1763,6 +1877,9 @@ export default function StudioOrchestratorV2({
 
         setGeneratingSlots(prev => ({ ...prev, [slot]: true }));
         const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
+        // Update pipeline step
+        const stepId = slot === 'audio' ? 'beat-desc' : slot === 'visual' ? 'visual-desc' : slot;
+        updatePipelineStep(stepId, 'active');
         
         const systemPrompt = `You are ${agent.name}, an elite Billboard-standard ${agent.category} specialist with multiple Grammy and Billboard #1 credits.
         Your mission: create content for a ${style} track about "${songIdea}" in ${language} that is indistinguishable from a major-label release.
@@ -1818,13 +1935,16 @@ REQUIREMENTS:
             });
             setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
             console.log(`[handleGenerate] ${slot} generated successfully`);
+            updatePipelineStep(stepId, 'done');
             
             // Track media generation promises so we can sequence the pipeline
             if (slot === 'audio') {
               // Beat description ready → queue beat audio generation (starts immediately)
-              pipelinePromises.beatAudio = handleGenerateAudio(data.output);
+              updatePipelineStep('beat-audio', 'active');
+              pipelinePromises.beatAudio = handleGenerateAudio(data.output).then(() => updatePipelineStep('beat-audio', 'done')).catch(() => updatePipelineStep('beat-audio', 'error'));
             } else if (slot === 'visual') {
-              pipelinePromises.image = handleGenerateImage(data.output);
+              updatePipelineStep('image', 'active');
+              pipelinePromises.image = handleGenerateImage(data.output).then(() => updatePipelineStep('image', 'done')).catch(() => updatePipelineStep('image', 'error'));
             } else if (slot === 'video') {
               // Save video description for later — video gen needs mixed audio first
               pipelinePromises.videoDescription = data.output;
@@ -1835,12 +1955,14 @@ REQUIREMENTS:
             const errorText = await response.text();
             console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
             setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
+            updatePipelineStep(stepId, 'error');
             toast.error(`Agent ${agent.name} failed: ${response.status}`, { icon: '❌' });
             return null;
           }
         } catch (err) {
           console.error(`Error generating ${slot}:`, err);
           setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
+          updatePipelineStep(stepId, 'error');
           toast.error(`Connection Error: ${slot} generation failed.`, { icon: '📡' });
           return null;
         }
@@ -1907,7 +2029,9 @@ REQUIREMENTS:
       // Generate vocals AFTER beat is ready (so backingTrackUrl works and backend mixes them)
       if (lyricsResult && activeSlots.find(([s]) => s === 'lyrics') && !(mediaUrls.vocals || mediaUrls.lyricsVocal)) {
         console.log('[Pipeline] Starting vocal generation with beat URL for mixing');
+        updatePipelineStep('vocals', 'active');
         await handleGenerateVocals(lyricsResult);
+        updatePipelineStep('vocals', 'done');
         console.log('[Pipeline] Vocals (mixed with beat) complete');
       }
 
@@ -1919,11 +2043,14 @@ REQUIREMENTS:
       // Generate video LAST — it now gets mixed audio (vocal+beat) instead of just beat
       if (pipelinePromises.videoDescription && !mediaUrls.video) {
         console.log('[Pipeline] Starting video generation with mixed audio');
+        updatePipelineStep('video', 'active');
         await handleGenerateVideo(pipelinePromises.videoDescription);
+        updatePipelineStep('video', 'done');
       }
 
       // Auto-create final mix preview
-      setTimeout(() => handleCreateFinalMix(), 500);
+      updatePipelineStep('final', 'active');
+      setTimeout(() => { handleCreateFinalMix(); updatePipelineStep('final', 'done'); }, 500);
       
       toast.dismiss('gen-all');
       toast.success('Generation complete!');
@@ -1942,6 +2069,8 @@ REQUIREMENTS:
     } finally {
       setIsGenerating(false);
       setGeneratingSlots({ lyrics: false, audio: false, visual: false, video: false });
+      // Clear pipeline steps after a short delay to let user see the completed state
+      setTimeout(() => setPipelineSteps([]), 3000);
     }
   };
 
@@ -3406,19 +3535,152 @@ REQUIREMENTS:
       >
         
         {/* Input Section */}
-        <div style={{ 
+        <div style={{
           background: 'rgba(255,255,255,0.03)',
           borderRadius: isMobile ? '12px' : '16px',
           padding: isMobile ? '8px' : '16px',
           marginBottom: isMobile ? '10px' : '20px',
           border: '1px solid rgba(255,255,255,0.06)'
         }}>
+          {/* Mode Toggle */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginBottom: '8px'
+          }}>
+            <button
+              onClick={() => setQuickMode(!quickMode)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(139, 92, 246, 0.8)',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Settings size={12} />
+              {quickMode ? 'Advanced Mode' : 'Quick Mode'}
+            </button>
+          </div>
+
+          {quickMode ? (
+            /* ═══════ QUICK CREATE MODE ═══════ */
+            <div style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: '10px',
+              alignItems: isMobile ? 'stretch' : 'center'
+            }}>
+              <input
+                value={songIdea}
+                onChange={(e) => setSongIdea(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    // Auto-select all agents and go
+                    setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' });
+                    applyGenrePreset(quickGenre);
+                    handleGenerate();
+                  }
+                }}
+                placeholder="Describe your song in one line..."
+                style={{
+                  flex: 1,
+                  padding: '14px 20px',
+                  borderRadius: '12px',
+                  background: 'rgba(0,0,0,0.5)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: 'white',
+                  fontSize: isMobile ? '0.9rem' : '1rem',
+                  outline: 'none',
+                  minHeight: '52px',
+                  fontFamily: 'inherit'
+                }}
+              />
+              <select
+                value={quickGenre}
+                onChange={(e) => {
+                  setQuickGenre(e.target.value);
+                  applyGenrePreset(e.target.value);
+                }}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '12px',
+                  background: 'rgba(0,0,0,0.5)',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  color: '#a78bfa',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  minHeight: '52px',
+                  minWidth: isMobile ? 'auto' : '160px',
+                  WebkitAppearance: 'none',
+                  appearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b5cf6' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 12px center'
+                }}
+              >
+                {ALL_GENRES.map(g => (
+                  <option key={g} value={g} style={{ background: '#1a1a1a' }}>{g}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => {
+                  setSelectedAgents({ lyrics: 'ghost', audio: 'beat', visual: 'album', video: 'video-creator' });
+                  applyGenrePreset(quickGenre);
+                  handleGenerate();
+                }}
+                disabled={isGenerating || !songIdea.trim()}
+                style={{
+                  padding: '14px 28px',
+                  borderRadius: '12px',
+                  background: isGenerating ? 'rgba(139, 92, 246, 0.3)' : 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                  border: 'none',
+                  color: 'white',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  cursor: isGenerating || !songIdea.trim() ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  opacity: !songIdea.trim() ? 0.5 : 1,
+                  boxShadow: isGenerating ? 'none' : '0 4px 20px rgba(139, 92, 246, 0.4)',
+                  minHeight: '52px',
+                  whiteSpace: 'nowrap',
+                  minWidth: isMobile ? 'auto' : '160px'
+                }}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 size={18} className="spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={18} />
+                    Create Song
+                  </>
+                )}
+              </button>
+            </div>
+          ) : (
+            /* ═══════ ADVANCED MODE ═══════ */
+            <>
           {/* Song Idea Input - Stacks on mobile */}
-          <div style={{ 
-            display: 'flex', 
+          <div style={{
+            display: 'flex',
             flexDirection: 'column',
-            gap: isMobile ? '8px' : '12px', 
-            marginBottom: isMobile ? '12px' : '16px' 
+            gap: isMobile ? '8px' : '12px',
+            marginBottom: isMobile ? '12px' : '16px'
           }}>
             <textarea
               value={songIdea}
@@ -3557,8 +3819,77 @@ REQUIREMENTS:
               </button>
             ))}
           </div>
+            </>
+          )}
         </div>
 
+        {/* Pipeline Progress Feed */}
+        {isGenerating && pipelineSteps.length > 0 && (
+          <div style={{
+            background: 'rgba(255,255,255,0.03)',
+            borderRadius: '12px',
+            padding: isMobile ? '12px' : '16px',
+            marginBottom: '16px',
+            border: '1px solid rgba(139, 92, 246, 0.15)'
+          }}>
+            <div style={{
+              fontSize: '0.75rem',
+              fontWeight: '600',
+              color: 'var(--text-secondary)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <Loader2 size={14} className="spin" style={{ color: '#8b5cf6' }} />
+              Pipeline Progress
+            </div>
+            {pipelineSteps.map((step) => (
+              <div key={step.id} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '6px 0',
+                opacity: step.status === 'pending' ? 0.4 : 1,
+                transition: 'opacity 0.3s'
+              }}>
+                {step.status === 'done' ? (
+                  <CheckCircle2 size={16} style={{ color: '#22c55e', flexShrink: 0 }} />
+                ) : step.status === 'active' ? (
+                  <Loader2 size={16} className="spin" style={{ color: '#8b5cf6', flexShrink: 0 }} />
+                ) : step.status === 'error' ? (
+                  <X size={16} style={{ color: '#ef4444', flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.15)', flexShrink: 0 }} />
+                )}
+                <span style={{
+                  fontSize: '0.8rem',
+                  color: step.status === 'active' ? '#a78bfa' : step.status === 'done' ? '#22c55e' : step.status === 'error' ? '#ef4444' : 'rgba(255,255,255,0.5)',
+                  fontWeight: step.status === 'active' ? '600' : '400',
+                  flex: 1
+                }}>
+                  {step.label}
+                </span>
+                {step.status === 'done' && step.startTime && step.endTime && (
+                  <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
+                    {((step.endTime - step.startTime) / 1000).toFixed(1)}s
+                  </span>
+                )}
+                {step.status === 'active' && step.startTime && (
+                  <span style={{ fontSize: '0.7rem', color: 'rgba(139, 92, 246, 0.6)' }}>
+                    ...
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Advanced-only sections hidden in Quick Mode */}
+        {!quickMode && (
+          <>
         {/* Configuration Row */}
         <div style={{ 
           display: 'grid', 
@@ -3567,8 +3898,8 @@ REQUIREMENTS:
           marginBottom: '20px'
         }}>
           {[
-            { label: 'Language', value: language, setter: setLanguage, options: ['English', 'Spanish', 'French', 'German', 'Japanese', 'Korean', 'Portuguese'] },
-            { label: 'Genre', value: style, setter: setStyle, options: ['Modern Hip-Hop', '90s Boom Bap', 'Trap', 'R&B / Soul', 'Pop', 'Rock', 'Electronic', 'Lo-Fi'] },
+            { label: 'Language', value: language, setter: setLanguage, options: ALL_LANGUAGES },
+            { label: 'Genre', value: style, setter: (val) => applyGenrePreset(val), options: ALL_GENRES },
             { label: 'Project BPM', value: projectBpm, setter: setProjectBpm, options: [70, 80, 90, 100, 110, 120, 130, 140, 150, 160] },
             { label: 'Timing Mode', value: useBars ? 'Bars' : 'Seconds', setter: (val) => setUseBars(val === 'Bars'), options: ['Bars', 'Seconds'] },
             { label: 'Musical Bars', value: bars, setter: setBars, options: [4, 8, 16, 32, 64], hidden: !useBars },
@@ -3705,6 +4036,49 @@ REQUIREMENTS:
                 </button>
              </div>
           </div>
+        </div>
+
+        {/* Output Format Preset Selector */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          flexWrap: 'wrap',
+          marginBottom: '20px',
+          alignItems: 'center'
+        }}>
+          <span style={{
+            fontSize: '0.7rem',
+            color: 'var(--text-secondary)',
+            fontWeight: '600',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            marginRight: '4px'
+          }}>
+            Output For:
+          </span>
+          {Object.entries(OUTPUT_PRESETS).map(([name, preset]) => (
+            <button
+              key={name}
+              onClick={() => applyOutputPreset(name)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '20px',
+                background: selectedOutputPreset === name ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${selectedOutputPreset === name ? 'rgba(139, 92, 246, 0.5)' : 'rgba(255,255,255,0.1)'}`,
+                color: selectedOutputPreset === name ? '#a78bfa' : 'rgba(255,255,255,0.6)',
+                fontSize: '0.75rem',
+                fontWeight: selectedOutputPreset === name ? '600' : '400',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <span>{preset.icon}</span> {name}
+            </button>
+          ))}
         </div>
 
         {/* Agent Selection */}
@@ -4846,6 +5220,10 @@ REQUIREMENTS:
               )}
             </div>
           </div>
+        )}
+
+        {/* End of advanced-only sections */}
+        </>
         )}
 
         {/* 4 Generator Cards Grid - 2x2 layout */}
