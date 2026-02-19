@@ -1309,6 +1309,9 @@ export default function StudioOrchestratorV2({
   });
   
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingSlots, setGeneratingSlots] = useState({
+    lyrics: false, audio: false, visual: false, video: false
+  });
   const [outputs, setOutputs] = useState({
     lyrics: null,
     audio: null,
@@ -1757,7 +1760,8 @@ export default function StudioOrchestratorV2({
       const generateForSlot = async (slot, agentId, contextLyrics = '') => {
         const agent = AGENTS.find(a => a.id === agentId);
         if (!agent) return null;
-        
+
+        setGeneratingSlots(prev => ({ ...prev, [slot]: true }));
         const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
         
         const systemPrompt = `You are ${agent.name}, an elite Billboard-standard ${agent.category} specialist with multiple Grammy and Billboard #1 credits.
@@ -1812,6 +1816,7 @@ REQUIREMENTS:
               outputsRef.current = NEW_OUTPUTS;
               return NEW_OUTPUTS;
             });
+            setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
             console.log(`[handleGenerate] ${slot} generated successfully`);
             
             // Track media generation promises so we can sequence the pipeline
@@ -1829,11 +1834,13 @@ REQUIREMENTS:
           } else {
             const errorText = await response.text();
             console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
+            setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
             toast.error(`Agent ${agent.name} failed: ${response.status}`, { icon: '❌' });
             return null;
           }
         } catch (err) {
           console.error(`Error generating ${slot}:`, err);
+          setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
           toast.error(`Connection Error: ${slot} generation failed.`, { icon: '📡' });
           return null;
         }
@@ -1934,20 +1941,21 @@ REQUIREMENTS:
       );
     } finally {
       setIsGenerating(false);
+      setGeneratingSlots({ lyrics: false, audio: false, visual: false, video: false });
     }
   };
 
   // Regenerate single slot
   const handleRegenerate = async (slot) => {
     // PREVENT DUPLICATE CALLS
-    if (isGenerating) return;
+    if (isGenerating || generatingSlots[slot]) return;
 
     if (!selectedAgents[slot]) return;
-    
+
     const agent = AGENTS.find(a => a.id === selectedAgents[slot]);
     if (!agent) return;
-    
-    setIsGenerating(true);
+
+    setGeneratingSlots(prev => ({ ...prev, [slot]: true }));
     setOutputs(prev => ({ ...prev, [slot]: null }));
     
     try {
@@ -1989,7 +1997,7 @@ REQUIREMENTS:
     } catch {
       toast.error('Regeneration failed');
     } finally {
-      setIsGenerating(false);
+      setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
     }
   };
 
@@ -4857,7 +4865,7 @@ REQUIREMENTS:
             subtitle={slot.subtitle}
             color={slot.color}
             output={outputs[slot.key]}
-            isLoading={isGenerating && selectedAgents[slot.key]}
+            isLoading={generatingSlots[slot.key] && selectedAgents[slot.key]}
             mediaType={slot.mediaType}
             mediaUrl={
               slot.key === 'audio' ? mediaUrls.audio :
@@ -5019,7 +5027,7 @@ REQUIREMENTS:
                     subtitle={slot.subtitle}
                     color={slot.color}
                     output={outputs[slot.key]}
-                    isLoading={isGenerating && selectedAgents[slot.key]}
+                    isLoading={generatingSlots[slot.key] && selectedAgents[slot.key]}
                     mediaType={slot.mediaType}
                     mediaUrl={
                       slot.key === 'audio' ? mediaUrls.audio :
