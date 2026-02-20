@@ -343,7 +343,7 @@ function ProjectHubV3({
     e?.stopPropagation();
     const dup = {
       ...project,
-      id: String(Date.now()),
+      id: crypto.randomUUID(),
       name: `${project.name} (Copy)`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()

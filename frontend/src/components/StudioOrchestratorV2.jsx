@@ -1397,6 +1397,7 @@ export default function StudioOrchestratorV2({
   const mediaUrlsRef = useRef(mediaUrls);
   mediaUrlsRef.current = mediaUrls;
   const skipRegenerateGuard = useRef(false); // Skip the save/clear prompt when called from dialog buttons
+  const handleGenerateRef = useRef(null); // Stable ref to handleGenerate for callbacks
   
   const [generatingMedia, setGeneratingMedia] = useState({
     audio: false,
@@ -1426,7 +1427,7 @@ export default function StudioOrchestratorV2({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false); // Save/clear before re-generating
-  const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
+  const [isSaved, setIsSaved] = useState(!!existingProject); // Existing projects start as saved
   const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
   const [quickMode, setQuickMode] = useState(true); // Quick Create vs Advanced Mode
   const [quickGenre, setQuickGenre] = useState('Modern Hip-Hop'); // Genre for Quick Create
@@ -1549,12 +1550,19 @@ export default function StudioOrchestratorV2({
     outputsRef.current = outputs;
   }, [outputs]);
 
-  // Restore mediaUrls and outputs from existing project assets on load
+  // Reset and restore state when switching between projects
   useEffect(() => {
+    // Reset all generation state on project switch
+    setOutputs({ lyrics: null, audio: null, visual: null, video: null });
+    setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
+    setMusicVideoUrl(null);
+    setFinalMixPreview(null);
+    setPipelineSteps([]);
+    setGeneratingMedia({ lyrics: false, audio: false, image: false, video: false, vocals: false });
+    setIsSaved(!!existingProject);
+
+    // Then restore from new project's assets
     if (!existingProject?.assets?.length) return;
-    // Only restore if mediaUrls are all empty (don't overwrite fresh generations)
-    const hasMedia = mediaUrls.audio || mediaUrls.image || mediaUrls.video || mediaUrls.vocals;
-    if (hasMedia) return;
 
     const restoredUrls = {};
     const restoredOutputs = {};
@@ -1592,7 +1600,7 @@ export default function StudioOrchestratorV2({
       setOutputs(prev => ({ ...prev, ...restoredOutputs }));
       console.log('[Orchestrator] Restored outputs from project assets', Object.keys(restoredOutputs));
     }
-  }, [existingProject]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [existingProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch saved voices from Firestore
   useEffect(() => {
@@ -1928,24 +1936,23 @@ export default function StudioOrchestratorV2({
     setPipelineSteps([]);
     setShowRegenerateConfirm(false);
     skipRegenerateGuard.current = true;
-    // Let state flush, then trigger generation
-    setTimeout(() => handleGenerate(), 0);
+    // Let state flush, then trigger generation via ref (always latest)
+    setTimeout(() => handleGenerateRef.current?.(), 0);
   }, []);
 
   // Save current project then clear and generate
   const saveAndGenerate = useCallback(() => {
     setShowRegenerateConfirm(false);
     handleCreateProject(); // saves and sets isSaved=true
-    // After saving, clear and generate
+    // After saving, clear outputs for fresh generation
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
     setMusicVideoUrl(null);
     setFinalMixPreview(null);
-    setIsSaved(false);
     setPipelineSteps([]);
     skipRegenerateGuard.current = true;
-    setTimeout(() => handleGenerate(), 0);
-  }, []);
+    setTimeout(() => handleGenerateRef.current?.(), 0);
+  }, [handleCreateProject]);
 
   // Main generation function
   const handleGenerate = async () => {
@@ -2320,6 +2327,9 @@ REQUIREMENTS:
     }
   };
 
+  // Keep ref in sync so clearAndGenerate/saveAndGenerate always call latest version
+  handleGenerateRef.current = handleGenerate;
+
   // Media generation functions
   const handleGenerateAudio = async (directInput = null) => {
     // PREVENT DUPLICATE CALLS
@@ -2420,7 +2430,7 @@ REQUIREMENTS:
             console.log(`[handleGenerateAudio] Auto-syncing audio to project: ${existingProject.id} as version ${audioVersions + 1}`);
             
             const audioAsset = {
-              id: `audio-${Date.now()}`,
+              id: `audio-${crypto.randomUUID()}`,
               title: `Beat Lab Production${versionLabel}`,
               type: 'audio',
               agent: 'Beat Lab',
@@ -2443,6 +2453,7 @@ REQUIREMENTS:
               assets: [audioAsset, ...(existingProject.assets || [])],
               updatedAt: new Date().toISOString()
             });
+            setIsSaved(true);
           }
 
           toast.success('AI beat generated!', { id: 'gen-audio' });
@@ -2565,7 +2576,12 @@ REQUIREMENTS:
           outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
           speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
           elevenLabsVoiceId: (vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null,
-          backingTrackUrl: mediaUrls.audio
+          backingTrackUrl: (() => {
+            // Use ref for latest value; only pass persistent URLs (not base64/blob)
+            const audioUrl = mediaUrlsRef.current?.audio || mediaUrls.audio;
+            if (audioUrl && typeof audioUrl === 'string' && audioUrl.startsWith('http')) return audioUrl;
+            return null; // Skip mixing if URL isn't persistent yet
+          })()
         })
       });
 
@@ -2603,7 +2619,7 @@ REQUIREMENTS:
           console.log(`[handleGenerateVocals] Auto-syncing vocals to project: ${existingProject.id} as version ${vocalVersions + 1}`);
           
           const vocalAsset = {
-            id: `vocal-${Date.now()}`,
+            id: `vocal-${crypto.randomUUID()}`,
             title: `Vocal Performance${versionLabel}`,
             type: 'vocal',
             agent: 'Ghostwriter',
@@ -2626,6 +2642,7 @@ REQUIREMENTS:
             assets: [vocalAsset, ...(existingProject.assets || [])],
             updatedAt: new Date().toISOString()
           });
+          setIsSaved(true);
         }
 
         const engineLabels = {
@@ -2945,7 +2962,7 @@ REQUIREMENTS:
           // AUTO-SYNC TO PROJECT
           if (existingProject) {
             const imageAsset = {
-              id: `img-${Date.now()}`,
+              id: `img-${crypto.randomUUID()}`,
               title: `Album Art - ${new Date().toLocaleTimeString()}`,
               type: 'image',
               agent: 'Visual Artist',
@@ -2960,6 +2977,7 @@ REQUIREMENTS:
               assets: updatedAssets,
               updatedAt: new Date().toISOString()
             });
+            setIsSaved(true);
             console.log('[Orchestrator] Auto-synced image to project library');
           }
         } else {
@@ -3014,23 +3032,24 @@ REQUIREMENTS:
           // AUTO-SYNC TO PROJECT
           if (existingProject) {
             const imageAsset = {
-              id: `img-${Date.now()}`,
+              id: `img-${crypto.randomUUID()}`,
               type: 'image',
               url: frameDataUrl,
               name: `Video Frame Cover - ${new Date().toLocaleTimeString()}`,
               createdAt: new Date().toISOString()
             };
-            
+
             const updatedAssets = [...(existingProject.assets || []), imageAsset];
             onSaveToProject({
               ...existingProject,
               assets: updatedAssets,
               updatedAt: new Date().toISOString()
             });
+            setIsSaved(true);
           }
           return;
         }
-        
+
         if (data.output || data.imageData) {
           const imageData = data.output || `data:${data.mimeType || 'image/jpeg'};base64,${data.imageData}`;
           setMediaUrls(prev => ({ ...prev, image: imageData }));
@@ -3039,19 +3058,20 @@ REQUIREMENTS:
           // AUTO-SYNC TO PROJECT
           if (existingProject) {
             const imageAsset = {
-              id: `img-${Date.now()}`,
+              id: `img-${crypto.randomUUID()}`,
               type: 'image',
               url: imageData,
               name: `Video Frame Cover - ${new Date().toLocaleTimeString()}`,
               createdAt: new Date().toISOString()
             };
-            
+
             const updatedAssets = [...(existingProject.assets || []), imageAsset];
             onSaveToProject({
               ...existingProject,
               assets: updatedAssets,
               updatedAt: new Date().toISOString()
             });
+            setIsSaved(true);
           }
           return;
         }
@@ -3172,7 +3192,7 @@ REQUIREMENTS:
             // AUTO-SYNC VIDEO TO PROJECT
             if (existingProject) {
               const videoAsset = {
-                id: `vid-${Date.now()}`,
+                id: `vid-${crypto.randomUUID()}`,
                 title: `Music Video - ${new Date().toLocaleTimeString()}`,
                 type: 'video',
                 agent: 'Video Director',
@@ -3187,6 +3207,7 @@ REQUIREMENTS:
                 assets: updatedAssets,
                 updatedAt: new Date().toISOString()
               });
+              setIsSaved(true);
               console.log('[Orchestrator] Auto-synced video to project library');
             }
             
@@ -3286,7 +3307,7 @@ REQUIREMENTS:
 
       // Compile all outputs into the final product
       const finalMix = {
-        id: `mix-${Date.now()}`,
+        id: `mix-${crypto.randomUUID()}`,
         title: `${songIdea} - Complete Mix`,
         description: `Full production of "${songIdea}" with lyrics, beat, visual, and video`,
         created: new Date().toISOString(),
@@ -3558,7 +3579,7 @@ REQUIREMENTS:
         }
 
         const asset = {
-          id: `${slot.key}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `${slot.key}-${crypto.randomUUID()}`,
           title: slot.title,
           type: slot.key,
           agent: agent?.name || slot.subtitle,
@@ -3581,7 +3602,7 @@ REQUIREMENTS:
     // ADDED: Add Music Video (High Fidelity Sync) if exists
     if (musicVideoUrl) {
       const videoAsset = {
-        id: `mvideo-${Date.now()}`,
+        id: `mvideo-${crypto.randomUUID()}`,
         title: 'Professional Music Video',
         type: 'video', // StudioView recognizes 'video'
         agent: 'Orchestrator Sync',
@@ -3599,7 +3620,7 @@ REQUIREMENTS:
     // ADDED: Add Final Mix if exists
     if (finalMixPreview) {
       const mixAsset = {
-        id: `fmix-${Date.now()}`,
+        id: `fmix-${crypto.randomUUID()}`,
         title: 'Full Production Master',
         type: 'pro', // StudioView uses 'pro' for full production
         agent: 'Studio Orchestrator',
@@ -3616,7 +3637,7 @@ REQUIREMENTS:
     }
     
     // Use existing project ID if updating, otherwise create new
-    const projectId = existingProject?.id || String(Date.now());
+    const projectId = existingProject?.id || crypto.randomUUID();
     
     const project = {
       id: projectId,

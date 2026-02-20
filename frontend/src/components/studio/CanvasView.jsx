@@ -408,7 +408,7 @@ export default function CanvasView({
                       const url = URL.createObjectURL(file);
                       const type = file.type.startsWith('audio') ? 'Audio' : file.type.startsWith('video') ? 'Video' : 'Image';
                       const newAsset = {
-                        id: String(Date.now()),
+                        id: crypto.randomUUID(),
                         title: file.name,
                         type: type,
                         agent: 'User Upload',

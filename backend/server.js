@@ -567,6 +567,48 @@ const checkCreditsFor = (featureType) => {
 // Legacy middleware for backwards compatibility (1 credit)
 const _checkCredits = checkCreditsFor('default');
 
+// Fetch with timeout helper for external API calls
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+// Retry wrapper for transient failures (5xx, network errors)
+async function fetchWithRetry(url, options = {}, { timeoutMs = 30000, maxRetries = 2, baseDelay = 1000 } = {}) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, options, timeoutMs);
+      // Only retry on 5xx server errors
+      if (response.status >= 500 && attempt < maxRetries) {
+        lastError = new Error(`Server error ${response.status}`);
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`[fetchWithRetry] Attempt ${attempt + 1} failed with ${response.status}, retrying in ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+      return response;
+    } catch (err) {
+      lastError = err;
+      if (err.name === 'AbortError') {
+        lastError = new Error(`Request timed out after ${timeoutMs}ms`);
+      }
+      if (attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`[fetchWithRetry] Attempt ${attempt + 1} failed: ${lastError.message}, retrying in ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
 const app = express();
 // Trust the first proxy (Railway load balancer)
 // Increased to 3 to handle potential multiple proxy layers in production
@@ -3709,7 +3751,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
           input.image = referenceImage;
         }
 
-        const response = await fetch('https://api.replicate.com/v1/predictions', {
+        const response = await fetchWithRetry('https://api.replicate.com/v1/predictions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${replicateKey}`,
@@ -3720,7 +3762,7 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
             model: "black-forest-labs/flux-1.1-pro",
             input: input
           })
-        });
+        }, { timeoutMs: 60000 });
 
         if (!response.ok) {
           const errText = await response.text();
@@ -3763,9 +3805,8 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
        return res.status(500).json({ error: 'Image generation failed' });
     }
 
-    // Try Nano Banana first (Gemini native image generation)
-    // eslint-disable-next-line no-constant-condition
-    if (model === 'nano-banana' || model === 'gemini' || true) { // Default fallback
+    // Try Gemini native image generation (fallback after Replicate/Flux)
+    {
       try {
         logger.info('Generating image with Nano Banana', { prompt: prompt.substring(0, 50) });
         
@@ -4774,11 +4815,11 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         formData.append('cfg_scale', '12'); // HIGHEST fidelity for righteous quality
         if (seed > 0) formData.append('seed', seed.toString());
 
-        const response = await fetch('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
+        const response = await fetchWithRetry('https://api.stability.ai/v2beta/audio/stable-audio-2/text-to-audio', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${stabilityKey}`, 'Accept': 'application/json' },
           body: formData
-        });
+        }, { timeoutMs: 60000 });
 
         if (response.ok) {
           const data = await response.json();
@@ -4835,7 +4876,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
           const directUrl = Array.isArray(output) ? output[0] : output;
           logger.info('Replicate generated audio URL', { directUrl });
           
-          const audioResponse = await fetch(directUrl);
+          const audioResponse = await fetchWithRetry(directUrl, {}, { timeoutMs: 60000 });
           if (audioResponse.ok) {
             const audioData = await audioResponse.arrayBuffer();
             if (audioData.byteLength > 100) {
@@ -4871,15 +4912,15 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     // 3. FAL.ai (Last Fallback)
     if (falKey && !audioUrl) {
       try {
-        const response = await fetch('https://queue.fal.run/beatoven/music-generation', {
+        const response = await fetchWithRetry('https://queue.fal.run/beatoven/music-generation', {
           method: 'POST',
           headers: { 'Authorization': `Key ${falKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: musicPrompt, duration: Math.min(durationSeconds, 60) })
-        });
+        }, { timeoutMs: 60000 });
         if (response.ok) {
           const data = await response.json();
           const falUrl = data.audio_url || data.audio;
-          const audioData = await fetch(falUrl).then(r => r.arrayBuffer());
+          const audioData = await fetchWithRetry(falUrl, {}, { timeoutMs: 60000 }).then(r => r.arrayBuffer());
           audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioData).toString('base64')}`;
           provider = 'beatoven';
         } else {
@@ -5183,11 +5224,11 @@ app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLim
   const { execFile } = require('child_process');
   const os = require('os');
 
-  const timestamp = Date.now();
+  const uniqueId = crypto.randomUUID();
   const tempDir = path.join(os.tmpdir(), 'mux-av');
-  const tempAudio = path.join(tempDir, `audio_${timestamp}.mp3`);
-  const tempVideo = path.join(tempDir, `video_${timestamp}.mp4`);
-  const tempOutput = path.join(tempDir, `muxed_${timestamp}.mp4`);
+  const tempAudio = path.join(tempDir, `audio_${uniqueId}.mp3`);
+  const tempVideo = path.join(tempDir, `video_${uniqueId}.mp4`);
+  const outputPath = path.join(tempDir, `output_${uniqueId}.mp4`);
 
   try {
     const { audioUrl, videoUrl, title = 'muxed-video' } = req.body;
@@ -5229,7 +5270,7 @@ app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLim
         '-shortest',
         '-movflags', '+faststart',
         '-y',
-        tempOutput
+        outputPath
       ];
       // Add preset for re-encode to keep it fast
       if (!copyVideo) args.splice(args.indexOf('libx264') + 1, 0, '-preset', 'fast');
@@ -5251,12 +5292,12 @@ app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLim
       await runFfmpeg(false);
     }
 
-    if (!fs.existsSync(tempOutput)) {
+    if (!fs.existsSync(outputPath)) {
       return res.status(500).json({ error: 'Muxing produced no output file' });
     }
 
     // Check output size before loading into memory (200MB limit)
-    const outputStat = fs.statSync(tempOutput);
+    const outputStat = fs.statSync(outputPath);
     const MAX_MUX_SIZE = 200 * 1024 * 1024;
     if (outputStat.size > MAX_MUX_SIZE) {
       logger.error('Muxed output too large', { size: outputStat.size, limit: MAX_MUX_SIZE });
@@ -5264,9 +5305,9 @@ app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLim
     }
 
     // Upload to Firebase Storage
-    const outputBuffer = fs.readFileSync(tempOutput);
+    const outputBuffer = fs.readFileSync(outputPath);
     const safeName = title.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const fileName = `muxed_video_${safeName}_${timestamp}.mp4`;
+    const fileName = `muxed_video_${safeName}_${uniqueId}.mp4`;
     const uploadResult = await uploadToStorage(outputBuffer, req.user.uid, fileName, 'video/mp4');
 
     logger.info('✅ Audio+Video muxed and uploaded', {
@@ -5286,7 +5327,7 @@ app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLim
     // Always clean up temp files
     try { fs.unlinkSync(tempAudio); } catch {}
     try { fs.unlinkSync(tempVideo); } catch {}
-    try { fs.unlinkSync(tempOutput); } catch {}
+    try { fs.unlinkSync(outputPath); } catch {}
   }
 });
 
@@ -5652,10 +5693,10 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
     return res.status(500).json({ status: 'failed', error: op.error });
   }
 
-  // Check timeout (5 minutes from creation)
-  if (Date.now() - op.createdAt > 5 * 60 * 1000) {
+  // Check timeout (10 minutes from creation)
+  if (Date.now() - op.createdAt > 10 * 60 * 1000) {
     op.status = 'failed';
-    op.error = 'Video generation timed out after 5 minutes';
+    op.error = 'Video generation timed out after 10 minutes';
     return res.status(500).json({ status: 'failed', error: op.error });
   }
 
@@ -7907,7 +7948,7 @@ app.post('/api/projects', verifyFirebaseToken, async (req, res) => {
       await db.collection('users').doc(targetUserId).collection('projects').doc(String(project.id)).set({
         ...project,
         savedAt: admin.firestore.FieldValue.serverTimestamp()
-      });
+      }, { merge: true });
       logger.info('💾 Project saved', { userId: targetUserId, projectId: project.id });
       
       // Send project creation notification

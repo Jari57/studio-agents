@@ -1197,8 +1197,9 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
       
       // Use backend API to save (uses Admin SDK, bypasses security rules)
-      const response = await fetch(`${BACKEND_URL}/api/projects`, {
-        method: 'POST',
+      // Always use PUT with conflict detection - it creates or updates via merge
+      const response = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(String(project.id))}`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
@@ -1210,17 +1211,53 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             id: String(project.id),
             updatedAt: new Date().toISOString(),
             syncedAt: new Date().toISOString()
-          }
+          },
+          lastUpdatedAt: project.syncedAt || project.updatedAt || null
         })
       });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        if (response.status === 409) {
+          // Conflict detected — another session modified the project
+          // Retry without lastUpdatedAt to force-save (last write wins)
+          console.warn(`[TRACE:${traceId}] Conflict detected, retrying without lock`);
+          const retryResponse = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(String(project.id))}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(authToken ? { 'Authorization': `Bearer ${authToken}` } : {})
+            },
+            body: JSON.stringify({
+              userId: uid,
+              project: {
+                ...sanitizedProject,
+                id: String(project.id),
+                updatedAt: new Date().toISOString(),
+                syncedAt: new Date().toISOString()
+              }
+            })
+          });
+          if (!retryResponse.ok) {
+            const retryErr = await retryResponse.json().catch(() => ({}));
+            throw new Error(retryErr.error || `HTTP ${retryResponse.status}`);
+          }
+          const retryResult = await retryResponse.json();
+          console.log(`[TRACE:${traceId}] Conflict resolved, project saved:`, project.id, retryResult);
+          return true;
+        }
         throw new Error(errorData.error || `HTTP ${response.status}`);
       }
-      
+
       const result = await response.json();
       console.log(`[TRACE:${traceId}] Project saved via API:`, project.id, result);
+
+      // Cancel pending debounced sync to prevent stale bulk sync from overwriting
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
+      }
+
       return true;
     } catch (err) {
       console.error(`[TRACE:${traceId}] Failed to save project to cloud:`, err.message || err);
@@ -1367,7 +1404,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         .filter(p => p && typeof p === 'object') // Stability: Ignore null/malformed projects
         .map(p => ({
           ...p,
-          id: p.id || String(Date.now()) + Math.random().toString(36).substr(2, 5),
+          id: p.id || crypto.randomUUID(),
           // Normalize timestamps
           createdAt: p.createdAt || new Date().toISOString(),
           updatedAt: p.updatedAt || new Date().toISOString(),
@@ -2006,7 +2043,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
     
     const newProject = {
-      id: String(Date.now()),
+      id: crypto.randomUUID(),
       name: newProjectData.name,
       category: newProjectData.category,
       description: newProjectData.description || '',
@@ -2089,7 +2126,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
 
     const newProject = {
-      id: String(Date.now()),
+      id: crypto.randomUUID(),
       name: `Untitled Project ${projects.length + 1}`,
       category: "music",
       description: "Quick start project",
@@ -2279,7 +2316,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
 
     const newProject = {
-      id: String(Date.now()),
+      id: crypto.randomUUID(),
       name: projectName,
       category: 'pro',
       description: `Created from ${asset.agentName || asset.agent || 'AI Agent'}`,
@@ -3652,7 +3689,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         } else {
           // Fallback: Create standalone vocal item if no preview exists
           const vocalItem = {
-            id: String(Date.now()),
+            id: crypto.randomUUID(),
             title: `AI Vocal - ${sourceAgent}`,
             agent: sourceAgent,
             type: 'vocal',
@@ -4472,7 +4509,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       
       // Handle different response types
       let newItem = {
-        id: String(Date.now()),
+        id: crypto.randomUUID(),
         title: `${targetAgentSnapshot?.name || 'AI'} Result`,
         type: targetAgentSnapshot?.category || 'text',
         agent: targetAgentSnapshot?.name || 'Unknown Agent',
@@ -4821,7 +4858,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       if (typeof targetProject === 'string' && targetProject.startsWith('new:')) {
         const newProjectName = targetProject.substring(4);
         finalProject = {
-          id: String(Date.now()),
+          id: crypto.randomUUID(),
           name: newProjectName,
           category: 'Music Creation',
           assets: [itemToSave],
@@ -4851,7 +4888,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         });
       } else {
         finalProject = {
-          id: String(Date.now()),
+          id: crypto.randomUUID(),
           name: itemToSave.title || 'Studio Asset',
           category: 'Standalone',
           assets: [itemToSave],
@@ -5315,7 +5352,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     
     const newActivity = {
       ...item,
-      id: String(Date.now()),
+      id: crypto.randomUUID(),
       user: isLoggedIn ? 'Pro Creator' : 'Guest Creator',
       time: 'Just now',
       likes: 0,
@@ -14339,7 +14376,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           style={{ width: '100%', marginTop: '8px', fontSize: '0.75rem', justifyContent: 'center' }}
                           onClick={() => {
                             const asset = {
-                              id: String(Date.now()),
+                              id: crypto.randomUUID(),
                               title: `${showAgentWhitePaper.title} Video`,
                               type: 'Video',
                               agent: showAgentWhitePaper.title,
@@ -14382,7 +14419,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             if (!imageData || typeof imageData !== 'string') return;
                             const imgUrl = imageData.startsWith?.('data:') || imageData.startsWith?.('http') ? imageData : `data:image/png;base64,${imageData}`;
                             const asset = {
-                              id: String(Date.now()),
+                              id: crypto.randomUUID(),
                               title: `${showAgentWhitePaper.title} Image`,
                               type: 'Image',
                               agent: showAgentWhitePaper.title,
@@ -14419,7 +14456,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           style={{ width: '100%', marginTop: '8px', fontSize: '0.75rem', justifyContent: 'center' }}
                           onClick={() => {
                             const asset = {
-                              id: String(Date.now()),
+                              id: crypto.randomUUID(),
                               title: `${showAgentWhitePaper.title} Audio`,
                               type: 'Audio',
                               agent: showAgentWhitePaper.title,

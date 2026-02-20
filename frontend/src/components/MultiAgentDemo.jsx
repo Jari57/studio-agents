@@ -175,7 +175,7 @@ export default function MultiAgentDemo({ onCreateProject = null }) {
     if (!onCreateProject || !songIdea) return;
 
     const newProject = {
-      id: String(Date.now()),
+      id: crypto.randomUUID(),
       name: songIdea,
       category: 'music',
       description: `Multi-agent demo project: ${songIdea}`,
