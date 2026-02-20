@@ -1398,6 +1398,7 @@ export default function StudioOrchestratorV2({
   mediaUrlsRef.current = mediaUrls;
   const skipRegenerateGuard = useRef(false); // Skip the save/clear prompt when called from dialog buttons
   const handleGenerateRef = useRef(null); // Stable ref to handleGenerate for callbacks
+  const handleCreateProjectRef = useRef(null); // Stable ref to handleCreateProject for callbacks
   
   const [generatingMedia, setGeneratingMedia] = useState({
     audio: false,
@@ -1951,7 +1952,7 @@ export default function StudioOrchestratorV2({
   // Save current project then clear and generate
   const saveAndGenerate = useCallback(() => {
     setShowRegenerateConfirm(false);
-    handleCreateProject(); // saves and sets isSaved=true
+    handleCreateProjectRef.current?.(); // saves and sets isSaved=true
     // After saving, clear outputs for fresh generation
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
@@ -1964,7 +1965,7 @@ export default function StudioOrchestratorV2({
     setPipelineSteps([]);
     skipRegenerateGuard.current = true;
     setTimeout(() => handleGenerateRef.current?.(), 0);
-  }, [handleCreateProject]);
+  }, []);
 
   // Main generation function
   const handleGenerate = async () => {
@@ -3721,6 +3722,9 @@ REQUIREMENTS:
     
     setShowCreateProject(false);
   };
+
+  // Keep ref in sync so saveAndGenerate always calls latest version
+  handleCreateProjectRef.current = handleCreateProject;
 
   if (!isOpen) return null;
 
