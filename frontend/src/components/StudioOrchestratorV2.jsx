@@ -1396,6 +1396,7 @@ export default function StudioOrchestratorV2({
   // Ref mirror so async pipeline code can read latest values
   const mediaUrlsRef = useRef(mediaUrls);
   mediaUrlsRef.current = mediaUrls;
+  const skipRegenerateGuard = useRef(false); // Skip the save/clear prompt when called from dialog buttons
   
   const [generatingMedia, setGeneratingMedia] = useState({
     audio: false,
@@ -1424,6 +1425,7 @@ export default function StudioOrchestratorV2({
   const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false); // Exit confirmation for unsaved work
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false); // Save/clear before re-generating
   const [isSaved, setIsSaved] = useState(false); // Track if current work has been saved
   const [visualType, setVisualType] = useState('image'); // 'image' or 'video' for final mix output
   const [quickMode, setQuickMode] = useState(true); // Quick Create vs Advanced Mode
@@ -1916,10 +1918,59 @@ export default function StudioOrchestratorV2({
     return headers;
   }, [authToken]);
 
+  // Clear all outputs and generate fresh
+  const clearAndGenerate = useCallback(() => {
+    setOutputs({ lyrics: null, audio: null, visual: null, video: null });
+    setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
+    setMusicVideoUrl(null);
+    setFinalMixPreview(null);
+    setIsSaved(false);
+    setPipelineSteps([]);
+    setShowRegenerateConfirm(false);
+    skipRegenerateGuard.current = true;
+    // Let state flush, then trigger generation
+    setTimeout(() => handleGenerate(), 0);
+  }, []);
+
+  // Save current project then clear and generate
+  const saveAndGenerate = useCallback(() => {
+    setShowRegenerateConfirm(false);
+    handleCreateProject(); // saves and sets isSaved=true
+    // After saving, clear and generate
+    setOutputs({ lyrics: null, audio: null, visual: null, video: null });
+    setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
+    setMusicVideoUrl(null);
+    setFinalMixPreview(null);
+    setIsSaved(false);
+    setPipelineSteps([]);
+    skipRegenerateGuard.current = true;
+    setTimeout(() => handleGenerate(), 0);
+  }, []);
+
   // Main generation function
   const handleGenerate = async () => {
     // PREVENT DUPLICATE CALLS
     if (isGenerating) return;
+
+    // If there's existing unsaved content, prompt user to save or clear first
+    if (!skipRegenerateGuard.current) {
+      const hasContent = Object.values(outputs).some(Boolean) ||
+                         Object.values(mediaUrls).some(v => v);
+      if (hasContent && !isSaved) {
+        setShowRegenerateConfirm(true);
+        return;
+      }
+      // If already saved, silently clear old outputs before generating new
+      if (hasContent && isSaved) {
+        setOutputs({ lyrics: null, audio: null, visual: null, video: null });
+        setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
+        setMusicVideoUrl(null);
+        setFinalMixPreview(null);
+        setIsSaved(false);
+        setPipelineSteps([]);
+      }
+    }
+    skipRegenerateGuard.current = false;
 
     console.log('[handleGenerate] Button clicked, songIdea:', songIdea);
     console.log('[handleGenerate] selectedAgents:', selectedAgents);
@@ -6021,6 +6072,72 @@ REQUIREMENTS:
                   }}
                 >
                   Discard & Exit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save/Clear Before Re-Generating Confirmation */}
+      {showRegenerateConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10002,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
+            borderRadius: '20px',
+            padding: '32px',
+            border: '1px solid rgba(139, 92, 246, 0.4)',
+            maxWidth: '450px',
+            width: '100%',
+            textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '50%',
+              background: 'rgba(139, 92, 246, 0.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 20px'
+            }}>
+              <FolderPlus size={32} color="#8b5cf6" />
+            </div>
+            <h2 style={{ margin: '0 0 12px', fontSize: '1.4rem', fontWeight: '700', color: 'white' }}>
+              Unsaved Content
+            </h2>
+            <p style={{ margin: '0 0 24px', color: 'rgba(255,255,255,0.7)', fontSize: '0.95rem', lineHeight: '1.5' }}>
+              You have unsaved content. Save your project before generating new content?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
+              <button
+                onClick={saveAndGenerate}
+                className="btn-pill primary"
+                style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                <FolderPlus size={18} />
+                Save & Generate New
+              </button>
+              <div style={{ display: 'flex', gap: '12px', flexDirection: isMobile ? 'column-reverse' : 'row' }}>
+                <button
+                  onClick={() => setShowRegenerateConfirm(false)}
+                  className="btn-pill glass"
+                  style={{ flex: 1, padding: '12px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={clearAndGenerate}
+                  className="btn-pill secondary"
+                  style={{ flex: 1, padding: '12px' }}
+                >
+                  Clear & Generate New
                 </button>
               </div>
             </div>
