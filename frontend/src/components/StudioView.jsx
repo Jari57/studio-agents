@@ -12705,83 +12705,66 @@ const fetchUserCredits = useCallback(async (uid) => {
                 projectId: project.id,
                 assetCount: project.assets?.length
               });
-              
-              // Find if project already exists
-              const existingIndex = projects.findIndex(p => p.id === project.id);
-              if (existingIndex >= 0) {
-                const existingProject = projects[existingIndex];
-                // Build a dedup fingerprint -checks ID, audio URL, image URL, video URL, and content+type+agent
-                const existingAssets = existingProject.assets || [];
-                const existingFingerprints = new Set();
-                for (const a of existingAssets) {
-                  if (a.id) existingFingerprints.add(`id:${a.id}`);
-                  if (a.audioUrl) existingFingerprints.add(`audio:${a.audioUrl}`);
-                  if (a.url) existingFingerprints.add(`url:${a.url}`);
-                  if (a.videoUrl) existingFingerprints.add(`video:${a.videoUrl}`);
-                  if (a.imageUrl) existingFingerprints.add(`img:${a.imageUrl}`);
-                  if (a.content && a.type) existingFingerprints.add(`content:${a.type}:${a.agent || ''}:${a.content.substring(0, 200)}`);
-                }
-                
-                const newAssets = (project.assets || []).filter(a => {
-                  if (a.id && existingFingerprints.has(`id:${a.id}`)) return false;
-                  if (a.audioUrl && existingFingerprints.has(`audio:${a.audioUrl}`)) return false;
-                  if (a.url && existingFingerprints.has(`url:${a.url}`)) return false;
-                  if (a.videoUrl && existingFingerprints.has(`video:${a.videoUrl}`)) return false;
-                  if (a.imageUrl && existingFingerprints.has(`img:${a.imageUrl}`)) return false;
-                  if (a.content && a.type && existingFingerprints.has(`content:${a.type}:${a.agent || ''}:${a.content.substring(0, 200)}`)) return false;
-                  return true;
-                });
-                
-                if (newAssets.length === 0) {
-                  console.log(`[TRACE:${traceId}] onSaveToProject: No new unique assets to add, skipping`);
-                  // Still update non-asset fields
-                  const finalProject = { ...existingProject, ...project, assets: existingAssets, updatedAt: new Date().toISOString() };
-                  const newProjects = [...projects];
-                  newProjects[existingIndex] = finalProject;
-                  setProjects(newProjects);
+
+              setProjects(prev => {
+                const existingIndex = prev.findIndex(p => p.id === project.id);
+                if (existingIndex >= 0) {
+                  const existingProject = prev[existingIndex];
+                  const existingAssets = existingProject.assets || [];
+                  const existingFingerprints = new Set();
+                  for (const a of existingAssets) {
+                    if (a.id) existingFingerprints.add(`id:${a.id}`);
+                    if (a.audioUrl) existingFingerprints.add(`audio:${a.audioUrl}`);
+                    if (a.url) existingFingerprints.add(`url:${a.url}`);
+                    if (a.videoUrl) existingFingerprints.add(`video:${a.videoUrl}`);
+                    if (a.imageUrl) existingFingerprints.add(`img:${a.imageUrl}`);
+                    if (a.content && a.type) existingFingerprints.add(`content:${a.type}:${a.agent || ''}:${a.content.substring(0, 200)}`);
+                  }
+
+                  const newAssets = (project.assets || []).filter(a => {
+                    if (a.id && existingFingerprints.has(`id:${a.id}`)) return false;
+                    if (a.audioUrl && existingFingerprints.has(`audio:${a.audioUrl}`)) return false;
+                    if (a.url && existingFingerprints.has(`url:${a.url}`)) return false;
+                    if (a.videoUrl && existingFingerprints.has(`video:${a.videoUrl}`)) return false;
+                    if (a.imageUrl && existingFingerprints.has(`img:${a.imageUrl}`)) return false;
+                    if (a.content && a.type && existingFingerprints.has(`content:${a.type}:${a.agent || ''}:${a.content.substring(0, 200)}`)) return false;
+                    return true;
+                  });
+
+                  const finalProject = newAssets.length === 0
+                    ? { ...existingProject, ...project, assets: existingAssets, updatedAt: new Date().toISOString() }
+                    : { ...existingProject, ...project, assets: [...existingAssets, ...newAssets], updatedAt: new Date().toISOString() };
+
+                  console.log(`[TRACE:${traceId}] onSaveToProject: ${newAssets.length} new assets added`);
                   setSelectedProject(finalProject);
-                  return;
+
+                  if (isLoggedIn && user) {
+                    saveProjectToCloud(user?.uid, finalProject).catch(err => {
+                      console.error('Cloud save failed:', err);
+                      toast.error('Failed to sync to cloud. Your changes are saved locally.');
+                    });
+                  }
+
+                  const updated = [...prev];
+                  updated[existingIndex] = finalProject;
+                  return updated;
+                } else {
+                  // Project not found — treat as creation
+                  console.log(`[TRACE:${traceId}] onSaveToProject: Project not found, creating new`);
+                  const finalProject = {
+                    ...project,
+                    createdAt: project.createdAt || new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  };
+                  setSelectedProject(finalProject);
+                  if (isLoggedIn && user) {
+                    saveProjectToCloud(user?.uid, finalProject).catch(err => {
+                      console.error('Cloud save failed:', err);
+                    });
+                  }
+                  return [finalProject, ...prev];
                 }
-                
-                console.log(`[TRACE:${traceId}] onSaveToProject: Adding ${newAssets.length} unique assets (filtered ${(project.assets || []).length - newAssets.length} duplicates)`);
-                
-                const finalProject = {
-                  ...existingProject,
-                  ...project,
-                  assets: [...existingAssets, ...newAssets],
-                  updatedAt: new Date().toISOString()
-                };
-                
-                const newProjects = [...projects];
-                newProjects[existingIndex] = finalProject;
-                setProjects(newProjects);
-                setSelectedProject(finalProject);
-                
-                if (isLoggedIn && user) {
-                  saveProjectToCloud(user?.uid, finalProject).catch(err => {
-                    console.error('Cloud save failed:', err);
-                    toast.error('Failed to sync to cloud. Your changes are saved locally.');
-                  });
-                }
-              } else {
-                // FALLBACK: If project not found in local state, treat as creation
-                // This prevents silent save failures for newly created projects in the Orchestrator
-                console.log(`[TRACE:${traceId}] onSaveToProject: Project not found, delegating to onCreateProject`);
-                // We use the same setter logic but as a new entry
-                const finalProject = {
-                  ...project,
-                  createdAt: project.createdAt || new Date().toISOString(),
-                  updatedAt: new Date().toISOString()
-                };
-                setProjects(prev => [finalProject, ...prev]);
-                setSelectedProject(finalProject);
-                if (isLoggedIn && user) {
-                  saveProjectToCloud(user?.uid, finalProject).catch(err => {
-                    console.error('Cloud save failed:', err);
-                    toast.error('Failed to sync to cloud. Your changes are saved locally.');
-                  });
-                }
-              }
+              });
             }}
             onCreateProject={(project) => {
               const traceId = `CREATE-${Date.now()}`;
@@ -12789,79 +12772,55 @@ const fetchUserCredits = useCallback(async (uid) => {
                 projectId: project.id,
                 projectName: project.name,
                 assetCount: project.assets?.length,
-                assets: project.assets?.map(a => ({
-                  id: a.id,
-                  type: a.type,
-                  hasContent: !!a.content,
-                  hasImage: !!a.imageUrl,
-                  hasAudio: !!a.audioUrl,
-                  hasVideo: !!a.videoUrl
-                })),
                 coverImage: project.coverImage ? 'present' : 'missing'
               });
-              
-              // Find if project already exists
-              const existingIndex = projects.findIndex(p => p.id === project.id);
-              console.log(`[TRACE:${traceId}] Existing project index:`, existingIndex, 'current projects count:', projects.length);
-              
-              let finalProject;
-              
-              if (existingIndex >= 0) {
-                // Update existing project - merge assets without duplicates
-                console.log(`[TRACE:${traceId}] Updating existing project:`, project.id);
-                const existingProject = projects[existingIndex];
-                console.log(`[TRACE:${traceId}] Existing project assets:`, existingProject.assets?.length);
-                
-                const existingAssetIds = new Set((existingProject.assets || []).map(a => a.id));
-                const newAssets = (project.assets || []).filter(a => !existingAssetIds.has(a.id));
-                console.log(`[TRACE:${traceId}] New assets to add:`, newAssets.length);
-                
-                finalProject = {
-                  ...existingProject,
-                  ...project,
-                  assets: [...(existingProject.assets || []), ...newAssets],
-                  updatedAt: new Date().toISOString()
-                };
-                
-                console.log(`[TRACE:${traceId}] Final merged asset count:`, finalProject.assets?.length);
-                
-                const newProjects = [...projects];
-                newProjects[existingIndex] = finalProject;
-                setProjects(newProjects);
-              } else {
-                // Create new project
-                console.log(`[TRACE:${traceId}] Creating new project:`, project.id);
-                finalProject = {
-                  ...project,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString()
-                };
-                console.log(`[TRACE:${traceId}] New project asset count:`, finalProject.assets?.length);
-                setProjects(prev => {
-                  console.log(`[TRACE:${traceId}] setProjects - previous count:`, prev.length);
-                  return [finalProject, ...prev];
-                });
-              }
-              
-              // Set selected project
-              setSelectedProject(finalProject);
-              console.log(`[TRACE:${traceId}] Selected project set:`, finalProject.id, 'assets:', finalProject.assets?.length);
-              
-              // Save to cloud if user is logged in (uses backend API now)
-              if (isLoggedIn && user) {
-                console.log(`[TRACE:${traceId}] Initiating cloud save for:`, finalProject.id);
-                saveProjectToCloud(user?.uid, finalProject).then(success => {
-                  console.log(`[TRACE:${traceId}] Cloud save result:`, success);
-                }).catch(err => {
-                  console.error(`[TRACE:${traceId}] Cloud save error:`, err);
-                });
-              } else {
-                console.warn(`[TRACE:${traceId}] NOT saving to cloud - isLoggedIn:`, isLoggedIn, 'hasUser:', !!user);
-              }
-              
-              // Use pendingProjectNav flag for safe navigation (prevents race condition)
-              setPendingProjectNav(true);
-              toast.success(`Project "${finalProject.name}" saved with ${finalProject.assets?.length || 0} assets!`);
+
+              let savedProject = null;
+
+              setProjects(prev => {
+                const existingIndex = prev.findIndex(p => p.id === project.id);
+                console.log(`[TRACE:${traceId}] Existing project index:`, existingIndex, 'current projects count:', prev.length);
+
+                if (existingIndex >= 0) {
+                  const existingProject = prev[existingIndex];
+                  const existingAssetIds = new Set((existingProject.assets || []).map(a => a.id));
+                  const newAssets = (project.assets || []).filter(a => !existingAssetIds.has(a.id));
+                  console.log(`[TRACE:${traceId}] Merging: ${newAssets.length} new assets`);
+
+                  savedProject = {
+                    ...existingProject,
+                    ...project,
+                    assets: [...(existingProject.assets || []), ...newAssets],
+                    updatedAt: new Date().toISOString()
+                  };
+
+                  const updated = [...prev];
+                  updated[existingIndex] = savedProject;
+                  return updated;
+                } else {
+                  console.log(`[TRACE:${traceId}] Creating new project:`, project.id);
+                  savedProject = {
+                    ...project,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  };
+                  return [savedProject, ...prev];
+                }
+              });
+
+              // After state update, handle side effects
+              setTimeout(() => {
+                if (savedProject) {
+                  setSelectedProject(savedProject);
+                  if (isLoggedIn && user) {
+                    saveProjectToCloud(user?.uid, savedProject).catch(err => {
+                      console.error(`[TRACE:${traceId}] Cloud save error:`, err);
+                    });
+                  }
+                  setPendingProjectNav(true);
+                  toast.success(`Project "${savedProject.name}" saved with ${savedProject.assets?.length || 0} assets!`);
+                }
+              }, 0);
             }}
             onUpdateCreations={(agentId, creations) => {
               setAgentCreations(prev => ({
