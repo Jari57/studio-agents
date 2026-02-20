@@ -1559,6 +1559,10 @@ export default function StudioOrchestratorV2({
     setFinalMixPreview(null);
     setPipelineSteps([]);
     setGeneratingMedia({ lyrics: false, audio: false, image: false, video: false, vocals: false });
+    setVisualDnaUrl(null);
+    setAudioDnaUrl(null);
+    setVideoDnaUrl(null);
+    setLyricsDnaUrl(null);
     setIsSaved(!!existingProject);
 
     // Then restore from new project's assets
@@ -1932,6 +1936,10 @@ export default function StudioOrchestratorV2({
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
     setMusicVideoUrl(null);
     setFinalMixPreview(null);
+    setVisualDnaUrl(null);
+    setAudioDnaUrl(null);
+    setVideoDnaUrl(null);
+    setLyricsDnaUrl(null);
     setIsSaved(false);
     setPipelineSteps([]);
     setShowRegenerateConfirm(false);
@@ -1949,6 +1957,10 @@ export default function StudioOrchestratorV2({
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
     setMusicVideoUrl(null);
     setFinalMixPreview(null);
+    setVisualDnaUrl(null);
+    setAudioDnaUrl(null);
+    setVideoDnaUrl(null);
+    setLyricsDnaUrl(null);
     setPipelineSteps([]);
     skipRegenerateGuard.current = true;
     setTimeout(() => handleGenerateRef.current?.(), 0);
@@ -1958,6 +1970,9 @@ export default function StudioOrchestratorV2({
   const handleGenerate = async () => {
     // PREVENT DUPLICATE CALLS
     if (isGenerating) return;
+
+    // Track whether we're starting fresh (state was cleared)
+    let freshGeneration = false;
 
     // If there's existing unsaved content, prompt user to save or clear first
     if (!skipRegenerateGuard.current) {
@@ -1973,9 +1988,17 @@ export default function StudioOrchestratorV2({
         setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
         setMusicVideoUrl(null);
         setFinalMixPreview(null);
+        setVisualDnaUrl(null);
+        setAudioDnaUrl(null);
+        setVideoDnaUrl(null);
+        setLyricsDnaUrl(null);
         setIsSaved(false);
         setPipelineSteps([]);
+        freshGeneration = true;
       }
+    } else {
+      // Called from clearAndGenerate/saveAndGenerate — state was already cleared
+      freshGeneration = true;
     }
     skipRegenerateGuard.current = false;
 
@@ -2123,8 +2146,8 @@ REQUIREMENTS:
       let lyricsResult = '';
       
       if (lyricsSlot) {
-        // Skip lyrics generation if already generated with vocals
-        if (outputs.lyrics && (mediaUrls.vocals || mediaUrls.lyricsVocal)) {
+        // Skip lyrics generation only if NOT a fresh generation and already have vocals
+        if (!freshGeneration && outputs.lyrics && (mediaUrls.vocals || mediaUrls.lyricsVocal)) {
           lyricsResult = outputs.lyrics;
           console.log('[Orchestrator] Skipping lyrics — already generated');
         } else {
@@ -2146,8 +2169,9 @@ REQUIREMENTS:
       // Track promises for pipeline sequencing
       const pipelinePromises = { beatAudio: null, image: null, videoDescription: null };
 
-      // Skip slots that already have generated output + media (avoid redundant API calls)
+      // Skip slots that already have generated output + media (only for incremental runs, not fresh)
       const hasMedia = (slot) => {
+        if (freshGeneration) return false; // Always regenerate on fresh generation
         if (slot === 'audio') return mediaUrls.audio;
         if (slot === 'visual') return mediaUrls.image;
         if (slot === 'video') return mediaUrls.video;
@@ -2177,7 +2201,7 @@ REQUIREMENTS:
       }
 
       // Generate vocals AFTER beat is ready (so backingTrackUrl works and backend mixes them)
-      if (lyricsResult && activeSlots.find(([s]) => s === 'lyrics') && !(mediaUrls.vocals || mediaUrls.lyricsVocal)) {
+      if (lyricsResult && activeSlots.find(([s]) => s === 'lyrics') && (freshGeneration || !(mediaUrls.vocals || mediaUrls.lyricsVocal))) {
         console.log('[Pipeline] Starting vocal generation with beat URL for mixing');
         updatePipelineStep('vocals', 'active');
         await handleGenerateVocals(lyricsResult);

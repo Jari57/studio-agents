@@ -1625,15 +1625,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
   const [autoStartVoice, setAutoStartVoice] = useState(false);
 
-  // Effect to rehydrate selectedProject once projects are loaded
-  useEffect(() => {
-    const uid = user?.uid || localStorage.getItem('studio_user_id') || 'guest';
-    const savedId = localStorage.getItem(`studio_project_id_${uid}`);
-    if (savedId && projects && !selectedProject) {
-      const found = projects.find(p => p.id === savedId);
-      if (found) setSelectedProject(found);
-    }
-  }, [projects, user?.uid]);
+  // Note: We intentionally do NOT auto-restore selectedProject on page load.
+  // The orchestrator should start fresh. Users can re-open projects from the hub.
 
   // Persist selectedProject ID
   useEffect(() => {
@@ -2526,13 +2519,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               });
               toast.success(`Synced ${cloudProjects.length} projects from cloud`);
 
-              // Auto-select the last-used project or the most recent one
-              const savedProjectId = localStorage.getItem(`studio_selected_project_${currentUser.uid}`);
-              const merged = mergeProjects([], cloudProjects); // get merged for selection
-              const projectToSelect = (savedProjectId && merged.find(p => p.id === savedProjectId)) || merged[0];
-              if (projectToSelect && !selectedProject) {
-                setSelectedProject(projectToSelect);
-              }
+              // Don't auto-select a project — orchestrator should start fresh
+              // User can open projects from the hub
             } else {
               // Cloud returned 0 projects -could be auth failure or genuinely empty
               // Check if we have local projects to sync up
@@ -12732,7 +12720,12 @@ const fetchUserCredits = useCallback(async (uid) => {
         <Suspense fallback={<LazyFallback />}>
           <StudioOrchestrator
             isOpen={showOrchestrator}
-            onClose={() => setShowOrchestrator(false)}
+            onClose={() => {
+              setShowOrchestrator(false);
+              // Clear selected project so orchestrator starts fresh next time
+              // Projects remain saved in the hub — user can re-open explicitly
+              setSelectedProject(null);
+            }}
             authToken={userToken}
             userPlan={userPlan}
             existingProject={selectedProject}
