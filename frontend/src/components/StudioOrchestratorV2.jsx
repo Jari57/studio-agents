@@ -1393,6 +1393,9 @@ export default function StudioOrchestratorV2({
     lyricsVocal: null, // Unified key for lyrics+vocal
     mixedAudio: null   // Vocal + beat mixed master
   });
+  // Ref mirror so async pipeline code can read latest values
+  const mediaUrlsRef = useRef(mediaUrls);
+  mediaUrlsRef.current = mediaUrls;
   
   const [generatingMedia, setGeneratingMedia] = useState({
     audio: false,
@@ -1487,6 +1490,49 @@ export default function StudioOrchestratorV2({
     ));
   }, []);
 
+  // Reusable helper: mux audio into silent video, with 1 retry and toast feedback
+  const autoMuxVideoWithAudio = useCallback(async (videoUrl, audioUrl, headers) => {
+    const attemptMux = async () => {
+      const resp = await fetch(`${BACKEND_URL}/api/mux-audio-video`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          audioUrl,
+          videoUrl,
+          title: (songIdea || 'song').substring(0, 50)
+        })
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || `Mux failed (${resp.status})`);
+      }
+      return resp.json();
+    };
+
+    try {
+      console.log('[Mux] Starting audio+video mux');
+      let muxData;
+      try {
+        muxData = await attemptMux();
+      } catch (firstErr) {
+        console.warn('[Mux] First attempt failed, retrying in 3s...', firstErr.message);
+        await new Promise(r => setTimeout(r, 3000));
+        muxData = await attemptMux();
+      }
+
+      if (muxData?.muxedVideoUrl) {
+        setMediaUrls(prev => ({ ...prev, video: muxData.muxedVideoUrl }));
+        console.log('[Mux] Video muxed with audio successfully');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('[Mux] All attempts failed:', err.message);
+      toast.error('Video created but audio sync failed — video may be silent', { duration: 6000 });
+      return false;
+    }
+  }, [songIdea]);
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // EFFECTS
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -1500,6 +1546,51 @@ export default function StudioOrchestratorV2({
   useEffect(() => {
     outputsRef.current = outputs;
   }, [outputs]);
+
+  // Restore mediaUrls and outputs from existing project assets on load
+  useEffect(() => {
+    if (!existingProject?.assets?.length) return;
+    // Only restore if mediaUrls are all empty (don't overwrite fresh generations)
+    const hasMedia = mediaUrls.audio || mediaUrls.image || mediaUrls.video || mediaUrls.vocals;
+    if (hasMedia) return;
+
+    const restoredUrls = {};
+    const restoredOutputs = {};
+
+    for (const asset of existingProject.assets) {
+      if (asset.type === 'beat' || asset.type === 'audio') {
+        if (asset.audioUrl && !restoredUrls.audio) restoredUrls.audio = asset.audioUrl;
+        if (asset.content && !restoredOutputs.audio) restoredOutputs.audio = asset.content;
+      }
+      if (asset.type === 'vocal') {
+        if (asset.audioUrl && !restoredUrls.vocals) {
+          restoredUrls.vocals = asset.audioUrl;
+          restoredUrls.lyricsVocal = asset.audioUrl;
+        }
+      }
+      if (asset.type === 'image' || asset.type === 'cover') {
+        if ((asset.imageUrl || asset.url) && !restoredUrls.image) restoredUrls.image = asset.imageUrl || asset.url;
+        if (asset.content && !restoredOutputs.visual) restoredOutputs.visual = asset.content;
+      }
+      if (asset.type === 'video') {
+        if (asset.videoUrl && !restoredUrls.video) restoredUrls.video = asset.videoUrl;
+        if (asset.isPremium && asset.videoUrl) setMusicVideoUrl(asset.videoUrl);
+        if (asset.content && !restoredOutputs.video) restoredOutputs.video = asset.content;
+      }
+      if (asset.type === 'lyrics') {
+        if (asset.content && !restoredOutputs.lyrics) restoredOutputs.lyrics = asset.content;
+      }
+    }
+
+    if (Object.keys(restoredUrls).length > 0) {
+      setMediaUrls(prev => ({ ...prev, ...restoredUrls }));
+      console.log('[Orchestrator] Restored mediaUrls from project assets', Object.keys(restoredUrls));
+    }
+    if (Object.keys(restoredOutputs).length > 0) {
+      setOutputs(prev => ({ ...prev, ...restoredOutputs }));
+      console.log('[Orchestrator] Restored outputs from project assets', Object.keys(restoredOutputs));
+    }
+  }, [existingProject]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch saved voices from Firestore
   useEffect(() => {
@@ -1859,6 +1950,7 @@ export default function StudioOrchestratorV2({
     if (selectedAgents.visual) steps.push({ id: 'image', label: 'Creating album artwork', status: 'pending', startTime: null, endTime: null });
     if (selectedAgents.lyrics) steps.push({ id: 'vocals', label: 'Recording AI vocals', status: 'pending', startTime: null, endTime: null });
     if (selectedAgents.video) steps.push({ id: 'video', label: 'Producing music video', status: 'pending', startTime: null, endTime: null });
+    if (selectedAgents.video && selectedAgents.audio) steps.push({ id: 'mux', label: 'Syncing audio to video', status: 'pending', startTime: null, endTime: null });
     steps.push({ id: 'final', label: 'Creating final mix', status: 'pending', startTime: null, endTime: null });
     setPipelineSteps(steps);
     
@@ -2048,6 +2140,19 @@ REQUIREMENTS:
         updatePipelineStep('video', 'done');
       }
 
+      // AUTO-MUX: Combine silent video with mixed audio to produce final video with sound
+      // Read from ref to get latest state (closure mediaUrls may be stale after async ops)
+      const muxVideoUrl = mediaUrlsRef.current.video;
+      const muxAudioUrl = mediaUrlsRef.current.mixedAudio || mediaUrlsRef.current.audio;
+      if (muxVideoUrl && muxAudioUrl) {
+        updatePipelineStep('mux', 'active');
+        const muxSuccess = await autoMuxVideoWithAudio(muxVideoUrl, muxAudioUrl, headers);
+        updatePipelineStep('mux', muxSuccess ? 'done' : 'error');
+      } else if (muxVideoUrl) {
+        // Video exists but no audio to mux — skip
+        updatePipelineStep('mux', 'done');
+      }
+
       // Auto-create final mix preview
       updatePipelineStep('final', 'active');
       setTimeout(() => { handleCreateFinalMix(); updatePipelineStep('final', 'done'); }, 500);
@@ -2119,7 +2224,41 @@ REQUIREMENTS:
 
       if (response.ok) {
         setOutputs(prev => ({ ...prev, [slot]: data.output }));
+        outputsRef.current[slot] = data.output;
         toast.success(`${slotConfig.title} regenerated!`);
+
+        // For media slots: also regenerate the actual media file, not just the text description
+        if (slot === 'video' && data.output) {
+          toast.loading('Regenerating video...', { id: 'regen-video' });
+          try {
+            await handleGenerateVideo(data.output);
+            // Auto-mux with audio if available
+            const latestAudio = mediaUrlsRef.current.mixedAudio || mediaUrlsRef.current.audio;
+            const latestVideo = mediaUrlsRef.current.video;
+            if (latestVideo && latestAudio) {
+              toast.loading('Syncing audio to video...', { id: 'regen-video' });
+              await autoMuxVideoWithAudio(latestVideo, latestAudio, headers);
+            }
+            toast.success('Video regenerated with audio!', { id: 'regen-video' });
+          } catch (vidErr) {
+            console.error('[Regenerate] Video media regen failed:', vidErr);
+            toast.error('Video description updated but media generation failed', { id: 'regen-video' });
+          }
+        } else if (slot === 'audio' && data.output) {
+          try {
+            await handleGenerateAudio(data.output);
+            toast.success('Beat regenerated!', { id: 'regen-audio' });
+          } catch (audioErr) {
+            console.error('[Regenerate] Audio media regen failed:', audioErr);
+          }
+        } else if (slot === 'visual' && data.output) {
+          try {
+            await handleGenerateImage(data.output);
+            toast.success('Image regenerated!', { id: 'regen-image' });
+          } catch (imgErr) {
+            console.error('[Regenerate] Image media regen failed:', imgErr);
+          }
+        }
       } else {
         toast.error(data.error || `Failed to regenerate ${slotConfig.title}`);
       }
@@ -3221,39 +3360,81 @@ REQUIREMENTS:
   // Download handler
   const handleDownload = (slot) => {
     const output = outputs[slot];
-    if (!output) return;
+    if (!output && !mediaUrls[slot === 'visual' ? 'image' : slot === 'lyrics' ? 'vocals' : slot]) return;
 
     const slotConfig = GENERATOR_SLOTS.find(s => s.key === slot);
-    const textToDownload = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
-    
-    const blob = new Blob([textToDownload], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${songIdea || 'output'}-${slotConfig?.title || slot}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    // Also download media if available
-    const mediaMap = { 
-      audio: mediaUrls.audio, 
-      visual: mediaUrls.image, 
+    const baseName = songIdea || 'media';
+
+    // Download text description
+    if (output) {
+      const textToDownload = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+      const blob = new Blob([textToDownload], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${baseName}-${slotConfig?.title || slot}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Download media file if available
+    const mediaMap = {
+      audio: mediaUrls.audio,
+      visual: mediaUrls.image,
       video: mediaUrls.video,
       lyrics: mediaUrls.vocals
     };
     const mediaUrl = mediaMap[slot];
-    
+
     if (mediaUrl) {
       let formattedUrl = mediaUrl;
       if (slot === 'visual') formattedUrl = formatImageSrc(mediaUrl);
       if (slot === 'audio') formattedUrl = formatAudioSrc(mediaUrl);
       if (slot === 'video') formattedUrl = formatVideoSrc(mediaUrl);
       if (slot === 'lyrics') formattedUrl = formatAudioSrc(mediaUrl); // Vocals are audio
-      
+
       const a = document.createElement('a');
       a.href = formattedUrl;
-      a.download = `${songIdea || 'media'}-${slot}`;
+      const extMap = { audio: '.mp3', visual: '.png', video: '.mp4', lyrics: '.wav' };
+      a.download = `${baseName}-${slot}${extMap[slot] || ''}`;
       a.click();
+    }
+
+    // For video: also download a JSON metadata file with all project info
+    if (slot === 'video' && mediaUrl) {
+      const metadata = {
+        title: songIdea || 'Untitled',
+        createdAt: new Date().toISOString(),
+        genre: style || genre || 'Unknown',
+        bpm: projectBpm || null,
+        duration: duration || null,
+        language: language || 'English',
+        mood: mood || null,
+        structure: structure || null,
+        voiceStyle: voiceStyle || null,
+        videoUrl: mediaUrl,
+        audioUrl: mediaUrls.mixedAudio || mediaUrls.audio || null,
+        imageUrl: mediaUrls.image || null,
+        vocalsUrl: mediaUrls.vocals || mediaUrls.lyricsVocal || null,
+        musicVideoUrl: musicVideoUrl || null,
+        lyrics: outputs.lyrics || null,
+        beatDescription: outputs.audio || null,
+        visualConcept: outputs.visual || null,
+        videoDescription: outputs.video || null,
+        agents: {
+          lyrics: selectedAgents.lyrics || null,
+          audio: selectedAgents.audio || null,
+          visual: selectedAgents.visual || null,
+          video: selectedAgents.video || null
+        }
+      };
+      const jsonBlob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
+      const jsonUrl = URL.createObjectURL(jsonBlob);
+      const jsonLink = document.createElement('a');
+      jsonLink.href = jsonUrl;
+      jsonLink.download = `${baseName}-project-metadata.json`;
+      // Small delay so browser doesn't block multiple downloads
+      setTimeout(() => { jsonLink.click(); URL.revokeObjectURL(jsonUrl); }, 500);
     }
   };
 
@@ -3279,7 +3460,10 @@ REQUIREMENTS:
 
     if (slot === 'audio') setMediaUrls(prev => ({ ...prev, audio: null }));
     if (slot === 'visual') setMediaUrls(prev => ({ ...prev, image: null }));
-    if (slot === 'video') setMediaUrls(prev => ({ ...prev, video: null }));
+    if (slot === 'video') {
+      setMediaUrls(prev => ({ ...prev, video: null }));
+      setMusicVideoUrl(null);
+    }
     if (slot === 'lyrics') setMediaUrls(prev => ({ ...prev, vocals: null }));
     toast.success('Deleted');
   };

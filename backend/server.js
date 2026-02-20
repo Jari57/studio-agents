@@ -24,7 +24,8 @@ const {
 } = require('./services/videoGenerationOrchestrator');
 const {
   mixAudioFromUrls,
-  getMixPreset
+  getMixPreset,
+  downloadAudio
 } = require('./services/audioMixingService');
 const {
   downloadSource,
@@ -5159,6 +5160,122 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// MUX AUDIO + VIDEO - Combine silent video with mixed audio track
+// Free — user already paid for video + audio generation
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
+  const ffmpegStatic = require('ffmpeg-static');
+  const { execFile } = require('child_process');
+  const os = require('os');
+
+  const timestamp = Date.now();
+  const tempDir = path.join(os.tmpdir(), 'mux-av');
+  const tempAudio = path.join(tempDir, `audio_${timestamp}.mp3`);
+  const tempVideo = path.join(tempDir, `video_${timestamp}.mp4`);
+  const tempOutput = path.join(tempDir, `muxed_${timestamp}.mp4`);
+
+  try {
+    const { audioUrl, videoUrl, title = 'muxed-video' } = req.body;
+
+    if (!audioUrl || !videoUrl) {
+      return res.status(400).json({ error: 'Both audioUrl and videoUrl are required' });
+    }
+
+    // Verify FFmpeg is available
+    if (!ffmpegStatic || !fs.existsSync(ffmpegStatic)) {
+      logger.error('FFmpeg binary not found', { path: ffmpegStatic });
+      return res.status(503).json({ error: 'Video processing unavailable — FFmpeg not installed' });
+    }
+
+    logger.info('🎬 Muxing audio + video', {
+      audioUrl: audioUrl.substring(0, 60),
+      videoUrl: videoUrl.substring(0, 60),
+      title
+    });
+
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+    // Download both files
+    await Promise.all([
+      downloadAudio(audioUrl, tempAudio),
+      downloadAudio(videoUrl, tempVideo)
+    ]);
+
+    logger.info('🎬 Files downloaded, starting FFmpeg mux');
+
+    // Run FFmpeg mux with retry on codec incompatibility
+    const runFfmpeg = (copyVideo) => new Promise((resolve, reject) => {
+      const args = [
+        '-i', tempVideo,
+        '-i', tempAudio,
+        '-c:v', copyVideo ? 'copy' : 'libx264',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-shortest',
+        '-movflags', '+faststart',
+        '-y',
+        tempOutput
+      ];
+      // Add preset for re-encode to keep it fast
+      if (!copyVideo) args.splice(args.indexOf('libx264') + 1, 0, '-preset', 'fast');
+
+      execFile(ffmpegStatic, args, { timeout: 180000 }, (error, _stdout, stderr) => {
+        if (error) {
+          logger.warn('FFmpeg mux attempt failed', { copyVideo, error: error.message, stderr: (stderr || '').substring(0, 300) });
+          return reject(new Error(`FFmpeg mux failed: ${error.message}`));
+        }
+        resolve();
+      });
+    });
+
+    // Try fast copy first, fall back to re-encode if codec is incompatible
+    try {
+      await runFfmpeg(true);
+    } catch (firstErr) {
+      logger.info('🎬 Retrying mux with re-encode (codec incompatibility)');
+      await runFfmpeg(false);
+    }
+
+    if (!fs.existsSync(tempOutput)) {
+      return res.status(500).json({ error: 'Muxing produced no output file' });
+    }
+
+    // Check output size before loading into memory (200MB limit)
+    const outputStat = fs.statSync(tempOutput);
+    const MAX_MUX_SIZE = 200 * 1024 * 1024;
+    if (outputStat.size > MAX_MUX_SIZE) {
+      logger.error('Muxed output too large', { size: outputStat.size, limit: MAX_MUX_SIZE });
+      return res.status(413).json({ error: `Muxed video too large (${Math.round(outputStat.size / 1024 / 1024)}MB). Limit is 200MB.` });
+    }
+
+    // Upload to Firebase Storage
+    const outputBuffer = fs.readFileSync(tempOutput);
+    const safeName = title.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const fileName = `muxed_video_${safeName}_${timestamp}.mp4`;
+    const uploadResult = await uploadToStorage(outputBuffer, req.user.uid, fileName, 'video/mp4');
+
+    logger.info('✅ Audio+Video muxed and uploaded', {
+      storagePath: uploadResult.path,
+      size: outputBuffer.length
+    });
+
+    res.json({
+      muxedVideoUrl: uploadResult.url,
+      storagePath: uploadResult.path,
+      size: outputBuffer.length
+    });
+  } catch (err) {
+    logger.error('Mux audio+video error:', err);
+    res.status(500).json({ error: 'Failed to mux audio and video', details: safeErrorDetail(err) });
+  } finally {
+    // Always clean up temp files
+    try { fs.unlinkSync(tempAudio); } catch {}
+    try { fs.unlinkSync(tempVideo); } catch {}
+    try { fs.unlinkSync(tempOutput); } catch {}
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // VIDEO GENERATION ROUTE (Multi-Model: Replicate -> Veo -> Fallback)
 // ═══════════════════════════════════════════════════════════════════
 // Video generation charges 15 credits (expensive)
@@ -8102,15 +8219,15 @@ app.post('/api/generate-synced-video-test', async (req, res) => {
       });
     }
 
-    // For testing, return success response
+    // For testing, return test response indicating endpoint is working
     return res.json({
       success: true,
-      videoUrl: 'https://example.com/video.mp4',
+      videoUrl: null,
       duration: requestedDuration,
       bpm: 120,
       beats: 32,
       segments: Math.ceil(requestedDuration / 5),
-      message: 'Video generation endpoint is working (test response)'
+      message: 'Video generation endpoint is working (test response — no video generated)'
     });
 
   } catch (error) {
@@ -8231,9 +8348,26 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
     );
 
     if (result.success) {
+      let finalVideoUrl = result.videoUrl;
+
+      // Upload local file to Firebase Storage for a permanent URL
+      if (result.videoUrl && !result.videoUrl.startsWith('http') && fs.existsSync(result.videoUrl)) {
+        try {
+          const videoBuffer = fs.readFileSync(result.videoUrl);
+          const fileName = `synced_video_${songTitle.replace(/[^a-zA-Z0-9.-]/g, '_')}_${Date.now()}.mp4`;
+          const uploadResult = await uploadToStorage(videoBuffer, req.user.uid, fileName, 'video/mp4');
+          finalVideoUrl = uploadResult.url;
+          logger.info('📤 Synced video uploaded to storage', { storagePath: uploadResult.path });
+          // Clean up local file
+          try { fs.unlinkSync(result.videoUrl); } catch {}
+        } catch (uploadErr) {
+          logger.warn('Synced video upload failed, returning local path', { error: uploadErr.message });
+        }
+      }
+
       res.json({
         success: true,
-        videoUrl: result.videoUrl,
+        videoUrl: finalVideoUrl,
         duration: result.duration,
         bpm: result.bpm,
         beats: result.beatCount,

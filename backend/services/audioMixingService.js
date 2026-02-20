@@ -15,9 +15,9 @@ const http = require('http');
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
 /**
- * Download audio file from URL
+ * Download audio/video file from URL with redirect following and timeout
  */
-function downloadAudio(url, destPath) {
+function downloadAudio(url, destPath, maxRedirects = 3) {
   return new Promise((resolve, reject) => {
     // Handle base64 data URLs (vocals/beats returned as data: URIs from AI providers)
     if (url.startsWith('data:')) {
@@ -31,23 +31,53 @@ function downloadAudio(url, destPath) {
       }
     }
 
-    const protocol = url.startsWith('https') ? https : http;
-    const file = fs.createWriteStream(destPath);
+    const doRequest = (requestUrl, redirectsLeft) => {
+      const protocol = requestUrl.startsWith('https') ? https : http;
+      const file = fs.createWriteStream(destPath);
 
-    protocol.get(url, (response) => {
-      if (response.statusCode !== 200) {
-        reject(new Error(`Download failed: ${response.statusCode}`));
-        return;
-      }
-      response.pipe(file);
-      file.on('finish', () => {
-        file.close();
-        resolve(destPath);
+      const req = protocol.get(requestUrl, (response) => {
+        // Follow redirects (301, 302, 307, 308)
+        if ([301, 302, 307, 308].includes(response.statusCode) && response.headers.location) {
+          file.close();
+          fs.unlink(destPath, () => {});
+          if (redirectsLeft <= 0) {
+            return reject(new Error(`Too many redirects downloading ${requestUrl}`));
+          }
+          const redirectUrl = response.headers.location.startsWith('http')
+            ? response.headers.location
+            : new URL(response.headers.location, requestUrl).href;
+          return doRequest(redirectUrl, redirectsLeft - 1);
+        }
+
+        if (response.statusCode !== 200) {
+          file.close();
+          fs.unlink(destPath, () => {});
+          reject(new Error(`Download failed: HTTP ${response.statusCode} for ${requestUrl.substring(0, 80)}`));
+          return;
+        }
+        response.pipe(file);
+        file.on('finish', () => {
+          file.close();
+          resolve(destPath);
+        });
       });
-    }).on('error', (err) => {
-      fs.unlink(destPath, () => {});
-      reject(err);
-    });
+
+      // 60-second timeout to prevent hanging on stalled connections
+      req.setTimeout(60000, () => {
+        req.destroy();
+        file.close();
+        fs.unlink(destPath, () => {});
+        reject(new Error(`Download timed out after 60s: ${requestUrl.substring(0, 80)}`));
+      });
+
+      req.on('error', (err) => {
+        file.close();
+        fs.unlink(destPath, () => {});
+        reject(err);
+      });
+    };
+
+    doRequest(url, maxRedirects);
   });
 }
 
