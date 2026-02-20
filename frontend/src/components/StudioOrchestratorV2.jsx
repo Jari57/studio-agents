@@ -2305,9 +2305,6 @@ REQUIREMENTS:
       
       console.log('[handleGenerateAudio] Making API call to:', `${BACKEND_URL}/api/generate-audio`);
 
-      // DNA reference audio (using audioDnaUrl from state)
-      const activeReferencedAudio = null; // TODO: Implement asset lookup if needed
-
       const response = await fetch(`${BACKEND_URL}/api/generate-audio`, {
         method: 'POST',
         headers,
@@ -2318,11 +2315,11 @@ REQUIREMENTS:
           genre: style || 'hip-hop',
           mood: mood.toLowerCase() || 'energetic',
           bpm: parseInt(projectBpm) || 90,
-          durationSeconds: parseInt(duration) || (structure === 'Full Song' ? 90 : 
+          durationSeconds: parseInt(duration) || (structure === 'Full Song' ? 90 :
                           structure === 'Radio Edit' ? 150 :
                           structure === 'Extended' ? 180 :
                           structure === 'Loop' ? 15 : 30),
-          referenceAudio: activeReferencedAudio?.audioUrl || audioDnaUrl,
+          referenceAudio: audioDnaUrl || null,
           engine: musicEngine || 'music-gpt',
           quality: 'premium', // Ensure high-fidelity selection in backend
           outputFormat: outputFormat, // music, social, podcast, tv
@@ -2385,11 +2382,11 @@ REQUIREMENTS:
                 mood: mood,
                 bpm: projectBpm,
                 engine: musicEngine,
-                referencedAudioId: activeReferencedAudio?.id
+                referencedAudioId: audioDnaUrl ? 'dna-ref' : null
               },
               createdAt: new Date().toISOString()
             };
-            
+
             saveFunc({
               ...existingProject,
               assets: [audioAsset, ...(existingProject.assets || [])],
@@ -2502,9 +2499,6 @@ REQUIREMENTS:
         backendStyle = 'singer-female';
       }
 
-      // DNA reference audio (using voiceSampleUrl from state)
-      const activeReferencedAudio = null; // TODO: Implement asset lookup if needed
-
       const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
         method: 'POST',
         headers,
@@ -2518,7 +2512,7 @@ REQUIREMENTS:
           duration: duration || 30,
           quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
           outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
-          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : (activeReferencedAudio?.audioUrl || null),
+          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
           elevenLabsVoiceId: (vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null,
           backingTrackUrl: mediaUrls.audio
         })
@@ -2571,7 +2565,7 @@ REQUIREMENTS:
               style: voiceStyle,
               quality: vocalQuality,
               provider: data.provider || 'unknown',
-              referencedAudioId: activeReferencedAudio?.id
+              referencedAudioId: voiceStyle === 'cloned' ? voiceSampleUrl : null
             },
             createdAt: new Date().toISOString()
           };

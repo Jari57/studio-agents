@@ -5332,13 +5332,6 @@ const fetchUserCredits = useCallback(async (uid) => {
   const handleConnectSocial = async (platform) => {
     const returnUrl = encodeURIComponent(window.location.href);
 
-    // Platforms that have NOT YET been implemented on the backend
-    const comingSoonPlatforms = ['youtube', 'spotify', 'linkedin', 'tiktok', 'soundcloud'];
-    if (comingSoonPlatforms.includes(platform)) {
-      toast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} integration coming soon!`, { icon: '(wip)', duration: 3000 });
-      return;
-    }
-
     if (platform === 'twitter') {
       try {
         // Check if backend is ready
@@ -5377,9 +5370,6 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
       return;
     }
-
-    // Fallback for any unhandled platform
-    toast(`${platform.charAt(0).toUpperCase() + platform.slice(1)} coming soon!`, { icon: '(wip)' });
   };
 
   const handleDeleteProject = async (projectId, eOrSkipConfirm) => {
@@ -7324,29 +7314,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                       <Zap size={16} />
                       <span>{socialConnections.facebook ? (metaName ? `FB: ${metaName}` : 'Facebook Linked') : 'Link Facebook'}</span>
                     </button>
-                    <button 
-                      className={`social-connect-btn ${socialConnections.tiktok ? 'connected' : ''}`}
-                      onClick={() => handleConnectSocial('tiktok')}
-                    >
-                      <Zap size={16} />
-                      <span>{socialConnections.tiktok ? 'TikTok Linked' : 'Link TikTok'}</span>
-                    </button>
-                    <button 
+                    <button
                       className={`social-connect-btn ${socialConnections.twitter ? 'connected' : ''}`}
                       onClick={() => handleConnectSocial('twitter')}
                     >
                       <MessageSquare size={16} />
                       <span>{socialConnections.twitter ? (twitterUsername ? `@${twitterUsername}` : 'X/Twitter Linked') : 'Link X/Twitter'}</span>
                     </button>
-                    {(selectedAgent?.id === 'collab' || selectedAgent?.id === 'release') && (
-                      <button 
-                        className={`social-connect-btn ${socialConnections.spotify ? 'connected' : ''}`}
-                        onClick={() => handleConnectSocial('spotify')}
-                      >
-                        <Music size={16} />
-                        <span>{socialConnections.spotify ? 'Spotify Linked' : 'Link Spotify'}</span>
-                      </button>
-                    )}
                   </div>
                   <p className="help-text mini">One-click secure OAuth connection.</p>
                 </div>
@@ -8724,14 +8698,9 @@ const fetchUserCredits = useCallback(async (uid) => {
       case 'activity': {
         const SOCIAL_PLATFORMS = [
           { id: 'instagram', name: 'Instagram', icon: '(camera)', color: '#E1306C', desc: 'Photos & Stories' },
-          { id: 'tiktok', name: 'TikTok', icon: '(music)', color: '#00f2ea', desc: 'Short-form video' },
           { id: 'twitter', name: 'X / Twitter', icon: 'ð•', color: '#1DA1F2', desc: 'Posts & threads' },
-          { id: 'spotify', name: 'Spotify', icon: '(headphones)', color: '#1DB954', desc: 'Music streaming' },
           { id: 'facebook', name: 'Facebook', icon: '(book)', color: '#1877F2', desc: 'Pages & groups' },
-          { id: 'youtube', name: 'YouTube', icon: '▶', color: '#FF0000', desc: 'Video & shorts' },
-          { id: 'soundcloud', name: 'SoundCloud', icon: '☁', color: '#ff5500', desc: 'Audio streaming' },
-          { id: 'threads', name: 'Threads', icon: '(thread)', color: '#000000', desc: 'Text-based social' },
-          { id: 'linkedin', name: 'LinkedIn', icon: '(work)', color: '#0A66C2', desc: 'Professional network' }
+          { id: 'threads', name: 'Threads', icon: '(thread)', color: '#000000', desc: 'Text-based social' }
         ];
         const socialSubTab = activitySection || 'connections';
         return (
@@ -9291,22 +9260,6 @@ const fetchUserCredits = useCallback(async (uid) => {
                       )}
                     </div>
                   </div>
-
-                  {/* Share Button */}
-                  <button
-                    onClick={() => toast('Cross-posting coming soon! Connect your accounts to get ready.', { icon: '' })}
-                    style={{
-                      padding: '14px 32px', borderRadius: '12px', border: 'none',
-                      background: Object.values(socialConnections).filter(Boolean).length > 0
-                        ? 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))'
-                        : 'rgba(255,255,255,0.1)',
-                      color: 'white', fontSize: '1rem', fontWeight: '600',
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    <Share2 size={18} /> Share to {Object.values(socialConnections).filter(Boolean).length} Platform{Object.values(socialConnections).filter(Boolean).length !== 1 ? 's' : ''}
-                  </button>
                 </div>
 
                 {/* Recent Projects to Share */}
@@ -11624,37 +11577,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
                 
                 <div className="external-storage-grid">
-                  <button className="storage-btn" onClick={() => { 
+                  <button className="storage-btn" onClick={() => {
                     // Simulate connection
                     setStorageConnections(prev => ({ ...prev, googleDrive: true }));
-                    setShowExternalSaveModal(false); 
+                    setShowExternalSaveModal(false);
                   }}>
                     <img src="https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg" alt="Google Drive" width="24" loading="lazy" />
                     <span>Google Drive</span>
-                  </button>
-                  <button className="storage-btn" onClick={() => { 
-                    // Simulate connection
-                    toast('OneDrive coming soon!', { icon: '(wip)' }); 
-                    setShowExternalSaveModal(false); 
-                  }}>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/3/3c/Microsoft_Office_OneDrive_%282019%E2%80%93present%29.svg" alt="OneDrive" width="24" loading="lazy" />
-                    <span>OneDrive</span>
-                  </button>
-                  <button className="storage-btn" onClick={() => { 
-                    // Simulate connection
-                    toast('Dropbox coming soon!', { icon: '(wip)' }); 
-                    setShowExternalSaveModal(false); 
-                  }}>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/Dropbox_Icon.svg" alt="Dropbox" width="24" loading="lazy" />
-                    <span>Dropbox</span>
-                  </button>
-                  <button className="storage-btn" onClick={() => { 
-                    // Simulate connection
-                    toast('iCloud coming soon!', { icon: '(wip)' }); 
-                    setShowExternalSaveModal(false); 
-                  }}>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/1c/ICloud_logo.svg" alt="iCloud" width="24" loading="lazy" />
-                    <span>iCloud</span>
                   </button>
                 </div>
               </div>

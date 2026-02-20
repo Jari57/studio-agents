@@ -140,6 +140,21 @@ const DEMO_ACCOUNTS = {
 };
 
 // =============================================================================
+// =============================================================================
+// VIDEO JOB TRACKING - In-memory store for async video generation jobs
+// =============================================================================
+const videoJobs = new Map();
+// Auto-cleanup: remove completed/failed jobs after 1 hour
+setInterval(() => {
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  for (const [jobId, job] of videoJobs) {
+    if ((job.status === 'completed' || job.status === 'failed') && job.updatedAt < oneHourAgo) {
+      videoJobs.delete(jobId);
+    }
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
+
+// =============================================================================
 // CREDIT COSTS PER FEATURE - Configurable pricing for high margins
 // =============================================================================
 const CREDIT_COSTS = {
@@ -5299,16 +5314,15 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
       logger.info('🎬 Augmenting video prompt for audio synchronization', { hasAudio: !!audioUrl, hasVocals: !!vocalUrl });
     }
 
-    // FAST-FAIL/MOCK for test prompts to save time and API costs during build/CI
-
-    if (prompt.toLowerCase().includes('test video') || prompt.toLowerCase() === 'test') {
-      logger.info('Handling test video prompt with mock response');
+    // FAST-FAIL/MOCK for test prompts — only in development
+    if (process.env.NODE_ENV !== 'production' && (prompt.toLowerCase().includes('test video') || prompt.toLowerCase() === 'test')) {
+      logger.info('Handling test video prompt with mock response (dev only)');
       return res.json({
         output: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
         mimeType: 'video/mp4',
         type: 'video',
         source: 'mock-test',
-        message: 'Mock video returned for test prompt'
+        message: 'Mock video returned for test prompt (dev only)'
       });
     }
 
@@ -5938,11 +5952,10 @@ app.post('/api/master-audio', verifyFirebaseToken, requireAuth, generationLimite
     const finalBitDepth = targetBitDepth || config.bitDepth;
 
     if (!WaveFile) {
-      return res.status(503).json({ 
-        error: 'Audio mastering temporarily unavailable',
-        message: 'Advanced audio mastering is currently in development. Basic audio processing is not available on this server instance.',
-        comingSoon: true,
-        alternatives: 'For now, please use external mastering tools like Landr, CloudBounce, or eMastered.'
+      return res.status(503).json({
+        error: 'Audio mastering unavailable on this server',
+        message: 'The wavefile library failed to load. Please ensure it is installed: npm install wavefile',
+        details: 'Contact support if this persists.'
       });
     }
 
@@ -8304,6 +8317,20 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
       // Generate a unique job ID
       const jobId = `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+      // Track job in memory
+      videoJobs.set(jobId, {
+        status: 'processing',
+        progress: 0,
+        message: 'Starting video generation...',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        userId: req.user.uid,
+        duration: requestedDuration,
+        title: songTitle,
+        videoUrl: null,
+        error: null
+      });
+
       // Start async generation (don't await)
       generateSyncedMusicVideo(
         audioUrl,
@@ -8314,16 +8341,54 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
         logger,
         imageUrl,
         videoUrl
-      ).then(result => {
-        if (logger) logger.info('Background video generation complete', {
-          jobId,
-          result: result.success ? 'success' : 'failed'
-        });
+      ).then(async (result) => {
+        if (result.success) {
+          let finalUrl = result.videoUrl;
+          // Upload local file to Firebase Storage
+          if (finalUrl && !finalUrl.startsWith('http') && fs.existsSync(finalUrl)) {
+            try {
+              const videoBuffer = fs.readFileSync(finalUrl);
+              const fileName = `synced_video_${songTitle.replace(/[^a-zA-Z0-9.-]/g, '_')}_${Date.now()}.mp4`;
+              const uploadResult = await uploadToStorage(videoBuffer, req.user.uid, fileName, 'video/mp4');
+              try { fs.unlinkSync(finalUrl); } catch {}
+              finalUrl = uploadResult.url;
+            } catch (upErr) {
+              logger.warn('Background video upload failed', { error: upErr.message });
+            }
+          }
+          videoJobs.set(jobId, {
+            ...videoJobs.get(jobId),
+            status: 'completed',
+            progress: 100,
+            message: 'Video generation complete',
+            videoUrl: finalUrl,
+            duration: result.duration,
+            bpm: result.bpm,
+            beats: result.beatCount,
+            segments: result.segments,
+            updatedAt: Date.now()
+          });
+          logger.info('Background video generation complete', { jobId });
+        } else {
+          videoJobs.set(jobId, {
+            ...videoJobs.get(jobId),
+            status: 'failed',
+            progress: 0,
+            message: result.error || 'Video generation failed',
+            error: result.error,
+            updatedAt: Date.now()
+          });
+        }
       }).catch(error => {
-        if (logger) logger.error('Background video generation failed', {
-          jobId,
-          error: error.message
+        videoJobs.set(jobId, {
+          ...videoJobs.get(jobId),
+          status: 'failed',
+          progress: 0,
+          message: error.message || 'Video generation failed',
+          error: error.message,
+          updatedAt: Date.now()
         });
+        logger.error('Background video generation failed', { jobId, error: error.message });
       });
 
       return res.status(202).json({
@@ -8398,25 +8463,29 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
 app.get('/api/video-job-status-test/:jobId', async (req, res) => {
   try {
     const { jobId } = req.params;
+    const job = videoJobs.get(jobId);
 
-    logger.info('Job status check', { jobId });
+    if (!job) {
+      return res.status(404).json({ jobId, status: 'not_found', message: 'Job not found or expired' });
+    }
 
-    // In production, you would query a job database/queue
-    // For now, return placeholder
     res.json({
       jobId,
-      status: 'processing',
-      progress: Math.floor(Math.random() * 80) + 10, // 10-90%
-      message: 'Video generation in progress...',
-      estimatedTimeRemaining: '5-10 minutes'
+      status: job.status,
+      progress: job.status === 'completed' ? 100 : (job.status === 'failed' ? 0 : Math.min(90, Math.floor((Date.now() - job.createdAt) / 1000 / 2))),
+      message: job.message,
+      videoUrl: job.videoUrl || null,
+      duration: job.duration || null,
+      bpm: job.bpm || null,
+      beats: job.beats || null,
+      error: job.error || null,
+      estimatedTimeRemaining: job.status === 'processing'
+        ? `${Math.max(1, Math.floor((job.duration || 30) / 6))} minutes remaining`
+        : null
     });
-
   } catch (error) {
     logger.error('Job status check error', { error: error.message });
-    res.status(500).json({
-      error: 'Could not check job status',
-      details: safeErrorDetail(error)
-    });
+    res.status(500).json({ error: 'Could not check job status', details: safeErrorDetail(error) });
   }
 });
 
@@ -8427,25 +8496,35 @@ app.get('/api/video-job-status-test/:jobId', async (req, res) => {
 app.get('/api/video-job-status/:jobId', verifyFirebaseToken, requireAuth, apiLimiter, async (req, res) => {
   try {
     const { jobId } = req.params;
+    const job = videoJobs.get(jobId);
 
-    logger.info('Job status check', { jobId });
+    if (!job) {
+      return res.status(404).json({ jobId, status: 'not_found', message: 'Job not found or expired' });
+    }
 
-    // In production, you would query a job database/queue
-    // For now, return placeholder
+    // Only allow the job owner to check status
+    if (job.userId && job.userId !== req.user.uid) {
+      return res.status(403).json({ error: 'Not authorized to view this job' });
+    }
+
     res.json({
       jobId,
-      status: 'processing',
-      progress: Math.floor(Math.random() * 80) + 10, // 10-90%
-      message: 'Video generation in progress...',
-      estimatedTimeRemaining: '5-10 minutes'
+      status: job.status,
+      progress: job.status === 'completed' ? 100 : (job.status === 'failed' ? 0 : Math.min(90, Math.floor((Date.now() - job.createdAt) / 1000 / 2))),
+      message: job.message,
+      videoUrl: job.videoUrl || null,
+      duration: job.duration || null,
+      bpm: job.bpm || null,
+      beats: job.beats || null,
+      segments: job.segments || null,
+      error: job.error || null,
+      estimatedTimeRemaining: job.status === 'processing'
+        ? `${Math.max(1, Math.floor((job.duration || 30) / 6))} minutes remaining`
+        : null
     });
-
   } catch (error) {
     logger.error('Job status check error', { error: error.message });
-    res.status(500).json({
-      error: 'Could not check job status',
-      details: safeErrorDetail(error)
-    });
+    res.status(500).json({ error: 'Could not check job status', details: safeErrorDetail(error) });
   }
 });
 
