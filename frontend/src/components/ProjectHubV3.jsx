@@ -712,7 +712,7 @@ function ProjectHubV3({
         <DiscoverFeed 
           onRemix={(track) => {
             const newProject = {
-              id: `remix-${Date.now()}`,
+              id: `remix-${crypto.randomUUID()}`,
               name: `Remix: ${track.name}`,
               idea: track.name,
               style: track.tags[0] || 'Modern Hip-Hop',

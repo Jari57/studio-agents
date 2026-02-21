@@ -3139,7 +3139,7 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
     
     // Create the master asset
     const masterAsset = {
-      id: `master-${Date.now()}`,
+      id: `master-${crypto.randomUUID()}`,
       title: `Master: ${projectName || 'Untitled'}`,
       type: 'Master',
       agent: 'AMO Orchestrator',

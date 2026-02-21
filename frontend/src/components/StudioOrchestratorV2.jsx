@@ -2827,7 +2827,7 @@ REQUIREMENTS:
               try {
                 const userRef = doc(db, 'users', auth.currentUser.uid);
                 const newArtifact = {
-                  id: `dna-${Date.now()}`,
+                  id: `dna-${crypto.randomUUID()}`,
                   type: slot,
                   url: url,
                   name: file.name,

@@ -173,7 +173,7 @@ function QuickWorkflow({
 
   const handleSaveToExistingProject = (project) => {
     const asset = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       type: 'text',
       agent: agent.id,
       agentName: agent.name,
@@ -193,7 +193,7 @@ function QuickWorkflow({
     }
     
     const asset = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       type: 'text',
       agent: agent.id,
       agentName: agent.name,

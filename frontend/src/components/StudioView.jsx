@@ -129,7 +129,7 @@ const sanitizeProject = (project) => {
   
   return {
     ...project,
-    id: project.id || `proj_${Date.now()}`,
+    id: project.id || `proj_${crypto.randomUUID()}`,
     title: typeof project.title === 'string' ? project.title : 'Untitled Project',
     assets: Array.isArray(project.assets) 
       ? project.assets.filter(a => a && typeof a === 'object')
@@ -2324,7 +2324,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
 
     setProjects(prev => {
       // Check if project with same name was created in last 10s
-      const duplicate = prev.find(p => p.name === newProject.name && (Date.now() - parseInt(p.id)) < 10000);
+      const duplicate = prev.find(p => p.name === newProject.name && p.createdAt && (Date.now() - new Date(p.createdAt).getTime()) < 10000);
       if (duplicate) return prev;
       return [newProject, ...prev];
     });
@@ -3732,7 +3732,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
 
       const newPM = {
-        id: editingPayment ? editingPayment.item.id : `pm_${Date.now()}`,
+        id: editingPayment ? editingPayment.item.id : `pm_${crypto.randomUUID()}`,
         type: 'Visa', // In a real app, detect type from number
         last4: cardNumber.slice(-4),
         expiry: expiry,
@@ -3751,7 +3751,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       const accountNumber = formData.get('accountNumber');
 
       const newBA = {
-        id: editingPayment ? editingPayment.item.id : `ba_${Date.now()}`,
+        id: editingPayment ? editingPayment.item.id : `ba_${crypto.randomUUID()}`,
         bankName: bankName,
         last4: accountNumber.slice(-4),
         type: 'Checking'
@@ -5548,7 +5548,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     // Create new project object based on sample
     const newProject = {
       ...sampleProject,
-      id: `fork-${Date.now()}`,
+      id: `fork-${crypto.randomUUID()}`,
       name: `Fork of ${sampleProject.name || 'Untitled Project'}`,
       creatorId: user?.uid || 'guest',
       createdAt: new Date().toISOString(),
@@ -11464,7 +11464,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                        
                        // Use the master asset from the API response
                        const masterAsset = data.masterAsset || {
-                         id: `master-${Date.now()}`,
+                         id: `master-${crypto.randomUUID()}`,
                          title: `Studio Master ${renderNumber}/3 - ${selectedProject.name}`,
                          type: "Master",
                          agent: "AMO Orchestrator",
