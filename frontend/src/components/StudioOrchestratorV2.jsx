@@ -611,9 +611,11 @@ function GeneratorCard({
                   }}
                 >
                   {mediaType === 'audio' && mediaUrl && (
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                      display: 'flex',
+                      alignItems: 'center',
                       gap: '12px',
                       padding: '8px'
                     }}>
@@ -629,7 +631,7 @@ function GeneratorCard({
                       }}>
                         <Music size={18} color="white" />
                       </div>
-                      <audio 
+                      <audio
                         src={formatAudioSrc(mediaUrl)}
                         controls
                         style={{ flex: 1, height: '32px' }}

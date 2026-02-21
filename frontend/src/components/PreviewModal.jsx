@@ -354,7 +354,6 @@ export function PreviewModal({
                   src={formatAudioSrc(mediaUrl)}
                   controls
                   crossOrigin="anonymous"
-                  autoPlay
                   style={{
                     width: '100%',
                     height: '54px',
