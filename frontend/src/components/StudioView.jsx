@@ -418,7 +418,7 @@ const NAVIGATION_ITEMS_STATIC = [
 ];
 
 const MORE_MENU_ITEMS = [
-  { id: 'activity', icon: Music, label: 'Music Hub', desc: 'Trending AI across platforms', color: 'var(--color-purple)' },
+  { id: 'activity', icon: Music, label: 'Social Media Hub', desc: 'Connect accounts & share content', color: 'var(--color-purple)' },
   { id: 'news', icon: GlobeIcon, label: 'Industry Pulse', desc: 'Latest music & tech news', color: 'var(--color-cyan)' },
   { id: 'whitepapers', icon: FileText, label: 'Whitepapers', desc: 'Technical documentation', color: 'var(--color-indigo)' },
   { id: 'legal', icon: Shield, label: 'Legal Center', desc: 'Terms & licensing', color: 'var(--color-red)' },
@@ -8492,6 +8492,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         setActiveTab('mystudio');
                         setDashboardTab('overview');
                       } else {
+                        if (item.id === 'activity') setActivitySection('connections');
                         setActiveTab(item.id);
                       }
                     }}
@@ -9933,6 +9934,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       if (item.id === 'legal' || item.id === 'whitepapers') {
                         window.location.hash = `#/${item.id}`;
                       } else {
+                        if (item.id === 'activity') setActivitySection('connections');
                         setActiveTab(item.id);
                       }
                     }}
@@ -10463,9 +10465,9 @@ const fetchUserCredits = useCallback(async (uid) => {
             <Folder size={20} />
             <span>Project Hub</span>
           </button>
-          <button 
+          <button
             className={`nav-link ${activeTab === 'activity' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('activity'); setSelectedAgent(null); }}
+            onClick={() => { setActiveTab('activity'); setSelectedAgent(null); setActivitySection('connections'); }}
           >
             <MessageSquare size={20} />
             <span>Social Media Hub</span>
@@ -10683,7 +10685,9 @@ const fetchUserCredits = useCallback(async (uid) => {
         </header>
 
         <div className="studio-content">
-          {renderContent()}
+          <SectionErrorBoundary name="Main Content">
+            {renderContent()}
+          </SectionErrorBoundary>
         </div>
 
         {/* Media Player Modal */}
