@@ -772,7 +772,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [isLoadingActivity, setIsLoadingActivity] = useState(false);
   const [hasMoreActivity, setHasMoreActivity] = useState(true);
   const [activityFeed, setActivityFeed] = useState([]);
-  const [activitySection, setActivitySection] = useState(() => localStorage.getItem('musicHubSection') || 'all');
+  const [activitySection, setActivitySection] = useState(() => localStorage.getItem('musicHubSection') || 'connections');
 
   // News Pagination State
   const [newsPage, setNewsPage] = useState(1);
@@ -8803,10 +8803,10 @@ const fetchUserCredits = useCallback(async (uid) => {
         );
       case 'activity': {
         const SOCIAL_PLATFORMS = [
-          { id: 'instagram', name: 'Instagram', icon: '(camera)', color: '#E1306C', desc: 'Photos & Stories' },
-          { id: 'twitter', name: 'X / Twitter', icon: 'ð•', color: '#1DA1F2', desc: 'Posts & threads' },
-          { id: 'facebook', name: 'Facebook', icon: '(book)', color: '#1877F2', desc: 'Pages & groups' },
-          { id: 'threads', name: 'Threads', icon: '(thread)', color: '#000000', desc: 'Text-based social' }
+          { id: 'instagram', name: 'Instagram', icon: '📷', color: '#E1306C', desc: 'Photos & Stories' },
+          { id: 'twitter', name: 'X / Twitter', icon: '𝕏', color: '#1DA1F2', desc: 'Posts & threads' },
+          { id: 'facebook', name: 'Facebook', icon: '📘', color: '#1877F2', desc: 'Pages & groups' },
+          { id: 'threads', name: 'Threads', icon: '🧵', color: '#000000', desc: 'Text-based social' }
         ];
         const socialSubTab = activitySection || 'connections';
         return (
@@ -8976,6 +8976,33 @@ const fetchUserCredits = useCallback(async (uid) => {
                     </button>
                   ))}
                 </div>
+
+                {/* Loading State */}
+                {isLoadingActivity && activityFeed.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
+                    <div style={{ width: '32px', height: '32px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--color-purple)', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
+                    <p style={{ fontSize: '0.9rem' }}>Loading content feed...</p>
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {!isLoadingActivity && activityFeed.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)' }}>
+                    <GlobeIcon size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
+                    <p style={{ fontSize: '1rem', fontWeight: '600', color: 'white', marginBottom: '8px' }}>No content yet</p>
+                    <p style={{ fontSize: '0.85rem', marginBottom: '20px' }}>Music news, trending tracks, and community content will appear here.</p>
+                    <button
+                      onClick={() => fetchActivity(1, 'all')}
+                      style={{
+                        padding: '10px 24px', borderRadius: '10px', border: '1px solid var(--color-purple)',
+                        background: 'transparent', color: 'var(--color-purple)', fontSize: '0.9rem',
+                        fontWeight: '600', cursor: 'pointer'
+                      }}
+                    >
+                      Refresh Feed
+                    </button>
+                  </div>
+                )}
 
                 {/* Music Hub Content Grid */}
                 <div className="music-hub-grid" style={{

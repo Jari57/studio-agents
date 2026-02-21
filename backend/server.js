@@ -7034,6 +7034,14 @@ app.get('/api/music-hub', async (req, res) => {
         fetchWithTimeout('soundcloud', fetchSoundCloudTrending)
       ]);
 
+      // Store fetched data into cache
+      musicHubCache.reddit = reddit;
+      musicHubCache.youtube = youtube;
+      musicHubCache.releases = releases;
+      musicHubCache.news = news;
+      musicHubCache.soundcloud = soundcloud;
+      musicHubCache.timestamp = now;
+
       logger.info('Music Hub cache updated', { 
         reddit: reddit.length, 
         youtube: youtube.length, 
