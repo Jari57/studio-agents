@@ -308,11 +308,16 @@ async function uploadToStorage(fileData, userId, fileName, mimeType = 'audio/mpe
     throw new Error('Firebase Storage not initialized');
   }
 
-  // Convert base64 to buffer if needed
+  // Convert to buffer: handles URLs, data URIs, base64 strings, and raw buffers
   let buffer = fileData;
   if (typeof fileData === 'string') {
-    // Handle data URLs (data:audio/mpeg;base64,...)
-    if (fileData.startsWith('data:')) {
+    if (fileData.startsWith('http://') || fileData.startsWith('https://')) {
+      // Download from URL
+      const dlRes = await fetch(fileData);
+      if (!dlRes.ok) throw new Error(`Failed to download from URL: ${dlRes.status}`);
+      buffer = Buffer.from(await dlRes.arrayBuffer());
+    } else if (fileData.startsWith('data:')) {
+      // Handle data URLs (data:audio/mpeg;base64,...)
       const base64Data = fileData.split(',')[1];
       buffer = Buffer.from(base64Data, 'base64');
     } else {
@@ -3554,6 +3559,10 @@ async function generateVocalsInternal(options, logger) {
     use_speaker_boost: true
   };
 
+  // 60-second timeout for ElevenLabs TTS
+  const elAbort = new AbortController();
+  const elTimeout = setTimeout(() => elAbort.abort(), 60000);
+
   const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_192`, {
     method: 'POST',
     headers: {
@@ -3561,6 +3570,7 @@ async function generateVocalsInternal(options, logger) {
       'xi-api-key': elevenLabsKey,
       'Content-Type': 'application/json'
     },
+    signal: elAbort.signal,
     body: JSON.stringify({
       text: prompt,
       model_id: 'eleven_multilingual_v2',
@@ -3568,6 +3578,7 @@ async function generateVocalsInternal(options, logger) {
       language_code: language
     })
   });
+  clearTimeout(elTimeout);
 
   if (!elResponse.ok) {
     throw new Error(`ElevenLabs failed: ${elResponse.status}`);
@@ -3779,9 +3790,27 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
         if (imageUrl) {
              logger.info('Flux 1.1 Pro generation successful');
+
+             // Upload to Firebase Storage for permanent URL
+             let permanentUrl = null;
+             if (req.user) {
+               const bucket = getStorageBucket();
+               if (bucket) {
+                 try {
+                   const fileName = `artwork_${Date.now()}.jpg`;
+                   const result = await uploadToStorage(imageUrl, req.user.uid, fileName, 'image/jpeg');
+                   permanentUrl = result.url;
+                   logger.info('Image uploaded to Firebase Storage', { permanentUrl: permanentUrl?.substring(0, 80) });
+                 } catch (uploadErr) {
+                   logger.warn('Image cloud upload failed (using CDN URL)', uploadErr.message);
+                 }
+               }
+             }
+
              return res.json({
-                output: imageUrl,
-                images: [imageUrl], // Frontend expects array
+                output: permanentUrl || imageUrl,
+                images: [permanentUrl || imageUrl],
+                permanentUrl: permanentUrl || null,
                 mimeType: 'image/jpeg',
                 type: 'image',
                 source: 'replicate-flux',
@@ -3828,8 +3857,28 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
           if (part.inlineData?.mimeType?.startsWith('image/')) {
             const base64Image = part.inlineData.data;
             logger.info('Nano Banana image generated successfully');
+
+            // Upload to Firebase Storage for permanent URL
+            let permanentUrl = null;
+            if (req.user) {
+              const bucket = getStorageBucket();
+              if (bucket) {
+                try {
+                  const ext = part.inlineData.mimeType === 'image/png' ? 'png' : 'jpg';
+                  const fileName = `artwork_${Date.now()}.${ext}`;
+                  const result = await uploadToStorage(base64Image, req.user.uid, fileName, part.inlineData.mimeType);
+                  permanentUrl = result.url;
+                  logger.info('Nano Banana image uploaded to Firebase Storage');
+                } catch (uploadErr) {
+                  logger.warn('Nano Banana image upload failed', uploadErr.message);
+                }
+              }
+            }
+
             return res.json({
-              images: [base64Image],
+              images: permanentUrl ? [permanentUrl] : [base64Image],
+              output: permanentUrl || undefined,
+              permanentUrl: permanentUrl || null,
               mimeType: part.inlineData.mimeType,
               model: 'nano-banana'
             });
@@ -3874,9 +3923,27 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
     if (data.predictions && data.predictions.length > 0) {
       const base64Image = data.predictions[0].bytesBase64Encoded;
       if (base64Image) {
+        // Upload to Firebase Storage for permanent URL
+        let permanentUrl = null;
+        if (req.user) {
+          const bucket = getStorageBucket();
+          if (bucket) {
+            try {
+              const fileName = `artwork_${Date.now()}.png`;
+              const result = await uploadToStorage(base64Image, req.user.uid, fileName, 'image/png');
+              permanentUrl = result.url;
+              logger.info('Imagen image uploaded to Firebase Storage');
+            } catch (uploadErr) {
+              logger.warn('Imagen image upload failed', uploadErr.message);
+            }
+          }
+        }
+
         res.json({
           predictions: data.predictions,
-          images: [base64Image],
+          images: permanentUrl ? [permanentUrl] : [base64Image],
+          output: permanentUrl || undefined,
+          permanentUrl: permanentUrl || null,
           model: 'imagen-4'
         });
         return;
@@ -4359,6 +4426,10 @@ if (elevenLabsKey && !audioUrl) {
         // Request 192kbps MP3 for studio quality
         const output_format = 'mp3_44100_192';
 
+        // 60-second timeout for ElevenLabs TTS
+        const elAbort = new AbortController();
+        const elTimeout = setTimeout(() => elAbort.abort(), 60000);
+
         const elResponse = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=${output_format}`, {
           method: 'POST',
           headers: {
@@ -4366,6 +4437,7 @@ if (elevenLabsKey && !audioUrl) {
             'xi-api-key': elevenLabsKey,
             'Content-Type': 'application/json'
           },
+          signal: elAbort.signal,
           body: JSON.stringify({
             text: processedPrompt,
             model_id: model_id,
@@ -4373,6 +4445,7 @@ if (elevenLabsKey && !audioUrl) {
             language_code: langCode
           })
         });
+        clearTimeout(elTimeout);
 
 
         if (elResponse.ok) {
@@ -5145,7 +5218,7 @@ app.post('/api/mix-audio', verifyFirebaseToken, requireAuth, checkCreditsFor('mi
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCreditsFor('mixing'), generationLimiter, async (req, res) => {
   try {
-    const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '' } = req.body;
+    const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '', vocalVolume, beatVolume } = req.body;
 
     if (!vocalUrl || !beatUrl) {
       return res.status(400).json({ error: 'Both vocalUrl and beatUrl are required' });
@@ -5170,6 +5243,8 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
 
     const mixResult = await mixAudioFromUrls(vocalUrl, beatUrl, {
       ...preset,
+      ...(typeof vocalVolume === 'number' ? { vocalVolume } : {}),
+      ...(typeof beatVolume === 'number' ? { beatVolume } : {}),
       outputFormat,
       outputPath
     }, logger);
@@ -5410,8 +5485,25 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                   if (operationData.generatedVideos?.[0]?.video?.uri) {
                     const videoUri = operationData.generatedVideos[0].video.uri;
                     const authedUrl = videoUri.includes('?') ? `${videoUri}&key=${apiKey}` : `${videoUri}?key=${apiKey}`;
-                    const proxyUrl = createVideoProxyUrl(authedUrl, req);
-                    return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-3.0-fast' });
+
+                    // Upload to Firebase Storage for permanent URL
+                    let permanentUrl = null;
+                    if (req.user) {
+                      const bucket = getStorageBucket();
+                      if (bucket) {
+                        try {
+                          const fileName = `video_${Date.now()}.mp4`;
+                          const uploadResult = await uploadToStorage(authedUrl, req.user.uid, fileName, 'video/mp4');
+                          permanentUrl = uploadResult.url;
+                          logger.info('Veo 3.0 Fast video (direct) uploaded to Firebase Storage');
+                        } catch (uploadErr) {
+                          logger.warn('Veo 3.0 Fast direct upload failed', uploadErr.message);
+                        }
+                      }
+                    }
+
+                    const proxyUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
+                    return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-3.0-fast', permanentUrl: permanentUrl || null });
                   }
                   return res.json({ output: operationData, type: 'video', source: 'veo-3.0-fast' });
                 }
@@ -5463,8 +5555,25 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                   if (veo2Data.generatedVideos?.[0]?.video?.uri) {
                     const videoUri = veo2Data.generatedVideos[0].video.uri;
                     const authedUrl = videoUri.includes('?') ? `${videoUri}&key=${apiKey}` : `${videoUri}?key=${apiKey}`;
-                    const proxyUrl = createVideoProxyUrl(authedUrl, req);
-                    return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-2.0' });
+
+                    // Upload to Firebase Storage for permanent URL
+                    let permanentUrl = null;
+                    if (req.user) {
+                      const bucket = getStorageBucket();
+                      if (bucket) {
+                        try {
+                          const fileName = `video_${Date.now()}.mp4`;
+                          const uploadResult = await uploadToStorage(authedUrl, req.user.uid, fileName, 'video/mp4');
+                          permanentUrl = uploadResult.url;
+                          logger.info('Veo 2.0 video (direct) uploaded to Firebase Storage');
+                        } catch (uploadErr) {
+                          logger.warn('Veo 2.0 direct upload failed', uploadErr.message);
+                        }
+                      }
+                    }
+
+                    const proxyUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
+                    return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-2.0', permanentUrl: permanentUrl || null });
                   }
                   return res.json({ output: veo2Data, type: 'video', source: 'veo-2.0' });
                 }
@@ -5523,11 +5632,29 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
           // If already completed (unlikely but possible)
           if (prediction.status === 'succeeded' && prediction.output) {
             const videoUrl = String(prediction.output);
+
+            // Upload to Firebase Storage for permanent URL
+            let permanentUrl = null;
+            if (req.user) {
+              const bucket = getStorageBucket();
+              if (bucket) {
+                try {
+                  const fileName = `video_${Date.now()}.mp4`;
+                  const result = await uploadToStorage(videoUrl, req.user.uid, fileName, 'video/mp4');
+                  permanentUrl = result.url;
+                  logger.info('Replicate video (immediate) uploaded to Firebase Storage');
+                } catch (uploadErr) {
+                  logger.warn('Replicate video immediate upload failed', uploadErr.message);
+                }
+              }
+            }
+
             return res.json({
-              output: videoUrl,
+              output: permanentUrl || videoUrl,
               mimeType: 'video/mp4',
               type: 'video',
-              source: 'replicate-minimax'
+              source: 'replicate-minimax',
+              permanentUrl: permanentUrl || null
             });
           }
           
@@ -5731,8 +5858,25 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
       }
       if (pred.status === 'succeeded' && pred.output) {
         const videoUrl = typeof pred.output === 'string' ? pred.output : (Array.isArray(pred.output) ? pred.output[0] : String(pred.output));
+
+        // Upload to Firebase Storage for permanent URL
+        let permanentUrl = null;
+        if (req.user) {
+          const bucket = getStorageBucket();
+          if (bucket) {
+            try {
+              const fileName = `video_${Date.now()}.mp4`;
+              const result = await uploadToStorage(videoUrl, req.user.uid, fileName, 'video/mp4');
+              permanentUrl = result.url;
+              logger.info('Replicate video uploaded to Firebase Storage');
+            } catch (uploadErr) {
+              logger.warn('Replicate video upload to Storage failed', uploadErr.message);
+            }
+          }
+        }
+
         op.status = 'completed';
-        op.result = { status: 'completed', output: videoUrl, mimeType: 'video/mp4', type: 'video', source: op.source };
+        op.result = { status: 'completed', output: permanentUrl || videoUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: permanentUrl || null };
         return res.json(op.result);
       }
       // Failed or canceled
@@ -5778,9 +5922,26 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
     if (result?.generatedVideos?.[0]?.video?.uri) {
       const videoUri = result.generatedVideos[0].video.uri;
       const authedUrl = videoUri.includes('?') ? `${videoUri}&key=${op.apiKey}` : `${videoUri}?key=${op.apiKey}`;
-      const proxyUrl = createVideoProxyUrl(authedUrl, req);
+
+      // Upload to Firebase Storage for permanent URL
+      let permanentUrl = null;
+      if (req.user) {
+        const bucket = getStorageBucket();
+        if (bucket) {
+          try {
+            const fileName = `video_${Date.now()}.mp4`;
+            const uploadResult = await uploadToStorage(authedUrl, req.user.uid, fileName, 'video/mp4');
+            permanentUrl = uploadResult.url;
+            logger.info('Veo video uploaded to Firebase Storage');
+          } catch (uploadErr) {
+            logger.warn('Veo video upload to Storage failed', uploadErr.message);
+          }
+        }
+      }
+
+      const proxyUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
       op.status = 'completed';
-      op.result = { status: 'completed', output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: op.source };
+      op.result = { status: 'completed', output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: permanentUrl || null };
       return res.json(op.result);
     }
 
@@ -5789,9 +5950,26 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
     if (videoResponse?.generatedSamples?.[0]?.video) {
       const video = videoResponse.generatedSamples[0].video;
       const authedUrl = video.uri.includes('?') ? `${video.uri}&key=${op.apiKey}` : `${video.uri}?key=${op.apiKey}`;
-      const proxyUrl = createVideoProxyUrl(authedUrl, req);
+
+      // Upload to Firebase Storage for permanent URL
+      let permanentUrl = null;
+      if (req.user) {
+        const bucket = getStorageBucket();
+        if (bucket) {
+          try {
+            const fileName = `video_${Date.now()}.mp4`;
+            const uploadResult = await uploadToStorage(authedUrl, req.user.uid, fileName, 'video/mp4');
+            permanentUrl = uploadResult.url;
+            logger.info('Veo (legacy) video uploaded to Firebase Storage');
+          } catch (uploadErr) {
+            logger.warn('Veo legacy video upload to Storage failed', uploadErr.message);
+          }
+        }
+      }
+
+      const proxyUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
       op.status = 'completed';
-      op.result = { status: 'completed', output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: op.source };
+      op.result = { status: 'completed', output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: permanentUrl || null };
       return res.json(op.result);
     }
 

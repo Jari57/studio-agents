@@ -536,7 +536,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   });
 
   // --- NAVIGATION & UI ---
-  const VALID_TABS = ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal', 'support', 'profile', 'more'];
+  const VALID_TABS = ['agents', 'mystudio', 'activity', 'news', 'resources', 'marketing', 'hub', 'whitepapers', 'legal', 'support', 'profile', 'more', 'project_canvas'];
   const [activeTab, _setActiveTab] = useState(() => {
     const hash = window.location.hash;
     if (hash.startsWith('#/studio/')) {
@@ -1510,19 +1510,23 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     if (vocalEl) vocalEl.volume = sessionTracks.vocalVolume ?? 1.0;
   }, [sessionTracks.audioVolume, sessionTracks.vocalVolume]);
 
-  // Auto-populate session mixer when it opens — sync backing track + project assets
+  // Auto-populate session mixer when it opens or project changes — sync backing track + project assets
   useEffect(() => {
     if (!showStudioSession) return;
     const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
-    
+
     setSessionTracks(prev => {
       const updates = { ...prev };
-      // Auto-load backing track as the audio track
-      if (backingTrack && !prev.audio) {
+      // Auto-load backing track as the audio track (refresh on project change)
+      if (backingTrack && (!prev.audio || prev.audio.audioUrl !== backingTrack.audioUrl)) {
         updates.audio = { title: backingTrack.title, audioUrl: backingTrack.audioUrl, bpm: backingTrack.bpm };
         if (backingTrack.bpm) updates.bpm = backingTrack.bpm;
+      } else if (!backingTrack && !prev.audio) {
+        // Try to load first audio asset from project
+        const audioAsset = assets.find(a => a?.audioUrl && (a?.type === 'audio' || a?.agent?.includes('Beat')));
+        if (audioAsset) updates.audio = audioAsset;
       }
-      // Auto-load first vocal if no vocal track set
+      // Auto-load first vocal if no vocal track set or project changed
       if (!prev.vocal) {
         const vocal = assets.find(a => a.type === 'vocal' || a.type === 'synthesis' || (a.type === 'audio' && a.audioUrl && a.agent?.toLowerCase().includes('vocal')));
         if (vocal) updates.vocal = vocal;
@@ -1534,7 +1538,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       }
       return updates;
     });
-  }, [showStudioSession]);
+  }, [showStudioSession, selectedProject?.id]);
   
   // Persist helpSearch
   useEffect(() => {
@@ -9047,15 +9051,26 @@ const fetchUserCredits = useCallback(async (uid) => {
                       
                       {/* Unified Hover Overlay */}
                       <div className="media-overlay">
-                         <button 
+                         <button
                           className="preview-indicator"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setPlayingItem({
+                            const playItem = {
                               ...item,
                               type: item.isVideo ? 'video' : 'image',
                               url: item.videoUrl || item.imageUrl || item.url
-                            });
+                            };
+                            // Route to session mixer if open, otherwise floating player
+                            if (showStudioSession) {
+                              if (item.audioUrl) {
+                                setSessionTracks(prev => ({ ...prev, audio: item }));
+                              } else if (item.videoUrl || item.imageUrl) {
+                                setSessionTracks(prev => ({ ...prev, visual: item }));
+                              }
+                              toast.success('Loaded into Session Mixer');
+                            } else {
+                              setPlayingItem(playItem);
+                            }
                           }}
                         >
                           <Eye size={20} />
@@ -10910,14 +10925,14 @@ const fetchUserCredits = useCallback(async (uid) => {
         {showStudioSession && (
           <div className="studio-session-overlay animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
-            <div style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <LayoutGrid size={24} color="white" />
+            <div style={{ padding: isMobile ? '12px' : '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px' }}>
+                <div style={{ width: isMobile ? '32px' : '40px', height: isMobile ? '32px' : '40px', borderRadius: '8px', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <LayoutGrid size={isMobile ? 18 : 24} color="white" />
                 </div>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: '1.2rem' }}>Studio Session</h2>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Multi-Agent Orchestration</p>
+                  <h2 style={{ margin: 0, fontSize: isMobile ? '1rem' : '1.2rem' }}>Studio Session</h2>
+                  {!isMobile && <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Multi-Agent Orchestration</p>}
                 </div>
                 <button 
                   onClick={() => toast("1. Select Beat (Track 1)\n2. Select Vocals (Track 2)\n3. Add a Visual\n4. Press Play to preview\n5. Click Render Master to save", { duration: 6000, icon: '(mixer)' })}
@@ -10932,10 +10947,10 @@ const fetchUserCredits = useCallback(async (uid) => {
             </div>
 
             {/* Main Stage */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '20px', gap: '20px', overflowY: 'auto' }}>
-              
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: isMobile ? '12px' : '20px', gap: isMobile ? '12px' : '20px', overflowY: 'auto' }}>
+
               {/* Visual Preview */}
-              <div style={{ flex: 2, background: '#000', borderRadius: '16px', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px' }}>
+              <div style={{ flex: isMobile ? 'none' : 2, background: '#000', borderRadius: isMobile ? '12px' : '16px', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: isMobile ? '180px' : '300px' }}>
                 {sessionTracks.visual ? (
                   sessionTracks.visual.videoUrl ? (
                     <video 
@@ -10989,21 +11004,52 @@ const fetchUserCredits = useCallback(async (uid) => {
                     loop
                   />
                 )}
+
+                {/* Play/Pause Overlay Button (always visible on visual preview) */}
+                <button
+                  onClick={() => setSessionPlaying(!sessionPlaying)}
+                  style={{
+                    position: 'absolute',
+                    bottom: isMobile ? '12px' : '16px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: isMobile ? '52px' : '64px',
+                    height: isMobile ? '52px' : '64px',
+                    borderRadius: '50%',
+                    background: sessionPlaying
+                      ? 'rgba(168, 85, 247, 0.9)'
+                      : 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    color: 'white',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 20px rgba(168, 85, 247, 0.5)',
+                    zIndex: 10,
+                    transition: 'all 0.2s ease'
+                  }}
+                  aria-label={sessionPlaying ? "Pause All Tracks" : "Play All Tracks"}
+                >
+                  {sessionPlaying ? <Pause size={28} fill="white" /> : <Play size={28} fill="white" style={{ marginLeft: '3px' }} />}
+                </button>
               </div>
 
               {/* Mixer / Timeline */}
-              <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: '16px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                
+              <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: isMobile ? '12px' : '16px', padding: isMobile ? '12px' : '20px', display: 'flex', flexDirection: 'column', gap: isMobile ? '10px' : '16px' }}>
+
                 {/* Simple Pro Settings Bar - Captions.ai Style */}
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
+                <div style={{
+                  display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  justifyContent: 'space-between',
+                  alignItems: isMobile ? 'stretch' : 'center',
                   background: 'rgba(0,0,0,0.3)',
                   borderRadius: '12px',
-                  padding: '12px 16px'
+                  padding: isMobile ? '10px' : '12px 16px',
+                  gap: isMobile ? '10px' : '0'
                 }}>
-                  <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: isMobile ? '8px' : '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                     {/* Real Assets Toggle */}
                     <div 
                       onClick={() => updateSessionWithHistory(prev => ({ ...prev, generateRealAssets: !prev.generateRealAssets }))}
@@ -11127,9 +11173,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
 
                 {/* Track 1: Beat / Audio A */}
-                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', border: sessionTracks.audio ? '1px solid var(--color-cyan)' : '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: sessionTracks.audio ? '12px' : 0 }}>
-                    <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Disc size={24} className="text-cyan" /></div>
+                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: isMobile ? '12px' : '16px', border: sessionTracks.audio ? '1px solid var(--color-cyan)' : '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px', marginBottom: sessionTracks.audio ? '12px' : 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+                    {!isMobile && <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Disc size={24} className="text-cyan" /></div>}
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
                         <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track 1</label>
@@ -11162,16 +11208,16 @@ const fetchUserCredits = useCallback(async (uid) => {
                         ))}
                       </select>
                     </div>
-                    <div style={{ width: '80px', textAlign: 'center' }}>
+                    <div style={{ width: isMobile ? '60px' : '80px', textAlign: 'center' }}>
                        <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Vol</label>
-                       <input 
-                         type="range" 
-                         min="0" 
-                         max="1" 
-                         step="0.1" 
+                       <input
+                         type="range"
+                         min="0"
+                         max="1"
+                         step="0.1"
                          value={sessionTracks.audioVolume || 0.8}
                          onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, audioVolume: parseFloat(e.target.value) }))}
-                         style={{ width: '100%' }} 
+                         style={{ width: '100%' }}
                        />
                        <div style={{ fontSize: '0.7rem', color: 'var(--color-cyan)' }}>{Math.round((sessionTracks.audioVolume || 0.8) * 100)}%</div>
                     </div>
@@ -11239,9 +11285,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
 
                 {/* Track 2: Vocals / Audio B */}
-                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', border: sessionTracks.vocal ? '1px solid var(--color-purple)' : '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: sessionTracks.vocal ? '12px' : 0 }}>
-                    <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Mic size={24} className="text-purple" /></div>
+                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: isMobile ? '12px' : '16px', border: sessionTracks.vocal ? '1px solid var(--color-purple)' : '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px', marginBottom: sessionTracks.vocal ? '12px' : 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+                    {!isMobile && <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Mic size={24} className="text-purple" /></div>}
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
                         <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track 2</label>
@@ -11274,16 +11320,16 @@ const fetchUserCredits = useCallback(async (uid) => {
                         ))}
                       </select>
                     </div>
-                    <div style={{ width: '80px', textAlign: 'center' }}>
+                    <div style={{ width: isMobile ? '60px' : '80px', textAlign: 'center' }}>
                        <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Vol</label>
-                       <input 
-                         type="range" 
-                         min="0" 
-                         max="1" 
-                         step="0.1" 
+                       <input
+                         type="range"
+                         min="0"
+                         max="1"
+                         step="0.1"
                          value={sessionTracks.vocalVolume || 1.0}
                          onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, vocalVolume: parseFloat(e.target.value) }))}
-                         style={{ width: '100%' }} 
+                         style={{ width: '100%' }}
                        />
                        <div style={{ fontSize: '0.7rem', color: 'var(--color-purple)' }}>{Math.round((sessionTracks.vocalVolume || 1.0) * 100)}%</div>
                     </div>
@@ -11342,9 +11388,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </div>
 
                 {/* Track 3: Visual */}
-                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', border: sessionTracks.visual ? '1px solid var(--color-pink)' : '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: sessionTracks.visual ? '12px' : 0 }}>
-                    <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><VideoIcon size={24} className="text-pink" /></div>
+                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: isMobile ? '12px' : '16px', border: sessionTracks.visual ? '1px solid var(--color-pink)' : '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px', marginBottom: sessionTracks.visual ? '12px' : 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+                    {!isMobile && <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><VideoIcon size={24} className="text-pink" /></div>}
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
                         <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track 3</label>
@@ -11450,10 +11496,10 @@ const fetchUserCredits = useCallback(async (uid) => {
             </div>
 
             {/* Footer Controls */}
-            <div style={{ padding: '20px', background: 'rgba(0,0,0,0.5)', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-               <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div style={{ padding: isMobile ? '12px' : '20px', background: 'rgba(0,0,0,0.5)', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? '10px' : '0' }}>
+               <div style={{ display: 'flex', gap: isMobile ? '8px' : '16px', alignItems: 'center' }}>
                  {/* Undo / Redo */}
-                 <div style={{ display: 'flex', gap: '8px', marginRight: '16px' }}>
+                 <div style={{ display: 'flex', gap: '8px', marginRight: isMobile ? '4px' : '16px' }}>
                     <button 
                       onClick={handleUndo} 
                       disabled={historyIndex <= 0}
@@ -11472,10 +11518,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                     </button>
                  </div>
 
-                 <button 
-                   className="btn-circle" 
+                 <button
+                   className="btn-circle"
                    aria-label={sessionPlaying ? "Pause Session" : "Play Session"}
-                   style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--color-purple)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                   style={{ width: isMobile ? '44px' : '56px', height: isMobile ? '44px' : '56px', borderRadius: '50%', background: 'var(--color-purple)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                    onClick={() => setSessionPlaying(!sessionPlaying)}
                  >
                    {sessionPlaying ? <Pause size={24} fill="white" /> : <Play size={24} fill="white" />}

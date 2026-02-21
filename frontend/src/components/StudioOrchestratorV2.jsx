@@ -177,14 +177,14 @@ const SkeletonItem = ({ height = '14px', width = '100%', marginBottom = '8px', o
 );
 
 // Generator Card Component - Agent-page style with full actions
-function GeneratorCard({ 
+function GeneratorCard({
   slot,
   agentId,
-  icon, 
-  title, 
+  icon,
+  title,
   subtitle,
-  color, 
-  output, 
+  color,
+  output,
   isLoading,
   mediaType = null,
   mediaUrl = null,
@@ -201,7 +201,8 @@ function GeneratorCard({
   onUploadDna = null,
   onClearDna = null,
   dnaUrl = null,
-  isUploadingDna = false
+  isUploadingDna = false,
+  provider = null
 }) {
   const [showPreview, setShowPreview] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -327,6 +328,34 @@ function GeneratorCard({
               {agent.capabilities.slice(0, 2).map((cap, i) => (
                 <span key={i} style={{ padding: '1px 5px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)', borderRadius: '4px', fontSize: '0.55rem' }}>{cap}</span>
               ))}
+              {/* DNA Reference Active Badge */}
+              {dnaUrl && (
+                <span style={{ padding: '1px 6px', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', borderRadius: '4px', fontSize: '0.55rem', fontWeight: '700', border: '1px solid rgba(34, 197, 94, 0.3)' }}>DNA REF</span>
+              )}
+              {/* Provider Quality Badge */}
+              {provider && !isLoading && (output || mediaUrl) && (() => {
+                const providerLabels = {
+                  'elevenlabs-premium': { label: 'ElevenLabs', tier: 'Premium', color: '#818cf8' },
+                  'elevenlabs': { label: 'ElevenLabs', tier: 'Premium', color: '#818cf8' },
+                  'gemini-tts': { label: 'Gemini TTS', tier: 'Standard', color: '#60a5fa' },
+                  'bark': { label: 'Bark', tier: 'Standard', color: '#60a5fa' },
+                  'suno': { label: 'Suno', tier: 'Premium', color: '#818cf8' },
+                  'udio': { label: 'Udio', tier: 'Premium', color: '#818cf8' },
+                  'replicate-flux': { label: 'Flux', tier: 'Premium', color: '#818cf8' },
+                  'flux-1.1-pro': { label: 'Flux Pro', tier: 'Premium', color: '#818cf8' },
+                  'nano-banana': { label: 'Gemini', tier: 'Standard', color: '#60a5fa' },
+                  'imagen-4': { label: 'Imagen 4', tier: 'Premium', color: '#818cf8' },
+                  'veo-3.0-fast': { label: 'Veo 3.0', tier: 'Premium', color: '#818cf8' },
+                  'veo-2.0': { label: 'Veo 2.0', tier: 'Standard', color: '#60a5fa' },
+                  'replicate-minimax': { label: 'Minimax', tier: 'Standard', color: '#60a5fa' },
+                };
+                const info = providerLabels[provider] || { label: provider, tier: '', color: '#94a3b8' };
+                return (
+                  <span style={{ padding: '1px 6px', background: `${info.color}1A`, color: info.color, borderRadius: '4px', fontSize: '0.55rem', fontWeight: '600', border: `1px solid ${info.color}33` }}>
+                    {info.label}{info.tier ? ` (${info.tier})` : ''}
+                  </span>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1395,6 +1424,8 @@ export default function StudioOrchestratorV2({
     lyricsVocal: null, // Unified key for lyrics+vocal
     mixedAudio: null   // Vocal + beat mixed master
   });
+  // Track which AI provider generated each asset (for quality indicators)
+  const [generationProviders, setGenerationProviders] = useState({});
   // Ref mirror so async pipeline code can read latest values
   const mediaUrlsRef = useRef(mediaUrls);
   mediaUrlsRef.current = mediaUrls;
@@ -1418,10 +1449,13 @@ export default function StudioOrchestratorV2({
   const [outputFormat, setOutputFormat] = useState('music'); // music, social, podcast, tv (Righteous Quality)
   const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
   const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
+  const [songStructure, setSongStructure] = useState('full'); // Song structure: single, full, extended
   const [generatingVocal, setGeneratingVocal] = useState(false);
   const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
   const [creatingFinalMix, setCreatingFinalMix] = useState(false);
   const [finalMixPreview, setFinalMixPreview] = useState(null);
+  const [mixVocalVolume, setMixVocalVolume] = useState(0.85); // Vocal volume for final mix (0-1)
+  const [mixBeatVolume, setMixBeatVolume] = useState(0.60); // Beat volume for final mix (0-1)
   const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
   const [musicVideoUrl, setMusicVideoUrl] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
@@ -1558,6 +1592,7 @@ export default function StudioOrchestratorV2({
     // Reset all generation state on project switch
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
+    setGenerationProviders({});
     setMusicVideoUrl(null);
     setFinalMixPreview(null);
     setPipelineSteps([]);
@@ -1606,6 +1641,19 @@ export default function StudioOrchestratorV2({
     if (Object.keys(restoredOutputs).length > 0) {
       setOutputs(prev => ({ ...prev, ...restoredOutputs }));
       console.log('[Orchestrator] Restored outputs from project assets', Object.keys(restoredOutputs));
+    }
+
+    // Restore voice/generation settings from vocal asset metadata
+    for (const asset of existingProject.assets) {
+      if ((asset.type === 'vocal' || asset.type === 'mix') && asset.settings) {
+        if (asset.settings.voiceStyle) setVoiceStyle(asset.settings.voiceStyle);
+        if (asset.settings.elevenLabsVoiceId) setElevenLabsVoiceId(asset.settings.elevenLabsVoiceId);
+        if (asset.settings.voiceSampleUrl) setVoiceSampleUrl(asset.settings.voiceSampleUrl);
+        if (asset.settings.vocalQuality) setVocalQuality(asset.settings.vocalQuality);
+        if (asset.settings.outputFormat) setOutputFormat(asset.settings.outputFormat);
+        console.log('[Orchestrator] Restored voice settings from asset', asset.id);
+        break; // Use most recent vocal/mix asset
+      }
     }
   }, [existingProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1937,6 +1985,7 @@ export default function StudioOrchestratorV2({
   const clearAndGenerate = useCallback(() => {
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
+    setGenerationProviders({});
     setMusicVideoUrl(null);
     setFinalMixPreview(null);
     setVisualDnaUrl(null);
@@ -1958,6 +2007,7 @@ export default function StudioOrchestratorV2({
     // After saving, clear outputs for fresh generation
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
+    setGenerationProviders({});
     setMusicVideoUrl(null);
     setFinalMixPreview(null);
     setVisualDnaUrl(null);
@@ -2063,6 +2113,7 @@ export default function StudioOrchestratorV2({
         ${contextLyrics ? `LYRICS CONTEXT — use these to match the emotional arc, tempo, and vibe:\n"${String(contextLyrics).substring(0, 1500)}"` : ''}
         ${slot === 'lyrics' ? `LYRICS AGENT INSTRUCTIONS:
 Write ONLY the lyrics with clear section labels: [Verse 1], [Pre-Chorus], [Chorus], [Verse 2], [Bridge], [Outro].
+SONG STRUCTURE: ${songStructure === 'single' ? 'SHORT FORMAT — 1 Verse + 1 Chorus + 1 Verse (radio single, ~2 minutes)' : songStructure === 'extended' ? 'EXTENDED FORMAT — 3 Verses + 2 Choruses + Bridge + Outro (full album track, ~4 minutes)' : 'FULL TRACK — 2 Verses + Chorus + Bridge + Final Chorus (standard release, ~3 minutes)'}
 REQUIREMENTS:
 - The CHORUS/HOOK must be catchy enough to get stuck in someone's head after one listen
 - Use multi-syllable rhyme schemes (AABB or ABAB), internal rhymes, and wordplay
@@ -2313,7 +2364,17 @@ REQUIREMENTS:
         toast.success(`${slotConfig.title} regenerated!`);
 
         // For media slots: also regenerate the actual media file, not just the text description
-        if (slot === 'video' && data.output) {
+        if (slot === 'lyrics' && data.output) {
+          // Re-generate vocals with updated lyrics (if beat audio available)
+          try {
+            toast.loading('Re-generating vocals with new lyrics...', { id: 'regen-lyrics' });
+            await handleGenerateVocals(data.output);
+            toast.success('Vocals regenerated with new lyrics!', { id: 'regen-lyrics' });
+          } catch (vocalErr) {
+            console.error('[Regenerate] Vocal regen after lyrics update failed:', vocalErr);
+            toast.error('Lyrics updated but vocal generation failed. Try generating vocals manually.', { id: 'regen-lyrics' });
+          }
+        } else if (slot === 'video' && data.output) {
           toast.loading('Regenerating video...', { id: 'regen-video' });
           try {
             await handleGenerateVideo(data.output);
@@ -2439,6 +2500,7 @@ REQUIREMENTS:
         const finalUrl = data.audioUrl || data.output;
         if (finalUrl) {
           setMediaUrls(prev => ({ ...prev, audio: finalUrl }));
+          setGenerationProviders(prev => ({ ...prev, audio: data.source || data.provider || 'ai' }));
           
           // Ensure outputs.audio is set so the asset is included in the project save
           setOutputs(prev => ({ 
@@ -2629,6 +2691,7 @@ REQUIREMENTS:
           lyricsVocal: data.audioUrl,
           ...(wasMixed ? { mixedAudio: data.audioUrl } : {})
         }));
+        setGenerationProviders(prev => ({ ...prev, lyrics: data.provider || 'ai' }));
         // Ensure outputs.vocals is set so the asset is included in the project save
         setOutputs(prev => ({ 
           ...prev, 
@@ -2656,8 +2719,11 @@ REQUIREMENTS:
             version: vocalVersions + 1,
             settings: {
               voice: selectedVoice,
-              style: voiceStyle,
-              quality: vocalQuality,
+              voiceStyle: voiceStyle,
+              vocalQuality: vocalQuality,
+              outputFormat: outputFormat,
+              elevenLabsVoiceId: elevenLabsVoiceId || null,
+              voiceSampleUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
               provider: data.provider || 'unknown',
               referencedAudioId: voiceStyle === 'cloned' ? voiceSampleUrl : null
             },
@@ -2984,6 +3050,7 @@ REQUIREMENTS:
         
         if (imageData) {
           setMediaUrls(prev => ({ ...prev, image: imageData }));
+          setGenerationProviders(prev => ({ ...prev, visual: data.model || data.source || 'ai' }));
           toast.success('Image created!', { id: 'gen-image' });
 
           // AUTO-SYNC TO PROJECT
@@ -3214,6 +3281,7 @@ REQUIREMENTS:
           
           if (videoUrl && typeof videoUrl === 'string' && (videoUrl.startsWith('http') || videoUrl.startsWith('blob:') || videoUrl.startsWith('/api/'))) {
             setMediaUrls(prev => ({ ...prev, video: videoUrl }));
+            setGenerationProviders(prev => ({ ...prev, video: data.source || data.provider || 'ai' }));
             toast.success(data.isDemo ? 'Demo video loaded!' : 'Video created!', { id: 'gen-video' });
 
             // AUTO-SYNC VIDEO TO PROJECT
@@ -3312,7 +3380,9 @@ REQUIREMENTS:
             beatUrl: mediaUrls.audio,
             style: voiceStyle || 'rapper',
             outputFormat: outputFormat || 'music',
-            genre: genre || style
+            genre: genre || style,
+            vocalVolume: mixVocalVolume,
+            beatVolume: mixBeatVolume
           })
         });
 
@@ -3368,6 +3438,39 @@ REQUIREMENTS:
       };
 
       setFinalMixPreview(finalMix);
+
+      // Auto-save final mix to project
+      const saveFunc = onSaveToProject || (() => console.warn('[FinalMix] No save callback'));
+      if (existingProject && finalAudioUrl) {
+        const mixAsset = {
+          id: `mix-${crypto.randomUUID()}`,
+          title: `${songIdea || 'Untitled'} - Master Mix`,
+          type: 'mix',
+          agent: 'Final Mix',
+          content: `Master mix: vocals + beat${musicVideoUrl ? ' + music video' : ''}`,
+          audioUrl: finalAudioUrl,
+          mimeType: 'audio/mpeg',
+          version: 1,
+          settings: {
+            voiceStyle: voiceStyle || 'rapper',
+            outputFormat: outputFormat || 'music',
+            genre: genre || style,
+            hasMusicVideo: !!musicVideoUrl
+          },
+          createdAt: new Date().toISOString()
+        };
+
+        // Replace any existing mix asset (keep only latest master)
+        const existingAssets = (existingProject.assets || []).filter(a => a.type !== 'mix');
+        saveFunc({
+          ...existingProject,
+          assets: [mixAsset, ...existingAssets],
+          updatedAt: new Date().toISOString()
+        });
+        setIsSaved(true);
+        console.log('[FinalMix] Auto-saved master mix to project');
+      }
+
       toast.success(finalAudioUrl ? 'Master mix ready!' : 'Final mix ready!', { id: 'final-mix' });
     } catch (err) {
       console.error('Final mix error:', err);
@@ -3988,7 +4091,37 @@ REQUIREMENTS:
                 lineHeight: '1.5'
               }}
             />
-            
+
+            {/* Song Structure Selector */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {[
+                { id: 'single', label: 'Single', desc: '1V + Chorus' },
+                { id: 'full', label: 'Full Track', desc: '2V + Chorus + Bridge' },
+                { id: 'extended', label: 'Extended', desc: '3V + 2C + Bridge + Outro' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setSongStructure(opt.id)}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    background: songStructure === opt.id ? 'rgba(139, 92, 246, 0.25)' : 'rgba(255,255,255,0.05)',
+                    border: `1px solid ${songStructure === opt.id ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
+                    color: songStructure === opt.id ? '#a78bfa' : 'var(--text-secondary)',
+                    fontSize: '0.75rem',
+                    fontWeight: songStructure === opt.id ? '600' : '400',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {opt.label}
+                  <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+
             {/* Action Buttons Row */}
             <div style={{ display: 'flex', gap: '10px' }}>
               {/* STT Button */}
@@ -4156,6 +4289,47 @@ REQUIREMENTS:
                   <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
                     {((step.endTime - step.startTime) / 1000).toFixed(1)}s
                   </span>
+                )}
+                {step.status === 'error' && (
+                  <button
+                    onClick={async () => {
+                      updatePipelineStep(step.id, 'active');
+                      try {
+                        const headers = await getHeaders();
+                        if (step.id === 'beat-audio') {
+                          await handleGenerateAudio(outputs.audio);
+                        } else if (step.id === 'vocals') {
+                          await handleGenerateVocals(outputs.lyrics);
+                        } else if (step.id === 'image') {
+                          await handleGenerateImage(outputs.visual);
+                        } else if (step.id === 'video') {
+                          await handleGenerateVideo(outputs.video);
+                        } else if (step.id === 'mux') {
+                          const muxVideo = mediaUrlsRef.current.video;
+                          const muxAudio = mediaUrlsRef.current.mixedAudio || mediaUrlsRef.current.audio;
+                          if (muxVideo && muxAudio) await autoMuxVideoWithAudio(muxVideo, muxAudio, headers);
+                        } else if (step.id === 'final') {
+                          await handleCreateFinalMix();
+                        }
+                        updatePipelineStep(step.id, 'done');
+                      } catch {
+                        updatePipelineStep(step.id, 'error');
+                        toast.error(`Retry failed for: ${step.label}`);
+                      }
+                    }}
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#ef4444',
+                      fontSize: '0.65rem',
+                      fontWeight: '600',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Retry
+                  </button>
                 )}
                 {step.status === 'active' && step.startTime && (
                   <span style={{ fontSize: '0.7rem', color: 'rgba(139, 92, 246, 0.6)' }}>
@@ -5563,6 +5737,7 @@ REQUIREMENTS:
               slot.key === 'lyrics' ? lyricsDnaUrl : null
             }
             isUploadingDna={isUploadingDna[slot.key]}
+            provider={generationProviders[slot.key] || null}
             onClearDna={() => {
               if (slot.key === 'visual') setVisualDnaUrl(null);
               if (slot.key === 'audio') setAudioDnaUrl(null);
@@ -5724,6 +5899,7 @@ REQUIREMENTS:
                       slot.key === 'lyrics' ? lyricsDnaUrl : null
                     }
                     isUploadingDna={isUploadingDna[slot.key]}
+                    provider={generationProviders[slot.key] || null}
                     onClearDna={() => {
                       if (slot.key === 'visual') setVisualDnaUrl(null);
                       if (slot.key === 'audio') setAudioDnaUrl(null);
