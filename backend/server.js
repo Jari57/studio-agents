@@ -7368,6 +7368,95 @@ app.get('/api/meta/callback', async (req, res) => {
   }
 });
 
+// POST /api/meta/post - Post to Facebook page/feed
+app.post('/api/meta/post', async (req, res) => {
+  const token = req.cookies?.meta_token;
+
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated with Meta', needsAuth: true });
+  }
+
+  const { text, target } = req.body;
+  if (!text || typeof text !== 'string') {
+    return res.status(400).json({ error: 'Post text is required' });
+  }
+
+  try {
+    if (target === 'facebook') {
+      // Get user's pages first
+      const pagesRes = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${token}`);
+      if (!pagesRes.ok) {
+        const err = await pagesRes.json();
+        if (pagesRes.status === 401) {
+          res.clearCookie('meta_token');
+          return res.status(401).json({ error: 'Meta session expired', needsAuth: true });
+        }
+        logger.error('♾️ Failed to fetch pages', { error: err });
+        return res.status(pagesRes.status).json({ error: 'Failed to access Facebook pages', details: err });
+      }
+
+      const pagesData = await pagesRes.json();
+      const pages = pagesData.data || [];
+
+      if (pages.length > 0) {
+        // Post to the first page using its page access token
+        const page = pages[0];
+        const postRes = await fetch(`https://graph.facebook.com/v18.0/${page.id}/feed`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            access_token: page.access_token
+          })
+        });
+
+        if (!postRes.ok) {
+          const postErr = await postRes.json();
+          logger.error('♾️ Facebook page post failed', { error: postErr });
+          return res.status(postRes.status).json({ error: 'Failed to post to Facebook', details: postErr });
+        }
+
+        const postData = await postRes.json();
+        logger.info('♾️ Facebook post successful', { postId: postData.id, page: page.name });
+        return res.json({
+          success: true,
+          postId: postData.id,
+          postUrl: `https://www.facebook.com/${postData.id?.replace('_', '/posts/')}`
+        });
+      } else {
+        // No pages — post to personal feed using user token
+        const postRes = await fetch(`https://graph.facebook.com/v18.0/me/feed`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            access_token: token
+          })
+        });
+
+        if (!postRes.ok) {
+          const postErr = await postRes.json();
+          logger.error('♾️ Facebook personal post failed', { error: postErr });
+          return res.status(postRes.status).json({ error: 'Failed to post to Facebook', details: postErr });
+        }
+
+        const postData = await postRes.json();
+        logger.info('♾️ Facebook personal post successful', { postId: postData.id });
+        return res.json({
+          success: true,
+          postId: postData.id,
+          postUrl: `https://www.facebook.com/${postData.id?.replace('_', '/posts/')}`
+        });
+      }
+    }
+
+    return res.status(400).json({ error: `Unsupported target: ${target}` });
+  } catch (err) {
+    logger.error('♾️ Meta post error', { error: err.message });
+    res.status(500).json({ error: 'Failed to post to Meta' });
+  }
+});
+
 // POST /api/twitter/tweet - Post a tweet
 app.post('/api/twitter/tweet', async (req, res) => {
   const token = req.cookies?.twitter_token;

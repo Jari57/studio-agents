@@ -521,7 +521,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     } catch (_e) { return defaults; }
   });
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login'); 
+  const [authMode, setAuthMode] = useState('login');
+  const [sharePostText, setSharePostText] = useState('');
+  const [shareSelectedPlatforms, setShareSelectedPlatforms] = useState({});
+  const [isPostingToSocial, setIsPostingToSocial] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authLoading, setAuthLoading] = useState(false);
@@ -5397,6 +5400,84 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   };
 
+  const handleShareToSocial = async () => {
+    const text = sharePostText.trim();
+    if (!text) {
+      toast.error('Write something to share first');
+      return;
+    }
+
+    const platforms = Object.entries(shareSelectedPlatforms)
+      .filter(([, selected]) => selected)
+      .map(([id]) => id);
+
+    if (platforms.length === 0) {
+      toast.error('Select at least one platform to post to');
+      return;
+    }
+
+    setIsPostingToSocial(true);
+    const results = [];
+
+    for (const platform of platforms) {
+      try {
+        if (platform === 'twitter') {
+          const res = await fetch(`${BACKEND_URL}/api/twitter/tweet`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ text: text.slice(0, 280) })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            results.push({ platform: 'X/Twitter', success: true, url: data.tweetUrl });
+          } else if (data.needsAuth) {
+            results.push({ platform: 'X/Twitter', success: false, error: 'Session expired — reconnect your account' });
+            setSocialConnections(prev => ({ ...prev, twitter: false }));
+          } else {
+            results.push({ platform: 'X/Twitter', success: false, error: data.error || 'Post failed' });
+          }
+        } else if (platform === 'facebook') {
+          const res = await fetch(`${BACKEND_URL}/api/meta/post`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ text, target: 'facebook' })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            results.push({ platform: 'Facebook', success: true, url: data.postUrl });
+          } else if (data.needsAuth) {
+            results.push({ platform: 'Facebook', success: false, error: 'Session expired — reconnect your account' });
+            setSocialConnections(prev => ({ ...prev, facebook: false }));
+          } else {
+            results.push({ platform: 'Facebook', success: false, error: data.error || 'Post failed' });
+          }
+        } else if (platform === 'instagram') {
+          results.push({ platform: 'Instagram', success: false, error: 'Instagram requires an image — use image sharing from the Studio' });
+        } else if (platform === 'threads') {
+          results.push({ platform: 'Threads', success: false, error: 'Threads API coming soon' });
+        }
+      } catch (err) {
+        results.push({ platform, success: false, error: 'Network error — check your connection' });
+      }
+    }
+
+    setIsPostingToSocial(false);
+
+    const successes = results.filter(r => r.success);
+    const failures = results.filter(r => !r.success);
+
+    if (successes.length > 0) {
+      toast.success(`Posted to ${successes.map(r => r.platform).join(', ')}!`);
+      setSharePostText('');
+      setShareSelectedPlatforms({});
+    }
+    if (failures.length > 0) {
+      failures.forEach(f => toast.error(`${f.platform}: ${f.error}`));
+    }
+  };
+
   const handleDeleteProject = async (projectId, eOrSkipConfirm) => {
     const isBulk = eOrSkipConfirm === true;
     const e = typeof eOrSkipConfirm === 'object' ? eOrSkipConfirm : null;
@@ -9249,14 +9330,23 @@ const fetchUserCredits = useCallback(async (uid) => {
 
                   {/* Content to Share */}
                   <div style={{ marginBottom: '24px' }}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: '600' }}>Content</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>Content</label>
+                      {shareSelectedPlatforms.twitter && (
+                        <span style={{ fontSize: '0.75rem', color: sharePostText.length > 280 ? '#ef4444' : 'var(--text-secondary)' }}>
+                          {sharePostText.length}/280 for X/Twitter
+                        </span>
+                      )}
+                    </div>
                     <textarea
+                      value={sharePostText}
+                      onChange={(e) => setSharePostText(e.target.value)}
                       placeholder="Write your post caption, or paste text from your AI generations..."
                       style={{
                         width: '100%', minHeight: '120px', background: 'rgba(255,255,255,0.05)',
                         border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
                         padding: '16px', color: 'white', fontSize: '0.95rem', resize: 'vertical',
-                        outline: 'none', fontFamily: 'inherit'
+                        outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box'
                       }}
                     />
                   </div>
@@ -9264,27 +9354,68 @@ const fetchUserCredits = useCallback(async (uid) => {
                   {/* Target Platforms */}
                   <div style={{ marginBottom: '24px' }}>
                     <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px', fontWeight: '600' }}>
-                      Post to ({Object.values(socialConnections).filter(Boolean).length} connected)
+                      Post to ({Object.values(shareSelectedPlatforms).filter(Boolean).length} selected)
                     </label>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {SOCIAL_PLATFORMS.filter(p => socialConnections[p.id]).map(p => (
-                        <div key={p.id} style={{
-                          display: 'flex', alignItems: 'center', gap: '8px',
-                          padding: '8px 16px', borderRadius: '10px',
-                          background: `${p.color}20`, border: `1px solid ${p.color}40`,
-                          fontSize: '0.85rem', color: 'white', cursor: 'pointer'
-                        }}>
-                          <span>{p.icon}</span> {p.name}
-                          <CheckCircle size={14} style={{ color: p.color }} />
-                        </div>
-                      ))}
-                      {Object.values(socialConnections).filter(Boolean).length === 0 && (
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '8px' }}>
-                          No accounts connected. <button onClick={() => setActivitySection?.('connections')} style={{ color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: 'inherit' }}>Connect accounts →</button>
-                        </div>
-                      )}
+                      {SOCIAL_PLATFORMS.map(p => {
+                        const connected = socialConnections[p.id];
+                        const selected = shareSelectedPlatforms[p.id];
+                        return (
+                          <button
+                            key={p.id}
+                            disabled={!connected}
+                            onClick={() => connected && setShareSelectedPlatforms(prev => ({ ...prev, [p.id]: !prev[p.id] }))}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '8px',
+                              padding: '10px 18px', borderRadius: '10px',
+                              background: selected ? `${p.color}30` : 'rgba(255,255,255,0.05)',
+                              border: selected ? `2px solid ${p.color}` : '1px solid rgba(255,255,255,0.1)',
+                              fontSize: '0.85rem', color: connected ? 'white' : 'rgba(255,255,255,0.3)',
+                              cursor: connected ? 'pointer' : 'not-allowed', transition: 'all 0.2s ease',
+                              opacity: connected ? 1 : 0.5
+                            }}
+                          >
+                            <span>{p.icon}</span> {p.name}
+                            {selected && <CheckCircle size={14} style={{ color: p.color }} />}
+                            {!connected && <span style={{ fontSize: '0.7rem', marginLeft: '4px' }}>(not connected)</span>}
+                          </button>
+                        );
+                      })}
                     </div>
+                    {Object.values(socialConnections).filter(Boolean).length === 0 && (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '12px 0' }}>
+                        No accounts connected. <button onClick={() => setActivitySection?.('connections')} style={{ color: 'var(--color-purple)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: 'inherit' }}>Connect accounts →</button>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Post Button */}
+                  <button
+                    onClick={handleShareToSocial}
+                    disabled={isPostingToSocial || !sharePostText.trim() || Object.values(shareSelectedPlatforms).filter(Boolean).length === 0}
+                    style={{
+                      width: '100%', padding: '14px 24px', borderRadius: '12px', border: 'none',
+                      background: isPostingToSocial || !sharePostText.trim() || Object.values(shareSelectedPlatforms).filter(Boolean).length === 0
+                        ? 'rgba(255,255,255,0.1)'
+                        : 'linear-gradient(135deg, var(--color-purple), var(--color-cyan))',
+                      color: 'white', fontSize: '1rem', fontWeight: '700',
+                      cursor: isPostingToSocial || !sharePostText.trim() ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease', display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', gap: '8px'
+                    }}
+                  >
+                    {isPostingToSocial ? (
+                      <>
+                        <div style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                        Posting...
+                      </>
+                    ) : (
+                      <>
+                        <Share2 size={18} />
+                        Post to {Object.values(shareSelectedPlatforms).filter(Boolean).length || 0} Platform{Object.values(shareSelectedPlatforms).filter(Boolean).length !== 1 ? 's' : ''}
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 {/* Recent Projects to Share */}
@@ -9295,20 +9426,58 @@ const fetchUserCredits = useCallback(async (uid) => {
                   <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: '700', color: 'white' }}>
                     Recent Creations
                   </h3>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                    Your AI-generated content will appear here for easy sharing. Head to the Studio to create something amazing!
-                  </p>
-                  <button
-                    onClick={() => setActiveTab('mystudio')}
-                    style={{
-                      marginTop: '16px', padding: '10px 20px', borderRadius: '10px',
-                      border: '1px solid var(--color-purple)', background: 'transparent',
-                      color: 'var(--color-purple)', fontSize: '0.9rem', fontWeight: '600',
-                      cursor: 'pointer', transition: 'all 0.2s ease'
-                    }}
-                  >
-                    Open Studio →
-                  </button>
+                  {projects.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {projects.slice(0, 5).map(proj => (
+                        <div key={proj.id} style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '12px 16px', borderRadius: '12px',
+                          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+                          cursor: 'pointer', transition: 'all 0.2s ease'
+                        }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ color: 'white', fontSize: '0.9rem', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {proj.name || proj.title || 'Untitled'}
+                            </div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '2px' }}>
+                              {proj.assets?.length || 0} assets · {proj.style || proj.category || ''}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const desc = `${proj.name || proj.title || 'Untitled'} — Created with Studio Agents AI`;
+                              setSharePostText(prev => prev ? `${prev}\n\n${desc}` : desc);
+                              toast.success('Added to post!');
+                            }}
+                            style={{
+                              padding: '6px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)',
+                              background: 'rgba(255,255,255,0.08)', color: 'white', fontSize: '0.8rem',
+                              fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap'
+                            }}
+                          >
+                            Add to post
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                        No projects yet. Head to the Studio to create something!
+                      </p>
+                      <button
+                        onClick={() => setActiveTab('mystudio')}
+                        style={{
+                          marginTop: '16px', padding: '10px 20px', borderRadius: '10px',
+                          border: '1px solid var(--color-purple)', background: 'transparent',
+                          color: 'var(--color-purple)', fontSize: '0.9rem', fontWeight: '600',
+                          cursor: 'pointer', transition: 'all 0.2s ease'
+                        }}
+                      >
+                        Open Studio →
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             )}
