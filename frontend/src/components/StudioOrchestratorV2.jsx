@@ -1818,7 +1818,8 @@ export default function StudioOrchestratorV2({
     const fetchElVoices = async () => {
       setLoadingElVoices(true);
       try {
-        const response = await fetch(`${BACKEND_URL}/api/v2/voices`);
+        const headers = await getHeaders();
+        const response = await fetch(`${BACKEND_URL}/api/v2/voices`, { headers });
         if (response.ok) {
           const voices = await response.json();
           setElVoices(voices);
@@ -1852,6 +1853,7 @@ export default function StudioOrchestratorV2({
           if (userData.clonedVoiceId) {
             setClonedVoiceId(userData.clonedVoiceId);
             setElevenLabsVoiceId(userData.clonedVoiceId);
+            setVoiceStyle('cloned');
           }
           console.log('[Orchestrator] User DNA profile loaded');
         }
@@ -5427,7 +5429,7 @@ REQUIREMENTS:
                   <option value="spoken">💬 Spoken Word</option>
                 </optgroup>
                 <optgroup label="🧬 Voice Cloning">
-                  <option value="cloned" disabled={!voiceSampleUrl}>✨ Cloned Voice {!voiceSampleUrl && '(Upload sample first)'}</option>
+                  <option value="cloned" disabled={!voiceSampleUrl && !clonedVoiceId}>✨ Cloned Voice {(!voiceSampleUrl && !clonedVoiceId) && '(Upload sample first)'}</option>
                   {savedVoices.length > 0 && (
                     <optgroup label="🗄️ Saved Voices">
                       {savedVoices.map(voice => (
@@ -5514,7 +5516,12 @@ REQUIREMENTS:
                 </div>
 
                 {/* Premium ElevenLabs Input / Voice Selector */}
-                {(vocalQuality === 'premium' || voiceStyle === 'cloned' || voiceStyle.startsWith('saved-')) && (
+                {voiceStyle === 'cloned' && clonedVoiceId ? (
+                  <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(34, 197, 94, 0.1)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)', color: '#22c55e', fontSize: '0.85rem' }}>
+                    Using: Your Cloned Voice
+                  </div>
+                ) : (vocalQuality === 'premium' || voiceStyle === 'cloned' || voiceStyle.startsWith('saved-')) && (
                   <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {elVoices.length > 0 ? (
                       <select
