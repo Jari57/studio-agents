@@ -13062,6 +13062,11 @@ const fetchUserCredits = useCallback(async (uid) => {
               // Projects remain saved in the hub — user can re-open explicitly
               setSelectedProject(null);
             }}
+            onGoToHub={() => {
+              setShowOrchestrator(false);
+              setSelectedProject(null);
+              setActiveTab('hub');
+            }}
             authToken={userToken}
             userPlan={userPlan}
             existingProject={selectedProject}
@@ -13183,7 +13188,6 @@ const fetchUserCredits = useCallback(async (uid) => {
                       console.error(`[TRACE:${traceId}] Cloud save error:`, err);
                     });
                   }
-                  setPendingProjectNav(true);
                   toast.success(`Project "${savedProject.name}" saved with ${savedProject.assets?.length || 0} assets!`);
                 }
               }, 0);

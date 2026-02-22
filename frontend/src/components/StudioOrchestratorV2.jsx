@@ -1478,11 +1478,12 @@ function ProductionControlHub({
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export default function StudioOrchestratorV2({ 
-  isOpen, 
-  onClose, 
+export default function StudioOrchestratorV2({
+  isOpen,
+  onClose,
   onCreateProject,
   onSaveToProject,
+  onGoToHub = null,
   authToken = null,
   existingProject = null,
   userPlan = 'Free'
@@ -6621,7 +6622,11 @@ REQUIREMENTS:
               <button
                 onClick={() => {
                   setShowSaveConfirm(false);
-                  onClose?.();
+                  if (onGoToHub) {
+                    onGoToHub();
+                  } else {
+                    onClose?.();
+                  }
                 }}
                 className="btn-pill glass"
                 style={{
