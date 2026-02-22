@@ -755,6 +755,7 @@ function GeneratorCard({
                   <Loader2 size={16} className="spin" />
                 ) : (
                   <>
+                    {slot === 'lyrics' && <Mic size={16} />}
                     {mediaType === 'audio' && <Music size={16} />}
                     {mediaType === 'image' && <ImageIcon size={16} />}
                     {mediaType === 'video' && <VideoIcon size={16} />}
@@ -1922,13 +1923,13 @@ export default function StudioOrchestratorV2({
 
   // Generator slot configuration
   const GENERATOR_SLOTS = [
-    { 
-      key: 'lyrics', 
-      title: 'Ghostwriter', 
-      subtitle: 'Lyrics & Hook', 
-      icon: Sparkles, 
+    {
+      key: 'lyrics',
+      title: 'Ghostwriter',
+      subtitle: 'Lyrics & Hook',
+      icon: Sparkles,
       color: '#8b5cf6',
-      mediaType: 'audio' 
+      mediaType: null
     },
     { 
       key: 'audio', 
@@ -3535,13 +3536,12 @@ REQUIREMENTS:
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.video) return;
 
-    // Use directInput (if string), outputsRef, or current outputs (fallback)
-    const videoPromptText = (typeof directInput === 'string' ? directInput : null) || outputsRef.current.video || outputs.video;
+    // Use directInput (if string), outputsRef, current outputs, or auto-synthesize from session context
+    const videoPromptText = (typeof directInput === 'string' ? directInput : null)
+      || outputsRef.current.video
+      || outputs.video
+      || `${style || 'cinematic'} music video for "${songIdea || 'original song'}", ${mood || 'energetic'} mood, professional quality`;
 
-    if (!videoPromptText) {
-      toast.error('Generate Music Video DNA first');
-      return;
-    }
     setGeneratingMedia(prev => ({ ...prev, video: true }));
 
     try {
@@ -3846,6 +3846,7 @@ REQUIREMENTS:
 
     try {
       let finalAudioUrl = mediaUrls.mixedAudio; // May already exist from pipeline
+      let mixedViaApi = !!finalAudioUrl; // Track if we got a real mix
 
       // If we have both vocals and beat but no mixed version, call the mixing endpoint
       if (!finalAudioUrl && hasVocals && hasBeat) {
@@ -3869,11 +3870,13 @@ REQUIREMENTS:
         if (response.ok) {
           const data = await response.json();
           finalAudioUrl = data.mixedAudioUrl;
+          mixedViaApi = true;
           setMediaUrls(prev => ({ ...prev, mixedAudio: finalAudioUrl }));
           console.log('[FinalMix] Mixed audio created via /api/create-final-mix', data.preset);
         } else {
           const err = await response.json().catch(() => ({}));
           console.warn('[FinalMix] Mixing failed, using individual tracks', err);
+          toast.error(`Mix failed: ${err.error || 'Server error'} — using individual tracks`, { id: 'final-mix' });
         }
       }
 
@@ -3951,7 +3954,10 @@ REQUIREMENTS:
         console.log('[FinalMix] Auto-saved master mix to project');
       }
 
-      toast.success(finalAudioUrl ? 'Master mix ready!' : 'Final mix ready!', { id: 'final-mix' });
+      toast.success(
+        mixedViaApi ? 'Master mix ready!' : 'Project compiled (generate both vocals & beat for full mix)',
+        { id: 'final-mix' }
+      );
     } catch (err) {
       console.error('Final mix error:', err);
       toast.error('Failed to create final mix', { id: 'final-mix' });
@@ -6306,7 +6312,7 @@ REQUIREMENTS:
                     mediaType={slot.mediaType}
                     mediaUrl={
                       slot.key === 'audio' ? mediaUrls.audio :
-                      slot.key === 'lyrics' ? mediaUrls.vocals :
+                      slot.key === 'lyrics' ? (mediaUrls.vocals || mediaUrls.lyricsVocal) :
                       slot.key === 'visual' ? mediaUrls.image :
                       slot.key === 'video' ? mediaUrls.video : null
                     }
