@@ -1750,7 +1750,7 @@ export default function StudioOrchestratorV2({
           restoredUrls.lyricsVocal = asset.audioUrl;
         }
       }
-      if (asset.type === 'image' || asset.type === 'cover') {
+      if (asset.type === 'image' || asset.type === 'cover' || asset.type === 'visual') {
         if ((asset.imageUrl || asset.url) && !restoredUrls.image) restoredUrls.image = asset.imageUrl || asset.url;
         if (asset.content && !restoredOutputs.visual) restoredOutputs.visual = asset.content;
       }
