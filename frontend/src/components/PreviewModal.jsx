@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Download, Copy, Check } from 'lucide-react';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
@@ -17,7 +17,15 @@ export function PreviewModal({
   item = null
 }) {
   const [copied, setCopied] = useState(false);
-  
+
+  // ESC key handler to close preview
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
+
   if (!isOpen || (!mediaUrl && !textContent)) return null;
 
   const handleDownload = () => {
@@ -70,7 +78,7 @@ export function PreviewModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 9999,
+        zIndex: 10002,
         backdropFilter: 'blur(12px)',
         animation: 'fadeIn 0.2s ease-out'
       }}

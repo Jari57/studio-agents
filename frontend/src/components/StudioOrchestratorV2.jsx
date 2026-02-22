@@ -5,7 +5,7 @@ import {
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
   Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, Lightbulb,
   Settings, CheckCircle2, Lock as LockIcon, User, Database as DatabaseIcon, CircleHelp,
-  ChevronRight, ChevronUp
+  ChevronRight, ChevronUp, ChevronDown, Upload
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS, getAgentHex } from '../constants';
 import toast from 'react-hot-toast';
@@ -731,18 +731,19 @@ function GeneratorCard({
               </div>
             ) : onGenerateMedia ? (
               <button
+                className={!isGeneratingMedia ? 'pulse-next-btn' : ''}
                 onClick={onGenerateMedia}
                 disabled={isGeneratingMedia}
                 style={{
                   width: '100%',
                   padding: '12px',
                   borderRadius: '10px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: `1px dashed ${color}50`,
+                  background: `rgba(255,255,255,${isGeneratingMedia ? '0.03' : '0.07'})`,
+                  border: `1px solid ${color}60`,
                   color: color,
                   fontSize: '0.85rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
+                  fontWeight: '700',
+                  cursor: isGeneratingMedia ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -750,12 +751,20 @@ function GeneratorCard({
                   transition: 'all 0.2s'
                 }}
               >
-                {mediaType === 'audio' && <Music size={16} />}
-                {mediaType === 'image' && <ImageIcon size={16} />}
-                {mediaType === 'video' && <VideoIcon size={16} />}
-                {slot === 'lyrics' ? 'Create AI Vocals' : 
-                 slot === 'audio' ? 'Synthesize AI Beat' :
-                 `Generate ${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}`}
+                {isGeneratingMedia ? (
+                  <Loader2 size={16} className="spin" />
+                ) : (
+                  <>
+                    {mediaType === 'audio' && <Music size={16} />}
+                    {mediaType === 'image' && <ImageIcon size={16} />}
+                    {mediaType === 'video' && <VideoIcon size={16} />}
+                  </>
+                )}
+                {isGeneratingMedia ? 'Creating...' :
+                 slot === 'lyrics' ? 'Next: Create Vocals' :
+                 slot === 'audio' ? 'Next: Create Beat Audio' :
+                 slot === 'visual' ? 'Next: Create Artwork' :
+                 'Next: Create Video'}
               </button>
             ) : null}
           </div>
@@ -1044,7 +1053,11 @@ function ProductionControlHub({
   visualType,
   setVisualType,
   isMobile,
-  orchestratorBpm = 120
+  orchestratorBpm = 120,
+  mixVocalVolume,
+  mixBeatVolume,
+  setMixVocalVolume,
+  setMixBeatVolume
 }) {
   // Check completion status
   const completedCount = Object.values(outputs).filter(Boolean).length;
@@ -1052,10 +1065,11 @@ function ProductionControlHub({
   const allComplete = completedCount === totalSlots;
   const hasAnyOutput = completedCount > 0;
   const progressPercent = (completedCount / totalSlots) * 100;
-  
+
   // Media presence
   const hasBeat = !!mediaUrls.audio;
-  const hasVocals = !!mediaUrls.vocals || !!outputs.lyrics;
+  const hasVocalMedia = !!mediaUrls.vocals || !!mediaUrls.lyricsVocal;
+  const hasVocals = hasVocalMedia || !!outputs.lyrics;
   const hasVideo = !!mediaUrls.video;
   const hasVisual = !!mediaUrls.image;
   const isSyncAvailable = hasBeat && (hasVideo || hasVocals || hasVisual);
@@ -1273,47 +1287,143 @@ function ProductionControlHub({
             </button>
           )}
 
-          {/* Primary Action Button (Unified) */}
-          <button
-            onClick={() => {
-              if (allComplete) {
-                setShowPreviewModal(true);
-              } else {
-                toast.info('Finish all generators to enable Master Preview');
-              }
-            }}
-            style={{
-              padding: '14px 32px',
-              borderRadius: '16px',
-              background: allComplete 
-                ? 'linear-gradient(135deg, #4f46e5, #7c3aed)' 
-                : 'rgba(255,255,255,0.05)',
-              border: allComplete ? 'none' : '1px solid rgba(255,255,255,0.1)',
-              color: allComplete ? 'white' : 'rgba(255,255,255,0.3)',
-              fontWeight: '700',
-              fontSize: '1rem',
-              cursor: allComplete ? 'pointer' : 'default',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              boxShadow: allComplete ? '0 8px 25px rgba(79, 70, 229, 0.4)' : 'none',
-              transition: 'all 0.3s ease',
-              minWidth: isMobile ? '100%' : '220px'
-            }}
-          >
-            {allComplete ? (
-              <>
-                <Eye size={20} />
-                Master & Preview Mix
-              </>
-            ) : (
-              <>
-                <LockIcon size={18} />
-                Master Preview Locked
-              </>
+          {/* Sync Picker — select which assets to include in mix */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+            {/* Toggle Chips */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {[
+                { key: 'beat', label: 'Beat', available: hasBeat, color: '#22d3ee' },
+                { key: 'vocals', label: 'Vocals', available: hasVocalMedia, color: '#a78bfa' },
+                { key: 'artwork', label: 'Artwork', available: hasVisual, color: '#fb923c' },
+                { key: 'video', label: 'Video', available: hasVideo || isSyncComplete, color: '#f87171' }
+              ].map(chip => {
+                const isAvail = chip.available;
+                return (
+                  <div
+                    key={chip.key}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '10px',
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      background: isAvail ? `${chip.color}18` : 'rgba(255,255,255,0.03)',
+                      border: `1.5px solid ${isAvail ? `${chip.color}50` : 'rgba(255,255,255,0.08)'}`,
+                      color: isAvail ? chip.color : 'rgba(255,255,255,0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      opacity: isAvail ? 1 : 0.5
+                    }}
+                  >
+                    {isAvail ? <CheckCircle2 size={13} /> : <div style={{ width: 13, height: 13, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,0.15)' }} />}
+                    {chip.label}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Volume Controls — visible when both beat and vocals present */}
+            {hasBeat && hasVocalMedia && setMixVocalVolume && setMixBeatVolume && (
+              <div style={{
+                display: 'flex',
+                gap: isMobile ? '12px' : '20px',
+                flexWrap: 'wrap',
+                padding: '10px 14px',
+                background: 'rgba(255,255,255,0.03)',
+                borderRadius: '10px',
+                border: '1px solid rgba(255,255,255,0.06)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '120px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#22d3ee', width: '40px' }}>Beat</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={mixBeatVolume}
+                    onChange={(e) => setMixBeatVolume(parseFloat(e.target.value))}
+                    style={{ flex: 1, accentColor: '#22d3ee', height: '4px' }}
+                  />
+                  <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', width: '30px', textAlign: 'right' }}>{Math.round(mixBeatVolume * 100)}%</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '120px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: '700', color: '#a78bfa', width: '40px' }}>Vocal</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={mixVocalVolume}
+                    onChange={(e) => setMixVocalVolume(parseFloat(e.target.value))}
+                    style={{ flex: 1, accentColor: '#a78bfa', height: '4px' }}
+                  />
+                  <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', width: '30px', textAlign: 'right' }}>{Math.round(mixVocalVolume * 100)}%</span>
+                </div>
+              </div>
             )}
-          </button>
+
+            {/* Create Mix + Preview buttons */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => {
+                  if (hasBeat || hasVocalMedia) {
+                    handleCreateFinalMix();
+                  } else {
+                    toast.info('Generate beat or vocals first to create a mix');
+                  }
+                }}
+                disabled={(!hasBeat && !hasVocalMedia) || creatingFinalMix}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '14px',
+                  background: (hasBeat || hasVocalMedia)
+                    ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
+                    : 'rgba(255,255,255,0.05)',
+                  border: (hasBeat || hasVocalMedia) ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                  color: (hasBeat || hasVocalMedia) ? 'white' : 'rgba(255,255,255,0.3)',
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
+                  cursor: (hasBeat || hasVocalMedia) && !creatingFinalMix ? 'pointer' : 'default',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: (hasBeat || hasVocalMedia) ? '0 6px 20px rgba(79, 70, 229, 0.35)' : 'none',
+                  transition: 'all 0.3s ease',
+                  flex: 1,
+                  justifyContent: 'center',
+                  minHeight: '44px'
+                }}
+              >
+                {creatingFinalMix ? (
+                  <><Loader2 size={16} className="spin" /> Mixing...</>
+                ) : (
+                  <><Zap size={16} /> Create Mix</>
+                )}
+              </button>
+
+              {finalMixPreview && (
+                <button
+                  onClick={() => { setMaximizedSlot(null); setShowPreviewModal(true); }}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '14px',
+                    background: 'rgba(34, 197, 94, 0.1)',
+                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                    color: '#4ade80',
+                    fontWeight: '600',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    minHeight: '44px'
+                  }}
+                >
+                  <Eye size={16} /> Preview
+                </button>
+              )}
+            </div>
+          </div>
 
           {/* Quick Publish (Save) Action */}
           {hasAnyOutput && (
@@ -1478,6 +1588,12 @@ export default function StudioOrchestratorV2({
   const [elVoices, setElVoices] = useState([]); // ElevenLabs professional voices
   const [loadingElVoices, setLoadingElVoices] = useState(false);
 
+  // ElevenLabs IVC (Instant Voice Cloning) state
+  const [voiceSamples, setVoiceSamples] = useState([]); // [{name, url, base64}, ...]
+  const [isCloningVoice, setIsCloningVoice] = useState(false);
+  const [clonedVoiceId, setClonedVoiceId] = useState(null); // ElevenLabs voice_id from IVC
+  const [showAssets, setShowAssets] = useState(true); // Your Assets section visibility
+
   // New DNA States for other agents
   const [visualDnaUrl, setVisualDnaUrl] = useState(null);
   const [audioDnaUrl, setAudioDnaUrl] = useState(null);
@@ -1487,7 +1603,7 @@ export default function StudioOrchestratorV2({
   const [referencedAudioId, setReferencedAudioId] = useState('');
   const [referencedVisualId, setReferencedVisualId] = useState('');
   const [isUploadingDna, setIsUploadingDna] = useState({ visual: false, audio: false, video: false, lyrics: false });
-  const [showDnaVault, setShowDnaVault] = useState(false);
+
   
   // Industrial Strength State Preservation (Fixes closure issues in auto-triggering)
   const outputsRef = useRef(outputs);
@@ -1497,6 +1613,21 @@ export default function StudioOrchestratorV2({
   // Safe getters for outputs and mediaUrls to prevent TDZ/null errors
   const safeOutputs = outputs || { lyrics: null, audio: null, visual: null, video: null };
   const safeMediaUrls = mediaUrls || { audio: null, image: null, video: null };
+
+  // ESC key handler — closes topmost modal (highest z-index first)
+  useEffect(() => {
+    const handleEsc = (e) => {
+      if (e.key !== 'Escape') return;
+      if (showRegenerateConfirm) { setShowRegenerateConfirm(false); return; }
+      if (showExitConfirm) { setShowExitConfirm(false); return; }
+      if (showSaveConfirm) { setShowSaveConfirm(false); return; }
+      if (showCreateProject) { setShowCreateProject(false); return; }
+      if (showPreviewModal) { setShowPreviewModal(false); return; }
+      if (maximizedSlot) { setMaximizedSlot(null); return; }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [showRegenerateConfirm, showExitConfirm, showSaveConfirm, showCreateProject, showPreviewModal, maximizedSlot]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // HELPERS: Genre & Output Presets
@@ -1720,6 +1851,10 @@ export default function StudioOrchestratorV2({
           if (userData.videoDnaUrl) setVideoDnaUrl(userData.videoDnaUrl);
           if (userData.lyricsDnaUrl) setLyricsDnaUrl(userData.lyricsDnaUrl);
           if (userData.voiceSampleUrl) setVoiceSampleUrl(userData.voiceSampleUrl);
+          if (userData.clonedVoiceId) {
+            setClonedVoiceId(userData.clonedVoiceId);
+            setElevenLabsVoiceId(userData.clonedVoiceId);
+          }
           if (userData.dnaArtifacts) setDnaArtifacts(userData.dnaArtifacts);
           console.log('[Orchestrator] User DNA profile loaded');
         }
@@ -2663,8 +2798,10 @@ REQUIREMENTS:
           duration: duration || 30,
           quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
           outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
-          speakerUrl: voiceStyle === 'cloned' ? voiceSampleUrl : null,
-          elevenLabsVoiceId: (vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null,
+          speakerUrl: voiceStyle === 'cloned' && !clonedVoiceId ? voiceSampleUrl : null,
+          elevenLabsVoiceId: voiceStyle === 'cloned' && clonedVoiceId
+            ? clonedVoiceId
+            : ((vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null),
           backingTrackUrl: (() => {
             // Use ref for latest value; only pass persistent URLs (not base64/blob)
             const audioUrl = mediaUrlsRef.current?.audio || mediaUrls.audio;
@@ -2844,6 +2981,231 @@ REQUIREMENTS:
       console.error('[Orchestrator] Voice upload error:', err);
       toast.error('Upload failed', { id: 'voice-upload' });
       setIsUploadingSample(false);
+    }
+  };
+
+  // Multi-sample voice upload for ElevenLabs IVC cloning
+  const handleUploadVoiceSamples = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Limit to 3 total samples
+    const remaining = 3 - voiceSamples.length;
+    if (remaining <= 0) {
+      toast.error('Maximum 3 voice samples allowed');
+      return;
+    }
+    const filesToUpload = files.slice(0, remaining);
+
+    for (const file of filesToUpload) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(`${file.name} exceeds 10MB limit`);
+        continue;
+      }
+
+      const loadingId = toast.loading(`Uploading ${file.name}...`);
+
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        // Upload to Firebase Storage for permanent URL
+        const headers = await getHeaders();
+        const response = await fetch(`${BACKEND_URL}/api/upload-asset`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            data: base64,
+            fileName: `voice-sample-${Date.now()}-${file.name.replace(/\s+/g, '-')}`,
+            mimeType: file.type || 'audio/wav',
+            assetType: 'audio'
+          })
+        });
+
+        const result = await response.json();
+        if (response.ok && result.url) {
+          setVoiceSamples(prev => [...prev, { name: file.name, url: result.url, base64 }]);
+          toast.success(`${file.name} uploaded`, { id: loadingId });
+        } else {
+          throw new Error(result.error || 'Upload failed');
+        }
+      } catch (err) {
+        console.error('[Orchestrator] Voice sample upload error:', err);
+        toast.error(`Failed to upload ${file.name}`, { id: loadingId });
+      }
+    }
+
+    // Reset the file input
+    e.target.value = '';
+  };
+
+  // Clone voice using ElevenLabs Instant Voice Cloning
+  const handleCloneVoice = async () => {
+    if (voiceSamples.length < 2) {
+      toast.error('Upload at least 2 voice samples for best results');
+      return;
+    }
+
+    setIsCloningVoice(true);
+    toast.loading('Cloning your voice...', { id: 'voice-clone' });
+
+    try {
+      const headers = await getHeaders();
+      const response = await fetch(`${BACKEND_URL}/api/voice-clone`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          samples: voiceSamples.map(s => s.base64),
+          voiceName: songIdea ? `${songIdea} Voice` : 'My Voice'
+        })
+      });
+
+      const result = await response.json();
+      if (response.ok && result.voiceId) {
+        setClonedVoiceId(result.voiceId);
+        setElevenLabsVoiceId(result.voiceId);
+        setVoiceStyle('cloned');
+        toast.success('Voice cloned! Your voice is now active.', { id: 'voice-clone' });
+
+        // Add to saved voices
+        const voiceEntry = {
+          id: result.voiceId,
+          voiceId: result.voiceId,
+          name: result.name,
+          provider: 'elevenlabs-ivc',
+          type: 'cloned'
+        };
+        setSavedVoices(prev => [voiceEntry, ...prev]);
+      } else {
+        throw new Error(result.error || result.details || 'Voice cloning failed');
+      }
+    } catch (err) {
+      console.error('[Orchestrator] Voice cloning error:', err);
+      toast.error(err.message || 'Voice cloning failed', { id: 'voice-clone' });
+    } finally {
+      setIsCloningVoice(false);
+    }
+  };
+
+  // Upload artist image for video generation
+  const handleUploadArtistImage = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large (max 10MB)');
+      return;
+    }
+
+    const loadingId = toast.loading('Uploading artist image...');
+
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const headers = await getHeaders();
+      const response = await fetch(`${BACKEND_URL}/api/upload-asset`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: base64,
+          fileName: `artist-image-${Date.now()}-${file.name.replace(/\s+/g, '-')}`,
+          mimeType: file.type || 'image/png',
+          assetType: 'image'
+        })
+      });
+
+      const result = await response.json();
+      if (response.ok && result.url) {
+        setVisualDnaUrl(result.url);
+        setVideoDnaUrl(result.url);
+        toast.success('Artist image uploaded!', { id: loadingId });
+
+        // Persist to Firestore
+        if (auth.currentUser?.uid && db) {
+          try {
+            const userRef = doc(db, 'users', auth.currentUser.uid);
+            await updateDoc(userRef, {
+              visualDnaUrl: result.url,
+              videoDnaUrl: result.url,
+              lastDnaUpdate: Date.now()
+            });
+          } catch (saveErr) {
+            console.warn('[Orchestrator] Failed to persist artist image:', saveErr);
+          }
+        }
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (err) {
+      console.error('[Orchestrator] Artist image upload error:', err);
+      toast.error('Failed to upload image', { id: loadingId });
+    }
+  };
+
+  // Upload reference audio for style matching
+  const handleUploadReferenceAudio = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large (max 10MB)');
+      return;
+    }
+
+    const loadingId = toast.loading('Uploading reference audio...');
+
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const headers = await getHeaders();
+      const response = await fetch(`${BACKEND_URL}/api/upload-asset`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          data: base64,
+          fileName: `ref-audio-${Date.now()}-${file.name.replace(/\s+/g, '-')}`,
+          mimeType: file.type || 'audio/mpeg',
+          assetType: 'audio'
+        })
+      });
+
+      const result = await response.json();
+      if (response.ok && result.url) {
+        setAudioDnaUrl(result.url);
+        toast.success('Reference audio uploaded!', { id: loadingId });
+
+        // Persist to Firestore
+        if (auth.currentUser?.uid && db) {
+          try {
+            const userRef = doc(db, 'users', auth.currentUser.uid);
+            await updateDoc(userRef, {
+              audioDnaUrl: result.url,
+              lastDnaUpdate: Date.now()
+            });
+          } catch (saveErr) {
+            console.warn('[Orchestrator] Failed to persist reference audio:', saveErr);
+          }
+        }
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (err) {
+      console.error('[Orchestrator] Reference audio upload error:', err);
+      toast.error('Failed to upload audio', { id: loadingId });
     }
   };
 
@@ -3195,14 +3557,147 @@ REQUIREMENTS:
       return;
     }
     setGeneratingMedia(prev => ({ ...prev, video: true }));
-    toast.loading('Generating video (this takes ~2 min)...', { id: 'gen-video' });
-    
+
     try {
       const headers = await getHeaders();
 
       // Clean prompt of AI fluff
       const { content: cleanVideoPrompt } = splitCreativeContent(videoPromptText);
       const videoPrompt = cleanVideoPrompt || videoPromptText;
+
+      // Check for audio — if available, use synced pipeline for 60-240s videos
+      const audioSource = mediaUrls.mixedAudio || mediaUrls.audio;
+
+      if (audioSource) {
+        // ═══ SYNCED PIPELINE: Beat-synced music video (60-240s) ═══
+        const videoDuration = Math.max(duration || 60, 60); // At least 60 seconds
+        toast.loading(`Creating ${videoDuration}s music video (3-10 min)...`, { id: 'gen-video', duration: 600000 });
+
+        const endpoint = headers['Authorization']
+          ? '/api/generate-synced-video'
+          : '/api/generate-synced-video-test';
+
+        const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...headers },
+          body: JSON.stringify({
+            audioUrl: audioSource,
+            videoPrompt: `${visualDnaUrl || videoDnaUrl ? 'Feature the artist from the reference image. ' : ''}Elite cinematic music video, professional motion design, high-fidelity quality: ${videoPrompt.substring(0, 700)}`,
+            imageUrl: mediaUrls.image,
+            videoUrl: mediaUrls.video,
+            referenceImage: visualDnaUrl || videoDnaUrl,
+            songTitle: songIdea || 'Untitled',
+            style: style || 'cinematic',
+            duration: videoDuration
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          if (response.status === 503) {
+            toast.error('Video API not configured', { id: 'gen-video' });
+          } else {
+            toast.error(errData.error || 'Video generation failed', { id: 'gen-video' });
+          }
+          return;
+        }
+
+        const data = await response.json();
+
+        if (data.jobId) {
+          // Long-form video queued — poll for completion
+          console.log('[Orchestrator] Video job started:', data.jobId);
+          toast.loading(`Music video rendering... 0%`, { id: 'gen-video', duration: 1200000 });
+          const maxPolls = 120; // 120 × 10s = 20 min max
+          let jobSuccess = false;
+          for (let i = 0; i < maxPolls; i++) {
+            await new Promise(r => setTimeout(r, 10000)); // Poll every 10s
+            try {
+              const statusRes = await fetch(`${BACKEND_URL}/api/video-job-status/${data.jobId}`, { headers });
+              const statusData = await statusRes.json();
+              console.log(`[Orchestrator] Video job poll ${i + 1}:`, statusData.status, statusData.progress);
+              if (statusData.status === 'completed' && statusData.videoUrl) {
+                setMediaUrls(prev => ({ ...prev, video: statusData.videoUrl }));
+                setGenerationProviders(prev => ({ ...prev, video: 'synced-music-video' }));
+                toast.success(`Music video created! (${statusData.duration || videoDuration}s)`, { id: 'gen-video' });
+                jobSuccess = true;
+
+                // Auto-sync to project
+                if (existingProject) {
+                  const videoAsset = {
+                    id: `vid-${crypto.randomUUID()}`,
+                    title: `Music Video - ${new Date().toLocaleTimeString()}`,
+                    type: 'video',
+                    agent: 'Video Director',
+                    videoUrl: statusData.videoUrl,
+                    duration: statusData.duration,
+                    bpm: statusData.bpm,
+                    date: new Date().toLocaleDateString(),
+                    createdAt: new Date().toISOString()
+                  };
+                  const updatedAssets = [...(existingProject.assets || []), videoAsset];
+                  onSaveToProject({ ...existingProject, assets: updatedAssets, updatedAt: new Date().toISOString() });
+                  setIsSaved(true);
+                }
+                break;
+              }
+              if (statusData.status === 'failed') {
+                toast.error(statusData.error || 'Video generation failed', { id: 'gen-video' });
+                break;
+              }
+              // Still processing — update progress
+              toast.loading(`Music video rendering... ${statusData.progress || 0}%`, { id: 'gen-video' });
+            } catch (pollErr) {
+              console.error('[Orchestrator] Video job poll error:', pollErr);
+            }
+          }
+          if (!jobSuccess) {
+            toast.error('Video generation timed out — check back later', { id: 'gen-video' });
+          }
+          return;
+        }
+
+        if (data.videoUrl) {
+          // Inline result (30s videos return immediately)
+          setMediaUrls(prev => ({ ...prev, video: data.videoUrl }));
+          setGenerationProviders(prev => ({ ...prev, video: 'synced-music-video' }));
+          toast.success(`Music video created! (${data.duration || videoDuration}s, ${data.bpm || '?'} BPM)`, { id: 'gen-video' });
+
+          if (existingProject) {
+            const videoAsset = {
+              id: `vid-${crypto.randomUUID()}`,
+              title: `Music Video - ${new Date().toLocaleTimeString()}`,
+              type: 'video',
+              agent: 'Video Director',
+              videoUrl: data.videoUrl,
+              duration: data.duration,
+              bpm: data.bpm,
+              date: new Date().toLocaleDateString(),
+              createdAt: new Date().toISOString()
+            };
+            const updatedAssets = [...(existingProject.assets || []), videoAsset];
+            onSaveToProject({ ...existingProject, assets: updatedAssets, updatedAt: new Date().toISOString() });
+            setIsSaved(true);
+          }
+
+          // Auto-extract frame if no image
+          if (!mediaUrls.image) {
+            try {
+              const frameDataUrl = await extractFrameFromVideo(data.videoUrl);
+              setMediaUrls(prev => ({ ...prev, image: frameDataUrl }));
+            } catch (e) {
+              console.log('[Orchestrator] Auto frame extraction failed:', e);
+            }
+          }
+          return;
+        }
+
+        toast.error('Unexpected video response', { id: 'gen-video' });
+        return;
+      }
+
+      // ═══ FALLBACK: Short clip via Veo/Minimax (no audio available) ═══
+      toast.loading('Generating video clip (this takes ~2 min)...', { id: 'gen-video' });
 
       const response = await fetch(`${BACKEND_URL}/api/generate-video`, {
         method: 'POST',
@@ -3510,9 +4005,10 @@ REQUIREMENTS:
         },
         body: JSON.stringify({
           audioUrl: mediaUrls.mixedAudio || mediaUrls.audio, // Prefer mixed vocal+beat
-          videoPrompt: outputs.video || `A high-fidelity cinematic music video for a ${style} song`,
+          videoPrompt: `${visualDnaUrl || videoDnaUrl ? 'Feature the artist from the reference image. ' : ''}${outputs.video || `A high-fidelity cinematic music video for a ${style} song`}`,
           imageUrl: mediaUrls.image,
           videoUrl: mediaUrls.video,
+          referenceImage: visualDnaUrl || videoDnaUrl,
           songTitle: songIdea || 'Untitled',
           style: style || 'cinematic',
           duration: structure === 'Extended' ? 180 : (structure === 'Radio Edit' ? 150 : (structure === 'Full Song' ? 90 : 60)) // Sync video duration to structure
@@ -4236,6 +4732,48 @@ REQUIREMENTS:
           )}
         </div>
 
+        {/* Activity Status Panel — shows during ANY individual generation */}
+        {(() => {
+          const mediaLabels = { audio: 'Beat Audio', vocals: 'Vocals', image: 'Artwork', video: 'Video' };
+          const mediaColors = { audio: '#22d3ee', vocals: '#a78bfa', image: '#fb923c', video: '#f87171' };
+          const activeItems = Object.entries(generatingMedia).filter(([, v]) => v);
+          const slotItems = Object.entries(generatingSlots).filter(([, v]) => v);
+          // Combine: generatingMedia tracks media synthesis, generatingSlots tracks text generation
+          const allActive = [
+            ...activeItems.map(([k]) => ({ key: k, label: `Creating ${mediaLabels[k] || k}...`, color: mediaColors[k] || '#8b5cf6' })),
+            ...slotItems.filter(([k]) => !activeItems.some(([mk]) => mk === k)).map(([k]) => ({ key: `slot-${k}`, label: `Generating ${k} concept...`, color: '#8b5cf6' }))
+          ];
+          if (allActive.length === 0 || (isGenerating && pipelineSteps.length > 0)) return null;
+          return (
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '8px',
+              marginBottom: '16px',
+              padding: '12px 16px',
+              background: 'rgba(139, 92, 246, 0.06)',
+              borderRadius: '12px',
+              border: '1px solid rgba(139, 92, 246, 0.15)',
+              alignItems: 'center'
+            }}>
+              <Loader2 size={14} className="spin" style={{ color: '#8b5cf6', flexShrink: 0 }} />
+              {allActive.map(item => (
+                <span key={item.key} style={{
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  color: item.color,
+                  background: `${item.color}15`,
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  border: `1px solid ${item.color}30`
+                }}>
+                  {item.label}
+                </span>
+              ))}
+            </div>
+          );
+        })()}
+
         {/* Pipeline Progress Feed */}
         {isGenerating && pipelineSteps.length > 0 && (
           <div style={{
@@ -4647,395 +5185,6 @@ REQUIREMENTS:
           </div>
         </div>
 
-        {/* Studio DNA Vault Segment */}
-        <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          borderRadius: '16px',
-          padding: isMobile ? '12px' : '16px',
-          marginBottom: '24px',
-          border: '1px solid rgba(168, 85, 247, 0.15)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: showDnaVault ? '16px' : '0'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <DatabaseIcon size={18} color="#a855f7" />
-              <div>
-                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '700', color: 'white' }}>Studio DNA Vault</h3>
-                {!showDnaVault && (
-                  <p style={{ margin: 0, fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
-                    {visualDnaUrl || audioDnaUrl || lyricsDnaUrl || videoDnaUrl ? 'Persistent references active' : 'No reference files attached'}
-                  </p>
-                )}
-              </div>
-            </div>
-            <button 
-              onClick={() => setShowDnaVault(!showDnaVault)}
-              style={{
-                padding: '6px 12px',
-                background: 'rgba(168, 85, 247, 0.15)',
-                border: '1px solid rgba(168, 85, 247, 0.3)',
-                borderRadius: '8px',
-                fontSize: '0.8rem',
-                color: '#a855f7',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s'
-              }}
-            >
-              {showDnaVault ? 'Close Vault' : 'Manage DNA'}
-              {showDnaVault ? <ChevronUp size={14} /> : <ChevronRight size={14} />}
-            </button>
-          </div>
-
-          {showDnaVault && (
-            <div style={{ marginTop: '16px', animation: 'fadeIn 0.3s ease' }}>
-              {/* DNA Explanation Section */}
-              <div style={{ 
-                padding: '16px', 
-                background: 'rgba(168, 85, 247, 0.05)', 
-                borderRadius: '12px', 
-                border: '1px solid rgba(168, 85, 247, 0.15)',
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                  <CircleHelp size={20} color="#a855f7" style={{ marginTop: '2px' }} />
-                  <div>
-                    <h4 style={{ margin: '0 0 6px 0', fontSize: '0.95rem', color: '#a855f7', fontWeight: 'bold', fontFamily: 'Georgia, serif' }}>What is DNA?</h4>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.5', fontFamily: 'Georgia, serif' }}>
-                      DNA (Digital Narrative Artifacts) allows you to "seed" the AI with specific creative references. 
-                      By uploading visual moodboards, audio references, or lyrical contexts, the agents can better understand 
-                      and mirror your unique artistic direction. Select an artifact below to set it as the active DNA reference 
-                      for your creative session.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', 
-                gap: '10px',
-                marginBottom: '20px'
-              }}>
-                {/* Visual DNA */}
-                <div style={{
-                  padding: '12px',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <ImageIcon size={18} color="#ec4899" />
-                    <div>
-                      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Visual DNA</div>
-                      <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {visualDnaUrl ? 'Reference Active' : 'No Image'}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {visualDnaUrl && <button onClick={() => setVisualDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
-                    <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
-                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('visual', e)} />
-                      {isUploadingDna.visual ? <Loader2 size={12} className="spin" /> : 'Upload'}
-                    </label>
-                  </div>
-                </div>
-
-                {/* Audio DNA */}
-                <div style={{
-                  padding: '12px',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Music size={18} color="#06b6d4" />
-                    <div>
-                      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Audio DNA</div>
-                      <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {audioDnaUrl ? 'Ref Active' : 'No Beat'}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {audioDnaUrl && <button onClick={() => setAudioDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
-                    <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
-                      <input type="file" accept="audio/*" style={{ display: 'none' }} onChange={(e) => handleUploadDna('audio', e)} />
-                      {isUploadingDna.audio ? <Loader2 size={12} className="spin" /> : 'Upload'}
-                    </label>
-                  </div>
-                </div>
-
-                {/* Lyrics DNA */}
-                <div style={{
-                  padding: '12px',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <FileText size={18} color="#a855f7" />
-                    <div>
-                      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Lyrics DNA</div>
-                      <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {lyricsDnaUrl ? 'Text Ready' : 'No Context'}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {lyricsDnaUrl && <button onClick={() => setLyricsDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
-                    <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
-                      <input type="file" style={{ display: 'none' }} onChange={(e) => handleUploadDna('lyrics', e)} />
-                      {isUploadingDna.lyrics ? <Loader2 size={12} className="spin" /> : 'Upload'}
-                    </label>
-                  </div>
-                </div>
-
-                {/* Video/Profile DNA */}
-                <div style={{
-                  padding: '12px',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.05)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <VideoIcon size={18} color="#f59e0b" />
-                    <div>
-                      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Seed DNA</div>
-                      <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {videoDnaUrl ? 'Profile Active' : 'No Seed'}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {videoDnaUrl && <button onClick={() => setVideoDnaUrl(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
-                    <label style={{ padding: '6px 10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', color: 'white' }}>
-                      <input type="file" style={{ display: 'none' }} onChange={(e) => handleUploadDna('video', e)} />
-                      {isUploadingDna.video ? <Loader2 size={12} className="spin" /> : 'Upload'}
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stored Artifacts Repository */}
-              {dnaArtifacts && dnaArtifacts.length > 0 && (
-                <div style={{ 
-                  marginTop: '12px',
-                  padding: '16px',
-                  background: 'rgba(255,255,255,0.02)',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255,255,255,0.05)'
-                }}>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600' }}>Stored Vault Artifacts</h4>
-                  <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '8px',
-                    maxHeight: '240px',
-                    overflowY: 'auto',
-                    paddingRight: '4px'
-                  }}>
-                    {dnaArtifacts.slice().reverse().map((artifact) => (
-                      <div key={artifact.id} style={{
-                        padding: '10px 12px',
-                        background: 'rgba(0,0,0,0.2)',
-                        borderRadius: '10px',
-                        border: '1px solid rgba(255,255,255,0.03)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        transition: 'all 0.2s'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                          <div style={{ 
-                            width: '32px', 
-                            height: '32px', 
-                            borderRadius: '8px', 
-                            background: 'rgba(255,255,255,0.05)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0
-                          }}>
-                            {artifact.type === 'visual' && <ImageIcon size={16} color="#ec4899" />}
-                            {artifact.type === 'audio' && <Music size={16} color="#06b6d4" />}
-                            {artifact.type === 'lyrics' && <FileText size={16} color="#a855f7" />}
-                            {artifact.type === 'video' && <VideoIcon size={16} color="#f59e0b" />}
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {artifact.name}
-                            </div>
-                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>
-                              {artifact.type.charAt(0).toUpperCase() + artifact.type.slice(1)} • {new Date(artifact.timestamp).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <button
-                            onClick={() => {
-                              if (artifact.type === 'visual') setVisualDnaUrl(artifact.url);
-                              if (artifact.type === 'audio') setAudioDnaUrl(artifact.url);
-                              if (artifact.type === 'video') setVideoDnaUrl(artifact.url);
-                              if (artifact.type === 'lyrics') setLyricsDnaUrl(artifact.url);
-                              toast.success(`${artifact.type.charAt(0).toUpperCase() + artifact.type.slice(1)} activated!`);
-                            }}
-                            style={{
-                              padding: '5px 10px',
-                              background: 'rgba(168, 85, 247, 0.15)',
-                              border: '1px solid rgba(168, 85, 247, 0.3)',
-                              borderRadius: '6px',
-                              color: '#a855f7',
-                              fontSize: '0.7rem',
-                              fontWeight: '600',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            Activate
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (!window.confirm('Remove this DNA artifact?')) return;
-                              try {
-                                const newArtifacts = dnaArtifacts.filter(a => a.id !== artifact.id);
-                                setDnaArtifacts(newArtifacts);
-                                const userRef = doc(db, 'users', auth.currentUser?.uid);
-                                await updateDoc(userRef, { dnaArtifacts: newArtifacts });
-                                toast.success('Artifact removed');
-                              } catch (err) {
-                                console.error('Failed to remove artifact:', err);
-                              }
-                            }}
-                            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', padding: '4px' }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Audio ID Reference - New for Audio_ID support */}
-              <div style={{
-                padding: '12px',
-                background: 'rgba(0,0,0,0.3)',
-                borderRadius: '12px',
-                border: referencedAudioId ? '1px solid #06b6d4' : '1px solid rgba(255,255,255,0.05)',
-                gridColumn: isMobile ? 'span 1' : 'span 2'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Hash size={16} color="#06b6d4" />
-                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>Project Audio ID Reference</div>
-                  </div>
-                  {referencedAudioId && <button onClick={() => setReferencedAudioId('')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer' }}><X size={14} /></button>}
-                </div>
-                <input 
-                  type="text" 
-                  placeholder="Link an existing Audio ID (e.g. project_vocal_01)..."
-                  value={referencedAudioId}
-                  onChange={(e) => setReferencedAudioId(e.target.value)}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    fontSize: '0.8rem',
-                    color: 'white',
-                    outline: 'none',
-                    fontFamily: 'monospace'
-                  }}
-                />
-              </div>
-
-              {/* ElevenLabs Premium Toggle */}
-              <div style={{
-                gridColumn: isMobile ? 'auto' : '1 / span 2',
-                padding: '12px 16px',
-                background: 'linear-gradient(90deg, rgba(168, 85, 247, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%)',
-                borderRadius: '12px',
-                border: '1px solid rgba(168, 85, 247, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginTop: '4px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: vocalQuality === 'premium' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: vocalQuality === 'premium' ? '#a855f7' : 'rgba(255,255,255,0.4)'
-                  }}>
-                    <Zap size={18} fill={vocalQuality === 'premium' ? '#a855f7' : 'none'} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.8rem', color: 'white', fontWeight: '700', letterSpacing: '0.02em' }}>
-                      ELEVENLABS PREMIUM ENGINE
-                    </div>
-                    <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)' }}>
-                      {vocalQuality === 'premium' ? 'Using HD neural voices & cloned mastery' : 'Using standard generation engines'}
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setVocalQuality(vocalQuality === 'premium' ? 'standard' : 'premium')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '20px',
-                    background: vocalQuality === 'premium' ? '#a855f7' : 'rgba(255,255,255,0.1)',
-                    border: 'none',
-                    color: 'white',
-                    fontSize: '0.7rem',
-                    fontWeight: '800',
-                    cursor: 'pointer',
-                    boxShadow: vocalQuality === 'premium' ? '0 0 15px rgba(168, 85, 247, 0.4)' : 'none',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                >
-                  {vocalQuality === 'premium' ? 'ACTIVATED' : 'ACTIVATE'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Inline Active Badges when vault is closed */}
-          {!showDnaVault && (visualDnaUrl || audioDnaUrl || lyricsDnaUrl || videoDnaUrl) && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
-              {visualDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: 'rgba(236, 72, 153, 0.1)', color: '#ec4899', borderRadius: '6px', border: '1px solid rgba(236, 72, 153, 0.2)', display: 'flex', alignItems: 'center', gap: '4px' }}><ImageIcon size={10} /> Visual DNA</div>}
-              {audioDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: 'rgba(6, 182, 212, 0.1)', color: '#06b6d4', borderRadius: '6px', border: '1px solid rgba(6, 182, 212, 0.2)', display: 'flex', alignItems: 'center', gap: '4px' }}><Music size={10} /> Audio DNA</div>}
-              {lyricsDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: 'rgba(168, 85, 247, 0.1)', color: '#a855f7', borderRadius: '6px', border: '1px solid rgba(168, 85, 247, 0.2)', display: 'flex', alignItems: 'center', gap: '4px' }}><FileText size={10} /> Lyrics DNA</div>}
-              {videoDnaUrl && <div style={{ fontSize: '0.65rem', padding: '4px 8px', background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', borderRadius: '6px', border: '1px solid rgba(245, 158, 11, 0.2)', display: 'flex', alignItems: 'center', gap: '4px' }}><VideoIcon size={10} /> Seed DNA</div>}
-            </div>
-          )}
-        </div>
 
         {/* DEBUG: Show lyrics status */}
         <div style={{ 
@@ -5166,7 +5315,7 @@ REQUIREMENTS:
                         modal.innerHTML = `
                           <div style="
                             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                            background: rgba(0,0,0,0.9); z-index: 9999;
+                            background: rgba(0,0,0,0.9); z-index: 10002;
                             display: flex; align-items: center; justify-content: center;
                             padding: 20px;
                           " onclick="if(event.target === this) this.remove();">
@@ -5680,12 +5829,316 @@ REQUIREMENTS:
         </>
         )}
 
+        {/* ════════════════════════════════════════════════════════════ */}
+        {/* YOUR ASSETS — Voice Samples, Artist Image, Reference Audio */}
+        {/* ════════════════════════════════════════════════════════════ */}
+        <div style={{
+          marginBottom: '1.2rem',
+          background: 'rgba(0,0,0,0.25)',
+          borderRadius: '16px',
+          border: '1px solid rgba(139, 92, 246, 0.2)',
+          overflow: 'hidden'
+        }}>
+          {/* Header with collapse toggle */}
+          <button
+            onClick={() => setShowAssets(!showAssets)}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 18px',
+              background: 'rgba(139, 92, 246, 0.08)',
+              border: 'none',
+              borderBottom: showAssets ? '1px solid rgba(139, 92, 246, 0.15)' : 'none',
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'background 0.2s'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Upload size={18} color="#a855f7" />
+              <span style={{ fontSize: '0.95rem', fontWeight: '700', fontFamily: 'Georgia, serif', letterSpacing: '0.02em' }}>
+                YOUR ASSETS
+              </span>
+              {(voiceSamples.length > 0 || visualDnaUrl || audioDnaUrl) && (
+                <span style={{
+                  fontSize: '0.65rem',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  background: 'rgba(34, 197, 94, 0.15)',
+                  color: '#22c55e',
+                  fontWeight: '600'
+                }}>
+                  {[voiceSamples.length > 0 && 'Voice', visualDnaUrl && 'Image', audioDnaUrl && 'Audio'].filter(Boolean).join(' + ')}
+                </span>
+              )}
+            </div>
+            {showAssets ? <ChevronUp size={16} color="rgba(255,255,255,0.5)" /> : <ChevronDown size={16} color="rgba(255,255,255,0.5)" />}
+          </button>
+
+          {showAssets && (
+            <div style={{
+              padding: '16px 18px',
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+              gap: '14px'
+            }}>
+
+              {/* Column 1: Voice Samples */}
+              <div style={{
+                padding: '16px',
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '12px',
+                border: '1px solid rgba(139, 92, 246, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <Mic size={16} color="#a855f7" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voice Samples</span>
+                  <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>{voiceSamples.length}/3</span>
+                </div>
+
+                {/* Uploaded sample list */}
+                {voiceSamples.map((sample, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 10px',
+                    background: 'rgba(139, 92, 246, 0.08)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(139, 92, 246, 0.1)'
+                  }}>
+                    <span style={{ fontSize: '0.75rem', color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+                      {sample.name}
+                    </span>
+                    <button
+                      onClick={() => setVoiceSamples(prev => prev.filter((_, i) => i !== idx))}
+                      style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px' }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+
+                {/* Add samples button */}
+                {voiceSamples.length < 3 && (
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '10px',
+                    border: '1px dashed rgba(139, 92, 246, 0.3)',
+                    borderRadius: '8px',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: 'transparent'
+                  }}>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      multiple
+                      onChange={handleUploadVoiceSamples}
+                      style={{ display: 'none' }}
+                    />
+                    <Upload size={14} />
+                    {voiceSamples.length === 0 ? 'Upload 2-3 voice samples' : 'Add more samples'}
+                  </label>
+                )}
+
+                {/* Clone voice button */}
+                <button
+                  onClick={handleCloneVoice}
+                  disabled={voiceSamples.length < 2 || isCloningVoice}
+                  style={{
+                    padding: '10px',
+                    borderRadius: '10px',
+                    border: clonedVoiceId ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(139, 92, 246, 0.4)',
+                    background: clonedVoiceId ? 'rgba(34, 197, 94, 0.1)' : 'rgba(139, 92, 246, 0.15)',
+                    color: clonedVoiceId ? '#22c55e' : (voiceSamples.length < 2 ? 'rgba(255,255,255,0.3)' : '#a855f7'),
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    cursor: voiceSamples.length < 2 || isCloningVoice ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s',
+                    opacity: voiceSamples.length < 2 ? 0.5 : 1
+                  }}
+                >
+                  {isCloningVoice ? <Loader2 size={14} className="spin" /> : clonedVoiceId ? <CheckCircle2 size={14} /> : <Sparkles size={14} />}
+                  {isCloningVoice ? 'Cloning...' : clonedVoiceId ? 'Voice Cloned' : 'Clone My Voice'}
+                </button>
+
+                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.4 }}>
+                  Upload vocal recordings so the AI learns your voice. Minimum 2 samples for best quality.
+                </p>
+              </div>
+
+              {/* Column 2: Artist Image */}
+              <div style={{
+                padding: '16px',
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '12px',
+                border: '1px solid rgba(236, 72, 153, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <ImageIcon size={16} color="#ec4899" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Artist Image</span>
+                </div>
+
+                {visualDnaUrl ? (
+                  <div style={{ position: 'relative' }}>
+                    <img
+                      src={visualDnaUrl}
+                      alt="Artist"
+                      style={{
+                        width: '100%',
+                        height: '120px',
+                        objectFit: 'cover',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(236, 72, 153, 0.2)'
+                      }}
+                    />
+                    <button
+                      onClick={() => { setVisualDnaUrl(null); setVideoDnaUrl(null); }}
+                      style={{
+                        position: 'absolute',
+                        top: '6px',
+                        right: '6px',
+                        background: 'rgba(0,0,0,0.7)',
+                        border: 'none',
+                        borderRadius: '50%',
+                        color: 'white',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex'
+                      }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <label style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '24px 10px',
+                    border: '1px dashed rgba(236, 72, 153, 0.3)',
+                    borderRadius: '8px',
+                    color: 'rgba(255,255,255,0.5)',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: 'transparent',
+                    flex: 1
+                  }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleUploadArtistImage}
+                      style={{ display: 'none' }}
+                    />
+                    <ImageIcon size={24} color="rgba(236, 72, 153, 0.5)" />
+                    Upload your photo
+                  </label>
+                )}
+
+                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.4 }}>
+                  Your photo or image for music videos. Videos will feature you instead of AI-generated visuals.
+                </p>
+              </div>
+
+              {/* Column 3: Reference Audio */}
+              <div style={{
+                padding: '16px',
+                background: 'rgba(0,0,0,0.3)',
+                borderRadius: '12px',
+                border: '1px solid rgba(6, 182, 212, 0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <Music size={16} color="#06b6d4" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'white', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reference Audio</span>
+                </div>
+
+                {audioDnaUrl ? (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 12px',
+                    background: 'rgba(6, 182, 212, 0.08)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(6, 182, 212, 0.15)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Music size={14} color="#06b6d4" />
+                      <span style={{ fontSize: '0.75rem', color: '#06b6d4', fontWeight: '600' }}>Reference Active</span>
+                    </div>
+                    <button
+                      onClick={() => setAudioDnaUrl(null)}
+                      style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', padding: '2px' }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <label style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '24px 10px',
+                    border: '1px dashed rgba(6, 182, 212, 0.3)',
+                    borderRadius: '8px',
+                    color: 'rgba(255,255,255,0.5)',
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: 'transparent',
+                    flex: 1
+                  }}>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={handleUploadReferenceAudio}
+                      style={{ display: 'none' }}
+                    />
+                    <Music size={24} color="rgba(6, 182, 212, 0.5)" />
+                    Upload song or vocals
+                  </label>
+                )}
+
+                <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.4 }}>
+                  Upload a reference song or vocals. The AI matches your style, tone, and energy.
+                </p>
+              </div>
+
+            </div>
+          )}
+        </div>
+
         {/* 4 Generator Cards Grid - 2x2 layout */}
       {/* 4 Generator Cards Grid - 2x2 layout - uses unified CSS */}
       <div className="generator-grid-unified" style={{
         gap: isMobile ? '0.6rem' : '1rem',
-        touchAction: 'pan-y',
-        overflow: 'hidden'
+        touchAction: 'pan-y'
       }}>
         {GENERATOR_SLOTS.map(slot => (
           <GeneratorCard
@@ -5723,7 +6176,7 @@ REQUIREMENTS:
             onDownload={() => handleDownload(slot.key)}
             onSpeak={() => speakText(outputs[slot.key], slot.key)}
             isSpeaking={speakingSlot === slot.key}
-            onMaximize={() => setMaximizedSlot(slot.key)}
+            onMaximize={() => { setShowPreviewModal(false); setMaximizedSlot(slot.key); }}
             onUploadDna={
               slot.key === 'visual' ? (e) => handleUploadDna('visual', e) :
               slot.key === 'audio' ? (e) => handleUploadDna('audio', e) :
@@ -5767,6 +6220,10 @@ REQUIREMENTS:
         setVisualType={setVisualType}
         isMobile={isMobile}
         orchestratorBpm={projectBpm}
+        mixVocalVolume={mixVocalVolume}
+        mixBeatVolume={mixBeatVolume}
+        setMixVocalVolume={setMixVocalVolume}
+        setMixBeatVolume={setMixBeatVolume}
       />
     </div>
 
@@ -5780,7 +6237,7 @@ REQUIREMENTS:
             display: 'flex',
             alignItems: isMobile ? 'flex-start' : 'center',
             justifyContent: 'center',
-            zIndex: 2500,
+            zIndex: 10001,
             padding: isMobile ? '10px' : '20px',
             overflowY: 'auto'
           }}
@@ -6000,7 +6457,7 @@ REQUIREMENTS:
             </button>
             
             <button
-              onClick={() => setShowCreateProject(true)}
+              onClick={() => { setMaximizedSlot(null); setShowPreviewModal(false); setShowCreateProject(true); }}
               style={{
                 padding: '12px 28px',
                 borderRadius: '12px',
@@ -6033,7 +6490,7 @@ REQUIREMENTS:
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 3000
+            zIndex: 10004
           }}
           onClick={() => setShowCreateProject(false)}
         >
@@ -6100,9 +6557,9 @@ REQUIREMENTS:
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10001,
+          zIndex: 10005,
           padding: '20px'
-        }}>
+        }} onClick={(e) => { if (e.target === e.currentTarget) setShowSaveConfirm(false); }}>
           <div style={{
             background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
             borderRadius: '20px',
@@ -6180,6 +6637,7 @@ REQUIREMENTS:
               <button
                 onClick={() => {
                   setShowSaveConfirm(false);
+                  setMaximizedSlot(null);
                   setShowPreviewModal(true);
                 }}
                 className="btn-pill primary"
@@ -6213,9 +6671,9 @@ REQUIREMENTS:
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10002,
+          zIndex: 10006,
           padding: '20px'
-        }}>
+        }} onClick={(e) => { if (e.target === e.currentTarget) setShowExitConfirm(false); }}>
           <div style={{
             background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
             borderRadius: '20px',
@@ -6259,6 +6717,8 @@ REQUIREMENTS:
               <button
                 onClick={() => {
                   setShowExitConfirm(false);
+                  setMaximizedSlot(null);
+                  setShowPreviewModal(false);
                   setShowCreateProject(true);
                 }}
                 className="btn-pill primary"
@@ -6315,9 +6775,9 @@ REQUIREMENTS:
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10002,
+          zIndex: 10006,
           padding: '20px'
-        }}>
+        }} onClick={(e) => { if (e.target === e.currentTarget) setShowRegenerateConfirm(false); }}>
           <div style={{
             background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
             borderRadius: '20px',
@@ -6385,7 +6845,7 @@ REQUIREMENTS:
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 10000,
+            zIndex: 10003,
             padding: previewMaximized ? '0' : '20px'
           }}
           onClick={(e) => {
@@ -6763,6 +7223,7 @@ REQUIREMENTS:
               <button
                 onClick={() => {
                   setShowPreviewModal(false);
+                  setMaximizedSlot(null);
                   setShowCreateProject(true);
                 }}
                 style={{
@@ -6891,6 +7352,15 @@ REQUIREMENTS:
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+
+        .pulse-next-btn {
+          animation: pulseNext 2s ease-in-out infinite;
+        }
+
+        @keyframes pulseNext {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+          50% { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0); }
         }
       `}</style>
     </div>

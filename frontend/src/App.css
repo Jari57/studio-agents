@@ -3856,6 +3856,8 @@ select optgroup {
   min-height: 48px;
   flex-shrink: 0;
   gap: 8px;
+  position: sticky;
+  top: 0;
 }
 
 .studio-title {
@@ -3966,11 +3968,7 @@ select optgroup {
   /* Simplified transition - no transform to prevent flickering */
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   position: relative;
-  overflow: visible;
-  isolation: isolate;
-  /* Prevent layout shift and flickering */
-  will-change: box-shadow;
-  backface-visibility: hidden;
+  overflow: hidden;
 }
 
 .agent-studio-card::before,
@@ -11149,11 +11147,17 @@ html, body, #root {
    AGENTS SPLIT LAYOUT - 10-15% Sidebar / Main Content
    ======================================== */
 
+/* Remove extra padding from studio-content when agents layout is active */
+.studio-content:has(.agents-split-layout) {
+  padding: 0;
+  max-width: 100%;
+}
+
 .agents-split-layout {
   display: grid;
   grid-template-columns: minmax(60px, 10%) 1fr;
   gap: 0;
-  height: calc(100vh - 180px);
+  height: calc(100vh - 56px);
   min-height: 600px;
   overflow: hidden;
 }
@@ -11415,7 +11419,7 @@ html, body, #root {
   .agents-split-layout {
     grid-template-columns: minmax(56px, 15%) 1fr;
     grid-template-rows: 1fr;
-    height: calc(100vh - 140px);
+    height: calc(100vh - 56px);
     min-height: 400px;
   }
   

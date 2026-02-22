@@ -7970,7 +7970,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 renderAgentWorkspace()
               ) : (
                 /* Agent Cards Grid with Whitepapers & Legal */
-                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 12px 0' : '16px 20px 0', overflowY: 'auto' }}>
+                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 10px 0' : '12px 16px 0', overflowY: 'auto' }}>
                   {/* Header with Action Buttons */}
                   <div style={{
                     display: 'flex',
@@ -11596,8 +11596,98 @@ const fetchUserCredits = useCallback(async (uid) => {
                          const token = await auth.currentUser.getIdToken();
                          headers['Authorization'] = `Bearer ${token}`;
                        }
-                       
-                       // Call the AMO orchestrator endpoint with sync settings
+
+                       // Check if real audio URLs exist — if so, mix them directly
+                       const hasRealBeat = sessionTracks.audio?.audioUrl && sessionTracks.audio.audioUrl.startsWith('http');
+                       const hasRealVocals = sessionTracks.vocal?.audioUrl && sessionTracks.vocal.audioUrl.startsWith('http');
+
+                       if (hasRealBeat || hasRealVocals) {
+                         // Direct audio mixing path — use /api/create-final-mix
+                         toast.loading('Mixing your tracks...', { id: 'amo-render' });
+
+                         let mixedAudioUrl = null;
+
+                         if (hasRealBeat && hasRealVocals) {
+                           // Mix both tracks
+                           const mixRes = await fetch(`${BACKEND_URL}/api/create-final-mix`, {
+                             method: 'POST',
+                             headers,
+                             body: JSON.stringify({
+                               vocalUrl: sessionTracks.vocal.audioUrl,
+                               beatUrl: sessionTracks.audio.audioUrl,
+                               vocalVolume: sessionTracks.vocalVolume ?? 0.85,
+                               beatVolume: sessionTracks.audioVolume ?? 0.60,
+                               style: 'rapper',
+                               outputFormat: 'music'
+                             })
+                           });
+
+                           if (mixRes.ok) {
+                             const mixData = await mixRes.json();
+                             mixedAudioUrl = mixData.mixedAudioUrl;
+                           } else {
+                             console.warn('[RenderMaster] Mix failed, using beat track');
+                             mixedAudioUrl = sessionTracks.audio.audioUrl;
+                           }
+                         } else {
+                           // Single track — use it directly as the master
+                           mixedAudioUrl = hasRealBeat ? sessionTracks.audio.audioUrl : sessionTracks.vocal.audioUrl;
+                         }
+
+                         // Increment render count
+                         updateSessionWithHistory(prev => ({
+                           ...prev,
+                           renderCount: renderNumber,
+                           lastRenderTime: new Date().toISOString(),
+                           renderHistory: [...(prev.renderHistory || []), { pass: renderNumber, timestamp: Date.now() }]
+                         }));
+
+                         const masterAsset = {
+                           id: `master-${crypto.randomUUID()}`,
+                           title: `Studio Master ${renderNumber}/3 - ${selectedProject.name}`,
+                           type: "Master",
+                           agent: "Session Mixer",
+                           date: "Just now",
+                           color: "agent-purple",
+                           snippet: `Mixed master: ${hasRealBeat ? 'beat' : ''}${hasRealBeat && hasRealVocals ? ' + ' : ''}${hasRealVocals ? 'vocals' : ''}`,
+                           content: `Mixed master render ${renderNumber}`,
+                           audioUrl: mixedAudioUrl,
+                           stems: {
+                             audio: sessionTracks.audio?.audioUrl,
+                             vocal: sessionTracks.vocal?.audioUrl
+                           },
+                           imageUrl: sessionTracks.visual?.imageUrl,
+                           metadata: {
+                             audioVolume: sessionTracks.audioVolume,
+                             vocalVolume: sessionTracks.vocalVolume,
+                             renderedAt: new Date().toISOString(),
+                             renderPass: renderNumber,
+                             bpm: sessionTracks.bpm || 120,
+                             mixedDirectly: true
+                           }
+                         };
+
+                         const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets], updatedAt: new Date().toISOString() };
+                         setSelectedProject(updated);
+                         setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
+
+                         if (isLoggedIn) {
+                           const uid = localStorage.getItem('studio_user_id');
+                           if (uid) {
+                             saveProjectToCloud(uid, updated).catch(err => console.error("Failed to sync master to cloud", err));
+                           }
+                         }
+
+                         toast.dismiss('amo-render');
+                         setShowStudioSession(false);
+                         setSessionPlaying(false);
+                         handleTextToVoice("Master mix complete. Your mixed production is ready.");
+                         toast.success('Master mixed and saved to your Hub!');
+                         setIsGenerating(false);
+                         return;
+                       }
+
+                       // Fallback: text-only orchestration via /api/orchestrate
                        const response = await fetch(`${BACKEND_URL}/api/orchestrate`, {
                          method: 'POST',
                          headers,

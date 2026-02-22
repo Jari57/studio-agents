@@ -2433,6 +2433,129 @@ app.post('/api/upload-asset', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// POST /api/voice-clone - Clone a voice using ElevenLabs Instant Voice Cloning (IVC)
+// Accepts 1-3 audio samples and creates a persistent cloned voice
+app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+  if (!elevenLabsKey) {
+    return res.status(503).json({ error: 'Voice cloning unavailable', details: 'ELEVENLABS_API_KEY not configured' });
+  }
+
+  try {
+    const { samples, voiceName = 'My Cloned Voice' } = req.body;
+
+    if (!samples || !Array.isArray(samples) || samples.length === 0) {
+      return res.status(400).json({ error: 'At least 1 audio sample is required', required: ['samples'] });
+    }
+
+    if (samples.length > 3) {
+      return res.status(400).json({ error: 'Maximum 3 audio samples allowed' });
+    }
+
+    // Build multipart form data for ElevenLabs IVC API
+    const FormData = (await import('form-data')).default;
+    const formData = new FormData();
+    formData.append('name', voiceName);
+
+    for (let i = 0; i < samples.length; i++) {
+      const sample = samples[i];
+      // Handle base64 data URLs (data:audio/wav;base64,...) or raw base64
+      let base64Data = sample;
+      let mimeType = 'audio/wav';
+      if (typeof sample === 'string' && sample.startsWith('data:')) {
+        const match = sample.match(/^data:(audio\/[^;]+);base64,(.+)$/);
+        if (match) {
+          mimeType = match[1];
+          base64Data = match[2];
+        } else {
+          base64Data = sample.split(',')[1] || sample;
+        }
+      }
+
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      // Validate size (10MB max per sample)
+      if (buffer.length > 10 * 1024 * 1024) {
+        return res.status(400).json({ error: `Sample ${i + 1} exceeds 10MB limit` });
+      }
+
+      const ext = mimeType.includes('wav') ? 'wav' : mimeType.includes('mpeg') ? 'mp3' : 'wav';
+      formData.append('files', buffer, { filename: `sample_${i + 1}.${ext}`, contentType: mimeType });
+    }
+
+    logger.info('Starting ElevenLabs IVC voice cloning', {
+      userId: req.user.uid,
+      voiceName,
+      sampleCount: samples.length
+    });
+
+    // Call ElevenLabs Instant Voice Cloning API
+    const elResponse = await fetch('https://api.elevenlabs.io/v1/voices/add', {
+      method: 'POST',
+      headers: {
+        'xi-api-key': elevenLabsKey,
+        ...formData.getHeaders()
+      },
+      body: formData
+    });
+
+    if (!elResponse.ok) {
+      const errorData = await elResponse.json().catch(() => ({}));
+      logger.error('ElevenLabs IVC failed', { status: elResponse.status, error: errorData });
+      return res.status(502).json({
+        error: 'Voice cloning failed',
+        details: errorData.detail || errorData.message || `ElevenLabs returned ${elResponse.status}`
+      });
+    }
+
+    const elResult = await elResponse.json();
+    const voiceId = elResult.voice_id;
+
+    logger.info('ElevenLabs IVC voice created', { voiceId, voiceName });
+
+    // Save to Firestore
+    const db = getFirestoreDb();
+    if (db) {
+      const voiceDoc = {
+        voiceId,
+        name: voiceName,
+        provider: 'elevenlabs-ivc',
+        sampleCount: samples.length,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        userId: req.user.uid
+      };
+
+      const docRef = await db.collection('users').doc(req.user.uid)
+        .collection('voices').add(voiceDoc);
+
+      // Also update the user's primary cloned voice
+      await db.collection('users').doc(req.user.uid).update({
+        clonedVoiceId: voiceId,
+        clonedVoiceName: voiceName,
+        lastVoiceClone: Date.now()
+      });
+
+      logger.info('Cloned voice saved to Firestore', { docId: docRef.id, voiceId });
+    }
+
+    res.json({
+      success: true,
+      voiceId,
+      name: voiceName,
+      provider: 'elevenlabs-ivc',
+      sampleCount: samples.length
+    });
+
+  } catch (err) {
+    logger.error('Voice cloning error:', err);
+    res.status(500).json({ error: 'Voice cloning failed', details: safeErrorDetail(err) });
+  }
+});
+
 // POST /api/upload-from-url - Download a file from URL and save to Firebase Storage
 // Useful for saving temporary Replicate/Uberduck URLs as permanent files
 app.post('/api/upload-from-url', verifyFirebaseToken, async (req, res) => {
@@ -4469,7 +4592,7 @@ if (elevenLabsKey && !audioUrl) {
     // ═══════════════════════════════════════════════════════════════
     // PRIORITY 0: XTTS v2 - Voice Cloning (If speakerUrl provided)
     // ═══════════════════════════════════════════════════════════════
-    if (replicateKey && !audioUrl && (speakerUrl || style === 'cloned')) {
+    if (replicateKey && !audioUrl && (speakerUrl || style === 'cloned') && !req.body.elevenLabsVoiceId) {
       try {
         const targetSpeaker = speakerUrl || 'https://replicate.delivery/pbxt/HN48RVB1mXdZY3K2eSLvGXGkZCz57NzDJYXCCz01DJZEZOfe/output.wav';
         logger.info('🎤 Using Optimized XTTS v2 for voice cloning', { speaker: targetSpeaker.substring(0, 50) + '...' });
@@ -8508,27 +8631,29 @@ app.post('/api/analyze-beats', verifyFirebaseToken, requireAuth, apiLimiter, asy
  */
 app.post('/api/generate-synced-video-test', async (req, res) => {
   try {
-    const { 
-      audioUrl, 
-      videoPrompt, 
+    const {
+      audioUrl,
+      videoPrompt,
       songTitle = 'Untitled',
       duration = 30, // 30, 60, or 180 seconds
       style = 'cinematic'
     } = req.body;
 
     if (!audioUrl || !videoPrompt) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Missing required fields',
         required: ['audioUrl', 'videoPrompt']
       });
     }
 
-    // Validate duration
-    const validDurations = [30, 60, 180];
-    const requestedDuration = Math.min(Math.max(duration, 30), 180);
-    
-    if (!validDurations.includes(requestedDuration)) {
-      logger.warn('Non-standard duration requested', { requested: duration, using: requestedDuration });
+    // Validate duration — snap to nearest valid bucket
+    const validDurations = [30, 60, 90, 120, 180, 240];
+    const requestedDuration = validDurations.reduce((prev, curr) =>
+      Math.abs(curr - duration) < Math.abs(prev - duration) ? curr : prev
+    );
+
+    if (duration !== requestedDuration) {
+      logger.warn('Duration snapped to nearest valid bucket', { requested: duration, using: requestedDuration });
     }
 
     logger.info('Synced music video generation requested', {
@@ -8576,15 +8701,19 @@ app.post('/api/generate-synced-video-test', async (req, res) => {
 // Synced video charges 20 credits (complex operation)
 app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCreditsFor('video-synced'), generationLimiter, async (req, res) => {
   try {
-    const { 
-      audioUrl, 
-      videoPrompt, 
+    const {
+      audioUrl,
+      videoPrompt,
       imageUrl,
       videoUrl,
+      referenceImage,
       songTitle = 'Untitled',
       duration = 30, // 30, 60, or 180 seconds
       style = 'cinematic'
     } = req.body;
+
+    // Use artist reference image as the imageUrl for video generation if provided
+    const effectiveImageUrl = referenceImage || imageUrl;
 
     if (!audioUrl || !videoPrompt) {
       return res.status(400).json({ 
@@ -8593,12 +8722,14 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
       });
     }
 
-    // Validate duration
-    const validDurations = [30, 60, 180];
-    const requestedDuration = Math.min(Math.max(duration, 30), 180);
-    
-    if (!validDurations.includes(requestedDuration)) {
-      logger.warn('Non-standard duration requested', { requested: duration, using: requestedDuration });
+    // Validate duration — snap to nearest valid bucket
+    const validDurations = [30, 60, 90, 120, 180, 240];
+    const requestedDuration = validDurations.reduce((prev, curr) =>
+      Math.abs(curr - duration) < Math.abs(prev - duration) ? curr : prev
+    );
+
+    if (duration !== requestedDuration) {
+      logger.warn('Duration snapped to nearest valid bucket', { requested: duration, using: requestedDuration });
     }
 
     logger.info('Synced music video generation requested', {
@@ -8607,6 +8738,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
       style,
       audioUrl: audioUrl.substring(0, 50),
       hasImageUrl: !!imageUrl,
+      hasReferenceImage: !!referenceImage,
       hasVideoUrl: !!videoUrl
     });
 
@@ -8655,7 +8787,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
         requestedDuration,
         replicateKey,
         logger,
-        imageUrl,
+        effectiveImageUrl,
         videoUrl
       ).then(async (result) => {
         if (result.success) {
@@ -8724,7 +8856,7 @@ app.post('/api/generate-synced-video', verifyFirebaseToken, requireAuth, checkCr
       requestedDuration,
       replicateKey,
       logger,
-      imageUrl,
+      effectiveImageUrl,
       videoUrl
     );
 

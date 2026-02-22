@@ -85,69 +85,71 @@ async function generateVideoSegments(
 
     const replicate = new Replicate({ auth: replicateKey });
     const segments = [];
-    
-    // Generate each segment sequentially (rate limiting)
-    for (let i = 0; i < prompts.length; i++) {
-      try {
-        if (logger) logger.info(`Processing segment ${i + 1}/${prompts.length}`, {
-          prompt: prompts[i].substring(0, 50)
-        });
 
-        // If we have a videoUrl and it's the first segment, use it instead of generating
-        if (i === 0 && videoUrl) {
-          if (logger) logger.info('Using provided videoUrl for first segment');
-          segments.push({
-            url: videoUrl,
-            prompt: prompts[i],
-            duration,
-            segmentIndex: i
-          });
-          continue;
-        }
+    // Generate segments in parallel batches of 3 for speed
+    const BATCH_SIZE = 3;
+    for (let batchStart = 0; batchStart < prompts.length; batchStart += BATCH_SIZE) {
+      const batch = prompts.slice(batchStart, batchStart + BATCH_SIZE);
+      if (logger) logger.info(`Processing batch ${Math.floor(batchStart / BATCH_SIZE) + 1}/${Math.ceil(prompts.length / BATCH_SIZE)} (segments ${batchStart + 1}-${batchStart + batch.length})`);
 
-        // Add delay between requests to avoid rate limiting
-        if (i > 0) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
+      const batchResults = await Promise.allSettled(
+        batch.map((prompt, idx) => {
+          const globalIdx = batchStart + idx;
 
-        const inputPayload = {
-          prompt: prompts[i],
-          prompt_optimizer: true,
-          duration: Math.min(duration, 5) // Minimax max is 5s
-        };
-
-        // Use image as first frame if provided (usually for the first segment)
-        if (imageUrl && i === 0) {
-          inputPayload.first_frame_image = imageUrl;
-        }
-
-        const output = await replicate.run(
-          "minimax/video-01",
-          {
-            input: inputPayload
+          // If we have a videoUrl and it's the first segment, use it instead of generating
+          if (globalIdx === 0 && videoUrl) {
+            if (logger) logger.info('Using provided videoUrl for first segment');
+            return Promise.resolve({
+              url: videoUrl,
+              prompt,
+              duration,
+              segmentIndex: 0
+            });
           }
-        );
 
-        if (output) {
-          segments.push({
-            url: String(output),
-            prompt: prompts[i],
-            duration,
-            segmentIndex: i
+          const inputPayload = {
+            prompt,
+            prompt_optimizer: true,
+            duration: Math.min(duration, 5) // Minimax max is 5s
+          };
+
+          // Use image as first frame if provided (first segment only)
+          if (globalIdx === 0 && imageUrl) {
+            inputPayload.first_frame_image = imageUrl;
+          }
+
+          return replicate.run("minimax/video-01", { input: inputPayload })
+            .then(output => {
+              if (logger) logger.info(`Segment ${globalIdx + 1} generated`, { url: String(output) });
+              return {
+                url: String(output),
+                prompt,
+                duration,
+                segmentIndex: globalIdx
+              };
+            });
+        })
+      );
+
+      // Collect successful results in order
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled' && result.value) {
+          segments.push(result.value);
+        } else if (result.status === 'rejected') {
+          const failedIdx = batchStart + batchResults.indexOf(result);
+          if (logger) logger.error(`Failed to generate segment ${failedIdx + 1}`, {
+            error: result.reason?.message || 'Unknown error'
           });
+          // First segment must succeed
+          if (failedIdx === 0) {
+            throw result.reason || new Error('First segment generation failed');
+          }
+        }
+      }
 
-          if (logger) logger.info(`Segment ${i + 1} generated`, { url: output });
-        }
-      } catch (segmentError) {
-        if (logger) logger.error(`Failed to generate segment ${i + 1}`, {
-          error: segmentError.message
-        });
-        
-        // Continue with next segment instead of failing completely
-        // Or throw if critical
-        if (i === 0) {
-          throw segmentError; // First segment must succeed
-        }
+      // Brief pause between batches to avoid rate limits
+      if (batchStart + BATCH_SIZE < prompts.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
