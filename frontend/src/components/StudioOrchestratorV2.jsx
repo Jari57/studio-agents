@@ -4,12 +4,12 @@ import {
   Sparkles, Mic, MicOff, FileText, Video as VideoIcon, RefreshCw, Zap, 
   Music, Image as ImageIcon, Download, FolderPlus, Volume2, VolumeX, X,
   Loader2, Maximize2, Users, Eye, Edit3, Trash2, Copy, Lightbulb,
-  Settings, CheckCircle2, Lock as LockIcon, User, Database as DatabaseIcon, CircleHelp,
-  ChevronRight, ChevronUp, ChevronDown, Upload
+  Settings, CheckCircle2, Lock as LockIcon, User, CircleHelp,
+  ChevronUp, ChevronDown, Upload
 } from 'lucide-react';
 import { BACKEND_URL, AGENTS, getAgentHex } from '../constants';
 import toast from 'react-hot-toast';
-import { db, auth, doc, setDoc, updateDoc, increment, getDoc, arrayUnion } from '../firebase';
+import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
@@ -1599,9 +1599,6 @@ export default function StudioOrchestratorV2({
   const [audioDnaUrl, setAudioDnaUrl] = useState(null);
   const [videoDnaUrl, setVideoDnaUrl] = useState(null); // Image used for image-to-video
   const [lyricsDnaUrl, setLyricsDnaUrl] = useState(null); // Text file or PDF as reference
-  const [dnaArtifacts, setDnaArtifacts] = useState([]); // List of all stored DNA artifacts
-  const [referencedAudioId, setReferencedAudioId] = useState('');
-  const [referencedVisualId, setReferencedVisualId] = useState('');
   const [isUploadingDna, setIsUploadingDna] = useState({ visual: false, audio: false, video: false, lyrics: false });
 
   
@@ -1855,7 +1852,6 @@ export default function StudioOrchestratorV2({
             setClonedVoiceId(userData.clonedVoiceId);
             setElevenLabsVoiceId(userData.clonedVoiceId);
           }
-          if (userData.dnaArtifacts) setDnaArtifacts(userData.dnaArtifacts);
           console.log('[Orchestrator] User DNA profile loaded');
         }
       } catch (err) {
@@ -3256,22 +3252,12 @@ REQUIREMENTS:
             if (auth.currentUser?.uid && db) {
               try {
                 const userRef = doc(db, 'users', auth.currentUser.uid);
-                const newArtifact = {
-                  id: `dna-${crypto.randomUUID()}`,
-                  type: slot,
-                  url: url,
-                  name: file.name,
-                  timestamp: Date.now()
-                };
-                
                 await updateDoc(userRef, {
                   [`${slot}DnaUrl`]: url,
-                  dnaArtifacts: arrayUnion(newArtifact),
                   lastDnaUpdate: Date.now()
                 });
-                
-                setDnaArtifacts(prev => [newArtifact, ...(prev || [])]);
-                console.log(`[Orchestrator] Persisted ${slot} DNA to profile and vault`);
+
+                console.log(`[Orchestrator] Persisted ${slot} DNA to profile`);
               } catch (saveErr) {
                 console.warn(`[Orchestrator] Failed to persist ${slot} DNA:`, saveErr);
               }
@@ -3706,7 +3692,6 @@ REQUIREMENTS:
           prompt: `Elite cinematic music video visual, professional motion design, high-fidelity righteous quality, award-winning storyboard: ${videoPrompt.substring(0, 700)}`,
           referenceImage: visualDnaUrl || videoDnaUrl,
           referenceVideo: videoDnaUrl,
-          visualId: referencedVisualId,
           duration: duration,
           audioDuration: duration, // Pass audio duration for video sync
           audioUrl: mediaUrls.mixedAudio || mediaUrls.audio, // Prefer mixed vocal+beat
