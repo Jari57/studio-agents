@@ -1371,7 +1371,7 @@ function ProductionControlHub({
                   if (hasBeat || hasVocalMedia) {
                     handleCreateFinalMix();
                   } else {
-                    toast.info('Generate beat or vocals first to create a mix');
+                    toast('Generate beat or vocals first to create a mix', { icon: 'ℹ️' });
                   }
                 }}
                 disabled={(!hasBeat && !hasVocalMedia) || creatingFinalMix}
@@ -1734,6 +1734,17 @@ export default function StudioOrchestratorV2({
     setVideoDnaUrl(null);
     setLyricsDnaUrl(null);
     setIsSaved(!!existingProject);
+
+    // Restore project settings (useState initializers only run on first mount)
+    setSongIdea(existingProject?.name || '');
+    setLanguage(existingProject?.language || 'English');
+    setStyle(existingProject?.style || 'Modern Hip-Hop');
+    setDuration(existingProject?.duration || 90);
+    setBars(existingProject?.musicalBars || 16);
+    setUseBars(existingProject?.useBars ?? true);
+    setProjectBpm(existingProject?.bpm || existingProject?.settings?.bpm || 120);
+    setMood(existingProject?.mood || 'Energetic');
+    setStructure(existingProject?.structure || 'Full Song');
 
     // Then restore from new project's assets
     if (!existingProject?.assets?.length) return;
@@ -2406,7 +2417,8 @@ REQUIREMENTS:
       }
 
       // Generate video LAST — it now gets mixed audio (vocal+beat) instead of just beat
-      if (pipelinePromises.videoDescription && !mediaUrls.video) {
+      // Use ref for latest state (closure mediaUrls may be stale after async ops)
+      if (pipelinePromises.videoDescription && !mediaUrlsRef.current.video) {
         console.log('[Pipeline] Starting video generation with mixed audio');
         updatePipelineStep('video', 'active');
         await handleGenerateVideo(pipelinePromises.videoDescription);
@@ -2741,7 +2753,6 @@ REQUIREMENTS:
       toast.error('Generate Lyrics & Hook DNA first');
       return;
     }
-    setGeneratingVocal(true);
     setGeneratingMedia(prev => ({ ...prev, vocals: true }));
     toast.loading('Generating AI Vocals (up to 2 mins)...', { id: 'gen-vocals' });
     
@@ -2897,7 +2908,6 @@ REQUIREMENTS:
       console.error('[Orchestrator] Vocal generation error:', err);
       toast.error('Vocal generation failed', { id: 'gen-vocals' });
     } finally {
-      setGeneratingVocal(false);
       setGeneratingMedia(prev => ({ ...prev, vocals: false }));
     }
   };
@@ -5706,23 +5716,23 @@ REQUIREMENTS:
                   console.log('[Create Vocal Button] CLICKED!');
                   handleGenerateVocals();
                 }}
-                disabled={generatingVocal}
+                disabled={generatingMedia.vocals}
                 style={{
                   padding: '10px 20px',
                   borderRadius: '10px',
-                  background: generatingVocal ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.5)',
+                  background: generatingMedia.vocals ? 'rgba(139, 92, 246, 0.3)' : 'rgba(139, 92, 246, 0.5)',
                   border: '1px solid rgba(139, 92, 246, 0.6)',
                   color: '#8b5cf6',
                   fontWeight: '600',
                   fontSize: '0.9rem',
-                  cursor: generatingVocal ? 'not-allowed' : 'pointer',
+                  cursor: generatingMedia.vocals ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  opacity: generatingVocal ? 0.7 : 1
+                  opacity: generatingMedia.vocals ? 0.7 : 1
                 }}
               >
-                {generatingVocal ? (
+                {generatingMedia.vocals ? (
                   <>
                     <Loader2 size={16} className="spin" />
                     Creating...
