@@ -1721,7 +1721,7 @@ select optgroup {
   left: 0;
   right: 0;
   height: 64px;
-  z-index: 9999; /* Pinned on top layer */
+  z-index: 100; /* Navigation layer */
   padding: 0 1.5rem;
   display: flex;
   align-items: center;
@@ -1804,33 +1804,7 @@ select optgroup {
     display: none;
   }
   
-  /* 2 Columns Side-by-Side for Mobile */
-  .agents-scroll-container .agents-grid,
-  .agents-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    width: 100%;
-    padding: 0;
-    overflow: visible;
-    box-sizing: border-box;
-  }
-
-  .agents-scroll-container .agents-grid::-webkit-scrollbar {
-    display: none;
-  }
-  
-  /* Compact Agent Cards for Mobile */
-  .agents-scroll-container .agent-card-premium,
-  .agent-card-premium {
-    width: 100%;
-    min-width: 0;
-    flex-shrink: 0;
-    padding: 0.875rem;
-    margin: 0;
-    box-sizing: border-box;
-    border-radius: 16px;
-  }
+  /* Mobile agent grid & card rules consolidated to single definition below (search: "CANONICAL MOBILE AGENT GRID") */
   
   .agent-card-premium .agent-icon-box {
     width: 36px;
@@ -4051,6 +4025,21 @@ select optgroup {
   box-sizing: border-box;
 }
 
+/* Agent tier grids — centered, responsive columns */
+.agent-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .agent-tier-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
 .agent-card-large:hover {
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
@@ -4299,15 +4288,7 @@ select optgroup {
     padding: 4rem 1.5rem;
   }
 
-  .agents-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-
-  .agent-card-premium {
-    padding: 1.25rem;
-    border-radius: 20px;
-  }
+  /* .agents-grid + .agent-card-premium mobile rules consolidated (search: "CANONICAL MOBILE AGENT GRID") */
 
   .benefits-section {
     padding: 4rem 1.5rem;
@@ -5937,7 +5918,7 @@ select optgroup {
   display: flex;
   align-items: center; /* Centered vertically by default */
   justify-content: center;
-  z-index: 10000 !important; /* Force to top above everything */
+  z-index: 200 !important; /* Modal layer — above nav (100) and cookie (150) */
   padding: 1rem;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -6841,24 +6822,7 @@ select optgroup {
     display: none;
   }
 
-  .agents-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 2 columns side-by-side */
-    gap: 10px; /* Tighter gap for compact look */
-    width: 100%;
-    padding-bottom: 8px;
-    overflow: hidden;
-    box-sizing: border-box;
-  }
-
-  .agent-card-premium {
-    width: 100%;
-    flex-shrink: 0;
-    margin: 0;
-    padding: 1rem;
-    border-radius: 16px;
-    box-sizing: border-box; /* Prevent padding from causing overflow */
-  }
+  /* .agents-grid + .agent-card-premium mobile rules consolidated (search: "CANONICAL MOBILE AGENT GRID") */
 
   /* Compact agent cards for 2-column mobile layout */
   .agent-icon-box {
@@ -7476,7 +7440,7 @@ select optgroup {
   right: 0;
   bottom: 0;
   background: #0a0a0f;
-  z-index: 9999;
+  z-index: 190; /* Above nav (100) but below modal (200) */
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -8174,20 +8138,9 @@ input:checked + .slider:before {
   color: var(--border-color);
 }
 
+/* Cookie banner base styles — pill design defined in "Cookie Banner Re-engineering" section below */
 .cookie-banner {
-  position: fixed;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 90%;
-  max-width: 600px;
-  background: rgba(18, 18, 22, 0.95);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 1.5rem;
-  z-index: 9999;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  z-index: 150;
 }
 
 .cookie-content {
@@ -8765,10 +8718,6 @@ html, body {
     padding: 0 1rem;
   }
 
-  .agent-card-premium {
-    padding: 1.5rem;
-  }
-
   .agent-grid-quick-actions {
     justify-content: space-between; /* Spread buttons for easier tapping */
     padding: 0 1rem;
@@ -9211,7 +9160,7 @@ html, body {
   border: 1px solid var(--border-color);
   border-radius: 16px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-  z-index: 1000; /* High z-index to sit on top */
+  z-index: 120; /* Above nav (100) but below modal (200) */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -9605,7 +9554,7 @@ html, body {
   max-width: 650px !important;
   width: 100% !important;
   max-height: 88vh !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   display: flex;
   flex-direction: column;
 }
@@ -9642,7 +9591,7 @@ html, body {
   
   .project-wizard-modal {
     max-height: 92vh !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     margin: 8px !important;
   }
   
@@ -9895,9 +9844,7 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
     padding-bottom: 8px;
   }
 
-  .agent-utility-box {
-    padding: 1.25rem;
-  }
+  /* .agent-utility-box mobile padding consolidated to the !important rule in agent utility section below */
 
   .utility-controls {
     grid-template-columns: 1fr; /* Stack controls vertically */
@@ -10364,7 +10311,7 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
 /* Ensure modal-close is always clickable and properly positioned */
 .modal-close {
   position: absolute !important;
-  z-index: 9999 !important;
+  z-index: 10 !important; /* Relative to modal-overlay */
   pointer-events: auto !important;
 }
 
@@ -11168,7 +11115,8 @@ html, body, #root {
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   min-width: 56px;
   max-width: 10%;
   height: 100%;
@@ -11334,10 +11282,25 @@ html, body, #root {
 /* Right Main Panel */
 .agents-main-panel {
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: clip; /* Prevent horizontal overflow without creating scroll context */
   padding: 0;
   min-width: 0;
   max-width: 100%;
+}
+
+/* Agent cards view — centered content with max-width */
+.agents-cards-view {
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .agents-cards-view {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
 }
 
 /* Welcome State when no agent selected */
@@ -11868,7 +11831,7 @@ html, body, #root {
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 50px !important;
   padding: 8px 8px 8px 20px !important;
-  z-index: 9999 !important;
+  z-index: 150 !important;
   box-shadow: 0 10px 40px rgba(0,0,0,0.6) !important;
   display: flex !important;
   align-items: center !important;

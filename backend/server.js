@@ -4940,19 +4940,50 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
     // Genre-specific production templates modeled after chart-topping producers
     const genreBoosts = {
+      // Hip-Hop family
       'hip-hop': ', Metro Boomin style 808 bass, crisp Roland TR-808 snare, layered hi-hat rolls with swing, dark ambient pads, vinyl texture, Timbaland-style drum programming, sub bass that rattles speakers',
       'trap': ', distorted 808 glides, rapid triplet hi-hats, Southside-style ominous choir stabs, heavy reverb risers, gun-shot snare layering, dark minor key melodies, aggressive bass drops',
+      'drill': ', UK drill sliding 808 bass, aggressive snare rolls, dark minor piano riff, Ghosty-style bouncing hi-hats, menacing string stabs, reverse reverb FX, headroom for aggressive vocal',
+      'boom-bap': ', classic 90s boom bap drums, SP-1200 grit, dusty vinyl samples, chopped soul loops, hard-hitting kick-snare pocket, DJ Premier scratch hooks, jazz bass samples',
+      'phonk': ', Memphis rap cowbell patterns, aggressive distorted 808, chopped Houston screw vocals, dark synth stabs, triple six style horror pads, heavy bass distortion, drift phonk energy',
+      'latin-trap': ', Latin trap 808 patterns, Spanish guitar melodies, dembow-trap hybrid rhythm, Bad Bunny style bass, reggaeton snare rolls, bilingual flow pocket, tropical dark vibes',
+      // Pop & R&B
       'pop': ', Max Martin style chord progressions, bright supersaw synths, four-on-the-floor kick with sidechain, catchy topline-ready melody, Disclosure-style garage bass, euphoric build-ups and drops, tambourine accents',
       'r&b': ', Neo-soul Rhodes and Wurlitzer keys, warm Juno-106 pads, Timbaland finger snaps, pitched vocal chops, live bass guitar feel, subtle jazz harmony extensions, silk-smooth groove pocket',
-      'drill': ', UK drill sliding 808 bass, aggressive snare rolls, dark minor piano riff, Ghosty-style bouncing hi-hats, menacing string stabs, reverse reverb FX, headroom for aggressive vocal',
-      'afrobeat': ', Afro-fusion polyrhythmic percussion, Burna Boy style log drums, shaker and clave patterns, amapiano bass guitar, call-and-response flute melodies, live percussion feel, dancehall energy',
-      'reggaeton': ', dembow riddim pattern, deep perreo bass, reggaeton snare with room reverb, tropical synth arpeggios, Tainy-style vocal chops, Latin guitar stabs, infectious groove',
-      'lo-fi': ', vinyl crackle and tape hiss, jazz 7th chord Rhodes, mellow Mellotron flute, J Dilla swing quantize, tape saturation warmth, Nujabes-inspired side-chained pads, gentle rain ambience',
-      'rock': ', live drum kit with room mics, overdriven guitar riffs, bass guitar with pick attack, stadium reverb, dynamic verse-chorus energy shift, power chord progressions',
+      'k-pop': ', bright K-pop synth stacks, tight EDM-pop drum programming, catchy melodic hooks, layered vocal chop textures, genre-blending transitions, high energy dance-pop production, BLACKPINK-style drops',
+      'j-pop': ', lush J-pop chord progressions, city pop influenced synths, bright melodic hooks, anime-inspired energy, Vocaloid-style arpeggios, polished pop-rock fusion, uplifting emotional builds',
+      'indie': ', dreamy reverb-drenched guitars, warm analog synth pads, soft brushed drums, lo-fi tape warmth, Tame Impala-style psychedelic textures, bedroom pop intimacy, atmospheric layers',
+      // Electronic
       'electronic': ', Disclosure-style UK garage bass, pristine digital synths, Arpeggio sequences, white noise risers, crisp claps on 2 and 4, festival-ready drop, sidechain pumping',
+      'lo-fi': ', vinyl crackle and tape hiss, jazz 7th chord Rhodes, mellow Mellotron flute, J Dilla swing quantize, tape saturation warmth, Nujabes-inspired side-chained pads, gentle rain ambience',
+      'synthwave': ', retro 80s analog synths, Juno-60 pads, gated reverb snare, driving arpeggiated basslines, neon-drenched atmosphere, Kavinsky-style dark wave, cinematic retro-futurism',
+      'disco': ', four-on-the-floor kick, funky Clavinet riffs, lush string sections, Nile Rodgers guitar chops, octave basslines, orchestral disco stabs, Studio 54 energy, handclaps on 2 and 4',
+      // African & Caribbean
+      'afrobeat': ', Afro-fusion polyrhythmic percussion, Burna Boy style log drums, shaker and clave patterns, amapiano bass guitar, call-and-response flute melodies, live percussion feel, dancehall energy',
+      'afro-pop': ', Afro-pop melodic guitar riffs, Wizkid-style vocal pockets, highlife-influenced harmonies, modern Afrobeats percussion, warm bass grooves, tropical dance energy, palm wine guitar licks',
+      'amapiano': ', amapiano log drum bass, piano stab patterns, shaker-driven grooves, Kabza De Small style percussion, deep house influences, warm pad textures, South African dance rhythm, bass guitar fills',
+      'dancehall': ', dancehall riddim patterns, Popcaan-style vocal chops, Caribbean bass weight, tropical synth melodies, one-drop drum patterns, ragga energy, Kingston sound system bass',
+      'reggae': ', roots reggae one-drop rhythm, vintage skank guitar chops, deep dub bass, organ bubble, echo and delay effects, Marley-style warmth, horn section stabs, nyabinghi percussion',
+      // Latin
+      'reggaeton': ', dembow riddim pattern, deep perreo bass, reggaeton snare with room reverb, tropical synth arpeggios, Tainy-style vocal chops, Latin guitar stabs, infectious groove',
       'latin': ', reggaeton and Latin trap fusion, acoustic guitar flourishes, bongo and conga patterns, brass section stabs, bilingual flow-ready pocket, Bad Bunny style bass bounce',
+      'cumbia': ', cumbia accordion melodies, guacharaca scraper rhythm, tropical bass patterns, call-and-response structure, Caribbean percussion blends, danceable two-step groove, warm brass accents',
+      // Rock & Guitar
+      'rock': ', live drum kit with room mics, overdriven guitar riffs, bass guitar with pick attack, stadium reverb, dynamic verse-chorus energy shift, power chord progressions',
+      'metal': ', double kick blast beats, heavy distorted downtuned guitars, aggressive palm muting, thunderous bass tone, epic orchestral layers, Djent-style polyrhythmic patterns, wall of sound production',
+      'punk': ', fast aggressive power chords, driving snare on every beat, raw distorted bass, garage recording aesthetic, high energy tempo, Ramones-style buzz-saw guitars, anthem chorus energy',
+      'acoustic': ', fingerpicked acoustic guitar, warm room ambience, gentle percussion brushes, folk-inspired melody, intimate recording space, singer-songwriter warmth, natural string resonance',
+      // Other
+      'country': ', Nashville acoustic guitar, steel guitar slides, fiddle melodies, country shuffle drums, honky-tonk piano, warm bass lines, classic songwriting structures, Dolly Parton-style warmth',
+      'jazz': ', walking upright bass, ride cymbal swing patterns, jazz piano voicings with 7ths and 9ths, muted trumpet phrases, brushed snare, Blue Note style warmth, improvisational feel',
+      'classical': ', orchestral string ensemble, grand piano arpeggios, woodwind countermelodies, dynamic crescendo builds, cinematic timpani, classical harmony progressions, concert hall reverb',
+      'gospel': ', gospel choir harmonies, Hammond B3 organ, soulful piano runs, hand claps and tambourine, powerful dynamic builds, church reverb atmosphere, uplifting key changes',
+      'funk': ', slap bass guitar, tight chicken-scratch guitar, James Brown-style horn stabs, syncopated drum breaks, clavinet wah patterns, Parliament-style groove, tight pocket drumming',
+      'bollywood': ', Bollywood string arrangements, tabla and dholak patterns, sitar melodies, Hindi film orchestration, dramatic brass fanfares, fusion of Indian classical and modern pop, dhol energy',
     };
-    qualityTags += (genreBoosts[genre.toLowerCase()] || '');
+    // Normalize genre key: strip slashes/spaces for compound names like "R&B / Soul" → "r&b"
+    const genreKey = genre.toLowerCase().split('/')[0].split(' ')[0].replace(/[^a-z0-9&-]/g, '');
+    qualityTags += (genreBoosts[genreKey] || genreBoosts[genre.toLowerCase()] || '');
 
     // BPM-aware arrangement cues
     if (bpm >= 140) {

@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, EyeOff, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2
 } from 'lucide-react';
 import { useSafeAsync } from '../hooks/useSafeAsync';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
@@ -618,6 +618,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [sessionTracks, setSessionTracks] = useState({ 
     audio: null, vocal: null, visual: null,
     audioVolume: 0.8, vocalVolume: 1.0,
+    audioLoop: true, vocalLoop: true,
+    audioMuted: false, vocalMuted: false,
     bpm: 120, timeSignature: '4/4', key: 'C Major',
     frameRate: 30, aspectRatio: '16:9', sampleRate: 48000, bitDepth: 24,
     syncLocked: true, generateRealAssets: false,
@@ -844,6 +846,10 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const textareaRef = useRef(null);
   const previewAudioRef = useRef(null);
   const canvasAudioRef = useRef(null);
+  const sessionAudioRef = useRef(null);
+  const sessionVocalRef = useRef(null);
+  const sessionVideoRef = useRef(null);
+  const syncIntervalRef = useRef(null);
 
   const [backingTrack, setBackingTrack] = useState(null);
   useEffect(() => {
@@ -1502,13 +1508,103 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     }
   };
 
-  // Sync volume slider values to actual audio elements in real-time
+  // Sync volume/loop/mute to actual audio elements in real-time
   useEffect(() => {
-    const audioEl = document.querySelector('audio[data-track="session-audio"]');
-    const vocalEl = document.querySelector('audio[data-track="session-vocal"]');
-    if (audioEl) audioEl.volume = sessionTracks.audioVolume ?? 0.8;
-    if (vocalEl) vocalEl.volume = sessionTracks.vocalVolume ?? 1.0;
-  }, [sessionTracks.audioVolume, sessionTracks.vocalVolume]);
+    const audioEl = sessionAudioRef.current;
+    const vocalEl = sessionVocalRef.current;
+    if (audioEl) {
+      audioEl.volume = sessionTracks.audioMuted ? 0 : (sessionTracks.audioVolume ?? 0.8);
+      audioEl.loop = sessionTracks.audioLoop !== false;
+    }
+    if (vocalEl) {
+      vocalEl.volume = sessionTracks.vocalMuted ? 0 : (sessionTracks.vocalVolume ?? 1.0);
+      vocalEl.loop = sessionTracks.vocalLoop !== false;
+    }
+  }, [sessionTracks.audioVolume, sessionTracks.vocalVolume, sessionTracks.audioMuted, sessionTracks.vocalMuted, sessionTracks.audioLoop, sessionTracks.vocalLoop]);
+
+  // ═══ REAL AUDIO SYNC ENGINE ═══
+  // Keeps vocal track time-locked to beat track so they never drift
+  useEffect(() => {
+    const beatEl = sessionAudioRef.current;
+    const vocalEl = sessionVocalRef.current;
+    const videoEl = sessionVideoRef.current;
+
+    // Clear any previous sync loop
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
+      syncIntervalRef.current = null;
+    }
+
+    if (!sessionPlaying) {
+      // Pause all tracks
+      if (beatEl) beatEl.pause();
+      if (vocalEl) vocalEl.pause();
+      if (videoEl) videoEl.pause();
+      return;
+    }
+
+    // Start beat (master clock)
+    if (beatEl) {
+      beatEl.play().catch(e => console.log('Beat play blocked:', e));
+    }
+
+    // Start vocal synced to beat position
+    const startVocalSynced = () => {
+      if (!vocalEl || !beatEl) return;
+      const offset = sessionTracks.visualOffset || 0;
+      // Sync vocal currentTime to beat currentTime (minus offset)
+      const targetTime = Math.max(0, beatEl.currentTime - offset);
+      // Only seek if drift > 150ms to avoid constant micro-seeks
+      if (Math.abs(vocalEl.currentTime - targetTime) > 0.15) {
+        vocalEl.currentTime = targetTime;
+      }
+      vocalEl.play().catch(e => console.log('Vocal play blocked:', e));
+    };
+
+    // Wait for beat to be ready, then sync vocal
+    if (beatEl && vocalEl) {
+      if (beatEl.readyState >= 2) {
+        startVocalSynced();
+      } else {
+        beatEl.addEventListener('canplay', startVocalSynced, { once: true });
+      }
+    } else if (vocalEl) {
+      // No beat track, just play vocal standalone
+      vocalEl.play().catch(e => console.log('Vocal play blocked:', e));
+    }
+
+    // Start video synced
+    if (videoEl) {
+      videoEl.play().catch(e => console.log('Video play blocked:', e));
+    }
+
+    // Continuous sync: check every 500ms that vocal hasn't drifted from beat
+    if (beatEl && vocalEl) {
+      syncIntervalRef.current = setInterval(() => {
+        if (!sessionAudioRef.current || !sessionVocalRef.current) return;
+        const beat = sessionAudioRef.current;
+        const vocal = sessionVocalRef.current;
+        if (beat.paused || vocal.paused) return;
+
+        const offset = sessionTracks.visualOffset || 0;
+        const expectedVocalTime = Math.max(0, beat.currentTime - offset);
+        const drift = Math.abs(vocal.currentTime - expectedVocalTime);
+
+        // Re-sync if drift exceeds 200ms
+        if (drift > 0.2) {
+          console.log(`[Sync] Correcting vocal drift: ${(drift * 1000).toFixed(0)}ms`);
+          vocal.currentTime = expectedVocalTime;
+        }
+      }, 500);
+    }
+
+    return () => {
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+    };
+  }, [sessionPlaying, sessionTracks.audio?.audioUrl, sessionTracks.vocal?.audioUrl, sessionTracks.visual?.videoUrl, sessionTracks.visualOffset]);
 
   // Auto-populate session mixer when it opens or project changes — sync backing track + project assets
   useEffect(() => {
@@ -3443,17 +3539,26 @@ const fetchUserCredits = useCallback(async (uid) => {
       // Genre selection commands
       if (transcript.includes('set genre to') || transcript.includes('change genre to')) {
         const genreText = transcript.replace('set genre to', '').replace('change genre to', '').trim();
-        const validGenres = ['r&b', 'pop', 'hip-hop', 'soul', 'country', 'rock', 'jazz', 'folk', 'metal', 'blues'];
+        const validGenres = [
+          'hip-hop', 'trap', 'drill', 'modern hip-hop', 'boom bap', '90s boom bap',
+          'r&b', 'soul', 'pop', 'rock', 'electronic', 'edm', 'lo-fi', 'lofi',
+          'afrobeat', 'afro-pop', 'amapiano', 'reggaeton', 'latin', 'latin trap',
+          'k-pop', 'j-pop', 'phonk', 'dancehall', 'country', 'jazz', 'classical',
+          'gospel', 'reggae', 'metal', 'punk', 'funk', 'disco', 'synthwave',
+          'indie', 'acoustic', 'bollywood', 'cumbia'
+        ];
         const foundGenre = validGenres.find(g => genreText.includes(g));
         if (foundGenre) {
-          // Normalize some synonyms
-          let targetGenre = foundGenre;
-          if (foundGenre === 'folk') targetGenre = 'country';
-          if (foundGenre === 'metal') targetGenre = 'rock';
-          if (foundGenre === 'blues') targetGenre = 'jazz';
+          // Normalize synonyms to canonical keys
+          const genreNormMap = {
+            'soul': 'r&b', 'edm': 'electronic', 'lofi': 'lo-fi',
+            'modern hip-hop': 'hip-hop', 'boom bap': 'boom-bap', '90s boom bap': 'boom-bap',
+            'afro-pop': 'afrobeat'
+          };
+          const targetGenre = genreNormMap[foundGenre] || foundGenre;
           
           setVoiceSettings(prev => ({ ...prev, genre: targetGenre }));
-          toast.success(`(music) Genre set to ${targetGenre.toUpperCase()}`);
+          toast.success(`🎵 Genre set to ${targetGenre.toUpperCase()}`);
           handleTextToVoice(`Setting genre to ${targetGenre}.`);
           return;
         }
@@ -5874,17 +5979,53 @@ const fetchUserCredits = useCallback(async (uid) => {
                   <div className="control-group">
                     <label>Genre / Style</label>
                     <select className="studio-select" value={heroGenre} onChange={e => { setHeroGenre(e.target.value); setVoiceSettings(prev => ({ ...prev, genre: e.target.value })); }}>
-                      <option value="hip-hop">Hip Hop / Rap</option>
-                      <option value="pop">Pop / Modern</option>
-                      <option value="r&b">R&B / Soul</option>
-                      <option value="electronic">Electronic / Dance</option>
-                      <option value="rock">Rock / Alternative</option>
-                      <option value="lo-fi">Lo-Fi / Chill</option>
-                      <option value="trap">Trap</option>
-                      <option value="drill">Drill</option>
-                      <option value="afrobeat">Afrobeat</option>
-                      <option value="reggaeton">Reggaeton</option>
-                      <option value="latin">Latin</option>
+                      <optgroup label="Hip-Hop">
+                        <option value="hip-hop">Hip Hop / Rap</option>
+                        <option value="trap">Trap</option>
+                        <option value="drill">Drill</option>
+                        <option value="boom-bap">90s Boom Bap</option>
+                        <option value="phonk">Phonk</option>
+                        <option value="latin-trap">Latin Trap</option>
+                      </optgroup>
+                      <optgroup label="Pop & R&B">
+                        <option value="pop">Pop / Modern</option>
+                        <option value="r&b">R&B / Soul</option>
+                        <option value="k-pop">K-Pop</option>
+                        <option value="j-pop">J-Pop</option>
+                        <option value="indie">Indie</option>
+                      </optgroup>
+                      <optgroup label="Electronic">
+                        <option value="electronic">Electronic / EDM</option>
+                        <option value="lo-fi">Lo-Fi / Chill</option>
+                        <option value="synthwave">Synthwave</option>
+                        <option value="disco">Disco</option>
+                      </optgroup>
+                      <optgroup label="African & Caribbean">
+                        <option value="afrobeat">Afrobeat</option>
+                        <option value="afro-pop">Afro-Pop</option>
+                        <option value="amapiano">Amapiano</option>
+                        <option value="dancehall">Dancehall</option>
+                        <option value="reggae">Reggae</option>
+                      </optgroup>
+                      <optgroup label="Latin">
+                        <option value="reggaeton">Reggaeton</option>
+                        <option value="latin">Latin</option>
+                        <option value="cumbia">Cumbia</option>
+                      </optgroup>
+                      <optgroup label="Rock & Guitar">
+                        <option value="rock">Rock / Alternative</option>
+                        <option value="metal">Metal</option>
+                        <option value="punk">Punk</option>
+                        <option value="acoustic">Acoustic</option>
+                      </optgroup>
+                      <optgroup label="Other">
+                        <option value="country">Country</option>
+                        <option value="jazz">Jazz</option>
+                        <option value="classical">Classical</option>
+                        <option value="gospel">Gospel</option>
+                        <option value="funk">Funk</option>
+                        <option value="bollywood">Bollywood</option>
+                      </optgroup>
                     </select>
                   </div>
                   <div className="control-group">
@@ -7565,17 +7706,53 @@ const fetchUserCredits = useCallback(async (uid) => {
                       <div className="control-group">
                         <label>Genre / Style</label>
                         <select className="studio-select" value={heroGenre} onChange={e => { setHeroGenre(e.target.value); setVoiceSettings(prev => ({ ...prev, genre: e.target.value })); }}>
-                          <option value="hip-hop">Hip Hop / Rap</option>
-                          <option value="pop">Pop / Modern</option>
-                          <option value="r&b">R&B / Soul</option>
-                          <option value="electronic">Electronic / Dance</option>
-                          <option value="rock">Rock / Alternative</option>
-                          <option value="lo-fi">Lo-Fi / Chill</option>
-                          <option value="trap">Trap</option>
-                          <option value="drill">Drill</option>
-                          <option value="afrobeat">Afrobeat</option>
-                          <option value="reggaeton">Reggaeton</option>
-                          <option value="latin">Latin</option>
+                          <optgroup label="Hip-Hop">
+                            <option value="hip-hop">Hip Hop / Rap</option>
+                            <option value="trap">Trap</option>
+                            <option value="drill">Drill</option>
+                            <option value="boom-bap">90s Boom Bap</option>
+                            <option value="phonk">Phonk</option>
+                            <option value="latin-trap">Latin Trap</option>
+                          </optgroup>
+                          <optgroup label="Pop & R&B">
+                            <option value="pop">Pop / Modern</option>
+                            <option value="r&b">R&B / Soul</option>
+                            <option value="k-pop">K-Pop</option>
+                            <option value="j-pop">J-Pop</option>
+                            <option value="indie">Indie</option>
+                          </optgroup>
+                          <optgroup label="Electronic">
+                            <option value="electronic">Electronic / EDM</option>
+                            <option value="lo-fi">Lo-Fi / Chill</option>
+                            <option value="synthwave">Synthwave</option>
+                            <option value="disco">Disco</option>
+                          </optgroup>
+                          <optgroup label="African & Caribbean">
+                            <option value="afrobeat">Afrobeat</option>
+                            <option value="afro-pop">Afro-Pop</option>
+                            <option value="amapiano">Amapiano</option>
+                            <option value="dancehall">Dancehall</option>
+                            <option value="reggae">Reggae</option>
+                          </optgroup>
+                          <optgroup label="Latin">
+                            <option value="reggaeton">Reggaeton</option>
+                            <option value="latin">Latin</option>
+                            <option value="cumbia">Cumbia</option>
+                          </optgroup>
+                          <optgroup label="Rock & Guitar">
+                            <option value="rock">Rock / Alternative</option>
+                            <option value="metal">Metal</option>
+                            <option value="punk">Punk</option>
+                            <option value="acoustic">Acoustic</option>
+                          </optgroup>
+                          <optgroup label="Other">
+                            <option value="country">Country</option>
+                            <option value="jazz">Jazz</option>
+                            <option value="classical">Classical</option>
+                            <option value="gospel">Gospel</option>
+                            <option value="funk">Funk</option>
+                            <option value="bollywood">Bollywood</option>
+                          </optgroup>
                         </select>
                       </div>
                       <div className="control-group">
@@ -7970,7 +8147,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 renderAgentWorkspace()
               ) : (
                 /* Agent Cards Grid with Whitepapers & Legal */
-                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 10px 0' : '12px 16px 0', overflowY: 'auto' }}>
+                <div className="agents-cards-view" style={{ padding: isMobile ? '8px 12px 0' : '20px 28px 0', overflowY: 'auto' }}>
                   {/* Header with Action Buttons */}
                   <div style={{
                     display: 'flex',
@@ -8077,11 +8254,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </span>
                     </div>
                     {/* FREE TIER Grid */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                      gap: '18px'
-                    }}>
+                    <div className="agent-tier-grid">
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'free').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
@@ -8169,11 +8342,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </span>
                     </div>
                     {/* MONTHLY TIER Grid */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                      gap: '18px'
-                    }}>
+                    <div className="agent-tier-grid">
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'monthly').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
@@ -8262,11 +8431,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </span>
                     </div>
                     {/* PRO TIER Grid */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                      gap: '18px'
-                    }}>
+                    <div className="agent-tier-grid">
                     {(typeof AGENTS !== 'undefined' && AGENTS) && AGENTS.filter(a => a.tier === 'pro').map((agent) => {
                       const Icon = typeof agent.icon === 'function' ? agent.icon : Sparkles;
                       const isLocked = !availableAgents.find(a => a.id === agent.id);
@@ -10947,7 +11112,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             </div>
 
             {/* Main Stage */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: isMobile ? '12px' : '20px', gap: isMobile ? '12px' : '20px', overflowY: 'auto' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: isMobile ? '8px' : '12px', gap: isMobile ? '8px' : '12px', overflowY: 'auto' }}>
 
               {/* Visual Preview */}
               <div style={{ flex: isMobile ? 'none' : 2, background: '#000', borderRadius: isMobile ? '12px' : '16px', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: isMobile ? '180px' : '300px' }}>
@@ -10958,12 +11123,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
                       muted 
                       loop 
-                      ref={el => {
-                        if (el) {
-                          if (sessionPlaying) el.play().catch(e => console.log(e));
-                          else el.pause();
-                        }
-                      }}
+                      ref={sessionVideoRef}
                     />
                   ) : (
                     <img src={sessionTracks.visual.imageUrl} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
@@ -10975,33 +11135,23 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </div>
                 )}
                 
-                {/* Audio Elements (Hidden) */}
+                {/* Audio Elements (Hidden) — playback controlled by sync engine useEffect */}
                 {sessionTracks.audio && (
                   <audio
                     data-track="session-audio"
                     src={sessionTracks.audio.audioUrl}
-                    ref={el => {
-                      if (el) {
-                        el.volume = sessionTracks.audioVolume ?? 0.8;
-                        if (sessionPlaying) el.play().catch(e => console.log(e));
-                        else el.pause();
-                      }
-                    }}
-                    loop
+                    ref={sessionAudioRef}
+                    loop={sessionTracks.audioLoop !== false}
+                    volume={sessionTracks.audioMuted ? 0 : (sessionTracks.audioVolume ?? 0.8)}
                   />
                 )}
                 {sessionTracks.vocal && (
                   <audio
                     data-track="session-vocal"
                     src={sessionTracks.vocal.audioUrl}
-                    ref={el => {
-                      if (el) {
-                        el.volume = sessionTracks.vocalVolume ?? 1.0;
-                        if (sessionPlaying) el.play().catch(e => console.log(e));
-                        else el.pause();
-                      }
-                    }}
-                    loop
+                    ref={sessionVocalRef}
+                    loop={sessionTracks.vocalLoop !== false}
+                    volume={sessionTracks.vocalMuted ? 0 : (sessionTracks.vocalVolume ?? 1.0)}
                   />
                 )}
 
@@ -11036,7 +11186,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               </div>
 
               {/* Mixer / Timeline */}
-              <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: isMobile ? '12px' : '16px', padding: isMobile ? '12px' : '20px', display: 'flex', flexDirection: 'column', gap: isMobile ? '10px' : '16px' }}>
+              <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: isMobile ? '10px' : '14px', padding: isMobile ? '8px' : '14px', display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : '12px' }}>
 
                 {/* Simple Pro Settings Bar - Captions.ai Style */}
                 <div style={{
@@ -11117,6 +11267,24 @@ const fetchUserCredits = useCallback(async (uid) => {
                       <option value="9:16">9:16</option>
                       <option value="1:1">1:1</option>
                     </select>
+                    
+                    {/* Quick Instrumental Toggle */}
+                    <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)' }} />
+                    <button
+                      onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocalMuted: !prev.vocalMuted }))}
+                      title={sessionTracks.vocalMuted ? 'Restore Vocals' : 'Play Instrumental Only'}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        background: sessionTracks.vocalMuted ? 'linear-gradient(135deg, rgba(239,68,68,0.3), rgba(239,68,68,0.1))' : 'rgba(255,255,255,0.1)',
+                        border: sessionTracks.vocalMuted ? '1px solid rgba(239,68,68,0.4)' : '1px solid transparent',
+                        borderRadius: '20px', padding: '5px 12px', cursor: 'pointer',
+                        color: sessionTracks.vocalMuted ? '#ef4444' : 'rgba(255,255,255,0.7)',
+                        fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.3s ease', whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {sessionTracks.vocalMuted ? <VolumeX size={13} /> : <Music size={13} />}
+                      {sessionTracks.vocalMuted ? 'Vocals Off' : 'Instrumental'}
+                    </button>
                   </div>
                   
                   {/* Render Counter - Simple */}
@@ -11220,6 +11388,35 @@ const fetchUserCredits = useCallback(async (uid) => {
                          style={{ width: '100%' }}
                        />
                        <div style={{ fontSize: '0.7rem', color: 'var(--color-cyan)' }}>{Math.round((sessionTracks.audioVolume || 0.8) * 100)}%</div>
+                    </div>
+                    {/* Track 1 Controls: Loop + Mute */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                      <button
+                        onClick={() => updateSessionWithHistory(prev => ({ ...prev, audioLoop: !(prev.audioLoop !== false) }))}
+                        title={sessionTracks.audioLoop !== false ? 'Loop On' : 'Loop Off'}
+                        style={{
+                          width: '32px', height: '32px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                          background: sessionTracks.audioLoop !== false ? 'var(--color-cyan)' : 'rgba(255,255,255,0.1)',
+                          color: sessionTracks.audioLoop !== false ? '#000' : 'var(--text-secondary)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.65rem', fontWeight: 700, transition: 'all 0.2s'
+                        }}
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                      <button
+                        onClick={() => updateSessionWithHistory(prev => ({ ...prev, audioMuted: !prev.audioMuted }))}
+                        title={sessionTracks.audioMuted ? 'Unmute Beat' : 'Mute Beat'}
+                        style={{
+                          width: '32px', height: '32px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                          background: sessionTracks.audioMuted ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.1)',
+                          color: sessionTracks.audioMuted ? '#ef4444' : 'var(--text-secondary)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.65rem', fontWeight: 700, transition: 'all 0.2s'
+                        }}
+                      >
+                        {sessionTracks.audioMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                      </button>
                     </div>
                   </div>
                   {/* Waveform Visualization for Track 1 */}
@@ -11332,6 +11529,35 @@ const fetchUserCredits = useCallback(async (uid) => {
                          style={{ width: '100%' }}
                        />
                        <div style={{ fontSize: '0.7rem', color: 'var(--color-purple)' }}>{Math.round((sessionTracks.vocalVolume || 1.0) * 100)}%</div>
+                    </div>
+                    {/* Track 2 Controls: Loop + Mute Vocals */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                      <button
+                        onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocalLoop: !(prev.vocalLoop !== false) }))}
+                        title={sessionTracks.vocalLoop !== false ? 'Loop On' : 'Loop Off'}
+                        style={{
+                          width: '32px', height: '32px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                          background: sessionTracks.vocalLoop !== false ? 'var(--color-purple)' : 'rgba(255,255,255,0.1)',
+                          color: sessionTracks.vocalLoop !== false ? '#fff' : 'var(--text-secondary)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.65rem', fontWeight: 700, transition: 'all 0.2s'
+                        }}
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                      <button
+                        onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocalMuted: !prev.vocalMuted }))}
+                        title={sessionTracks.vocalMuted ? 'Unmute Vocals' : 'Mute Vocals (Instrumental)'}
+                        style={{
+                          width: '32px', height: '32px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                          background: sessionTracks.vocalMuted ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.1)',
+                          color: sessionTracks.vocalMuted ? '#ef4444' : 'var(--text-secondary)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: '0.65rem', fontWeight: 700, transition: 'all 0.2s'
+                        }}
+                      >
+                        {sessionTracks.vocalMuted ? <VolumeX size={14} /> : <Mic size={14} />}
+                      </button>
                     </div>
                   </div>
                   {/* Waveform/Lyrics Visualization for Track 2 */}
@@ -11486,6 +11712,105 @@ const fetchUserCredits = useCallback(async (uid) => {
                           </div>
                         </div>
                       )}
+                    </div>
+                  )}
+                  
+                  {/* Sync Controls — User drives visual-to-audio sync */}
+                  {sessionTracks.visual && (
+                    <div style={{ 
+                      marginTop: '8px', 
+                      background: 'rgba(236, 72, 153, 0.08)', 
+                      borderRadius: '8px', 
+                      padding: '10px 12px',
+                      border: '1px solid rgba(236, 72, 153, 0.15)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Activity size={14} className="text-pink" />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-pink)' }}>Sync Controls</span>
+                        </div>
+                        <select
+                          value={sessionTracks.syncMode || 'auto'}
+                          onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, syncMode: e.target.value }))}
+                          style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--color-pink)', fontSize: '0.7rem', cursor: 'pointer' }}
+                        >
+                          <option value="auto">Auto Sync</option>
+                          <option value="beat">Sync to Beat</option>
+                          <option value="vocal">Sync to Vocals</option>
+                          <option value="manual">Manual Offset</option>
+                        </select>
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: isMobile ? '8px' : '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {/* Sync Source */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Source</span>
+                          <select
+                            value={sessionTracks.syncSource || 'beat'}
+                            onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, syncSource: e.target.value }))}
+                            style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.7rem', cursor: 'pointer' }}
+                          >
+                            <option value="beat">Track 1 (Beat)</option>
+                            <option value="vocal">Track 2 (Vocals)</option>
+                            <option value="both">Both Tracks</option>
+                          </select>
+                        </div>
+                        
+                        {/* Visual Start Offset */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Offset</span>
+                          <input
+                            type="number"
+                            min="-10"
+                            max="30"
+                            step="0.5"
+                            value={sessionTracks.visualOffset || 0}
+                            onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualOffset: parseFloat(e.target.value) || 0 }))}
+                            style={{ width: '50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '3px 6px', color: 'var(--color-pink)', fontSize: '0.75rem', fontWeight: 600, textAlign: 'center' }}
+                          />
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>sec</span>
+                        </div>
+
+                        {/* Visual Duration */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Duration</span>
+                          <select
+                            value={sessionTracks.visualDuration || 'full'}
+                            onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualDuration: e.target.value }))}
+                            style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.7rem', cursor: 'pointer' }}
+                          >
+                            <option value="full">Full Track</option>
+                            <option value="chorus">Chorus Only</option>
+                            <option value="verse1">First Verse</option>
+                            <option value="custom">Custom</option>
+                          </select>
+                        </div>
+
+                        {/* Transition Style */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Transition</span>
+                          <select
+                            value={sessionTracks.visualTransition || 'cut'}
+                            onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualTransition: e.target.value }))}
+                            style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.7rem', cursor: 'pointer' }}
+                          >
+                            <option value="cut">Cut</option>
+                            <option value="fade">Fade</option>
+                            <option value="crossfade">Crossfade</option>
+                            <option value="zoom">Zoom In</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Sync status hint */}
+                      <div style={{ marginTop: '6px', fontSize: '0.65rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: sessionTracks.syncMode === 'manual' ? 'var(--color-pink)' : 'var(--color-cyan)', animation: 'pulse 2s infinite' }} />
+                        {sessionTracks.syncMode === 'auto' && 'Visual syncs to audio start automatically'}
+                        {sessionTracks.syncMode === 'beat' && `Visual cuts on beat at ${sessionTracks.bpm || 120} BPM`}
+                        {sessionTracks.syncMode === 'vocal' && 'Visual enters when vocals begin'}
+                        {sessionTracks.syncMode === 'manual' && `Visual starts at ${sessionTracks.visualOffset || 0}s offset`}
+                        {!sessionTracks.syncMode && 'Visual syncs to audio start automatically'}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -11660,9 +11985,14 @@ const fetchUserCredits = useCallback(async (uid) => {
                            metadata: {
                              audioVolume: sessionTracks.audioVolume,
                              vocalVolume: sessionTracks.vocalVolume,
+                             vocalMuted: sessionTracks.vocalMuted || false,
                              renderedAt: new Date().toISOString(),
                              renderPass: renderNumber,
                              bpm: sessionTracks.bpm || 120,
+                             syncMode: sessionTracks.syncMode || 'auto',
+                             syncSource: sessionTracks.syncSource || 'beat',
+                             visualOffset: sessionTracks.visualOffset || 0,
+                             visualTransition: sessionTracks.visualTransition || 'cut',
                              mixedDirectly: true
                            }
                          };
@@ -11711,7 +12041,13 @@ const fetchUserCredits = useCallback(async (uid) => {
                              frameRate: sessionTracks.frameRate || 30,
                              sampleRate: sessionTracks.sampleRate || 48000,
                              bitDepth: sessionTracks.bitDepth || 24,
-                             aspectRatio: sessionTracks.aspectRatio || '16:9'
+                             aspectRatio: sessionTracks.aspectRatio || '16:9',
+                             // User-driven visual sync
+                             syncMode: sessionTracks.syncMode || 'auto',
+                             syncSource: sessionTracks.syncSource || 'beat',
+                             visualOffset: sessionTracks.visualOffset || 0,
+                             visualDuration: sessionTracks.visualDuration || 'full',
+                             visualTransition: sessionTracks.visualTransition || 'cut'
                            },
                            renderPass: renderNumber,
                            generateRealAssets: sessionTracks.generateRealAssets || false

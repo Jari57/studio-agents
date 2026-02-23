@@ -1368,11 +1368,17 @@ function ProjectHubV3({
           background: var(--bg-secondary);
           border: 1px solid var(--border-color);
           border-radius: 16px;
-          overflow: hidden;
+          overflow: visible;
           cursor: pointer;
           transition: all 0.3s ease;
           position: relative;
           min-width: 0;
+        }
+
+        /* Clip thumbnail only, not the whole card */
+        .project-card .card-thumbnail {
+          border-radius: 16px 16px 0 0;
+          overflow: hidden;
         }
 
         .project-card:hover {

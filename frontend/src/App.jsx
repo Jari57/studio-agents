@@ -129,7 +129,25 @@ function App() {
 
   return (
     <div className="app-container">
-      <Toaster position="top-right" />
+      <Toaster 
+        position="bottom-center"
+        toastOptions={{
+          duration: 20000,
+          style: {
+            maxWidth: '420px',
+            fontSize: '0.9rem',
+            borderRadius: '12px',
+            padding: '10px 16px',
+            background: '#1a1a2e',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+          },
+          success: { duration: 15000 },
+          error: { duration: 20000 },
+          loading: { duration: Infinity }
+        }}
+      />
       {isWhitepapers ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <WhitepapersPage onBack={handleBackToLanding} agents={AGENTS} />

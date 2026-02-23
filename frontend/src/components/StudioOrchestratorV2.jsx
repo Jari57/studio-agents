@@ -10,7 +10,7 @@ import {
 import { BACKEND_URL, AGENTS, getAgentHex } from '../constants';
 import toast from 'react-hot-toast';
 import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, query, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
 // Lazy load modals and heavy sub-sections (standardizing to React.lazy to prevent 'lazy is not defined' error)
@@ -1051,6 +1051,7 @@ function ProductionControlHub({
   handleCreateFinalMix,
   handleCreateProject,
   setShowPreviewModal,
+  setMaximizedSlot,
   visualType,
   setVisualType,
   isMobile,
@@ -1086,7 +1087,7 @@ function ProductionControlHub({
       border: '1px solid rgba(255,255,255,0.1)',
       marginTop: '32px',
       position: 'relative',
-      overflow: 'hidden',
+      overflow: 'visible',
       boxShadow: allComplete ? '0 10px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(79, 70, 229, 0.3)' : 'none',
       transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
     }}>
@@ -1562,8 +1563,9 @@ export default function StudioOrchestratorV2({
   const [rapStyle, setRapStyle] = useState('aggressive'); // Rap delivery style
   const [genre, setGenre] = useState('hip-hop'); // Music genre for vocals
   const [songStructure, setSongStructure] = useState('full'); // Song structure: single, full, extended
-  const [generatingVocal, setGeneratingVocal] = useState(false);
   const [maximizedSlot, setMaximizedSlot] = useState(null); // Track which card is maximized
+  const [showVocalFullscreen, setShowVocalFullscreen] = useState(false); // Vocal audio fullscreen modal
+  const [deleteVoiceTarget, setDeleteVoiceTarget] = useState(null); // Voice to confirm deletion
   const [creatingFinalMix, setCreatingFinalMix] = useState(false);
   const [finalMixPreview, setFinalMixPreview] = useState(null);
   const [mixVocalVolume, setMixVocalVolume] = useState(0.85); // Vocal volume for final mix (0-1)
@@ -1726,7 +1728,7 @@ export default function StudioOrchestratorV2({
     setMusicVideoUrl(null);
     setFinalMixPreview(null);
     setPipelineSteps([]);
-    setGeneratingMedia({ lyrics: false, audio: false, image: false, video: false, vocals: false });
+    setGeneratingMedia({ audio: false, image: false, video: false, vocals: false });
     setVisualDnaUrl(null);
     setAudioDnaUrl(null);
     setVideoDnaUrl(null);
@@ -2543,7 +2545,8 @@ REQUIREMENTS:
       } else {
         toast.error(data.error || `Failed to regenerate ${slotConfig.title}`);
       }
-    } catch {
+    } catch (regenErr) {
+      console.error('[Orchestrator] Regeneration error:', regenErr);
       toast.error('Regeneration failed');
     } finally {
       setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
@@ -2596,7 +2599,7 @@ REQUIREMENTS:
           // Simplified prompt: Backend already wraps with genre/mood/BPM/quality tags
           // Sending the raw description from the agent is more effective
           prompt: typeof cleanAudioPromptText === 'string' ? cleanAudioPromptText.substring(0, 1000) : 'Professional music production',
-          genre: style || 'hip-hop',
+          genre: (style || 'hip-hop').toLowerCase().split('/')[0].trim(),
           mood: mood.toLowerCase() || 'energetic',
           bpm: parseInt(projectBpm) || 90,
           durationSeconds: parseInt(duration) || (structure === 'Full Song' ? 90 :
@@ -3418,7 +3421,7 @@ REQUIREMENTS:
             };
             
             const updatedAssets = [...(existingProject.assets || []), imageAsset];
-            onSaveToProject({
+            onSaveToProject?.({
               ...existingProject,
               assets: updatedAssets,
               updatedAt: new Date().toISOString()
@@ -3486,7 +3489,7 @@ REQUIREMENTS:
             };
 
             const updatedAssets = [...(existingProject.assets || []), imageAsset];
-            onSaveToProject({
+            onSaveToProject?.({
               ...existingProject,
               assets: updatedAssets,
               updatedAt: new Date().toISOString()
@@ -3512,7 +3515,7 @@ REQUIREMENTS:
             };
 
             const updatedAssets = [...(existingProject.assets || []), imageAsset];
-            onSaveToProject({
+            onSaveToProject?.({
               ...existingProject,
               assets: updatedAssets,
               updatedAt: new Date().toISOString()
@@ -3625,7 +3628,7 @@ REQUIREMENTS:
                     createdAt: new Date().toISOString()
                   };
                   const updatedAssets = [...(existingProject.assets || []), videoAsset];
-                  onSaveToProject({ ...existingProject, assets: updatedAssets, updatedAt: new Date().toISOString() });
+                  onSaveToProject?.({ ...existingProject, assets: updatedAssets, updatedAt: new Date().toISOString() });
                   setIsSaved(true);
                 }
                 break;
@@ -3665,7 +3668,7 @@ REQUIREMENTS:
               createdAt: new Date().toISOString()
             };
             const updatedAssets = [...(existingProject.assets || []), videoAsset];
-            onSaveToProject({ ...existingProject, assets: updatedAssets, updatedAt: new Date().toISOString() });
+            onSaveToProject?.({ ...existingProject, assets: updatedAssets, updatedAt: new Date().toISOString() });
             setIsSaved(true);
           }
 
@@ -3780,7 +3783,7 @@ REQUIREMENTS:
               };
               
               const updatedAssets = [...(existingProject.assets || []), videoAsset];
-              onSaveToProject({
+              onSaveToProject?.({
                 ...existingProject,
                 assets: updatedAssets,
                 updatedAt: new Date().toISOString()
@@ -4044,7 +4047,7 @@ REQUIREMENTS:
   };
 
   // Download handler
-  const handleDownload = (slot) => {
+  const handleDownload = async (slot) => {
     const output = outputs[slot];
     if (!output && !mediaUrls[slot === 'visual' ? 'image' : slot === 'lyrics' ? 'vocals' : slot]) return;
 
@@ -4079,11 +4082,30 @@ REQUIREMENTS:
       if (slot === 'video') formattedUrl = formatVideoSrc(mediaUrl);
       if (slot === 'lyrics') formattedUrl = formatAudioSrc(mediaUrl); // Vocals are audio
 
-      const a = document.createElement('a');
-      a.href = formattedUrl;
       const extMap = { audio: '.mp3', visual: '.png', video: '.mp4', lyrics: '.wav' };
-      a.download = `${baseName}-${slot}${extMap[slot] || ''}`;
-      a.click();
+      const fileName = `${baseName}-${slot}${extMap[slot] || ''}`;
+
+      // Use fetch→blob for cross-origin URLs (a.download is ignored cross-origin)
+      try {
+        if (formattedUrl.startsWith('data:') || formattedUrl.startsWith('blob:')) {
+          const a = document.createElement('a');
+          a.href = formattedUrl;
+          a.download = fileName;
+          a.click();
+        } else {
+          const resp = await fetch(formattedUrl);
+          const blob = await resp.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = fileName;
+          a.click();
+          URL.revokeObjectURL(blobUrl);
+        }
+      } catch (dlErr) {
+        console.warn('[Orchestrator] Fetch download failed, opening in new tab:', dlErr);
+        window.open(formattedUrl, '_blank', 'noopener');
+      }
     }
 
     // For video: also download a JSON metadata file with all project info
@@ -4397,7 +4419,7 @@ REQUIREMENTS:
         className="orchestrator-scroll-container"
         style={{ 
           flex: 1, 
-          padding: isMobile ? '8px 4px' : '16px',
+          padding: isMobile ? '6px 2px' : '10px 12px',
           maxWidth: '1200px',
           margin: '0 auto',
           width: '100%',
@@ -4410,9 +4432,9 @@ REQUIREMENTS:
         {/* Input Section */}
         <div style={{
           background: 'rgba(255,255,255,0.03)',
-          borderRadius: isMobile ? '12px' : '16px',
-          padding: isMobile ? '8px' : '16px',
-          marginBottom: isMobile ? '10px' : '20px',
+          borderRadius: isMobile ? '10px' : '14px',
+          padding: isMobile ? '6px' : '12px',
+          marginBottom: isMobile ? '8px' : '14px',
           border: '1px solid rgba(255,255,255,0.06)'
         }}>
           {/* Mode Toggle */}
@@ -4844,7 +4866,8 @@ REQUIREMENTS:
                           await handleCreateFinalMix();
                         }
                         updatePipelineStep(step.id, 'done');
-                      } catch {
+                      } catch (retryErr) {
+                        console.error('[Orchestrator] Pipeline retry error:', retryErr);
                         updatePipelineStep(step.id, 'error');
                         toast.error(`Retry failed for: ${step.label}`);
                       }
@@ -5180,17 +5203,7 @@ REQUIREMENTS:
         </div>
 
 
-        {/* DEBUG: Show lyrics status */}
-        <div style={{ 
-          padding: '8px', 
-          background: outputs.lyrics ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)', 
-          borderRadius: '8px', 
-          marginBottom: '12px',
-          fontSize: '0.75rem',
-          color: outputs.lyrics ? '#10b981' : '#ef4444'
-        }}>
-          {outputs.lyrics ? '✅ Lyrics ready - Create Vocal button should appear below' : '⚠️ No lyrics yet - Click Generate above first'}
-        </div>
+
 
         {/* Ghostwriter Vocal Generation - appears when lyrics are ready */}
         {outputs.lyrics && (
@@ -5304,43 +5317,7 @@ REQUIREMENTS:
                       }}
                     />
                     <button
-                      onClick={() => {
-                        const modal = document.createElement('div');
-                        modal.innerHTML = `
-                          <div style="
-                            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                            background: rgba(0,0,0,0.9); z-index: 10002;
-                            display: flex; align-items: center; justify-content: center;
-                            padding: 20px;
-                          " onclick="if(event.target === this) this.remove();">
-                            <div style="
-                              background: rgba(0,0,0,0.8); border-radius: 20px;
-                              padding: 24px; max-width: 500px; width: 100%;
-                              border: 1px solid rgba(139, 92, 246, 0.4);
-                            " onclick="event.stopPropagation();">
-                              <div style="
-                                font-weight: 700; margin-bottom: 16px; color: #8b5cf6;
-                              ">
-                                🎧 Vocal Audio Player
-                              </div>
-                              <audio 
-                                src="${mediaUrls.lyricsVocal}"
-                                controls
-                                autoplay
-                                style="width: 100%; height: 50px; border-radius: 10px;"
-                              />
-                              <div style="
-                                margin-top: 16px; font-size: 0.85rem;
-                                color: var(--text-secondary);
-                              ">
-                                Voice Style: <strong>${voiceStyle}</strong>
-                              </div>
-                            </div>
-                          </div>
-                        `;
-                        document.body.appendChild(modal);
-                        modal.onclick = (e) => e.target === modal && modal.remove();
-                      }}
+                      onClick={() => setShowVocalFullscreen(true)}
                       style={{
                         padding: '10px 16px',
                         borderRadius: '8px',
@@ -5355,6 +5332,7 @@ REQUIREMENTS:
                         justifyContent: 'center',
                         gap: '6px'
                       }}
+                      aria-label="Open vocal audio fullscreen"
                     >
                       <Eye size={14} />
                       Fullscreen
@@ -5654,25 +5632,14 @@ REQUIREMENTS:
                         {voice.name || 'Voice'}
                         <X 
                           size={12} 
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm('Delete this voice from your library?')) {
-                              try {
-                                await deleteDoc(doc(db, 'users', auth.currentUser?.uid, 'voices', voice.id));
-                                setSavedVoices(prev => prev.filter(v => v.id !== voice.id));
-                                if (voiceSampleUrl === voice.url) {
-                                  setVoiceSampleUrl(null);
-                                  setVoiceStyle('rapper');
-                                }
-                                toast.success('Voice deleted');
-                              } catch (err) {
-                                toast.error('Failed to delete voice');
-                              }
-                            }
+                            setDeleteVoiceTarget(voice);
                           }}
                           onMouseEnter={(e) => (e.currentTarget.style.color = '#ef4444')}
                           onMouseLeave={(e) => (e.currentTarget.style.color = 'inherit')}
                           style={{ marginLeft: '4px', opacity: 0.5, cursor: 'pointer' }}
+                          aria-label={`Delete voice ${voice.name || 'Voice'}`}
                         />
                       </div>
                     ))}
@@ -6215,6 +6182,7 @@ REQUIREMENTS:
         handleCreateFinalMix={handleCreateFinalMix}
         handleCreateProject={handleCreateProject}
         setShowPreviewModal={setShowPreviewModal}
+        setMaximizedSlot={setMaximizedSlot}
         visualType={visualType}
         setVisualType={setVisualType}
         isMobile={isMobile}
@@ -6482,6 +6450,9 @@ REQUIREMENTS:
       {/* Create Project Modal */}
       {showCreateProject && (
         <div 
+          role="dialog"
+          aria-modal="true"
+          aria-label="Save to project"
           style={{
             position: 'fixed',
             inset: 0,
@@ -6546,7 +6517,7 @@ REQUIREMENTS:
 
       {/* Save Confirmation Dialog */}
       {showSaveConfirm && (
-        <div style={{
+        <div role="dialog" aria-modal="true" aria-label="Save confirmation" style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -6662,9 +6633,116 @@ REQUIREMENTS:
         </div>
       )}
 
+      {/* Vocal Fullscreen Modal (React-managed, replaces innerHTML injection) */}
+      {showVocalFullscreen && mediaUrls.lyricsVocal && (
+        <div 
+          role="dialog"
+          aria-modal="true"
+          aria-label="Vocal Audio Player"
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.9)', zIndex: 10002,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setShowVocalFullscreen(false)}
+        >
+          <div 
+            style={{
+              background: 'rgba(0,0,0,0.8)', borderRadius: '20px',
+              padding: '24px', maxWidth: '500px', width: '100%',
+              border: '1px solid rgba(139, 92, 246, 0.4)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ fontWeight: 700, color: '#8b5cf6' }}>🎧 Vocal Audio Player</div>
+              <button onClick={() => setShowVocalFullscreen(false)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }} aria-label="Close vocal player">
+                <X size={20} />
+              </button>
+            </div>
+            <audio 
+              src={formatAudioSrc(mediaUrls.lyricsVocal)}
+              controls
+              autoPlay
+              style={{ width: '100%', height: '50px', borderRadius: '10px' }}
+            />
+            <div style={{ marginTop: '16px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Voice Style: <strong>{voiceStyle}</strong>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Voice Confirmation Dialog (replaces window.confirm) */}
+      {deleteVoiceTarget && (
+        <div 
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirm voice deletion"
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.85)', zIndex: 10003,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={() => setDeleteVoiceTarget(null)}
+        >
+          <div 
+            style={{
+              background: '#1a1a2e', borderRadius: '16px',
+              padding: '24px', maxWidth: '380px', width: '100%',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ margin: '0 0 8px', fontSize: '1.1rem' }}>Delete Voice</h3>
+            <p style={{ margin: '0 0 20px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              Remove <strong>{deleteVoiceTarget.name || 'this voice'}</strong> from your library? This cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setDeleteVoiceTarget(null)}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: '10px',
+                  background: 'rgba(255,255,255,0.1)', border: 'none',
+                  color: 'white', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await deleteDoc(doc(db, 'users', auth.currentUser?.uid, 'voices', deleteVoiceTarget.id));
+                    setSavedVoices(prev => prev.filter(v => v.id !== deleteVoiceTarget.id));
+                    if (voiceSampleUrl === deleteVoiceTarget.url) {
+                      setVoiceSampleUrl(null);
+                      setVoiceStyle('rapper');
+                    }
+                    toast.success('Voice deleted');
+                  } catch (err) {
+                    console.error('[DeleteVoice] Error:', err);
+                    toast.error('Failed to delete voice');
+                  }
+                  setDeleteVoiceTarget(null);
+                }}
+                style={{
+                  flex: 1, padding: '12px', borderRadius: '10px',
+                  background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)',
+                  color: '#ef4444', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Exit Confirmation Dialog - Save Before Leaving */}
       {showExitConfirm && (
-        <div style={{
+        <div role="dialog" aria-modal="true" aria-label="Exit confirmation" style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -6771,7 +6849,7 @@ REQUIREMENTS:
 
       {/* Save/Clear Before Re-Generating Confirmation */}
       {showRegenerateConfirm && (
-        <div style={{
+        <div role="dialog" aria-modal="true" aria-label="Regeneration confirmation" style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(0,0,0,0.85)',
