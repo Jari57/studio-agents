@@ -1892,6 +1892,13 @@ select optgroup {
   width: 100%;
 }
 
+/* Meet the Agents team grid: 2x2 on web, 1x1 on mobile */
+@media (max-width: 768px) {
+  .agents-team-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 .agent-card-premium {
   position: relative;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);

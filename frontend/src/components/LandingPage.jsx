@@ -750,9 +750,9 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         <h2 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', textAlign: 'center' }}>
           <span className="gradient-text-vibrant">Meet the Agents</span>
         </h2>
-        <div style={{
+        <div className="agents-team-grid" style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gridTemplateColumns: 'repeat(2, 1fr)',
           gap: '20px',
           margin: '0 auto'
         }}>
