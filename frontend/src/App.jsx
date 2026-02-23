@@ -9,6 +9,9 @@ const LandingPage = React.lazy(() => import('./components/LandingPage'));
 const StudioView = React.lazy(() => import('./components/StudioView'));
 const WhitepapersPage = React.lazy(() => import('./components/WhitepapersPage'));
 const LegalResourcesPage = React.lazy(() => import('./components/LegalResourcesPage'));
+const DnaResourcePage = React.lazy(() => import('./components/DnaResourcePage'));
+const VocalsResourcePage = React.lazy(() => import('./components/VocalsResourcePage'));
+const BillboardBlueprintPage = React.lazy(() => import('./components/BillboardBlueprintPage'));
 
 // Loading fallback component
 const StudioLoadingFallback = () => (
@@ -92,6 +95,15 @@ function App() {
     } else if (targetTab === 'legal') {
       console.log('[App] Navigating to top-level legal');
       window.location.hash = '#/legal';
+    } else if (targetTab === 'dna') {
+      console.log('[App] Navigating to DNA resource page');
+      window.location.hash = '#/dna';
+    } else if (targetTab === 'vocals') {
+      console.log('[App] Navigating to Vocals resource page');
+      window.location.hash = '#/vocals';
+    } else if (targetTab === 'billboard') {
+      console.log('[App] Navigating to Billboard Blueprint page');
+      window.location.hash = '#/billboard';
     } else {
       console.log('[App] Navigating to studio tab:', targetTab);
       window.location.hash = targetTab ? `#/studio/${targetTab}` : '#/studio/resources';
@@ -126,6 +138,9 @@ function App() {
   const isStudio = currentHash.startsWith('#/studio');
   const isWhitepapers = currentHash === '#/whitepapers';
   const isLegal = currentHash === '#/legal';
+  const isDna = currentHash === '#/dna';
+  const isVocals = currentHash === '#/vocals';
+  const isBillboard = currentHash === '#/billboard';
 
   return (
     <div className="app-container">
@@ -155,6 +170,18 @@ function App() {
       ) : isLegal ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <LegalResourcesPage onBack={handleBackToLanding} />
+        </Suspense>
+      ) : isDna ? (
+        <Suspense fallback={<StudioLoadingFallback />}>
+          <DnaResourcePage onBack={handleBackToLanding} />
+        </Suspense>
+      ) : isVocals ? (
+        <Suspense fallback={<StudioLoadingFallback />}>
+          <VocalsResourcePage onBack={handleBackToLanding} />
+        </Suspense>
+      ) : isBillboard ? (
+        <Suspense fallback={<StudioLoadingFallback />}>
+          <BillboardBlueprintPage onBack={handleBackToLanding} />
         </Suspense>
       ) : isStudio ? (
         <Suspense fallback={<StudioLoadingFallback />}>
