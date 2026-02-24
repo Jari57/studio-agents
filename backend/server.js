@@ -2968,12 +2968,13 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
 
     const sanitizedSystemInstruction = sanitizeInput(systemInstruction || '', 2000);
     
-    // Inject DNA references into the prompt for the AI to consider
-    if (referenceUrl) sanitizedPrompt = `${sanitizedPrompt} (Reference Context: ${referenceUrl}).`;
-    if (visualDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Visual DNA: ${visualDnaUrl}). Please consider these visual aesthetics in your response.`;
-    if (audioDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Audio DNA: ${audioDnaUrl}). Use this as a sonic/tonal reference.`;
-    if (lyricsDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Lyrical DNA: ${lyricsDnaUrl}). Match the writing style or context found here.`;
-    if (videoDnaUrl) sanitizedPrompt = `${sanitizedPrompt} (Seed/Video DNA: ${videoDnaUrl}).`;
+    // ── DNA EXACT-CLONE INJECTION ──
+    // DNA assets are the artist's identity — replicate them EXACTLY, no creative deviation
+    if (referenceUrl) sanitizedPrompt = `${sanitizedPrompt}\n\n[REFERENCE CONTEXT: ${referenceUrl}]`;
+    if (visualDnaUrl) sanitizedPrompt = `${sanitizedPrompt}\n\n[VISUAL DNA ACTIVE — EXACT CLONE MODE]\nReference: ${visualDnaUrl}\nYou MUST replicate the exact visual style, color palette, composition, lighting, textures, and artistic identity from this reference. Do NOT deviate, reinterpret, or add your own creative spin. The artist's visual brand must be pixel-perfect consistent. Describe outputs that would be indistinguishable from this reference.`;
+    if (audioDnaUrl) sanitizedPrompt = `${sanitizedPrompt}\n\n[AUDIO DNA ACTIVE — EXACT CLONE MODE]\nReference: ${audioDnaUrl}\nYou MUST match the exact sonic signature: same BPM, key, timbre, instrument selection, mix balance, frequency spectrum, groove, swing, and production style. The output must sound like it came from the same session as this reference. No reinterpretation — clone it perfectly.`;
+    if (lyricsDnaUrl) sanitizedPrompt = `${sanitizedPrompt}\n\n[LYRICS DNA ACTIVE — EXACT CLONE MODE]\nReference: ${lyricsDnaUrl}\nYou MUST match the exact writing style: same vocabulary level, slang patterns, rhyme schemes, cadence, punctuation style, metaphor density, topic framing, and emotional tone. The output must read like the same author wrote it. Preserve every stylistic fingerprint — do not sanitize, formalize, or deviate.`;
+    if (videoDnaUrl) sanitizedPrompt = `${sanitizedPrompt}\n\n[SEED/VIDEO DNA ACTIVE — EXACT CLONE MODE]\nReference: ${videoDnaUrl}\nYou MUST replicate the exact visual style, motion patterns, color grading, shot composition, pacing, and cinematic identity from this reference. The output must look like a continuation of the same project.`;
     
     // 🛡️ Validate model name (only allow known Gemini models)
     const allowedModels = [
@@ -3880,9 +3881,12 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
           safety_tolerance: 2
         };
 
-        // If reference is provided, many Flux implementations use 'image' input
+        // If reference is provided, use image-to-image mode with MAXIMUM fidelity
+        // DNA = exact clone — artist wants to look identical, no creative deviation
         if (referenceImage) {
           input.image = referenceImage;
+          input.image_prompt_strength = 0.85; // High fidelity to reference — near-exact replication
+          input.prompt = `EXACT VISUAL CLONE: Replicate this reference image precisely — same face, same style, same colors, same composition, same lighting, same mood, same artistic identity. Do not deviate or reinterpret. The artist must look identical. ${input.prompt}`;
         }
 
         const response = await fetchWithRetry('https://api.replicate.com/v1/predictions', {
@@ -4339,12 +4343,24 @@ Return ONLY valid JSON, no markdown.`;
         let barkTextTemp = 0.7;
         let barkWaveformTemp = 0.7;
         if (refSongAnalysis) {
-          // Higher energy = more variation; warmer tone = lower waveform temp
           const energy = parseInt(refSongAnalysis.energy) || 5;
           const warmth = parseInt(refSongAnalysis.warmth) || 5;
-          barkTextTemp = Math.max(0.4, Math.min(0.9, 0.5 + (energy * 0.04)));
-          barkWaveformTemp = Math.max(0.4, Math.min(0.9, 0.8 - (warmth * 0.03)));
-          logger.info('🎵 Bark temps tuned from reference', { barkTextTemp, barkWaveformTemp });
+          if (speakerUrl) {
+            // DNA EXACT-CLONE: Minimize variation for faithful voice reproduction
+            barkTextTemp = Math.max(0.3, Math.min(0.5, 0.35 + (energy * 0.015)));
+            barkWaveformTemp = Math.max(0.3, Math.min(0.5, 0.45 - (warmth * 0.015)));
+            logger.info('🧬 Bark DNA exact-clone temps', { barkTextTemp, barkWaveformTemp });
+          } else {
+            // Higher energy = more variation; warmer tone = lower waveform temp
+            barkTextTemp = Math.max(0.4, Math.min(0.9, 0.5 + (energy * 0.04)));
+            barkWaveformTemp = Math.max(0.4, Math.min(0.9, 0.8 - (warmth * 0.03)));
+            logger.info('🎵 Bark temps tuned from reference', { barkTextTemp, barkWaveformTemp });
+          }
+        } else if (speakerUrl) {
+          // DNA without reference analysis: lock down temperatures for exact clone
+          barkTextTemp = 0.35;
+          barkWaveformTemp = 0.35;
+          logger.info('🧬 Bark DNA exact-clone mode (no ref analysis)', { barkTextTemp, barkWaveformTemp });
         }
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
@@ -4496,10 +4512,12 @@ if (elevenLabsKey && !audioUrl) {
         }
 
         // ── BILLBOARD-GRADE VOICE SETTINGS ──
+        // When voice DNA (cloned voice or speakerUrl) is active, maximize fidelity
+        const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
         const voiceSettings = {
-          stability: style.includes('rapper') ? 0.50 : 0.60,       // Lower = more expressive variation
-          similarity_boost: 0.92,                                     // High similarity to chosen voice character
-          style: style.includes('rapper') ? 0.75 : 0.50,            // Higher style = more dramatic delivery
+          stability: hasDnaVoice ? 0.80 : (style.includes('rapper') ? 0.50 : 0.60),       // DNA: high stability = consistent voice identity
+          similarity_boost: hasDnaVoice ? 0.98 : 0.92,                                     // DNA: max similarity = exact voice clone
+          style: hasDnaVoice ? 0.90 : (style.includes('rapper') ? 0.75 : 0.50),            // DNA: high style = preserve delivery character
           use_speaker_boost: true
         };
 
@@ -4519,17 +4537,23 @@ if (elevenLabsKey && !audioUrl) {
 
         // ── REFERENCE SONG VOICE TUNING ──
         // If reference analysis exists, tune ElevenLabs settings to match the reference's characteristics
+        // When DNA voice is active, ref analysis fine-tunes but NEVER reduces clone fidelity below DNA floor
         if (refSongAnalysis) {
           const warmth = parseInt(refSongAnalysis.warmth) || 5;
           const energy = parseInt(refSongAnalysis.energy) || 5;
           const depth = parseInt(refSongAnalysis.depth) || 5;
 
-          // Warmth: higher warmth = more stability (smoother, less harsh)
-          voiceSettings.stability = Math.max(0.35, Math.min(0.85, 0.40 + (warmth * 0.05)));
-          // Energy: higher energy = more style expressiveness
-          voiceSettings.style = Math.max(0.25, Math.min(0.95, 0.30 + (energy * 0.065)));
-          // Depth: higher depth = moderate similarity boost for richer layered feel
-          voiceSettings.similarity_boost = Math.max(0.75, Math.min(0.98, 0.80 + (depth * 0.018)));
+          if (hasDnaVoice) {
+            // DNA EXACT-CLONE: Reference tunes delivery but voice identity stays locked
+            voiceSettings.stability = Math.max(0.70, Math.min(0.90, 0.75 + (warmth * 0.015)));
+            voiceSettings.style = Math.max(0.70, Math.min(0.95, 0.75 + (energy * 0.02)));
+            voiceSettings.similarity_boost = Math.max(0.95, Math.min(0.99, 0.95 + (depth * 0.004)));
+          } else {
+            // No DNA: standard reference tuning with wider range
+            voiceSettings.stability = Math.max(0.35, Math.min(0.85, 0.40 + (warmth * 0.05)));
+            voiceSettings.style = Math.max(0.25, Math.min(0.95, 0.30 + (energy * 0.065)));
+            voiceSettings.similarity_boost = Math.max(0.75, Math.min(0.98, 0.80 + (depth * 0.018)));
+          }
 
           // Prepend vocal direction to the processed prompt for delivery guidance
           if (refSongAnalysis.vocal_direction) {
@@ -4609,9 +4633,9 @@ if (elevenLabsKey && !audioUrl) {
               text: prompt.substring(0, 2000),
               language: langCode,
               speaker: targetSpeaker,
-              cleanup_voice: true,
+              cleanup_voice: false,  // Preserve original voice characteristics — no cleanup alteration
               speed: 1.0,
-              temperature: 0.50
+              temperature: 0.15      // Minimum temperature for EXACT voice clone — no variation
             }
           })
         });
@@ -5032,9 +5056,16 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     if (stabilityKey && (finalEngine === 'stability')) {
 
       try {
+        // DNA EXACT-CLONE: When audio DNA is provided, inject strict matching instructions
+        let stableMusicPrompt = musicPrompt;
+        if (referenceAudio) {
+          stableMusicPrompt = `EXACT SONIC CLONE — Match this reference precisely: same BPM, same key, same instruments, same mix balance, same groove, same production style. The output must sound like it came from the same producer session. ${stableMusicPrompt}`;
+          logger.info('🧬 Audio DNA exact-clone mode activated for Stability AI');
+        }
+
         logger.info('Using Stability AI');
         const formData = new FormData();
-        formData.append('prompt', musicPrompt);
+        formData.append('prompt', stableMusicPrompt);
         formData.append('duration', Math.min(durationSeconds, 180).toString());
         formData.append('model', 'stable-audio-2.5');
         formData.append('output_format', 'mp3');
@@ -5082,10 +5113,9 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         logger.info('Using Replicate Music GPT (stereo-large)');
         const replicate = new Replicate({ auth: replicateKey });
 
-        const output = await replicate.run(
-          "facebook/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38",
-          {
-            input: {
+        // DNA EXACT-CLONE: When audio DNA is provided, use it as melody conditioning
+        // MusicGen's melody parameter forces the model to follow the harmonic/rhythmic structure
+        const musicGenInput = {
               prompt: musicPrompt,
               duration: Math.min(durationSeconds, 65),
               model_version: 'stereo-large',
@@ -5093,9 +5123,20 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
               normalization_strategy: "loudness",
               top_k: 250,
               top_p: 0.0,
-              temperature: 0.85,
-              classifier_free_guidance: 7
-            }
+              temperature: referenceAudio ? 0.6 : 0.85,  // Lower temp with DNA = more faithful reproduction
+              classifier_free_guidance: referenceAudio ? 10 : 7  // Higher CFG with DNA = stricter adherence
+        };
+
+        if (referenceAudio) {
+          musicGenInput.melody = referenceAudio;  // Condition generation on reference audio DNA
+          musicGenInput.model_version = 'stereo-melody-large';  // Use melody-conditioned model for DNA
+          logger.info('🧬 Audio DNA exact-clone mode: MusicGen melody conditioning activated');
+        }
+
+        const output = await replicate.run(
+          "facebook/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38",
+          {
+            input: musicGenInput
           }
         );
 
@@ -5582,6 +5623,12 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
     if (audioUrl || vocalUrl) {
       enhancedPrompt = `${prompt}. Synchronize movements and energy with a ${req.body.style || 'dynamic'} beat. The video should feel like a high-fidelity Billboard-ready music video performance with rhythmic cuts, cinematic lighting, professional color grading, and energetic motion matching the audio flow accurately. Righteous quality, superior visual fidelity.`;
       logger.info('🎬 Augmenting video prompt for audio synchronization', { hasAudio: !!audioUrl, hasVocals: !!vocalUrl });
+    }
+
+    // DNA EXACT-CLONE: When reference image is provided, enforce strict visual identity replication
+    if (referenceImage) {
+      enhancedPrompt = `EXACT VISUAL CLONE — Replicate the reference image precisely: same person, same face, same style, same colors, same composition, same lighting, same cinematic identity. The artist must appear identical to their reference. Do NOT alter appearance, do NOT reinterpret style. ${enhancedPrompt}`;
+      logger.info('🧬 Video DNA exact-clone mode activated', { hasReference: true });
     }
 
     // FAST-FAIL/MOCK for test prompts — only in development

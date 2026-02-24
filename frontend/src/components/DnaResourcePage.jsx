@@ -26,7 +26,7 @@ const DNA_TYPES = [
     icon: Image,
     color: ORANGE,
     tagline: 'Your Aesthetic Fingerprint',
-    description: 'Upload mood boards, album art references, screenshots, or any visual that defines your artistic identity. Every AI-generated cover, thumbnail, and visual asset inherits your aesthetic DNA.',
+    description: 'Upload your face, your style, your brand. Every AI-generated image and video will be an EXACT clone of your visual identity — same face, same colors, same composition, same lighting. No creative reinterpretation. Pixel-perfect consistency.',
     accepts: 'image/*',
     examples: [
       'Album cover mood boards',
@@ -35,7 +35,7 @@ const DNA_TYPES = [
       'Brand identity assets',
       'Stage/performance screenshots'
     ],
-    howItWorks: 'Visual DNA is embedded into every image and video generation prompt. The AI models analyze color palettes, composition, mood, and stylistic elements from your reference — then reproduce that visual language across all outputs.',
+    howItWorks: 'Visual DNA is passed directly to the image and video generation models in EXACT CLONE mode. The AI receives your reference with maximum fidelity parameters (image_prompt_strength: 0.85) and strict instructions to replicate — not reinterpret — your visual identity. Every output looks like you, every time.',
     proTips: [
       'Upload 2-3 references with consistent color schemes for strongest DNA inheritance',
       'High-contrast, bold imagery produces the most distinctive AI outputs',
@@ -49,7 +49,7 @@ const DNA_TYPES = [
     icon: Music,
     color: CYAN,
     tagline: 'Your Sonic Blueprint',
-    description: 'Feed the AI your reference beats, samples, or backing tracks. It inherits tempo, key signature, timbre, and vibe — making every generated beat feel like an extension of your sound.',
+    description: 'Feed the AI your reference beats, samples, or instrumentals. It matches the exact BPM, key, timbre, groove, and production style — every generated beat sounds like it came from the same session. Not "inspired by" — cloned.',
     accepts: 'audio/*',
     examples: [
       'Reference beats or instrumentals',
@@ -58,7 +58,7 @@ const DNA_TYPES = [
       'Drum patterns or rhythmic references',
       'Ambient textures or pads'
     ],
-    howItWorks: 'Audio DNA is analyzed for BPM, key, spectral characteristics, and mood. These parameters are injected into MusicGen and Riffusion prompts, ensuring generated audio shares the same sonic fingerprint as your reference.',
+    howItWorks: 'Audio DNA is injected as melody conditioning into MusicGen (stereo-melody-large model) for exact harmonic/rhythmic cloning. Temperature drops to 0.6 and classifier guidance rises to 10 for strict adherence. Stability AI receives explicit clone instructions in the prompt. The output matches your reference\'s DNA exactly.',
     proTips: [
       'Short 10-30s loops work best — the AI extracts key/tempo more accurately from focused clips',
       'Use Audio DNA + specific BPM settings together for maximum control',
@@ -81,7 +81,7 @@ const DNA_TYPES = [
       'Favorite artist lyrics (for style reference)',
       'Brand messaging or manifesto text'
     ],
-    howItWorks: 'Lyrics DNA is prepended to every text generation prompt with a directive to match writing style, thematic patterns, vocabulary level, and emotional tone. The AI doesn\'t copy — it learns the essence of how you write.',
+    howItWorks: 'Lyrics DNA is injected in EXACT CLONE mode — the AI receives explicit directives to match your vocabulary, slang patterns, rhyme schemes, cadence, punctuation style, metaphor density, and emotional tone. It doesn\'t learn the "essence" — it clones every stylistic fingerprint so the output reads like you wrote it.',
     proTips: [
       'Upload 3+ pages of your own writing for the strongest style match',
       'Include lyrics from different moods — the AI picks up your range, not just one tone',
@@ -104,7 +104,7 @@ const DNA_TYPES = [
       'Storyboard frame',
       'Location or environment reference'
     ],
-    howItWorks: 'Seed DNA is passed directly to the video generation model as the init_image parameter. This creates visual continuity — the AI builds motion and narrative around your provided anchor, ensuring the character or scene persists across all generated frames.',
+    howItWorks: 'Seed DNA is passed directly to the video generation model (Veo 3.0/2.0) as the init_image parameter with EXACT CLONE prompting — the AI is instructed to replicate the same person, same face, same style, same colors, same cinematic identity. Your character persists perfectly across every frame.',
     proTips: [
       'High-contrast images with clear subjects produce the most coherent video output',
       'Use your Visual DNA album cover as Seed DNA for perfectly matched music videos',
@@ -150,7 +150,7 @@ const QUICK_START_STEPS = [
 const FAQ_ITEMS = [
   {
     q: 'How is DNA different from a regular prompt?',
-    a: 'A prompt tells the AI what to create. DNA tells it who you are. Prompts change per generation — DNA persists across every output, creating a coherent artistic identity that makes all your content instantly recognizable.'
+    a: 'A prompt tells the AI what to create. DNA tells it who you are — and the AI clones that identity with maximum fidelity parameters. No creative reinterpretation, no approximation. Visual DNA locks image_prompt_strength to 0.85. Voice DNA locks similarity_boost to 0.98 and temperature to 0.15. Audio DNA uses melody conditioning with guidance 10. Every output is an exact extension of you.'
   },
   {
     q: 'Can I use multiple DNA types simultaneously?',
@@ -158,7 +158,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Does DNA affect voice/vocal generation?',
-    a: 'Audio DNA influences the backing track and sonic environment. For vocal identity, use the Voice Clone system (separate from DNA) — upload 5-10 seconds of your voice and the AI creates a persistent vocal clone via ElevenLabs IVC.'
+    a: 'Yes — powerfully. When Voice Clone DNA is active, ElevenLabs settings lock to maximum fidelity: similarity_boost 0.98, stability 0.80, style 0.90. XTTS voice cloning drops to temperature 0.15 for exact reproduction. Your voice, your punctuation, your tempo, your delivery — cloned perfectly. No "sort of like you" — exactly you.'
   },
   {
     q: 'How do I clear or swap DNA?',
