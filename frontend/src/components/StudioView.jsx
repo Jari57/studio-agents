@@ -8630,6 +8630,9 @@ const fetchUserCredits = useCallback(async (uid) => {
           { id: 'support', icon: CircleHelp, label: 'Help & Support', desc: 'FAQ & contact us', color: 'var(--color-orange)' },
           { id: 'hub', icon: FolderPlus, label: 'Project Hub', desc: 'Shared by Studio Agent users', color: 'var(--color-blue)' },
           { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-purple)' },
+          { id: 'dna', icon: Layers, label: 'DNA System', desc: 'Visual, audio & lyrics DNA', color: 'var(--color-emerald)', external: true },
+          { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '27+ voices & voice cloning', color: 'var(--color-pink)', external: true },
+          { id: 'billboard', icon: Award, label: 'Billboard Blueprint', desc: 'Make a hit record start to finish', color: 'var(--color-yellow)', external: true },
         ];
 
         return (
@@ -8652,7 +8655,9 @@ const fetchUserCredits = useCallback(async (uid) => {
                   <div
                     key={item.id}
                     onClick={() => {
-                      if (item.id === 'legal' || item.id === 'whitepapers') {
+                      if (item.external) {
+                        window.location.hash = `#/${item.id}`;
+                      } else if (item.id === 'legal' || item.id === 'whitepapers') {
                         window.location.hash = `#/${item.id}`;
                       } else if (item.id === 'orchestrator') {
                         setActiveTab('mystudio');
