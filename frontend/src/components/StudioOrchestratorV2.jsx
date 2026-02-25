@@ -1694,6 +1694,7 @@ export default function StudioOrchestratorV2({
 
       if (muxData?.muxedVideoUrl) {
         setMediaUrls(prev => ({ ...prev, video: muxData.muxedVideoUrl }));
+        mediaUrlsRef.current = { ...mediaUrlsRef.current, video: muxData.muxedVideoUrl }; // Sync ref for pipeline reads
         console.log('[Mux] Video muxed with audio successfully');
         return true;
       }
@@ -2438,9 +2439,15 @@ REQUIREMENTS:
         updatePipelineStep('mux', 'done');
       }
 
-      // Auto-create final mix preview
+      // Auto-create final mix preview (properly awaited)
       updatePipelineStep('final', 'active');
-      setTimeout(() => { handleCreateFinalMix(); updatePipelineStep('final', 'done'); }, 500);
+      try {
+        await handleCreateFinalMix();
+        updatePipelineStep('final', 'done');
+      } catch (mixErr) {
+        console.warn('[Pipeline] Final mix auto-create failed:', mixErr);
+        updatePipelineStep('final', 'error');
+      }
       
       toast.dismiss('gen-all');
       toast.success('Generation complete!');
@@ -2650,6 +2657,7 @@ REQUIREMENTS:
         const finalUrl = data.audioUrl || data.output;
         if (finalUrl) {
           setMediaUrls(prev => ({ ...prev, audio: finalUrl }));
+          mediaUrlsRef.current = { ...mediaUrlsRef.current, audio: finalUrl }; // Sync ref for pipeline reads
           setGenerationProviders(prev => ({ ...prev, audio: data.source || data.provider || 'ai' }));
           
           // Ensure outputs.audio is set so the asset is included in the project save
@@ -2836,12 +2844,13 @@ REQUIREMENTS:
       if (response.ok && data.audioUrl) {
         // If backend mixed vocals with beat (backingTrackUrl was provided), store as mixedAudio too
         const wasMixed = !!(mediaUrls.audio); // beat was available → backend mixed
-        setMediaUrls(prev => ({
-          ...prev,
+        const vocalUpdate = {
           vocals: data.audioUrl,
           lyricsVocal: data.audioUrl,
           ...(wasMixed ? { mixedAudio: data.audioUrl } : {})
-        }));
+        };
+        setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
+        mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
         setGenerationProviders(prev => ({ ...prev, lyrics: data.provider || 'ai' }));
         // Ensure outputs.vocals is set so the asset is included in the project save
         setOutputs(prev => ({ 
@@ -3415,6 +3424,7 @@ REQUIREMENTS:
         
         if (imageData) {
           setMediaUrls(prev => ({ ...prev, image: imageData }));
+          mediaUrlsRef.current = { ...mediaUrlsRef.current, image: imageData }; // Sync ref for pipeline reads
           setGenerationProviders(prev => ({ ...prev, visual: data.model || data.source || 'ai' }));
           toast.success('Image created!', { id: 'gen-image' });
 
@@ -3620,6 +3630,7 @@ REQUIREMENTS:
               console.log(`[Orchestrator] Video job poll ${i + 1}:`, statusData.status, statusData.progress);
               if (statusData.status === 'completed' && statusData.videoUrl) {
                 setMediaUrls(prev => ({ ...prev, video: statusData.videoUrl }));
+                mediaUrlsRef.current = { ...mediaUrlsRef.current, video: statusData.videoUrl }; // Sync ref for pipeline reads
                 setGenerationProviders(prev => ({ ...prev, video: 'synced-music-video' }));
                 toast.success(`Music video created! (${statusData.duration || videoDuration}s)`, { id: 'gen-video' });
                 jobSuccess = true;
@@ -3662,6 +3673,7 @@ REQUIREMENTS:
         if (data.videoUrl) {
           // Inline result (30s videos return immediately)
           setMediaUrls(prev => ({ ...prev, video: data.videoUrl }));
+          mediaUrlsRef.current = { ...mediaUrlsRef.current, video: data.videoUrl }; // Sync ref for pipeline reads
           setGenerationProviders(prev => ({ ...prev, video: 'synced-music-video' }));
           toast.success(`Music video created! (${data.duration || videoDuration}s, ${data.bpm || '?'} BPM)`, { id: 'gen-video' });
 
@@ -3777,6 +3789,7 @@ REQUIREMENTS:
           
           if (videoUrl && typeof videoUrl === 'string' && (videoUrl.startsWith('http') || videoUrl.startsWith('blob:') || videoUrl.startsWith('/api/'))) {
             setMediaUrls(prev => ({ ...prev, video: videoUrl }));
+            mediaUrlsRef.current = { ...mediaUrlsRef.current, video: videoUrl }; // Sync ref for pipeline reads
             setGenerationProviders(prev => ({ ...prev, video: data.source || data.provider || 'ai' }));
             toast.success(data.isDemo ? 'Demo video loaded!' : 'Video created!', { id: 'gen-video' });
 
@@ -3849,6 +3862,12 @@ REQUIREMENTS:
     // PREVENT DUPLICATE CALLS
     if (creatingFinalMix) return;
 
+    // Auth required for mixing endpoint
+    if (!authToken) {
+      toast.error('Sign in to create a final mix', { icon: '🔒' });
+      return;
+    }
+
     // Need at least vocals or beat
     const hasVocals = !!(mediaUrls.vocals || mediaUrls.lyricsVocal);
     const hasBeat = !!mediaUrls.audio;
@@ -3888,6 +3907,7 @@ REQUIREMENTS:
           finalAudioUrl = data.mixedAudioUrl;
           mixedViaApi = true;
           setMediaUrls(prev => ({ ...prev, mixedAudio: finalAudioUrl }));
+          mediaUrlsRef.current = { ...mediaUrlsRef.current, mixedAudio: finalAudioUrl }; // Sync ref
           console.log('[FinalMix] Mixed audio created via /api/create-final-mix', data.preset);
         } else {
           const err = await response.json().catch(() => ({}));
@@ -3986,6 +4006,12 @@ REQUIREMENTS:
   const handleGenerateProfessionalMusicVideo = async () => {
     // PREVENT DUPLICATE CALLS
     if (generatingMusicVideo) return;
+
+    // Auth required for synced video endpoint
+    if (!authToken) {
+      toast.error('Sign in to create synced music videos', { icon: '🔒' });
+      return;
+    }
 
     if (!mediaUrls.audio || (!outputs.video && !mediaUrls.image)) {
       toast.error('Need beat audio and video concept to sync');
