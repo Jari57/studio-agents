@@ -85,7 +85,7 @@ const DNA_TYPES = [
     proTips: [
       'Upload 3+ pages of your own writing for the strongest style match',
       'Include lyrics from different moods — the AI picks up your range, not just one tone',
-      'PDF and DOCX files are extracted server-side — formatting is preserved',
+      'Plain text (.txt) files produce the strongest results — paste lyrics directly for best match',
       'Combine Lyrics DNA with specific genre/mood settings for genre-bending results'
     ]
   },
@@ -178,7 +178,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What makes this different from other AI tools?',
-    a: 'Most AI tools are stateless — every prompt starts from zero. Studio Agents\' DNA system creates persistent creative memory. Your artistic identity compounds over time, making outputs more "you" with every session. This is patented technology.'
+    a: 'Most AI tools are stateless — every prompt starts from zero. Studio Agents\' DNA system creates persistent creative memory. Your artistic identity compounds over time, making outputs more "you" with every session. This is proprietary technology built on years of music production expertise.'
   }
 ];
 
@@ -204,13 +204,13 @@ const IP_HIGHLIGHTS = [
     icon: Eye
   },
   {
-    title: 'Mathematical DNA',
-    description: 'Beat and visual generators use deterministic seed parameters derived from your DNA, enabling reproducible outputs with consistent artistic DNA.',
+    title: 'Consistent DNA Inheritance',
+    description: 'Beat and visual generators receive your DNA references with high-fidelity parameters — image_prompt_strength 0.85, melody conditioning guidance 10 — ensuring every output inherits your artistic identity.',
     icon: Target
   },
   {
-    title: 'Neural Emotion Mapping',
-    description: 'Lyrics DNA is analyzed for emotional sentiment. The AI aligns vocal delivery, musical mood, and visual tone to match your writing\'s emotional signature.',
+    title: 'Lyrics-Driven Generation',
+    description: 'Lyrics DNA is injected directly into the AI prompt pipeline. The Ghostwriter agent clones your vocabulary, slang patterns, rhyme schemes, and writing style with exact-match directives.',
     icon: Sparkles
   }
 ];

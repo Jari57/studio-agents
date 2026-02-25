@@ -596,7 +596,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [isUploadingReferenceSong, setIsUploadingReferenceSong] = useState(false);
   const [elevenLabsVoiceId, setElevenLabsVoiceId] = useState(() => {
     const uid = localStorage.getItem('studio_user_id') || 'guest';
-    return localStorage.getItem(`studio_elevenlabs_voice_id_${uid}`) || '';
+    // Check for IVC cloned voice first, then manually picked ElevenLabs voice
+    return localStorage.getItem('studio_cloned_elevenlabs_id') || localStorage.getItem(`studio_elevenlabs_voice_id_${uid}`) || '';
   });
   const [elVoices, setElVoices] = useState([]);
   const [referencedAudioId, setReferencedAudioId] = useState('');
@@ -2566,6 +2567,18 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 if (userData.lyricsDnaUrl) setLyricsDnaUrl(userData.lyricsDnaUrl);
                 if (userData.voiceSampleUrl) setVoiceSampleUrl(userData.voiceSampleUrl);
 
+                // Load cloned ElevenLabs voice ID if user previously cloned via IVC
+                if (userData.clonedVoiceId) {
+                  setElevenLabsVoiceId(userData.clonedVoiceId);
+                  localStorage.setItem('studio_cloned_elevenlabs_id', userData.clonedVoiceId);
+                  console.log('[Auth] Cloned voice ID loaded from Firestore:', userData.clonedVoiceId);
+                }
+                // Restore cloned voice speakerUrl to voiceSettings
+                if (userData.voiceSampleUrl) {
+                  setVoiceSettings(prev => ({ ...prev, speakerUrl: userData.voiceSampleUrl }));
+                  localStorage.setItem('studio_cloned_voice_url', userData.voiceSampleUrl);
+                }
+
                 // Load subscription plan from Firestore
                 // Backend saves: tier, subscriptionTier, subscriptionStatus
                 if (userData.subscriptionStatus === 'active' && userData.tier) {
@@ -3756,7 +3769,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           audioId: referencedAudioId || undefined,
           elevenLabsVoiceId: elevenLabsVoiceId,
           referenceSongUrl: referenceSongUrl || null,
-          quality: (elevenLabsVoiceId || voiceSampleUrl) ? 'premium' : 'standard'
+          quality: (elevenLabsVoiceId || voiceSampleUrl || voiceSettings.speakerUrl) ? 'premium' : 'standard'
         })
       });
 
@@ -4017,13 +4030,11 @@ const fetchUserCredits = useCallback(async (uid) => {
     if (!file) return;
 
     setIsUploadingSample(true);
-    const loadingId = toast.loading('Cloning voice sample...', { id: 'voice-upload' });
+    const loadingId = toast.loading('Cloning voice via ElevenLabs IVC...', { id: 'voice-upload' });
 
     try {
       const token = user ? await user.getIdToken() : null;
-      const headers = {
-        'Content-Type': 'application/json'
-      };
+      const headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
       const reader = new FileReader();
@@ -4031,7 +4042,9 @@ const fetchUserCredits = useCallback(async (uid) => {
       reader.onload = async () => {
         try {
           const base64Data = reader.result;
-          const response = await fetch(`${BACKEND_URL}/api/upload-asset`, {
+
+          // Step 1: Upload raw file for XTTS fallback (speakerUrl)
+          const uploadResp = await fetch(`${BACKEND_URL}/api/upload-asset`, {
             method: 'POST',
             headers,
             body: JSON.stringify({
@@ -4041,33 +4054,66 @@ const fetchUserCredits = useCallback(async (uid) => {
               assetType: 'audio'
             })
           });
+          const uploadResult = await uploadResp.json();
+          const rawUrl = uploadResp.ok && uploadResult.url ? uploadResult.url : null;
 
-          const result = await response.json();
-          if (response.ok && result.url) {
-            const url = result.url;
-            setVoiceSampleUrl(url);
-            
-            // Industrial Strength Persistence: Save to User Profile
-            if (user?.uid && db) {
-              try {
-                const userRef = doc(db, 'users', user.uid);
-                await updateDoc(userRef, {
-                  voiceSampleUrl: url,
-                  lastVoiceUpdate: Date.now()
-                });
-                console.log('[Studio] Persisted Voice sample to profile');
-              } catch (saveErr) {
-                console.warn('[Studio] Failed to persist Voice sample:', saveErr);
-              }
+          // Step 2: Call ElevenLabs IVC voice cloning endpoint
+          let clonedVoiceId = null;
+          try {
+            const cloneResp = await fetch(`${BACKEND_URL}/api/voice-clone`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                samples: [base64Data],
+                voiceName: `Clone ${user?.displayName || 'Voice'} ${new Date().toLocaleDateString()}`
+              })
+            });
+            const cloneResult = await cloneResp.json();
+            if (cloneResp.ok && cloneResult.voiceId) {
+              clonedVoiceId = cloneResult.voiceId;
+              console.log('[Studio] ElevenLabs IVC clone created:', clonedVoiceId);
+            } else {
+              console.warn('[Studio] IVC clone failed, falling back to XTTS:', cloneResult.error || cloneResult.details);
             }
+          } catch (ivcErr) {
+            console.warn('[Studio] IVC clone unavailable, falling back to XTTS:', ivcErr.message);
+          }
 
-            toast.success('Voice cloned! Ready for speech.', { id: loadingId });
+          // Step 3: Update all state — both IVC voice ID and raw URL
+          if (rawUrl) {
+            setVoiceSampleUrl(rawUrl);
+            setVoiceSettings(prev => ({ ...prev, speakerUrl: rawUrl, style: 'cloned' }));
+            localStorage.setItem('studio_cloned_voice_url', rawUrl);
+          }
+          if (clonedVoiceId) {
+            setElevenLabsVoiceId(clonedVoiceId);
+            localStorage.setItem('studio_cloned_elevenlabs_id', clonedVoiceId);
+          }
+
+          // Step 4: Persist to Firestore
+          if (user?.uid && db) {
+            try {
+              const userRef = doc(db, 'users', user.uid);
+              const updateData = { lastVoiceUpdate: Date.now() };
+              if (rawUrl) updateData.voiceSampleUrl = rawUrl;
+              if (clonedVoiceId) updateData.clonedVoiceId = clonedVoiceId;
+              await updateDoc(userRef, updateData);
+              console.log('[Studio] Persisted voice clone to profile');
+            } catch (saveErr) {
+              console.warn('[Studio] Failed to persist voice clone:', saveErr);
+            }
+          }
+
+          if (clonedVoiceId) {
+            toast.success('Voice cloned via ElevenLabs IVC! Premium quality ready.', { id: loadingId });
+          } else if (rawUrl) {
+            toast.success('Voice uploaded! Using XTTS voice matching.', { id: loadingId });
           } else {
-            throw new Error(result.error || 'Upload failed');
+            throw new Error('Both IVC clone and file upload failed');
           }
         } catch (err) {
-          console.error('[Studio] Voice upload error:', err);
-          toast.error('Voice cloning failed', { id: loadingId });
+          console.error('[Studio] Voice clone error:', err);
+          toast.error('Voice cloning failed: ' + (err.message || 'Unknown error'), { id: loadingId });
         } finally {
           setIsUploadingSample(false);
         }
@@ -6178,7 +6224,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                                   <option value="spoken">(chat) Spoken Word</option>
                                 </optgroup>
                                 <optgroup label="✨ Custom/Advanced">
-                                  <option value="cloned" disabled={!voiceSettings.speakerUrl}>(dna) Cloned Voice {!voiceSettings.speakerUrl && '(Upload first)'}</option>
+                                  <option value="cloned" disabled={!voiceSettings.speakerUrl && !voiceSampleUrl}>(dna) Cloned Voice {!voiceSettings.speakerUrl && !voiceSampleUrl && '(Upload first)'}</option>
                                 </optgroup>
                               </select>
                             </div>
@@ -6204,7 +6250,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                                   <button 
                                     onClick={() => {
                                       setVoiceSettings({...voiceSettings, speakerUrl: null, style: 'rapper'});
+                                      setVoiceSampleUrl(null);
+                                      setElevenLabsVoiceId(null);
                                       localStorage.removeItem('studio_cloned_voice_url');
+                                      localStorage.removeItem('studio_cloned_elevenlabs_id');
                                     }}
                                     style={{ background: 'none', border: 'none', color: 'var(--color-red)', fontSize: '0.7rem', cursor: 'pointer' }}
                                   >
@@ -6238,17 +6287,51 @@ const fetchUserCredits = useCallback(async (uid) => {
                                       const file = e.target.files[0];
                                       if (!file) return;
                                       
-                                      const toastId = toast.loading('Uploading voice profile...');
+                                      const toastId = toast.loading('Cloning voice via ElevenLabs IVC...');
                                       try {
-                                        // Use existing uploadFile helper from firebase.js
+                                        // Upload raw file for XTTS fallback
                                         const url = await uploadFile(file, `voices/${user?.uid || 'guest'}_${Date.now()}`);
                                         setVoiceSettings({
                                           ...voiceSettings, 
                                           speakerUrl: url,
                                           style: 'cloned'
                                         });
+                                        setVoiceSampleUrl(url);
                                         localStorage.setItem('studio_cloned_voice_url', url);
-                                        toast.success('Voice profile cloned successfully!', { id: toastId });
+
+                                        // Also call ElevenLabs IVC for premium clone
+                                        try {
+                                          const token = user ? await user.getIdToken() : null;
+                                          const ivcHeaders = { 'Content-Type': 'application/json' };
+                                          if (token) ivcHeaders['Authorization'] = `Bearer ${token}`;
+                                          
+                                          const reader = new FileReader();
+                                          reader.readAsDataURL(file);
+                                          reader.onload = async () => {
+                                            try {
+                                              const cloneResp = await fetch(`${BACKEND_URL}/api/voice-clone`, {
+                                                method: 'POST',
+                                                headers: ivcHeaders,
+                                                body: JSON.stringify({
+                                                  samples: [reader.result],
+                                                  voiceName: `Clone ${user?.displayName || 'Voice'} ${new Date().toLocaleDateString()}`
+                                                })
+                                              });
+                                              const cloneResult = await cloneResp.json();
+                                              if (cloneResp.ok && cloneResult.voiceId) {
+                                                setElevenLabsVoiceId(cloneResult.voiceId);
+                                                localStorage.setItem('studio_cloned_elevenlabs_id', cloneResult.voiceId);
+                                                console.log('[Studio] IVC clone created from Voice Settings:', cloneResult.voiceId);
+                                              }
+                                            } catch (ivcErr) {
+                                              console.warn('[Studio] IVC clone unavailable:', ivcErr.message);
+                                            }
+                                          };
+                                        } catch (ivcErr) {
+                                          console.warn('[Studio] IVC clone setup failed:', ivcErr.message);
+                                        }
+
+                                        toast.success('Voice cloned! Ready for premium vocals.', { id: toastId });
                                       } catch (err) {
                                         console.error('Voice upload error:', err);
                                         toast.error('Failed to upload voice. Try again.', { id: toastId });

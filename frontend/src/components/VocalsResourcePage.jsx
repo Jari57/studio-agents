@@ -112,10 +112,10 @@ const VOICE_CLONING_STEPS = [
   },
   {
     step: 3,
-    title: 'Clone via ElevenLabs IVC',
-    description: 'Hit "Clone Voice" — your samples are sent to ElevenLabs\' Instant Voice Cloning API. A unique voice_id is created and linked to your account. This takes 10-30 seconds.',
+    title: 'Automatic IVC Cloning',
+    description: 'When you upload, your sample is automatically sent to ElevenLabs\' Instant Voice Cloning API. A unique voice_id is created and linked to your account. This takes 10-30 seconds. If IVC is unavailable, XTTS voice matching is used as fallback.',
     icon: Zap,
-    tip: 'Upload 2-3 diverse samples (different sentences) for the most natural-sounding clone.'
+    tip: 'Upload from either the DNA Vault or Voice Settings panel — both trigger ElevenLabs IVC cloning.'
   },
   {
     step: 4,
@@ -160,7 +160,7 @@ const PROVIDER_CHAIN = [
     name: 'ElevenLabs',
     priority: 2,
     color: ACCENT,
-    description: 'Primary provider for rap, narration, and speaking voices. 27+ curated voices mapped by style × rapStyle × genre. Multilingual support in 29+ languages. Used for all voice cloning via IVC.',
+    description: 'Primary provider for rap, narration, and speaking voices. 20+ curated voice styles mapped by style × rapStyle × genre. Multilingual support in 29+ languages. Used for all voice cloning via IVC.',
     bestFor: 'Rap vocals, narration, voice cloning, multilingual output',
     model: 'eleven_multilingual_v2 @ mp3_44100_192',
     icon: Mic2
@@ -310,7 +310,7 @@ export default function VocalsResourcePage({ onBack }) {
           lineHeight: '1.7'
         }}>
           Not text-to-speech — <strong style={{ color: 'white' }}>text-to-performance</strong>.
-          27+ curated voices, 8 rap delivery styles, voice cloning via ElevenLabs IVC,
+          20+ curated voice styles, 8 rap delivery styles, voice cloning via ElevenLabs IVC,
           and AI-powered reference song analysis. <em>Your voice. Your rules.</em>
         </p>
 
@@ -319,7 +319,7 @@ export default function VocalsResourcePage({ onBack }) {
           display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap'
         }}>
           {[
-            { label: 'Curated Voices', value: '27+' },
+            { label: 'Voice Styles', value: '20+' },
             { label: 'Rap Styles', value: '8' },
             { label: 'Languages', value: '29+' },
             { label: 'Output Quality', value: '192kbps' }
