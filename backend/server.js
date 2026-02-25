@@ -4937,7 +4937,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     const { 
       prompt, bpm: rawBpm = 90, durationSeconds: rawDuration = 30, genre = 'hip-hop', mood = 'chill',
       referenceAudio, engine = 'auto', highMusicality = true, seed = -1, stem = 'Full Mix',
-      quality = 'standard', outputFormat = 'music'
+      quality = 'standard', outputFormat = 'music', songStructure = 'full'
     } = req.body;
 
     const bpm = parseInt(rawBpm) || 90;
@@ -5032,8 +5032,16 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       qualityTags += ', ducked dynamics for voiceover, warm low-end, minimal high-frequency competition with speech';
     }
 
+    // ── Song structure arrangement hints ──
+    const structureHints = {
+      single: 'Arrange as a short loop or single section — 1 verse groove, no transitions needed, perfect for hooks or drops.',
+      full: 'Arrange as a full song: 8-bar intro, verse, chorus, verse, chorus, bridge, final chorus, 4-bar outro. Include clear energy transitions between sections.',
+      extended: 'Arrange as an extended DJ/producer version: long 16-bar intro, verse, chorus, verse, chorus, breakdown, build-up, drop, chorus, 16-bar outro. Suitable for live sets and remixing.'
+    };
+    const arrangementHint = structureHints[songStructure] || structureHints['full'];
+
     // Construct the final prompt with clear structure
-    const musicPrompt = `Create a ${genre} ${mood} instrumental beat at ${bpm} BPM. Style: ${prompt}. Production: ${qualityTags}`;
+    const musicPrompt = `Create a ${genre} ${mood} instrumental beat at ${bpm} BPM. ${arrangementHint} Style: ${prompt}. Production: ${qualityTags}`;
 
     // Engine Selection Logic - Always prefer Stability AI for highest quality
     let finalEngine = engine;
@@ -5249,6 +5257,10 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
         audioUrl: permanentUrl || audioUrl,
         provider,
         duration: durationSeconds,
+        actualDuration: provider === 'music-gpt' ? Math.min(durationSeconds, 65) 
+                       : provider === 'beatoven' ? Math.min(durationSeconds, 60) 
+                       : durationSeconds,
+        wasTruncated: (provider === 'music-gpt' && durationSeconds > 65) || (provider === 'beatoven' && durationSeconds > 60),
         isRealGeneration: true,
         mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg'
       });
@@ -5413,7 +5425,8 @@ app.post('/api/mix-audio', verifyFirebaseToken, requireAuth, checkCreditsFor('mi
 // ═══════════════════════════════════════════════════════════════════
 app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCreditsFor('mixing'), generationLimiter, async (req, res) => {
   try {
-    const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '', vocalVolume, beatVolume } = req.body;
+    const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '', vocalVolume, beatVolume,
+            title, artist, coverArtUrl, exportFormat = 'mp3' } = req.body;
 
     if (!vocalUrl || !beatUrl) {
       return res.status(400).json({ error: 'Both vocalUrl and beatUrl are required' });
@@ -5448,8 +5461,104 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
       return res.status(500).json({ error: 'Mixing failed — no output produced' });
     }
 
+    // ── ID3 METADATA + COVER ART EMBEDDING ──
+    // Use FFmpeg to embed title, artist, genre, and album artwork into the MP3
+    const hasMetadata = title || artist || genre || coverArtUrl;
+    let finalOutputPath = mixResult.outputPath;
+
+    if (hasMetadata) {
+      try {
+        const ffmpegStatic = require('ffmpeg-static');
+        const { execFile } = require('child_process');
+        const taggedPath = mixResult.outputPath.replace('.mp3', '_tagged.mp3');
+        
+        // Download cover art if provided
+        let coverArtPath = null;
+        if (coverArtUrl) {
+          try {
+            coverArtPath = path.join(tempDir, `cover_${Date.now()}.jpg`);
+            await downloadAudio(coverArtUrl, coverArtPath);
+          } catch (coverErr) {
+            logger.warn('Cover art download failed (continuing without)', coverErr.message);
+            coverArtPath = null;
+          }
+        }
+
+        const ffmpegArgs = ['-i', mixResult.outputPath];
+        if (coverArtPath && fs.existsSync(coverArtPath)) {
+          ffmpegArgs.push('-i', coverArtPath);
+        }
+        ffmpegArgs.push(
+          '-map', '0:a',
+          ...(coverArtPath && fs.existsSync(coverArtPath) ? ['-map', '1:0', '-c:v', 'mjpeg', '-disposition:v', 'attached_pic'] : []),
+          '-c:a', 'copy',
+          '-id3v2_version', '3',
+          '-metadata', `title=${title || songIdea || 'Studio Agents Mix'}`,
+          '-metadata', `artist=${artist || 'Studio Agents AI'}`,
+          '-metadata', `genre=${genre || style || ''}`,
+          '-metadata', `album=${title || songIdea || 'Studio Agents'}`,
+          '-metadata', `comment=Mixed by Studio Agents AI - studioagentsai.com`,
+          '-metadata', `year=${new Date().getFullYear()}`,
+          '-y', taggedPath
+        );
+
+        await new Promise((resolve, reject) => {
+          execFile(ffmpegStatic, ffmpegArgs, { timeout: 30000 }, (error) => {
+            if (error) reject(error);
+            else resolve();
+          });
+        });
+
+        if (fs.existsSync(taggedPath)) {
+          finalOutputPath = taggedPath;
+          logger.info('✅ ID3 metadata embedded', { title, artist, hasCover: !!coverArtPath });
+        }
+        if (coverArtPath) try { fs.unlinkSync(coverArtPath); } catch {}
+      } catch (tagErr) {
+        logger.warn('ID3 tagging failed (using untagged mix)', tagErr.message);
+        // Continue with untagged mix — non-fatal
+      }
+    }
+
+    // ── WAV EXPORT (optional) ──
+    let wavUrl = null;
+    if (exportFormat === 'wav') {
+      try {
+        const ffmpegStatic = require('ffmpeg-static');
+        const { execFile } = require('child_process');
+        const wavPath = finalOutputPath.replace(/\.mp3$/, '.wav');
+        await new Promise((resolve, reject) => {
+          execFile(ffmpegStatic, [
+            '-i', finalOutputPath,
+            '-c:a', 'pcm_s24le',    // 24-bit PCM for studio quality
+            '-ar', '44100',           // 44.1kHz sample rate
+            '-y', wavPath
+          ], { timeout: 30000 }, (error) => {
+            if (error) reject(error);
+            else resolve();
+          });
+        });
+        if (fs.existsSync(wavPath)) {
+          const wavBuffer = fs.readFileSync(wavPath);
+          // Upload WAV to storage
+          if (req.user) {
+            const bucket = getStorageBucket();
+            if (bucket) {
+              const wavFileName = `final_mix_${style}_${Date.now()}.wav`;
+              const wavResult = await uploadToStorage(wavBuffer, req.user.uid, wavFileName, 'audio/wav');
+              wavUrl = wavResult.url;
+              logger.info('✅ WAV export uploaded', { path: wavResult.path });
+            }
+          }
+          try { fs.unlinkSync(wavPath); } catch {}
+        }
+      } catch (wavErr) {
+        logger.warn('WAV export failed (MP3 still available)', wavErr.message);
+      }
+    }
+
     // Read mixed audio
-    const mixedBuffer = fs.readFileSync(mixResult.outputPath);
+    const mixedBuffer = fs.readFileSync(finalOutputPath);
     let mixedAudioUrl = `data:audio/mpeg;base64,${mixedBuffer.toString('base64')}`;
 
     // Upload to Cloud Storage for permanent URL
@@ -5467,13 +5576,17 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
       }
     }
 
-    // Cleanup temp file
-    try { fs.unlinkSync(mixResult.outputPath); } catch {}
+    // Cleanup all temp files
+    if (finalOutputPath !== mixResult.outputPath) {
+      try { fs.unlinkSync(mixResult.outputPath); } catch {}
+    }
+    try { fs.unlinkSync(finalOutputPath); } catch {}
 
-    logger.info('✅ Final mix created', { provider: 'ffmpeg-professional', preset: presetName });
+    logger.info('✅ Final mix created', { provider: 'ffmpeg-professional', preset: presetName, hasMetadata: !!hasMetadata, hasWav: !!wavUrl });
 
     res.json({
       mixedAudioUrl: permanentUrl || mixedAudioUrl,
+      wavUrl: wavUrl || null,
       provider: 'ffmpeg-professional',
       quality: mixResult.quality || 'billboard-ready',
       preset: presetName,
@@ -5527,36 +5640,98 @@ app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLim
       downloadAudio(videoUrl, tempVideo)
     ]);
 
-    logger.info('🎬 Files downloaded, starting FFmpeg mux');
+    logger.info('🎬 Files downloaded, probing durations');
 
-    // Run FFmpeg mux with retry on codec incompatibility
+    // ── Probe durations so we can loop video to match audio ──
+    const probeDuration = (filePath) => new Promise((resolve) => {
+      execFile(ffmpegStatic, [
+        '-i', filePath,
+        '-show_entries', 'format=duration',
+        '-v', 'quiet',
+        '-of', 'csv=p=0'
+      ], { timeout: 15000 }, (_err, stdout) => {
+        // ffmpeg-static doesn't include ffprobe, so fall back to parsing stderr
+        resolve(null);
+      });
+    });
+
+    // Use ffmpeg stderr to get duration (works without ffprobe)
+    const getDuration = (filePath) => new Promise((resolve) => {
+      execFile(ffmpegStatic, ['-i', filePath, '-f', 'null', '-'], { timeout: 30000 }, (_err, _stdout, stderr) => {
+        // Parse "Duration: HH:MM:SS.ms" from stderr
+        const match = (stderr || '').match(/Duration:\s*(\d+):(\d+):(\d+)\.(\d+)/);
+        if (match) {
+          const secs = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]) + parseInt(match[4]) / 100;
+          resolve(secs);
+        } else {
+          resolve(null);
+        }
+      });
+    });
+
+    const [audioDur, videoDur] = await Promise.all([
+      getDuration(tempAudio),
+      getDuration(tempVideo)
+    ]);
+
+    logger.info('🎬 Probed durations', { audioDur, videoDur });
+
+    // Determine if we need to loop the video to cover the full audio length
+    const needsLoop = audioDur && videoDur && videoDur > 0 && audioDur > videoDur * 1.05; // 5% tolerance
+
+    // Run FFmpeg mux — loop video when it's shorter than audio
     const runFfmpeg = (copyVideo) => new Promise((resolve, reject) => {
-      const args = [
-        '-i', tempVideo,
-        '-i', tempAudio,
-        '-c:v', copyVideo ? 'copy' : 'libx264',
-        '-c:a', 'aac',
-        '-b:a', '192k',
-        '-shortest',
-        '-movflags', '+faststart',
-        '-y',
-        outputPath
-      ];
-      // Add preset for re-encode to keep it fast
-      if (!copyVideo) args.splice(args.indexOf('libx264') + 1, 0, '-preset', 'fast');
+      let args;
 
-      execFile(ffmpegStatic, args, { timeout: 180000 }, (error, _stdout, stderr) => {
+      if (needsLoop && !copyVideo) {
+        // Use filter_complex to loop the video stream to match audio duration
+        const loopCount = Math.ceil(audioDur / videoDur);
+        args = [
+          '-stream_loop', String(loopCount),
+          '-i', tempVideo,
+          '-i', tempAudio,
+          '-c:v', 'libx264',
+          '-preset', 'fast',
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-t', String(Math.ceil(audioDur)),  // trim to exact audio length
+          '-movflags', '+faststart',
+          '-y',
+          outputPath
+        ];
+        logger.info('🎬 Looping video to match audio', { loopCount, targetDuration: Math.ceil(audioDur) });
+      } else {
+        args = [
+          '-i', tempVideo,
+          '-i', tempAudio,
+          '-c:v', copyVideo ? 'copy' : 'libx264',
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-shortest',
+          '-movflags', '+faststart',
+          '-y',
+          outputPath
+        ];
+        if (!copyVideo) args.splice(args.indexOf('libx264') + 1, 0, '-preset', 'fast');
+      }
+
+      execFile(ffmpegStatic, args, { timeout: 300000 }, (error, _stdout, stderr) => {
         if (error) {
-          logger.warn('FFmpeg mux attempt failed', { copyVideo, error: error.message, stderr: (stderr || '').substring(0, 300) });
+          logger.warn('FFmpeg mux attempt failed', { copyVideo, needsLoop, error: error.message, stderr: (stderr || '').substring(0, 300) });
           return reject(new Error(`FFmpeg mux failed: ${error.message}`));
         }
         resolve();
       });
     });
 
-    // Try fast copy first, fall back to re-encode if codec is incompatible
+    // Try fast copy first (no looping), fall back to re-encode with optional loop
     try {
-      await runFfmpeg(true);
+      if (needsLoop) {
+        // Video needs looping — must re-encode
+        await runFfmpeg(false);
+      } else {
+        await runFfmpeg(true);
+      }
     } catch (firstErr) {
       logger.info('🎬 Retrying mux with re-encode (codec incompatibility)');
       await runFfmpeg(false);
@@ -5588,7 +5763,10 @@ app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLim
     res.json({
       muxedVideoUrl: uploadResult.url,
       storagePath: uploadResult.path,
-      size: outputBuffer.length
+      size: outputBuffer.length,
+      videoLooped: !!needsLoop,
+      audioDuration: audioDur,
+      videoDuration: videoDur
     });
   } catch (err) {
     logger.error('Mux audio+video error:', err);

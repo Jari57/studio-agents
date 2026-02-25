@@ -1499,6 +1499,7 @@ export default function StudioOrchestratorV2({
   const [language, setLanguage] = useState(existingProject?.language || 'English');
   const [style, setStyle] = useState(existingProject?.style || 'Modern Hip-Hop');
   const [duration, setDuration] = useState(existingProject?.duration || 90);
+  const actualBeatDurationRef = useRef(null); // Stores the real beat duration (may differ from requested if truncated)
   const [bars, setBars] = useState(existingProject?.musicalBars || 16); // musical bars
   const [useBars, setUseBars] = useState(existingProject?.useBars ?? true); // Toggle for bar-based timing
   const [model, setModel] = useState(existingProject?.model || 'Gemini 2.0 Flash');
@@ -1695,7 +1696,15 @@ export default function StudioOrchestratorV2({
       if (muxData?.muxedVideoUrl) {
         setMediaUrls(prev => ({ ...prev, video: muxData.muxedVideoUrl }));
         mediaUrlsRef.current = { ...mediaUrlsRef.current, video: muxData.muxedVideoUrl }; // Sync ref for pipeline reads
-        console.log('[Mux] Video muxed with audio successfully');
+        console.log('[Mux] Video muxed with audio successfully', { looped: muxData.videoLooped });
+        
+        // Inform user if video was looped to match audio length
+        if (muxData.videoLooped) {
+          toast(`Video was looped to match ${Math.round(muxData.audioDuration)}s audio (original video: ${Math.round(muxData.videoDuration)}s)`, {
+            icon: '🔁',
+            duration: 5000
+          });
+        }
         return true;
       }
       return false;
@@ -2627,6 +2636,7 @@ REQUIREMENTS:
                           structure === 'Radio Edit' ? 150 :
                           structure === 'Extended' ? 180 :
                           structure === 'Loop' ? 15 : 30),
+          songStructure: songStructure || 'full', // single, full, extended — helps backend sync arrangement
           referenceAudio: audioDnaUrl || null,
           engine: musicEngine || 'music-gpt',
           quality: 'premium', // Ensure high-fidelity selection in backend
@@ -2667,6 +2677,17 @@ REQUIREMENTS:
             ...prev, 
             audio: prev.audio || `Professional ${style} beat generated at ${projectBpm} BPM`
           }));
+
+          // DURATION TRUNCATION WARNING
+          if (data.wasTruncated) {
+            toast(`Beat duration was ${data.actualDuration}s (max for ${data.provider}). Requested: ${duration}s. Consider Stability AI for longer beats.`, {
+              icon: '⚠️',
+              duration: 6000,
+              style: { borderLeft: '4px solid #f59e0b' }
+            });
+          }
+          // Store actual beat duration for downstream alignment (vocal gen, mux)
+          actualBeatDurationRef.current = data.actualDuration || duration;
 
           // AUTO-SYNC TO EXISTING PROJECT: Add the audio asset to the project library immediately
           if (existingProject && (onSaveToProject || onCreateProject)) {
@@ -2825,19 +2846,15 @@ REQUIREMENTS:
           rapStyle: backendRapStyle,
           genre: voiceStyle === 'singer-pop' ? 'pop' : (voiceStyle === 'singer-female-pop' ? 'pop' : genre),
           language: language || 'English',
-          duration: duration || 30,
+          duration: actualBeatDurationRef.current || duration || 30, // Align with actual beat length
           quality: vocalQuality, // Pass 'premium' for ElevenLabs priority
           outputFormat: outputFormat, // TV, Podcast, Social, Music (Righteous Quality)
           speakerUrl: voiceStyle === 'cloned' && !clonedVoiceId ? voiceSampleUrl : null,
           elevenLabsVoiceId: voiceStyle === 'cloned' && clonedVoiceId
             ? clonedVoiceId
-            : ((vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null),
-          backingTrackUrl: (() => {
-            // Use ref for latest value; only pass persistent URLs (not base64/blob)
-            const audioUrl = mediaUrlsRef.current?.audio || mediaUrls.audio;
-            if (audioUrl && typeof audioUrl === 'string' && audioUrl.startsWith('http')) return audioUrl;
-            return null; // Skip mixing if URL isn't persistent yet
-          })()
+            : ((vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null)
+          // NOTE: backingTrackUrl removed — vocals are generated DRY.
+          // The Final Mix step handles vocal+beat mixing once, preventing double-mixing.
         })
       });
 
@@ -2850,12 +2867,10 @@ REQUIREMENTS:
       }
 
       if (response.ok && data.audioUrl) {
-        // If backend mixed vocals with beat (backingTrackUrl was provided), store as mixedAudio too
-        const wasMixed = !!(mediaUrls.audio); // beat was available → backend mixed
+        // Store DRY vocals — Final Mix step will combine with beat
         const vocalUpdate = {
           vocals: data.audioUrl,
-          lyricsVocal: data.audioUrl,
-          ...(wasMixed ? { mixedAudio: data.audioUrl } : {})
+          lyricsVocal: data.audioUrl
         };
         setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
         mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
@@ -3908,11 +3923,11 @@ REQUIREMENTS:
     setCreatingFinalMix(true);
 
     try {
-      let finalAudioUrl = mediaUrls.mixedAudio; // May already exist from pipeline
-      let mixedViaApi = !!finalAudioUrl; // Track if we got a real mix
+      let finalAudioUrl = null;
+      let mixedViaApi = false;
 
-      // If we have both vocals and beat but no mixed version, call the mixing endpoint
-      if (!finalAudioUrl && hasVocals && hasBeat) {
+      // Always call the mixing endpoint when we have both vocals + beat (dry vocals, clean mix)
+      if (hasVocals && hasBeat) {
         toast.loading('Mixing vocals + beat into master (~15s)...', { id: 'final-mix' });
 
         const headers = await getHeaders();
@@ -3926,7 +3941,11 @@ REQUIREMENTS:
             outputFormat: outputFormat || 'music',
             genre: genre || style,
             vocalVolume: mixVocalVolume,
-            beatVolume: mixBeatVolume
+            beatVolume: mixBeatVolume,
+            // ID3 metadata for professional export
+            title: songIdea || 'Untitled',
+            artist: 'Studio Agents AI',
+            coverArtUrl: mediaUrls.image || null
           })
         });
 
@@ -4211,17 +4230,193 @@ REQUIREMENTS:
   };
 
   // Download the final mixed master (vocal + beat combined)
-  const handleDownloadMasterMix = () => {
+  const handleDownloadMasterMix = async () => {
     const mixUrl = mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl;
     if (!mixUrl) {
       toast.error('No master mix available — create a final mix first');
       return;
     }
-    const a = document.createElement('a');
-    a.href = mixUrl.startsWith('data:') ? mixUrl : mixUrl;
-    a.download = `${songIdea || 'master'}-final-mix.mp3`;
-    a.click();
-    toast.success('Downloading master mix');
+    try {
+      const fileName = `${songIdea || 'master'}-final-mix.mp3`;
+      if (mixUrl.startsWith('data:') || mixUrl.startsWith('blob:')) {
+        const a = document.createElement('a');
+        a.href = mixUrl;
+        a.download = fileName;
+        a.click();
+      } else {
+        toast.loading('Preparing download...', { id: 'dl-master' });
+        const resp = await fetch(mixUrl);
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+        toast.dismiss('dl-master');
+      }
+      toast.success('Downloading master mix');
+    } catch (err) {
+      console.error('[DownloadMaster] Error:', err);
+      window.open(mixUrl, '_blank');
+    }
+  };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // EXPORT ALL — Download complete project as ZIP bundle
+  // Includes: master mix, beat, vocals, cover art, video, lyrics, metadata
+  // ═══════════════════════════════════════════════════════════════════
+  const handleExportAll = async () => {
+    const assets = [];
+    const baseName = (songIdea || 'project').replace(/[^a-zA-Z0-9 _-]/g, '').substring(0, 50);
+    toast.loading('Preparing project export...', { id: 'export-all' });
+
+    try {
+      // Helper: fetch a URL and return as blob
+      const fetchAsBlob = async (url, fallbackName) => {
+        if (!url) return null;
+        try {
+          if (url.startsWith('data:')) {
+            const resp = await fetch(url);
+            return await resp.blob();
+          }
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          return await resp.blob();
+        } catch (err) {
+          console.warn(`[ExportAll] Failed to fetch ${fallbackName}:`, err.message);
+          return null;
+        }
+      };
+
+      // Collect all assets in parallel
+      const [masterBlob, beatBlob, vocalsBlob, imageBlob, videoBlob] = await Promise.all([
+        fetchAsBlob(mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl, 'master mix'),
+        fetchAsBlob(mediaUrls.audio, 'beat'),
+        fetchAsBlob(mediaUrls.vocals || mediaUrls.lyricsVocal, 'vocals'),
+        fetchAsBlob(mediaUrls.image, 'cover art'),
+        fetchAsBlob(musicVideoUrl || mediaUrls.video, 'video')
+      ]);
+
+      if (masterBlob) assets.push({ name: `${baseName} - Master Mix.mp3`, blob: masterBlob });
+      if (beatBlob) assets.push({ name: `${baseName} - Beat.mp3`, blob: beatBlob });
+      if (vocalsBlob) assets.push({ name: `${baseName} - Vocals.mp3`, blob: vocalsBlob });
+      if (imageBlob) {
+        const ext = imageBlob.type?.includes('png') ? 'png' : 'jpg';
+        assets.push({ name: `${baseName} - Cover Art.${ext}`, blob: imageBlob });
+      }
+      if (videoBlob) assets.push({ name: `${baseName} - Music Video.mp4`, blob: videoBlob });
+
+      // Lyrics text file
+      if (outputs.lyrics) {
+        const lyricsBlob = new Blob([outputs.lyrics], { type: 'text/plain' });
+        assets.push({ name: `${baseName} - Lyrics.txt`, blob: lyricsBlob });
+      }
+
+      // Project metadata JSON
+      const metadata = {
+        project: songIdea,
+        exportedAt: new Date().toISOString(),
+        outputs,
+        settings: { language, style, model, bpm: projectBpm, duration, genre, voiceStyle, outputFormat, songStructure },
+        agents: selectedAgents,
+        mediaUrls: {
+          masterMix: mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl || null,
+          beat: mediaUrls.audio || null,
+          vocals: mediaUrls.vocals || mediaUrls.lyricsVocal || null,
+          coverArt: mediaUrls.image || null,
+          video: musicVideoUrl || mediaUrls.video || null
+        }
+      };
+      const metadataBlob = new Blob([JSON.stringify(metadata, null, 2)], { type: 'application/json' });
+      assets.push({ name: `${baseName} - Project.json`, blob: metadataBlob });
+
+      if (assets.length <= 1) {
+        toast.error('No assets to export — generate content first', { id: 'export-all' });
+        return;
+      }
+
+      // Build ZIP using the Blob API (no external dependency)
+      // Uses the minimal ZIP format with local file headers + central directory
+      const zipParts = [];
+      const centralDirectory = [];
+      let offset = 0;
+
+      for (const asset of assets) {
+        const fileData = new Uint8Array(await asset.blob.arrayBuffer());
+        const nameBytes = new TextEncoder().encode(asset.name);
+
+        // Local file header (30 bytes + name + data)
+        const localHeader = new Uint8Array(30 + nameBytes.length);
+        const view = new DataView(localHeader.buffer);
+        view.setUint32(0, 0x04034b50, true);  // Local file header signature
+        view.setUint16(4, 20, true);           // Version needed (2.0)
+        view.setUint16(6, 0, true);            // Flags
+        view.setUint16(8, 0, true);            // Compression: stored (no compression)
+        view.setUint16(10, 0, true);           // Mod time
+        view.setUint16(12, 0, true);           // Mod date
+        view.setUint32(14, 0, true);           // CRC-32 (0 for stored)
+        view.setUint32(18, fileData.length, true); // Compressed size
+        view.setUint32(22, fileData.length, true); // Uncompressed size
+        view.setUint16(26, nameBytes.length, true); // File name length
+        view.setUint16(28, 0, true);           // Extra field length
+        localHeader.set(nameBytes, 30);
+
+        zipParts.push(localHeader);
+        zipParts.push(fileData);
+
+        // Central directory entry
+        const cdEntry = new Uint8Array(46 + nameBytes.length);
+        const cdView = new DataView(cdEntry.buffer);
+        cdView.setUint32(0, 0x02014b50, true);  // Central directory signature
+        cdView.setUint16(4, 20, true);           // Version made by
+        cdView.setUint16(6, 20, true);           // Version needed
+        cdView.setUint16(8, 0, true);            // Flags
+        cdView.setUint16(10, 0, true);           // Compression
+        cdView.setUint16(12, 0, true);           // Mod time
+        cdView.setUint16(14, 0, true);           // Mod date
+        cdView.setUint32(16, 0, true);           // CRC-32
+        cdView.setUint32(20, fileData.length, true);
+        cdView.setUint32(24, fileData.length, true);
+        cdView.setUint16(28, nameBytes.length, true);
+        cdView.setUint16(30, 0, true);           // Extra field length
+        cdView.setUint16(32, 0, true);           // File comment length
+        cdView.setUint16(34, 0, true);           // Disk number start
+        cdView.setUint16(36, 0, true);           // Internal attrs
+        cdView.setUint32(38, 0, true);           // External attrs
+        cdView.setUint32(42, offset, true);      // Offset of local header
+        cdEntry.set(nameBytes, 46);
+
+        centralDirectory.push(cdEntry);
+        offset += localHeader.length + fileData.length;
+      }
+
+      // End of central directory record
+      const cdSize = centralDirectory.reduce((sum, e) => sum + e.length, 0);
+      const eocd = new Uint8Array(22);
+      const eocdView = new DataView(eocd.buffer);
+      eocdView.setUint32(0, 0x06054b50, true);
+      eocdView.setUint16(4, 0, true);
+      eocdView.setUint16(6, 0, true);
+      eocdView.setUint16(8, centralDirectory.length, true);
+      eocdView.setUint16(10, centralDirectory.length, true);
+      eocdView.setUint32(12, cdSize, true);
+      eocdView.setUint32(16, offset, true);
+      eocdView.setUint16(20, 0, true);
+
+      const zipBlob = new Blob([...zipParts, ...centralDirectory, eocd], { type: 'application/zip' });
+      const zipUrl = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = zipUrl;
+      a.download = `${baseName} - Complete Project.zip`;
+      a.click();
+      URL.revokeObjectURL(zipUrl);
+
+      toast.success(`Exported ${assets.length} files as ZIP!`, { id: 'export-all' });
+    } catch (err) {
+      console.error('[ExportAll] Error:', err);
+      toast.error('Export failed — try downloading files individually', { id: 'export-all' });
+    }
   };
 
   // Delete handler
@@ -6478,22 +6673,7 @@ REQUIREMENTS:
           
           <div style={{ display: 'flex', gap: '12px' }}>
             <button
-              onClick={() => {
-                const exportData = {
-                  project: songIdea,
-                  timestamp: new Date().toISOString(),
-                  outputs,
-                  settings: { language, style, model }
-                };
-                const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${songIdea || 'project'}-export.json`;
-                a.click();
-                URL.revokeObjectURL(url);
-                toast.success('Exported!');
-              }}
+              onClick={handleExportAll}
               style={{
                 padding: '12px 20px',
                 borderRadius: '12px',
@@ -6508,7 +6688,7 @@ REQUIREMENTS:
               }}
             >
               <Download size={16} />
-              Export
+              Export All (.zip)
             </button>
             
             <button
