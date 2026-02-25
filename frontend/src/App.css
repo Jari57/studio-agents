@@ -9536,18 +9536,27 @@ html, body {
   /* Resources cards - 2x2 grid on mobile */
   .resources-cards-grid {
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 12px !important;
+    gap: 10px !important;
+    padding-bottom: 24px;
   }
   
   .resources-cards-grid > div {
-    padding: 20px 14px !important;
-    min-height: 150px !important;
-    border-radius: 16px !important;
+    padding: 14px 10px !important;
+    min-height: auto !important;
+    border-radius: 14px !important;
   }
   
   .resources-cards-grid > div > div:first-child {
-    width: 56px !important;
-    height: 56px !important;
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .resources-cards-grid > div > div:last-child h4 {
+    font-size: 0.82rem !important;
+  }
+
+  .resources-cards-grid > div > div:last-child p {
+    font-size: 0.65rem !important;
   }
   
   .sitemap-container {

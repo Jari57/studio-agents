@@ -8714,7 +8714,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           { id: 'hub', icon: FolderPlus, label: 'Project Hub', desc: 'Shared by Studio Agent users', color: 'var(--color-blue)' },
           { id: 'profile', icon: User, label: 'My Profile', desc: 'Account settings', color: 'var(--color-purple)' },
           { id: 'dna', icon: Layers, label: 'DNA System', desc: 'Visual, audio & lyrics DNA', color: 'var(--color-emerald)', external: true },
-          { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '27+ voices & voice cloning', color: 'var(--color-pink)', external: true },
+          { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '20+ voices & voice cloning', color: 'var(--color-pink)', external: true },
           { id: 'billboard', icon: Award, label: 'Billboard Blueprint', desc: 'Make a hit record start to finish', color: 'var(--color-yellow)', external: true },
         ];
 
@@ -8760,15 +8760,15 @@ const fetchUserCredits = useCallback(async (uid) => {
                       background: 'var(--card-bg)',
                       border: '1px solid var(--border-color)',
                       borderRadius: '20px',
-                      padding: '28px 20px',
+                      padding: isMobile ? '14px 10px' : '28px 20px',
                       cursor: 'pointer',
                       transition: 'all 0.2s ease',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       textAlign: 'center',
-                      gap: '16px',
-                      minHeight: '180px'
+                      gap: isMobile ? '8px' : '16px',
+                      minHeight: isMobile ? 'auto' : '180px'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = item.color;
@@ -8782,19 +8782,19 @@ const fetchUserCredits = useCallback(async (uid) => {
                     }}
                   >
                     <div style={{
-                      width: '70px',
-                      height: '70px',
-                      borderRadius: '18px',
+                      width: isMobile ? '44px' : '70px',
+                      height: isMobile ? '44px' : '70px',
+                      borderRadius: isMobile ? '12px' : '18px',
                       background: `${item.color}15`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
                     }}>
-                      <Icon size={34} style={{ color: item.color }} />
+                      <Icon size={isMobile ? 22 : 34} style={{ color: item.color }} />
                     </div>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '600', color: 'var(--text-primary)' }}>{item.label}</h4>
-                      <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{item.desc}</p>
+                      <h4 style={{ margin: 0, fontSize: isMobile ? '0.82rem' : '1rem', fontWeight: '600', color: 'var(--text-primary)' }}>{item.label}</h4>
+                      <p style={{ margin: '4px 0 0', fontSize: isMobile ? '0.65rem' : '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.3' }}>{item.desc}</p>
                     </div>
                   </div>
                 );
