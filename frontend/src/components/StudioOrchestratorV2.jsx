@@ -1838,6 +1838,8 @@ export default function StudioOrchestratorV2({
         if (response.ok) {
           const voices = await response.json();
           setElVoices(voices);
+        } else {
+          console.warn('[Orchestrator] ElevenLabs voices unavailable (status:', response.status, ')— using manual voice ID input');
         }
       } catch (err) {
         console.error('[Orchestrator] Error fetching ElevenLabs voices:', err);
@@ -2753,6 +2755,12 @@ REQUIREMENTS:
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.vocals) return;
 
+    // AUTH GUARD: Require sign-in before generating vocals
+    if (!authToken) {
+      toast.error('Please sign in to generate vocals');
+      return;
+    }
+
     // Use directInput (only if string), outputsRef, or current outputs (fallback)
     const lyricsText = (typeof directInput === 'string' ? directInput : null) || outputsRef.current.lyrics || outputs.lyrics;
 
@@ -2925,6 +2933,13 @@ REQUIREMENTS:
     const file = e.target.files[0];
     if (!file) return;
 
+    // AUTH GUARD: Require sign-in before uploading voice sample
+    if (!authToken) {
+      toast.error('Please sign in to upload a voice sample');
+      e.target.value = '';
+      return;
+    }
+
     // Check size limit (10MB)
     if (file.size > 10 * 1024 * 1024) {
       toast.error('File too large (max 10MB)');
@@ -3011,6 +3026,13 @@ REQUIREMENTS:
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
+    // AUTH GUARD: Require sign-in before uploading voice samples
+    if (!authToken) {
+      toast.error('Please sign in to upload voice samples');
+      e.target.value = '';
+      return;
+    }
+
     // Limit to 3 total samples
     const remaining = 3 - voiceSamples.length;
     if (remaining <= 0) {
@@ -3067,6 +3089,12 @@ REQUIREMENTS:
 
   // Clone voice using ElevenLabs Instant Voice Cloning
   const handleCloneVoice = async () => {
+    // AUTH GUARD: Require sign-in before cloning voice
+    if (!authToken) {
+      toast.error('Please sign in to clone your voice');
+      return;
+    }
+
     if (voiceSamples.length < 2) {
       toast.error('Upload at least 2 voice samples for best results');
       return;
@@ -5795,15 +5823,39 @@ REQUIREMENTS:
                 Copy Lyrics
               </button>
 
-              {mediaUrls.lyricsVocal && mediaUrls.lyricsVocal.startsWith('data:audio') && (
+              {mediaUrls.lyricsVocal && (
                 <button
-                  onClick={() => {
-                    const a = document.createElement('a');
-                    a.href = mediaUrls.lyricsVocal;
-                    // Determine extension from mime type
-                    const ext = mediaUrls.lyricsVocal.includes('audio/wav') ? 'wav' : 'mp3';
-                    a.download = `${songIdea || 'lyrics'}-${voiceStyle}.${ext}`;
-                    a.click();
+                  onClick={async () => {
+                    const url = mediaUrls.lyricsVocal;
+                    const ext = url.includes('audio/wav') ? 'wav' : 'mp3';
+                    const fileName = `${songIdea || 'lyrics'}-${voiceStyle}.${ext}`;
+                    try {
+                      if (url.startsWith('data:')) {
+                        // Base64 data URL — direct download
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        a.click();
+                      } else {
+                        // HTTP URL — fetch as blob then download
+                        toast.loading('Preparing download...', { id: 'dl-vocal' });
+                        const resp = await fetch(url);
+                        if (!resp.ok) throw new Error('Download failed');
+                        const blob = await resp.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = blobUrl;
+                        a.download = fileName;
+                        a.click();
+                        URL.revokeObjectURL(blobUrl);
+                        toast.success('Download started', { id: 'dl-vocal' });
+                      }
+                    } catch (err) {
+                      console.error('[Download Audio] Error:', err);
+                      // Fallback: open in new tab
+                      window.open(url, '_blank');
+                      toast.dismiss('dl-vocal');
+                    }
                   }}
                   style={{
                     padding: '10px 16px',
