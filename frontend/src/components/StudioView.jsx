@@ -6251,7 +6251,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                                     onClick={() => {
                                       setVoiceSettings({...voiceSettings, speakerUrl: null, style: 'rapper'});
                                       setVoiceSampleUrl(null);
-                                      setElevenLabsVoiceId(null);
+                                      setElevenLabsVoiceId('');
                                       localStorage.removeItem('studio_cloned_voice_url');
                                       localStorage.removeItem('studio_cloned_elevenlabs_id');
                                     }}
