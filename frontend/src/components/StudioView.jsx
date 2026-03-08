@@ -13494,6 +13494,10 @@ const fetchUserCredits = useCallback(async (uid) => {
             authToken={userToken}
             userPlan={userPlan}
             existingProject={selectedProject}
+            projects={projects}
+            onSwitchProject={(project) => {
+              setSelectedProject(project);
+            }}
             onSaveToProject={(project) => {
               const traceId = `SYNC-${Date.now()}`;
               console.log(`[TRACE:${traceId}] onSaveToProject RECEIVED (Syncing artifacts)`, {

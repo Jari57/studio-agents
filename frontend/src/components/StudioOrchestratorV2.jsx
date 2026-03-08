@@ -708,9 +708,10 @@ function GeneratorCard({
                   {mediaType === 'video' && mediaUrl && (
                     <video 
                       src={formatVideoSrc(mediaUrl)}
+                      playsInline
                       style={{ 
                         width: '100%', 
-                        maxHeight: '120px', 
+                        maxHeight: isMobile ? '100px' : '120px', 
                         objectFit: 'cover',
                         borderRadius: '8px'
                       }}
@@ -1487,6 +1488,8 @@ export default function StudioOrchestratorV2({
   onGoToHub = null,
   authToken = null,
   existingProject = null,
+  projects = [],
+  onSwitchProject = null,
   userPlan = 'Free'
 }) {
   // 📱 Device responsiveness
@@ -1598,6 +1601,7 @@ export default function StudioOrchestratorV2({
   const [isCloningVoice, setIsCloningVoice] = useState(false);
   const [clonedVoiceId, setClonedVoiceId] = useState(null); // ElevenLabs voice_id from IVC
   const [showAssets, setShowAssets] = useState(true); // Your Assets section visibility
+  const [showProjectSwitcher, setShowProjectSwitcher] = useState(false); // Project picker overlay
 
   // New DNA States for other agents
   const [visualDnaUrl, setVisualDnaUrl] = useState(null);
@@ -1620,6 +1624,7 @@ export default function StudioOrchestratorV2({
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key !== 'Escape') return;
+      if (showProjectSwitcher) { setShowProjectSwitcher(false); return; }
       if (showRegenerateConfirm) { setShowRegenerateConfirm(false); return; }
       if (showExitConfirm) { setShowExitConfirm(false); return; }
       if (showSaveConfirm) { setShowSaveConfirm(false); return; }
@@ -1629,7 +1634,7 @@ export default function StudioOrchestratorV2({
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [showRegenerateConfirm, showExitConfirm, showSaveConfirm, showCreateProject, showPreviewModal, maximizedSlot]);
+  }, [showProjectSwitcher, showRegenerateConfirm, showExitConfirm, showSaveConfirm, showCreateProject, showPreviewModal, maximizedSlot]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // HELPERS: Genre & Output Presets
@@ -4450,6 +4455,67 @@ REQUIREMENTS:
   };
 
   // Create project
+  // Build project data object (used by handleCreateProject and project switcher auto-save)
+  const buildProjectData = () => {
+    const hasContent = Object.values(outputs).some(o => o !== null);
+    const hasMedia = Object.values(mediaUrls).some(m => m !== null);
+    if (!hasContent && !hasMedia) return null;
+
+    const assets = [];
+    GENERATOR_SLOTS.forEach(slot => {
+      const outputContent = outputs[slot.key];
+      if (outputContent) {
+        const agent = AGENTS.find(a => a.id === selectedAgents[slot.key]);
+        let contentStr = typeof outputContent === 'string' ? outputContent : JSON.stringify(outputContent);
+        if (slot.key === 'lyrics') {
+          const { content: cleanLyrics } = splitCreativeContent(contentStr);
+          if (cleanLyrics) contentStr = cleanLyrics;
+        }
+        assets.push({
+          id: `${slot.key}-${crypto.randomUUID()}`,
+          title: slot.title, type: slot.key,
+          agent: agent?.name || slot.subtitle,
+          content: contentStr,
+          snippet: contentStr.substring(0, 100),
+          audioUrl: slot.key === 'audio' ? (mediaUrls.audio || null) : (slot.key === 'lyrics' ? (mediaUrls.vocals || null) : null),
+          imageUrl: slot.key === 'visual' ? (formatImageSrc(mediaUrls.image) || null) : null,
+          videoUrl: slot.key === 'video' ? (mediaUrls.video || null) : null,
+          date: new Date().toLocaleDateString(),
+          createdAt: new Date().toISOString(),
+          color: `agent-${(slot.color || '').replace('#', '')}`
+        });
+      }
+    });
+    if (musicVideoUrl) {
+      assets.push({
+        id: `mvideo-${crypto.randomUUID()}`, title: 'Professional Music Video',
+        type: 'video', agent: 'Orchestrator Sync',
+        content: `Professional synced production for "${songIdea}"`,
+        videoUrl: formatVideoSrc(musicVideoUrl),
+        date: new Date().toLocaleDateString(), createdAt: new Date().toISOString(),
+        isPremium: true, color: 'agent-ec4899'
+      });
+    }
+    const projectId = existingProject?.id || crypto.randomUUID();
+    return {
+      id: projectId,
+      name: projectName || songIdea || existingProject?.name || 'Untitled Project',
+      description: `Created with Studio Orchestrator: "${songIdea}"`,
+      category: existingProject?.category || 'Music',
+      language, style, model, bpm: projectBpm, structure, duration,
+      musicalBars: bars, useBars,
+      date: existingProject?.date || new Date().toLocaleDateString(),
+      createdAt: existingProject?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      agents: Object.values(selectedAgents).filter(Boolean).map(id => {
+        const agent = AGENTS.find(a => a.id === id);
+        return agent?.name || id;
+      }),
+      assets: [...(existingProject?.assets || []), ...assets],
+      coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
+    };
+  };
+
   const handleCreateProject = () => {
     console.log('[Orchestrator] handleCreateProject called');
     console.log('[Orchestrator] existingProject:', existingProject?.id);
@@ -4654,8 +4720,44 @@ REQUIREMENTS:
           </div>
           <div>
             <h2 style={{ margin: 0, fontSize: isMobile ? '1.1rem' : '1.4rem', fontWeight: '700' }}>Studio Orchestrator <span style={{ color: 'var(--color-purple)', fontSize: '0.6em', border: '1px solid var(--color-purple)', padding: '1px 4px', borderRadius: '4px', marginLeft: '6px' }}>V3.5</span></h2>
-            <p style={{ margin: 0, fontSize: isMobile ? '0.75rem' : '0.8rem', color: 'var(--text-secondary)' }}>
-              4 AI Generators • One Unified Pipeline
+            <p style={{ margin: 0, fontSize: isMobile ? '0.7rem' : '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              {existingProject ? (
+                <>
+                  <span style={{ 
+                    color: '#8b5cf6', 
+                    fontWeight: '600',
+                    maxWidth: isMobile ? '120px' : '200px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    display: 'inline-block'
+                  }}>
+                    {existingProject.name}
+                  </span>
+                  {projects.length > 0 && onSwitchProject && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowProjectSwitcher(true); }}
+                      style={{
+                        background: 'rgba(139, 92, 246, 0.15)',
+                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                        borderRadius: '6px',
+                        padding: '1px 6px',
+                        color: '#a78bfa',
+                        fontSize: '0.65rem',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px'
+                      }}
+                    >
+                      <RefreshCw size={10} /> Switch
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>4 AI Generators • One Unified Pipeline</>
+              )}
             </p>
           </div>
         </div>
@@ -6509,7 +6611,7 @@ REQUIREMENTS:
             alignItems: isMobile ? 'flex-start' : 'center',
             justifyContent: 'center',
             zIndex: 10001,
-            padding: isMobile ? '10px' : '20px',
+            padding: isMobile ? '4px' : '20px',
             overflowY: 'auto'
           }}
           onClick={() => setMaximizedSlot(null)}
@@ -6517,15 +6619,15 @@ REQUIREMENTS:
           <div 
             style={{
               background: 'rgba(10, 10, 20, 0.95)',
-              borderRadius: isMobile ? '16px' : '24px',
+              borderRadius: isMobile ? '12px' : '24px',
               border: '1px solid rgba(255,255,255,0.1)',
               width: '100%',
               maxWidth: '800px',
-              maxHeight: isMobile ? '95vh' : '90vh',
+              maxHeight: isMobile ? '98vh' : '90vh',
               overflow: 'auto',
               display: 'flex',
               flexDirection: 'column',
-              marginTop: isMobile ? '10px' : '0'
+              marginTop: isMobile ? '2px' : '0'
             }}
             onClick={e => e.stopPropagation()}
           >
@@ -6572,9 +6674,10 @@ REQUIREMENTS:
 
             {/* Maximized Card Content */}
             <div style={{
-              padding: isMobile ? '12px' : '24px',
+              padding: isMobile ? '8px' : '24px',
               flex: 1,
-              overflowY: 'auto'
+              overflowY: 'auto',
+              minHeight: 0
             }}>
               {(() => {
                 const slot = GENERATOR_SLOTS.find(s => s.key === maximizedSlot);
@@ -6641,11 +6744,15 @@ REQUIREMENTS:
 
             {/* Bottom Close Button - More Visible */}
             <div style={{
-              padding: isMobile ? '12px' : '16px 24px',
+              padding: isMobile ? '8px' : '16px 24px',
               borderTop: '1px solid rgba(255,255,255,0.1)',
               display: 'flex',
               justifyContent: 'center',
-              background: 'rgba(0,0,0,0.3)'
+              background: 'rgba(0,0,0,0.5)',
+              position: 'sticky',
+              bottom: 0,
+              zIndex: 5,
+              flexShrink: 0
             }}>
               <button
                 onClick={() => setMaximizedSlot(null)}
@@ -7030,6 +7137,178 @@ REQUIREMENTS:
       )}
 
       {/* Exit Confirmation Dialog - Save Before Leaving */}
+
+      {/* Project Switcher Modal */}
+      {showProjectSwitcher && (
+        <div role="dialog" aria-modal="true" aria-label="Switch project" style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10006,
+          padding: '20px'
+        }} onClick={(e) => { if (e.target === e.currentTarget) setShowProjectSwitcher(false); }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%)',
+            borderRadius: '20px',
+            padding: isMobile ? '20px' : '32px',
+            border: '1px solid rgba(139, 92, 246, 0.4)',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '80vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '700', color: 'white' }}>
+                Switch Project
+              </h2>
+              <button
+                onClick={() => setShowProjectSwitcher(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  width: '32px', height: '32px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: 'white'
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* New Project option */}
+            <button
+              onClick={() => {
+                setShowProjectSwitcher(false);
+                if (hasUnsavedContent()) {
+                  setShowExitConfirm(true);
+                } else {
+                  onSwitchProject?.(null);
+                }
+              }}
+              style={{
+                width: '100%',
+                padding: '14px 16px',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.1))',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
+                color: 'white',
+                fontWeight: '600',
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                marginBottom: '12px',
+                textAlign: 'left'
+              }}
+            >
+              <Sparkles size={18} color="#8b5cf6" />
+              Start New Project
+              <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Fresh start</span>
+            </button>
+
+            {/* Projects list */}
+            <div style={{
+              overflowY: 'auto',
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              paddingRight: '4px'
+            }}>
+              {projects.filter(p => p && p.id).length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center', padding: '20px' }}>
+                  No saved projects yet. Create your first song above!
+                </p>
+              ) : (
+                projects.filter(p => p && p.id).slice(0, 20).map(project => (
+                  <button
+                    key={project.id}
+                    onClick={() => {
+                      setShowProjectSwitcher(false);
+                      if (project.id === existingProject?.id) return; // Already active
+                      if (hasUnsavedContent()) {
+                        // Save current work first, then switch
+                        if (onSaveToProject && existingProject) {
+                          const projectData = buildProjectData();
+                          if (projectData) onSaveToProject(projectData);
+                        }
+                      }
+                      onSwitchProject?.(project);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      background: project.id === existingProject?.id 
+                        ? 'rgba(139, 92, 246, 0.2)' 
+                        : 'rgba(255,255,255,0.03)',
+                      border: project.id === existingProject?.id
+                        ? '1px solid rgba(139, 92, 246, 0.5)'
+                        : '1px solid rgba(255,255,255,0.08)',
+                      color: 'white',
+                      cursor: project.id === existingProject?.id ? 'default' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      textAlign: 'left',
+                      transition: 'all 0.15s',
+                      opacity: project.id === existingProject?.id ? 0.7 : 1
+                    }}
+                  >
+                    {/* Project cover/icon */}
+                    <div style={{
+                      width: '36px', height: '36px',
+                      borderRadius: '8px',
+                      background: project.coverImage 
+                        ? `url(${project.coverImage}) center/cover` 
+                        : 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                      flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      {!project.coverImage && <Music size={16} color="white" />}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontWeight: '600',
+                        fontSize: '0.85rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {project.name || 'Untitled'}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                        {project.assets?.length || 0} assets • {project.style || project.category || ''}
+                      </div>
+                    </div>
+                    {project.id === existingProject?.id && (
+                      <span style={{
+                        fontSize: '0.6rem',
+                        color: '#8b5cf6',
+                        fontWeight: '700',
+                        background: 'rgba(139, 92, 246, 0.2)',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        flexShrink: 0
+                      }}>
+                        ACTIVE
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showExitConfirm && (
         <div role="dialog" aria-modal="true" aria-label="Exit confirmation" style={{
           position: 'fixed',

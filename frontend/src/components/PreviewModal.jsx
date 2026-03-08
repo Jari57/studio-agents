@@ -89,8 +89,7 @@ export function PreviewModal({
           position: 'relative',
           width: '95vw',
           maxWidth: '1200px',
-          height: '90vh',
-          maxHeight: '900px',
+          maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
           background: 'rgba(20, 20, 20, 0.95)',
@@ -267,9 +266,9 @@ export function PreviewModal({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px',
+            padding: '12px',
             overflow: 'auto',
-            minHeight: '300px'
+            minHeight: 0
           }}
         >
           {mediaType === 'image' && mediaUrl && (
@@ -290,20 +289,57 @@ export function PreviewModal({
             />
           )}
           {mediaType === 'video' && mediaUrl && (
-            <video
-              src={formatVideoSrc(mediaUrl)}
-              controls
-              autoPlay
-              style={{
-                maxWidth: '100%',
-                maxHeight: 'calc(90vh - 120px)',
-                borderRadius: '8px',
-                animation: 'zoomIn 0.3s ease-out'
-              }}
-              onError={(_e) => {
-                console.warn('[PreviewModal] Video failed to load');
-              }}
-            />
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '12px',
+              width: '100%',
+              maxHeight: '100%'
+            }}>
+              <video
+                src={formatVideoSrc(mediaUrl)}
+                controls
+                autoPlay
+                playsInline
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: 'calc(90vh - 160px)',
+                  borderRadius: '8px',
+                  animation: 'zoomIn 0.3s ease-out',
+                  flexShrink: 1
+                }}
+                onError={(_e) => {
+                  console.warn('[PreviewModal] Video failed to load');
+                }}
+              />
+              {/* Prominent Close Button below video */}
+              <button
+                onClick={onClose}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(220, 38, 38, 0.2))',
+                  border: '1px solid rgba(239, 68, 68, 0.5)',
+                  borderRadius: '12px',
+                  padding: '12px 32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  color: '#ef4444',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 20px rgba(239, 68, 68, 0.25)',
+                  touchAction: 'manipulation',
+                  minWidth: '160px',
+                  flexShrink: 0
+                }}
+              >
+                <X size={20} />
+                Close Preview
+              </button>
+            </div>
           )}
           {mediaType === 'audio' && mediaUrl && (
             <div
@@ -452,7 +488,7 @@ export function PreviewModal({
         {/* Footer */}
         <div
           style={{
-            padding: '8px 16px',
+            padding: '6px 16px',
             borderTop: '1px solid rgba(255, 255, 255, 0.05)',
             background: 'rgba(0, 0, 0, 0.3)',
             fontSize: '0.7rem',
@@ -461,7 +497,7 @@ export function PreviewModal({
             flexShrink: 0
           }}
         >
-          Click &quot;Close&quot; or tap outside to dismiss
+          Tap outside or press ESC to dismiss
         </div>
       </div>
 
