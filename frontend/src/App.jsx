@@ -147,7 +147,7 @@ function App() {
       <Toaster 
         position="bottom-center"
         toastOptions={{
-          duration: 20000,
+          duration: 4000,
           style: {
             maxWidth: '420px',
             fontSize: '0.9rem',
@@ -158,9 +158,9 @@ function App() {
             border: '1px solid rgba(255,255,255,0.1)',
             boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
           },
-          success: { duration: 15000 },
-          error: { duration: 20000 },
-          loading: { duration: Infinity }
+          success: { duration: 3000 },
+          error: { duration: 5000 },
+          loading: { duration: 30000 }
         }}
       />
       {isWhitepapers ? (

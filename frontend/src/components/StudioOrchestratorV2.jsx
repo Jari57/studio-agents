@@ -1954,7 +1954,7 @@ export default function StudioOrchestratorV2({
     {
       key: 'lyrics',
       title: 'Ghostwriter',
-      subtitle: 'Lyrics & Hook',
+      subtitle: 'Lyrics & Vocals',
       icon: Sparkles,
       color: '#8b5cf6',
       mediaType: null
@@ -4827,18 +4827,9 @@ REQUIREMENTS:
                 ) : (
                   <>
                     <Sparkles size={18} />
-                    Create Song
-                    <span style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: '400' }}>
-                      (~{(() => {
-                        let cost = 0;
-                        cost += 4; // 4 text generations (lyrics, beat desc, visual desc, video desc) × 1 credit
-                        cost += (duration > 30 ? 10 : 5); // beat audio
-                        cost += 2; // vocals
-                        cost += 3; // image
-                        cost += 15; // video
-                        cost += 10; // final mix
-                        return cost;
-                      })()} credits)
+                    Create Full Song
+                    <span style={{ fontSize: '0.65rem', opacity: 0.6, fontWeight: '400' }}>
+                      Lyrics + Vocals + Beat + Art + Video
                     </span>
                   </>
                 )}
@@ -5415,7 +5406,7 @@ REQUIREMENTS:
                 fontSize: '0.7rem',
                 fontWeight: '600'
               }}>
-                {Object.values(selectedAgents).filter(Boolean).length} / 4 active
+                {Object.values(selectedAgents).filter(Boolean).length} / 4 active {selectedAgents.lyrics ? '+ Vocals' : ''}
               </span>
             </div>
           </div>
@@ -5433,7 +5424,7 @@ REQUIREMENTS:
                     color: slot.color, 
                     fontWeight: '500'
                   }}>
-                    {slot.title}
+                    {slot.title} <span style={{ opacity: 0.6, fontWeight: '400' }}>— {slot.subtitle}</span>
                   </label>
                   {selectedAgents[slot.key] && (
                     <div 
