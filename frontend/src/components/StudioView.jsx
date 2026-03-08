@@ -305,7 +305,7 @@ const VOICE_COMMANDS = [
   { command: 'stop', description: 'Stop listening', example: '"Stop listening"', category: 'Voice' }
 ];
 
-const FREE_GENERATION_LIMIT = 3;
+const FREE_GENERATION_LIMIT = 7;
 
 // Model Picker State - Available AI Models
 const AI_MODELS = [
@@ -4269,7 +4269,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     // Check if user can generate (free limit or credits)
     if (!canGenerate(featureType)) {
       if (!isLoggedIn) {
-        toast.error(`You've used your ${FREE_GENERATION_LIMIT} free generations! Sign in to continue.`);
+        toast.error(`You've used your ${FREE_GENERATION_LIMIT} free generations! Create a free account to get 25 credits.`);
         setShowLoginModal(true);
       } else {
         toast.error(`Insufficient credits! ${targetAgentSnapshot.name} needs ${cost} credits.`);
@@ -8304,7 +8304,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           {getRemainingFreeGenerations()} free generations left
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          Sign in to unlock more
+                          Create a free account for 25 credits
                         </div>
                       </div>
                       <button 

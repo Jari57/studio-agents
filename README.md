@@ -30,7 +30,7 @@ One idea → lyrics, beats, cover art, videos, marketing → **done in minutes**
 ## 🚀 Tech Stack
 
 **Frontend:**
-- React 18 + Vite
+- React 19 + Vite 7
 - Firebase Auth & Firestore
 - Modern CSS (Glass morphism, gradients)
 - Lazy loading & code splitting

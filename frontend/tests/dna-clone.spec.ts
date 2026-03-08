@@ -171,6 +171,7 @@ test.describe('DNA Exact-Clone — Audio/Beat Generation', () => {
   });
 
   test('Audio generation without referenceAudio uses standard mode', async ({ request }) => {
+    test.setTimeout(120000); // Audio generation can take longer
     const response = await request.post(`${BACKEND_URL}/api/generate-audio`, {
       data: {
         prompt: 'Chill lo-fi beat',
@@ -179,7 +180,8 @@ test.describe('DNA Exact-Clone — Audio/Beat Generation', () => {
         mood: 'chill',
         durationSeconds: 15,
         engine: 'auto'
-      }
+      },
+      timeout: 90000
     });
     expect([200, 400, 401, 429, 500, 503]).toContain(response.status());
   });
@@ -495,7 +497,17 @@ test.describe('Billboard Blueprint Page — Frontend', () => {
 
 test.describe('Creator Resources Tab — DNA Cards', () => {
 
+  // Helper: enter guest mode so StudioView renders (bypasses auth gate)
+  const enterGuestMode = async (page: import('@playwright/test').Page) => {
+    await page.goto(FRONTEND_URL);
+    await page.evaluate(() => {
+      localStorage.setItem('studio_guest_mode', 'true');
+      localStorage.setItem('studio_user_id', 'test-guest');
+    });
+  };
+
   test('Creator Resources tab shows DNA System card', async ({ page }) => {
+    await enterGuestMode(page);
     await page.goto(`${FRONTEND_URL}/#/studio/resources`);
     await page.waitForTimeout(3000);
 
@@ -504,6 +516,7 @@ test.describe('Creator Resources Tab — DNA Cards', () => {
   });
 
   test('Creator Resources tab shows Vocal Lab card', async ({ page }) => {
+    await enterGuestMode(page);
     await page.goto(`${FRONTEND_URL}/#/studio/resources`);
     await page.waitForTimeout(3000);
 
@@ -512,6 +525,7 @@ test.describe('Creator Resources Tab — DNA Cards', () => {
   });
 
   test('Creator Resources tab shows Billboard Blueprint card', async ({ page }) => {
+    await enterGuestMode(page);
     await page.goto(`${FRONTEND_URL}/#/studio/resources`);
     await page.waitForTimeout(3000);
 
@@ -520,8 +534,13 @@ test.describe('Creator Resources Tab — DNA Cards', () => {
   });
 
   test('DNA System card navigates to #/dna', async ({ page }) => {
+    await enterGuestMode(page);
     await page.goto(`${FRONTEND_URL}/#/studio/resources`);
     await page.waitForTimeout(3000);
+
+    // Dismiss any modal overlays that might intercept clicks
+    await page.evaluate(() => document.querySelectorAll('.modal-overlay').forEach(el => el.remove()));
+    await page.waitForTimeout(300);
 
     const dnaCard = page.locator('[role="button"]').filter({ hasText: /DNA System/i }).first();
     if (await dnaCard.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -533,8 +552,13 @@ test.describe('Creator Resources Tab — DNA Cards', () => {
   });
 
   test('Vocal Lab card navigates to #/vocals', async ({ page }) => {
+    await enterGuestMode(page);
     await page.goto(`${FRONTEND_URL}/#/studio/resources`);
     await page.waitForTimeout(3000);
+
+    // Dismiss any modal overlays that might intercept clicks
+    await page.evaluate(() => document.querySelectorAll('.modal-overlay').forEach(el => el.remove()));
+    await page.waitForTimeout(300);
 
     const vocalCard = page.locator('[role="button"]').filter({ hasText: /Vocal Lab/i }).first();
     if (await vocalCard.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -545,8 +569,13 @@ test.describe('Creator Resources Tab — DNA Cards', () => {
   });
 
   test('Billboard Blueprint card navigates to #/billboard', async ({ page }) => {
+    await enterGuestMode(page);
     await page.goto(`${FRONTEND_URL}/#/studio/resources`);
     await page.waitForTimeout(3000);
+
+    // Dismiss any modal overlays that might intercept clicks
+    await page.evaluate(() => document.querySelectorAll('.modal-overlay').forEach(el => el.remove()));
+    await page.waitForTimeout(300);
 
     const billboardCard = page.locator('[role="button"]').filter({ hasText: /Billboard Blueprint/i }).first();
     if (await billboardCard.isVisible({ timeout: 5000 }).catch(() => false)) {

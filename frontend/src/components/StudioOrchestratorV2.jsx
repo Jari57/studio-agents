@@ -2196,15 +2196,12 @@ export default function StudioOrchestratorV2({
         return;
       }
       // If already saved, silently clear old outputs before generating new
+      // NOTE: Do NOT clear DNA URLs — they are persistent user reference files
       if (hasContent && isSaved) {
         setOutputs({ lyrics: null, audio: null, visual: null, video: null });
         setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
         setMusicVideoUrl(null);
         setFinalMixPreview(null);
-        setVisualDnaUrl(null);
-        setAudioDnaUrl(null);
-        setVideoDnaUrl(null);
-        setLyricsDnaUrl(null);
         setIsSaved(false);
         setPipelineSteps([]);
         freshGeneration = true;
@@ -2477,8 +2474,15 @@ REQUIREMENTS:
     } finally {
       setIsGenerating(false);
       setGeneratingSlots({ lyrics: false, audio: false, visual: false, video: false });
-      // Clear pipeline steps after a short delay to let user see the completed state
-      setTimeout(() => setPipelineSteps([]), 3000);
+      // Reset media generation guards so retries aren't blocked
+      setGeneratingMedia({ audio: false, image: false, video: false, vocals: false });
+      // Keep pipeline steps visible longer so user can see results/retry errors
+      // Only auto-clear if ALL steps succeeded (no errors to retry)
+      const hasErrors = pipelineSteps.some(s => s.status === 'error');
+      if (!hasErrors) {
+        setTimeout(() => setPipelineSteps([]), 8000);
+      }
+      // If there are errors, keep pipeline visible until user dismisses or retries
     }
   };
 
@@ -2621,6 +2625,7 @@ REQUIREMENTS:
       const cleanAudioPromptText = cleanAudioPrompt || audioPrompt;
       
       console.log('[handleGenerateAudio] Making API call to:', `${BACKEND_URL}/api/generate-audio`);
+      console.log('[handleGenerateAudio] Duration:', duration, 'Engine:', musicEngine);
 
       const response = await fetch(`${BACKEND_URL}/api/generate-audio`, {
         method: 'POST',
@@ -3422,9 +3427,10 @@ REQUIREMENTS:
     try {
       const headers = await getHeaders();
 
-      // Clean prompt of AI fluff
+      // Clean prompt of AI fluff — extract only creative content
       const { content: cleanVisualPrompt } = splitCreativeContent(visualPromptText);
       const visualPrompt = cleanVisualPrompt || visualPromptText;
+      console.log('[handleGenerateImage] Prompt length:', visualPrompt.length, 'hasDNA:', !!visualDnaUrl);
 
       const response = await fetch(`${BACKEND_URL}/api/generate-image`, {
         method: 'POST',
@@ -4822,6 +4828,18 @@ REQUIREMENTS:
                   <>
                     <Sparkles size={18} />
                     Create Song
+                    <span style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: '400' }}>
+                      (~{(() => {
+                        let cost = 0;
+                        cost += 4; // 4 text generations (lyrics, beat desc, visual desc, video desc) × 1 credit
+                        cost += (duration > 30 ? 10 : 5); // beat audio
+                        cost += 2; // vocals
+                        cost += 3; // image
+                        cost += 15; // video
+                        cost += 10; // final mix
+                        return cost;
+                      })()} credits)
+                    </span>
                   </>
                 )}
               </button>
@@ -4949,6 +4967,18 @@ REQUIREMENTS:
                     Generate {Object.values(selectedAgents).filter(Boolean).length === 4 
                       ? 'All' 
                       : `${Object.values(selectedAgents).filter(Boolean).length} Output${Object.values(selectedAgents).filter(Boolean).length !== 1 ? 's' : ''}`}
+                    <span style={{ fontSize: '0.65rem', opacity: 0.7, fontWeight: '400', marginLeft: '4px' }}>
+                      (~{(() => {
+                        let cost = 0;
+                        const active = selectedAgents;
+                        if (active.lyrics) cost += 1 + 2; // text + vocals
+                        if (active.audio) cost += 1 + (duration > 30 ? 10 : 5); // text + beat audio
+                        if (active.visual) cost += 1 + 3; // text + image
+                        if (active.video) cost += 1 + 15; // text + video
+                        if (active.lyrics && active.audio) cost += 10; // final mix
+                        return cost;
+                      })()}cr)
+                    </span>
                   </>
                 )}
               </button>

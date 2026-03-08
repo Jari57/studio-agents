@@ -8,6 +8,7 @@ import { AGENT_WHITEPAPER, DEFAULT_WHITEPAPER } from '../data/agentWhitepapers';
 // Lazy loaded complex components (standardizing to React.lazy to prevent 'lazy is not defined' error)
 const MultiAgentDemo = React.lazy(() => import('./MultiAgentDemo'));
 const SingleAgentDemo = React.lazy(() => import('./SingleAgentDemo'));
+const HeroProductDemo = React.lazy(() => import('./HeroProductDemo'));
 
 export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStartTour }) {
   console.log("LandingPage: Rendering...");
@@ -493,31 +494,73 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             <span className="gradient-text-vibrant">The Studio Agents</span>
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
-            The world's first AI Record Label in your pocket.
+            16 AI agents orchestrate your entire release — lyrics, beats, cover art, video — from a single prompt.
           </p>
-          <button
-            onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'resources')}
-            className="haptic-press"
-            style={{
-              marginTop: '20px',
-              padding: '12px 28px',
-              background: 'rgba(168, 85, 247, 0.15)',
-              border: '1px solid rgba(168, 85, 247, 0.4)',
-              borderRadius: '14px',
-              color: '#a855f7',
-              fontSize: '0.95rem',
-              fontWeight: '700',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.25)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.15)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-          >
-            See What's Possible <ArrowRight size={16} />
-          </button>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'mystudio')}
+              className="haptic-press"
+              style={{
+                padding: '14px 32px',
+                background: 'linear-gradient(135deg, #a855f7 0%, #06b6d4 100%)',
+                border: 'none',
+                borderRadius: '14px',
+                color: 'white',
+                fontSize: '1rem',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 8px 30px rgba(168, 85, 247, 0.3)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(168, 85, 247, 0.4)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 30px rgba(168, 85, 247, 0.3)'; }}
+            >
+              <Play size={18} fill="white" /> Try Free — No Sign Up
+            </button>
+            <button
+              onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'resources')}
+              className="haptic-press"
+              style={{
+                padding: '14px 28px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '14px',
+                color: 'rgba(255,255,255,0.8)',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
+              See What's Possible <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            HERO PRODUCT DEMO — Cinematic animated product showcase
+            Shows the full orchestration pipeline in action
+            ═══════════════════════════════════════════════════════════════ */}
+        <div style={{ marginBottom: '48px' }}>
+          <Suspense fallback={
+            <div style={{
+              minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(0,0,0,0.2)', borderRadius: '24px',
+              border: '1px solid rgba(168, 85, 247, 0.1)',
+            }}>
+              <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>Loading showcase...</div>
+            </div>
+          }>
+            <HeroProductDemo onTryIt={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'mystudio')} />
+          </Suspense>
         </div>
 
         {/* Mission & Vision */}
@@ -637,7 +680,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           {[
             { value: '16', label: 'AI Agents' },
             { value: '24/7', label: 'Available' },
-            { value: '', label: 'Creations' },
+            { value: '94%', label: 'Gross Margin' },
             { value: '100%', label: 'Independent' }
           ].map((stat, i) => (
             <div key={i} style={{
@@ -845,37 +888,30 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
         <div className="pricing-grid-native">
           {[
             {
-              name: 'Free',
+              name: 'Free Trial',
               price: '$0',
-              features: ['3 uses per agent', '10s audio output', 'Basic features', 'Session access']
+              features: ['7 free generations', '4 core agents', '25 credits on signup', 'Full pipeline access']
             },
             {
               name: 'Creator',
+              price: '$4.99',
+              period: '/month',
+              features: ['500 credits/month', '8 AI agents', '30s audio output', 'Save & export projects']
+            },
+            {
+              name: 'Studio',
               price: '$14.99',
               period: '/month',
-              features: ['100 uses/month', '30s audio output', 'Save creations', 'Priority processing']
-            },
-            {
-              name: 'Studio Pro',
-              price: '$49.99',
-              period: '/month',
-              features: ['2,000 uses/month', '60s audio output', 'All Creator features', 'API access', 'Team collab', 'Analytics']
-            },
-            {
-              name: '(fire) Early Bird Lifetime',
-              price: '$49',
-              period: 'one-time',
-              features: ['Unlimited everything forever', 'Future updates included', 'Priority Support', 'Commercial License', 'Founder Badge'],
-              popular: true,
-              ltd: true,
-              urgency: 'Limited to first 1000 users'
+              features: ['1,000 credits/month', 'All 16 agents', '60s audio output', 'Priority processing', 'API access']
             },
             {
               name: 'Lifetime Access',
               price: '$99',
               period: 'one-time',
-              features: ['Unlimited everything forever', 'Future updates included', 'Priority Support', 'Commercial License', 'Founder Badge'],
-              strikethrough: '$49'
+              features: ['1,000 credits/month forever', 'All 16 agents', 'Future updates included', 'Commercial license', 'Founder badge'],
+              popular: true,
+              ltd: true,
+              urgency: 'Limited to first 1000 users'
             }
           ].map((plan, idx) => (
             <div
@@ -2655,10 +2691,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                         Pricing Tiers
                       </h4>
                       {[
-                        { tier: 'Free', price: '$0', features: 'Limited generations, 3 agents' },
-                        { tier: 'Annual', price: '$60/yr', features: 'Full access, all 16 agents' },
-                        { tier: 'Lifetime', price: '$99 once', features: 'Unlimited forever, priority' },
-                        { tier: 'Pro (Coming)', price: '$199/yr', features: 'API access, team seats, priority' }
+                        { tier: 'Free Trial', price: '$0', features: '7 gens + 25 credits, 4 agents' },
+                        { tier: 'Creator', price: '$4.99/mo', features: '500 credits, 8 agents' },
+                        { tier: 'Studio', price: '$14.99/mo', features: '1,000 credits, all 16 agents' },
+                        { tier: 'Lifetime', price: '$99 once', features: '1,000 credits/mo forever' }
                       ].map((tier, i) => (
                         <div key={i} style={{ 
                           display: 'flex', 
@@ -2686,10 +2722,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                         Unit Economics
                       </h4>
                       {[
-                        { metric: 'LTV', value: '$180', note: 'Blended across tiers' },
-                        { metric: 'CAC', value: '$12', note: 'Organic + paid blend' },
-                        { metric: 'LTV:CAC', value: '15:1', note: 'Exceptional for SaaS' },
-                        { metric: 'Gross Margin', value: '82%', note: 'API costs declining' }
+                        { metric: 'LTV', value: '$87', note: 'Conservative (12.5mo avg life)' },
+                        { metric: 'CAC', value: '$10-15', note: 'Blended organic + paid' },
+                        { metric: 'LTV:CAC', value: '5.9:1', note: 'Target 10:1 by Year 2' },
+                        { metric: 'Gross Margin', value: '94%', note: 'API costs <$0.60/user/mo' }
                       ].map((item, i) => (
                         <div key={i} style={{ 
                           display: 'flex', 
@@ -2720,10 +2756,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                     </h4>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', textAlign: 'center' }}>
                       {[
-                        { year: '2024', arr: '$2.1M', users: '127K' },
-                        { year: '2025', arr: '$8.5M', users: '400K' },
-                        { year: '2026', arr: '$25M', users: '1M' },
-                        { year: '2027', arr: '$75M', users: '2.5M' }
+                        { year: 'Year 1', arr: '$45K', users: '10K' },
+                        { year: 'Year 2', arr: '$408K', users: '50K' },
+                        { year: 'Year 3', arr: '$2.4M', users: '200K' },
+                        { year: 'Year 4', arr: '$8M', users: '500K' }
                       ].map((item, i) => (
                         <div key={i}>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '6px' }}>
@@ -2765,10 +2801,10 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
                       WebkitTextFillColor: 'transparent',
                       marginBottom: '8px'
                     }}>
-                      $50M -$75M
+                      $20M-$30M
                     </div>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
-                      Based on 25-35x ARR multiples for high-growth AI SaaS
+                      Based on 10-15x ARR for high-growth AI SaaS at Series A
                     </p>
                     <div style={{ marginTop: '16px', display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                       <div style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>

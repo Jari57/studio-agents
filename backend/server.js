@@ -881,7 +881,7 @@ if (isDevelopment) {
 // ANONYMOUS GENERATION TRACKING (Server-side enforcement)
 // Tracks free-tier usage by IP fingerprint to prevent localStorage abuse
 // =============================================================================
-const ANON_FREE_LIMIT = 3; // Free generations for anonymous users
+const ANON_FREE_LIMIT = 7; // Free generations for anonymous users (enough for full song + 2 retries)
 const ANON_WINDOW_MS = 24 * 60 * 60 * 1000; // 24-hour window
 const anonGenerationTracker = new Map(); // key: ipHash → { count, expiresAt }
 
@@ -928,7 +928,7 @@ const requireAuthOrFreeLimit = (req, res, next) => {
     logger.warn(`🚫 Anonymous free limit exceeded`, { ip: req.ip, used });
     return res.status(401).json({
       error: 'Free limit reached',
-      message: `You've used your ${ANON_FREE_LIMIT} free generations. Sign in to continue with credits.`,
+      message: `You've used your ${ANON_FREE_LIMIT} free generations. Create a free account to get 25 credits and keep creating!`,
       requiresAuth: true,
       freeUsed: used,
       freeLimit: ANON_FREE_LIMIT
@@ -2150,7 +2150,7 @@ app.get('/api/user/credits', verifyFirebaseToken, async (req, res) => {
     const userDoc = await db.collection('users').doc(req.user.uid).get();
     
     if (!userDoc.exists) {
-      return res.json({ credits: 3, tier: 'free', bonus: 0 }); // New users get 3 trial credits
+      return res.json({ credits: 25, tier: 'free', bonus: 0 }); // New users get 25 trial credits (matches checkCreditsFor init)
     }
     
     const userData = userDoc.data();
@@ -2171,31 +2171,31 @@ app.get('/api/credit-costs', (req, res) => {
   res.json({
     costs: CREDIT_COSTS,
     tiers: {
-      starter: {
-        name: 'Starter',
-        price: 12.99,
-        credits: 100,
-        features: ['100 credits/month', 'All agents', 'Standard quality']
+      free: {
+        name: 'Free Trial',
+        price: 0,
+        credits: 25,
+        features: ['7 free generations', '25 credits on signup', '4 core agents']
       },
       creator: {
         name: 'Creator',
-        price: 29.99,
-        credits: 400,
-        popular: true,
-        features: ['400 credits/month', 'All agents', 'HD export', 'Priority support']
+        price: 4.99,
+        credits: 500,
+        features: ['500 credits/month', '8 agents', '30s audio', 'Save & export projects']
       },
-      pro: {
-        name: 'Pro',
-        price: 79.99,
-        credits: 1500,
-        features: ['1,500 credits/month', 'All agents', 'HD export', 'Commercial license', 'Priority queue']
+      studio: {
+        name: 'Studio',
+        price: 14.99,
+        credits: 1000,
+        popular: true,
+        features: ['1,000 credits/month', 'All 16 agents', '60s audio', 'Priority processing', 'API access']
       },
       lifetime: {
         name: 'Lifetime',
-        price: 299,
-        credits: 5000,
+        price: 99,
+        credits: 1000,
         oneTime: true,
-        features: ['5,000 credits (one-time)', 'Never pay again', 'All Pro features', 'Founding member badge']
+        features: ['1,000 credits/month forever', 'All 16 agents', 'Future updates', 'Commercial license', 'Founder badge']
       }
     },
     examples: {
