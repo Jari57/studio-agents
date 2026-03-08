@@ -303,6 +303,18 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       setIsTransitioning(false);
     }, 100);
   };
+  // Workflow choice modal state (Single Agent vs Orchestrator)
+  const [showWorkflowModal, setShowWorkflowModal] = useState(false);
+
+  const handleWorkflowChoice = (mode) => {
+    setShowWorkflowModal(false);
+    if (mode === 'single' || mode === 'browse') {
+      handleCtaClick(isLoggedMember ? 'return' : 'start', 'agents');
+    } else {
+      handleCtaClick(isLoggedMember ? 'return' : 'start', 'orchestrator');
+    }
+  };
+
   const [pitchTab, setPitchTab] = useState('vision');
   const [showAgentWhitepaper, setShowAgentWhitepaper] = useState(false);
   const [selectedWhitepaperAgent, setSelectedWhitepaperAgent] = useState(null);
@@ -498,7 +510,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px', flexWrap: 'wrap' }}>
             <button
-              onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'mystudio')}
+              onClick={() => setShowWorkflowModal(true)}
               className="haptic-press"
               style={{
                 padding: '14px 32px',
@@ -518,7 +530,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 40px rgba(168, 85, 247, 0.4)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 30px rgba(168, 85, 247, 0.3)'; }}
             >
-              <Play size={18} fill="white" /> Try Free — No Sign Up
+              <Play size={18} fill="white" /> Let's Create
             </button>
             <button
               onClick={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'resources')}
@@ -559,7 +571,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem' }}>Loading showcase...</div>
             </div>
           }>
-            <HeroProductDemo onTryIt={() => handleCtaClick(isLoggedMember ? 'return' : 'start', 'mystudio')} />
+            <HeroProductDemo onTryIt={() => setShowWorkflowModal(true)} />
           </Suspense>
         </div>
 
@@ -1037,7 +1049,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
           Your global rollout starts here. No major label required.
         </p>
         <button
-          onClick={() => handleCtaClick('start', 'mystudio')}
+          onClick={() => setShowWorkflowModal(true)}
           className="cta-button-premium haptic-press"
           style={{
             padding: '24px 48px',
@@ -1115,6 +1127,151 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
       </footer>
 
 
+
+      {/* Workflow Choice Modal — Single Agent vs Orchestrator */}
+      {showWorkflowModal && (
+        <div className="modal-overlay animate-fadeIn" style={{ zIndex: 10002 }} onClick={() => setShowWorkflowModal(false)}>
+          <div
+            className="animate-scaleIn"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'linear-gradient(180deg, rgba(20, 20, 30, 0.98) 0%, rgba(10, 10, 20, 0.99) 100%)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '24px',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              padding: window.innerWidth < 768 ? '24px' : '36px',
+              maxWidth: '440px',
+              width: '90%',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              position: 'relative'
+            }}
+          >
+            <button
+              onClick={() => setShowWorkflowModal(false)}
+              style={{
+                position: 'absolute', top: '14px', right: '14px',
+                background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%',
+                width: '34px', height: '34px', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', cursor: 'pointer', color: 'white'
+              }}
+            >
+              <X size={16} />
+            </button>
+
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{
+                width: '56px', height: '56px',
+                background: 'linear-gradient(135deg, #a855f7 0%, #06b6d4 100%)',
+                borderRadius: '16px', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', margin: '0 auto 14px'
+              }}>
+                <Sparkles size={28} color="white" />
+              </div>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: '700', color: 'white', marginBottom: '6px' }}>How do you want to create?</h2>
+              <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.85rem' }}>Choose your workflow</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Single Agent */}
+              <button
+                onClick={() => handleWorkflowChoice('single')}
+                className="haptic-press"
+                style={{
+                  padding: '18px 20px',
+                  background: 'rgba(168, 85, 247, 0.12)',
+                  border: '1px solid rgba(168, 85, 247, 0.35)',
+                  borderRadius: '16px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.22)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.12)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                <div style={{
+                  width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
+                  background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <Zap size={22} color="white" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: '700', fontSize: '1rem', marginBottom: '3px' }}>Single Agent</div>
+                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', lineHeight: '1.3' }}>Pick one agent — lyrics, beats, art, or video</div>
+                </div>
+                <ChevronRight size={18} style={{ marginLeft: 'auto', opacity: 0.4, flexShrink: 0 }} />
+              </button>
+
+              {/* Orchestrator */}
+              <button
+                onClick={() => handleWorkflowChoice('orchestrator')}
+                className="haptic-press"
+                style={{
+                  padding: '18px 20px',
+                  background: 'rgba(6, 182, 212, 0.12)',
+                  border: '1px solid rgba(6, 182, 212, 0.35)',
+                  borderRadius: '16px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(6, 182, 212, 0.22)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(6, 182, 212, 0.12)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                <div style={{
+                  width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
+                  background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <Layers size={22} color="white" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: '700', fontSize: '1rem', marginBottom: '3px' }}>Orchestrator</div>
+                  <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', lineHeight: '1.3' }}>Full pipeline — all agents work together from one prompt</div>
+                </div>
+                <ChevronRight size={18} style={{ marginLeft: 'auto', opacity: 0.4, flexShrink: 0 }} />
+              </button>
+
+              {/* Browse All Agents */}
+              <button
+                onClick={() => handleWorkflowChoice('browse')}
+                className="haptic-press"
+                style={{
+                  padding: '14px 20px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: '16px',
+                  color: 'white',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease',
+                  fontSize: '0.85rem',
+                  fontWeight: '600'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              >
+                <Users size={16} style={{ opacity: 0.7 }} />
+                Browse All 16 Agents
+                <ArrowRight size={14} style={{ opacity: 0.4 }} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Auth Modal - Sign In with Google or Email */}
       {showAuthModal && (
@@ -1735,7 +1892,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             <div className="modal-footer" style={{ borderTop: '1px solid rgba(0, 255, 65, 0.2)' }}>
               <button 
                 className="cta-button-primary"
-                onClick={() => { setShowShowcase(false); handleCtaClick('start'); }}
+                onClick={() => { setShowShowcase(false); setShowWorkflowModal(true); }}
                 style={{ 
                   width: '100%', 
                   justifyContent: 'center',
