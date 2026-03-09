@@ -9293,7 +9293,7 @@ html, body {
 }
 
 .resources-header {
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   text-align: center;
 }
 
@@ -9524,7 +9524,7 @@ html, body {
 
 @media (max-width: 768px) {
   .resources-view {
-    padding: 1rem;
+    padding: 0.75rem;
     padding-bottom: 8px;
   }
   
@@ -9539,27 +9539,28 @@ html, body {
   /* Resources cards - 2x2 grid on mobile */
   .resources-cards-grid {
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px !important;
-    padding-bottom: 24px;
+    gap: 8px !important;
+    padding-bottom: 16px;
   }
   
   .resources-cards-grid > div {
-    padding: 14px 10px !important;
+    padding: 10px 8px !important;
     min-height: auto !important;
-    border-radius: 14px !important;
+    border-radius: 12px !important;
   }
   
   .resources-cards-grid > div > div:first-child {
-    width: 44px !important;
-    height: 44px !important;
+    width: 38px !important;
+    height: 38px !important;
   }
 
   .resources-cards-grid > div > div:last-child h4 {
-    font-size: 0.82rem !important;
+    font-size: 0.78rem !important;
   }
 
   .resources-cards-grid > div > div:last-child p {
-    font-size: 0.65rem !important;
+    font-size: 0.6rem !important;
+    line-height: 1.2 !important;
   }
   
   .sitemap-container {

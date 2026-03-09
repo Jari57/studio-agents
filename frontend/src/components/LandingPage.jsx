@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import toast from 'react-hot-toast';
-import { Sparkles, ArrowRight, Zap, Music, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, DollarSign, Headphones, Star, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LogIn, LogOut } from 'lucide-react';
+import { Sparkles, ArrowRight, Zap, Music, Users, Globe as GlobeIcon, Target, Rocket, Shield, X, Play, TrendingUp, Clock, Headphones, ChevronRight, Layers, BarChart3, Briefcase, Award, ExternalLink, Settings, Code, Cpu, Lightbulb, CheckCircle, AlertCircle, FileText, Lock as LockIcon, LogIn, LogOut } from 'lucide-react';
 import { AGENTS } from '../constants';
 import { auth, GoogleAuthProvider, OAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut } from '../firebase';
 import { AGENT_WHITEPAPER, DEFAULT_WHITEPAPER } from '../data/agentWhitepapers';
@@ -11,7 +11,6 @@ const SingleAgentDemo = React.lazy(() => import('./SingleAgentDemo'));
 const HeroProductDemo = React.lazy(() => import('./HeroProductDemo'));
 
 export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStartTour }) {
-  console.log("LandingPage: Rendering...");
   const [scrolled, setScrolled] = useState(false);
   const [showCookieConsent, setShowCookieConsent] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -250,7 +249,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     const isExplicitLogin = action === 'login' && !auth?.currentUser;
 
     if (isActuallyLogged && !isExplicitLogin) {
-      console.log('[LandingPage] User already recognized, entering studio directly');
+      // devLog('[LandingPage] User already recognized, entering studio directly');
       setIsTransitioning(true);
       setTimeout(() => {
         navigateToStudio(finalAction === 'start', targetTab);
@@ -282,11 +281,11 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
   const handleContinueAsGuest = () => {
     // Guard: prevent double-clicks and race conditions
     if (isTransitioning || authLoading) {
-      console.log('[LandingPage] Blocked - already transitioning');
+      // devLog('[LandingPage] Blocked - already transitioning');
       return;
     }
     
-    console.log('[LandingPage] Continue as guest clicked, pendingAction:', pendingAction);
+    // devLog('[LandingPage] Continue as guest clicked, pendingAction:', pendingAction);
     setIsTransitioning(true);
     setShowAuthModal(false);
     
@@ -296,7 +295,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
     
     // Small delay to let modal close animation complete before navigation
     setTimeout(() => {
-      console.log('[LandingPage] Guest entering studio with targetTab:', pendingTargetTab);
+      // devLog('[LandingPage] Guest entering studio with targetTab:', pendingTargetTab);
       navigateToStudio(pendingAction === 'start', pendingTargetTab);
       // Reset after navigation (in case user comes back)
       setPendingTargetTab(null);

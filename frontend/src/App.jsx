@@ -41,7 +41,6 @@ const StudioLoadingFallback = () => (
 suppressExtensionErrors();
 
 function App() {
-  console.log("App.jsx: Rendering component (v2)...");
   
   // Hash-based routing state
   const [currentHash, setCurrentHash] = useState(window.location.hash || '#/');
@@ -71,7 +70,7 @@ function App() {
     const hasUserId = localStorage.getItem('studio_user_id');
     const isGuest = localStorage.getItem('studio_guest_mode') === 'true';
     if ((hasUserId || isGuest) && currentHash === '#/') {
-      console.log('[App] Session detected on mount, skipping landing page');
+      // [App] Session detected on mount, skipping landing page');
       setCurrentHash('#/studio/resources');
       window.location.hash = '#/studio/resources';
     }
@@ -81,7 +80,7 @@ function App() {
   const [initialTab, setInitialTab] = useState(null);
 
   const handleEnterStudio = (shouldStartWizard = false, startOrchestrator = false, targetTab = 'resources') => {
-    console.log('[App] handleEnterStudio called, shouldStartWizard:', shouldStartWizard, 'startOrchestrator:', startOrchestrator, 'targetTab:', targetTab);
+    // [App] handleEnterStudio called, shouldStartWizard:', shouldStartWizard, 'startOrchestrator:', startOrchestrator, 'targetTab:', targetTab);
     setStartWizard(shouldStartWizard);
     setStartOrchestrator(startOrchestrator);
     setStartTour(false);
@@ -90,22 +89,22 @@ function App() {
     
     // Redirect to top-level pages if requested, else studio sub-tabs
     if (targetTab === 'whitepapers') {
-      console.log('[App] Navigating to top-level whitepapers');
+      // [App] Navigating to top-level whitepapers');
       window.location.hash = '#/whitepapers';
     } else if (targetTab === 'legal') {
-      console.log('[App] Navigating to top-level legal');
+      // [App] Navigating to top-level legal');
       window.location.hash = '#/legal';
     } else if (targetTab === 'dna') {
-      console.log('[App] Navigating to DNA resource page');
+      // [App] Navigating to DNA resource page');
       window.location.hash = '#/dna';
     } else if (targetTab === 'vocals') {
-      console.log('[App] Navigating to Vocals resource page');
+      // [App] Navigating to Vocals resource page');
       window.location.hash = '#/vocals';
     } else if (targetTab === 'billboard') {
-      console.log('[App] Navigating to Billboard Blueprint page');
+      // [App] Navigating to Billboard Blueprint page');
       window.location.hash = '#/billboard';
     } else {
-      console.log('[App] Navigating to studio tab:', targetTab);
+      // [App] Navigating to studio tab:', targetTab);
       window.location.hash = targetTab ? `#/studio/${targetTab}` : '#/studio/resources';
     }
   };
