@@ -2,10 +2,10 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { Suspense } from 'react';
 import {
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon,
-  Folder, Plus, Share2, CreditCard, HardDrive, Database as DatabaseIcon, Twitter, Instagram,
-  RefreshCw, Trash2, Eye, EyeOff, Landmark, ArrowRight, ChevronRight, X, User, Crown, LayoutGrid,
-  TrendingUp, Disc, Activity, Settings, CheckCircle, Check, Lock as LockIcon, Tv, Clock, Cpu,
+  Sparkles, Zap, Music, Users as UsersIcon, Rocket, Shield,
+  Folder, Plus, Share2, CreditCard,
+  RefreshCw, Trash2, Eye, EyeOff, Landmark, ArrowRight, ChevronRight, X, User, LayoutGrid,
+  TrendingUp, Disc, Activity, Settings, CheckCircle, Clock, Cpu,
   Layers, Image as ImageIcon, Mail
 } from 'lucide-react';
 import { AGENTS, BACKEND_URL } from '../../constants';
@@ -351,161 +351,41 @@ const DashboardView = ({
                 )}
               </div>
 
-              {/* Feature Utilization & Smart Insights */}
-              <div className="dashboard-grid-two-cols" style={{ order: 6, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-                <div className="dashboard-card usage-insights-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '20px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <Activity size={20} className="text-purple" /> Studio Utilization
-                    </h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>This Month</span>
-                  </div>
-
-                  <div className="usage-stat-group" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div className="usage-item">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>AI Generations</span>
-                        <span>{isLoggedIn ? 'Unlimited' : `${freeGenerationsUsed}/${FREE_GENERATION_LIMIT}`}</span>
+              {/* Quick Actions Grid */}
+              <div className="dashboard-card animate-fadeInUp" style={{
+                order: 3,
+                marginBottom: '24px',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: '24px',
+                padding: '24px',
+                border: '1px solid var(--border-color)'
+              }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Zap size={20} className="text-purple" /> Quick Actions
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+                  {[
+                    { label: 'New Project', icon: Plus, color: 'var(--color-purple)', action: () => setShowProjectTypeChoice(true) },
+                    { label: 'AI Pipeline', icon: Sparkles, color: 'var(--color-cyan)', action: () => setShowOrchestrator(true) },
+                    { label: 'Browse Agents', icon: UsersIcon, color: 'var(--color-pink)', action: () => setActiveTab('agents') },
+                    { label: 'Project Hub', icon: Folder, color: 'var(--color-emerald)', action: () => setActiveTab('hub') }
+                  ].map((item, i) => (
+                    <button key={i} onClick={item.action} className="haptic-press" style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px',
+                      padding: '20px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
+                      border: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', color: 'inherit',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = item.color; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                    >
+                      <div style={{ width: '44px', height: '44px', borderRadius: '14px', background: `${item.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <item.icon size={22} style={{ color: item.color }} />
                       </div>
-                      <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{
-                          width: isLoggedIn ? '85%' : `${(freeGenerationsUsed/FREE_GENERATION_LIMIT)*100}%`,
-                          height: '100%',
-                          background: 'var(--color-purple)',
-                          boxShadow: '0 0 10px var(--color-purple)'
-                        }} />
-                      </div>
-                    </div>
-
-                    <div className="usage-item">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>Cloud Storage</span>
-                        <span>{Math.round(projects.length * 1.2)}MB / 500MB</span>
-                      </div>
-                      <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{
-                          width: `${(projects.length * 1.2 / 500) * 100}%`,
-                          height: '100%',
-                          background: 'var(--color-cyan)',
-                          boxShadow: '0 0 10px var(--color-cyan)'
-                        }} />
-                      </div>
-                    </div>
-
-                    <div className="usage-item">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.85rem' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>Agent Slots</span>
-                        <span>{(managedAgents || []).filter(a => a.visible).length} / 16 Used</span>
-                      </div>
-                      <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{
-                          width: `${((managedAgents || []).filter(a => a.visible).length / 16) * 100}%`,
-                          height: '100%',
-                          background: 'var(--color-pink)',
-                          boxShadow: '0 0 10px var(--color-pink)'
-                        }} />
-                      </div>
-                    </div>
-
-                    {/* Plan Features Checklist */}
-                    <div style={{
-                      marginTop: '12px',
-                      paddingTop: '16px',
-                      borderTop: '1px solid rgba(255,255,255,0.05)',
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '8px'
-                    }}>
-                      {[
-                        { name: '4K Rendering', active: (userPlan || '').toLowerCase() !== 'free' },
-                        { name: 'Stem Export', active: (userPlan || '').toLowerCase() !== 'free' },
-                        { name: 'Commercial Rights', active: (userPlan || '').toLowerCase() === 'pro' || (userPlan || '').toLowerCase() === 'lifetime' },
-                        { name: 'Priority API', active: (userPlan || '').toLowerCase() === 'pro' || (userPlan || '').toLowerCase() === 'lifetime' }
-                      ].map((feat, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: feat.active ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                          {feat.active ? <Check size={10} color="var(--color-emerald)" /> : <LockIcon size={10} />}
-                          <span>{feat.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{item.label}</span>
+                    </button>
+                  ))}
                 </div>
-
-                <div className="dashboard-card platform-integration-card" style={{ background: 'var(--color-bg-secondary)', borderRadius: '24px', padding: '20px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <GlobeIcon size={20} className="text-cyan" /> Cloud Integrations
-                    </h3>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-emerald)', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '10px' }}>
-                      {Object.values(socialConnections || {}).filter(Boolean).length} Linked
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    {[
-                      { name: 'X / Twitter', icon: Twitter, connected: socialConnections.twitter },
-                      { name: 'Instagram', icon: Instagram, connected: socialConnections.instagram },
-                      { name: 'Spotify', icon: Music, connected: false },
-                      { name: 'YouTube', icon: Tv, connected: false }
-                    ].map((platform, i) => (
-                      <div key={i} style={{
-                        background: 'rgba(255,255,255,0.02)',
-                        padding: '12px',
-                        borderRadius: '16px',
-                        border: '1px solid rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <platform.icon size={18} color={platform.connected ? 'var(--text-primary)' : 'var(--text-secondary)'} />
-                          <span style={{ fontSize: '0.85rem', color: platform.connected ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{platform.name}</span>
-                        </div>
-                        {platform.connected ? (
-                          <CheckCircle size={14} color="var(--color-emerald)" />
-                        ) : (
-                          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)' }} />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button
-                    className="text-button"
-                    onClick={() => setDashboardTab('settings')}
-                    style={{ width: '100%', marginTop: '16px', justifyContent: 'center', fontSize: '0.85rem', color: 'var(--color-purple)' }}
-                  >
-                    Manage All Connections <ArrowRight size={14} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Audience Insights (Advanced) */}
-              <div className="audience-overview" style={{ order: 7, marginBottom: '24px' }}>
-                {[
-                  { label: 'Monthly Listeners', value: (performanceStats?.listeners || 0).toLocaleString(), icon: UsersIcon, color: 'var(--color-blue)', trend: performanceStats?.growth },
-                  { label: 'Total Streams', value: (performanceStats?.streams || 0).toLocaleString(), icon: PlayCircle, color: 'var(--color-emerald)', trend: performanceStats?.streamTrend },
-                  { label: 'Followers', value: (performanceStats?.followers || 0).toLocaleString(), icon: Crown, color: 'var(--color-purple)', trend: '+2.3%' },
-                  { label: 'Engagement Rate', value: performanceStats?.engagement || '0%', icon: TrendingUp, color: 'var(--color-cyan)', trend: '+0.8%' }
-                ].map((stat, i) => (
-                  <div key={i} className="audience-stat-card" style={{ position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      <div className="audience-stat-icon" style={{
-                        background: `${stat.color}15`,
-                        color: stat.color,
-                        minWidth: '44px', height: '44px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}>
-                        <stat.icon size={22} />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: '800', fontFamily: 'monospace' }}>{stat.value}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{stat.label}</div>
-                      </div>
-                    </div>
-                    <div style={{ position: 'absolute', bottom: '12px', right: '16px', fontSize: '0.7rem', color: 'var(--color-emerald)', fontWeight: 'bold' }}>
-                      {stat.trend}
-                    </div>
-                  </div>
-                ))}
               </div>
 
               {/* Profile Completion Pulse (Optional) */}
@@ -595,79 +475,10 @@ const DashboardView = ({
                 </div>
               </div>
 
-              {/* Workflow Onboarding Card */}
-              <div className="dashboard-card workflow-card animate-fadeInUp" style={{
-                order: 3,
-                marginBottom: '24px',
-                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)',
-                border: '1px solid rgba(6, 182, 212, 0.3)',
-                borderRadius: '24px',
-                padding: '24px',
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                <div style={{ position: 'absolute', top: '-20px', right: '-20px', opacity: 0.1 }}>
-                  <Sparkles size={120} color="var(--color-cyan)" />
-                </div>
-                <div style={{ position: 'relative', zIndex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                    <div style={{ background: 'linear-gradient(135deg, #06b6d4, #8b5cf6)', padding: '10px', borderRadius: '12px', color: 'white' }}>
-                      <Sparkles size={24} />
-                    </div>
-                    <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', letterSpacing: '-0.5px' }}>Studio Workflow</h2>
-                  </div>
-                <div className="workflow-steps-mini" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {[
-                    {
-                      step: 1,
-                      title: "Define Your Vision",
-                      desc: "Use the Project Wizard to name your masterpiece and select your studio vibe.",
-                      icon: Sparkles,
-                      color: "var(--color-cyan)"
-                    },
-                    {
-                      step: 2,
-                      title: "Assemble Your Team",
-                      desc: "Choose from 16 specialized AI agents for lyrics, beats, and production.",
-                      icon: UsersIcon,
-                      color: "var(--color-purple)"
-                    },
-                    {
-                      step: 3,
-                      title: "Launch & Amplify",
-                      desc: "Use Marketing agents to build your rollout plan and sync socials.",
-                      icon: Rocket,
-                      color: "var(--color-pink)"
-                    }
-                  ].map((item, i) => (
-                    <div key={i} className="workflow-step-item" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                      <div className="step-number" style={{
-                        minWidth: '24px', height: '24px', borderRadius: '50%',
-                        background: item.color, color: 'black', fontWeight: 'bold',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem'
-                      }}>
-                        {item.step}
-                      </div>
-                      <div>
-                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem' }}>{item.title}</h4>
-                        <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{item.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="workflow-actions" style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
-                  <button className="btn-pill primary" onClick={() => setShowProjectTypeChoice(true)}>
-                    <Plus size={14} /> New Project
-                  </button>
-                  <button className="btn-pill glass" onClick={() => setActiveTab('hub')}>
-                    <Folder size={14} /> Open Existing
-                  </button>
-                </div>
-                </div>
-              </div>
+
 
               {/* Recent Projects Section */}
-              <section className="dashboard-card recent-projects-card" style={{ order: 8, marginBottom: '24px' }}>
+              <section className="dashboard-card recent-projects-card" style={{ order: 5, marginBottom: '24px' }}>
                 <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Folder size={18} className="text-cyan" /> Your Projects
@@ -870,33 +681,44 @@ const DashboardView = ({
                 )}
               </section>
 
-              {/* Brand Strategy Section */}
-              <section className="dashboard-card brand-strategy-card" style={{ order: 9, marginBottom: '24px' }}>
-                <div className="card-header">
-                  <h3><Target size={18} /> Build Your Legacy</h3>
-                  <Zap size={18} className="text-yellow-400" />
+              {/* Project Insights */}
+              <div className="dashboard-card animate-fadeInUp" style={{
+                order: 6,
+                marginBottom: '24px',
+                background: 'var(--color-bg-secondary)',
+                borderRadius: '24px',
+                padding: '24px',
+                border: '1px solid var(--border-color)'
+              }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Activity size={20} className="text-cyan" /> Project Insights
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+                  {(() => {
+                    const active = (projects || []).filter(p => !p.status || p.status === 'active').length;
+                    const completed = (projects || []).filter(p => p.status === 'completed').length;
+                    const archived = (projects || []).filter(p => p.status === 'archived').length;
+                    const withAgents = (projects || []).filter(p => p.agents && p.agents.length > 0).length;
+                    return [
+                      { label: 'Active', value: active, color: 'var(--color-purple)', icon: Folder },
+                      { label: 'Completed', value: completed, color: 'var(--color-emerald)', icon: CheckCircle },
+                      { label: 'Archived', value: archived, color: 'var(--text-secondary)', icon: Clock },
+                      { label: 'Multi-Agent', value: withAgents, color: 'var(--color-cyan)', icon: UsersIcon }
+                    ];
+                  })().map((stat, i) => (
+                    <div key={i} style={{
+                      padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
+                      border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center'
+                    }}>
+                      <stat.icon size={18} style={{ color: stat.color, marginBottom: '8px' }} />
+                      <div style={{ fontSize: '1.5rem', fontWeight: '800', color: stat.color }}>{stat.value}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: '4px' }}>{stat.label}</div>
+                    </div>
+                  ))}
                 </div>
-                <div className="strategy-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
-                  <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                    <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-purple)' }}>Output</h4>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Don't just make music, build a brand.</p>
-                  </div>
-                  <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                    <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-cyan)' }}>Hit Ready</h4>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Production quality that stands out.</p>
-                  </div>
-                  <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                    <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-pink)' }}>Viral Videos</h4>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Visuals designed for social impact.</p>
-                  </div>
-                  <div className="strategy-item" style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                    <h4 style={{ fontSize: '0.9rem', marginBottom: '4px', color: 'var(--color-orange)' }}>Marketing</h4>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Content strategy that converts.</p>
-                  </div>
-                </div>
-              </section>
+              </div>
 
-              <div className="dashboard-grid" style={{ order: 10 }}>
+              <div className="dashboard-grid" style={{ order: 7 }}>
                 {/* Dynamic Project Checklist */}
                 <div className="dashboard-card onboarding-card" style={{ border: '1px solid rgba(168, 85, 247, 0.3)', background: 'linear-gradient(145deg, rgba(168, 85, 247, 0.05) 0%, rgba(0,0,0,0) 100%)' }}>
                   <div className="card-header">
@@ -971,85 +793,6 @@ const DashboardView = ({
                   </div>
                 </div>
 
-                {/* Storage Connections */}
-                <section className="dashboard-card">
-                  <div className="card-header">
-                    <h3><DatabaseIcon size={18} /> Cloud Storage</h3>
-                    <span className="storage-usage">72% Full</span>
-                  </div>
-                  <div className="connection-list">
-                    <div className="connection-item">
-                      <div className="connection-info">
-                        <div className="icon-box storage-bg">
-                          <HardDrive size={20} />
-                        </div>
-                        <div>
-                          <p className="connection-name">Google Drive</p>
-                          <p className="connection-status">{storageConnections.googleDrive ? 'Connected' : 'Disconnected'}</p>
-                        </div>
-                      </div>
-                      <button
-                        className={`btn-connect ${storageConnections.googleDrive ? 'connected' : ''}`}
-                        onClick={() => setStorageConnections(prev => ({ ...prev, googleDrive: !prev.googleDrive }))}
-                      >
-                        {storageConnections.googleDrive ? 'Disconnect' : 'Connect'}
-                      </button>
-                    </div>
-                  </div>
-                </section>
-              </div>
-
-              {/* Social Ecosystem - Standalone */}
-              <div className="dashboard-card social-ecosystem-card animate-fadeInUp" style={{
-                order: 5,
-                marginBottom: '24px',
-                background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%)',
-                border: '1px solid rgba(236, 72, 153, 0.3)',
-                borderRadius: '24px',
-                padding: '24px',
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                <div className="card-header">
-                  <h3><Share2 size={18} /> Social Ecosystem</h3>
-                  <span className="status-badge online">Live</span>
-                </div>
-                <div className="connection-list">
-                  <div className="connection-item">
-                    <div className="connection-info">
-                      <div className="icon-box twitter-bg">
-                        <Twitter size={20} />
-                      </div>
-                      <div>
-                        <p className="connection-name">X (Twitter)</p>
-                        <p className="connection-status">{socialConnections.twitter ? `@${twitterUsername || 'Connected'}` : 'Not Connected'}</p>
-                      </div>
-                    </div>
-                    <button
-                      className={`btn-connect ${socialConnections.twitter ? 'connected' : ''}`}
-                      onClick={() => handleConnectSocial('twitter')}
-                    >
-                      {socialConnections.twitter ? 'Manage' : 'Connect'}
-                    </button>
-                  </div>
-                  <div className="connection-item">
-                    <div className="connection-info">
-                      <div className="icon-box instagram-bg">
-                        <Instagram size={20} />
-                      </div>
-                      <div>
-                        <p className="connection-name">Instagram</p>
-                        <p className="connection-status">{socialConnections.instagram ? (metaName || 'Connected') : 'Not Connected'}</p>
-                      </div>
-                    </div>
-                    <button
-                      className={`btn-connect ${socialConnections.instagram ? 'connected' : ''}`}
-                      onClick={() => handleConnectSocial('instagram')}
-                    >
-                      {socialConnections.instagram ? 'Manage' : 'Connect'}
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           )}

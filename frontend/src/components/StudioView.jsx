@@ -34,7 +34,7 @@ import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_
 import { Analytics, trackPageView } from '../utils/analytics';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
-// Dev-only logger ó no-ops in production builds (tree-shaken by Vite/terser)
+// Dev-only logger ÔøΩ no-ops in production builds (tree-shaken by Vite/terser)
 const __DEV__ = import.meta.env.DEV;
 const devLog = __DEV__ ? (...args) => devLog(...args) : () => {};
 const devWarn = __DEV__ ? (...args) => devWarn(...args) : () => {};
@@ -496,7 +496,7 @@ const pruneLargeProjectData = (projects) => {
 };
 
 function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan, initialTab }) {
-  // (shield)è SAFE ASYNC OPERATIONS - Prevents memory leaks and race conditions
+  // (shield)ÔøΩ SAFE ASYNC OPERATIONS - Prevents memory leaks and race conditions
   const { safeFetch, safeSetState, isMounted } = useSafeAsync();
   
   // ---------------------------------------------------------------------------
@@ -1237,7 +1237,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         if (response.status === 409) {
-          // Conflict detected ó another session modified the project
+          // Conflict detected ÔøΩ another session modified the project
           // Retry without lastUpdatedAt to force-save (last write wins)
           devWarn(`[TRACE:${traceId}] Conflict detected, retrying without lock`);
           const retryResponse = await fetch(`${BACKEND_URL}/api/projects/${encodeURIComponent(String(project.id))}`, {
@@ -1615,7 +1615,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     };
   }, [sessionPlaying, sessionTracks.audio?.audioUrl, sessionTracks.vocal?.audioUrl, sessionTracks.visual?.videoUrl, sessionTracks.visualOffset]);
 
-  // Auto-populate session mixer when it opens or project changes ó sync backing track + project assets
+  // Auto-populate session mixer when it opens or project changes ÔøΩ sync backing track + project assets
   useEffect(() => {
     if (!showStudioSession) return;
     const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets.filter(Boolean) : [];
@@ -2643,7 +2643,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
               });
               toast.success(`Synced ${cloudProjects.length} projects from cloud`);
 
-              // Don't auto-select a project ó orchestrator should start fresh
+              // Don't auto-select a project ÔøΩ orchestrator should start fresh
               // User can open projects from the hub
             } else {
               // Cloud returned 0 projects -could be auth failure or genuinely empty
@@ -2707,13 +2707,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                   setUserCredits(3);
                   localStorage.removeItem('studio_user_id');
                   setIsLoggedIn(false);
-                  toast.error('Session expired ó please sign in again');
+                  toast.error('Session expired ÔøΩ please sign in again');
                 }
                 setAuthChecking(false);
                 authRetryCountRef.current = 0;
                 setAuthRetryCount(0);
               }
-            }, 3000); // 3 seconds per retry ó 10 retries = up to 30s total tolerance
+            }, 3000); // 3 seconds per retry ÔøΩ 10 retries = up to 30s total tolerance
           } else if (wasGuestMode) {
             // Guest mode - keep them in without login
             setUser(null);
@@ -4087,7 +4087,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             devWarn('[Studio] IVC clone unavailable, falling back to XTTS:', ivcErr.message);
           }
 
-          // Step 3: Update all state ó both IVC voice ID and raw URL
+          // Step 3: Update all state ÔøΩ both IVC voice ID and raw URL
           if (rawUrl) {
             setVoiceSampleUrl(rawUrl);
             setVoiceSettings(prev => ({ ...prev, speakerUrl: rawUrl, style: 'cloned' }));
@@ -4423,7 +4423,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       let expandedPrompt;
 
       if (isImageAgent) {
-        // Image agents skip Brain Phase ó use user's prompt directly for single, consistent image output
+        // Image agents skip Brain Phase ÔøΩ use user's prompt directly for single, consistent image output
         expandedPrompt = contextLyrics
           ? `${prompt}. Visual theme inspired by: "${contextLyrics.substring(0, 200)}"`
           : prompt;
@@ -4556,7 +4556,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         } catch (mediaErr) {
           console.error('[Studio] Execution Phase Failed:', mediaErr);
           if (mediaErr.name === 'AbortError') {
-            throw new Error('Video generation request timed out. The server may be busy ó please try again.');
+            throw new Error('Video generation request timed out. The server may be busy ÔøΩ please try again.');
           }
           throw new Error(`Media generation service unreachable. Please check your connection or try again later.`);
         }
@@ -4602,7 +4602,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       if (data.status === 'processing' && data.operationId) {
         devLog('[Studio] Video operation started, polling for completion...', data.operationId);
         toast.loading('Video rendering in progress...', { id: toastId, duration: 300000 });
-        const maxPolls = 60; // 60 ◊ 5s = 5 minutes
+        const maxPolls = 60; // 60 ÔøΩ 5s = 5 minutes
         let pollSuccess = false;
         for (let i = 0; i < maxPolls; i++) {
           await new Promise(r => setTimeout(r, 5000));
@@ -4624,7 +4624,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           }
         }
         if (!pollSuccess) {
-          toast.error('Video generation timed out ó please try again', { id: toastId });
+          toast.error('Video generation timed out ÔøΩ please try again', { id: toastId });
           return;
         }
       }
@@ -4657,7 +4657,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         } else {
           toast.error(`Media generation failed: ${data.error || 'Server error'}`, { id: toastId });
         }
-        // CRITICAL: Stop processing ó do not try to build a result item from error data
+        // CRITICAL: Stop processing ÔøΩ do not try to build a result item from error data
         return;
       }
       
@@ -5111,7 +5111,7 @@ const fetchUserCredits = useCallback(async (uid) => {
   };
 
   /**
-   * Background WAV conversion ó fire-and-forget after save
+   * Background WAV conversion ÔøΩ fire-and-forget after save
    * Polls the conversion endpoint and updates project state with audioWavUrl
    */
   const triggerBackgroundConversion = async (savedItem, project, userId) => {
@@ -5416,7 +5416,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
   }, []);
 
-  // NOTE: Legacy Effect B removed ó Effect A (above, with QuotaExceeded handling + UID-specific keys)
+  // NOTE: Legacy Effect B removed ÔøΩ Effect A (above, with QuotaExceeded handling + UID-specific keys)
   // is the single source of truth for localStorage persistence.
   // Keeping a duplicate unconditional save here caused race conditions and overwrote pruned data.
 
@@ -5442,7 +5442,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         return;
       }
 
-      // No WAV yet ó trigger on-demand conversion
+      // No WAV yet ÔøΩ trigger on-demand conversion
       const toastId = toast.loading('Converting to WAV...');
       try {
         const token = auth?.currentUser ? await auth.currentUser.getIdToken() : null;
@@ -5595,7 +5595,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           if (res.ok && data.success) {
             results.push({ platform: 'X/Twitter', success: true, url: data.tweetUrl });
           } else if (data.needsAuth) {
-            results.push({ platform: 'X/Twitter', success: false, error: 'Session expired ó reconnect your account' });
+            results.push({ platform: 'X/Twitter', success: false, error: 'Session expired ÔøΩ reconnect your account' });
             setSocialConnections(prev => ({ ...prev, twitter: false }));
           } else {
             results.push({ platform: 'X/Twitter', success: false, error: data.error || 'Post failed' });
@@ -5611,18 +5611,18 @@ const fetchUserCredits = useCallback(async (uid) => {
           if (res.ok && data.success) {
             results.push({ platform: 'Facebook', success: true, url: data.postUrl });
           } else if (data.needsAuth) {
-            results.push({ platform: 'Facebook', success: false, error: 'Session expired ó reconnect your account' });
+            results.push({ platform: 'Facebook', success: false, error: 'Session expired ÔøΩ reconnect your account' });
             setSocialConnections(prev => ({ ...prev, facebook: false }));
           } else {
             results.push({ platform: 'Facebook', success: false, error: data.error || 'Post failed' });
           }
         } else if (platform === 'instagram') {
-          results.push({ platform: 'Instagram', success: false, error: 'Instagram requires an image ó use image sharing from the Studio' });
+          results.push({ platform: 'Instagram', success: false, error: 'Instagram requires an image ÔøΩ use image sharing from the Studio' });
         } else if (platform === 'threads') {
           results.push({ platform: 'Threads', success: false, error: 'Threads API coming soon' });
         }
       } catch (err) {
-        results.push({ platform, success: false, error: 'Network error ó check your connection' });
+        results.push({ platform, success: false, error: 'Network error ÔøΩ check your connection' });
       }
     }
 
@@ -6227,7 +6227,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                                   <option value="singer">(mic) Male Singer (R&B/Soul)</option>
                                   <option value="singer-female">(sparkle) Female Singer (Pop/R&B)</option>
                                 </optgroup>
-                                <optgroup label="(voice)è Speech/Narration">
+                                <optgroup label="(voice)ÔøΩ Speech/Narration">
                                   <option value="narrator">(speaker) Narrator (Deep Voice)</option>
                                   <option value="spoken">(chat) Spoken Word</option>
                                 </optgroup>
@@ -6608,7 +6608,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     }}>
                       <h4 style={{ margin: '0 0 6px 0', fontSize: '0.9rem', color: '#a855f7', fontWeight: 'bold', fontFamily: 'Georgia, serif' }}>What is DNA?</h4>
                       <p style={{ margin: '0 0 10px 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.5', fontFamily: 'Georgia, serif' }}>
-                        Studio DNA captures your artistic identity. Upload references so the AI "inherits" your style ó every generation feels like <em>your</em> creation.
+                        Studio DNA captures your artistic identity. Upload references so the AI "inherits" your style ÔøΩ every generation feels like <em>your</em> creation.
                       </p>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -6662,7 +6662,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </div>
 
                       <div style={{ marginTop: '10px', padding: '8px', background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(6,182,212,0.08))', borderRadius: '6px', textAlign: 'center' }}>
-                        <p style={{ margin: 0, fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)' }}>Upload any combo of DNA slots, then describe what you want ó the AI blends them into your generation.</p>
+                        <p style={{ margin: 0, fontSize: '0.68rem', color: 'rgba(255,255,255,0.6)' }}>Upload any combo of DNA slots, then describe what you want ÔøΩ the AI blends them into your generation.</p>
                       </div>
                     </div>
 
@@ -6977,7 +6977,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       </div>
                     )}
 
-                    {/* Reference Song Upload ó Style/Tone/Vibe Matching */}
+                    {/* Reference Song Upload ÔøΩ Style/Tone/Vibe Matching */}
                     <div className="reference-upload-card" style={{
                       padding: '10px 12px',
                       background: referenceSongUrl ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.03)',
@@ -7101,7 +7101,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     </div>
                   )}
 
-                  {/* Backing Track Sync Banner ó shown for vocal/video/speech agents when a beat is synced */}
+                  {/* Backing Track Sync Banner ÔøΩ shown for vocal/video/speech agents when a beat is synced */}
                   {backingTrack && (selectedAgent?.id === 'vocal' || selectedAgent?.id === 'video-creator' || selectedAgent?.id === 'voice' || selectedAgent?.category?.toLowerCase().includes('vocal') || selectedAgent?.category?.toLowerCase().includes('video')) && (
                     <div style={{
                       padding: '10px 14px', marginBottom: '12px',
@@ -7124,7 +7124,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         </div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                           {selectedAgent?.id === 'video-creator' ? 'Video will match beat timing & BPM' : 'Vocals will sync to this beat'}
-                          {backingTrack.bpm ? ` ï ${backingTrack.bpm} BPM` : ''}
+                          {backingTrack.bpm ? ` ÔøΩ ${backingTrack.bpm} BPM` : ''}
                         </div>
                       </div>
                       <button
@@ -9744,12 +9744,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                               {proj.name || proj.title || 'Untitled'}
                             </div>
                             <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '2px' }}>
-                              {proj.assets?.length || 0} assets ∑ {proj.style || proj.category || ''}
+                              {proj.assets?.length || 0} assets ÔøΩ {proj.style || proj.category || ''}
                             </div>
                           </div>
                           <button
                             onClick={() => {
-                              const desc = `${proj.name || proj.title || 'Untitled'} ó Created with Studio Agents AI`;
+                              const desc = `${proj.name || proj.title || 'Untitled'} ÔøΩ Created with Studio Agents AI`;
                               setSharePostText(prev => prev ? `${prev}\n\n${desc}` : desc);
                               toast.success('Added to post!');
                             }}
@@ -11133,7 +11133,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       <Share2 size={18} />
                       <span>Share to Feed</span>
                     </button>
-                    {/* Use as Backing Track ó only for audio items */}
+                    {/* Use as Backing Track ÔøΩ only for audio items */}
                     {playingItem.audioUrl && (
                       <button
                         className="player-btn secondary"
@@ -11205,7 +11205,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   {!isMobile && <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Multi-Agent Orchestration</p>}
                 </div>
                 <button 
-                  onClick={() => toast("1. Select Beat (Track 1)\n2. Select Vocals (Track 2)\n3. Add a Visual\n4. Press Play to preview\n5. Click Render Master to save", { duration: 6000, icon: '(mixer)è' })}
+                  onClick={() => toast("1. Select Beat (Track 1)\n2. Select Vocals (Track 2)\n3. Add a Visual\n4. Press Play to preview\n5. Click Render Master to save", { duration: 6000, icon: '(mixer)ÔøΩ' })}
                   style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}
                 >
                   <CircleHelp size={14} color="var(--text-secondary)" />
@@ -11240,7 +11240,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   </div>
                 )}
                 
-                {/* Audio Elements (Hidden) ó playback controlled by sync engine useEffect */}
+                {/* Audio Elements (Hidden) ÔøΩ playback controlled by sync engine useEffect */}
                 {sessionTracks.audio && (
                   <audio
                     data-track="session-audio"
@@ -11459,7 +11459,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         >
                           <option value="waveform">(music) Waveform</option>
                           <option value="file">(folder) File</option>
-                          <option value="stems">(mixer)è Stems</option>
+                          <option value="stems">(mixer)ÔøΩ Stems</option>
                           <option value="midi">(piano) MIDI</option>
                         </select>
                       </div>
@@ -11820,7 +11820,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     </div>
                   )}
                   
-                  {/* Sync Controls ó User drives visual-to-audio sync */}
+                  {/* Sync Controls ÔøΩ User drives visual-to-audio sync */}
                   {sessionTracks.visual && (
                     <div style={{ 
                       marginTop: '8px', 
@@ -12027,12 +12027,12 @@ const fetchUserCredits = useCallback(async (uid) => {
                          headers['Authorization'] = `Bearer ${token}`;
                        }
 
-                       // Check if real audio URLs exist ó if so, mix them directly
+                       // Check if real audio URLs exist ÔøΩ if so, mix them directly
                        const hasRealBeat = sessionTracks.audio?.audioUrl && sessionTracks.audio.audioUrl.startsWith('http');
                        const hasRealVocals = sessionTracks.vocal?.audioUrl && sessionTracks.vocal.audioUrl.startsWith('http');
 
                        if (hasRealBeat || hasRealVocals) {
-                         // Direct audio mixing path ó use /api/create-final-mix
+                         // Direct audio mixing path ÔøΩ use /api/create-final-mix
                          toast.loading('Mixing your tracks...', { id: 'amo-render' });
 
                          let mixedAudioUrl = null;
@@ -12060,7 +12060,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                              mixedAudioUrl = sessionTracks.audio.audioUrl;
                            }
                          } else {
-                           // Single track ó use it directly as the master
+                           // Single track ÔøΩ use it directly as the master
                            mixedAudioUrl = hasRealBeat ? sessionTracks.audio.audioUrl : sessionTracks.vocal.audioUrl;
                          }
 
@@ -13500,7 +13500,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             onClose={() => {
               setShowOrchestrator(false);
               // Clear selected project so orchestrator starts fresh next time
-              // Projects remain saved in the hub ó user can re-open explicitly
+              // Projects remain saved in the hub ÔøΩ user can re-open explicitly
               setSelectedProject(null);
             }}
             onGoToHub={() => {
@@ -13565,7 +13565,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   updated[existingIndex] = finalProject;
                   return updated;
                 } else {
-                  // Project not found ó treat as creation
+                  // Project not found ÔøΩ treat as creation
                   devLog(`[TRACE:${traceId}] onSaveToProject: Project not found, creating new`);
                   const finalProject = {
                     ...project,
@@ -15058,6 +15058,45 @@ const fetchUserCredits = useCallback(async (uid) => {
                   <h3 style={{ fontSize: '1.1rem', marginBottom: '4px', color: 'var(--text-primary)' }}>AI Production Pipeline</h3>
                   <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
                     Let AI orchestrate your creative workflow. Describe your vision and get a complete production plan.
+                  </p>
+                </div>
+              </button>
+
+              {/* Browse Agents Option */}
+              <button
+                onClick={() => {
+                  setShowProjectTypeChoice(false);
+                  setSelectedAgent(null);
+                  setActiveTab('agents');
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '16px',
+                  padding: '20px',
+                  background: 'rgba(236, 72, 153, 0.1)',
+                  border: '1px solid rgba(236, 72, 153, 0.3)',
+                  borderRadius: '16px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  color: 'inherit',
+                  transition: 'all 0.2s ease'
+                }}
+                className="haptic-press"
+              >
+                <div style={{ 
+                  background: 'var(--color-pink)', 
+                  padding: '12px', 
+                  borderRadius: '12px', 
+                  color: 'white',
+                  flexShrink: 0
+                }}>
+                  <Layers size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', marginBottom: '4px', color: 'var(--text-primary)' }}>Browse All 16 Agents</h3>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
+                    Explore lyrics, beats, vocals, video, marketing, and more. Pick any agent to start creating.
                   </p>
                 </div>
               </button>

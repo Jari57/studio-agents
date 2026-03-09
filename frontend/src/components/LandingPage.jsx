@@ -722,7 +722,7 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
             { label: 'AI Orchestrator', icon: Zap, tab: 'orchestrator', color: '#06b6d4', desc: 'Full auto pipeline' },
             { label: 'Agents', icon: Sparkles, tab: 'agents', color: '#a855f7', desc: '16 AI specialists' },
             { label: 'Resources', icon: GlobeIcon, tab: 'resources', color: '#22c55e', desc: 'Guides & tools' },
-            { label: 'Social Media Hub', icon: TrendingUp, tab: 'activity', color: '#ec4899', desc: 'Content & socials' }
+            { label: 'News & Entertainment', icon: TrendingUp, tab: 'news', color: '#ec4899', desc: 'Trending drops & culture' }
           ].map((item, i) => {
             const BtnIcon = item.icon;
             return (
