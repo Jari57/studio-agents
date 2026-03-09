@@ -145,8 +145,9 @@ function App() {
     <div className="app-container">
       <Toaster 
         position="bottom-center"
+        containerStyle={{ bottom: 80 }}
         toastOptions={{
-          duration: 4000,
+          duration: 3000,
           style: {
             maxWidth: '420px',
             fontSize: '0.9rem',
@@ -157,8 +158,8 @@ function App() {
             border: '1px solid rgba(255,255,255,0.1)',
             boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
           },
-          success: { duration: 3000 },
-          error: { duration: 5000 },
+          success: { duration: 2500 },
+          error: { duration: 3500 },
           loading: { duration: 30000 }
         }}
       />

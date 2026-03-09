@@ -1139,7 +1139,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
                 assetMod = true;
               } catch (upErr) {
                 devWarn("Media sync failed:", upErr);
-                toast.error(`Media upload failed for ${spec.key}. Asset saved locally only.`);
+                toast.error(`Media upload failed for ${spec.key}. Asset saved locally only.`, { id: 'upload-error' });
               }
             }
           }
@@ -1280,7 +1280,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
     } catch (err) {
       console.error(`[TRACE:${traceId}] Failed to save project to cloud:`, err.message || err);
       if (!options.silent) {
-        toast.error(`Save failed: ${err.message || 'Network error'}`);
+        toast.error(`Save failed: ${err.message || 'Network error'}`, { id: 'save-error' });
       }
       return false;
     }
@@ -1309,11 +1309,11 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         setLastSyncTime(new Date());
         devLog(`Synced ${successCount}/${projectsToSync.length} projects to cloud via API`);
       } else if (projectsToSync.length > 0 && auth?.currentUser) {
-        toast.error(`Sync failed for ${projectsToSync.length} project(s) -check your connection`);
+        toast.error(`Sync failed for ${projectsToSync.length} project(s) - check your connection`, { id: 'sync-error' });
       }
     } catch (err) {
       console.error('Sync failed:', err);
-      toast.error('Cloud sync failed. Projects saved locally.');
+      toast.error('Cloud sync failed. Projects saved locally.', { id: 'sync-error' });
     } finally {
       setProjectsSyncing(false);
     }
@@ -1443,7 +1443,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       return cloudProjects;
     } catch (err) {
       console.error(`[TRACE:${traceId}] loadProjectsFromCloud ERROR:`, err);
-      toast.error('Could not load projects from cloud. Using local data.');
+      toast.error('Could not load projects from cloud. Using local data.', { id: 'load-error' });
       return null; // Return null to distinguish error from genuinely empty
     }
   };
@@ -1847,7 +1847,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       try {
         if (!asset) {
           devWarn('[SafePreview] No asset provided');
-          toast.error('Unable to preview: asset not found');
+          toast.error('Unable to preview: asset not found', { id: 'preview-error' });
           return;
         }
         
@@ -1864,7 +1864,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         
         if (safeAssetsList.length === 0) {
           devWarn('[SafePreview] No valid assets in list');
-          toast.error('No assets available to preview');
+          toast.error('No assets available to preview', { id: 'preview-error' });
           isModalTransitioning.current = false;
           return;
         }
@@ -1889,7 +1889,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             });
           } else {
             console.error('[SafePreview] Asset at index', safeIndex, 'does not exist');
-            toast.error('Asset not found. Try refreshing the page.');
+            toast.error('Asset not found. Try refreshing the page.', { id: 'preview-error' });
             isModalTransitioning.current = false;
             return;
           }
@@ -1899,7 +1899,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
           
           if (previewableAssets.length === 0) {
             devWarn('[SafePreview] No previewable media assets found');
-            toast.error('No media content to preview. Generate some assets first.');
+            toast.error('No media content to preview. Generate some assets first.', { id: 'preview-error' });
             isModalTransitioning.current = false;
             return;
           }
@@ -1924,7 +1924,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
             });
           } else {
             console.error('[SafePreview] Asset at index', safeIndex, 'does not exist in previewable list');
-            toast.error('Media asset not found. It may have been moved or deleted.');
+            toast.error('Media asset not found. It may have been moved or deleted.', { id: 'preview-error' });
             isModalTransitioning.current = false;
             return;
           }
@@ -1934,7 +1934,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
         setTimeout(() => { isModalTransitioning.current = false; }, 500);
       } catch (err) {
         console.error('[SafePreview] Error:', err);
-        toast.error('Preview failed: asset data is missing or corrupted. Try refreshing the page.');
+        toast.error('Preview failed: asset data is missing or corrupted. Try refreshing the page.', { id: 'preview-error' });
         isModalTransitioning.current = false;
       }
     }, 100); // 100ms debounce
@@ -4149,7 +4149,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     // Guard: Ensure agent is selected
     if (!targetAgentSnapshot) {
       console.error('[handleGenerate] No agent selected');
-      toast.error("Please select an agent first.");
+      toast.error("Please select an agent first.", { id: 'gen-no-agent' });
       return;
     }
 
@@ -4184,7 +4184,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
     if (!promptValue || !promptValue.trim()) {
       console.error('[handleGenerate] Empty prompt');
-      toast.error("Please enter a prompt first.");
+      toast.error("Please enter a prompt first.", { id: 'gen-no-prompt' });
       return;
     }
 
@@ -4277,10 +4277,10 @@ const fetchUserCredits = useCallback(async (uid) => {
     // Check if user can generate (free limit or credits)
     if (!canGenerate(featureType)) {
       if (!isLoggedIn) {
-        toast.error(`You've used your ${FREE_GENERATION_LIMIT} free generations! Create a free account to get 25 credits.`);
+        toast.error(`You've used your ${FREE_GENERATION_LIMIT} free generations! Create a free account to get 25 credits.`, { id: 'gen-limit' });
         setShowLoginModal(true);
       } else {
-        toast.error(`Insufficient credits! ${targetAgentSnapshot.name} needs ${cost} credits.`);
+        toast.error(`Insufficient credits! ${targetAgentSnapshot.name} needs ${cost} credits.`, { id: 'gen-credits' });
         setDashboardTab('subscription');
         setActiveTab('mystudio');
       }
@@ -12291,7 +12291,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                      } catch (err) {
                        console.error('AMO Orchestration error:', err);
                        toast.dismiss('amo-render');
-                       toast.error(err.message || 'Orchestration failed. Check your internet connection and try again.');
+                       toast.error(err.message || 'Orchestration failed. Check your internet connection and try again.', { id: 'orch-error' });
                        handleTextToVoice("Orchestration failed. Please try again.");
                      } finally {
                        setIsGenerating(false);

@@ -2222,7 +2222,7 @@ export default function StudioOrchestratorV2({
     console.log('[handleGenerate] BACKEND_URL:', BACKEND_URL);
     
     if (!songIdea.trim()) {
-      toast.error('Please enter a song idea');
+      toast.error('Please enter a song idea', { id: 'orch-no-idea' });
       return;
     }
     
@@ -2230,7 +2230,7 @@ export default function StudioOrchestratorV2({
     console.log('[handleGenerate] activeSlots:', activeSlots);
     
     if (activeSlots.length === 0) {
-      toast.error('Please select at least one agent');
+      toast.error('Please select at least one agent', { id: 'orch-no-agent' });
       return;
     }
     
@@ -2345,14 +2345,14 @@ REQUIREMENTS:
             console.error(`[handleGenerate] ${slot} failed:`, response.status, errorText);
             setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
             updatePipelineStep(stepId, 'error');
-            toast.error(`Agent ${agent.name} failed: ${response.status}`, { icon: '❌' });
+            toast.error(`Agent ${agent.name} failed: ${response.status}`, { id: `orch-agent-${slot}`, icon: '❌' });
             return null;
           }
         } catch (err) {
           console.error(`Error generating ${slot}:`, err);
           setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
           updatePipelineStep(stepId, 'error');
-          toast.error(`Connection Error: ${slot} generation failed.`, { icon: '📡' });
+          toast.error(`Connection Error: ${slot} generation failed.`, { id: `orch-conn-${slot}`, icon: '📡' });
           return null;
         }
       };
@@ -2474,7 +2474,7 @@ REQUIREMENTS:
             {err.message || 'Check your connection and try again'}
           </p>
         </div>,
-        { duration: 5000 }
+        { id: 'orch-gen-fail', duration: 4000 }
       );
     } finally {
       setIsGenerating(false);
@@ -2582,11 +2582,11 @@ REQUIREMENTS:
           }
         }
       } else {
-        toast.error(data.error || `Failed to regenerate ${slotConfig.title}`);
+        toast.error(data.error || `Failed to regenerate ${slotConfig.title}`, { id: 'orch-regen' });
       }
     } catch (regenErr) {
       console.error('[Orchestrator] Regeneration error:', regenErr);
-      toast.error('Regeneration failed');
+      toast.error('Regeneration failed', { id: 'orch-regen' });
     } finally {
       setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
     }
@@ -2614,7 +2614,7 @@ REQUIREMENTS:
 
     if (!audioPrompt) {
       console.error('[handleGenerateAudio] No audio prompt found');
-      toast.error('Generate Beat DNA first');
+      toast.error('Generate Beat DNA first', { id: 'orch-need-beat' });
       return;
     }
     
@@ -2797,7 +2797,7 @@ REQUIREMENTS:
 
     console.log('[handleGenerateVocals] Called, hasLyrics:', !!lyricsText);
     if (!lyricsText) {
-      toast.error('Generate Lyrics & Hook DNA first');
+      toast.error('Generate Lyrics & Hook DNA first', { id: 'orch-need-lyrics' });
       return;
     }
     setGeneratingMedia(prev => ({ ...prev, vocals: true }));
@@ -3423,7 +3423,7 @@ REQUIREMENTS:
     const visualPromptText = (typeof directInput === 'string' ? directInput : null) || outputsRef.current.visual || outputs.visual;
 
     if (!visualPromptText) {
-      toast.error('Generate Visual DNA first');
+      toast.error('Generate Visual DNA first', { id: 'orch-need-visual' });
       return;
     }
     setGeneratingMedia(prev => ({ ...prev, image: true }));
@@ -4244,7 +4244,7 @@ REQUIREMENTS:
   const handleDownloadMasterMix = async () => {
     const mixUrl = mediaUrls.mixedAudio || finalMixPreview?.mixedAudioUrl;
     if (!mixUrl) {
-      toast.error('No master mix available — create a final mix first');
+      toast.error('No master mix available — create a final mix first', { id: 'orch-need-mix' });
       return;
     }
     try {
@@ -4531,7 +4531,7 @@ REQUIREMENTS:
     console.log('[Orchestrator] hasContent:', hasContent, 'hasMedia:', hasMedia);
     
     if (!hasContent && !hasMedia) {
-      toast.error('No content to save! Generate some content first.');
+      toast.error('No content to save! Generate some content first.', { id: 'orch-save-empty' });
       return;
     }
     
@@ -4661,11 +4661,11 @@ REQUIREMENTS:
         return; // Don't close immediately - let user choose to preview or close
       } catch (err) {
         console.error('[Orchestrator] save callback error:', err);
-        toast.error('Save failed - callback error');
+        toast.error('Save failed - callback error', { id: 'orch-save-fail' });
       }
     } else {
       console.warn('[Orchestrator] No save callback (onSaveToProject/onCreateProject) provided!');
-      toast.error('Save failed - no backend connection');
+      toast.error('Save failed - no backend connection', { id: 'orch-save-fail' });
     }
     
     setShowCreateProject(false);
@@ -5251,7 +5251,7 @@ REQUIREMENTS:
                       } catch (retryErr) {
                         console.error('[Orchestrator] Pipeline retry error:', retryErr);
                         updatePipelineStep(step.id, 'error');
-                        toast.error(`Retry failed for: ${step.label}`);
+                        toast.error(`Retry failed for: ${step.label}`, { id: 'orch-retry' });
                       }
                     }}
                     style={{
