@@ -20,7 +20,9 @@ const {
   getVideoMetadata
 } = require('./services/videoCompositionService');
 const {
-  generateSyncedMusicVideo
+  generateSyncedMusicVideo,
+  generateVideoSegments,
+  generateSegmentedPrompts
 } = require('./services/videoGenerationOrchestrator');
 const {
   mixAudioFromUrls,
@@ -4935,13 +4937,13 @@ if (elevenLabsKey && !audioUrl) {
 app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('beat'), generationLimiter, async (req, res) => {
   try {
     const { 
-      prompt, bpm: rawBpm = 90, durationSeconds: rawDuration = 30, genre = 'hip-hop', mood = 'chill',
+      prompt, bpm: rawBpm = 90, durationSeconds: rawDuration = 60, genre = 'hip-hop', mood = 'chill',
       referenceAudio, engine = 'auto', highMusicality = true, seed = -1, stem = 'Full Mix',
       quality = 'standard', outputFormat = 'music', songStructure = 'full'
     } = req.body;
 
     const bpm = parseInt(rawBpm) || 90;
-    const durationSeconds = parseInt(rawDuration) || 30;
+    const durationSeconds = Math.max(parseInt(rawDuration) || 60, 30); // Minimum 30s for professional quality
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
     const stabilityKey = process.env.STABILITY_API_KEY;
@@ -5426,13 +5428,13 @@ app.post('/api/mix-audio', verifyFirebaseToken, requireAuth, checkCreditsFor('mi
 app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCreditsFor('mixing'), generationLimiter, async (req, res) => {
   try {
     const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '', vocalVolume, beatVolume,
-            title, artist, coverArtUrl, exportFormat = 'mp3' } = req.body;
+            title, artist, coverArtUrl, exportFormat = 'mp3', preset: requestedPreset } = req.body;
 
     if (!vocalUrl || !beatUrl) {
       return res.status(400).json({ error: 'Both vocalUrl and beatUrl are required' });
     }
 
-    logger.info('🎚️ Creating final mix', { style, outputFormat, genre });
+    logger.info('🎚️ Creating final mix', { style, outputFormat, genre, requestedPreset });
 
     const { mixAudioFromUrls, getMixPreset } = require('./services/audioMixingService');
 
@@ -5440,12 +5442,13 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
     const outputPath = path.join(tempDir, `final_mix_${Date.now()}.mp3`);
 
-    // Pick preset based on style
-    const presetName = style.includes('singer') ? 'singer-over-beat'
+    // Use explicit preset if provided, otherwise infer from style/outputFormat
+    const presetName = requestedPreset
+      || (style.includes('singer') ? 'singer-over-beat'
       : outputFormat === 'social' ? 'social-viral'
       : outputFormat === 'podcast' ? 'podcast-intro'
       : outputFormat === 'tv' ? 'tv-commercial'
-      : 'rapper-over-beat';
+      : 'rapper-over-beat');
 
     const preset = getMixPreset(presetName);
 
@@ -5785,12 +5788,12 @@ app.post('/api/mux-audio-video', verifyFirebaseToken, requireAuth, generationLim
 // Video generation charges 15 credits (expensive)
 app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('video'), generationLimiter, async (req, res) => {
   try {
-    let { prompt, referenceImage, durationSeconds = 8, audioUrl = null, vocalUrl = null, audioDuration = null } = req.body;
+    let { prompt, referenceImage, durationSeconds = 30, audioUrl = null, vocalUrl = null, audioDuration = null } = req.body;
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
 
-    // If audio/vocals are provided, match their duration (up to 30s for beat-sync videos)
+    // If audio/vocals are provided, match their duration (up to 60s for beat-sync videos)
     if ((audioUrl || vocalUrl) && audioDuration) {
-      durationSeconds = Math.min(Math.max(audioDuration, 8), 30); // 8-30 seconds for beat-synced videos
+      durationSeconds = Math.min(Math.max(audioDuration, 8), 60); // 8-60 seconds for beat-synced videos
       logger.info('📹 Video duration matched to audio', { audioDuration, durationSeconds });
     }
 

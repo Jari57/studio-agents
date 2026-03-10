@@ -1060,7 +1060,9 @@ function ProductionControlHub({
   mixVocalVolume,
   mixBeatVolume,
   setMixVocalVolume,
-  setMixBeatVolume
+  setMixBeatVolume,
+  mixPreset,
+  setMixPreset
 }) {
   // Check completion status
   const completedCount = Object.values(outputs).filter(Boolean).length;
@@ -1325,6 +1327,61 @@ function ProductionControlHub({
               })}
             </div>
 
+            {/* Mix Preset Selector — choose a professional mastering preset */}
+            {hasBeat && hasVocalMedia && (
+              <div style={{
+                display: 'flex',
+                gap: '6px',
+                flexWrap: 'wrap',
+                padding: '8px 14px',
+                background: 'rgba(255,255,255,0.03)',
+                borderRadius: '10px',
+                border: '1px solid rgba(255,255,255,0.06)',
+                marginBottom: '4px'
+              }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: '700', color: 'rgba(255,255,255,0.6)', width: '100%', marginBottom: '4px' }}>Mix Preset</span>
+                {[
+                  { id: 'rapper-over-beat', label: 'Rapper', desc: 'Vocals forward, punchy' },
+                  { id: 'singer-over-beat', label: 'Singer', desc: 'Balanced, warm' },
+                  { id: 'social-viral', label: 'Social', desc: 'Loud, punchy for TikTok' },
+                  { id: 'podcast-intro', label: 'Podcast', desc: 'Voice-first, subtle bg' },
+                  { id: 'tv-commercial', label: 'Broadcast', desc: 'Broadcast-safe dynamics' }
+                ].map(preset => (
+                  <button
+                    key={preset.id}
+                    onClick={() => {
+                      setMixPreset(preset.id);
+                      // Auto-adjust volumes based on preset
+                      const presetVolumes = {
+                        'rapper-over-beat': { vocal: 0.90, beat: 0.55 },
+                        'singer-over-beat': { vocal: 0.80, beat: 0.65 },
+                        'social-viral': { vocal: 0.90, beat: 0.60 },
+                        'podcast-intro': { vocal: 0.85, beat: 0.40 },
+                        'tv-commercial': { vocal: 0.85, beat: 0.50 }
+                      };
+                      const vol = presetVolumes[preset.id] || presetVolumes['rapper-over-beat'];
+                      setMixVocalVolume(vol.vocal);
+                      setMixBeatVolume(vol.beat);
+                    }}
+                    title={preset.desc}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: '8px',
+                      background: mixPreset === preset.id ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${mixPreset === preset.id ? 'rgba(99, 102, 241, 0.4)' : 'rgba(255,255,255,0.08)'}`,
+                      color: mixPreset === preset.id ? '#818cf8' : 'rgba(255,255,255,0.5)',
+                      fontSize: '0.7rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Volume Controls — visible when both beat and vocals present */}
             {hasBeat && hasVocalMedia && setMixVocalVolume && setMixBeatVolume && (
               <div style={{
@@ -1574,6 +1631,7 @@ export default function StudioOrchestratorV2({
   const [finalMixPreview, setFinalMixPreview] = useState(null);
   const [mixVocalVolume, setMixVocalVolume] = useState(0.85); // Vocal volume for final mix (0-1)
   const [mixBeatVolume, setMixBeatVolume] = useState(0.60); // Beat volume for final mix (0-1)
+  const [mixPreset, setMixPreset] = useState('rapper-over-beat'); // Mix preset for audio mastering
   const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
   const [musicVideoUrl, setMusicVideoUrl] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
@@ -3953,6 +4011,7 @@ REQUIREMENTS:
             genre: genre || style,
             vocalVolume: mixVocalVolume,
             beatVolume: mixBeatVolume,
+            preset: mixPreset || 'rapper-over-beat',
             // ID3 metadata for professional export
             title: songIdea || 'Untitled',
             artist: 'Studio Agents AI',
@@ -6597,6 +6656,8 @@ REQUIREMENTS:
         mixBeatVolume={mixBeatVolume}
         setMixVocalVolume={setMixVocalVolume}
         setMixBeatVolume={setMixBeatVolume}
+        mixPreset={mixPreset}
+        setMixPreset={setMixPreset}
       />
     </div>
 

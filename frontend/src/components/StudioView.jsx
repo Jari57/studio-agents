@@ -674,7 +674,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [lastVoiceCommand, setLastVoiceCommand] = useState(null);
   const [voiceSettings, setVoiceSettings] = useState({
     gender: 'male', region: 'US', language: 'English', style: 'rapper',
-    rapStyle: 'aggressive', genre: 'hip-hop', duration: 30, voiceName: 'rapper-male-1',
+    rapStyle: 'aggressive', genre: 'hip-hop', duration: 60, voiceName: 'rapper-male-1',
     speakerUrl: localStorage.getItem('studio_cloned_voice_url') || null,
     bpm: 90
   });
@@ -4471,18 +4471,34 @@ const fetchUserCredits = useCallback(async (uid) => {
           quality: 'premium'
         };
       } else if (isVideoAgent) {
-        finalEndpoint = '/api/generate-video';
-        finalBody = { 
-          prompt: expandedPrompt, 
-          model: selectedModel, 
-          referenceImage: visualDnaUrl || videoDnaUrl, // Pass visual DNA as preferred image reference
-          referenceVideo: videoDnaUrl,
-          visualId: referencedVisualId,
-          durationSeconds: voiceSettings.duration || 8, // Default to 8s for Veo
-          audioUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
-          audioId: referencedAudioId,
-          style: voiceSettings.style || 'dynamic'
-        };
+        // Use synced pipeline when audio is available for multi-segment video
+        const hasAudio = audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl);
+        const videoDuration = voiceSettings.duration || 30;
+        if (hasAudio && videoDuration >= 30) {
+          finalEndpoint = '/api/generate-synced-video';
+          finalBody = {
+            audioUrl: hasAudio,
+            videoPrompt: expandedPrompt,
+            songTitle: selectedProject?.title || 'Untitled',
+            style: voiceSettings.style || 'dynamic',
+            duration: videoDuration,
+            imageUrl: visualDnaUrl,
+            referenceImage: visualDnaUrl || videoDnaUrl
+          };
+        } else {
+          finalEndpoint = '/api/generate-video';
+          finalBody = { 
+            prompt: expandedPrompt, 
+            model: selectedModel, 
+            referenceImage: visualDnaUrl || videoDnaUrl,
+            referenceVideo: videoDnaUrl,
+            visualId: referencedVisualId,
+            durationSeconds: videoDuration,
+            audioUrl: hasAudio || null,
+            audioId: referencedAudioId,
+            style: voiceSettings.style || 'dynamic'
+          };
+        }
       } else if (isAudioAgent) {
         finalEndpoint = '/api/generate-audio';
         finalBody = { 
@@ -4490,7 +4506,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           bpm: voiceSettings.bpm || 90, 
           genre: heroGenre || voiceSettings.genre || (agentId === 'beat' ? 'hip-hop' : 'sample'),
           mood: heroIntensity >= 7 ? 'aggressive' : heroIntensity >= 4 ? 'creative' : 'chill', 
-          durationSeconds: voiceSettings.duration || 30,
+          durationSeconds: voiceSettings.duration || 60,
           referenceAudio: audioDnaUrl,
           audioId: referencedAudioId,
           quality: 'premium',
@@ -4546,7 +4562,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           };
           if (isVideoAgent) {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 600000); // 10min timeout for synced video
             fetchOptions.signal = controller.signal;
             response = await fetch(`${BACKEND_URL}${finalEndpoint}`, fetchOptions);
             clearTimeout(timeoutId);
@@ -4625,6 +4641,41 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
         if (!pollSuccess) {
           toast.error('Video generation timed out � please try again', { id: toastId });
+          return;
+        }
+      }
+
+      // Handle synced music video job polling (multi-segment pipeline)
+      if (data.status === 'processing' && data.jobId) {
+        devLog('[Studio] Synced video job started, polling for completion...', data.jobId);
+        toast.loading('Creating multi-segment music video...', { id: toastId, duration: 1200000 });
+        const maxPolls = 120; // 120 x 10s = 20 min max
+        let syncPollSuccess = false;
+        for (let i = 0; i < maxPolls; i++) {
+          await new Promise(r => setTimeout(r, 10000));
+          try {
+            const statusRes = await fetch(`${BACKEND_URL}/api/video-job-status/${data.jobId}`, { headers });
+            const statusData = await statusRes.json();
+            devLog(`[Studio] Synced video poll ${i + 1}:`, statusData.status, statusData.progress);
+            if (statusData.status === 'processing') {
+              toast.loading(`Music video rendering... ${statusData.progress || 0}%`, { id: toastId });
+              continue;
+            }
+            if (statusData.status === 'completed' && statusData.videoUrl) {
+              data = { ...data, videoUrl: statusData.videoUrl, output: statusData.videoUrl };
+              syncPollSuccess = true;
+              break;
+            }
+            if (statusData.status === 'failed') {
+              toast.error(statusData.error || 'Video generation failed', { id: toastId });
+              return;
+            }
+          } catch (pollErr) {
+            console.error('[Studio] Synced video poll error:', pollErr);
+          }
+        }
+        if (!syncPollSuccess) {
+          toast.error('Video generation timed out. Check back later.', { id: toastId });
           return;
         }
       }
@@ -6443,15 +6494,17 @@ const fetchUserCredits = useCallback(async (uid) => {
                             <div className="settings-group" style={{ marginTop: '8px' }}>
                               <label>? Generation Duration</label>
                               <select 
-                                value={voiceSettings.duration || 30}
+                                value={voiceSettings.duration || 60}
                                 onChange={(e) => setVoiceSettings({...voiceSettings, duration: parseInt(e.target.value)})}
                                 className="settings-select"
                               >
-                                <option value={15}>15 Seconds (Rapid)</option>
-                                <option value={30}>30 Seconds (Standard)</option>
-                                <option value={60}>1 Minute (Extended)</option>
+                                <option value={30}>30 Seconds (Quick)</option>
+                                <option value={60}>1 Minute (Standard)</option>
+                                <option value={90}>1.5 Minutes (Extended)</option>
                                 <option value={120}>2 Minutes (Professional)</option>
                                 <option value={180}>3 Minutes (Full Track)</option>
+                                <option value={240}>4 Minutes (Radio Edit)</option>
+                                <option value={300}>5 Minutes (Extended Mix)</option>
                               </select>
                             </div>
 
