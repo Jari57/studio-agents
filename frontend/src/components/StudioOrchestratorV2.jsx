@@ -15,6 +15,12 @@ import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUt
 
 // Lazy load modals and heavy sub-sections (standardizing to React.lazy to prevent 'lazy is not defined' error)
 const PreviewModal = React.lazy(() => import('./PreviewModal'));
+const ArrangementEditor = React.lazy(() => import('./ArrangementEditor'));
+const RealtimePreviewMixer = React.lazy(() => import('./RealtimePreviewMixer'));
+const VocalSynthControls = React.lazy(() => import('./VocalSynthControls'));
+
+// Import arrangement-to-prompt helper (non-lazy since it's a pure function)
+import { arrangementToPrompt } from './ArrangementEditor';
 
 // Helper to split intro/narrative from creative content
 const splitCreativeContent = (text) => {
@@ -1422,6 +1428,21 @@ function ProductionControlHub({
               </div>
             )}
 
+            {/* Real-time Preview Mixer — hear mix changes before committing */}
+            {(hasBeat || hasVocalMedia) && (
+              <Suspense fallback={null}>
+                <RealtimePreviewMixer
+                  beatUrl={mediaUrls.audio}
+                  vocalUrl={mediaUrls.vocals || mediaUrls.lyricsVocal}
+                  beatVolume={mixBeatVolume}
+                  vocalVolume={mixVocalVolume}
+                  onBeatVolumeChange={setMixBeatVolume}
+                  onVocalVolumeChange={setMixVocalVolume}
+                  isMobile={isMobile}
+                />
+              </Suspense>
+            )}
+
             {/* Create Mix + Preview buttons */}
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button
@@ -1660,6 +1681,15 @@ export default function StudioOrchestratorV2({
   const [clonedVoiceId, setClonedVoiceId] = useState(null); // ElevenLabs voice_id from IVC
   const [showAssets, setShowAssets] = useState(true); // Your Assets section visibility
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false); // Project picker overlay
+
+  // Arrangement Editor state
+  const [arrangementSections, setArrangementSections] = useState(null); // null = use defaults
+
+  // Advanced Vocal Synthesis state
+  const [vocalPitchShift, setVocalPitchShift] = useState(0); // semitones (-12 to +12)
+  const [vocalSpeed, setVocalSpeed] = useState(1.0); // playback speed (0.5 to 2.0)
+  const [vocalVibrato, setVocalVibrato] = useState(0); // vibrato depth (0-100)
+  const [vocalExpression, setVocalExpression] = useState('neutral'); // expression preset
 
   // New DNA States for other agents
   const [visualDnaUrl, setVisualDnaUrl] = useState(null);
@@ -2696,7 +2726,9 @@ REQUIREMENTS:
         body: JSON.stringify({
           // Simplified prompt: Backend already wraps with genre/mood/BPM/quality tags
           // Sending the raw description from the agent is more effective
-          prompt: typeof cleanAudioPromptText === 'string' ? cleanAudioPromptText.substring(0, 1000) : 'Professional music production',
+          prompt: typeof cleanAudioPromptText === 'string'
+            ? (cleanAudioPromptText.substring(0, 1000) + (arrangementSections ? '\n' + arrangementToPrompt(arrangementSections, projectBpm) : ''))
+            : 'Professional music production',
           genre: (style || 'hip-hop').toLowerCase().split('/')[0].trim(),
           mood: mood.toLowerCase() || 'energetic',
           bpm: parseInt(projectBpm) || 90,
@@ -2705,6 +2737,7 @@ REQUIREMENTS:
                           structure === 'Extended' ? 180 :
                           structure === 'Loop' ? 15 : 30),
           songStructure: songStructure || 'full', // single, full, extended — helps backend sync arrangement
+          arrangement: arrangementSections ? arrangementSections.map(s => ({ type: s.type, label: s.label, bars: s.bars })) : null,
           referenceAudio: audioDnaUrl || null,
           engine: musicEngine || 'music-gpt',
           quality: 'premium', // Ensure high-fidelity selection in backend
@@ -2920,7 +2953,12 @@ REQUIREMENTS:
           speakerUrl: voiceStyle === 'cloned' && !clonedVoiceId ? voiceSampleUrl : null,
           elevenLabsVoiceId: voiceStyle === 'cloned' && clonedVoiceId
             ? clonedVoiceId
-            : ((vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null)
+            : ((vocalQuality === 'premium' || voiceStyle === 'cloned') ? elevenLabsVoiceId : null),
+          // Advanced vocal synthesis parameters
+          pitchShift: vocalPitchShift !== 0 ? vocalPitchShift : undefined,
+          speed: vocalSpeed !== 1.0 ? vocalSpeed : undefined,
+          vibrato: vocalVibrato > 0 ? vocalVibrato : undefined,
+          expression: vocalExpression !== 'neutral' ? vocalExpression : undefined
           // NOTE: backingTrackUrl removed — vocals are generated DRY.
           // The Final Mix step handles vocal+beat mixing once, preventing double-mixing.
         })
@@ -5531,6 +5569,17 @@ REQUIREMENTS:
           ))}
         </div>
 
+        {/* Arrangement Editor — Visual Song Structure Builder */}
+        <Suspense fallback={<div style={{ padding: '20px', color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem' }}>Loading arrangement editor...</div>}>
+          <ArrangementEditor
+            bpm={projectBpm}
+            genre={style}
+            isMobile={isMobile}
+            arrangement={arrangementSections}
+            onArrangementChange={setArrangementSections}
+          />
+        </Suspense>
+
         {/* Agent Selection */}
         <div style={{
           background: 'rgba(255,255,255,0.03)',
@@ -6141,6 +6190,21 @@ REQUIREMENTS:
                   </optgroup>
                 </select>
               )}
+
+              {/* Advanced Vocal Synthesis Controls */}
+              <Suspense fallback={null}>
+                <VocalSynthControls
+                  pitchShift={vocalPitchShift}
+                  speed={vocalSpeed}
+                  vibrato={vocalVibrato}
+                  expression={vocalExpression}
+                  onPitchShiftChange={setVocalPitchShift}
+                  onSpeedChange={setVocalSpeed}
+                  onVibratoChange={setVocalVibrato}
+                  onExpressionChange={setVocalExpression}
+                  isMobile={isMobile}
+                />
+              </Suspense>
               
               <button
                 onClick={() => {

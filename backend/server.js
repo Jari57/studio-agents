@@ -4878,6 +4878,88 @@ if (elevenLabsKey && !audioUrl) {
         const bucket = getStorageBucket();
         if (bucket) {
           try {
+
+            // ═══════════════════════════════════════════════════════════════
+            // ADVANCED VOCAL SYNTHESIS — Pitch shift, speed, vibrato post-processing
+            // Applied via FFmpeg filters to the generated vocal audio
+            // ═══════════════════════════════════════════════════════════════
+            const { pitchShift, speed: vocalSpeed, vibrato: vibratoDepth, expression: expressionPreset } = req.body;
+            const needsProcessing = (pitchShift && pitchShift !== 0) || (vocalSpeed && vocalSpeed !== 1.0) || (vibratoDepth && vibratoDepth > 0);
+
+            if (needsProcessing) {
+              try {
+                logger.info('🎛️ Applying advanced vocal synthesis', { pitchShift, vocalSpeed, vibratoDepth, expressionPreset });
+                const tempDir = path.join(__dirname, 'temp');
+                if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+                const inputPath = path.join(tempDir, `vocal_input_${Date.now()}.mp3`);
+                const outputPath = path.join(tempDir, `vocal_processed_${Date.now()}.mp3`);
+
+                // Write audio data to temp file
+                if (audioUrl.startsWith('data:')) {
+                  const base64Data = audioUrl.split(',')[1];
+                  fs.writeFileSync(inputPath, Buffer.from(base64Data, 'base64'));
+                } else {
+                  const { downloadAudio } = require('./services/audioMixingService');
+                  await downloadAudio(audioUrl, inputPath);
+                }
+
+                // Build FFmpeg filter chain
+                const filters = [];
+
+                // Pitch shift: use rubberband or asetrate+aresample combo
+                if (pitchShift && pitchShift !== 0) {
+                  // asetrate shifts pitch by changing sample rate, aresample restores it
+                  const ratio = Math.pow(2, pitchShift / 12);
+                  filters.push(`asetrate=44100*${ratio.toFixed(6)}`);
+                  filters.push('aresample=44100');
+                }
+
+                // Speed change: use atempo (supports 0.5 to 2.0)
+                if (vocalSpeed && vocalSpeed !== 1.0) {
+                  const sp = Math.max(0.5, Math.min(2.0, vocalSpeed));
+                  if (sp >= 0.5 && sp <= 2.0) {
+                    filters.push(`atempo=${sp.toFixed(2)}`);
+                  }
+                }
+
+                // Vibrato: use vibrato filter
+                if (vibratoDepth && vibratoDepth > 0) {
+                  // Map 0-100 to depth 0-1 and frequency 4-8 Hz
+                  const depth = Math.min(1.0, vibratoDepth / 100);
+                  const freq = 4 + (depth * 4); // 4-8 Hz range
+                  filters.push(`vibrato=f=${freq.toFixed(1)}:d=${depth.toFixed(2)}`);
+                }
+
+                if (filters.length > 0) {
+                  const ffmpeg = require('fluent-ffmpeg');
+                  const ffmpegStatic = require('ffmpeg-static');
+                  ffmpeg.setFfmpegPath(ffmpegStatic);
+
+                  await new Promise((resolve, reject) => {
+                    ffmpeg(inputPath)
+                      .audioFilters(filters.join(','))
+                      .audioCodec('libmp3lame')
+                      .audioBitrate('192k')
+                      .output(outputPath)
+                      .on('end', resolve)
+                      .on('error', reject)
+                      .run();
+                  });
+
+                  if (fs.existsSync(outputPath)) {
+                    const processedBuffer = fs.readFileSync(outputPath);
+                    audioUrl = `data:audio/mpeg;base64,${processedBuffer.toString('base64')}`;
+                    logger.info('✅ Advanced vocal synthesis applied', { filters: filters.join(', ') });
+                    try { fs.unlinkSync(outputPath); } catch {}
+                  }
+                  try { fs.unlinkSync(inputPath); } catch {}
+                }
+              } catch (synthErr) {
+                logger.warn('Advanced vocal synthesis failed, using original', { error: synthErr.message });
+              }
+            }
+
             const fileName = `vocal_${style}_${Date.now()}.mp3`;
             const result = await uploadToStorage(audioUrl, req.user.uid, fileName, 'audio/mpeg');
             permanentUrl = result.url;
@@ -4939,12 +5021,25 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
     const { 
       prompt, bpm: rawBpm = 90, durationSeconds: rawDuration = 60, genre = 'hip-hop', mood = 'chill',
       referenceAudio, engine = 'auto', highMusicality = true, seed = -1, stem = 'Full Mix',
-      quality = 'standard', outputFormat = 'music', songStructure = 'full'
+      quality = 'standard', outputFormat = 'music', songStructure = 'full',
+      arrangement = null  // Array of {type, label, bars} from ArrangementEditor
     } = req.body;
 
     const bpm = parseInt(rawBpm) || 90;
     const durationSeconds = Math.max(parseInt(rawDuration) || 60, 30); // Minimum 30s for professional quality
     if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
+
+    // Build arrangement description for the prompt if provided
+    let arrangementDesc = '';
+    if (arrangement && Array.isArray(arrangement) && arrangement.length > 0) {
+      const totalBars = arrangement.reduce((sum, s) => sum + (s.bars || 8), 0);
+      const sectionDescs = arrangement.map((s, i) => {
+        const startBar = arrangement.slice(0, i).reduce((sum, x) => sum + (x.bars || 8), 0) + 1;
+        return `${s.label || s.type} (bars ${startBar}-${startBar + (s.bars || 8) - 1})`;
+      });
+      arrangementDesc = ` Song structure: ${totalBars} bars total at ${bpm} BPM — ${sectionDescs.join(' → ')}.`;
+      logger.info('📋 Arrangement provided', { sections: arrangement.length, totalBars });
+    }
 
     const stabilityKey = process.env.STABILITY_API_KEY;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
@@ -5040,7 +5135,7 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
       full: 'Arrange as a full song: 8-bar intro, verse, chorus, verse, chorus, bridge, final chorus, 4-bar outro. Include clear energy transitions between sections.',
       extended: 'Arrange as an extended DJ/producer version: long 16-bar intro, verse, chorus, verse, chorus, breakdown, build-up, drop, chorus, 16-bar outro. Suitable for live sets and remixing.'
     };
-    const arrangementHint = structureHints[songStructure] || structureHints['full'];
+    const arrangementHint = arrangementDesc || structureHints[songStructure] || structureHints['full'];
 
     // Construct the final prompt with clear structure
     const musicPrompt = `Create a ${genre} ${mood} instrumental beat at ${bpm} BPM. ${arrangementHint} Style: ${prompt}. Production: ${qualityTags}`;
