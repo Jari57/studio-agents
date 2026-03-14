@@ -3679,7 +3679,7 @@ async function generateVocalsInternal(options, logger) {
 
   const voiceSettings = {
     stability: style.includes('rapper') ? 0.45 : 0.55,
-    similarity_boost: 0.85,
+    similarity_boost: 0.95,
     style: style.includes('rapper') ? 0.75 : 0.45,
     use_speaker_boost: true
   };
@@ -3725,13 +3725,13 @@ async function generateImageInternal(options, logger) {
   const replicate = new Replicate({ auth: replicateKey });
 
   const output = await replicate.run(
-    "black-forest-labs/flux-schnell",
+    "black-forest-labs/flux-1.1-pro",
     {
       input: {
         prompt,
         aspect_ratio: "16:9",
         output_format: "jpg",
-        output_quality: 90
+        output_quality: 95
       }
     }
   );
@@ -3886,8 +3886,8 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
         // DNA = exact clone — artist wants to look identical, no creative deviation
         if (referenceImage) {
           input.image = referenceImage;
-          input.image_prompt_strength = 0.85; // High fidelity to reference — near-exact replication
-          input.prompt = `EXACT VISUAL CLONE: Replicate this reference image precisely — same face, same style, same colors, same composition, same lighting, same mood, same artistic identity. Do not deviate or reinterpret. The artist must look identical. ${input.prompt}`;
+          input.image_prompt_strength = 0.95; // Near-max fidelity — exact visual clone of reference
+          input.prompt = `EXACT VISUAL CLONE: Replicate this reference image with pixel-perfect fidelity — same face, same style, same colors, same composition, same lighting, same mood, same artistic identity, same textures, same clothing, same pose. Do not deviate, reinterpret, or add creative spin. The output must be indistinguishable from the reference. ${input.prompt}`;
         }
 
         const response = await fetchWithRetry('https://api.replicate.com/v1/predictions', {
@@ -4470,21 +4470,22 @@ Return ONLY valid JSON, no markdown.`;
             const cloneAbort = new AbortController();
             const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
-            // Clone voice settings must be HIGH fidelity — we just created this voice,
-            // so we need maximum similarity + stability to sound exactly like the sample
+            // Clone voice settings — EXACT CLONE: maximum fidelity to reference sample
+            // stability HIGH = consistent voice identity, similarity_boost MAX = exact timbre match
             const cloneVoiceSettings = {
-              stability: 0.78,
-              similarity_boost: 0.98,
-              style: 0.80,
+              stability: 0.85,
+              similarity_boost: 1.0,
+              style: 0.85,
               use_speaker_boost: true
             };
 
-            // If reference analysis exists, fine-tune clone delivery
+            // If reference analysis exists, fine-tune clone delivery — keep floors high for exact clone
             if (refSongAnalysis) {
               const energy = parseInt(refSongAnalysis.energy) || 5;
               const warmth = parseInt(refSongAnalysis.warmth) || 5;
-              cloneVoiceSettings.stability = Math.max(0.70, Math.min(0.88, 0.75 + (warmth * 0.013)));
-              cloneVoiceSettings.style = Math.max(0.65, Math.min(0.92, 0.72 + (energy * 0.02)));
+              cloneVoiceSettings.stability = Math.max(0.82, Math.min(0.92, 0.83 + (warmth * 0.009)));
+              cloneVoiceSettings.style = Math.max(0.80, Math.min(0.95, 0.82 + (energy * 0.013)));
+              // similarity_boost stays at 1.0 — never reduce clone fidelity
             }
 
             const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${clonedVoiceId}?output_format=mp3_44100_192`, {
@@ -4553,7 +4554,7 @@ Return ONLY valid JSON, no markdown.`;
                 speaker: targetSpeaker,
                 cleanup_voice: true,
                 speed: 1.0,
-                temperature: 0.65
+                temperature: 0.35
               }
             })
           });
@@ -4703,9 +4704,9 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
         // When voice DNA (cloned voice or speakerUrl) is active, maximize fidelity
         const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
         const voiceSettings = {
-          stability: hasDnaVoice ? 0.80 : (style.includes('rapper') ? 0.60 : 0.65),       // DNA: high stability = consistent voice identity
-          similarity_boost: hasDnaVoice ? 0.98 : 0.92,                                     // DNA: max similarity = exact voice clone
-          style: hasDnaVoice ? 0.90 : (style.includes('rapper') ? 0.70 : 0.50),            // DNA: high style = preserve delivery character
+          stability: hasDnaVoice ? 0.85 : (style.includes('rapper') ? 0.60 : 0.65),       // DNA: high stability = consistent voice identity
+          similarity_boost: hasDnaVoice ? 1.0 : 0.92,                                      // DNA: max similarity = exact voice clone
+          style: hasDnaVoice ? 0.92 : (style.includes('rapper') ? 0.70 : 0.50),            // DNA: high style = preserve delivery character
           use_speaker_boost: true
         };
 
@@ -4733,9 +4734,9 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
 
           if (hasDnaVoice) {
             // DNA EXACT-CLONE: Reference tunes delivery but voice identity stays locked
-            voiceSettings.stability = Math.max(0.70, Math.min(0.90, 0.75 + (warmth * 0.015)));
-            voiceSettings.style = Math.max(0.70, Math.min(0.95, 0.75 + (energy * 0.02)));
-            voiceSettings.similarity_boost = Math.max(0.95, Math.min(0.99, 0.95 + (depth * 0.004)));
+            voiceSettings.stability = Math.max(0.80, Math.min(0.92, 0.82 + (warmth * 0.01)));
+            voiceSettings.style = Math.max(0.80, Math.min(0.95, 0.82 + (energy * 0.013)));
+            voiceSettings.similarity_boost = Math.max(0.98, Math.min(1.0, 0.98 + (depth * 0.002)));
           } else {
             // No DNA: standard reference tuning with wider range
             voiceSettings.stability = Math.max(0.35, Math.min(0.85, 0.40 + (warmth * 0.05)));
