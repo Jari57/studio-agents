@@ -6213,8 +6213,8 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
 
     // DNA EXACT-CLONE: When reference image is provided, enforce strict visual identity replication
     if (referenceImage) {
-      enhancedPrompt = `EXACT VISUAL CLONE — Replicate the reference image precisely: same person, same face, same style, same colors, same composition, same lighting, same cinematic identity. The artist must appear identical to their reference. Do NOT alter appearance, do NOT reinterpret style. ${enhancedPrompt}`;
-      logger.info('🧬 Video DNA exact-clone mode activated', { hasReference: true });
+      enhancedPrompt = `100% CLONE ALIGNMENT — The person in this video MUST be an EXACT visual clone of the reference image. Same face, same skin tone, same hairstyle, same body type, same clothing style, same colors, same aesthetic identity. Do NOT alter, reinterpret, or stylize the person's appearance in ANY way. The artist must be visually indistinguishable from their reference photo. Maintain this identity consistently in every single frame. ${enhancedPrompt}`;
+      logger.info('🧬 Video DNA 100% clone alignment mode activated', { hasReference: true });
     }
 
     // FAST-FAIL/MOCK for test prompts — only in development
@@ -6332,11 +6332,17 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
             // If Veo 3.0 Fast fails, try Veo 2.0 as fallback
             logger.info('Trying Veo 2.0 as fallback...');
             const veo2Url = `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predictLongRunning?key=${apiKey}`;
+            // Build Veo 2.0 instance with reference image if provided
+            const veo2Instance = { prompt: enhancedPrompt };
+            if (referenceImage) {
+              veo2Instance.image = { image_url: referenceImage };
+            }
+
             const veo2Response = await fetch(veo2Url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  instances: [Object.assign({ prompt: enhancedPrompt }, referenceImage ? { image: { image_url: referenceImage } } : {})],
+                  instances: [veo2Instance],
                   parameters: {
                     aspectRatio: "16:9",
                     durationSeconds: Math.min(durationSeconds, 8),
@@ -6428,13 +6434,20 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
         // Truncate prompt for Replicate (Minimax prefers < 1000 characters)
         const minimaxPrompt = enhancedPrompt.length > 800 ? enhancedPrompt.substring(0, 800) + '...' : enhancedPrompt;
 
+        // Build Minimax input with reference image for visual identity clone
+        const minimaxInput = {
+          prompt: minimaxPrompt,
+          prompt_optimizer: true
+        };
+        if (referenceImage) {
+          minimaxInput.first_frame_image = referenceImage;
+          logger.info('🧬 Minimax fallback using reference image as first frame', { referenceImage: referenceImage.substring(0, 60) });
+        }
+
         // Create prediction async (returns immediately, no blocking)
         const prediction = await replicate.predictions.create({
           model: "minimax/video-01",
-          input: {
-            prompt: minimaxPrompt,
-            prompt_optimizer: true
-          }
+          input: minimaxInput
         });
         
         if (prediction && prediction.id) {

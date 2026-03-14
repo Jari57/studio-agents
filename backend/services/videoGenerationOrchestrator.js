@@ -113,8 +113,9 @@ async function generateVideoSegments(
             duration: Math.min(duration, 5) // Minimax max is 5s
           };
 
-          // Use image as first frame if provided (first segment only)
-          if (globalIdx === 0 && imageUrl) {
+          // Use image as first frame for EVERY segment to maintain visual identity
+          // This ensures the artist's look is consistent throughout the entire video
+          if (imageUrl) {
             inputPayload.first_frame_image = imageUrl;
           }
 
@@ -447,10 +448,13 @@ function generateSegmentedPrompts(basePrompt, numSegments, bpm, logger) {
     'outro fade'
   ];
 
+  // 100% CLONE ALIGNMENT: Every segment must maintain strict visual identity with the reference
+  const cloneEnforcement = 'STRICT VISUAL IDENTITY CLONE: The person, face, style, outfit, colors, and overall look MUST remain identical to the reference image throughout. Do NOT change the artist appearance. Do NOT reinterpret or alter facial features, skin tone, clothing, or style.';
+
   for (let i = 0; i < numSegments; i++) {
     const transitionType = transitions[Math.min(i, transitions.length - 1)];
     const styleModifier = bpm > 110 ? 'strobe lights, clubbing atmosphere, high energy' : 'smooth cinematic motion, slow pan';
-    const prompt = `${basePrompt} (${transitionType}, ${styleModifier}, BPM ${bpm}, segment ${i + 1}/${numSegments}, 16:9)`;
+    const prompt = `${cloneEnforcement} ${basePrompt} (${transitionType}, ${styleModifier}, BPM ${bpm}, segment ${i + 1}/${numSegments}, 16:9)`;
     prompts.push(prompt);
 
     if (logger) logger.debug(`Segment ${i + 1} prompt:`, { prompt: prompt.substring(0, 80) });

@@ -4058,7 +4058,7 @@ REQUIREMENTS:
         headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({
           audioUrl: audioSource,
-          videoPrompt: `${visualDnaUrl || videoDnaUrl ? 'Feature the artist from the reference image. ' : ''}Elite cinematic music video, professional motion design, high-fidelity quality: ${videoPrompt.substring(0, 700)}${lyricsSceneGuide}`,
+          videoPrompt: `${visualDnaUrl || videoDnaUrl ? '100% CLONE ALIGNMENT: The artist in the video MUST look EXACTLY like the reference image — same face, same style, same colors, same identity in EVERY frame. ' : ''}Elite cinematic music video, professional motion design, high-fidelity quality: ${videoPrompt.substring(0, 700)}${lyricsSceneGuide}`,
           imageUrl: latestMedia.image,
           videoUrl: latestMedia.video,
           referenceImage: visualDnaUrl || videoDnaUrl,
@@ -4406,7 +4406,7 @@ REQUIREMENTS:
         },
         body: JSON.stringify({
           audioUrl: mediaUrls.mixedAudio || mediaUrls.audio, // Prefer mixed vocal+beat
-          videoPrompt: `${visualDnaUrl || videoDnaUrl ? 'Feature the artist from the reference image. ' : ''}${outputs.video || `A high-fidelity cinematic music video for a ${style} song`}`,
+          videoPrompt: `${visualDnaUrl || videoDnaUrl ? '100% CLONE ALIGNMENT: The artist in the video MUST look EXACTLY like the reference image — same face, same style, same colors, same identity in EVERY frame. ' : ''}${outputs.video || `A high-fidelity cinematic music video for a ${style} song`}`,
           imageUrl: mediaUrls.image,
           videoUrl: mediaUrls.video,
           referenceImage: visualDnaUrl || videoDnaUrl,
