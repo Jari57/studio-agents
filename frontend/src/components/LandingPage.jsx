@@ -10,7 +10,7 @@ const MultiAgentDemo = React.lazy(() => import('./MultiAgentDemo'));
 const SingleAgentDemo = React.lazy(() => import('./SingleAgentDemo'));
 const HeroProductDemo = React.lazy(() => import('./HeroProductDemo'));
 
-export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStartTour }) {
+export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
   const [scrolled, setScrolled] = useState(false);
   const [showCookieConsent, setShowCookieConsent] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -552,6 +552,28 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour: _onStar
               onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; e.currentTarget.style.transform = 'translateY(0)'; }}
             >
               See What's Possible <ArrowRight size={16} />
+            </button>
+            <button
+              onClick={() => onStartTour?.()}
+              className="haptic-press"
+              style={{
+                padding: '14px 28px',
+                background: 'rgba(168, 85, 247, 0.1)',
+                border: '1px solid rgba(168, 85, 247, 0.3)',
+                borderRadius: '14px',
+                color: 'rgba(168, 85, 247, 0.9)',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.2)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(168, 85, 247, 0.1)'; e.currentTarget.style.transform = 'translateY(0)'; }}
+            >
+              <Sparkles size={16} /> Take a Tour
             </button>
           </div>
         </div>

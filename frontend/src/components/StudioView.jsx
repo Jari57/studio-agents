@@ -50,6 +50,7 @@ const QuickWorkflow = React.lazy(() => import('./QuickWorkflow'));
 const ProjectHub = React.lazy(() => import('./ProjectHubV3')); // CapCut/Captions-style design
 const NewsHub = React.lazy(() => import('./NewsHub'));
 const AdminAnalytics = React.lazy(() => import('./AdminAnalytics'));
+const GuidedTour = React.lazy(() => import('./GuidedTour'));
 
 // -------------------------------------------------------------------------------
 // PRODUCTION PIPELINE STAGES - Journey from idea to master
@@ -495,7 +496,7 @@ const pruneLargeProjectData = (projects) => {
   });
 };
 
-function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startTour, initialPlan, initialTab }) {
+function StudioView({ onBack, startWizard, startOrchestrator, startTour, initialPlan, initialTab }) {
   // (shield)� SAFE ASYNC OPERATIONS - Prevents memory leaks and race conditions
   const { safeFetch, safeSetState, isMounted } = useSafeAsync();
   
@@ -1766,6 +1767,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [_onboardingStep, setOnboardingStep] = useState(0);
   const [_selectedPath, _setSelectedPath] = useState(null);
+  const [showGuidedTour, setShowGuidedTour] = useState(false);
 
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
   const [showResourceContent, setShowResourceContent] = useState(null); // For Legal & Business docs
@@ -1976,6 +1978,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour: _startT
       setShowOnboarding(true);
     }
   }, [startWizard]);
+
+  // Launch guided tour when startTour prop is set (from landing page)
+  useEffect(() => {
+    if (startTour) {
+      setShowGuidedTour(true);
+    }
+  }, [startTour]);
 
   const completeOnboarding = () => {
     localStorage.setItem('studio_onboarding_v3', 'true');
@@ -10907,6 +10916,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           </div>
           <div className="studio-header-actions">
             <button 
+              data-tour="header-home"
               className="action-button secondary haptic-press"
               onClick={() => onBack?.()}
               title="Back to Landing Page"
@@ -10914,6 +10924,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               <Home size={20} />
             </button>
             <button 
+              data-tour="header-profile"
               className="action-button secondary haptic-press"
               onClick={() => setActiveTab('profile')}
               title="User Profile"
@@ -10922,14 +10933,16 @@ const fetchUserCredits = useCallback(async (uid) => {
               <span className="desktop-only">Profile</span>
             </button>
             <button 
+              data-tour="header-tour"
               className="action-button secondary haptic-press"
-              onClick={() => { setOnboardingStep(0); setShowOnboarding(true); }}
-              title="Welcome Tour"
+              onClick={() => setShowGuidedTour(true)}
+              title="Guided Tour"
             >
               <Sparkles size={20} />
               <span className="desktop-only">Tour</span>
             </button>
             <button 
+              data-tour="header-help"
               className="action-button secondary haptic-press"
               onClick={() => { setActiveTab('support'); setSelectedAgent(null); }}
               title="Help Center"
@@ -14239,6 +14252,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         {/* Mobile Bottom Navigation */}
         <nav className="bottom-nav">
           <div 
+            data-tour="nav-team"
             className={`bottom-nav-item ${activeTab === 'agents' ? 'active' : ''}`} 
             onClick={() => { setActiveTab('agents'); setSelectedAgent(null); }}
             role="button"
@@ -14249,6 +14263,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           </div>
           
           <div 
+            data-tour="nav-projects"
             className={`bottom-nav-item ${activeTab === 'hub' ? 'active' : ''}`} 
             onClick={() => { setActiveTab('hub'); setSelectedAgent(null); }}
             role="button"
@@ -14260,6 +14275,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           
           {/* Global Create Button */}
           <div 
+            data-tour="nav-create"
             className="bottom-nav-item create-btn" 
             onClick={() => setShowProjectTypeChoice(true)}
             role="button"
@@ -14282,6 +14298,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           </div>
 
           <div 
+            data-tour="nav-studio"
             className={`bottom-nav-item ${activeTab === 'mystudio' ? 'active' : ''}`} 
             onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}
             role="button"
@@ -14292,6 +14309,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           </div>
           
           <div 
+            data-tour="nav-more"
             className={`bottom-nav-item ${activeTab === 'more' ? 'active' : ''}`} 
             onClick={() => { setActiveTab('more'); setSelectedAgent(null); }}
             role="button"
@@ -14998,7 +15016,28 @@ const fetchUserCredits = useCallback(async (uid) => {
                 onClick={completeOnboarding}
                 style={{ width: '100%', padding: '16px', fontSize: '1.1rem', marginTop: '32px' }}
               >
-                Enter Studio ?
+                Enter Studio
+              </button>
+              <button
+                onClick={() => { completeOnboarding(); setTimeout(() => setShowGuidedTour(true), 300); }}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  fontSize: '1rem',
+                  marginTop: '12px',
+                  background: 'rgba(168, 85, 247, 0.1)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  borderRadius: '14px',
+                  color: 'rgba(168, 85, 247, 0.9)',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <Sparkles size={16} /> Take a Guided Tour
               </button>
             </div>
           </div>
@@ -16942,6 +16981,15 @@ const fetchUserCredits = useCallback(async (uid) => {
           </div>
         </div>
       )}
+
+      {/* Guided Tour */}
+      <Suspense fallback={null}>
+        <GuidedTour
+          active={showGuidedTour}
+          onClose={() => setShowGuidedTour(false)}
+          onNavigate={(tab) => { setActiveTab(tab); setSelectedAgent(null); }}
+        />
+      </Suspense>
     </div>
   );
 }
