@@ -2459,8 +2459,7 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
       return res.status(400).json({ error: 'Maximum 3 audio samples allowed' });
     }
 
-    // Build multipart form data for ElevenLabs IVC API
-    const FormData = (await import('form-data')).default;
+    // Build multipart form data for ElevenLabs IVC API using Node built-in FormData + Blob
     const formData = new FormData();
     formData.append('name', voiceName);
 
@@ -2487,7 +2486,7 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
       }
 
       const ext = mimeType.includes('wav') ? 'wav' : mimeType.includes('mpeg') ? 'mp3' : 'wav';
-      formData.append('files', buffer, { filename: `sample_${i + 1}.${ext}`, contentType: mimeType });
+      formData.append('files', new Blob([buffer], { type: mimeType }), `sample_${i + 1}.${ext}`);
     }
 
     logger.info('Starting ElevenLabs IVC voice cloning', {
@@ -2500,8 +2499,7 @@ app.post('/api/voice-clone', verifyFirebaseToken, async (req, res) => {
     const elResponse = await fetch('https://api.elevenlabs.io/v1/voices/add', {
       method: 'POST',
       headers: {
-        'xi-api-key': elevenLabsKey,
-        ...formData.getHeaders()
+        'xi-api-key': elevenLabsKey
       },
       body: formData
     });
@@ -4443,30 +4441,25 @@ Return ONLY valid JSON, no markdown.`;
         try {
           logger.info('🎤 ElevenLabs Instant Voice Clone — uploading voice sample', { speaker: speakerUrl.substring(0, 60) });
 
-          // Download the voice sample
-          const tempDir = path.join(__dirname, 'temp');
-          if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-          const samplePath = path.join(tempDir, `clone_sample_${Date.now()}.mp3`);
-          const { downloadAudio } = require('./services/audioMixingService');
-          await downloadAudio(speakerUrl, samplePath);
+          // Download the voice sample as a buffer
+          const sampleResp = await fetch(speakerUrl);
+          if (!sampleResp.ok) throw new Error(`Voice sample download failed: ${sampleResp.status}`);
+          const sampleBuffer = Buffer.from(await sampleResp.arrayBuffer());
+          const sampleContentType = sampleResp.headers.get('content-type') || 'audio/mpeg';
+          const sampleExt = sampleContentType.includes('wav') ? 'wav' : (sampleContentType.includes('webm') ? 'webm' : 'mp3');
+          logger.info('🎤 Voice sample downloaded', { size: sampleBuffer.length, contentType: sampleContentType });
 
-          // Upload to ElevenLabs Add Voice API
-          const FormData = require('form-data');
+          // Use Node built-in FormData + Blob (works with native fetch, unlike npm form-data)
           const cloneForm = new FormData();
           cloneForm.append('name', `Clone_${Date.now()}`);
-          cloneForm.append('files', fs.createReadStream(samplePath));
+          cloneForm.append('files', new Blob([sampleBuffer], { type: sampleContentType }), `voice_sample.${sampleExt}`);
           cloneForm.append('description', 'Auto-cloned voice from Studio Agents');
 
           const addVoiceResp = await fetch('https://api.elevenlabs.io/v1/voices/add', {
             method: 'POST',
-            headers: {
-              'xi-api-key': elevenLabsKey,
-              ...cloneForm.getHeaders()
-            },
+            headers: { 'xi-api-key': elevenLabsKey },
             body: cloneForm
           });
-
-          try { fs.unlinkSync(samplePath); } catch {}
 
           if (addVoiceResp.ok) {
             const voiceData = await addVoiceResp.json();
@@ -4475,7 +4468,7 @@ Return ONLY valid JSON, no markdown.`;
 
             // Generate TTS with the cloned voice
             const cloneAbort = new AbortController();
-            const cloneTimeout = setTimeout(() => cloneAbort.abort(), 60000);
+            const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
             const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${clonedVoiceId}?output_format=mp3_44100_192`, {
               method: 'POST',
@@ -4489,9 +4482,9 @@ Return ONLY valid JSON, no markdown.`;
                 text: clonePrompt.substring(0, 5000),
                 model_id: 'eleven_multilingual_v2',
                 voice_settings: {
-                  stability: 0.80,
-                  similarity_boost: 0.98,
-                  style: 0.85,
+                  stability: 0.65,
+                  similarity_boost: 0.95,
+                  style: 0.70,
                   use_speaker_boost: true
                 }
               })
@@ -4500,11 +4493,16 @@ Return ONLY valid JSON, no markdown.`;
 
             if (ttsResp.ok) {
               const audioBuf = await ttsResp.arrayBuffer();
-              audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioBuf).toString('base64')}`;
-              provider = 'elevenlabs-clone';
-              logger.info('✅ ElevenLabs cloned vocal generated', { voiceId: clonedVoiceId });
+              if (audioBuf.byteLength > 1000) { // Sanity: must be > 1KB to be real audio
+                audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioBuf).toString('base64')}`;
+                provider = 'elevenlabs-clone';
+                logger.info('✅ ElevenLabs cloned vocal generated', { voiceId: clonedVoiceId, bytes: audioBuf.byteLength });
+              } else {
+                logger.warn('ElevenLabs clone TTS returned suspiciously small audio', { bytes: audioBuf.byteLength });
+              }
             } else {
-              logger.warn('ElevenLabs clone TTS failed', { status: ttsResp.status });
+              const ttsErr = await ttsResp.text().catch(() => '');
+              logger.warn('ElevenLabs clone TTS failed', { status: ttsResp.status, error: ttsErr.substring(0, 200) });
             }
 
             // Clean up the temporary cloned voice (don't accumulate)
@@ -4516,7 +4514,7 @@ Return ONLY valid JSON, no markdown.`;
             } catch {}
           } else {
             const errBody = await addVoiceResp.text().catch(() => '');
-            logger.warn('ElevenLabs voice add failed', { status: addVoiceResp.status, error: errBody.substring(0, 200) });
+            logger.warn('ElevenLabs voice add failed', { status: addVoiceResp.status, error: errBody.substring(0, 300) });
           }
         } catch (cloneErr) {
           logger.error('ElevenLabs clone error:', cloneErr.message);
@@ -4538,12 +4536,12 @@ Return ONLY valid JSON, no markdown.`;
             body: JSON.stringify({
               version: '684bc3855b37866c0c65add2ff39c78f3dea3f4ff103a436465326e0f438d55e',
               input: {
-                text: clonePrompt.substring(0, 2000),
+                text: clonePrompt.substring(0, 3000),
                 language: langCode,
                 speaker: targetSpeaker,
-                cleanup_voice: false,
+                cleanup_voice: true,
                 speed: 1.0,
-                temperature: 0.15
+                temperature: 0.65
               }
             })
           });
