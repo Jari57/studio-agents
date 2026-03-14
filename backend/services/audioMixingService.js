@@ -132,14 +132,15 @@ async function mixAudioProfessional(options, logger) {
       // === TRACK PROCESSING ===
 
       // Vocal processing
-      let vocalFilters = `[0:a]volume=${vocalVolume}`;
+      let vocalFilters = `[0:a]highpass=f=80,volume=${vocalVolume}`;  // HPF removes mic rumble + room noise below 80Hz
 
       // Add vocal EQ boost (presence and clarity)
-      vocalFilters += `,equalizer=f=3000:width_type=o:width=2:g=2`; // Boost presence (3kHz)
-      vocalFilters += `,equalizer=f=200:width_type=o:width=1:g=-1`; // Cut muddiness (200Hz)
+      vocalFilters += `,equalizer=f=3000:width_type=o:width=1.5:g=3`; // Boost presence (3kHz, tighter Q, +3dB)
+      vocalFilters += `,equalizer=f=200:width_type=o:width=1.5:g=-2`; // Cut muddiness (200Hz)
+      vocalFilters += `,equalizer=f=6000:width_type=o:width=2:g=1.5`; // Air/clarity (6kHz)
 
-      // Add de-esser (reduce harsh S sounds)
-      vocalFilters += `,equalizer=f=8000:width_type=o:width=2:g=-2`; // Soften highs
+      // Add de-esser (reduce harsh S sounds) — gentler to preserve vocal sparkle
+      vocalFilters += `,equalizer=f=8000:width_type=o:width=1:g=-1.5`; // Soften sibilance, narrower Q
 
       vocalFilters += `[vocal]`;
       filterComplex.push(vocalFilters);
@@ -147,9 +148,10 @@ async function mixAudioProfessional(options, logger) {
       // Beat processing
       let beatFilters = `[1:a]volume=${beatVolume}`;
 
-      // Beat EQ (sub bass boost + high-end clarity)
+      // Beat EQ (sub bass boost + high-end clarity + carve vocal space)
       beatFilters += `,equalizer=f=60:width_type=o:width=1:g=3`; // Sub bass boost
-      beatFilters += `,equalizer=f=10000:width_type=o:width=2:g=1`; // High-end shine
+      beatFilters += `,equalizer=f=2500:width_type=o:width=1:g=-1.5`; // Slight cut in vocal presence range to make room
+      beatFilters += `,equalizer=f=10000:width_type=o:width=2:g=1.5`; // High-end shine
 
       beatFilters += `[beat]`;
       filterComplex.push(beatFilters);
@@ -158,24 +160,27 @@ async function mixAudioProfessional(options, logger) {
       // When vocals play, slightly reduce beat volume for clarity
       if (autoDuck) {
         // Use sidechaincompress to duck beat when vocals are present
-        filterComplex.push(`[beat][vocal]sidechaincompress=threshold=0.15:ratio=2.5:attack=15:release=350:makeup=1.5[beat_ducked]`);
-        filterComplex.push(`[vocal][beat_ducked]amix=inputs=2:duration=longest:weights=1.0 0.95[mixed]`);
+        // threshold 0.08 = only duck on louder vocal passages, ratio 2 = gentle ducking
+        // release 250ms = beat recovers quickly after vocal phrase ends
+        filterComplex.push(`[beat][vocal]sidechaincompress=threshold=0.08:ratio=2:attack=20:release=250:makeup=1.2[beat_ducked]`);
+        // amix with normalize=0 prevents the automatic volume division that kills loudness
+        filterComplex.push(`[vocal][beat_ducked]amix=inputs=2:duration=longest:normalize=0[mixed]`);
       } else {
-        // Simple mix without ducking
-        filterComplex.push(`[vocal][beat]amix=inputs=2:duration=longest[mixed]`);
+        // Simple mix without ducking — normalize=0 preserves volume
+        filterComplex.push(`[vocal][beat]amix=inputs=2:duration=longest:normalize=0[mixed]`);
       }
 
       // === COMPRESSION ===
-      // Professional mastering-grade compression
+      // Professional mastering-grade compression — moderate ratio, sensible makeup
       if (compression) {
-        filterComplex.push(`[mixed]acompressor=threshold=-16dB:ratio=2.5:attack=10:release=100:makeup=4dB[compressed]`);
-        filterComplex.push(`[compressed]alimiter=limit=0.92:attack=3:release=80[limited]`);
+        filterComplex.push(`[mixed]acompressor=threshold=-18dB:ratio=3:attack=8:release=120:makeup=3dB[compressed]`);
+        filterComplex.push(`[compressed]alimiter=limit=0.95:attack=5:release=100[limited]`);
       }
 
       // === LOUDNESS NORMALIZATION ===
       // Normalize to target LUFS for consistent streaming loudness
       const finalOutput = compression ? '[limited]' : '[mixed]';
-      filterComplex.push(`${finalOutput}loudnorm=I=${lufsTarget}:TP=-1.5:LRA=11[normalized]`);
+      filterComplex.push(`${finalOutput}loudnorm=I=${lufsTarget}:TP=-1.0:LRA=14[normalized]`);
 
       // === OUTPUT FORMAT SPECIFIC PROCESSING ===
       let finalFilters = '[normalized]';

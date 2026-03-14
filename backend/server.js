@@ -4470,6 +4470,23 @@ Return ONLY valid JSON, no markdown.`;
             const cloneAbort = new AbortController();
             const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
+            // Clone voice settings must be HIGH fidelity — we just created this voice,
+            // so we need maximum similarity + stability to sound exactly like the sample
+            const cloneVoiceSettings = {
+              stability: 0.78,
+              similarity_boost: 0.98,
+              style: 0.80,
+              use_speaker_boost: true
+            };
+
+            // If reference analysis exists, fine-tune clone delivery
+            if (refSongAnalysis) {
+              const energy = parseInt(refSongAnalysis.energy) || 5;
+              const warmth = parseInt(refSongAnalysis.warmth) || 5;
+              cloneVoiceSettings.stability = Math.max(0.70, Math.min(0.88, 0.75 + (warmth * 0.013)));
+              cloneVoiceSettings.style = Math.max(0.65, Math.min(0.92, 0.72 + (energy * 0.02)));
+            }
+
             const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${clonedVoiceId}?output_format=mp3_44100_192`, {
               method: 'POST',
               headers: {
@@ -4481,12 +4498,7 @@ Return ONLY valid JSON, no markdown.`;
               body: JSON.stringify({
                 text: clonePrompt.substring(0, 5000),
                 model_id: 'eleven_multilingual_v2',
-                voice_settings: {
-                  stability: 0.65,
-                  similarity_boost: 0.95,
-                  style: 0.70,
-                  use_speaker_boost: true
-                }
+                voice_settings: cloneVoiceSettings
               })
             });
             clearTimeout(cloneTimeout);
@@ -4657,7 +4669,7 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
         let processedPrompt = prompt;
 
         if (style.includes('rapper')) {
-          // Rap delivery: rhythmic pauses, breath markers, emphasis for punchlines
+          // Rap delivery: rhythmic pauses, emphasis for punchlines
           processedPrompt = prompt
             .replace(/\[Verse[^\]]*\]/gi, '')  // Strip section labels (not spoken)
             .replace(/\[Chorus[^\]]*\]/gi, '')
@@ -4666,17 +4678,19 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
             .replace(/\[Hook[^\]]*\]/gi, '')
             .replace(/\[Ad-lib:[^\]]*\]/gi, (m) => m.replace(/\[Ad-lib:\s*/, '').replace(']', '!')) // Convert ad-libs to exclamations
             .replace(/\[([^\]]*)\]/g, '')  // Strip remaining performance tags
-            .replace(/\.(?!\d)/g, '... ')  // Periods become dramatic pauses
             .replace(/!+/g, '! ')          // Normalize exclamations
             .replace(/\n{2,}/g, '\n')      // Collapse blank lines
             .trim();
-          // Lead with breath for natural vocal onset
-          processedPrompt = `[breath] ${processedPrompt}`;
         } else if (style.includes('singer')) {
-          // Singing delivery: elongate vowels at line ends, smooth transitions
+          // Singing delivery: preserve line structure for natural phrasing
           processedPrompt = prompt
+            .replace(/\[Verse[^\]]*\]/gi, '')
+            .replace(/\[Chorus[^\]]*\]/gi, '')
+            .replace(/\[Bridge[^\]]*\]/gi, '')
+            .replace(/\[Pre-Chorus[^\]]*\]/gi, '')
+            .replace(/\[Hook[^\]]*\]/gi, '')
             .replace(/\[([^\]]*)\]/g, '')  // Strip tags
-            .replace(/\n/g, '... ')        // Line breaks become smooth transitions
+            .replace(/\n{3,}/g, '\n\n')    // Collapse excessive blank lines
             .trim();
         } else {
           // General cleanup for any style
@@ -4689,9 +4703,9 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
         // When voice DNA (cloned voice or speakerUrl) is active, maximize fidelity
         const hasDnaVoice = !!(speakerUrl || req.body.elevenLabsVoiceId);
         const voiceSettings = {
-          stability: hasDnaVoice ? 0.80 : (style.includes('rapper') ? 0.50 : 0.60),       // DNA: high stability = consistent voice identity
+          stability: hasDnaVoice ? 0.80 : (style.includes('rapper') ? 0.60 : 0.65),       // DNA: high stability = consistent voice identity
           similarity_boost: hasDnaVoice ? 0.98 : 0.92,                                     // DNA: max similarity = exact voice clone
-          style: hasDnaVoice ? 0.90 : (style.includes('rapper') ? 0.75 : 0.50),            // DNA: high style = preserve delivery character
+          style: hasDnaVoice ? 0.90 : (style.includes('rapper') ? 0.70 : 0.50),            // DNA: high style = preserve delivery character
           use_speaker_boost: true
         };
 
@@ -4704,9 +4718,9 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
           voiceSettings.similarity_boost = 0.95;
           voiceSettings.style = 0.25;
         } else if (outputFormat === 'music') {
-          voiceSettings.style = 0.85;       // Maximum expressiveness for music
-          voiceSettings.stability = 0.45;   // Allow natural vocal variation
-          voiceSettings.similarity_boost = 0.88; // Slight flexibility for emotional range
+          voiceSettings.style = Math.min(voiceSettings.style + 0.10, 0.90);  // Boost expressiveness for music
+          voiceSettings.stability = Math.max(voiceSettings.stability - 0.05, 0.55); // Slight looseness but still coherent
+          // Keep similarity_boost unchanged — don't degrade voice identity for music
         }
 
         // ── REFERENCE SONG VOICE TUNING ──
@@ -5365,8 +5379,8 @@ app.post('/api/generate-audio', verifyFirebaseToken, requireAuthOrFreeLimit, che
               normalization_strategy: "loudness",
               top_k: 250,
               top_p: 0.0,
-              temperature: referenceAudio ? 0.6 : 0.85,  // Lower temp with DNA = more faithful reproduction
-              classifier_free_guidance: referenceAudio ? 10 : 7  // Higher CFG with DNA = stricter adherence
+              temperature: referenceAudio ? 0.5 : 0.7,   // Lower = tighter, more coherent musicality
+              classifier_free_guidance: referenceAudio ? 12 : 9  // Higher = stricter prompt adherence
         };
 
         if (referenceAudio) {
