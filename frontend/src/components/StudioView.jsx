@@ -39,9 +39,9 @@ const __DEV__ = import.meta.env.DEV;
 const devLog = __DEV__ ? (...args) => console.log(...args) : () => {};
 const devWarn = __DEV__ ? (...args) => console.warn(...args) : () => {};
 
-// Safe UUID generator — fallback for browsers without generateId()
+// Safe UUID generator — fallback for browsers without crypto.randomUUID()
 const generateId = () => typeof crypto?.randomUUID === 'function'
-  ? generateId()
+  ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
       const r = (Math.random() * 16) | 0;
       return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
@@ -89,7 +89,7 @@ const SafeAssetWrapper = ({ children, asset, fallback = null }) => {
     }
     return children;
   } catch (err) {
-    console.error('[SafeAssetWrapper] Render error:', err);
+    devWarn('[SafeAssetWrapper] Render error:', err);
     return fallback || (
       <div style={{ padding: '12px', background: 'rgba(239,68,68,0.1)', borderRadius: '8px', color: 'rgba(239,68,68,0.8)', fontSize: '0.8rem' }}>
         Failed to render asset
@@ -168,7 +168,7 @@ class SectionErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error(`[SectionErrorBoundary] ${this.props.name || 'Section'} crashed:`, error, errorInfo);
+    devWarn(`[SectionErrorBoundary] ${this.props.name || 'Section'} crashed:`, error, errorInfo);
   }
 
   render() {
@@ -598,7 +598,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       }
       return [];
     } catch (_e) {
-      console.error('[StudioView] Failed to parse projects from localStorage', _e);
+      devWarn('[StudioView] Failed to parse projects from localStorage', _e);
       return [];
     }
   });
@@ -760,7 +760,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       }
       return (typeof AGENTS !== 'undefined' && AGENTS ? AGENTS.map(a => ({ ...a, visible: true })) : []);
     } catch (e) {
-      console.error("Failed to parse managed agents", e);
+      devWarn("Failed to parse managed agents", e);
       return (typeof AGENTS !== 'undefined' && AGENTS ? AGENTS.map(a => ({ ...a, visible: true })) : []);
     }
   });
@@ -776,7 +776,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       };
       return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
     } catch (e) {
-      console.error("Failed to parse app settings", e);
+      devWarn("Failed to parse app settings", e);
       return {
         showNews: true,
         publicActivity: true,
@@ -898,7 +898,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           }
         }
       } catch (err) {
-        console.error("Failed to fetch ElevenLabs voices:", err);
+        devWarn("Failed to fetch ElevenLabs voices:", err);
       }
     };
     fetchElVoices();
@@ -1032,17 +1032,17 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           if (uid === 'guest') localStorage.setItem('studio_agents_projects', prunedJson);
           devLog('[StudioView] Successfully saved pruned projects to localStorage.');
         } catch (retryErr) {
-          console.error('[StudioView] Even pruned projects exceeded quota. Only saving metadata for the last 5 projects.', retryErr);
+          devWarn('[StudioView] Even pruned projects exceeded quota. Only saving metadata for the last 5 projects.', retryErr);
           // Last resort: Only the 5 most recent projects, pruned
           try {
             const lastResort = pruneLargeProjectData(projects.slice(0, 5));
             localStorage.setItem(`studio_projects_${uid}`, JSON.stringify(lastResort));
           } catch(lastErr) {
-            console.error('[StudioView] Critical storage failure:', lastErr);
+            devWarn('[StudioView] Critical storage failure:', lastErr);
           }
         }
       } else {
-        console.error('[StudioView] Failed to persist projects:', err);
+        devWarn('[StudioView] Failed to persist projects:', err);
       }
     }
   }, [projects, user?.uid]);
@@ -1287,7 +1287,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
 
       return true;
     } catch (err) {
-      console.error(`[TRACE:${traceId}] Failed to save project to cloud:`, err.message || err);
+      devWarn(`[TRACE:${traceId}] Failed to save project to cloud:`, err.message || err);
       if (!options.silent) {
         toast.error(`Save failed: ${err.message || 'Network error'}`, { id: 'save-error' });
       }
@@ -1310,7 +1310,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           const success = await saveProjectToCloud(uid, project, { silent: true });
           if (success) successCount++;
         } catch (individualErr) {
-          console.error(`Failed to save project ${project?.id}:`, individualErr);
+          devWarn(`Failed to save project ${project?.id}:`, individualErr);
         }
       }
       
@@ -1321,7 +1321,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         toast.error(`Sync failed for ${projectsToSync.length} project(s) - check your connection`, { id: 'sync-error' });
       }
     } catch (err) {
-      console.error('Sync failed:', err);
+      devWarn('Sync failed:', err);
       toast.error('Cloud sync failed. Projects saved locally.', { id: 'sync-error' });
     } finally {
       setProjectsSyncing(false);
@@ -1451,7 +1451,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       
       return cloudProjects;
     } catch (err) {
-      console.error(`[TRACE:${traceId}] loadProjectsFromCloud ERROR:`, err);
+      devWarn(`[TRACE:${traceId}] loadProjectsFromCloud ERROR:`, err);
       toast.error('Could not load projects from cloud. Using local data.', { id: 'load-error' });
       return null; // Return null to distinguish error from genuinely empty
     }
@@ -1774,7 +1774,6 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   // Onboarding & Help State
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [_onboardingStep, setOnboardingStep] = useState(0);
-  const [_selectedPath, _setSelectedPath] = useState(null);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
 
   const [showAgentWhitePaper, setShowAgentWhitePaper] = useState(null);
@@ -1898,7 +1897,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
               currentIndex: safeIndex
             });
           } else {
-            console.error('[SafePreview] Asset at index', safeIndex, 'does not exist');
+            devWarn('[SafePreview] Asset at index', safeIndex, 'does not exist');
             toast.error('Asset not found. Try refreshing the page.', { id: 'preview-error' });
             isModalTransitioning.current = false;
             return;
@@ -1933,7 +1932,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
               currentIndex: safeIndex
             });
           } else {
-            console.error('[SafePreview] Asset at index', safeIndex, 'does not exist in previewable list');
+            devWarn('[SafePreview] Asset at index', safeIndex, 'does not exist in previewable list');
             toast.error('Media asset not found. It may have been moved or deleted.', { id: 'preview-error' });
             isModalTransitioning.current = false;
             return;
@@ -1943,7 +1942,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         // Reset guard after modal opens (increased timeout for reliability)
         setTimeout(() => { isModalTransitioning.current = false; }, 500);
       } catch (err) {
-        console.error('[SafePreview] Error:', err);
+        devWarn('[SafePreview] Error:', err);
         toast.error('Preview failed: asset data is missing or corrupted. Try refreshing the page.', { id: 'preview-error' });
         isModalTransitioning.current = false;
       }
@@ -2064,7 +2063,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           details: data 
         });
       } catch (err) {
-        console.error("Health check failed:", err);
+        devWarn("Health check failed:", err);
         setSystemStatus({ 
           status: 'maintenance', 
           message: 'System Under Maintenance',
@@ -2148,7 +2147,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     devLog('[CreateProject] User:', user?.email, 'DB initialized:', !!db);
     
     if (!newProjectData.name || !newProjectData.category) {
-      console.error('[CreateProject] Missing required fields:', { name: newProjectData.name, category: newProjectData.category });
+      devWarn('[CreateProject] Missing required fields:', { name: newProjectData.name, category: newProjectData.category });
       toast.error('Please fill in project name and category');
       return;
     }
@@ -2158,7 +2157,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     devLog('[CreateProject] Credit check - Current:', currentCredits, 'Cost:', PROJECT_CREDIT_COST);
     
     if (currentCredits < PROJECT_CREDIT_COST) {
-      console.error('[CreateProject] Insufficient credits');
+      devWarn('[CreateProject] Insufficient credits');
       toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to create a project.`);
       setShowCreditsModal(true);
       return;
@@ -2199,12 +2198,12 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
       saveProjectToCloud(user?.uid, newProject).then(success => {
         devLog('[CreateProject] Cloud save result:', success);
       }).catch(err => {
-        console.error('[CreateProject] Cloud save error:', err);
+        devWarn('[CreateProject] Cloud save error:', err);
       });
     } else {
       devWarn('[CreateProject] NOT saving to cloud. isLoggedIn:', isLoggedIn, 'user:', !!user);
       if (isLoggedIn && !user) {
-        console.error('[CreateProject] RACE CONDITION: isLoggedIn is true but user is null!');
+        devWarn('[CreateProject] RACE CONDITION: isLoggedIn is true but user is null!');
       }
     }
     
@@ -2270,7 +2269,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     // Save to cloud if logged in
     if (user) {
       saveProjectToCloud(user?.uid, newProject).catch(err => {
-        console.error('Failed to save quick project to cloud:', err);
+        devWarn('Failed to save quick project to cloud:', err);
       });
     }
 
@@ -2399,7 +2398,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
                   }
                 })
                 .catch(err => {
-                  console.error('Failed to save updated project to cloud:', err);
+                  devWarn('Failed to save updated project to cloud:', err);
                   updateSaveStatus('error');
                   triggerHapticFeedback('error');
                 })
@@ -2462,7 +2461,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     // Save to cloud if logged in
     if (user) {
       saveProjectToCloud(user?.uid, newProject).catch(err => {
-        console.error('Failed to save new project with asset to cloud:', err);
+        devWarn('Failed to save new project with asset to cloud:', err);
       });
     }
   };
@@ -2537,7 +2536,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
             token = await currentUser.getIdToken();
             setUserToken(token);
           } catch (tokenErr) {
-            console.error("Error getting user token:", tokenErr);
+            devWarn("Error getting user token:", tokenErr);
           }
           
           // Check if admin account (server-side verification)
@@ -2556,7 +2555,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
                 devWarn('[Auth] Admin status check returned:', adminRes.status, adminRes.statusText);
               }
             } catch (adminErr) {
-              console.error("[Auth] Admin status check failed:", adminErr);
+              devWarn("[Auth] Admin status check failed:", adminErr);
             }
           } else {
             devWarn('[Auth] No token available -skipping admin check');
@@ -2627,7 +2626,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
                 }
               }
             } catch (err) {
-              console.error('Failed to fetch user data:', err);
+              devWarn('Failed to fetch user data:', err);
             }
           }
 
@@ -2683,7 +2682,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
               }
             }
           } catch (err) {
-            console.error('Failed to load projects from cloud:', err);
+            devWarn('Failed to load projects from cloud:', err);
           }
         } else {
           userRef.current = null; // UPDATE REF
@@ -2834,7 +2833,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
         await signOut(auth);
       }
     } catch (err) {
-      console.error('Firebase signOut error:', err);
+      devWarn('Firebase signOut error:', err);
     }
     
     // Clear ALL sensitive state
@@ -2908,7 +2907,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         setUserCredits(25);
       }
     } catch (err) {
-      console.error('Failed to fetch credits:', err);
+      devWarn('Failed to fetch credits:', err);
     }
   }, [db]);
 
@@ -2949,7 +2948,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
     } catch (err) {
       toast.dismiss(toastId);
-      console.error('Purchase error:', err);
+      devWarn('Purchase error:', err);
       toast.error('Payment system unavailable. Please contact support.');
     }
   };
@@ -2986,7 +2985,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
       }
     } catch (error) {
-      console.error('Login failed', error);
+      devWarn('Login failed', error);
       toast.dismiss(loadingToast);
       if (error.code === 'auth/popup-closed-by-user') {
         toast('Sign-in cancelled', { icon: '' });
@@ -3030,7 +3029,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
       }
     } catch (error) {
-      console.error('Apple login failed', error);
+      devWarn('Apple login failed', error);
       toast.dismiss(loadingToast);
       if (error.code === 'auth/popup-closed-by-user') {
         toast('Sign-in cancelled', { icon: '👋' });
@@ -3079,7 +3078,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           setAuthMode('login'); // Switch to login so they can try again after verifying
           return;
         } catch (verifyErr) {
-          console.error('Verification email failed', verifyErr);
+          devWarn('Verification email failed', verifyErr);
           toast.error('Account created, but could not send verification email. Please try logging in to resend.');
           await signOut(auth);
           setAuthLoading(false);
@@ -3120,7 +3119,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         }
       }
     } catch (error) {
-      console.error('Auth failed', error);
+      devWarn('Auth failed', error);
       // (lock) Security: Use generic messages to prevent user enumeration
       if (error.code === 'auth/email-already-in-use') {
         toast.error('Email already in use. Try logging in.');
@@ -3201,7 +3200,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       setAdminStats(statsData);
       setAdminApiStatus(apiData);
     } catch (err) {
-      console.error('Admin fetch error:', err);
+      devWarn('Admin fetch error:', err);
       setAdminError(err.message);
     } finally {
       setIsAdminLoading(false);
@@ -3339,7 +3338,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
     } catch (err) {
       toast.dismiss();
-      console.error('Checkout error:', err);
+      devWarn('Checkout error:', err);
       toast.error('Payment system unavailable. Please try again later.');
     }
   };
@@ -3418,7 +3417,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     };
     
     recognition.onerror = (event) => {
-      console.error("Speech recognition error", event.error);
+      devWarn("Speech recognition error", event.error);
       setIsListening(false);
       setVoiceTranscript('');
       if (event.error !== 'aborted') {
@@ -3734,7 +3733,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => setIsSpeaking(false);
       utterance.onerror = (e) => {
-        console.error("Speech synthesis error", e);
+        devWarn("Speech synthesis error", e);
         setIsSpeaking(false);
       };
 
@@ -3856,7 +3855,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         throw new Error('No audio URL returned');
       }
     } catch (error) {
-      console.error('[handleCreateAIVocal] Error:', error);
+      devWarn('[handleCreateAIVocal] Error:', error);
       toast.error(error.message || 'Failed to create AI vocal', { id: toastId });
       return null;
     } finally {
@@ -3953,7 +3952,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         toast.success('Prompt translated to English!');
       }
     } catch (error) {
-      console.error("Translation failed", error);
+      devWarn("Translation failed", error);
     }
   };
 
@@ -3968,7 +3967,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
     const file = e.target.files?.[0];
     if (!file) {
-      console.error(`[DNA] No file selected for ${slot}`);
+      devWarn(`[DNA] No file selected for ${slot}`);
       return;
     }
 
@@ -4035,23 +4034,23 @@ const fetchUserCredits = useCallback(async (uid) => {
             }
 
           } else {
-            console.error(`[DNA] Upload Error:`, result);
+            devWarn(`[DNA] Upload Error:`, result);
             throw new Error(result.error || 'Upload failed');
           }
         } catch (err) {
-          console.error(`[Studio] ${slot} DNA upload error:`, err);
+          devWarn(`[Studio] ${slot} DNA upload error:`, err);
           toast.error(`Failed to upload ${slot} DNA`, { id: loadingId });
         } finally {
           setIsUploadingDna(prev => ({ ...prev, [slot]: false }));
         }
       };
       reader.onerror = () => {
-        console.error(`[DNA] FileReader error`);
+        devWarn(`[DNA] FileReader error`);
         toast.error('Failed to read file');
         setIsUploadingDna(prev => ({ ...prev, [slot]: false }));
       };
     } catch (err) {
-      console.error(`[Studio] ${slot} DNA upload error:`, err);
+      devWarn(`[Studio] ${slot} DNA upload error:`, err);
       toast.error('Upload failed', { id: loadingId });
       setIsUploadingDna(prev => ({ ...prev, [slot]: false }));
     }
@@ -4145,7 +4144,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             throw new Error('Both IVC clone and file upload failed');
           }
         } catch (err) {
-          console.error('[Studio] Voice clone error:', err);
+          devWarn('[Studio] Voice clone error:', err);
           toast.error('Voice cloning failed: ' + (err.message || 'Unknown error'), { id: loadingId });
         } finally {
           setIsUploadingSample(false);
@@ -4173,7 +4172,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
     // Guard: Ensure agent is selected
     if (!targetAgentSnapshot) {
-      console.error('[handleGenerate] No agent selected');
+      devWarn('[handleGenerate] No agent selected');
       toast.error("Please select an agent first.", { id: 'gen-no-agent' });
       return;
     }
@@ -4208,7 +4207,7 @@ const fetchUserCredits = useCallback(async (uid) => {
     }
 
     if (!promptValue || !promptValue.trim()) {
-      console.error('[handleGenerate] Empty prompt');
+      devWarn('[handleGenerate] Empty prompt');
       toast.error("Please enter a prompt first.", { id: 'gen-no-prompt' });
       return;
     }
@@ -4595,7 +4594,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             response = await fetch(`${BACKEND_URL}${finalEndpoint}`, fetchOptions);
           }
         } catch (mediaErr) {
-          console.error('[Studio] Execution Phase Failed:', mediaErr);
+          devWarn('[Studio] Execution Phase Failed:', mediaErr);
           if (mediaErr.name === 'AbortError') {
             throw new Error('Video generation request timed out. The server may be busy — please try again.');
           }
@@ -4616,7 +4615,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           data = await response.json();
         } else {
           const text = await response.text();
-          console.error('Expected JSON but got:', text.substring(0, 100));
+          devWarn('Expected JSON but got:', text.substring(0, 100));
           // Use brain description as fallback if generation failed
           data = {
             ...brainData,
@@ -4661,7 +4660,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             toast.error(statusData.error || 'Video generation failed', { id: toastId });
             return;
           } catch (pollErr) {
-            console.error('[Studio] Video status poll error:', pollErr);
+            devWarn('[Studio] Video status poll error:', pollErr);
           }
         }
         if (!pollSuccess) {
@@ -4696,7 +4695,7 @@ const fetchUserCredits = useCallback(async (uid) => {
               return;
             }
           } catch (pollErr) {
-            console.error('[Studio] Synced video poll error:', pollErr);
+            devWarn('[Studio] Synced video poll error:', pollErr);
           }
         }
         if (!syncPollSuccess) {
@@ -4706,7 +4705,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       }
 
       if (!response.ok) {
-        console.error('[Studio] Execution Phase Error:', data.error || data.details || response.status);
+        devWarn('[Studio] Execution Phase Error:', data.error || data.details || response.status);
         
         // Map common errors to user-friendly messages
         if (response.status === 403) {
@@ -5001,7 +5000,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       Analytics.contentGenerated(targetAgentSnapshot.id, newItem.type || 'text');
 
     } catch (error) {
-      console.error("Generation error", error);
+      devWarn("Generation error", error);
       toast.error(error.message || 'Generation failed. Check your connection and try again.', { id: toastId });
       Analytics.errorOccurred('generation_failed', error.message);
     } finally {
@@ -5077,7 +5076,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             }
           }
         } catch (uploadErr) {
-          console.error('[SavePreview] Upload failed:', uploadErr);
+          devWarn('[SavePreview] Upload failed:', uploadErr);
         }
       }
 
@@ -5178,7 +5177,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       // The direct cloud save above handles immediate persistence,
       // and the debounced sync acts as a safety net for any state that changed.
     } catch (error) {
-      console.error('Save error:', error);
+      devWarn('Save error:', error);
       toast.error(`Error: ${error.message}`, { id: toastId });
     } finally {
       setIsGenerating(false);
@@ -5336,7 +5335,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         setHasMoreActivity(false);
       }
     } catch (err) {
-      console.error('Failed to fetch Music Hub data', err);
+      devWarn('Failed to fetch Music Hub data', err);
     } finally {
       setIsLoadingActivity(false);
     }
@@ -5374,7 +5373,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         return { success: true, count: 0 };
       }
     } catch (err) {
-      console.error('Failed to fetch news', err);
+      devWarn('Failed to fetch news', err);
       return { success: false, error: err };
     } finally {
       setIsLoadingNews(false);
@@ -5454,11 +5453,11 @@ const fetchUserCredits = useCallback(async (uid) => {
           localStorage.setItem(key, value);
           return true;
         } catch (retryError) {
-          console.error('[Storage] Still failed after cleanup:', retryError);
+          devWarn('[Storage] Still failed after cleanup:', retryError);
           return false;
         }
       }
-      console.error(`[Storage] Failed to save ${key}:`, e);
+      devWarn(`[Storage] Failed to save ${key}:`, e);
       return false;
     }
   };
@@ -5487,7 +5486,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           });
         }
       } catch (e) {
-        console.error("Failed to parse projects from localStorage", e);
+        devWarn("Failed to parse projects from localStorage", e);
       }
     }
   }, []);
@@ -5770,7 +5769,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           throw new Error(errorData.error || `HTTP ${response.status}`);
         }
       } catch (err) {
-        console.error("Failed to delete from cloud:", err);
+        devWarn("Failed to delete from cloud:", err);
         if (!isBulk) toast.error('Could not delete from cloud, but removed from this device');
       }
     } else {
@@ -5850,7 +5849,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       // Phase 5: Final Cleanup
       handleSecureLogout();
     } catch (err) {
-      console.error('Account deletion failure:', err);
+      devWarn('Account deletion failure:', err);
       toast.error(`Deletion partially failed: ${err.message}. Data may persist.`, { id: 'del-acc' });
     }
   };
@@ -6417,7 +6416,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
                                         toast.success('Voice cloned! Ready for premium vocals.', { id: toastId });
                                       } catch (err) {
-                                        console.error('Voice upload error:', err);
+                                        devWarn('Voice upload error:', err);
                                         toast.error('Failed to upload voice. Try again.', { id: toastId });
                                       }
                                     }}
@@ -8688,7 +8687,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 
                 // DEFENSIVE: Validate project before selecting
                 if (!project || typeof project !== 'object' || !project.id) {
-                  console.error('[StudioView] Invalid project object:', project);
+                  devWarn('[StudioView] Invalid project object:', project);
                   toast.error('Unable to open project - invalid data');
                   return;
                 }
@@ -8726,7 +8725,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 // Check credits
                 const currentCredits = typeof userCredits === 'number' ? userCredits : 0;
                 if (currentCredits < PROJECT_CREDIT_COST) {
-                  console.error('[StudioView] Insufficient credits for orchestrator save');
+                  devWarn('[StudioView] Insufficient credits for orchestrator save');
                   toast.error(`Not enough credits. You need ${PROJECT_CREDIT_COST} credits to save.`);
                   setShowCreditsModal(true);
                   return;
@@ -8756,7 +8755,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   saveProjectToCloud(user?.uid, project).then(success => {
                     devLog('[StudioView] Orchestrator: Cloud save result:', success);
                   }).catch(err => {
-                    console.error('[StudioView] Orchestrator: Cloud save error:', err);
+                    devWarn('[StudioView] Orchestrator: Cloud save error:', err);
                   });
                 }
                 
@@ -10064,7 +10063,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     const { stageName, genre, bio, location, website, targetDemographic, language } = userProfile;
                     const userRef = doc(db, 'users', user.uid);
                     await setDoc(userRef, { profile: { stageName, genre, bio, location, website, targetDemographic, language } }, { merge: true });
-                  } catch (err) { console.error('Profile cloud save failed:', err); }
+                  } catch (err) { devWarn('Profile cloud save failed:', err); }
                 }
                 toast.success('Profile saved!'); 
                 setActiveTab('mystudio'); 
@@ -12056,7 +12055,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                      // CRITICAL FIX: Ensure project is synced to cloud immediately when clicking Save
                      if (isLoggedIn && user) {
                        saveProjectToCloud(user.uid, updatedProject).catch(err => {
-                         console.error('Cloud save failed:', err);
+                         devWarn('Cloud save failed:', err);
                          toast.error('Failed to sync to cloud. Your changes are saved locally.');
                        });
                      }
@@ -12191,7 +12190,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                          if (isLoggedIn) {
                            const uid = localStorage.getItem('studio_user_id');
                            if (uid) {
-                             saveProjectToCloud(uid, updated).catch(err => console.error("Failed to sync master to cloud", err));
+                             saveProjectToCloud(uid, updated).catch(err => devWarn("Failed to sync master to cloud", err));
                            }
                          }
 
@@ -12360,7 +12359,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                        if (isLoggedIn) {
                          const uid = localStorage.getItem('studio_user_id');
                          if (uid) {
-                           saveProjectToCloud(uid, updated).catch(err => console.error("Failed to sync master to cloud", err));
+                           saveProjectToCloud(uid, updated).catch(err => devWarn("Failed to sync master to cloud", err));
                          }
                        }
                        
@@ -12371,7 +12370,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                        toast.success('Master rendered and saved to your Hub!');
                        
                      } catch (err) {
-                       console.error('AMO Orchestration error:', err);
+                       devWarn('AMO Orchestration error:', err);
                        toast.dismiss('amo-render');
                        toast.error(err.message || 'Orchestration failed. Check your internet connection and try again.', { id: 'orch-error' });
                        handleTextToVoice("Orchestration failed. Please try again.");
@@ -12431,7 +12430,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             const success = await saveProjectToCloud(user?.uid, project);
                             if (success) successCount++;
                           } catch (err) {
-                            console.error(`Failed to sync project ${project.id}:`, err);
+                            devWarn(`Failed to sync project ${project.id}:`, err);
                           }
                         }
                         
@@ -12442,7 +12441,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           toast.error('No projects to sync', { id: toastId });
                         }
                       } catch (err) {
-                        console.error('Cloud sync failed:', err);
+                        devWarn('Cloud sync failed:', err);
                         toast.error('Cloud sync failed - check your connection', { id: toastId });
                       }
                       setShowExternalSaveModal(false);
@@ -13048,7 +13047,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         }}
                         title="Click to expand"
                         onError={(e) => {
-                          console.error('Image failed to load:', previewItem.imageUrl?.substring(0, 100));
+                          devWarn('Image failed to load:', previewItem.imageUrl?.substring(0, 100));
                           e.target.style.display = 'none';
                           setIsPreviewMediaLoading(false);
                           setMediaLoadError({ type: 'image', url: previewItem.imageUrl });
@@ -13119,7 +13118,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                             onPause={() => setIsPreviewPlaying(false)}
                             onEnded={() => setIsPreviewPlaying(false)}
                             onError={(e) => {
-                              console.error('Audio failed to load:', e.target.error?.code, e.target.error?.message, previewItem.audioUrl?.substring(0, 100));
+                              devWarn('Audio failed to load:', e.target.error?.code, e.target.error?.message, previewItem.audioUrl?.substring(0, 100));
                               // Retry without crossOrigin for Firebase Storage
                               if (previewItem.audioUrl?.startsWith('http') && !e.target.dataset.retried) {
                                 e.target.dataset.retried = 'true';
@@ -13188,7 +13187,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                               if (audio) audio.currentTime = e.target.currentTime;
                             }}
                             onError={(e) => {
-                              console.error('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100));
+                              devWarn('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100));
                               setMediaLoadError({ type: 'video', url: previewItem.videoUrl });
                               setIsPreviewMediaLoading(false);
                             }}
@@ -13206,7 +13205,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           onPause={() => setIsPreviewPlaying(false)}
                           onEnded={() => setIsPreviewPlaying(false)}
                           onError={(e) => {
-                            console.error('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100));
+                            devWarn('Video failed to load:', e.target.error?.message, previewItem.videoUrl?.substring(0, 100));
                             setMediaLoadError({ type: 'video', url: previewItem.videoUrl });
                             setIsPreviewMediaLoading(false);
                           }}
@@ -13638,7 +13637,7 @@ const fetchUserCredits = useCallback(async (uid) => {
 
                   if (isLoggedIn && user) {
                     saveProjectToCloud(user?.uid, finalProject).catch(err => {
-                      console.error('Cloud save failed:', err);
+                      devWarn('Cloud save failed:', err);
                       toast.error('Failed to sync to cloud. Your changes are saved locally.');
                     });
                   }
@@ -13657,7 +13656,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   setSelectedProject(finalProject);
                   if (isLoggedIn && user) {
                     saveProjectToCloud(user?.uid, finalProject).catch(err => {
-                      console.error('Cloud save failed:', err);
+                      devWarn('Cloud save failed:', err);
                     });
                   }
                   return [finalProject, ...prev];
@@ -13712,7 +13711,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                   setSelectedProject(savedProject);
                   if (isLoggedIn && user) {
                     saveProjectToCloud(user?.uid, savedProject).catch(err => {
-                      console.error(`[TRACE:${traceId}] Cloud save error:`, err);
+                      devWarn(`[TRACE:${traceId}] Cloud save error:`, err);
                     });
                   }
                   toast.success(`Project "${savedProject.name}" saved with ${savedProject.assets?.length || 0} assets!`);
@@ -15859,7 +15858,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       const errorCode = e.target.error?.code;
                       const errorMsg = e.target.error?.message || 'Unknown error';
                       const srcUrl = safePreview.url || '';
-                      console.error('[AudioPreview] Error:', errorMsg, 'code:', errorCode, 'URL type:', srcUrl.startsWith('data:') ? 'base64' : srcUrl.startsWith('blob:') ? 'blob' : srcUrl.startsWith('http') ? 'remote' : 'unknown');
+                      devWarn('[AudioPreview] Error:', errorMsg, 'code:', errorCode, 'URL type:', srcUrl.startsWith('data:') ? 'base64' : srcUrl.startsWith('blob:') ? 'blob' : srcUrl.startsWith('http') ? 'remote' : 'unknown');
 
                       // Retry: if remote URL failed, try re-formatting through formatAudioSrc
                       const rawAudioUrl = safePreview.asset?.audioUrl;
@@ -15932,7 +15931,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       e.target.style.opacity = 1;
                     }}
                     onError={(e) => {
-                      console.error('[ImagePreview] Failed to load:', safePreview.url?.substring(0, 50));
+                      devWarn('[ImagePreview] Failed to load:', safePreview.url?.substring(0, 50));
                       const placeholder = e.target.previousElementSibling;
                       if (placeholder) {
                         placeholder.innerHTML = '<div style="text-align:center;color:var(--color-red)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><p style="margin-top:8px">Failed to load image</p></div>';
@@ -15998,7 +15997,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       if (placeholder) placeholder.style.display = 'none';
                     }}
                     onError={(e) => {
-                      console.error('[VideoPreview] Failed to load:', safePreview.url?.substring(0, 50));
+                      devWarn('[VideoPreview] Failed to load:', safePreview.url?.substring(0, 50));
                       const placeholder = e.target.previousElementSibling;
                       if (placeholder) {
                         placeholder.innerHTML = '<div style="text-align:center;color:var(--color-red)"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><p style="margin-top:12px;font-size:0.9rem">Failed to load video</p><p style="font-size:0.75rem;opacity:0.7;margin-top:4px">Try downloading instead</p></div>';
@@ -16095,7 +16094,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           currentIndex: idx
                         });
                       } catch (err) {
-                        console.error('[ThumbnailClick] Error:', err);
+                        devWarn('[ThumbnailClick] Error:', err);
                       }
                       
                       setTimeout(() => { isModalTransitioning.current = false; }, 300);
@@ -16245,7 +16244,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       document.body.removeChild(link);
                       toast.success('Download started!');
                     } catch (err) {
-                      console.error('[Download] Failed:', err);
+                      devWarn('[Download] Failed:', err);
                       toast.error('Download failed. Try right-click and save.');
                     }
                   }}
@@ -16956,7 +16955,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       throw new Error(data.error || 'Export failed - no audio URL returned');
                     }
                   } catch (err) {
-                    console.error('Export error:', err);
+                    devWarn('Export error:', err);
                     toast.error('Export failed: ' + (err.message || 'Check your connection'), { id: exportToast });
                   } finally {
                     setIsExporting(false);

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import './App.css';
-import { suppressExtensionErrors } from './utils/suppressExtensionErrors';
 import { AGENTS } from './constants';
 
 // Lazy load heavy components (standardizing to React.lazy to prevent 'lazy is not defined' error)
@@ -36,9 +35,6 @@ const StudioLoadingFallback = () => (
     <p style={{ fontSize: '1rem', opacity: 0.8 }}>Loading...</p>
   </div>
 );
-
-// Suppress harmless browser extension errors (MetaMask, etc.)
-suppressExtensionErrors();
 
 function App() {
   
