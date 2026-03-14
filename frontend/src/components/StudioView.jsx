@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { 
-  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2
+  Sparkles, Zap, Music, PlayCircle, Target, Users as UsersIcon, Rocket, Shield, Globe as GlobeIcon, Folder, FolderPlus, Book, Cloud, Search, Download, Share2, CircleHelp, MessageSquare, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, Home, ArrowLeft, Mic, Save, Lock as LockIcon, CheckCircle, Check, Settings, Languages, CreditCard, Database as DatabaseIcon, Twitter, Instagram, Facebook, RefreshCw, Sun, Moon, Trash2, Eye, Plus, Landmark, ArrowRight, ChevronLeft, ChevronRight, ChevronUp, X, Bell, Menu, LogOut, User, Crown, LayoutGrid, TrendingUp, Disc, Video as VideoIcon, FileAudio, FileAudio as FileMusic, Activity, Film, FileText, Tv, Feather, Hash, Image as ImageIcon, Undo, Redo, Mail, Clock, Cpu, Piano, Camera, Edit3, Upload, List as ListIcon, Calendar, Award, CloudOff, Loader2, Copy, Layers, Link2, Lightbulb
 } from 'lucide-react';
 import { useSafeAsync } from '../hooks/useSafeAsync';
 import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
@@ -670,7 +670,30 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
   const [showSessionGuide, setShowSessionGuide] = useState(false);
   const [sessionGuideStep, setSessionGuideStep] = useState(0);
+  const [sessionHelpEnabled, setSessionHelpEnabled] = useState(() => {
+    try { return localStorage.getItem('studio_session_help') !== 'off'; } catch { return true; }
+  });
   const [selectedPlan, setSelectedPlan] = useState(null);
+
+  // Toggle session help (tooltips + guide) — persists in localStorage
+  const toggleSessionHelp = useCallback((val) => {
+    const next = typeof val === 'boolean' ? val : !sessionHelpEnabled;
+    setSessionHelpEnabled(next);
+    try { localStorage.setItem('studio_session_help', next ? 'on' : 'off'); } catch {}
+    // Strip or restore title attributes on the session overlay
+    const overlay = document.querySelector('.studio-session-overlay');
+    if (!overlay) return;
+    if (!next) {
+      overlay.querySelectorAll('[title]').forEach(el => {
+        if (el.title) { el.dataset.origTitle = el.title; el.removeAttribute('title'); }
+      });
+    } else {
+      overlay.querySelectorAll('[data-orig-title]').forEach(el => {
+        el.title = el.dataset.origTitle;
+        delete el.dataset.origTitle;
+      });
+    }
+  }, [sessionHelpEnabled]);
 
   // --- VOICE & AI INTERACTION ---
   const [isListening, setIsListening] = useState(false);
@@ -11290,9 +11313,32 @@ const fetchUserCredits = useCallback(async (uid) => {
                 <button 
                   onClick={() => { setSessionGuideStep(0); setShowSessionGuide(true); }}
                   title="Open session guide — learn how to use the mixer"
-                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}
+                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: sessionHelpEnabled ? 'flex' : 'none', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}
                 >
                   <CircleHelp size={14} color="var(--text-secondary)" />
+                </button>
+                {/* Help Toggle */}
+                <button
+                  onClick={() => toggleSessionHelp()}
+                  title={sessionHelpEnabled ? 'Turn off tooltips & guides' : 'Turn on tooltips & guides'}
+                  style={{
+                    background: sessionHelpEnabled ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${sessionHelpEnabled ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: '14px',
+                    padding: '4px 10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    cursor: 'pointer',
+                    marginLeft: '4px',
+                    fontSize: '0.68rem',
+                    fontWeight: 600,
+                    color: sessionHelpEnabled ? '#a78bfa' : 'rgba(255,255,255,0.35)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Lightbulb size={12} />
+                  {!isMobile && (sessionHelpEnabled ? 'Tips On' : 'Tips Off')}
                 </button>
               </div>
               <button onClick={() => { setShowStudioSession(false); setSessionPlaying(false); }} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
@@ -11523,6 +11569,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 )}
 
                 {/* Agent Insight / Tip */}
+                {sessionHelpEnabled && (
                 <div style={{ padding: '12px', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '8px', borderLeft: '4px solid var(--color-purple)', fontSize: '0.9rem', display: 'flex', gap: '12px', alignItems: 'center' }}>
                    <Sparkles size={18} className="text-purple" />
                    <div>
@@ -11532,6 +11579,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       " Combine assets from different agents to create a unique sound."}
                    </div>
                 </div>
+                )}
 
                 {/* Track 1: Beat / Audio A */}
                 <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: isMobile ? '12px' : '16px', border: sessionTracks.audio ? '1px solid var(--color-cyan)' : '1px solid rgba(255,255,255,0.1)' }}>
@@ -12428,6 +12476,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                </div>
 
                {/* Session Guide Indicator */}
+               {sessionHelpEnabled && (
                <button
                  onClick={() => setShowSessionGuide(true)}
                  title="Open interactive session guide"
@@ -12435,6 +12484,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                >
                  <CircleHelp size={18} color="var(--text-secondary)" />
                </button>
+               )}
             </div>
           </div>
         )}
