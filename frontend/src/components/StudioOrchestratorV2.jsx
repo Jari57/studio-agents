@@ -2787,13 +2787,29 @@ REQUIREMENTS:
         console.log('[Pipeline] Beat audio ready, proceeding to vocals');
       }
 
-      // Generate vocals AFTER beat is ready (so backingTrackUrl works and backend mixes them)
+      // Generate vocals AFTER beat is ready (DRY vocals — mixing happens next)
       if (lyricsResult && activeSlots.find(([s]) => s === 'lyrics') && (freshGeneration || !(mediaUrls.vocals || mediaUrls.lyricsVocal))) {
         console.log('[Pipeline] Starting vocal generation with beat URL for mixing');
         updatePipelineStep('vocals', 'active');
         await handleGenerateVocals(lyricsResult);
         updatePipelineStep('vocals', 'done');
-        console.log('[Pipeline] Vocals (mixed with beat) complete');
+        console.log('[Pipeline] Vocals complete (dry)');
+      }
+
+      // ═══ CREATE FINAL MIX (vocal + beat) BEFORE video ═══
+      // Video and mux need the mixed audio — must happen before video generation
+      const hasVocals = !!(mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal);
+      const hasBeat = !!mediaUrlsRef.current.audio;
+      if (hasVocals && hasBeat) {
+        updatePipelineStep('final', 'active');
+        try {
+          await handleCreateFinalMix();
+          updatePipelineStep('final', 'done');
+          console.log('[Pipeline] Final mix (vocal+beat) created, mixedAudio available for video');
+        } catch (mixErr) {
+          console.warn('[Pipeline] Final mix failed, video will use beat only:', mixErr);
+          updatePipelineStep('final', 'error');
+        }
       }
 
       // Wait for image to finish
@@ -2801,16 +2817,16 @@ REQUIREMENTS:
         await pipelinePromises.image;
       }
 
-      // Generate video LAST — it now gets mixed audio (vocal+beat) instead of just beat
+      // Generate video LAST — uses mixedAudio (vocal+beat) when available, falls back to beat only
       // Use ref for latest state (closure mediaUrls may be stale after async ops)
       if (pipelinePromises.videoDescription && !mediaUrlsRef.current.video) {
-        console.log('[Pipeline] Starting video generation with mixed audio');
+        console.log('[Pipeline] Starting video generation with mixed audio:', !!mediaUrlsRef.current.mixedAudio);
         updatePipelineStep('video', 'active');
         await handleGenerateVideo(pipelinePromises.videoDescription);
         updatePipelineStep('video', 'done');
       }
 
-      // AUTO-MUX: Combine silent video with mixed audio to produce final video with sound
+      // AUTO-MUX: Combine video with mixed audio (vocal+beat) to produce final video with full soundtrack
       // Read from ref to get latest state (closure mediaUrls may be stale after async ops)
       const muxVideoUrl = mediaUrlsRef.current.video;
       const muxAudioUrl = mediaUrlsRef.current.mixedAudio || mediaUrlsRef.current.audio;
@@ -2821,16 +2837,6 @@ REQUIREMENTS:
       } else if (muxVideoUrl) {
         // Video exists but no audio to mux — skip
         updatePipelineStep('mux', 'done');
-      }
-
-      // Auto-create final mix preview (properly awaited)
-      updatePipelineStep('final', 'active');
-      try {
-        await handleCreateFinalMix();
-        updatePipelineStep('final', 'done');
-      } catch (mixErr) {
-        console.warn('[Pipeline] Final mix auto-create failed:', mixErr);
-        updatePipelineStep('final', 'error');
       }
       
       toast.dismiss('gen-all');
