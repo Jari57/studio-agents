@@ -552,11 +552,11 @@ function GeneratorCard({
                     }}
                   >
                     {showIntro ? <FileText size={10} /> : <Lightbulb size={10} />}
-                    {showIntro ? 'SHOW LYRICS' : 'SHOW PROMPT'}
+                    {showIntro ? (slot === 'video' ? 'SHOW STORYBOARD' : 'SHOW LYRICS') : 'SHOW PROMPT'}
                   </button>
                 )}
 
-                <p style={{ 
+                <div style={{ 
                   fontSize: isMobile ? '0.85rem' : '1rem', 
                   lineHeight: isMobile ? '1.5' : '1.8', 
                   color: 'rgba(255,255,255,0.95)',
@@ -565,13 +565,35 @@ function GeneratorCard({
                   fontFamily: "'Georgia', 'Times New Roman', serif",
                   letterSpacing: '0.01em'
                 }}>
-                  {/* Format output as stanzas - add extra line breaks between sections */}
-                  {displayContent?.split(/\n\n+/).map((stanza, i) => (
-                    <span key={i} style={{ display: 'block', marginBottom: i < displayContent.split(/\n\n+/).length - 1 ? '1em' : 0 }}>
-                      {stanza}
-                    </span>
-                  ))}
-                </p>
+                  {/* Format output as stanzas - scene headers get badges for video/storyboard */}
+                  {displayContent?.split(/\n\n+/).map((stanza, i, arr) => {
+                    const sceneMatch = slot === 'video' && stanza.match(/^(Scene\s*\d+)\s*(\([^)]*\))?:?\s*/i);
+                    if (sceneMatch) {
+                      const label = sceneMatch[1];
+                      const tag = sceneMatch[2] || '';
+                      const body = stanza.slice(sceneMatch[0].length);
+                      return (
+                        <div key={i} style={{ display: 'block', marginBottom: i < arr.length - 1 ? '1em' : 0 }}>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '5px',
+                            background: `${color}20`, border: `1px solid ${color}40`,
+                            borderRadius: '6px', padding: '2px 8px', marginBottom: '4px',
+                            fontSize: '0.72rem', fontWeight: '700', color: color,
+                            letterSpacing: '0.03em'
+                          }}>
+                            🎬 {label} {tag}
+                          </span>
+                          <span style={{ display: 'block', marginTop: '4px' }}>{body}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <span key={i} style={{ display: 'block', marginBottom: i < arr.length - 1 ? '1em' : 0 }}>
+                        {stanza}
+                      </span>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </>

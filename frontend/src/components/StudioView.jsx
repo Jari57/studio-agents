@@ -668,6 +668,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [agentPreviews, setAgentPreviews] = useState({});
   const [saveStatus, setSaveStatus] = useState('idle');
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
+  const [showSessionGuide, setShowSessionGuide] = useState(false);
+  const [sessionGuideStep, setSessionGuideStep] = useState(0);
   const [selectedPlan, setSelectedPlan] = useState(null);
 
   // --- VOICE & AI INTERACTION ---
@@ -3603,7 +3605,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           const targetGenre = genreNormMap[foundGenre] || foundGenre;
           
           setVoiceSettings(prev => ({ ...prev, genre: targetGenre }));
-          toast.success(`?? Genre set to ${targetGenre.toUpperCase()}`);
+          toast.success(`🎵 Genre set to ${targetGenre.toUpperCase()}`);
           handleTextToVoice(`Setting genre to ${targetGenre}.`);
           return;
         }
@@ -11230,7 +11232,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                               bpm: playingItem.bpm || null,
                               id: playingItem.id
                             });
-                            toast.success(`?? "${playingItem.title || 'Beat'}" set as backing track`);
+                            toast.success(`🎶 "${playingItem.title || 'Beat'}" set as backing track`);
                           }
                         }}
                         style={{
@@ -11239,7 +11241,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         }}
                       >
                         <Music size={18} />
-                        <span>{(backingTrack && backingTrack.audioUrl === playingItem.audioUrl) ? '?? Synced ?' : '?? Sync Track'}</span>
+                        <span>{(backingTrack && backingTrack.audioUrl === playingItem.audioUrl) ? '🔗 Synced ✓' : '🔗 Sync Track'}</span>
                       </button>
                     )}
                     {/* Open Session Mixer */}
@@ -11286,7 +11288,8 @@ const fetchUserCredits = useCallback(async (uid) => {
                   {!isMobile && <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Multi-Agent Orchestration</p>}
                 </div>
                 <button 
-                  onClick={() => toast("1. Select Beat (Track 1)\n2. Select Vocals (Track 2)\n3. Add a Visual\n4. Press Play to preview\n5. Click Render Master to save", { duration: 6000, icon: '—️' })}
+                  onClick={() => { setSessionGuideStep(0); setShowSessionGuide(true); }}
+                  title="Open session guide — learn how to use the mixer"
                   style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}
                 >
                   <CircleHelp size={14} color="var(--text-secondary)" />
@@ -11344,6 +11347,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                 {/* Play/Pause Overlay Button (always visible on visual preview) */}
                 <button
                   onClick={() => setSessionPlaying(!sessionPlaying)}
+                  title={sessionPlaying ? 'Pause all tracks' : 'Play all tracks together'}
                   style={{
                     position: 'absolute',
                     bottom: isMobile ? '12px' : '16px',
@@ -11430,12 +11434,14 @@ const fetchUserCredits = useCallback(async (uid) => {
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>BPM</span>
                       <input 
                         type="number" 
+                        title="Beats per minute — controls tempo for beat sync and visual cuts"
                         value={sessionTracks.bpm || 120}
                         onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, bpm: parseInt(e.target.value) || 120 }))}
                         style={{ width: '50px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', padding: '4px 8px', color: 'var(--color-cyan)', fontSize: '0.85rem', fontWeight: 600, textAlign: 'center' }}
                       />
                     </div>
                     <select 
+                      title="Video frame rate — 24fps for cinematic, 30fps standard, 60fps smooth"
                       value={sessionTracks.frameRate || 30}
                       onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, frameRate: parseInt(e.target.value) }))}
                       style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', padding: '4px 8px', color: 'white', fontSize: '0.8rem', cursor: 'pointer' }}
@@ -11445,6 +11451,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       <option value="60">60fps</option>
                     </select>
                     <select 
+                      title="Aspect ratio — 16:9 for YouTube/TV, 9:16 for TikTok/Reels, 1:1 for Instagram"
                       value={sessionTracks.aspectRatio || '16:9'}
                       onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, aspectRatio: e.target.value }))}
                       style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', padding: '4px 8px', color: 'white', fontSize: '0.8rem', cursor: 'pointer' }}
@@ -11811,10 +11818,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                           value={sessionTracks.visualOutputType || 'video'}
                           onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualOutputType: e.target.value }))}
                         >
-                          <option value="video">(video) Video</option>
-                          <option value="image">(image) Image</option>
-                          <option value="animation">? Animation</option>
-                          <option value="thumbnail">(camera) Thumbnail</option>
+                          <option value="video">🎬 Video</option>
+                          <option value="image">🖼️ Image</option>
+                          <option value="animation">✨ Animation</option>
+                          <option value="thumbnail">📷 Thumbnail</option>
                         </select>
                       </div>
                       <select 
@@ -11828,7 +11835,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                       >
                         <option value="">Select Visual Asset...</option>
                         {(selectedProject?.assets || []).filter(a => a?.imageUrl || a?.videoUrl || a?.type === 'image' || a?.type === 'video').map(a => (
-                          <option key={a.id} value={a.id}>{a.videoUrl ? '(video)' : '(image)'} {a.title || 'Untitled'} ({a.agent || a.type})</option>
+                          <option key={a.id} value={a.id}>{a.videoUrl ? '🎬' : '🖼️'} {a.title || 'Untitled'} ({a.agent || a.type})</option>
                         ))}
                         {(selectedProject?.assets || []).filter(a => !a?.imageUrl && !a?.videoUrl && a?.type !== 'image' && a?.type !== 'video').map(a => (
                           <option key={a.id} value={a.id}>📄 {a.title || 'Untitled'} ({a.agent || a.type})</option>
@@ -11916,6 +11923,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-pink)' }}>Sync Controls</span>
                         </div>
                         <select
+                          title="How visuals sync to audio — Auto detects best match, Beat cuts on tempo, Vocal follows voice entries"
                           value={sessionTracks.syncMode || 'auto'}
                           onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, syncMode: e.target.value }))}
                           style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--color-pink)', fontSize: '0.7rem', cursor: 'pointer' }}
@@ -11932,6 +11940,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Source</span>
                           <select
+                            title="Which track drives visual sync timing"
                             value={sessionTracks.syncSource || 'beat'}
                             onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, syncSource: e.target.value }))}
                             style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.7rem', cursor: 'pointer' }}
@@ -11947,6 +11956,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Offset</span>
                           <input
                             type="number"
+                            title="Visual start offset in seconds — negative values start visual before audio"
                             min="-10"
                             max="30"
                             step="0.5"
@@ -11961,6 +11971,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Duration</span>
                           <select
+                            title="How much of the track the visual covers"
                             value={sessionTracks.visualDuration || 'full'}
                             onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualDuration: e.target.value }))}
                             style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.7rem', cursor: 'pointer' }}
@@ -11976,6 +11987,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Transition</span>
                           <select
+                            title="Visual transition style between scenes"
                             value={sessionTracks.visualTransition || 'cut'}
                             onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualTransition: e.target.value }))}
                             style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.7rem', cursor: 'pointer' }}
@@ -12032,6 +12044,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                  <button
                    className="btn-circle"
                    aria-label={sessionPlaying ? "Pause Session" : "Play Session"}
+                   title={sessionPlaying ? 'Pause all tracks' : 'Play all tracks in sync'}
                    style={{ width: isMobile ? '44px' : '56px', height: isMobile ? '44px' : '56px', borderRadius: '50%', background: 'var(--color-purple)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                    onClick={() => setSessionPlaying(!sessionPlaying)}
                  >
@@ -12039,11 +12052,10 @@ const fetchUserCredits = useCallback(async (uid) => {
                  </button>
                </div>
                
-               <div style={{ display: 'flex', gap: '12px' }}>
+               <div style={{ display: 'flex', gap: isMobile ? '6px' : '12px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
                  <button 
                    className="btn-pill secondary"
                    onClick={() => {
-                     // Save Project Logic (Save Session State)
                      const updatedProject = {
                        ...selectedProject,
                        sessionState: sessionTracks,
@@ -12052,7 +12064,6 @@ const fetchUserCredits = useCallback(async (uid) => {
                      setSelectedProject(updatedProject);
                      setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updatedProject.id ? updatedProject : p) : [updatedProject]);
                      
-                     // CRITICAL FIX: Ensure project is synced to cloud immediately when clicking Save
                      if (isLoggedIn && user) {
                        saveProjectToCloud(user.uid, updatedProject).catch(err => {
                          devWarn('Cloud save failed:', err);
@@ -12063,12 +12074,45 @@ const fetchUserCredits = useCallback(async (uid) => {
                      handleTextToVoice("Project session saved.");
                      toast.success('Session saved!');
                    }}
+                   title="Save session state to project"
                  >
-                   <Save size={18} /> Save Project
+                   <Save size={18} /> Save
+                 </button>
+
+                 <button
+                   className="btn-pill secondary"
+                   onClick={() => { setShowExternalSaveModal(true); }}
+                   title="Save to cloud or external storage"
+                   style={{ background: 'rgba(6, 182, 212, 0.15)', borderColor: 'rgba(6, 182, 212, 0.3)' }}
+                 >
+                   <Cloud size={18} /> Cloud
+                 </button>
+
+                 <button
+                   className="btn-pill secondary"
+                   onClick={() => {
+                     if (!selectedProject?.assets?.length) {
+                       toast.error('No assets to share. Render first!');
+                       return;
+                     }
+                     const masterAsset = selectedProject.assets.find(a => a?.type === 'Master') || selectedProject.assets[0];
+                     setSharePostText(`Check out "${selectedProject.name}" — made with Studio Agents 🎵`);
+                     setShareSelectedPlatforms(['instagram', 'twitter']);
+                     setPreviewItem(masterAsset);
+                     _setActiveTab('activity');
+                     setShowStudioSession(false);
+                     setSessionPlaying(false);
+                     toast.success('Ready to share! Compose your post below.');
+                   }}
+                   title="Share to Social Media Hub"
+                   style={{ background: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.3)' }}
+                 >
+                   <Share2 size={18} /> Share
                  </button>
 
                  <button 
                    className="btn-pill primary"
+                   title="Mix and master all tracks into a final production — saves to your Hub"
                    disabled={(sessionTracks.renderCount || 0) >= 3 || isGenerating}
                    style={{ opacity: ((sessionTracks.renderCount || 0) >= 3 || isGenerating) ? 0.5 : 1 }}
                    onClick={async () => {
@@ -12382,6 +12426,15 @@ const fetchUserCredits = useCallback(async (uid) => {
                    <Zap size={18} /> Render Master
                  </button>
                </div>
+
+               {/* Session Guide Indicator */}
+               <button
+                 onClick={() => setShowSessionGuide(true)}
+                 title="Open interactive session guide"
+                 style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+               >
+                 <CircleHelp size={18} color="var(--text-secondary)" />
+               </button>
             </div>
           </div>
         )}
@@ -12435,7 +12488,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                         }
                         
                         if (successCount > 0) {
-                          toast.success(`? Synced ${successCount} project${successCount > 1 ? 's' : ''} to cloud!`, { id: toastId });
+                          toast.success(`☁️ Synced ${successCount} project${successCount > 1 ? 's' : ''} to cloud!`, { id: toastId });
                           setLastSyncTime(new Date());
                         } else {
                           toast.error('No projects to sync', { id: toastId });
@@ -12476,6 +12529,128 @@ const fetchUserCredits = useCallback(async (uid) => {
             </div>
           </div>
         )}
+
+        {/* ═══ Interactive Session Guide ═══ */}
+        {showSessionGuide && (() => {
+          const SESSION_GUIDE_STEPS = [
+            { icon: '🎛️', title: 'Welcome to the Session Mixer', desc: 'This is your multi-track production workspace. Combine beats, vocals, and visuals into a mastered track — like a DAW, but powered by AI agents.', color: '#a78bfa' },
+            { icon: '🎵', title: 'Track 1 — Beat / Audio', desc: 'Select a beat or audio asset from your project. Adjust volume, toggle loop, or mute the track. Switch between Waveform, File, Stems, and MIDI views.', color: '#06b6d4' },
+            { icon: '🎤', title: 'Track 2 — Vocals', desc: 'Select lyrics or vocal audio. View as waveform, file info, lyrics text, or adlib tags. Mute vocals for an instrumental-only preview.', color: '#a855f7' },
+            { icon: '🎬', title: 'Track 3 — Visual', desc: 'Choose video, image, animation, or thumbnail output. Set sync mode (auto, beat, vocal, or manual) and control offset, duration, and transitions.', color: '#ec4899' },
+            { icon: '⚡', title: 'Real Assets vs Text Mode', desc: 'Toggle Real Assets ON to generate actual audio, images & video using Imagen 4, Veo 3, and MusicGen. Text Mode creates descriptions only (faster, no credits).', color: '#f59e0b' },
+            { icon: '🎚️', title: 'Pro Settings Bar', desc: 'Set BPM for beat-synced cuts. Choose frame rate (24/30/60fps) and aspect ratio (16:9 for YouTube, 9:16 for TikTok, 1:1 for Instagram).', color: '#22d3ee' },
+            { icon: '▶️', title: 'Preview & Play', desc: 'Press the Play button to preview all tracks in sync. The visual preview area shows your video/image while audio plays. Use the overlay or footer play button.', color: '#a78bfa' },
+            { icon: '💾', title: 'Save, Cloud & Share', desc: 'Save — stores session state locally. Cloud — syncs to Studio Agents cloud. Share — opens Social Hub with your master pre-loaded for posting.', color: '#22c55e' },
+            { icon: '⚡', title: 'Render Master', desc: 'Combines all tracks into a mastered production (3 renders max). Real audio gets mixed via AI. The master is saved as an asset in your Project Hub.', color: '#8b5cf6' }
+          ];
+          const step = SESSION_GUIDE_STEPS[sessionGuideStep];
+          const total = SESSION_GUIDE_STEPS.length;
+          return (
+            <div
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10002, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+              onClick={() => setShowSessionGuide(false)}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(15,15,30,0.98), rgba(25,25,45,0.98))',
+                  borderRadius: '20px',
+                  border: `1px solid ${step.color}40`,
+                  boxShadow: `0 20px 60px rgba(0,0,0,0.6), 0 0 40px ${step.color}15`,
+                  width: '100%',
+                  maxWidth: '480px',
+                  padding: isMobile ? '24px 20px' : '32px',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Top glow */}
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: `linear-gradient(90deg, transparent, ${step.color}, transparent)` }} />
+
+                {/* Step counter */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: step.color, background: `${step.color}1A`, padding: '4px 10px', borderRadius: '12px', border: `1px solid ${step.color}30` }}>
+                    Step {sessionGuideStep + 1} of {total}
+                  </span>
+                  <button
+                    onClick={() => setShowSessionGuide(false)}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: '4px' }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Icon */}
+                <div style={{
+                  width: '56px', height: '56px', borderRadius: '16px',
+                  background: `${step.color}20`, border: `1px solid ${step.color}40`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1.6rem', marginBottom: '16px'
+                }}>
+                  {step.icon}
+                </div>
+
+                {/* Title */}
+                <h3 style={{ margin: '0 0 10px', fontSize: '1.2rem', fontWeight: 700, color: 'white' }}>{step.title}</h3>
+
+                {/* Description */}
+                <p style={{ margin: '0 0 24px', fontSize: '0.9rem', lineHeight: 1.7, color: 'rgba(255,255,255,0.75)' }}>{step.desc}</p>
+
+                {/* Progress dots */}
+                <div style={{ display: 'flex', gap: '5px', marginBottom: '20px', justifyContent: 'center' }}>
+                  {SESSION_GUIDE_STEPS.map((_, i) => (
+                    <div
+                      key={i}
+                      onClick={() => setSessionGuideStep(i)}
+                      style={{
+                        width: i === sessionGuideStep ? '20px' : '7px',
+                        height: '7px',
+                        borderRadius: '4px',
+                        background: i === sessionGuideStep ? step.color : i < sessionGuideStep ? `${step.color}60` : 'rgba(255,255,255,0.15)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {/* Navigation */}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {sessionGuideStep > 0 && (
+                    <button
+                      onClick={() => setSessionGuideStep(s => s - 1)}
+                      style={{
+                        flex: 1, padding: '12px', borderRadius: '12px',
+                        background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                        color: 'white', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer'
+                      }}
+                    >
+                      Back
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (sessionGuideStep < total - 1) {
+                        setSessionGuideStep(s => s + 1);
+                      } else {
+                        setShowSessionGuide(false);
+                        toast.success('You\'re ready to produce! 🎵');
+                      }
+                    }}
+                    style={{
+                      flex: 1, padding: '12px', borderRadius: '12px',
+                      background: sessionGuideStep === total - 1 ? `linear-gradient(135deg, ${step.color}, ${step.color}cc)` : step.color,
+                      border: 'none', color: 'white', fontWeight: 700, fontSize: '0.85rem',
+                      cursor: 'pointer', boxShadow: `0 4px 16px ${step.color}40`
+                    }}
+                  >
+                    {sessionGuideStep === total - 1 ? 'Start Producing' : 'Next'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Add Asset to Project Modal */}
         {addToProjectAsset && (

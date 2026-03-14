@@ -1,0 +1,449 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - banner [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - img [ref=e8]
+          - generic [ref=e11]: Studio Agents
+        - button "Sign In" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+          - text: Sign In
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - img [ref=e21]
+        - heading "The Studio Agents" [level=1] [ref=e24]
+        - paragraph [ref=e25]: 16 AI agents orchestrate your entire release — lyrics, beats, cover art, video — from a single prompt.
+        - generic [ref=e26]:
+          - button "Let's Create" [ref=e27] [cursor=pointer]:
+            - img [ref=e28]
+            - text: Let's Create
+          - button "See What's Possible" [ref=e30] [cursor=pointer]:
+            - text: See What's Possible
+            - img [ref=e31]
+          - button "Take a Tour" [ref=e33] [cursor=pointer]:
+            - img [ref=e34]
+            - text: Take a Tour
+      - generic [ref=e39]:
+        - generic [ref=e40]:
+          - generic [ref=e45]: studioagents.ai — AI Orchestrator
+          - generic [ref=e48]: LIVE
+        - img [ref=e52]
+        - generic [ref=e55]:
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - img [ref=e59]
+              - generic [ref=e62]: Ghostwriter
+            - generic [ref=e63]:
+              - img [ref=e65]
+              - generic [ref=e70]: Music GPT
+            - generic [ref=e71]:
+              - img [ref=e73]
+              - generic [ref=e77]: Album Artist
+            - generic [ref=e78]:
+              - img [ref=e80]
+              - generic [ref=e82]: Video Agent
+          - generic [ref=e86]:
+            - img [ref=e87]
+            - text: Music GPT — 140 BPM Trap
+        - generic [ref=e128]:
+          - img [ref=e129]
+          - text: 1/4 agents working...
+      - generic [ref=e131]:
+        - heading "Mission & Vision" [level=2] [ref=e132]
+        - generic [ref=e133]:
+          - generic [ref=e134]:
+            - img [ref=e136]
+            - heading "Our Mission" [level=3] [ref=e140]
+            - paragraph [ref=e141]: Democratize professional music production. Every artist deserves a full production teamAI makes it possible for everyone.
+          - generic [ref=e142]:
+            - img [ref=e144]
+            - heading "The Future" [level=3] [ref=e149]
+            - paragraph [ref=e150]: We're building toward a world where talent is the only barrier to entry. AI handles the restproduction, distribution, marketing, analytics.
+      - generic [ref=e151]:
+        - heading "The Story" [level=2] [ref=e152]
+        - generic [ref=e153]:
+          - generic [ref=e154]:
+            - img [ref=e156]
+            - heading "The Problem" [level=3] [ref=e160]
+            - paragraph [ref=e161]: Making music is easy—releasing it professionally shouldn't require a record label. Independent artists deserve better tools.
+          - generic [ref=e162]:
+            - img [ref=e164]
+            - heading "The Solution" [level=3] [ref=e167]
+            - paragraph [ref=e168]: "16 specialized AI agents handle everything: lyrics, beats, mastering, video, marketing—your full production team in one app."
+          - generic [ref=e169]:
+            - img [ref=e171]
+            - heading "Pro Workflows" [level=3] [ref=e174]
+            - paragraph [ref=e175]: Every agent is trained on professional workflows, not generic AI. The same pipeline major labels use—at a fraction of the cost.
+          - generic [ref=e176]:
+            - img [ref=e178]
+            - heading "For Everyone" [level=3] [ref=e183]
+            - paragraph [ref=e184]: Bedroom producer or touring artist—Studio Agents gives you 24/7 access to a world-class production pipeline.
+      - generic [ref=e185]:
+        - generic [ref=e186]:
+          - generic [ref=e187]: "16"
+          - generic [ref=e188]: AI Agents
+        - generic [ref=e189]:
+          - generic [ref=e190]: 24/7
+          - generic [ref=e191]: Available
+        - generic [ref=e192]:
+          - generic [ref=e193]: 94%
+          - generic [ref=e194]: Gross Margin
+        - generic [ref=e195]:
+          - generic [ref=e196]: 100%
+          - generic [ref=e197]: Independent
+    - generic [ref=e198]:
+      - heading "Jump Into the Studio" [level=2] [ref=e199]
+      - generic [ref=e200]:
+        - button "AI Orchestrator Full auto pipeline" [ref=e201] [cursor=pointer]:
+          - img [ref=e203]
+          - generic [ref=e205]: AI Orchestrator
+          - generic [ref=e206]: Full auto pipeline
+          - img [ref=e207]
+        - button "Agents 16 AI specialists" [ref=e209] [cursor=pointer]:
+          - img [ref=e211]
+          - generic [ref=e214]: Agents
+          - generic [ref=e215]: 16 AI specialists
+          - img [ref=e216]
+        - button "Resources Guides & tools" [ref=e218] [cursor=pointer]:
+          - img [ref=e220]
+          - generic [ref=e223]: Resources
+          - generic [ref=e224]: Guides & tools
+          - img [ref=e225]
+        - button "News & Entertainment Trending drops & culture" [ref=e227] [cursor=pointer]:
+          - img [ref=e229]
+          - generic [ref=e232]: News & Entertainment
+          - generic [ref=e233]: Trending drops & culture
+          - img [ref=e234]
+    - generic [ref=e236]:
+      - generic [ref=e237]:
+        - generic [ref=e238]:
+          - heading "Try an Agent" [level=2] [ref=e239]
+          - paragraph [ref=e240]: Pick one agent, give it an idea, and see what it creates.
+        - generic [ref=e241]:
+          - generic [ref=e242]:
+            - generic [ref=e243]:
+              - img [ref=e244]
+              - generic [ref=e247]: Single Agent Demo
+            - heading "Try One Agent" [level=3] [ref=e248]
+            - paragraph [ref=e249]: Pick an agent, enter an idea, and see what it creates.
+          - generic [ref=e250]:
+            - generic [ref=e251]:
+              - generic [ref=e252]: Agent
+              - generic [ref=e253]:
+                - combobox [ref=e254] [cursor=pointer]:
+                  - option "Ghostwriter" [selected]
+                  - option "Music GPT"
+                  - option "Album Artist 2.0"
+                  - option "Viral Video Agent"
+                - img
+            - generic [ref=e255]:
+              - generic [ref=e256]: Style
+              - combobox [ref=e257] [cursor=pointer]:
+                - option "Modern Hip-Hop" [selected]
+                - option "90s Boom Bap"
+                - option "Trap"
+                - option "R&B / Soul"
+                - option "Pop"
+                - option "Rock"
+                - option "Electronic"
+                - option "Cinematic"
+                - option "Jazz"
+                - option "Lo-Fi"
+          - generic [ref=e258]:
+            - textbox "Describe your song idea..." [ref=e259]
+            - button "Generate" [disabled] [ref=e260]: Generate
+          - generic [ref=e262]:
+            - img [ref=e263]
+            - button "Midnight in the city" [ref=e265] [cursor=pointer]
+            - button "Coming back stronger" [ref=e266] [cursor=pointer]
+            - button "Neon lights and broken hearts" [ref=e267] [cursor=pointer]
+            - button "Summer vibes on the rooftop" [ref=e268] [cursor=pointer]
+          - generic [ref=e269]:
+            - generic [ref=e270]:
+              - img [ref=e272]
+              - generic [ref=e275]: Ghostwriter
+            - paragraph [ref=e276]: Select an agent, enter an idea, and hit Generate
+      - generic [ref=e277]:
+        - generic [ref=e278]:
+          - heading "Experience Parallel Intelligence" [level=2] [ref=e279]
+          - paragraph [ref=e280]: Watch our specialized agents work in sync to build your entire release package in seconds.
+        - generic [ref=e281]:
+          - generic [ref=e282]:
+            - generic [ref=e283]:
+              - img [ref=e284]
+              - generic [ref=e286]: Live Demo
+            - heading "One Idea → Four Agents" [level=3] [ref=e287]
+            - paragraph [ref=e288]: Enter a song concept and watch our AI agents work in parallel.
+          - generic [ref=e289]:
+            - generic [ref=e290]:
+              - generic [ref=e291]:
+                - generic [ref=e292]: Language
+                - combobox [ref=e293] [cursor=pointer]:
+                  - option "English" [selected]
+                  - option "Spanish"
+                  - option "French"
+                  - option "German"
+                  - option "Japanese"
+                  - option "Korean"
+                  - option "Portuguese"
+                  - option "Italian"
+                  - option "Chinese"
+              - generic [ref=e294]:
+                - generic [ref=e295]: Style
+                - combobox [ref=e296] [cursor=pointer]:
+                  - option "Modern Hip-Hop" [selected]
+                  - option "90s Boom Bap"
+                  - option "Trap"
+                  - option "R&B / Soul"
+                  - option "Pop"
+                  - option "Rock"
+                  - option "Electronic"
+                  - option "Cinematic"
+                  - option "Jazz"
+                  - option "Lo-Fi"
+              - generic [ref=e297]:
+                - generic [ref=e298]: Model
+                - combobox [ref=e299] [cursor=pointer]:
+                  - option "Gemini 2.0 Flash" [selected]
+                  - option "Gemini 2.0 Pro (Exp)"
+                  - option "Gemini 1.5 Flash"
+                  - option "Gemini 1.5 Pro"
+            - generic [ref=e300]:
+              - textbox "Describe your song idea..." [ref=e301]
+              - button "Generate" [disabled] [ref=e302]:
+                - img [ref=e303]
+                - text: Generate
+            - button "Need Ideas?" [ref=e307] [cursor=pointer]:
+              - img [ref=e308]
+              - text: Need Ideas?
+          - generic [ref=e310]:
+            - generic [ref=e311]:
+              - generic [ref=e312]:
+                - img [ref=e314]
+                - generic [ref=e318]: Ghostwriter
+              - paragraph [ref=e320]: Waiting for input...
+            - generic [ref=e321]:
+              - generic [ref=e322]:
+                - img [ref=e324]
+                - generic [ref=e327]: Social Copy
+              - paragraph [ref=e329]: Waiting for input...
+            - generic [ref=e330]:
+              - generic [ref=e331]:
+                - img [ref=e333]
+                - generic [ref=e336]: Hashtag Engine
+              - paragraph [ref=e338]: Waiting for input...
+            - generic [ref=e339]:
+              - generic [ref=e340]:
+                - img [ref=e342]
+                - generic [ref=e345]: Pitch Writer
+              - paragraph [ref=e347]: Waiting for input...
+    - generic [ref=e348]:
+      - heading "Meet the Agents" [level=2] [ref=e349]
+      - generic [ref=e350]:
+        - generic [ref=e351] [cursor=pointer]:
+          - generic [ref=e352]: Free
+          - img [ref=e354]
+          - heading "Ghostwriter" [level=3] [ref=e357]
+          - paragraph [ref=e358]: Music Creation
+          - paragraph [ref=e359]: AI lyricist creating bars with Udio-style structure
+          - button "Whitepaper" [ref=e360]:
+            - img [ref=e361]
+            - text: Whitepaper
+        - generic [ref=e364] [cursor=pointer]:
+          - generic [ref=e365]: Free
+          - img [ref=e367]
+          - heading "Music GPT" [level=3] [ref=e370]
+          - paragraph [ref=e371]: Pro Producer
+          - paragraph [ref=e372]: The world's most powerful AI music engine (MusicGen + Riffusion DNA)
+          - button "Whitepaper" [ref=e373]:
+            - img [ref=e374]
+            - text: Whitepaper
+        - generic [ref=e377] [cursor=pointer]:
+          - generic [ref=e378]: Free
+          - img [ref=e380]
+          - heading "Album Artist 2.0" [level=3] [ref=e383]
+          - paragraph [ref=e384]: Visual Identity
+          - paragraph [ref=e385]: Vibe-aligned artwork with Riffusion-style color mapping
+          - button "Whitepaper" [ref=e386]:
+            - img [ref=e387]
+            - text: Whitepaper
+        - generic [ref=e390] [cursor=pointer]:
+          - generic [ref=e391]: Free
+          - img [ref=e393]
+          - heading "Viral Video Agent" [level=3] [ref=e396]
+          - paragraph [ref=e397]: Visual Identity
+          - paragraph [ref=e398]: Generate viral-ready video concepts for TikTok, Reels, YouTube Shorts, and social platforms.
+          - button "Whitepaper" [ref=e399]:
+            - img [ref=e400]
+            - text: Whitepaper
+        - generic [ref=e403] [cursor=pointer]:
+          - generic [ref=e404]: Pro
+          - img [ref=e406]
+          - heading "Vocal Lab" [level=3] [ref=e409]
+          - paragraph [ref=e410]: Pro Performer
+          - paragraph [ref=e411]: AI vocal synthesis with Suno-style emotional tags
+          - button "Whitepaper" [ref=e412]:
+            - img [ref=e413]
+            - text: Whitepaper
+        - generic [ref=e416] [cursor=pointer]:
+          - generic [ref=e417]: Pro
+          - img [ref=e419]
+          - heading "Instrumentalist" [level=3] [ref=e422]
+          - paragraph [ref=e423]: Music Creation
+          - paragraph [ref=e424]: AI-driven virtual session players for pro performance
+          - button "Whitepaper" [ref=e425]:
+            - img [ref=e426]
+            - text: Whitepaper
+        - generic [ref=e429] [cursor=pointer]:
+          - generic [ref=e430]: Pro
+          - img [ref=e432]
+          - heading "Beat Architect" [level=3] [ref=e435]
+          - paragraph [ref=e436]: Music Creation
+          - paragraph [ref=e437]: Advanced drum machine and rhythm generator
+          - button "Whitepaper" [ref=e438]:
+            - img [ref=e439]
+            - text: Whitepaper
+        - generic [ref=e442] [cursor=pointer]:
+          - generic [ref=e443]: Pro
+          - img [ref=e445]
+          - heading "Crate Digger" [level=3] [ref=e448]
+          - paragraph [ref=e449]: Music Creation
+          - paragraph [ref=e450]: Discover rare samples and production inspiration across music history.
+          - button "Whitepaper" [ref=e451]:
+            - img [ref=e452]
+            - text: Whitepaper
+    - generic [ref=e455]:
+      - generic [ref=e456]:
+        - generic [ref=e457]: Pricing
+        - heading "Simple, Transparent Pricing" [level=2] [ref=e458]
+      - generic [ref=e459]:
+        - generic [ref=e460]:
+          - generic [ref=e461]:
+            - heading "Free Trial" [level=3] [ref=e462]
+            - generic [ref=e464]: $0
+          - list [ref=e465]:
+            - listitem [ref=e466]:
+              - img [ref=e468]
+              - generic [ref=e470]: 7 free generations
+            - listitem [ref=e471]:
+              - img [ref=e473]
+              - generic [ref=e475]: 4 core agents
+            - listitem [ref=e476]:
+              - img [ref=e478]
+              - generic [ref=e480]: 25 credits on signup
+            - listitem [ref=e481]:
+              - img [ref=e483]
+              - generic [ref=e485]: Full pipeline access
+          - button "Start Free Trial" [ref=e486] [cursor=pointer]
+        - generic [ref=e487]:
+          - generic [ref=e488]:
+            - heading "Creator" [level=3] [ref=e489]
+            - generic [ref=e490]:
+              - generic [ref=e491]: $4.99
+              - generic [ref=e492]: /month
+          - list [ref=e493]:
+            - listitem [ref=e494]:
+              - img [ref=e496]
+              - generic [ref=e498]: 500 credits/month
+            - listitem [ref=e499]:
+              - img [ref=e501]
+              - generic [ref=e503]: 8 AI agents
+            - listitem [ref=e504]:
+              - img [ref=e506]
+              - generic [ref=e508]: 30s audio output
+            - listitem [ref=e509]:
+              - img [ref=e511]
+              - generic [ref=e513]: Save & export projects
+          - button "Start Free Trial" [ref=e514] [cursor=pointer]
+        - generic [ref=e515]:
+          - generic [ref=e516]:
+            - heading "Studio" [level=3] [ref=e517]
+            - generic [ref=e518]:
+              - generic [ref=e519]: $14.99
+              - generic [ref=e520]: /month
+          - list [ref=e521]:
+            - listitem [ref=e522]:
+              - img [ref=e524]
+              - generic [ref=e526]: 1,000 credits/month
+            - listitem [ref=e527]:
+              - img [ref=e529]
+              - generic [ref=e531]: All 16 agents
+            - listitem [ref=e532]:
+              - img [ref=e534]
+              - generic [ref=e536]: 60s audio output
+            - listitem [ref=e537]:
+              - img [ref=e539]
+              - generic [ref=e541]: Priority processing
+            - listitem [ref=e542]:
+              - img [ref=e544]
+              - generic [ref=e546]: API access
+          - button "Start Free Trial" [ref=e547] [cursor=pointer]
+        - generic [ref=e548]:
+          - generic [ref=e549]: Most Popular
+          - generic [ref=e550]: Limited Time
+          - generic [ref=e551]: Limited to first 1000 users
+          - generic [ref=e552]:
+            - heading "Lifetime Access" [level=3] [ref=e553]
+            - generic [ref=e554]:
+              - generic [ref=e555]: $99
+              - generic [ref=e556]: one-time
+          - list [ref=e557]:
+            - listitem [ref=e558]:
+              - img [ref=e560]
+              - generic [ref=e562]: 1,000 credits/month forever
+            - listitem [ref=e563]:
+              - img [ref=e565]
+              - generic [ref=e567]: All 16 agents
+            - listitem [ref=e568]:
+              - img [ref=e570]
+              - generic [ref=e572]: Future updates included
+            - listitem [ref=e573]:
+              - img [ref=e575]
+              - generic [ref=e577]: Commercial license
+            - listitem [ref=e578]:
+              - img [ref=e580]
+              - generic [ref=e582]: Founder badge
+          - button "Get Lifetime Access" [ref=e583] [cursor=pointer]
+    - generic [ref=e585]:
+      - generic [ref=e586]:
+        - generic [ref=e587]: (music) Case Study
+        - heading "The Lost Tapes of Whip Montez" [level=3] [ref=e588]:
+          - text: The Lost Tapes of
+          - link "Whip Montez" [ref=e589] [cursor=pointer]:
+            - /url: https://whipmontez.com
+        - paragraph [ref=e590]: We built Studio Agents by resurrecting the lost archives of a Brooklyn MC who vanished before the digital age.
+      - button "Enter The Archive" [ref=e591] [cursor=pointer]:
+        - img [ref=e592]
+        - text: Enter The Archive
+    - generic [ref=e594]:
+      - heading "Stop Waiting for Permission." [level=2] [ref=e595]
+      - paragraph [ref=e596]: Your global rollout starts here. No major label required.
+      - button "Launch Studio Suite" [ref=e597] [cursor=pointer]:
+        - generic [ref=e598]: Launch Studio Suite
+        - img [ref=e599]
+    - button "Investor Pitch Deck" [ref=e602] [cursor=pointer]:
+      - img [ref=e603]
+      - generic [ref=e606]: Investor Pitch Deck
+    - contentinfo [ref=e607]:
+      - generic [ref=e608]:
+        - generic [ref=e609]:
+          - img [ref=e610]
+          - generic [ref=e613]: STUDIO AGENTS AI
+        - generic [ref=e614]:
+          - button "Whitepapers" [ref=e615] [cursor=pointer]
+          - button "DNA System" [ref=e616] [cursor=pointer]
+          - button "Vocal Lab" [ref=e617] [cursor=pointer]
+          - button "Billboard Blueprint" [ref=e618] [cursor=pointer]
+          - button "Legal & Copyright" [ref=e619] [cursor=pointer]
+          - button "Privacy Policy" [ref=e620] [cursor=pointer]
+          - button "Terms of Service" [ref=e621] [cursor=pointer]
+        - paragraph [ref=e622]: © 2026 studioagentsai.com * Built for the next generation of creators.
+    - generic [ref=e624]:
+      - paragraph [ref=e625]: We use cookies to enhance your creative experience and analyze site traffic.
+      - button "Accept" [ref=e627] [cursor=pointer]
+  - iframe [ref=e628]:
+    
+```
