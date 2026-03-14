@@ -17,7 +17,8 @@ const emailService = require('./services/emailService');
 const userPreferencesService = require('./services/userPreferencesService');
 const { analyzeMusicBeats } = require('./services/beatDetectionService');
 const {
-  getVideoMetadata
+  getVideoMetadata,
+  downloadFile: downloadVideoFile
 } = require('./services/videoCompositionService');
 const {
   generateSyncedMusicVideo,
@@ -4417,9 +4418,182 @@ Return ONLY valid JSON, no markdown.`;
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ELEVENLABS: Primary for rappers/narrators, fallback for singers
+    // VOICE CLONING — ElevenLabs Instant Clone + XTTS v2 fallback
+    // Must run BEFORE generic ElevenLabs to prevent generic voice override
     // ═══════════════════════════════════════════════════════════════
-if (elevenLabsKey && !audioUrl) {
+    if (!audioUrl && (speakerUrl || style === 'cloned') && !req.body.elevenLabsVoiceId) {
+      // Clean prompt for cloning engines (same as ElevenLabs preprocessing)
+      const clonePrompt = prompt
+        .replace(/\[Verse[^\]]*\]/gi, '')
+        .replace(/\[Chorus[^\]]*\]/gi, '')
+        .replace(/\[Bridge[^\]]*\]/gi, '')
+        .replace(/\[Pre-Chorus[^\]]*\]/gi, '')
+        .replace(/\[Hook[^\]]*\]/gi, '')
+        .replace(/\[Outro[^\]]*\]/gi, '')
+        .replace(/\[Intro[^\]]*\]/gi, '')
+        .replace(/\[Ad-lib:[^\]]*\]/gi, (m) => m.replace(/\[Ad-lib:\s*/, '').replace(']', '!'))
+        .replace(/\[([^\]]*)\]/g, '')
+        .replace(/\.(?!\d)/g, '... ')
+        .replace(/!+/g, '! ')
+        .replace(/\n{2,}/g, '\n')
+        .trim();
+
+      // ── TRY 1: ElevenLabs Instant Voice Clone ──
+      if (elevenLabsKey && speakerUrl) {
+        try {
+          logger.info('🎤 ElevenLabs Instant Voice Clone — uploading voice sample', { speaker: speakerUrl.substring(0, 60) });
+
+          // Download the voice sample
+          const tempDir = path.join(__dirname, 'temp');
+          if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+          const samplePath = path.join(tempDir, `clone_sample_${Date.now()}.mp3`);
+          const { downloadAudio } = require('./services/audioMixingService');
+          await downloadAudio(speakerUrl, samplePath);
+
+          // Upload to ElevenLabs Add Voice API
+          const FormData = require('form-data');
+          const cloneForm = new FormData();
+          cloneForm.append('name', `Clone_${Date.now()}`);
+          cloneForm.append('files', fs.createReadStream(samplePath));
+          cloneForm.append('description', 'Auto-cloned voice from Studio Agents');
+
+          const addVoiceResp = await fetch('https://api.elevenlabs.io/v1/voices/add', {
+            method: 'POST',
+            headers: {
+              'xi-api-key': elevenLabsKey,
+              ...cloneForm.getHeaders()
+            },
+            body: cloneForm
+          });
+
+          try { fs.unlinkSync(samplePath); } catch {}
+
+          if (addVoiceResp.ok) {
+            const voiceData = await addVoiceResp.json();
+            const clonedVoiceId = voiceData.voice_id;
+            logger.info('✅ ElevenLabs voice cloned', { voiceId: clonedVoiceId });
+
+            // Generate TTS with the cloned voice
+            const cloneAbort = new AbortController();
+            const cloneTimeout = setTimeout(() => cloneAbort.abort(), 60000);
+
+            const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${clonedVoiceId}?output_format=mp3_44100_192`, {
+              method: 'POST',
+              headers: {
+                'Accept': 'audio/mpeg',
+                'xi-api-key': elevenLabsKey,
+                'Content-Type': 'application/json'
+              },
+              signal: cloneAbort.signal,
+              body: JSON.stringify({
+                text: clonePrompt.substring(0, 5000),
+                model_id: 'eleven_multilingual_v2',
+                voice_settings: {
+                  stability: 0.80,
+                  similarity_boost: 0.98,
+                  style: 0.85,
+                  use_speaker_boost: true
+                }
+              })
+            });
+            clearTimeout(cloneTimeout);
+
+            if (ttsResp.ok) {
+              const audioBuf = await ttsResp.arrayBuffer();
+              audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioBuf).toString('base64')}`;
+              provider = 'elevenlabs-clone';
+              logger.info('✅ ElevenLabs cloned vocal generated', { voiceId: clonedVoiceId });
+            } else {
+              logger.warn('ElevenLabs clone TTS failed', { status: ttsResp.status });
+            }
+
+            // Clean up the temporary cloned voice (don't accumulate)
+            try {
+              await fetch(`https://api.elevenlabs.io/v1/voices/${clonedVoiceId}`, {
+                method: 'DELETE',
+                headers: { 'xi-api-key': elevenLabsKey }
+              });
+            } catch {}
+          } else {
+            const errBody = await addVoiceResp.text().catch(() => '');
+            logger.warn('ElevenLabs voice add failed', { status: addVoiceResp.status, error: errBody.substring(0, 200) });
+          }
+        } catch (cloneErr) {
+          logger.error('ElevenLabs clone error:', cloneErr.message);
+        }
+      }
+
+      // ── TRY 2: XTTS v2 fallback for voice cloning ──
+      if (replicateKey && !audioUrl) {
+        try {
+          const targetSpeaker = speakerUrl || 'https://replicate.delivery/pbxt/HN48RVB1mXdZY3K2eSLvGXGkZCz57NzDJYXCCz01DJZEZOfe/output.wav';
+          logger.info('🎤 Using XTTS v2 for voice cloning (fallback)', { speaker: targetSpeaker.substring(0, 50) + '...' });
+          
+          const response = await fetch('https://api.replicate.com/v1/predictions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${replicateKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              version: '684bc3855b37866c0c65add2ff39c78f3dea3f4ff103a436465326e0f438d55e',
+              input: {
+                text: clonePrompt.substring(0, 2000),
+                language: langCode,
+                speaker: targetSpeaker,
+                cleanup_voice: false,
+                speed: 1.0,
+                temperature: 0.15
+              }
+            })
+          });
+          
+          if (response.ok) {
+            const prediction = await response.json();
+            logger.info('XTTS cloning prediction started', { id: prediction.id });
+            
+            let result = prediction;
+            for (let i = 0; i < 60 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
+              await new Promise(r => setTimeout(r, 2000));
+              
+              const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
+                headers: { 'Authorization': `Bearer ${replicateKey}` }
+              });
+
+              if (statusResponse.ok) {
+                result = await statusResponse.json();
+                if (result.status === 'succeeded') {
+                  let outputUrl = result.output;
+                  if (Array.isArray(outputUrl)) outputUrl = outputUrl[0];
+                  if (outputUrl && typeof outputUrl === 'string') {
+                    const audioResponse = await fetch(outputUrl);
+                    if (audioResponse.ok) {
+                      const audioBuffer = await audioResponse.arrayBuffer();
+                      const base64Audio = Buffer.from(audioBuffer).toString('base64');
+                      audioUrl = `data:audio/wav;base64,${base64Audio}`;
+                      provider = 'xtts-v2-clone';
+                      logger.info('✅ Voice cloned successfully via XTTS v2');
+                      break;
+                    }
+                  }
+                } else if (result.status === 'failed') {
+                  logger.warn('XTTS cloning failed, trying fallback...');
+                  break;
+                }
+              }
+            }
+          }
+        } catch (xttsError) {
+          logger.error('XTTS cloning error:', xttsError.message);
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // ELEVENLABS: Primary for rappers/narrators, fallback for singers
+    // Skip if style is 'cloned' without elevenLabsVoiceId (handled above)
+    // ═══════════════════════════════════════════════════════════════
+if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVoiceId)) {
       try {
         // Voice ID logic: user-provided > rapStyle-aware mapping > style fallback
         let voiceId = req.body.elevenLabsVoiceId;
@@ -4615,78 +4789,13 @@ if (elevenLabsKey && !audioUrl) {
       }
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 0: XTTS v2 - Voice Cloning (If speakerUrl provided)
-    // ═══════════════════════════════════════════════════════════════
-    if (replicateKey && !audioUrl && (speakerUrl || style === 'cloned') && !req.body.elevenLabsVoiceId) {
-      try {
-        const targetSpeaker = speakerUrl || 'https://replicate.delivery/pbxt/HN48RVB1mXdZY3K2eSLvGXGkZCz57NzDJYXCCz01DJZEZOfe/output.wav';
-        logger.info('🎤 Using Optimized XTTS v2 for voice cloning', { speaker: targetSpeaker.substring(0, 50) + '...' });
-        
-        const response = await fetch('https://api.replicate.com/v1/predictions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${replicateKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            version: '684bc3855b37866c0c65add2ff39c78f3dea3f4ff103a436465326e0f438d55e',
-            input: {
-              text: prompt.substring(0, 2000),
-              language: langCode,
-              speaker: targetSpeaker,
-              cleanup_voice: false,  // Preserve original voice characteristics — no cleanup alteration
-              speed: 1.0,
-              temperature: 0.15      // Minimum temperature for EXACT voice clone — no variation
-            }
-          })
-        });
-        
-        if (response.ok) {
-          const prediction = await response.json();
-          logger.info('XTTS cloning prediction started', { id: prediction.id });
-          
-          let result = prediction;
-          // Poll for success (max 2 minutes)
-          for (let i = 0; i < 60 && result.status !== 'succeeded' && result.status !== 'failed'; i++) {
-            await new Promise(r => setTimeout(r, 2000));
-            
-            const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${prediction.id}`, {
-              headers: { 'Authorization': `Bearer ${replicateKey}` }
-            });
-
-            if (statusResponse.ok) {
-              result = await statusResponse.json();
-              if (result.status === 'succeeded') {
-                let outputUrl = result.output;
-                if (Array.isArray(outputUrl)) outputUrl = outputUrl[0];
-                if (outputUrl && typeof outputUrl === 'string') {
-                  const audioResponse = await fetch(outputUrl);
-                  if (audioResponse.ok) {
-                    const audioBuffer = await audioResponse.arrayBuffer();
-                    const base64Audio = Buffer.from(audioBuffer).toString('base64');
-                    audioUrl = `data:audio/wav;base64,${base64Audio}`;
-                    provider = 'xtts-v2-clone';
-                    logger.info('✅ Voice cloned successfully via XTTS v2');
-                    break;
-                  }
-                }
-              } else if (result.status === 'failed') {
-                logger.warn('XTTS cloning failed, trying fallback...');
-                break;
-              }
-            }
-          }
-        }
-      } catch (xttsError) {
-        logger.error('XTTS cloning error, trying fallback:', xttsError);
-      }
-    }
+    // (XTTS v2 voice cloning now handled above in the VOICE CLONING section)
 
     // ═══════════════════════════════════════════════════════════════
     // BARK SPOKEN - General speech fallback (singers already handled above)
+    // Skip for cloned voices — Bark can't clone, would produce gibberish
     // ═══════════════════════════════════════════════════════════════
-    if (replicateKey && !audioUrl && !isSingingStyle) {
+    if (replicateKey && !audioUrl && !isSingingStyle && style !== 'cloned') {
       try {
         logger.info('🎤 Using Bark for expressive vocal generation', { style, langCode });
         
@@ -4699,7 +4808,37 @@ if (elevenLabsKey && !audioUrl) {
           speakerHistory = `v2/${langCode}_speaker_0`;
         }
         
-        let barkPrompt = prompt;
+        let barkPrompt = prompt
+          .replace(/\[Verse[^\]]*\]/gi, '')
+          .replace(/\[Chorus[^\]]*\]/gi, '')
+          .replace(/\[Bridge[^\]]*\]/gi, '')
+          .replace(/\[Pre-Chorus[^\]]*\]/gi, '')
+          .replace(/\[Hook[^\]]*\]/gi, '')
+          .replace(/\[Outro[^\]]*\]/gi, '')
+          .replace(/\[Intro[^\]]*\]/gi, '')
+          .replace(/\[Ad-lib:[^\]]*\]/gi, '')
+          .replace(/\[Hard Hitting[^\]]*\]/gi, '')
+          .replace(/\[Soulful[^\]]*\]/gi, '')
+          .replace(/\[Building[^\]]*\]/gi, '')
+          .replace(/\[Whispered[^\]]*\]/gi, '')
+          .replace(/\[([^\]]*)\]/g, '')  // Strip ALL remaining bracketed tags
+          .replace(/\n{2,}/g, '\n')
+          .replace(/^\s*\n/gm, '')  // Remove blank lines
+          .trim();
+        
+        // Bark works best with SHORT text (~200 chars max for intelligibility)
+        // Take only the first meaningful chunk instead of the full song
+        if (barkPrompt.length > 300) {
+          // Prefer first verse/paragraph if identifiable
+          const lines = barkPrompt.split('\n').filter(l => l.trim().length > 5);
+          let chunk = '';
+          for (const line of lines) {
+            if ((chunk + '\n' + line).length > 280) break;
+            chunk += (chunk ? '\n' : '') + line;
+          }
+          barkPrompt = chunk || barkPrompt.substring(0, 280);
+          logger.info('🎤 Bark text truncated for intelligibility', { original: prompt.length, truncated: barkPrompt.length });
+        }
         
         const response = await fetch('https://api.replicate.com/v1/predictions', {
           method: 'POST',
@@ -4711,9 +4850,9 @@ if (elevenLabsKey && !audioUrl) {
 
             version: 'b76242b40d67c76ab6742e987628a2a9ac019e11d56ab96c4e91ce03b79b2787',
             input: {
-              prompt: barkPrompt.substring(0, 1000),
-              text_temp: 0.5,
-              waveform_temp: 0.5,
+              prompt: barkPrompt,
+              text_temp: 0.7,
+              waveform_temp: 0.7,
               history_prompt: speakerHistory
             }
           })
@@ -5697,6 +5836,165 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
 });
 
 // ═══════════════════════════════════════════════════════════════════
+// DISTRIBUTION — Upload to SoundCloud, generate share links
+// ═══════════════════════════════════════════════════════════════════
+
+// POST /api/distribute/soundcloud — Upload master mix to SoundCloud
+app.post('/api/distribute/soundcloud', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
+  try {
+    const { audioUrl, title, description, genre, tags, artwork_url, sharing = 'public' } = req.body;
+
+    if (!audioUrl) {
+      return res.status(400).json({ error: 'audioUrl is required' });
+    }
+
+    const soundcloudToken = process.env.SOUNDCLOUD_ACCESS_TOKEN;
+    const soundcloudClientId = process.env.SOUNDCLOUD_CLIENT_ID;
+
+    if (!soundcloudToken) {
+      return res.status(503).json({
+        error: 'SoundCloud not configured',
+        message: 'Connect your SoundCloud account in Settings to distribute tracks. Set SOUNDCLOUD_ACCESS_TOKEN in environment variables.',
+        setup: {
+          step1: 'Create a SoundCloud app at https://soundcloud.com/you/apps',
+          step2: 'Set SOUNDCLOUD_CLIENT_ID and SOUNDCLOUD_CLIENT_SECRET env vars',
+          step3: 'Complete OAuth flow to get SOUNDCLOUD_ACCESS_TOKEN',
+          step4: 'Set SOUNDCLOUD_ACCESS_TOKEN env var'
+        }
+      });
+    }
+
+    logger.info('🔊 Uploading to SoundCloud', { title, genre, sharing });
+
+    // Download the audio file to a temp path
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    const audioPath = path.join(tempDir, `sc_upload_${Date.now()}.mp3`);
+
+    const { downloadAudio } = require('./services/audioMixingService');
+    await downloadAudio(audioUrl, audioPath);
+
+    // Upload to SoundCloud via their API
+    const FormData = require('form-data');
+    const formData = new FormData();
+    formData.append('track[title]', title || 'Untitled - Studio Agents');
+    formData.append('track[description]', (description || 'Created with Studio Agents AI').substring(0, 4000));
+    formData.append('track[sharing]', sharing === 'private' ? 'private' : 'public');
+    formData.append('track[genre]', genre || 'Hip-hop & Rap');
+    formData.append('track[tag_list]', (tags || ['studioagents', 'ai', 'music']).join(' '));
+    formData.append('track[asset_data]', fs.createReadStream(audioPath));
+
+    // Download and attach artwork if provided
+    let artworkPath = null;
+    if (artwork_url) {
+      try {
+        artworkPath = path.join(tempDir, `sc_art_${Date.now()}.jpg`);
+        await downloadAudio(artwork_url, artworkPath);
+        formData.append('track[artwork_data]', fs.createReadStream(artworkPath));
+      } catch (artErr) {
+        logger.warn('SoundCloud artwork attach failed', artErr.message);
+      }
+    }
+
+    const scResponse = await fetch('https://api.soundcloud.com/tracks', {
+      method: 'POST',
+      headers: {
+        'Authorization': `OAuth ${soundcloudToken}`,
+        ...formData.getHeaders()
+      },
+      body: formData
+    });
+
+    // Cleanup temp files
+    try { fs.unlinkSync(audioPath); } catch {}
+    if (artworkPath) try { fs.unlinkSync(artworkPath); } catch {}
+
+    if (!scResponse.ok) {
+      const scError = await scResponse.text();
+      logger.error('SoundCloud upload failed', { status: scResponse.status, error: scError.substring(0, 200) });
+      return res.status(scResponse.status).json({
+        error: 'SoundCloud upload failed',
+        details: scResponse.status === 401 ? 'SoundCloud token expired — reconnect in Settings' : 'Upload rejected by SoundCloud'
+      });
+    }
+
+    const track = await scResponse.json();
+
+    logger.info('✅ SoundCloud upload successful', { trackId: track.id, permalink: track.permalink_url });
+
+    res.json({
+      success: true,
+      platform: 'soundcloud',
+      trackId: track.id,
+      trackUrl: track.permalink_url,
+      embedUrl: `https://w.soundcloud.com/player/?url=${encodeURIComponent(track.permalink_url)}&auto_play=false&hide_related=true`,
+      sharing: track.sharing,
+      message: `Track "${title}" uploaded to SoundCloud!`
+    });
+
+  } catch (err) {
+    logger.error('SoundCloud distribution error', { error: err.message });
+    res.status(500).json({ error: 'Failed to upload to SoundCloud', details: safeErrorDetail(err) });
+  }
+});
+
+// POST /api/distribute/share-link — Generate a public share link for a mix
+app.post('/api/distribute/share-link', verifyFirebaseToken, requireAuth, async (req, res) => {
+  try {
+    const { audioUrl, title, artist, coverArtUrl, projectId } = req.body;
+
+    if (!audioUrl) {
+      return res.status(400).json({ error: 'audioUrl is required' });
+    }
+
+    const db = getFirestoreDb();
+    if (!db) {
+      return res.status(503).json({ error: 'Database not available' });
+    }
+
+    // Create a public share record in Firestore
+    const shareId = crypto.randomUUID().substring(0, 12);
+    const shareDoc = {
+      shareId,
+      userId: req.user.uid,
+      title: (title || 'Untitled').substring(0, 200),
+      artist: (artist || 'Studio Agents Artist').substring(0, 100),
+      audioUrl,
+      coverArtUrl: coverArtUrl || null,
+      projectId: projectId || null,
+      createdAt: new Date(),
+      plays: 0,
+      likes: 0,
+      isPublic: true
+    };
+
+    await db.collection('shared_tracks').doc(shareId).set(shareDoc);
+
+    // Build share URLs
+    const frontendUrl = process.env.FRONTEND_URL || 'https://studioagentsai.com';
+    const shareUrl = `${frontendUrl}/#/share/${shareId}`;
+
+    logger.info('🔗 Share link created', { shareId, title });
+
+    res.json({
+      success: true,
+      shareId,
+      shareUrl,
+      embedHtml: `<iframe width="100%" height="166" scrolling="no" frameborder="no" src="${frontendUrl}/#/embed/${shareId}"></iframe>`,
+      socialLinks: {
+        twitter: `https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check out "${title}" made with @StudioAgentsAI 🔥`)}&url=${encodeURIComponent(shareUrl)}`,
+        facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+        reddit: `https://reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(`${title} - Made with AI`)}`
+      }
+    });
+
+  } catch (err) {
+    logger.error('Share link error', { error: err.message });
+    res.status(500).json({ error: 'Failed to create share link', details: safeErrorDetail(err) });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
 // MUX AUDIO + VIDEO - Combine silent video with mixed audio track
 // Free — user already paid for video + audio generation
 // ═══════════════════════════════════════════════════════════════════
@@ -5979,8 +6277,18 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                       }
                     }
 
-                    const proxyUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
-                    return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-3.0-fast', permanentUrl: permanentUrl || null });
+                    let finalVideoUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
+
+                    // Replace Veo-generated audio with user's actual music
+                    if (audioUrl && req.user) {
+                      try {
+                        finalVideoUrl = await replaceVideoAudio(permanentUrl || authedUrl, audioUrl, req.user.uid);
+                      } catch (mergeErr) {
+                        logger.warn('Audio replacement failed (returning video with original audio)', { error: mergeErr.message });
+                      }
+                    }
+
+                    return res.json({ output: finalVideoUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-3.0-fast', permanentUrl: finalVideoUrl });
                   }
                   return res.json({ output: operationData, type: 'video', source: 'veo-3.0-fast' });
                 }
@@ -5996,7 +6304,9 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                   consecutiveErrors: 0,
                   status: 'processing',
                   result: null,
-                  error: null
+                  error: null,
+                  audioUrl: audioUrl || null,
+                  userId: req.user?.uid || null
                 });
                 logger.info('Video operation stored for async polling', { opId, operationName: operationData.name });
                 return res.json({ status: 'processing', operationId: opId, source: 'veo-3.0-fast' });
@@ -6049,8 +6359,18 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                       }
                     }
 
-                    const proxyUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
-                    return res.json({ output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-2.0', permanentUrl: permanentUrl || null });
+                    let finalVideoUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
+
+                    // Replace Veo-generated audio with user's actual music
+                    if (audioUrl && req.user) {
+                      try {
+                        finalVideoUrl = await replaceVideoAudio(permanentUrl || authedUrl, audioUrl, req.user.uid);
+                      } catch (mergeErr) {
+                        logger.warn('Audio replacement failed (returning video with original audio)', { error: mergeErr.message });
+                      }
+                    }
+
+                    return res.json({ output: finalVideoUrl, mimeType: 'video/mp4', type: 'video', source: 'veo-2.0', permanentUrl: finalVideoUrl });
                   }
                   return res.json({ output: veo2Data, type: 'video', source: 'veo-2.0' });
                 }
@@ -6066,7 +6386,9 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
                   consecutiveErrors: 0,
                   status: 'processing',
                   result: null,
-                  error: null
+                  error: null,
+                  audioUrl: audioUrl || null,
+                  userId: req.user?.uid || null
                 });
                 logger.info('Video operation stored for async polling (Veo 2.0)', { opId, operationName: veo2Data.name });
                 return res.json({ status: 'processing', operationId: opId, source: 'veo-2.0' });
@@ -6126,12 +6448,23 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
               }
             }
 
+            let finalVideoUrl = permanentUrl || videoUrl;
+
+            // Replace AI-generated audio with user's actual music
+            if (audioUrl && req.user) {
+              try {
+                finalVideoUrl = await replaceVideoAudio(permanentUrl || videoUrl, audioUrl, req.user.uid);
+              } catch (mergeErr) {
+                logger.warn('Audio replacement failed (returning video with original audio)', { error: mergeErr.message });
+              }
+            }
+
             return res.json({
-              output: permanentUrl || videoUrl,
+              output: finalVideoUrl,
               mimeType: 'video/mp4',
               type: 'video',
               source: 'replicate-minimax',
-              permanentUrl: permanentUrl || null
+              permanentUrl: finalVideoUrl
             });
           }
           
@@ -6146,7 +6479,9 @@ app.post('/api/generate-video', verifyFirebaseToken, requireAuthOrFreeLimit, che
             consecutiveErrors: 0,
             status: 'processing',
             result: null,
-            error: null
+            error: null,
+            audioUrl: audioUrl || null,
+            userId: req.user?.uid || null
           });
           logger.info('Replicate video operation stored for async polling', { opId, predictionId: prediction.id });
           return res.json({ status: 'processing', operationId: opId, source: 'replicate-minimax' });
@@ -6209,6 +6544,108 @@ function _generateDemoVideoUrl(prompt) {
 // ── Video proxy: store authed URLs in a short-lived map, serve via /api/video-proxy/:id ──
 const videoProxyMap = new Map(); // id → { url, expiresAt }
 // crypto already imported at top of file
+
+// ── Replace video audio track with user's music using ffmpeg ──
+const ffmpeg = require('fluent-ffmpeg');
+try {
+  const ffmpegStatic = require('ffmpeg-static');
+  if (ffmpegStatic) ffmpeg.setFfmpegPath(ffmpegStatic);
+} catch (_e) { /* rely on system ffmpeg */ }
+
+async function replaceVideoAudio(videoUrl, audioUrl, userId) {
+  const tempDir = path.join(__dirname, 'temp');
+  if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+  const ts = Date.now();
+  const tempVideo = path.join(tempDir, `vid_${ts}.mp4`);
+  const tempAudio = path.join(tempDir, `aud_${ts}.mp3`);
+  const outputPath = path.join(tempDir, `merged_${ts}.mp4`);
+
+  try {
+    logger.info('🎵 Replacing video audio with user music', { videoUrl: videoUrl.substring(0, 60), audioUrl: audioUrl.substring(0, 60) });
+
+    // Download video and audio in parallel
+    const [vidRes, audRes] = await Promise.all([
+      fetch(videoUrl),
+      fetch(audioUrl)
+    ]);
+    if (!vidRes.ok) throw new Error(`Video download failed: ${vidRes.status}`);
+    if (!audRes.ok) throw new Error(`Audio download failed: ${audRes.status}`);
+
+    fs.writeFileSync(tempVideo, Buffer.from(await vidRes.arrayBuffer()));
+    fs.writeFileSync(tempAudio, Buffer.from(await audRes.arrayBuffer()));
+
+    // Probe video and audio durations to decide if video needs looping
+    const probeDuration = (filePath) => new Promise((resolve) => {
+      ffmpeg.ffprobe(filePath, (err, metadata) => {
+        if (err || !metadata?.format?.duration) return resolve(null);
+        resolve(parseFloat(metadata.format.duration));
+      });
+    });
+
+    const [videoDur, audioDur] = await Promise.all([
+      probeDuration(tempVideo),
+      probeDuration(tempAudio)
+    ]);
+
+    logger.info('🎵 Duration check', { videoDur, audioDur });
+
+    // If audio is longer than video, loop the video to fill the full beat length
+    const needsLoop = audioDur && videoDur && audioDur > videoDur * 1.2; // 20% tolerance
+
+    // Use ffmpeg to replace audio: loop video if needed, use full beat audio
+    await new Promise((resolve, reject) => {
+      const cmd = ffmpeg();
+
+      if (needsLoop) {
+        // Loop video infinitely, then -shortest stops at audio end
+        cmd.input(tempVideo).inputOptions(['-stream_loop', '-1']);
+        cmd.input(tempAudio);
+        cmd.outputOptions([
+          '-c:v libx264',      // Re-encode needed for looped stream
+          '-preset fast',
+          '-crf 20',
+          '-c:a aac',
+          '-b:a 192k',
+          '-map 0:v:0',
+          '-map 1:a:0',
+          '-t', String(Math.ceil(audioDur)), // Explicit duration = full beat length
+          '-movflags +faststart'
+        ]);
+        logger.info('🔄 Looping video to match beat', { videoLen: videoDur, audioLen: audioDur, loops: Math.ceil(audioDur / videoDur) });
+      } else {
+        // Video is long enough — just swap audio, no re-encode
+        cmd.input(tempVideo);
+        cmd.input(tempAudio);
+        cmd.outputOptions([
+          '-c:v copy',
+          '-c:a aac',
+          '-b:a 192k',
+          '-map 0:v:0',
+          '-map 1:a:0',
+          '-shortest',
+          '-movflags +faststart'
+        ]);
+      }
+
+      cmd.output(outputPath)
+        .on('end', resolve)
+        .on('error', reject)
+        .run();
+    });
+
+    // Upload merged video to Firebase Storage
+    const mergedBuffer = fs.readFileSync(outputPath);
+    const result = await uploadToStorage(mergedBuffer, userId, `video_synced_${ts}.mp4`, 'video/mp4');
+    logger.info('🎵 Audio replacement complete, uploaded to Storage', { url: result.url.substring(0, 60) });
+    return result.url;
+  } finally {
+    // Cleanup temp files
+    [tempVideo, tempAudio, outputPath].forEach(f => {
+      try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch (_e) { /* ignore */ }
+    });
+  }
+}
 
 // ── Async video operations: track Veo polls so frontend can check status ──
 const pendingVideoOps = new Map(); // id → { operationName, apiKey, source, createdAt, attempts, consecutiveErrors, status, result, error }
@@ -6352,8 +6789,19 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
           }
         }
 
+        let finalUrl = permanentUrl || videoUrl;
+
+        // Replace AI audio with user's actual music
+        if (op.audioUrl && (req.user || op.userId)) {
+          try {
+            finalUrl = await replaceVideoAudio(permanentUrl || videoUrl, op.audioUrl, req.user?.uid || op.userId);
+          } catch (mergeErr) {
+            logger.warn('Audio replacement failed during poll (returning video with original audio)', { error: mergeErr.message });
+          }
+        }
+
         op.status = 'completed';
-        op.result = { status: 'completed', output: permanentUrl || videoUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: permanentUrl || null };
+        op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
         return res.json(op.result);
       }
       // Failed or canceled
@@ -6416,9 +6864,19 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
         }
       }
 
-      const proxyUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
+      let finalUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
+
+      // Replace Veo-generated audio with user's actual music
+      if (op.audioUrl && (req.user || op.userId)) {
+        try {
+          finalUrl = await replaceVideoAudio(permanentUrl || authedUrl, op.audioUrl, req.user?.uid || op.userId);
+        } catch (mergeErr) {
+          logger.warn('Audio replacement failed during Veo poll (returning video with original audio)', { error: mergeErr.message });
+        }
+      }
+
       op.status = 'completed';
-      op.result = { status: 'completed', output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: permanentUrl || null };
+      op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
       return res.json(op.result);
     }
 
@@ -6444,9 +6902,19 @@ app.get('/api/video-status/:id', verifyFirebaseToken, async (req, res) => {
         }
       }
 
-      const proxyUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
+      let finalUrl = permanentUrl || createVideoProxyUrl(authedUrl, req);
+
+      // Replace Veo-generated audio with user's actual music
+      if (op.audioUrl && (req.user || op.userId)) {
+        try {
+          finalUrl = await replaceVideoAudio(permanentUrl || authedUrl, op.audioUrl, req.user?.uid || op.userId);
+        } catch (mergeErr) {
+          logger.warn('Audio replacement failed during legacy Veo poll (returning video with original audio)', { error: mergeErr.message });
+        }
+      }
+
       op.status = 'completed';
-      op.result = { status: 'completed', output: proxyUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: permanentUrl || null };
+      op.result = { status: 'completed', output: finalUrl, mimeType: 'video/mp4', type: 'video', source: op.source, permanentUrl: finalUrl };
       return res.json(op.result);
     }
 
