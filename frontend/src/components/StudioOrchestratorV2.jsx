@@ -2696,8 +2696,12 @@ REQUIREMENTS:
 - Use producer-level terminology (808 glides, sidechain, hi-hat rolls, vocal chops, etc.)
 - Keep under 60 words for maximum AI audio model compatibility
 - Think: what would Metro Boomin, Pharrell, or Max Martin describe for this track?` : ''}
-        ${slot === 'visual' ? 'Describe a striking, iconic album cover concept with specific visual direction: color palette, composition, typography style, mood lighting, and cultural aesthetic. Think major-label art direction.' : ''}
-        ${slot === 'video' ? 'Write a cinematic music video storyboard with precise scene descriptions, camera movements, lighting, wardrobe, locations, and narrative arc. Think Hype Williams or Dave Meyers visual storytelling.' : ''}`;
+        ${slot === 'visual' ? `Describe a striking, iconic visual concept with specific direction: color palette, composition, mood lighting, cultural aesthetic, wardrobe, and setting.
+This visual identity will be used for BOTH the album cover art AND the music video — every visual asset must share the same look, color grading, aesthetic, locations, and style.
+Think major-label art direction: the album cover and every video frame should feel like they belong to the same world.` : ''}
+        ${slot === 'video' ? `Write a cinematic music video storyboard with precise scene descriptions, camera movements, lighting, wardrobe, locations, and narrative arc. Think Hype Williams or Dave Meyers visual storytelling.
+CRITICAL: The video MUST share the exact same visual identity as the album cover art — same color palette, same lighting style, same wardrobe, same mood, same locations, same aesthetic.
+${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('VISUAL IDENTITY:') ? '' : ''}` : ''}`;
         
         console.log(`[handleGenerate] Starting generation for ${slot} with agent:`, agent.name);
         
@@ -2797,16 +2801,35 @@ REQUIREMENTS:
         return false;
       };
 
-      // All other slots run in parallel using the (optional) lyrics context
+      // ═══ VISUAL-FIRST PIPELINE ═══
+      // Generate visual BEFORE video so they share the same visual identity.
+      // Audio can run in parallel with visual. Video description runs after visual.
       const otherSlots = activeSlots.filter(([s]) => s !== 'lyrics');
-      const slotsToGenerate = otherSlots.filter(([slot]) => {
+      const visualSlot = otherSlots.find(([s]) => s === 'visual');
+      const videoSlot = otherSlots.find(([s]) => s === 'video');
+      const parallelSlots = otherSlots.filter(([s]) => s !== 'video'); // audio + visual run together
+
+      // Filter out slots that already have content (incremental runs)
+      const parallelToGenerate = parallelSlots.filter(([slot]) => {
         if (outputs[slot] && hasMedia(slot)) {
           console.log(`[Orchestrator] Skipping ${slot} — already generated`);
           return false;
         }
         return true;
       });
-      await Promise.all(slotsToGenerate.map(([slot, agentId]) => generateForSlot(slot, agentId, lyricsResult)));
+
+      // Run audio + visual in parallel
+      await Promise.all(parallelToGenerate.map(([slot, agentId]) => generateForSlot(slot, agentId, lyricsResult)));
+
+      // Now generate video description WITH the visual description as context
+      // so the video storyboard matches the album art aesthetic
+      if (videoSlot && !(outputs.video && hasMedia('video'))) {
+        const visualDesc = outputsRef.current.visual || outputs.visual || '';
+        const videoContext = lyricsResult
+          ? `${lyricsResult}\n\nVISUAL IDENTITY (album cover & video MUST match this look):\n${visualDesc.substring(0, 600)}`
+          : (visualDesc ? `VISUAL IDENTITY (album cover & video MUST match this look):\n${visualDesc.substring(0, 600)}` : '');
+        await generateForSlot(videoSlot[0], videoSlot[1], videoContext);
+      }
 
       // ═══════════════════════════════════════════════════════════
       // PIPELINE SEQUENCING: vocals wait for beat, video waits for mix
@@ -4076,6 +4099,15 @@ REQUIREMENTS:
       const { content: cleanVideoPrompt } = splitCreativeContent(videoPromptText);
       const videoPrompt = cleanVideoPrompt || videoPromptText;
 
+      // ═══ VISUAL IDENTITY ALIGNMENT ═══
+      // Pull the visual description so video matches the album art look exactly
+      const visualIdentity = outputsRef.current.visual || outputs.visual || '';
+      const { content: cleanVisualIdentity } = splitCreativeContent(visualIdentity);
+      const visualIdSnippet = (cleanVisualIdentity || visualIdentity).substring(0, 300);
+      const visualMatchDirective = visualIdSnippet 
+        ? `\nVISUAL IDENTITY — the video MUST match the album cover art exactly: same color palette, same lighting, same wardrobe, same mood, same setting: ${visualIdSnippet}` 
+        : '';
+
       // ═══ LYRICS-BASED SCENE DESCRIPTIONS ═══
       // Extract verse/chorus sections from lyrics to create scene-by-scene video content
       const lyricsText = outputsRef.current.lyrics || outputs.lyrics || '';
@@ -4109,7 +4141,7 @@ REQUIREMENTS:
         headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({
           audioUrl: audioSource,
-          videoPrompt: `${visualDnaUrl || videoDnaUrl ? '100% CLONE ALIGNMENT: The artist in the video MUST look EXACTLY like the reference image — same face, same style, same colors, same identity in EVERY frame. ' : ''}Elite cinematic music video, professional motion design, high-fidelity quality: ${videoPrompt.substring(0, 700)}${lyricsSceneGuide}`,
+          videoPrompt: `${visualDnaUrl || videoDnaUrl ? '100% CLONE ALIGNMENT: The artist in the video MUST look EXACTLY like the reference image — same face, same style, same colors, same identity in EVERY frame. ' : ''}Elite cinematic music video, professional motion design, high-fidelity quality: ${videoPrompt.substring(0, 700)}${visualMatchDirective}${lyricsSceneGuide}`,
           imageUrl: latestMedia.image,
           videoUrl: latestMedia.video,
           referenceImage: visualDnaUrl || videoDnaUrl,
@@ -4129,7 +4161,7 @@ REQUIREMENTS:
             method: 'POST',
             headers,
             body: JSON.stringify({
-              prompt: `Elite cinematic music video visual, professional motion design: ${videoPrompt.substring(0, 700)}${lyricsSceneGuide}`,
+              prompt: `Elite cinematic music video visual, professional motion design: ${videoPrompt.substring(0, 700)}${visualMatchDirective}${lyricsSceneGuide}`,
               referenceImage: visualDnaUrl || videoDnaUrl,
               referenceVideo: videoDnaUrl,
               duration: Math.round(videoDuration),
