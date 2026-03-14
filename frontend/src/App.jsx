@@ -159,8 +159,8 @@ function App() {
             boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
           },
           success: { duration: 2500 },
-          error: { duration: 3500 },
-          loading: { duration: 30000 }
+          error: { duration: 4000 },
+          loading: { duration: 15000 }
         }}
       />
       {isWhitepapers ? (
