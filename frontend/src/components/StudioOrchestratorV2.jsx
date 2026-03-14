@@ -18,6 +18,7 @@ const PreviewModal = React.lazy(() => import('./PreviewModal'));
 const ArrangementEditor = React.lazy(() => import('./ArrangementEditor'));
 const RealtimePreviewMixer = React.lazy(() => import('./RealtimePreviewMixer'));
 const VocalSynthControls = React.lazy(() => import('./VocalSynthControls'));
+const CoverArtEditor = React.lazy(() => import('./CoverArtEditor'));
 
 // Import arrangement-to-prompt helper (non-lazy since it's a pure function)
 import { arrangementToPrompt } from './ArrangementEditor';
@@ -208,7 +209,8 @@ function GeneratorCard({
   onClearDna = null,
   dnaUrl = null,
   isUploadingDna = false,
-  provider = null
+  provider = null,
+  onEditCover = null
 }) {
   const [showPreview, setShowPreview] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -710,6 +712,32 @@ function GeneratorCard({
                       }}>
                         <Eye size={24} color="white" />
                       </div>
+                      {/* Edit Cover button */}
+                      {onEditCover && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onEditCover(); }}
+                          style={{
+                            position: 'absolute',
+                            bottom: '6px',
+                            right: '6px',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: 'rgba(0,0,0,0.7)',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            color: 'white',
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            backdropFilter: 'blur(4px)',
+                            zIndex: 2,
+                          }}
+                        >
+                          <Edit3 size={11} /> Edit Cover
+                        </button>
+                      )}
                     </div>
                   )}
                   {mediaType === 'video' && mediaUrl && (
@@ -1937,6 +1965,7 @@ export default function StudioOrchestratorV2({
   const [generatingMusicVideo, setGeneratingMusicVideo] = useState(false);
   const [musicVideoUrl, setMusicVideoUrl] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false); // Preview all creations before final mix
+  const [showCoverEditor, setShowCoverEditor] = useState(false); // Cover art editor overlay
   const [previewMaximized, setPreviewMaximized] = useState(false); // Min/max view toggle for preview
   const [showSaveConfirm, setShowSaveConfirm] = useState(false); // Save confirmation dialog
   const [distributing, setDistributing] = useState(null); // 'soundcloud' | 'share' | null
@@ -2629,6 +2658,9 @@ export default function StudioOrchestratorV2({
                     model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.0-flash-exp' : 
                     model === 'Gemini 1.5 Pro' ? 'gemini-1.5-pro' : 'gemini-2.0-flash';
 
+      // Track promises for pipeline sequencing (must be declared before generateForSlot uses it)
+      const pipelinePromises = { beatAudio: null, image: null, videoDescription: null };
+
       // Helper to generate a single slot (used for sequencing or parallel)
       const generateForSlot = async (slot, agentId, contextLyrics = '') => {
         const agent = AGENTS.find(a => a.id === agentId);
@@ -2753,8 +2785,7 @@ REQUIREMENTS:
         }
       }
       
-      // Track promises for pipeline sequencing
-      const pipelinePromises = { beatAudio: null, image: null, videoDescription: null };
+      // pipelinePromises already declared above generateForSlot
 
       // Skip slots that already have generated output + media (only for incremental runs, not fresh)
       const hasMedia = (slot) => {
@@ -3822,13 +3853,27 @@ REQUIREMENTS:
       // Clean prompt of AI fluff — extract only creative content
       const { content: cleanVisualPrompt } = splitCreativeContent(visualPromptText);
       const visualPrompt = cleanVisualPrompt || visualPromptText;
-      console.log('[handleGenerateImage] Prompt length:', visualPrompt.length, 'hasDNA:', !!visualDnaUrl);
+
+      // Build contextual prompt: incorporate video scene description + lyrics theme for visual coherence
+      const videoDesc = outputsRef.current.video || outputs.video;
+      const lyricsText = outputsRef.current.lyrics || outputs.lyrics;
+      let contextHint = '';
+      if (videoDesc) {
+        const { content: cleanVideoDesc } = splitCreativeContent(videoDesc);
+        contextHint += ` Complementing the music video scene: ${(cleanVideoDesc || videoDesc).substring(0, 200)}.`;
+      }
+      if (lyricsText) {
+        const { content: cleanLyrics } = splitCreativeContent(lyricsText);
+        const themeSnippet = (cleanLyrics || lyricsText).substring(0, 120).replace(/\n/g, ' ');
+        contextHint += ` Song theme: "${themeSnippet}"`;
+      }
+      console.log('[handleGenerateImage] Prompt length:', visualPrompt.length, 'hasDNA:', !!visualDnaUrl, 'hasVideoContext:', !!videoDesc);
 
       const response = await fetch(`${BACKEND_URL}/api/generate-image`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: `Iconic Billboard-standard album cover art, hyper-detailed, professional photography or elite digital art, righteous quality, award-winning composition: ${visualPrompt.substring(0, 800)}`,
+          prompt: `Iconic Billboard-standard album cover art, hyper-detailed, professional photography or elite digital art, righteous quality, award-winning composition: ${visualPrompt.substring(0, 600)}${contextHint}`,
           referenceImage: visualDnaUrl
         })
       });
@@ -7095,6 +7140,7 @@ REQUIREMENTS:
               if (slot.key === 'video') setVideoDnaUrl(null);
               if (slot.key === 'lyrics') setLyricsDnaUrl(null);
             }}
+            onEditCover={slot.key === 'visual' && mediaUrls.image ? () => setShowCoverEditor(true) : null}
           />
         ))}
       </div>
@@ -7270,6 +7316,7 @@ REQUIREMENTS:
                       if (slot.key === 'video') setVideoDnaUrl(null);
                       if (slot.key === 'lyrics') setLyricsDnaUrl(null);
                     }}
+                    onEditCover={slot.key === 'visual' && mediaUrls.image ? () => setShowCoverEditor(true) : null}
                   />
                 );
               })()}
@@ -8495,6 +8542,24 @@ REQUIREMENTS:
             </div>
           </div>
         </div>
+      )}
+
+      {/* Cover Art Editor Modal */}
+      {showCoverEditor && mediaUrls.image && (
+        <Suspense fallback={null}>
+          <CoverArtEditor
+            imageUrl={mediaUrls.image}
+            onSave={(dataUrl) => {
+              setMediaUrls(prev => ({ ...prev, image: dataUrl }));
+              mediaUrlsRef.current = { ...mediaUrlsRef.current, image: dataUrl };
+              setShowCoverEditor(false);
+              toast.success('Cover art updated!');
+            }}
+            onClose={() => setShowCoverEditor(false)}
+            songTitle={songIdea}
+            artistName={existingProject?.name || ''}
+          />
+        </Suspense>
       )}
 
       {/* CSS */}
