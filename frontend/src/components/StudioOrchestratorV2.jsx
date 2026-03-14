@@ -4914,6 +4914,9 @@ REQUIREMENTS:
       });
     }
     const projectId = existingProject?.id || crypto.randomUUID();
+    // Deduplicate: remove existing assets whose type matches a freshly generated asset
+    const newTypes = new Set(assets.map(a => a.type));
+    const existingFiltered = (existingProject?.assets || []).filter(a => !newTypes.has(a.type));
     return {
       id: projectId,
       name: projectName || songIdea || existingProject?.name || 'Untitled Project',
@@ -4928,7 +4931,7 @@ REQUIREMENTS:
         const agent = AGENTS.find(a => a.id === id);
         return agent?.name || id;
       }),
-      assets: [...(existingProject?.assets || []), ...assets],
+      assets: [...existingFiltered, ...assets],
       coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
     };
   };
@@ -5029,6 +5032,10 @@ REQUIREMENTS:
     // Use existing project ID if updating, otherwise create new
     const projectId = existingProject?.id || crypto.randomUUID();
     
+    // Deduplicate: remove existing assets whose type matches a freshly generated asset
+    const newAssetTypes = new Set(assets.map(a => a.type));
+    const filteredExisting = (existingProject?.assets || []).filter(a => !newAssetTypes.has(a.type));
+    
     const project = {
       id: projectId,
       name: projectName || songIdea || existingProject?.name || 'Untitled Project',
@@ -5049,7 +5056,7 @@ REQUIREMENTS:
         const agent = AGENTS.find(a => a.id === id);
         return agent?.name || id;
       }),
-      assets: [...(existingProject?.assets || []), ...assets],
+      assets: [...filteredExisting, ...assets],
       coverImage: formatImageSrc(mediaUrls.image) || existingProject?.coverImage || null
     };
     
