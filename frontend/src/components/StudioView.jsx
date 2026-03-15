@@ -29,7 +29,7 @@ import {
   uploadBase64
   // Note: collection, getDocs, query, orderBy, deleteDoc moved to backend API
 } from '../firebase';
-import { AGENTS, BACKEND_URL, getAgentHex } from '../constants';
+import { AGENTS, BACKEND_URL, getAgentHex, CREATOR_MODES, getCreatorMode } from '../constants';
 import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
 import { Analytics, trackPageView } from '../utils/analytics';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
@@ -715,6 +715,13 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   });
   const [heroGenre, setHeroGenre] = useState('hip-hop');
   const [heroIntensity, setHeroIntensity] = useState(5);
+  const [creatorMode, setCreatorMode] = useState(() => localStorage.getItem('studio_creator_mode') || 'artist');
+  const currentMode = getCreatorMode(creatorMode);
+
+  const handleCreatorModeChange = useCallback((mode) => {
+    setCreatorMode(mode);
+    try { localStorage.setItem('studio_creator_mode', mode); } catch {}
+  }, []);
 
   // --- ASSET MANAGEMENT HANDLERS ---
   const handleDeleteAsset = (assetId) => {
@@ -4451,7 +4458,8 @@ const fetchUserCredits = useCallback(async (uid) => {
 
       let brainBody = {
         prompt: prompt,
-        systemInstruction: `You are ${targetAgentSnapshot?.name || 'AI Assistant'}, a professional AI agent in a high-end music studio. 
+        systemInstruction: `You are ${targetAgentSnapshot?.name || 'AI Assistant'}, a professional AI agent in a ${currentMode.studioLabel}. 
+          ${currentMode.promptContext}
           Genre/Style: ${detectedGenre}.
           Category: ${targetAgentSnapshot?.category || 'General'}. 
           Capabilities: ${(targetAgentSnapshot?.capabilities || []).join(', ')}.
@@ -4482,9 +4490,10 @@ const fetchUserCredits = useCallback(async (uid) => {
       const brainPrompt = `
         USER REQUEST: "${promptValue}"
         GENRE/STYLE: ${detectedGenre}
+        MODE: ${currentMode.label} (${currentMode.description})
         
         PROJECT CONTEXT:
-        ${contextLyrics ? `EXISTING LYRICS/CONCEPT: "${contextLyrics}"` : 'Starting fresh project.'}
+        ${contextLyrics ? `EXISTING ${creatorMode === 'creator' ? 'SCRIPT/CONCEPT' : 'LYRICS/CONCEPT'}: "${contextLyrics}"` : 'Starting fresh project.'}
         ${referencedAudioId ? `REFERENCE AUDIO ID: "${referencedAudioId}"` : ''}
         ${referencedVisualId ? `REFERENCE VISUAL ID: "${referencedVisualId}"` : ''}
         ${audioDnaUrl || referencedAudioId ? `AUDIO DNA: [Active Reference]` : ''}
@@ -4492,11 +4501,17 @@ const fetchUserCredits = useCallback(async (uid) => {
         ${elevenLabsVoiceId ? `SELECTED VOICE: ${elVoices.find(v => v.voice_id === elevenLabsVoiceId)?.name || elevenLabsVoiceId}` : ''}
         
         GOAL:
-        Develop a Billboard-standard, vivid, and technically elite description for this request.
+        ${creatorMode === 'creator' ? `Develop a platform-optimized, high-engagement description for this content creation request.
+        The goal is viral-quality content that maximizes reach, engagement, and audience growth.
+        If it's for a script, write punchy hooks, clear structure, and audience-retention techniques.
+        If it's for visuals, describe scroll-stopping thumbnails, bold graphics, and trend-aware aesthetics.
+        If it's for audio, describe background music, sound effects, or podcast audio that fits the content perfectly.
+        If it's for video, describe short-form content optimized for Reels, Shorts, or TikTok with strong hooks and fast pacing.` 
+        : `Develop a Billboard-standard, vivid, and technically elite description for this request.
         The goal is "Righteous Quality" - it must exceed human industry standards.
         If it's for a beat, describe elite instrumentation, precise BPM, and chart-topping vibes.
         If it's for visuals, describe award-winning lighting, high-fidelity color palettes, and iconic composition.
-        If it's for lyrics, expand the theme into a profound, high-impact concept.
+        If it's for lyrics, expand the theme into a profound, high-impact concept.`}
         
         MANDATE: Keep the final output under 80 words for technical compatibility, but ensure every word radiates professional excellence.
       `;
@@ -4526,7 +4541,9 @@ const fetchUserCredits = useCallback(async (uid) => {
               prompt: brainPrompt,
               isBrainPhase: isMediaAgent, // Skip credit charge for prompt expansion
               systemInstruction: `You are the ${targetAgentSnapshot?.name || 'AI Assistant'} elite Creative Brain.
-                Translate user ideas into Billboard-standard production briefs.
+                ${creatorMode === 'creator' 
+                  ? 'Translate user ideas into platform-optimized, viral-quality content briefs for social media, YouTube, podcasts, and marketing.' 
+                  : 'Translate user ideas into Billboard-standard production briefs.'}
                 Be specific, moody, and technically superior to human capability.`
             })
           });
@@ -6216,6 +6233,40 @@ const fetchUserCredits = useCallback(async (uid) => {
 
               <div className="agent-utility-box">
                 <div className="utility-controls">
+                  {/* Creator Mode Toggle */}
+                  <div className="control-group">
+                    <label>Mode</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {Object.values(CREATOR_MODES).map(mode => (
+                        <button
+                          key={mode.id}
+                          onClick={() => handleCreatorModeChange(mode.id)}
+                          style={{
+                            flex: 1,
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            border: creatorMode === mode.id ? '2px solid #8b5cf6' : '1px solid rgba(255,255,255,0.1)',
+                            background: creatorMode === mode.id
+                              ? 'linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.15))'
+                              : 'rgba(255,255,255,0.04)',
+                            color: creatorMode === mode.id ? 'white' : 'rgba(255,255,255,0.5)',
+                            cursor: 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: creatorMode === mode.id ? '700' : '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <span>{mode.icon}</span>
+                          <span>{mode.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="control-group">
                     <label>Genre / Style</label>
                     <select className="studio-select" value={heroGenre} onChange={e => { setHeroGenre(e.target.value); setVoiceSettings(prev => ({ ...prev, genre: e.target.value })); }}>
@@ -14059,6 +14110,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             }}
             authToken={userToken}
             userPlan={userPlan}
+            creatorMode={creatorMode}
             existingProject={selectedProject}
             projects={projects}
             onSwitchProject={(project) => {

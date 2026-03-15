@@ -7,7 +7,7 @@ import {
   Settings, CheckCircle2, Lock as LockIcon, User, CircleHelp,
   ChevronUp, ChevronDown, Upload, Share2, ExternalLink, Globe
 } from 'lucide-react';
-import { BACKEND_URL, AGENTS, getAgentHex } from '../constants';
+import { BACKEND_URL, AGENTS, getAgentHex, getCreatorMode } from '../constants';
 import toast from 'react-hot-toast';
 import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase';
 import { collection, query, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
@@ -1363,7 +1363,10 @@ function ProductionControlHub({
             </div>
             <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', lineHeight: '1.6' }}>
               {!outputs.lyrics && !outputs.audio && !outputs.visual && !outputs.video ? (
-                <>Enter your song idea above and click <strong>"Create Full Song"</strong> to generate lyrics, beat, artwork, and video all at once. Or switch to Advanced Mode to pick which parts to create.</>
+                <>{creatorMode === 'creator' 
+                  ? <>Enter your content idea above and click <strong>"Create Full Project"</strong> to generate scripts, audio, graphics, and video all at once. Or switch to Advanced Mode to pick which parts to create.</>
+                  : <>Enter your song idea above and click <strong>"Create Full Song"</strong> to generate lyrics, beat, artwork, and video all at once. Or switch to Advanced Mode to pick which parts to create.</>
+                }</>
               ) : !hasBeat && !hasVocalMedia ? (
                 <>Your text content is ready! Click the <strong>"Next: Create Beat Audio"</strong> and <strong>"Next: Create Vocals"</strong> buttons on each card below to generate media files.</>
               ) : hasBeat && !hasVocalMedia ? (
@@ -1899,8 +1902,10 @@ export default function StudioOrchestratorV2({
   existingProject = null,
   projects = [],
   onSwitchProject = null,
-  userPlan = 'Free'
+  userPlan = 'Free',
+  creatorMode = 'artist'
 }) {
+  const currentMode = getCreatorMode(creatorMode);
   // 📱 Device responsiveness
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' && window.innerWidth < 768);
   
@@ -2369,43 +2374,43 @@ export default function StudioOrchestratorV2({
     }
   };
   
-  const EXAMPLE_IDEAS = [
+  const EXAMPLE_IDEAS = currentMode.ideaSuggestions || [
     "Summer love in Brooklyn",
     "Trap anthem about success", 
     "Lo-fi study beats",
     "Emotional R&B ballad"
   ];
 
-  // Generator slot configuration
+  // Generator slot configuration (mode-aware)
   const GENERATOR_SLOTS = [
     {
       key: 'lyrics',
-      title: 'Ghostwriter',
-      subtitle: 'Lyrics & Vocals',
+      title: currentMode.slotTitles.lyrics,
+      subtitle: currentMode.slotSubtitles.lyrics,
       icon: Sparkles,
       color: '#8b5cf6',
       mediaType: null
     },
     { 
       key: 'audio', 
-      title: 'Beat Lab', 
-      subtitle: 'Music Production', 
+      title: currentMode.slotTitles.audio, 
+      subtitle: currentMode.slotSubtitles.audio, 
       icon: Zap, 
       color: '#06b6d4',
       mediaType: 'audio' 
     },
     { 
       key: 'visual', 
-      title: 'Album Artist', 
-      subtitle: 'Cover Identity', 
+      title: currentMode.slotTitles.visual, 
+      subtitle: currentMode.slotSubtitles.visual, 
       icon: ImageIcon, 
       color: '#ec4899',
       mediaType: 'image' 
     },
     { 
       key: 'video', 
-      title: 'Video Creator', 
-      subtitle: 'Motion & Sync', 
+      title: currentMode.slotTitles.video, 
+      subtitle: currentMode.slotSubtitles.video, 
       icon: VideoIcon, 
       color: '#f59e0b',
       mediaType: 'video' 
@@ -2644,7 +2649,7 @@ export default function StudioOrchestratorV2({
     console.log('[handleGenerate] BACKEND_URL:', BACKEND_URL);
     
     if (!songIdea.trim()) {
-      toast.error('Please enter a song idea', { id: 'orch-no-idea' });
+      toast.error(creatorMode === 'creator' ? 'Please enter a content idea' : 'Please enter a song idea', { id: 'orch-no-idea' });
       return;
     }
     
@@ -2694,7 +2699,39 @@ export default function StudioOrchestratorV2({
         const stepId = slot === 'audio' ? 'beat-desc' : slot === 'visual' ? 'visual-desc' : slot;
         updatePipelineStep(stepId, 'active');
         
-        const systemPrompt = `You are ${agent.name}, an elite Billboard-standard ${agent.category} specialist with multiple Grammy and Billboard #1 credits.
+        const isCreatorMode = creatorMode === 'creator';
+        
+        const systemPrompt = isCreatorMode
+          ? `You are ${agent.name}, an elite ${agent.category} specialist for content creators, influencers, and digital marketers.
+        Your mission: create ${currentMode.outputLabels[slot] || 'content'} for a ${style} project about "${songIdea}" in ${language} that is platform-optimized and engagement-driven.
+        Output Format: ${outputFormat || 'social media content'} — tailor all output for maximum reach on YouTube, TikTok, Instagram, and podcasts.
+        ${contextLyrics ? `SCRIPT/CONCEPT CONTEXT — use this for tone, pacing, and thematic consistency:\n"${String(contextLyrics).substring(0, 1500)}"` : ''}
+        ${slot === 'lyrics' ? `SCRIPTWRITER INSTRUCTIONS:
+Write a compelling script with clear structure: [Hook], [Intro], [Section 1], [Section 2], [CTA], [Outro].
+FORMAT: ${songStructure === 'single' ? 'SHORT-FORM — 30-60 second script (TikTok/Reel/Short)' : songStructure === 'extended' ? 'LONG-FORM — 8-15 minute YouTube video script with chapters' : 'STANDARD — 3-5 minute video script or podcast segment'}
+REQUIREMENTS:
+- The HOOK must grab attention in the first 3 seconds — pattern interrupt, bold claim, or question
+- Structure for audience retention: open loops, cliffhangers, value stacking
+- Include platform-specific cues: [B-Roll], [Cut to screen], [Text overlay], [Sound effect], [Transition]
+- Write in a conversational, authentic tone that builds parasocial connection
+- Include a clear Call-to-Action (subscribe, comment, share, link in bio)
+- Match the style and energy of top creators in the ${style} niche
+- NO filler, NO generic advice — ONLY the script with section labels` : ''}
+        ${slot === 'audio' ? `AUDIO INSTRUCTIONS:
+Describe background music or sound design (${useBars ? bars + ' bars' : duration + ' seconds'}, BPM: ${projectBpm}).
+REQUIREMENTS:
+- Describe mood-appropriate background music, intro jingles, or sound effects
+- Specify energy levels: chill for podcasts, upbeat for vlogs, dramatic for storytelling
+- Reference sonic aesthetics: lo-fi for study content, cinematic for docs, upbeat pop for lifestyle
+- Keep under 60 words for maximum AI audio model compatibility
+- Think: what audio would Casey Neistat, MrBeast, or Joe Rogan use?` : ''}
+        ${slot === 'visual' ? `Describe a scroll-stopping visual concept: bold colors, clean typography, expressive faces, and platform-optimized composition.
+This visual identity will be used for thumbnails, social graphics, and brand assets — every visual must be cohesive and on-brand.
+Think top-tier YouTube thumbnails: high contrast, emotional expressions, bold text overlays, professional yet eye-catching.` : ''}
+        ${slot === 'video' ? `Write a short-form video storyboard optimized for Reels/Shorts/TikTok: fast cuts, bold hooks, dynamic transitions, trending formats.
+CRITICAL: The video must grab attention in under 2 seconds. Use jump cuts, text overlays, and pacing that matches platform algorithms.
+Include: camera angles, text overlays, transition types, music cues, and engagement hooks (comments bait, share triggers).` : ''}`
+          : `You are ${agent.name}, an elite Billboard-standard ${agent.category} specialist with multiple Grammy and Billboard #1 credits.
         Your mission: create content for a ${style} track about "${songIdea}" in ${language} that is indistinguishable from a major-label release.
         Output Format: ${outputFormat || 'music'} — tailor all output to match ${outputFormat} broadcast/distribution standards.
         ${contextLyrics ? `LYRICS CONTEXT — use these to match the emotional arc, tempo, and vibe:\n"${String(contextLyrics).substring(0, 1500)}"` : ''}
@@ -2974,7 +3011,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         headers,
         body: JSON.stringify({
           prompt: `Create fresh ${slotConfig.title.toLowerCase()} content for: "${songIdea}"`,
-          systemInstruction: `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.
+          systemInstruction: creatorMode === 'creator'
+            ? `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} project about: "${songIdea}". Be creative and fresh. This is for content creators — optimize for social media, YouTube, podcasts, and marketing.
+          ${(slot !== 'lyrics' && outputs.lyrics) ? `HERE IS THE CURRENT SCRIPT - USE IT FOR CONTEXT: "${outputs.lyrics.substring(0, 500)}"` : ''}
+          ${slot === 'lyrics' ? 'Write ONLY the script with clear section labels like [Hook], [Intro], [Section], [CTA], [Outro]. No intro fluff.' : ''}
+          ${slot === 'audio' ? `Briefly describe background music or sound design (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Focus on mood, energy, and platform fit. Keep it under 80 words.` : ''}`
+            : `You are ${agent.name}. Create NEW and DIFFERENT content for a ${style} song about: "${songIdea}". Be creative and fresh.
           ${(slot !== 'lyrics' && outputs.lyrics) ? `HERE ARE THE CURRENT LYRICS - USE THEM FOR CONTEXT: "${outputs.lyrics.substring(0, 500)}"` : ''}
           ${slot === 'lyrics' ? 'Write ONLY the lyrics (verses, hooks, chorus) with clear labels like [Verse] or [Chorus]. No intro fluff.' : ''}
           ${slot === 'audio' ? `Briefly describe a high-quality beat/instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}) with BPM: ${projectBpm}. Focus on mood, instrumentation, and energy. Keep it under 80 words for an AI music generator.` : ''}`,
@@ -3924,7 +3966,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         method: 'POST',
         headers,
         body: JSON.stringify({
-          prompt: `Iconic Billboard-standard album cover art, hyper-detailed, professional photography or elite digital art, righteous quality, award-winning composition: ${visualPrompt.substring(0, 600)}${contextHint}`,
+          prompt: creatorMode === 'creator'
+            ? `Scroll-stopping YouTube thumbnail or social media graphic, bold colors, clean typography, eye-catching composition, professional digital art: ${visualPrompt.substring(0, 600)}${contextHint}`
+            : `Iconic Billboard-standard album cover art, hyper-detailed, professional photography or elite digital art, righteous quality, award-winning composition: ${visualPrompt.substring(0, 600)}${contextHint}`,
           referenceImage: visualDnaUrl
         })
       });
@@ -4189,7 +4233,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             method: 'POST',
             headers,
             body: JSON.stringify({
-              prompt: `Elite cinematic music video visual, professional motion design: ${videoPrompt.substring(0, 700)}${visualMatchDirective}${lyricsSceneGuide}`,
+              prompt: creatorMode === 'creator'
+                ? `Short-form social media video, fast-paced editing, bold text overlays, trending format: ${videoPrompt.substring(0, 700)}${visualMatchDirective}${lyricsSceneGuide}`
+                : `Elite cinematic music video visual, professional motion design: ${videoPrompt.substring(0, 700)}${visualMatchDirective}${lyricsSceneGuide}`,
               referenceImage: visualDnaUrl || videoDnaUrl,
               referenceVideo: videoDnaUrl,
               duration: Math.round(videoDuration),
@@ -5464,9 +5510,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                 ) : (
                   <>
                     <Sparkles size={18} />
-                    Create Full Song
+                    {creatorMode === 'creator' ? 'Create Full Project' : 'Create Full Song'}
                     <span style={{ fontSize: '0.65rem', opacity: 0.6, fontWeight: '400' }}>
-                      Lyrics + Vocals + Beat + Art + Video
+                      {creatorMode === 'creator' ? 'Script + Audio + Graphics + Video' : 'Lyrics + Vocals + Beat + Art + Video'}
                     </span>
                   </>
                 )}
@@ -5475,7 +5521,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           ) : (
             /* ═══════ ADVANCED MODE ═══════ */
             <>
-          {/* Song Idea Input - Stacks on mobile */}
+          {/* Content Idea Input - Stacks on mobile */}
           <div style={{
             display: 'flex',
             flexDirection: 'column',
@@ -5491,7 +5537,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                   handleGenerate();
                 }
               }}
-              placeholder="Describe your song idea, vibe, or concept..."
+              placeholder={creatorMode === 'creator' ? "Describe your content idea, topic, or concept..." : "Describe your song idea, vibe, or concept..."}
               rows={isMobile ? 3 : 2}
               style={{
                 width: '100%',

@@ -593,3 +593,79 @@ export const AGENT_COLOR_HEX = {
 export function getAgentHex(agent) {
   return AGENT_COLOR_HEX[agent?.colorClass] || '#a855f7';
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CREATOR MODE — Artist vs Content Creator
+// ═══════════════════════════════════════════════════════════════════════════════
+export const CREATOR_MODES = {
+  artist: {
+    id: 'artist',
+    label: 'Artist',
+    icon: '🎵',
+    description: 'Music production — songs, beats, vocals, albums',
+    promptContext: `You are working in a professional music studio. All output should be geared towards creating Billboard-standard songs, beats, vocals, and album art. Think major-label quality — Grammy-worthy, chart-topping, radio-ready.`,
+    studioLabel: 'Music Studio',
+    ideaSuggestions: [
+      'Trap banger about success',
+      'Emotional R&B ballad',
+      'Lo-fi study beats',
+      'Drill anthem with dark energy',
+      'Pop hit with catchy hook'
+    ],
+    outputLabels: {
+      lyrics: 'Lyrics & Hook',
+      audio: 'Beat / Instrumental',
+      visual: 'Album Cover',
+      video: 'Music Video'
+    },
+    slotTitles: {
+      lyrics: 'Ghostwriter',
+      audio: 'Beat Lab',
+      visual: 'Album Artist',
+      video: 'Video Creator'
+    },
+    slotSubtitles: {
+      lyrics: 'Lyrics & Vocals',
+      audio: 'Music Production',
+      visual: 'Cover Identity',
+      video: 'Motion & Sync'
+    }
+  },
+  creator: {
+    id: 'creator',
+    label: 'Content Creator',
+    icon: '📱',
+    description: 'Social media, YouTube, podcasts, marketing content',
+    promptContext: `You are working in a professional content creation studio. All output should be geared towards creating viral social media content, YouTube videos, podcast scripts, marketing copy, short-form content (Reels, Shorts, TikTok), memes, and brand assets. Think platform-optimized, engagement-driven, trend-aware content that maximizes reach and audience growth.`,
+    studioLabel: 'Creator Studio',
+    ideaSuggestions: [
+      'YouTube video script about tech trends',
+      'Podcast intro with energetic hook',
+      'Instagram Reel series for a fitness brand',
+      'TikTok content calendar for a restaurant',
+      'Thumbnail concepts for a gaming channel'
+    ],
+    outputLabels: {
+      lyrics: 'Script & Copy',
+      audio: 'Background Music / SFX',
+      visual: 'Thumbnail / Graphics',
+      video: 'Short-form Video'
+    },
+    slotTitles: {
+      lyrics: 'Scriptwriter',
+      audio: 'Audio Lab',
+      visual: 'Visual Designer',
+      video: 'Content Editor'
+    },
+    slotSubtitles: {
+      lyrics: 'Scripts & Copy',
+      audio: 'Audio & SFX',
+      visual: 'Thumbnails & Graphics',
+      video: 'Shorts & Reels'
+    }
+  }
+};
+
+export function getCreatorMode(modeId) {
+  return CREATOR_MODES[modeId] || CREATOR_MODES.artist;
+}
