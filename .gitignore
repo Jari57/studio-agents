@@ -60,6 +60,10 @@ coverage/
 firebase-debug.log
 firebaseServiceAccountKey.json
 
+# --- Capacitor Native Platforms (generated locally) ---
+frontend/ios/
+frontend/android/
+
 # --- Build Analysis & Load Tests ---
 frontend/bundle-stats.html
 backend/load-test*.yml

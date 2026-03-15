@@ -4413,9 +4413,41 @@ const fetchUserCredits = useCallback(async (uid) => {
         if (contextLyrics) customInstruction += ` Match the narrative and energy of these lyrics: "${contextLyrics.substring(0, 300)}"`;
       }
 
+      // Auto-detect genre from prompt keywords to prevent dropdown mismatch
+      const promptLower = prompt.toLowerCase();
+      const genreKeywords = {
+        'trap': /\btrap\b/,
+        'drill': /\bdrill\b/,
+        'hip-hop': /\bhip[- ]?hop\b|\brap\b|\brapper\b|\bbars\b/,
+        'boom-bap': /\bboom[- ]?bap\b|\b90s\b.*\brap\b/,
+        'phonk': /\bphonk\b/,
+        'r&b': /\br&b\b|\brnb\b|\bsoul\b/,
+        'pop': /\bpop\b/,
+        'rock': /\brock\b/,
+        'jazz': /\bjazz\b/,
+        'country': /\bcountry\b/,
+        'reggaeton': /\breggaeton\b/,
+        'afrobeats': /\bafro\b/,
+        'edm': /\bedm\b|\belectronic\b|\bhouse\b|\btechno\b/,
+        'latin-trap': /\blatin\s*trap\b/,
+        'k-pop': /\bk[- ]?pop\b/,
+      };
+      let detectedGenre = heroGenre || voiceSettings.genre || 'hip-hop';
+      for (const [genre, pattern] of Object.entries(genreKeywords)) {
+        if (pattern.test(promptLower)) {
+          detectedGenre = genre;
+          if (genre !== heroGenre) {
+            setHeroGenre(genre);
+            setVoiceSettings(prev => ({ ...prev, genre }));
+          }
+          break;
+        }
+      }
+
       let brainBody = {
         prompt: prompt,
         systemInstruction: `You are ${targetAgentSnapshot?.name || 'AI Assistant'}, a professional AI agent in a high-end music studio. 
+          Genre/Style: ${detectedGenre}.
           Category: ${targetAgentSnapshot?.category || 'General'}. 
           Capabilities: ${(targetAgentSnapshot?.capabilities || []).join(', ')}.
           ${targetAgentSnapshot?.explanation || ''}
@@ -4444,6 +4476,7 @@ const fetchUserCredits = useCallback(async (uid) => {
       
       const brainPrompt = `
         USER REQUEST: "${promptValue}"
+        GENRE/STYLE: ${detectedGenre}
         
         PROJECT CONTEXT:
         ${contextLyrics ? `EXISTING LYRICS/CONCEPT: "${contextLyrics}"` : 'Starting fresh project.'}
@@ -4553,7 +4586,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         finalBody = { 
           prompt: expandedPrompt, 
           bpm: voiceSettings.bpm || 90, 
-          genre: heroGenre || voiceSettings.genre || (agentId === 'beat' ? 'hip-hop' : 'sample'),
+          genre: detectedGenre || heroGenre || voiceSettings.genre || (agentId === 'beat' ? 'hip-hop' : 'sample'),
           mood: heroIntensity >= 7 ? 'aggressive' : heroIntensity >= 4 ? 'creative' : 'chill', 
           durationSeconds: voiceSettings.duration || 60,
           referenceAudio: audioDnaUrl,
