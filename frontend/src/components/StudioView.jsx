@@ -3824,7 +3824,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           language: voiceSettings.language || 'English',
           duration: voiceSettings.duration || 30,
           speakerUrl: voiceSampleUrl || voiceSettings.speakerUrl,
-          backingTrackUrl: audioDnaUrl || null,
+          backingTrackUrl: audioDnaUrl || (backingTrack?.isUpload ? null : backingTrack?.audioUrl),
           audioId: referencedAudioId || undefined,
           elevenLabsVoiceId: elevenLabsVoiceId,
           referenceSongUrl: referenceSongUrl || null,
@@ -4402,8 +4402,12 @@ const fetchUserCredits = useCallback(async (uid) => {
       if (agentId === 'ghost' || agentId === 'ghost-1' || agentId === 'lyrics') {
         customInstruction = 'Write ONLY the lyrics (verses, hooks, chorus). USE CLEAR LABELS like [Verse 1], [Chorus], [Bridge]. Do not include any "Here are the lyrics" text or preamble. Write high-fidelity emotional lyrics.';
       } else if (isSpeechAgent) {
-        customInstruction = 'Describe the vocal performance style, tone, and character in detail (e.g., "Energetic female vocal with a soulful grit and rapid-fire delivery"). Focus on professional performance qualities.';
-        if (contextLyrics) customInstruction += ` Use these lyrics as the based for the vocal performance: "${contextLyrics.substring(0, 500)}"`;
+        // Speech agents need LYRICS to sing, not a description of the performance
+        if (contextLyrics) {
+          customInstruction = `Write performance-ready lyrics based on the following existing lyrics. Output ONLY the lyrics text — no descriptions, no stage directions, no preamble. Just the words to be sung/rapped:\n"${contextLyrics.substring(0, 1500)}"`;
+        } else {
+          customInstruction = `Write original ${detectedGenre || 'hip-hop'} lyrics for the user\'s concept. Output ONLY the lyrics text — no descriptions, no explanations, no stage directions. Just the raw words to be sung or rapped. Include verse/chorus structure but keep section labels minimal like [Verse] [Chorus]. Keep it under 300 words for vocal generation.`;
+        }
       } else if (isAudioAgent) {
         customInstruction = 'Briefly describe a high-quality beat/instrumental concept. Focus on mood, tempo, instrumentation, and key instruments. Keep it under 60 words for maximum AI compatibility.';
         if (contextLyrics) customInstruction += ` Use the vibe of these lyrics to inspire the beat: "${contextLyrics.substring(0, 300)}"`;
@@ -4597,9 +4601,15 @@ const fetchUserCredits = useCallback(async (uid) => {
           engine: 'auto'
         };
       } else if (isSpeechAgent) {
+        // VOCALS FIX: Use lyrics (from project or brain-generated), NOT the style description
+        // Priority: 1) Context lyrics from project, 2) Brain-generated lyrics, 3) User prompt
+        let vocalLyrics = contextLyrics || expandedPrompt || prompt;
+        // Strip any AI preamble/description that isn't lyrics
+        vocalLyrics = vocalLyrics.replace(/^(Here are |Here's |I've written |These lyrics |Below are |The following ).*?\n/i, '').trim();
+        
         finalEndpoint = '/api/generate-speech';
         finalBody = { 
-          prompt: expandedPrompt, 
+          prompt: vocalLyrics, 
           voice: voiceSettings.voiceName || 'rapper-male-1', 
           elevenLabsVoiceId: elevenLabsVoiceId, // Use premium voice if selected
           quality: 'premium', // FORCE PREMIUM for Vocal Lab

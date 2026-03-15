@@ -2872,20 +2872,24 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         console.log('[Pipeline] Vocals complete (dry)');
       }
 
-      // ═══ CREATE FINAL MIX (vocal + beat) BEFORE video ═══
-      // Video and mux need the mixed audio — must happen before video generation
+      // ═══ FINAL MIX CHECK ═══
+      // If vocals were already mixed with beat during generation, skip the separate mix step (saves 10 credits).
+      // Only call handleCreateFinalMix if we have both tracks but no mixedAudio yet.
       const hasVocals = !!(mediaUrlsRef.current.vocals || mediaUrlsRef.current.lyricsVocal);
       const hasBeat = !!mediaUrlsRef.current.audio;
-      if (hasVocals && hasBeat) {
+      if (hasVocals && hasBeat && !mediaUrlsRef.current.mixedAudio) {
         updatePipelineStep('final', 'active');
         try {
           await handleCreateFinalMix();
           updatePipelineStep('final', 'done');
-          console.log('[Pipeline] Final mix (vocal+beat) created, mixedAudio available for video');
+          console.log('[Pipeline] Final mix (vocal+beat) created via separate endpoint');
         } catch (mixErr) {
           console.warn('[Pipeline] Final mix failed, video will use beat only:', mixErr);
           updatePipelineStep('final', 'error');
         }
+      } else if (mediaUrlsRef.current.mixedAudio) {
+        updatePipelineStep('final', 'done');
+        console.log('[Pipeline] Vocals already mixed with beat during generation — skipping separate mix step');
       }
 
       // Wait for image to finish
@@ -3325,9 +3329,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           pitchShift: vocalPitchShift !== 0 ? vocalPitchShift : undefined,
           speed: vocalSpeed !== 1.0 ? vocalSpeed : undefined,
           vibrato: vocalVibrato > 0 ? vocalVibrato : undefined,
-          expression: vocalExpression !== 'neutral' ? vocalExpression : undefined
-          // NOTE: backingTrackUrl removed — vocals are generated DRY.
-          // The Final Mix step handles vocal+beat mixing once, preventing double-mixing.
+          expression: vocalExpression !== 'neutral' ? vocalExpression : undefined,
+          // Pass beat URL so backend mixes vocal+beat during generation (no extra credit cost)
+          backingTrackUrl: mediaUrlsRef.current.audio || null
         })
       });
 
@@ -3340,10 +3344,12 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       }
 
       if (response.ok && data.audioUrl) {
-        // Store DRY vocals — Final Mix step will combine with beat
+        // If beat URL was provided, vocals come back already mixed — store as mixedAudio too
+        const hadBeatForMix = !!mediaUrlsRef.current.audio;
         const vocalUpdate = {
           vocals: data.audioUrl,
-          lyricsVocal: data.audioUrl
+          lyricsVocal: data.audioUrl,
+          ...(hadBeatForMix ? { mixedAudio: data.audioUrl } : {})
         };
         setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
         mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
