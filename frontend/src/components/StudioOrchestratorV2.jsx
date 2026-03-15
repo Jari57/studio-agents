@@ -1582,7 +1582,7 @@ function ProductionControlHub({
 
               {finalMixPreview && (
                 <button
-                  onClick={() => { setMaximizedSlot(null); setShowPreviewModal(true); }}
+                  onClick={handleDownloadMasterMix}
                   style={{
                     padding: '14px 24px',
                     borderRadius: '14px',
@@ -1598,7 +1598,7 @@ function ProductionControlHub({
                     minHeight: '50px'
                   }}
                 >
-                  <Eye size={18} /> Preview Mix
+                  <Download size={18} /> Download Mix
                 </button>
               )}
             </div>
@@ -1671,7 +1671,7 @@ function ProductionControlHub({
           marginBottom: '16px'
         }}>
           <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'rgba(255,255,255,0.5)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Globe size={13} /> Distribute & Go Viral
+            <Globe size={13} /> Share & Distribute
           </div>
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
@@ -1731,27 +1731,6 @@ function ProductionControlHub({
               ) : (
                 <><Share2 size={16} /> Get Share Link</>
               )}
-            </button>
-
-            {/* Download Master */}
-            <button
-              onClick={handleDownloadMasterMix}
-              style={{
-                padding: '12px 20px',
-                borderRadius: '12px',
-                background: 'rgba(34, 197, 94, 0.1)',
-                border: '1px solid rgba(34, 197, 94, 0.3)',
-                color: '#4ade80',
-                fontWeight: '700',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                minHeight: '44px'
-              }}
-            >
-              <Download size={16} /> Download
             </button>
           </div>
 

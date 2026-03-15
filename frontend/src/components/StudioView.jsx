@@ -6110,6 +6110,9 @@ const fetchUserCredits = useCallback(async (uid) => {
             SectionErrorBoundary={SectionErrorBoundary}
             SafeAssetWrapper={SafeAssetWrapper}
             toast={toast}
+            authToken={userToken}
+            user={user}
+            creatorMode={creatorMode}
           />
         </Suspense>
       );

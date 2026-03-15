@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   Sparkles, Zap, Music, ArrowLeft, Edit3, Upload, Layers,
   ChevronLeft, ChevronRight, X, User, Crown, FileText, Download, Maximize2,
-  Copy, Trash2, Share2, Book, Play, LayoutGrid, Link2, Grid, List, Mic, Palette, Film
+  Copy, Trash2, Share2, Book, Play, LayoutGrid, Link2, Grid, List, Mic, Palette, Film,
+  RefreshCw, Loader2, Redo, Save, Check
 } from 'lucide-react';
 import { UsersIcon, Twitter, Instagram, VideoIcon, ImageIcon } from 'lucide-react';
+import { BACKEND_URL } from '../../constants';
 
 /**
  * CanvasView - Project Canvas component extracted from StudioView.jsx
@@ -45,7 +47,11 @@ export default function CanvasView({
   SectionErrorBoundary,
   SafeAssetWrapper,
   // Toast (for notifications)
-  toast
+  toast,
+  // Auth & mode
+  authToken,
+  user,
+  creatorMode = 'artist'
 }) {
   // ═══════════════════════════════════════════════════════════════════════════════
   // CANVAS-SPECIFIC STATE
@@ -57,6 +63,9 @@ export default function CanvasView({
   const [projectNameDraft, setProjectNameDraft] = useState('');
   const [canvasCarouselIndex, setCanvasCarouselIndex] = useState(0);
   const [viewMode, setViewMode] = useState('carousel'); // 'carousel' | 'grid'
+  const [regeneratingAssetId, setRegeneratingAssetId] = useState(null);
+  const [editingAssetId, setEditingAssetId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
   const carouselTouchStartX = useRef(null);
   const thumbnailStripRef = useRef(null);
 
@@ -178,6 +187,230 @@ export default function CanvasView({
     if (t === 'text' || t === 'lyrics' || t === 'script') return FileText;
     return Layers;
   }, []);
+
+  // Helper to update project and persist
+  const updateProjectAssets = useCallback((newAssets) => {
+    const updated = { ...selectedProject, assets: newAssets, updatedAt: new Date().toISOString() };
+    setSelectedProject(updated);
+    setProjects(prev => Array.isArray(prev) ? prev.map(p => p?.id === updated.id ? updated : p) : [updated]);
+  }, [selectedProject, setSelectedProject, setProjects]);
+
+  // Get auth headers for API calls
+  const getHeaders = useCallback(async () => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+    return headers;
+  }, [authToken]);
+
+  // ── INLINE REGENERATION ──
+  const handleRegenerateAsset = useCallback(async (asset) => {
+    if (regeneratingAssetId) return;
+    const assetType = (asset.type || '').toLowerCase();
+    setRegeneratingAssetId(asset.id);
+
+    try {
+      const headers = await getHeaders();
+      const projectName = selectedProject?.name || 'Untitled';
+
+      if (['text', 'lyrics', 'script'].includes(assetType)) {
+        // Text regeneration via /api/generate
+        const response = await fetch(`${BACKEND_URL}/api/generate`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            prompt: `Create fresh ${assetType} content for: "${projectName}"`,
+            systemInstruction: `You are ${asset.agent || 'a professional songwriter'}. Create NEW and DIFFERENT ${assetType} for a project called "${projectName}". Be creative and fresh. Write ONLY the creative content with clear section labels. No intro fluff.`,
+            model: 'gemini-2.0-flash'
+          })
+        });
+        if (!response.ok) throw new Error(`Server error ${response.status}`);
+        const data = await response.json();
+        if (!data.output) throw new Error('No output returned');
+
+        // Create new versioned asset
+        const versionCount = (selectedProject.assets || []).filter(a => (a.type || '').toLowerCase() === assetType).length;
+        const newAsset = {
+          ...asset,
+          id: `${assetType}-${Date.now()}`,
+          content: data.output,
+          snippet: data.output.substring(0, 200),
+          title: `${asset.title?.replace(/ \(Take \d+\)/, '') || assetType} (Take ${versionCount + 1})`,
+          version: versionCount + 1,
+          date: 'Just now',
+          createdAt: new Date().toISOString()
+        };
+        updateProjectAssets([newAsset, ...(selectedProject.assets || [])]);
+        toast.success(`${assetType} regenerated — new version created!`);
+
+      } else if (assetType === 'audio') {
+        // Beat regeneration
+        const response = await fetch(`${BACKEND_URL}/api/generate`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            prompt: `Create a fresh beat/instrumental concept for: "${projectName}"`,
+            systemInstruction: `You are ${asset.agent || 'Beat Lab'}. Describe a NEW and DIFFERENT beat/instrumental (${asset.settings?.duration || 90} seconds) with BPM: ${asset.settings?.bpm || asset.bpm || 120}. Focus on mood, instrumentation, and energy. Keep it under 80 words for an AI music generator.`,
+            model: 'gemini-2.0-flash'
+          })
+        });
+        if (!response.ok) throw new Error(`Server error ${response.status}`);
+        const data = await response.json();
+        if (!data.output) throw new Error('No description returned');
+
+        // Generate actual audio from description
+        toast.loading('Generating new beat...', { id: 'regen-audio' });
+        const audioResponse = await fetch(`${BACKEND_URL}/api/generate-audio`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            prompt: data.output,
+            duration: asset.settings?.duration || 90,
+            bpm: asset.settings?.bpm || asset.bpm || 120
+          })
+        });
+        if (!audioResponse.ok) throw new Error(`Audio generation failed (${audioResponse.status})`);
+        const audioData = await audioResponse.json();
+        toast.dismiss('regen-audio');
+
+        const versionCount = (selectedProject.assets || []).filter(a => (a.type || '').toLowerCase() === 'audio').length;
+        const newAsset = {
+          ...asset,
+          id: `audio-${Date.now()}`,
+          audioUrl: audioData.audioUrl || audioData.url,
+          content: data.output,
+          title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Beat'} (Take ${versionCount + 1})`,
+          version: versionCount + 1,
+          date: 'Just now',
+          createdAt: new Date().toISOString()
+        };
+        updateProjectAssets([newAsset, ...(selectedProject.assets || [])]);
+        toast.success('New beat version created!');
+
+      } else if (assetType === 'image' || assetType === 'visual') {
+        // Image regeneration
+        toast.loading('Generating new artwork...', { id: 'regen-image' });
+        const response = await fetch(`${BACKEND_URL}/api/generate-image`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            prompt: `Create stunning album artwork for "${projectName}". Style: modern, high-quality, Billboard-standard cover art.`,
+          })
+        });
+        if (!response.ok) throw new Error(`Image generation failed (${response.status})`);
+        const data = await response.json();
+        toast.dismiss('regen-image');
+
+        const versionCount = (selectedProject.assets || []).filter(a => ['image', 'visual'].includes((a.type || '').toLowerCase())).length;
+        const newAsset = {
+          ...asset,
+          id: `image-${Date.now()}`,
+          imageUrl: data.imageUrl || data.url,
+          title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Artwork'} (Take ${versionCount + 1})`,
+          version: versionCount + 1,
+          date: 'Just now',
+          createdAt: new Date().toISOString()
+        };
+        updateProjectAssets([newAsset, ...(selectedProject.assets || [])]);
+        toast.success('New artwork version created!');
+
+      } else if (assetType === 'vocal' || assetType === 'synthesis') {
+        // Vocal regeneration — needs lyrics context
+        const lyricsAsset = (selectedProject.assets || []).find(a => ['text', 'lyrics', 'script'].includes((a.type || '').toLowerCase()));
+        const beatAsset = (selectedProject.assets || []).find(a => (a.type || '').toLowerCase() === 'audio');
+        
+        toast.loading('Generating new vocals...', { id: 'regen-vocal' });
+        const response = await fetch(`${BACKEND_URL}/api/generate-speech`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            text: lyricsAsset?.content || asset.content || projectName,
+            voiceId: asset.settings?.voiceId || 'default',
+            backingTrackUrl: beatAsset?.audioUrl || null,
+            style: asset.settings?.style || 'singing'
+          })
+        });
+        if (!response.ok) throw new Error(`Vocal generation failed (${response.status})`);
+        const data = await response.json();
+        toast.dismiss('regen-vocal');
+
+        const versionCount = (selectedProject.assets || []).filter(a => ['vocal', 'synthesis'].includes((a.type || '').toLowerCase())).length;
+        const newAsset = {
+          ...asset,
+          id: `vocal-${Date.now()}`,
+          audioUrl: data.audioUrl || data.url,
+          title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Vocals'} (Take ${versionCount + 1})`,
+          version: versionCount + 1,
+          date: 'Just now',
+          createdAt: new Date().toISOString()
+        };
+        updateProjectAssets([newAsset, ...(selectedProject.assets || [])]);
+        toast.success('New vocal take created!');
+
+      } else if (assetType === 'video') {
+        // Video regeneration — use image + audio
+        const imageAsset = (selectedProject.assets || []).find(a => ['image', 'visual'].includes((a.type || '').toLowerCase()));
+        const audioAsset = (selectedProject.assets || []).find(a => (a.type || '').toLowerCase() === 'audio');
+
+        if (!imageAsset?.imageUrl) {
+          toast.error('Need artwork to generate video. Create artwork first.');
+          return;
+        }
+
+        toast.loading('Generating new video...', { id: 'regen-video' });
+        const response = await fetch(`${BACKEND_URL}/api/generate-video`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            imageUrl: imageAsset.imageUrl,
+            prompt: `Create a cinematic music video for "${projectName}". Animate the artwork with smooth camera movements and visual effects.`
+          })
+        });
+        if (!response.ok) throw new Error(`Video generation failed (${response.status})`);
+        const data = await response.json();
+        toast.dismiss('regen-video');
+
+        const versionCount = (selectedProject.assets || []).filter(a => (a.type || '').toLowerCase() === 'video').length;
+        const newAsset = {
+          ...asset,
+          id: `video-${Date.now()}`,
+          videoUrl: data.videoUrl || data.url,
+          title: `${asset.title?.replace(/ \(Take \d+\)/, '') || 'Video'} (Take ${versionCount + 1})`,
+          version: versionCount + 1,
+          date: 'Just now',
+          createdAt: new Date().toISOString()
+        };
+        updateProjectAssets([newAsset, ...(selectedProject.assets || [])]);
+        toast.success('New video version created!');
+
+      } else {
+        toast('Use the Orchestrator for this asset type', { icon: 'ℹ️' });
+      }
+    } catch (err) {
+      console.error('[Canvas Regenerate]', err);
+      toast.error(`Regeneration failed: ${err.message}`);
+      toast.dismiss('regen-audio');
+      toast.dismiss('regen-image');
+      toast.dismiss('regen-vocal');
+      toast.dismiss('regen-video');
+    } finally {
+      setRegeneratingAssetId(null);
+    }
+  }, [regeneratingAssetId, selectedProject, getHeaders, updateProjectAssets, toast]);
+
+  // ── INLINE TEXT EDIT (save in place) ──
+  const handleSaveInlineEdit = useCallback((asset) => {
+    if (!editDraft.trim()) return;
+    const currentAssets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
+    const updatedAssets = currentAssets.map(a =>
+      a?.id === asset.id ? { ...a, content: editDraft, snippet: editDraft.substring(0, 200), updatedAt: new Date().toISOString() } : a
+    );
+    updateProjectAssets(updatedAssets);
+    setEditingAssetId(null);
+    setEditDraft('');
+    toast.success('Content updated');
+  }, [editDraft, selectedProject, updateProjectAssets, toast]);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // LOADING STATE
@@ -1056,28 +1289,117 @@ export default function CanvasView({
                     </button>
                   </div>
 
+                  {/* ═══ REGENERATE & EDIT ACTIONS ═══ */}
+                  <div style={{
+                    padding: isMobile ? '8px 12px' : '8px 24px',
+                    display: 'flex', gap: '8px', flexWrap: 'wrap',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    background: 'rgba(168, 85, 247, 0.03)'
+                  }}>
+                    {/* Regenerate — creates new version */}
+                    <button
+                      onClick={() => handleRegenerateAsset(currentAsset)}
+                      disabled={!!regeneratingAssetId}
+                      className="btn-pill"
+                      style={{
+                        flex: 1, justifyContent: 'center', fontSize: '0.8rem',
+                        background: 'rgba(168, 85, 247, 0.15)', color: 'var(--color-purple)',
+                        border: '1px solid rgba(168, 85, 247, 0.25)',
+                        opacity: regeneratingAssetId ? 0.6 : 1,
+                        cursor: regeneratingAssetId ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      {regeneratingAssetId === currentAsset.id ? (
+                        <><Loader2 size={14} className="spin" /> Regenerating...</>
+                      ) : (
+                        <><RefreshCw size={14} /> New Version</>
+                      )}
+                    </button>
+                    {/* Edit — inline text edit for text/lyrics assets */}
+                    {isTextAsset && (
+                      <button
+                        onClick={() => {
+                          if (editingAssetId === currentAsset.id) {
+                            setEditingAssetId(null);
+                            setEditDraft('');
+                          } else {
+                            setEditingAssetId(currentAsset.id);
+                            setEditDraft(currentAsset.content || currentAsset.snippet || '');
+                          }
+                        }}
+                        className="btn-pill"
+                        style={{
+                          flex: 1, justifyContent: 'center', fontSize: '0.8rem',
+                          background: editingAssetId === currentAsset.id ? 'rgba(34, 197, 94, 0.15)' : 'rgba(6, 182, 212, 0.12)',
+                          color: editingAssetId === currentAsset.id ? '#22c55e' : 'var(--color-cyan)',
+                          border: editingAssetId === currentAsset.id ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(6, 182, 212, 0.2)'
+                        }}
+                      >
+                        {editingAssetId === currentAsset.id ? <><X size={14} /> Cancel Edit</> : <><Edit3 size={14} /> Edit</>}
+                      </button>
+                    )}
+                    {editingAssetId === currentAsset.id && (
+                      <button
+                        onClick={() => handleSaveInlineEdit(currentAsset)}
+                        className="btn-pill"
+                        style={{
+                          flex: 1, justifyContent: 'center', fontSize: '0.8rem',
+                          background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e',
+                          border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: '700'
+                        }}
+                      >
+                        <Check size={14} /> Save Changes
+                      </button>
+                    )}
+                  </div>
+
+                  {/* ═══ INLINE TEXT EDITOR (when editing) ═══ */}
+                  {editingAssetId === currentAsset.id && isTextAsset && (
+                    <div style={{
+                      padding: isMobile ? '12px' : '12px 24px',
+                      borderTop: '1px solid rgba(34, 197, 94, 0.2)',
+                      background: 'rgba(34, 197, 94, 0.03)'
+                    }}>
+                      <textarea
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        style={{
+                          width: '100%', minHeight: '200px', maxHeight: '50vh',
+                          background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(34, 197, 94, 0.3)',
+                          borderRadius: '12px', padding: '16px', color: 'white',
+                          fontSize: '0.95rem', lineHeight: '1.8', resize: 'vertical',
+                          fontFamily: "'Georgia', serif", outline: 'none'
+                        }}
+                        placeholder="Edit your lyrics/text here..."
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
                   {/* ═══ INLINE QUICK ACTIONS (contextual) ═══ */}
                   <div style={{
                     padding: isMobile ? '8px 12px' : '8px 24px',
                     display: 'flex', gap: '8px', flexWrap: 'wrap',
                     borderTop: '1px solid rgba(255,255,255,0.04)'
                   }}>
-                    {/* If viewing lyrics/text → offer to generate beat or vocals */}
+                    {/* If viewing lyrics/text → offer to generate beat or vocals inline */}
                     {isTextAsset && (
                       <>
                         <button
-                          onClick={() => { setShowOrchestrator(true); }}
+                          onClick={() => handleRegenerateAsset({ ...currentAsset, type: 'audio', agent: 'Beat Lab', title: 'Beat', id: `audio-stub-${Date.now()}` })}
+                          disabled={!!regeneratingAssetId}
                           className="btn-pill"
                           style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(6, 182, 212, 0.12)', color: 'var(--color-cyan)' }}
                         >
-                          <Music size={13} /> Generate Beat
+                          {regeneratingAssetId?.startsWith?.('audio') ? <Loader2 size={13} className="spin" /> : <Music size={13} />} Generate Beat
                         </button>
                         <button
-                          onClick={() => { setShowOrchestrator(true); }}
+                          onClick={() => handleRegenerateAsset({ ...currentAsset, type: 'vocal', agent: 'Vocal Architect', title: 'Vocals', id: `vocal-stub-${Date.now()}`, content: currentAsset.content })}
+                          disabled={!!regeneratingAssetId}
                           className="btn-pill"
                           style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(236, 72, 153, 0.12)', color: '#ec4899' }}
                         >
-                          <Mic size={13} /> Add Vocals
+                          {regeneratingAssetId?.startsWith?.('vocal') ? <Loader2 size={13} className="spin" /> : <Mic size={13} />} Add Vocals
                         </button>
                       </>
                     )}
@@ -1085,14 +1407,16 @@ export default function CanvasView({
                     {(currentAsset.type || '').toLowerCase() === 'audio' && (
                       <>
                         <button
-                          onClick={() => { setShowOrchestrator(true); }}
+                          onClick={() => handleRegenerateAsset({ type: 'vocal', agent: 'Vocal Architect', title: 'Vocals', id: `vocal-stub-${Date.now()}` })}
+                          disabled={!!regeneratingAssetId}
                           className="btn-pill"
                           style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(236, 72, 153, 0.12)', color: '#ec4899' }}
                         >
                           <Mic size={13} /> Add Vocals
                         </button>
                         <button
-                          onClick={() => { setShowOrchestrator(true); }}
+                          onClick={() => handleRegenerateAsset({ type: 'image', agent: 'Album Architect', title: 'Artwork', id: `image-stub-${Date.now()}` })}
+                          disabled={!!regeneratingAssetId}
                           className="btn-pill"
                           style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-purple)' }}
                         >
@@ -1118,7 +1442,8 @@ export default function CanvasView({
                           <LayoutGrid size={13} /> Open Mixer
                         </button>
                         <button
-                          onClick={() => { setShowOrchestrator(true); }}
+                          onClick={() => handleRegenerateAsset({ type: 'video', agent: 'Video Creator', title: 'Video', id: `video-stub-${Date.now()}` })}
+                          disabled={!!regeneratingAssetId}
                           className="btn-pill"
                           style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-purple)' }}
                         >
@@ -1129,7 +1454,8 @@ export default function CanvasView({
                     {/* If viewing image/visual → offer to create video from it */}
                     {((currentAsset.type || '').toLowerCase() === 'image' || (currentAsset.type || '').toLowerCase() === 'visual') && (
                       <button
-                        onClick={() => { setShowOrchestrator(true); }}
+                        onClick={() => handleRegenerateAsset({ type: 'video', agent: 'Video Creator', title: 'Video', id: `video-stub-${Date.now()}` })}
+                        disabled={!!regeneratingAssetId}
                         className="btn-pill"
                         style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-purple)' }}
                       >
@@ -1146,6 +1472,14 @@ export default function CanvasView({
                         <LayoutGrid size={13} /> Open Mixer
                       </button>
                     )}
+                    {/* Always show Orchestrator option for full control */}
+                    <button
+                      onClick={() => setShowOrchestrator(true)}
+                      className="btn-pill"
+                      style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-secondary)' }}
+                    >
+                      <Sparkles size={13} /> Full Orchestrator
+                    </button>
                   </div>
                 </>
               );
