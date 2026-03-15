@@ -40,7 +40,7 @@ const PRODUCTION_PHASES = [
       },
       {
         action: 'Choose Your Genre & Style',
-        detail: 'Select from 32 genres including Trap, Drill, Boom-Bap, R&B, Pop, Afrobeats, Reggaeton, and more. Each genre auto-sets BPM, structure, and instrument profiles.',
+        detail: 'Select from 33+ genres including Trap, Drill, Boom-Bap, R&B, Pop, Afrobeats, Reggaeton, and more. Each genre auto-sets BPM, structure, and instrument profiles.',
         tip: 'Genre presets set duration to 180s (3 min) by default — perfect for a full record.'
       },
       {

@@ -140,9 +140,9 @@ const EMOTIONAL_TAGS = [
 ];
 
 const VOICE_SETTINGS_TABLE = [
-  { setting: 'Stability', rapper: '0.50', singer: '0.60', tv: '0.70', podcast: '0.75', music: '0.45', description: 'Lower = more expressive variation' },
+  { setting: 'Stability', rapper: '0.60', singer: '0.65', tv: '0.70', podcast: '0.75', music: '0.55', description: 'Lower = more expressive variation' },
   { setting: 'Similarity Boost', rapper: '0.92', singer: '0.92', tv: '0.92', podcast: '0.95', music: '0.88', description: 'How closely output matches the source voice' },
-  { setting: 'Style', rapper: '0.75', singer: '0.50', tv: '0.35', podcast: '0.25', music: '0.85', description: 'Higher = more stylistic interpretation' },
+  { setting: 'Style', rapper: '0.70', singer: '0.50', tv: '0.35', podcast: '0.25', music: '0.85', description: 'Higher = more stylistic interpretation' },
   { setting: 'Speaker Boost', rapper: '✓', singer: '✓', tv: '✓', podcast: '✓', music: '✓', description: 'Always enabled for maximum clarity' }
 ];
 
@@ -286,7 +286,7 @@ export default function VocalsResourcePage({ onBack }) {
           borderRadius: '100px', padding: '6px 18px', marginBottom: '24px',
           fontSize: '0.85rem', color: ACCENT, fontWeight: '600', letterSpacing: '0.08em'
         }}>
-          <Waves size={14} /> NEURAL EMOTION MAPPING
+          <Waves size={14} /> AI-POWERED VOICE ENGINE
         </div>
 
         <h1 style={{

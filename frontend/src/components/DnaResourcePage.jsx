@@ -35,7 +35,7 @@ const DNA_TYPES = [
       'Brand identity assets',
       'Stage/performance screenshots'
     ],
-    howItWorks: 'Visual DNA is passed directly to the image and video generation models in EXACT CLONE mode. The AI receives your reference with maximum fidelity parameters (image_prompt_strength: 0.85) and strict instructions to replicate — not reinterpret — your visual identity. Every output looks like you, every time.',
+    howItWorks: 'Visual DNA is passed directly to the image and video generation models in EXACT CLONE mode. The AI receives your reference with maximum fidelity parameters (image_prompt_strength: 0.95) and strict instructions to replicate — not reinterpret — your visual identity. Every output looks like you, every time.',
     proTips: [
       'Upload 2-3 references with consistent color schemes for strongest DNA inheritance',
       'High-contrast, bold imagery produces the most distinctive AI outputs',
@@ -58,7 +58,7 @@ const DNA_TYPES = [
       'Drum patterns or rhythmic references',
       'Ambient textures or pads'
     ],
-    howItWorks: 'Audio DNA is injected as melody conditioning into MusicGen (stereo-melody-large model) for exact harmonic/rhythmic cloning. Temperature drops to 0.6 and classifier guidance rises to 10 for strict adherence. Stability AI receives explicit clone instructions in the prompt. The output matches your reference\'s DNA exactly.',
+    howItWorks: 'Audio DNA uses Stability AI stable-audio-2.5 as the primary generator with explicit clone instructions. When using MusicGen fallback (stereo-melody-large model), melody conditioning is injected for harmonic/rhythmic cloning — temperature drops to 0.5 and classifier guidance rises to 12 for strict adherence. The output matches your reference\'s DNA faithfully.',
     proTips: [
       'Short 10-30s loops work best — the AI extracts key/tempo more accurately from focused clips',
       'Use Audio DNA + specific BPM settings together for maximum control',
@@ -150,7 +150,7 @@ const QUICK_START_STEPS = [
 const FAQ_ITEMS = [
   {
     q: 'How is DNA different from a regular prompt?',
-    a: 'A prompt tells the AI what to create. DNA tells it who you are — and the AI clones that identity with maximum fidelity parameters. No creative reinterpretation, no approximation. Visual DNA locks image_prompt_strength to 0.85. Voice DNA locks similarity_boost to 0.98 and temperature to 0.15. Audio DNA uses melody conditioning with guidance 10. Every output is an exact extension of you.'
+    a: 'A prompt tells the AI what to create. DNA tells it who you are — and the AI clones that identity with maximum fidelity parameters. No creative reinterpretation, no approximation. Visual DNA locks image_prompt_strength to 0.95. Voice DNA locks similarity_boost to 1.0 and XTTS temperature to 0.35. Audio DNA uses melody conditioning with classifier guidance 12. Every output is an extension of you.'
   },
   {
     q: 'Can I use multiple DNA types simultaneously?',
@@ -158,7 +158,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Does DNA affect voice/vocal generation?',
-    a: 'Yes — powerfully. When Voice Clone DNA is active, ElevenLabs settings lock to maximum fidelity: similarity_boost 0.98, stability 0.80, style 0.90. XTTS voice cloning drops to temperature 0.15 for exact reproduction. Your voice, your punctuation, your tempo, your delivery — cloned perfectly. No "sort of like you" — exactly you.'
+    a: 'Yes — powerfully. When Voice Clone DNA is active, ElevenLabs settings lock to maximum fidelity: similarity_boost 1.0, stability 0.85, style 0.85. XTTS voice cloning drops to temperature 0.35 for tight reproduction. Your voice, your punctuation, your tempo, your delivery — cloned faithfully.'
   },
   {
     q: 'How do I clear or swap DNA?',
@@ -200,12 +200,12 @@ const IP_HIGHLIGHTS = [
   },
   {
     title: 'Seed-Persistent Video',
-    description: 'Video DNA (Seed) acts as a visual anchor — ensuring character and scene consistency across every generated frame. No other platform offers this.',
+    description: 'Video DNA (Seed) acts as a visual anchor — ensuring character and scene consistency across every generated frame via Veo 3.0 clone prompting.',
     icon: Eye
   },
   {
     title: 'Consistent DNA Inheritance',
-    description: 'Beat and visual generators receive your DNA references with high-fidelity parameters — image_prompt_strength 0.85, melody conditioning guidance 10 — ensuring every output inherits your artistic identity.',
+    description: 'Beat and visual generators receive your DNA references with high-fidelity parameters — image_prompt_strength 0.95, melody conditioning guidance 12 — ensuring every output inherits your artistic identity.',
     icon: Target
   },
   {
@@ -282,7 +282,7 @@ export default function DnaResourcePage({ onBack }) {
           borderRadius: '100px', padding: '6px 18px', marginBottom: '24px',
           fontSize: '0.85rem', color: ACCENT, fontWeight: '600', letterSpacing: '0.08em'
         }}>
-          <Fingerprint size={14} /> PATENTED TECHNOLOGY
+          <Fingerprint size={14} /> PROPRIETARY TECHNOLOGY
         </div>
 
         <h1 style={{
@@ -477,7 +477,7 @@ export default function DnaResourcePage({ onBack }) {
               What Makes DNA Different
             </h2>
             <p style={{ color: '#9ca3af', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
-              Six proprietary innovations that no other AI platform can replicate.
+              Six proprietary innovations that power the Studio Agents DNA system.
             </p>
           </div>
 
