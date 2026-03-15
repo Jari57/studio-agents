@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Sparkles, Zap, Music, ArrowLeft, Edit3, Upload, Layers,
   ChevronLeft, ChevronRight, X, User, Crown, FileText, Download, Maximize2,
-  Copy, Trash2, Share2, Book, Play, LayoutGrid, Link2
+  Copy, Trash2, Share2, Book, Play, LayoutGrid, Link2, Grid, List, Mic, Palette, Film
 } from 'lucide-react';
 import { UsersIcon, Twitter, Instagram, VideoIcon, ImageIcon } from 'lucide-react';
 
@@ -56,7 +56,9 @@ export default function CanvasView({
   const [editingProjectName, setEditingProjectName] = useState(false);
   const [projectNameDraft, setProjectNameDraft] = useState('');
   const [canvasCarouselIndex, setCanvasCarouselIndex] = useState(0);
+  const [viewMode, setViewMode] = useState('carousel'); // 'carousel' | 'grid'
   const carouselTouchStartX = useRef(null);
+  const thumbnailStripRef = useRef(null);
 
   // Alias for clarity
   const detailPanelAsset = canvasPreviewAsset;
@@ -127,6 +129,31 @@ export default function CanvasView({
     }
   }, [filteredCanvasAssets.length, canvasCarouselIndex]);
 
+  // Keyboard navigation (left/right arrows)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (viewMode !== 'carousel') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowLeft' && canvasCarouselIndex > 0) {
+        e.preventDefault();
+        setCanvasCarouselIndex(i => i - 1);
+      } else if (e.key === 'ArrowRight' && canvasCarouselIndex < filteredCanvasAssets.length - 1) {
+        e.preventDefault();
+        setCanvasCarouselIndex(i => i + 1);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewMode, canvasCarouselIndex, filteredCanvasAssets.length]);
+
+  // Auto-scroll active thumbnail into view
+  useEffect(() => {
+    if (thumbnailStripRef.current && viewMode === 'carousel') {
+      const el = thumbnailStripRef.current.children[canvasCarouselIndex];
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [canvasCarouselIndex, viewMode]);
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // HANDLERS
   // ═══════════════════════════════════════════════════════════════════════════════
@@ -140,6 +167,17 @@ export default function CanvasView({
     }
     carouselTouchStartX.current = null;
   };
+
+  // Get a type icon for an asset
+  const getAssetTypeIcon = useCallback((asset) => {
+    const t = (asset?.type || '').toLowerCase();
+    if (t === 'video') return VideoIcon;
+    if (t === 'image' || t === 'visual') return ImageIcon;
+    if (t === 'vocal' || t === 'synthesis') return Mic;
+    if (t === 'audio') return Music;
+    if (t === 'text' || t === 'lyrics' || t === 'script') return FileText;
+    return Layers;
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // LOADING STATE
@@ -427,10 +465,216 @@ export default function CanvasView({
                 />
                 <Upload size={13} /> Upload
               </label>
+              {/* View Mode Toggle */}
+              <div style={{
+                display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: '20px',
+                border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden'
+              }}>
+                <button
+                  onClick={() => setViewMode('carousel')}
+                  title="Carousel view"
+                  style={{
+                    padding: '6px 10px', border: 'none', cursor: 'pointer',
+                    background: viewMode === 'carousel' ? 'rgba(168, 85, 247, 0.25)' : 'transparent',
+                    color: viewMode === 'carousel' ? 'var(--color-purple)' : 'var(--text-secondary)',
+                    display: 'flex', alignItems: 'center', transition: 'all 0.2s'
+                  }}
+                >
+                  <List size={15} />
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  title="Grid view"
+                  style={{
+                    padding: '6px 10px', border: 'none', cursor: 'pointer',
+                    background: viewMode === 'grid' ? 'rgba(168, 85, 247, 0.25)' : 'transparent',
+                    color: viewMode === 'grid' ? 'var(--color-purple)' : 'var(--text-secondary)',
+                    display: 'flex', alignItems: 'center', transition: 'all 0.2s'
+                  }}
+                >
+                  <Grid size={15} />
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* ═══ FULL-VIEW CAROUSEL (default) ═══ */}
+          {/* ═══ ASSET THUMBNAIL STRIP ═══ */}
+          {filteredCanvasAssets.length > 1 && viewMode === 'carousel' && (
+            <div
+              ref={thumbnailStripRef}
+              style={{
+                display: 'flex', gap: '6px', padding: isMobile ? '8px 12px' : '10px 24px',
+                overflowX: 'auto', overflowY: 'hidden',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                background: 'rgba(0,0,0,0.1)',
+                scrollbarWidth: 'thin',
+                msOverflowStyle: 'none'
+              }}
+            >
+              {filteredCanvasAssets.map((asset, idx) => {
+                const isActive = idx === canvasCarouselIndex;
+                const TypeIcon = getAssetTypeIcon(asset);
+                const aObj = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.name === asset.agent || a.id === asset.agent) : null;
+                const ac = aObj ? getAgentHex(aObj) : 'var(--color-purple)';
+                return (
+                  <button
+                    key={asset.id || idx}
+                    onClick={() => setCanvasCarouselIndex(idx)}
+                    title={asset.title || `Asset ${idx + 1}`}
+                    style={{
+                      flexShrink: 0,
+                      width: isMobile ? '52px' : '60px',
+                      height: isMobile ? '52px' : '60px',
+                      borderRadius: '10px',
+                      border: isActive ? `2px solid ${ac}` : '2px solid transparent',
+                      background: isActive ? `rgba(168, 85, 247, 0.15)` : 'rgba(255,255,255,0.04)',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      position: 'relative',
+                      transition: 'all 0.2s ease',
+                      padding: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: isActive ? `0 0 12px rgba(168, 85, 247, 0.3)` : 'none',
+                      opacity: isActive ? 1 : 0.7
+                    }}
+                  >
+                    {asset.imageUrl ? (
+                      <img src={formatImageSrc(asset.imageUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : asset.videoUrl ? (
+                      <div style={{ width: '100%', height: '100%', background: 'rgba(168, 85, 247, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <VideoIcon size={18} style={{ color: ac }} />
+                      </div>
+                    ) : (
+                      <TypeIcon size={18} style={{ color: ac }} />
+                    )}
+                    {/* Asset number badge */}
+                    <span style={{
+                      position: 'absolute', bottom: '2px', right: '2px',
+                      fontSize: '0.5rem', fontWeight: '700',
+                      background: 'rgba(0,0,0,0.7)', color: 'white',
+                      borderRadius: '4px', padding: '1px 3px',
+                      lineHeight: 1
+                    }}>{idx + 1}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ═══ GRID VIEW ═══ */}
+          {viewMode === 'grid' ? (
+            <div style={{
+              flex: 1, overflowY: 'auto', padding: isMobile ? '12px' : '16px 24px',
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(180px, 1fr))',
+              gap: isMobile ? '10px' : '14px',
+              alignContent: 'start'
+            }}>
+              {filteredCanvasAssets.length > 0 ? filteredCanvasAssets.map((asset, idx) => {
+                const TypeIcon = getAssetTypeIcon(asset);
+                const aObj = (typeof AGENTS !== 'undefined' && AGENTS) ? AGENTS.find(a => a.name === asset.agent || a.id === asset.agent) : null;
+                const ac = aObj ? getAgentHex(aObj) : 'var(--color-purple)';
+                return (
+                  <button
+                    key={asset.id || idx}
+                    onClick={() => { setCanvasCarouselIndex(idx); setViewMode('carousel'); }}
+                    style={{
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '14px',
+                      padding: 0,
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      display: 'flex', flexDirection: 'column',
+                      transition: 'all 0.2s ease',
+                      textAlign: 'left',
+                      color: 'white'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = ac; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.transform = 'none'; }}
+                  >
+                    {/* Thumbnail area */}
+                    <div style={{
+                      width: '100%', aspectRatio: '1', background: '#0a0a14',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      overflow: 'hidden', position: 'relative'
+                    }}>
+                      {asset.imageUrl ? (
+                        <img src={formatImageSrc(asset.imageUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" />
+                      ) : asset.videoUrl ? (
+                        <video src={formatVideoSrc(asset.videoUrl)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted preload="metadata" />
+                      ) : (
+                        <div style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
+                          background: `linear-gradient(135deg, ${ac}11, ${ac}22)`,
+                          width: '100%', height: '100%', justifyContent: 'center'
+                        }}>
+                          <TypeIcon size={28} style={{ color: ac, opacity: 0.8 }} />
+                          {(asset.content || asset.snippet) && (
+                            <div style={{
+                              fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)',
+                              padding: '0 8px', textAlign: 'center',
+                              overflow: 'hidden', display: '-webkit-box',
+                              WebkitLineClamp: 3, WebkitBoxOrient: 'vertical',
+                              lineHeight: '1.3', maxHeight: '3.9em'
+                            }}>
+                              {(asset.content || asset.snippet).slice(0, 100)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {/* Type badge */}
+                      <span style={{
+                        position: 'absolute', top: '6px', right: '6px',
+                        padding: '2px 6px', borderRadius: '6px',
+                        fontSize: '0.55rem', fontWeight: '700',
+                        background: 'rgba(0,0,0,0.7)', color: ac,
+                        textTransform: 'uppercase', letterSpacing: '0.05em'
+                      }}>
+                        {asset.type}
+                      </span>
+                    </div>
+                    {/* Info bar */}
+                    <div style={{ padding: '10px', borderTop: `1px solid ${ac}22` }}>
+                      <div style={{
+                        fontSize: '0.8rem', fontWeight: '600', color: 'white',
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        marginBottom: '3px'
+                      }}>
+                        {asset.title || 'Untitled'}
+                      </div>
+                      <div style={{
+                        fontSize: '0.65rem', color: 'var(--text-secondary)',
+                        display: 'flex', alignItems: 'center', gap: '4px'
+                      }}>
+                        <div style={{ width: 5, height: 5, borderRadius: '50%', background: ac, flexShrink: 0 }} />
+                        {asset.agent || 'Unknown'}
+                      </div>
+                    </div>
+                  </button>
+                );
+              }) : (
+                <div style={{
+                  gridColumn: '1 / -1', padding: '48px', textAlign: 'center'
+                }}>
+                  <Layers size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
+                  <h3 style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    {pipelineFilter || assetFilter !== 'all' ? 'No matching assets' : 'No generations yet'}
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', opacity: 0.7, marginBottom: '24px' }}>
+                    {pipelineFilter || assetFilter !== 'all'
+                      ? 'Try a different filter or generate new assets.'
+                      : 'Start by opening the Studio Orchestrator.'}
+                  </p>
+                  <button className="btn-pill primary" onClick={() => setShowOrchestrator(true)}>
+                    <Sparkles size={16} /> Start Creating
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+
+          /* ═══ FULL-VIEW CAROUSEL (default) ═══ */
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {filteredCanvasAssets.length > 0 ? (() => {
               const currentAsset = filteredCanvasAssets[canvasCarouselIndex] || filteredCanvasAssets[0];
@@ -518,19 +762,30 @@ export default function CanvasView({
                         }}>
                           {currentAsset.audioUrl && (
                             <div style={{
-                              marginBottom: '16px', background: 'rgba(0,0,0,0.4)', padding: '14px',
+                              marginBottom: '16px', background: 'rgba(0,0,0,0.4)', padding: isMobile ? '14px' : '18px',
                               borderRadius: '14px', border: '1px solid rgba(255,255,255,0.1)',
-                              display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0
+                              display: 'flex', flexDirection: 'column', gap: '10px', flexShrink: 0
                             }}>
-                              <div className="pulse-icon" style={{ flexShrink: 0 }}>
-                                <Music size={22} className="text-purple" />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                <div className="pulse-icon" style={{ flexShrink: 0 }}>
+                                  <Music size={22} className="text-purple" />
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontWeight: '600', fontSize: '0.9rem', color: 'white', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {currentAsset.title || 'Untitled Track'}
+                                  </div>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                    {currentAsset.agent && <span>{currentAsset.agent}</span>}
+                                    {currentAsset.bpm && <span> &bull; {currentAsset.bpm} BPM</span>}
+                                  </div>
+                                </div>
                               </div>
                               <audio
                                 ref={canvasAudioRef}
                                 key={currentAsset.id || currentAsset.audioUrl}
                                 src={formatAudioSrc(currentAsset.audioUrl)}
                                 controls crossOrigin="anonymous"
-                                style={{ flex: 1, height: '36px' }}
+                                style={{ width: '100%', height: '40px' }}
                                 onPlay={(e) => {
                                   document.querySelectorAll('audio, video').forEach(el => {
                                     if (el !== e.target) el.pause();
@@ -800,6 +1055,98 @@ export default function CanvasView({
                       <Trash2 size={14} />
                     </button>
                   </div>
+
+                  {/* ═══ INLINE QUICK ACTIONS (contextual) ═══ */}
+                  <div style={{
+                    padding: isMobile ? '8px 12px' : '8px 24px',
+                    display: 'flex', gap: '8px', flexWrap: 'wrap',
+                    borderTop: '1px solid rgba(255,255,255,0.04)'
+                  }}>
+                    {/* If viewing lyrics/text → offer to generate beat or vocals */}
+                    {isTextAsset && (
+                      <>
+                        <button
+                          onClick={() => { setShowOrchestrator(true); }}
+                          className="btn-pill"
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(6, 182, 212, 0.12)', color: 'var(--color-cyan)' }}
+                        >
+                          <Music size={13} /> Generate Beat
+                        </button>
+                        <button
+                          onClick={() => { setShowOrchestrator(true); }}
+                          className="btn-pill"
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(236, 72, 153, 0.12)', color: '#ec4899' }}
+                        >
+                          <Mic size={13} /> Add Vocals
+                        </button>
+                      </>
+                    )}
+                    {/* If viewing audio/beat → offer to add vocals, visuals, or open session mixer */}
+                    {(currentAsset.type || '').toLowerCase() === 'audio' && (
+                      <>
+                        <button
+                          onClick={() => { setShowOrchestrator(true); }}
+                          className="btn-pill"
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(236, 72, 153, 0.12)', color: '#ec4899' }}
+                        >
+                          <Mic size={13} /> Add Vocals
+                        </button>
+                        <button
+                          onClick={() => { setShowOrchestrator(true); }}
+                          className="btn-pill"
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-purple)' }}
+                        >
+                          <Palette size={13} /> Create Artwork
+                        </button>
+                        <button
+                          onClick={() => setShowStudioSession(true)}
+                          className="btn-pill"
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e' }}
+                        >
+                          <LayoutGrid size={13} /> Open Mixer
+                        </button>
+                      </>
+                    )}
+                    {/* If viewing vocal → offer to mix or create video */}
+                    {((currentAsset.type || '').toLowerCase() === 'vocal' || (currentAsset.type || '').toLowerCase() === 'synthesis') && (
+                      <>
+                        <button
+                          onClick={() => setShowStudioSession(true)}
+                          className="btn-pill"
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e' }}
+                        >
+                          <LayoutGrid size={13} /> Open Mixer
+                        </button>
+                        <button
+                          onClick={() => { setShowOrchestrator(true); }}
+                          className="btn-pill"
+                          style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-purple)' }}
+                        >
+                          <Film size={13} /> Create Video
+                        </button>
+                      </>
+                    )}
+                    {/* If viewing image/visual → offer to create video from it */}
+                    {((currentAsset.type || '').toLowerCase() === 'image' || (currentAsset.type || '').toLowerCase() === 'visual') && (
+                      <button
+                        onClick={() => { setShowOrchestrator(true); }}
+                        className="btn-pill"
+                        style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-purple)' }}
+                      >
+                        <Film size={13} /> Animate to Video
+                      </button>
+                    )}
+                    {/* If viewing video → offer to open session mixer */}
+                    {(currentAsset.type || '').toLowerCase() === 'video' && (
+                      <button
+                        onClick={() => setShowStudioSession(true)}
+                        className="btn-pill"
+                        style={{ fontSize: '0.75rem', padding: '5px 12px', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e' }}
+                      >
+                        <LayoutGrid size={13} /> Open Mixer
+                      </button>
+                    )}
+                  </div>
                 </>
               );
             })() : (
@@ -828,6 +1175,7 @@ export default function CanvasView({
               </div>
             )}
           </div>
+          )}
       </div>
 
       {/* ═══════════ SECTION D: COLLAPSIBLE SIDEBAR (OVERLAY) ═══════════ */}
