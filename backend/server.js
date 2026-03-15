@@ -5034,8 +5034,9 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
     // ═══════════════════════════════════════════════════════════════
     // BARK SPOKEN - General speech fallback (singers already handled above)
     // Skip for cloned voices — Bark can't clone, would produce gibberish
+    // Skip when backing track provided — TTS should never sync with a beat
     // ═══════════════════════════════════════════════════════════════
-    if (replicateKey && !audioUrl && !isSingingStyle && style !== 'cloned') {
+    if (replicateKey && !audioUrl && !isSingingStyle && style !== 'cloned' && !backingTrackUrl) {
       try {
         logger.info('🎤 Using Bark for expressive vocal generation', { style, langCode });
         
@@ -5136,9 +5137,10 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
 
     // ═══════════════════════════════════════════════════════════════
     // PRIORITY 2: Gemini TTS (Robust Fallback)
+    // Skip when backing track provided — TTS should never sync with a beat
     // ═══════════════════════════════════════════════════════════════
     const geminiKey = process.env.GEMINI_API_KEY;
-    if (!audioUrl && geminiKey) {
+    if (!audioUrl && geminiKey && !backingTrackUrl) {
       try {
         logger.info('🎤 Using Gemini TTS fallback');
         let geminiVoice = 'Kore';
@@ -5172,6 +5174,7 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
 
     // ═══════════════════════════════════════════════════════════════
     // PRIORITY 3: Uberduck TTS (Final Fallback)
+    // Skip when backing track provided — TTS should never sync with a beat
     // ═══════════════════════════════════════════════════════════════
     const uberduckKey = process.env.UBERDUCK_API_KEY;
     const uberduckSecret = process.env.UBERDUCK_API_SECRET;
@@ -5179,7 +5182,7 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
       ? `Basic ${Buffer.from(`${uberduckKey}:${uberduckSecret}`).toString('base64')}`
       : (uberduckKey?.includes(':') ? `Basic ${Buffer.from(uberduckKey).toString('base64')}` : `Bearer ${uberduckKey}`);
     
-    if (!audioUrl && uberduckKey) {
+    if (!audioUrl && uberduckKey && !backingTrackUrl) {
       try {
         logger.info('🔄 Final fallback to Uberduck TTS');
         let selectedVoice = style.includes('female') ? 'azure_en-US-JennyNeural' : 'azure_en-US-GuyNeural';
@@ -5215,7 +5218,9 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
       let storagePath = null;
 
       // MIX WITH BACKING TRACK IF PROVIDED
-      if (backingTrackUrl) {
+      // Only mix with real vocal providers — never TTS (robotic voices ruin songs)
+      const isTtsProvider = ['bark', 'gemini-tts', 'uberduck-tts'].includes(provider);
+      if (backingTrackUrl && !isTtsProvider) {
         try {
           logger.info('🎚️ Mixing vocal with backing track');
           const tempDir = path.join(__dirname, 'temp');
@@ -5381,7 +5386,10 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
         });
       }
       
-      res.status(503).json({ error: 'Vocal generation failed', details: 'Check API key configuration or system quota' });
+      const detail = backingTrackUrl 
+        ? 'No real vocal provider available for beat sync. TTS fallbacks are skipped when syncing with a beat — only Suno, ElevenLabs, or voice cloning can create song-quality vocals.'
+        : 'Check API key configuration or system quota';
+      res.status(503).json({ error: 'Vocal generation failed', details: detail });
     }
   } catch (error) {
     logger.error('Vocal generation error', { error: error.message });

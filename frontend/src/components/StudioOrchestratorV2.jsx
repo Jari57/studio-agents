@@ -1124,7 +1124,8 @@ function ProductionControlHub({
   handleCreateShareLink,
   handleDownloadMasterMix,
   distributing,
-  shareLink
+  shareLink,
+  creatorMode = 'artist'
 }) {
   // Check completion status
   const completedCount = Object.values(outputs).filter(Boolean).length;
@@ -7282,6 +7283,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         handleDownloadMasterMix={handleDownloadMasterMix}
         distributing={distributing}
         shareLink={shareLink}
+        creatorMode={creatorMode}
       />
     </div>
 
