@@ -1137,6 +1137,8 @@ export default function LandingPage({ onEnter, onSubscribe, onStartTour }) {
             <span className="footer-divider">*</span>
             <button className="footer-link" onClick={() => window.location.hash = '#/billboard'}>Billboard Blueprint</button>
             <span className="footer-divider">*</span>
+            <button className="footer-link" onClick={() => window.location.hash = '#/campaign'}>Content Engine</button>
+            <span className="footer-divider">*</span>
             <button className="footer-link" onClick={() => window.location.hash = '#/legal'}>Legal & Copyright</button>
             <span className="footer-divider">*</span>
             <button className="footer-link" onClick={() => setShowPrivacy(true)}>Privacy Policy</button>

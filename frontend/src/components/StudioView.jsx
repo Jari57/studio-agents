@@ -443,9 +443,8 @@ const MORE_MENU_ITEMS = [
   { id: 'dna', icon: Layers, label: 'DNA System', desc: 'Visual, audio & lyrics DNA', color: 'var(--color-emerald)', external: true },
   { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '20+ voices & voice cloning', color: 'var(--color-pink)', external: true },
   { id: 'billboard', icon: Award, label: 'Billboard Blueprint', desc: 'Make a hit record start to finish', color: 'var(--color-yellow)', external: true },
+  { id: 'campaign', icon: Share2, label: 'Content Engine', desc: '1 track → 7-day campaign', color: 'var(--color-cyan)', external: true },
 ];
-
-// Helper: Get relative time since date
 const getTimeSince = (date) => {
   const now = new Date();
   const seconds = Math.floor((now - date) / 1000);
@@ -8914,6 +8913,7 @@ const fetchUserCredits = useCallback(async (uid) => {
           { id: 'dna', icon: Layers, label: 'DNA System', desc: 'Visual, audio & lyrics DNA', color: 'var(--color-emerald)', external: true },
           { id: 'vocals', icon: Mic, label: 'Vocal Lab', desc: '20+ voices & voice cloning', color: 'var(--color-pink)', external: true },
           { id: 'billboard', icon: Award, label: 'Billboard Blueprint', desc: 'Make a hit record start to finish', color: 'var(--color-yellow)', external: true },
+          { id: 'campaign', icon: Share2, label: 'Content Engine', desc: '1 track → 7-day campaign', color: 'var(--color-cyan)', external: true },
         ];
 
         return (

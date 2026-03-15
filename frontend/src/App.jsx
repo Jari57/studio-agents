@@ -11,6 +11,7 @@ const LegalResourcesPage = React.lazy(() => import('./components/LegalResourcesP
 const DnaResourcePage = React.lazy(() => import('./components/DnaResourcePage'));
 const VocalsResourcePage = React.lazy(() => import('./components/VocalsResourcePage'));
 const BillboardBlueprintPage = React.lazy(() => import('./components/BillboardBlueprintPage'));
+const ContentMultiplicationPage = React.lazy(() => import('./components/ContentMultiplicationPage'));
 
 // Loading fallback component
 const StudioLoadingFallback = () => (
@@ -136,6 +137,7 @@ function App() {
   const isDna = currentHash === '#/dna';
   const isVocals = currentHash === '#/vocals';
   const isBillboard = currentHash === '#/billboard';
+  const isCampaign = currentHash === '#/campaign';
 
   return (
     <div className="app-container">
@@ -178,6 +180,10 @@ function App() {
       ) : isBillboard ? (
         <Suspense fallback={<StudioLoadingFallback />}>
           <BillboardBlueprintPage onBack={handleBackToLanding} />
+        </Suspense>
+      ) : isCampaign ? (
+        <Suspense fallback={<StudioLoadingFallback />}>
+          <ContentMultiplicationPage onBack={handleBackToLanding} />
         </Suspense>
       ) : isStudio ? (
         <Suspense fallback={<StudioLoadingFallback />}>
