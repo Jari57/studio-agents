@@ -197,12 +197,68 @@ const LegalResourcesPage = ({ onBack }) => {
         {
           heading: '3. Data Sharing',
           content: `We do NOT sell your personal data. We share only necessary data with:
-• **AI Providers:** Prompts are sent to Google (Gemini) and Replicate to generate content.
-• **Cloud Infrastructure:** Firebase (Google) for secure data storage.`
+• **AI Providers:** Prompts are sent to Google (Gemini) and Replicate to generate content. Prompts are not stored by these providers beyond the generation request.
+• **Cloud Infrastructure:** Firebase (Google) for secure data storage and authentication.
+• **Payment Processing:** Stripe processes payments securely. We never store full credit card numbers.
+• **Analytics:** Anonymous usage analytics to improve the product. No personally identifiable data is shared with advertisers.`
         },
         {
           heading: '4. Your Rights (GDPR/CCPA)',
-          content: `You have the right to access, export, or delete your data at any time. Our "Wipe Account" feature in Application Settings permanently deletes all per-user data from our production systems.`
+          content: `You have the right to access, export, or delete your data at any time.
+• **Access & Export:** Use the "Export My Data" button in Application Settings to download a complete copy of all your personal data as a JSON file.
+• **Deletion:** Use the "Wipe Account" feature in Application Settings to permanently delete all per-user data, including projects, generations, voice samples, and your Firebase authentication profile.
+• **Correction:** Contact us to correct any inaccurate personal data.
+• **Opt-Out:** You may opt out of non-essential communications at any time.
+• **Response Time:** We respond to all data requests within 30 days as required by GDPR and CCPA.`
+        },
+        {
+          heading: '5. Children\'s Privacy (COPPA)',
+          content: `Studio Agents is not directed at children under 13. We do not knowingly collect personal information from children under 13 years of age.
+• If you are under 13, you may not use this service.
+• If you are between 13 and 18, you must have parental or guardian consent.
+• If we discover that a child under 13 has provided personal information, we will promptly delete their account and all associated data.
+• Parents or guardians who believe their child has provided personal information may contact us at privacy@studioagentsai.com to request deletion.`
+        },
+        {
+          heading: '6. Data Retention',
+          content: `We retain your data only as long as necessary to provide our services:
+• **Account Data:** Retained while your account is active. Deleted within 30 days of account deletion request.
+• **Generated Content:** Stored until you delete it or delete your account.
+• **Voice Samples:** Stored only while your account is active and you have not removed them.
+• **Payment Records:** Retained for 7 years as required by financial regulations.
+• **Server Logs:** Automatically purged after 90 days.`
+        },
+        {
+          heading: '7. Third-Party SDKs & Services',
+          content: `Our application uses the following third-party services that may process your data:
+• **Firebase Authentication** (Google) — Sign-in and account management
+• **Firebase Firestore** (Google) — Data storage
+• **Firebase Cloud Storage** (Google) — File storage (audio, images)
+• **Google Gemini AI** — Text and image generation
+• **Replicate** — Audio, image, and video generation
+• **ElevenLabs** — Voice synthesis and cloning
+• **Stripe** — Payment processing (web only)
+• **Apple StoreKit** — In-app purchases (iOS)
+• **Google Play Billing** — In-app purchases (Android)
+Each provider has its own privacy policy. We encourage you to review them.`
+        },
+        {
+          heading: '8. Security Measures',
+          content: `We implement industry-standard security measures to protect your data:
+• All data is transmitted over HTTPS/TLS encryption.
+• API keys and service credentials are stored in secure environment variables, never in client code.
+• Firebase Security Rules restrict data access to authenticated users.
+• Rate limiting and input validation protect against abuse.
+• Regular security audits and dependency updates.`
+        },
+        {
+          heading: '9. Contact Information',
+          content: `For privacy-related inquiries, data requests, or to report concerns:
+• **Email:** privacy@studioagentsai.com
+• **Data Protection Officer:** dpo@studioagentsai.com
+• **Response Time:** Within 30 days of receipt
+• **Effective Date:** March 14, 2026
+• **Last Updated:** March 14, 2026`
         }
       ]
     },

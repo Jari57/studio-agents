@@ -6,7 +6,7 @@ import {
   Folder, Plus, Share2, CreditCard,
   RefreshCw, Trash2, Eye, EyeOff, Landmark, ArrowRight, ChevronRight, X, User, LayoutGrid,
   TrendingUp, Disc, Activity, Settings, CheckCircle, Clock, Cpu,
-  Layers, Image as ImageIcon, Mail
+  Layers, Image as ImageIcon, Mail, Download
 } from 'lucide-react';
 import { AGENTS, BACKEND_URL } from '../../constants';
 import { auth } from '../../firebase';
@@ -148,7 +148,7 @@ const DashboardView = ({
               />
             </div>
           </div>
-          <nav className="sidebar-nav">
+          <nav className="sidebar-nav" aria-label="Dashboard navigation">
             <button
               className={`sidebar-link ${dashboardTab === 'overview' ? 'active' : ''}`}
               onClick={() => setDashboardTab('overview')}
@@ -971,6 +971,40 @@ const DashboardView = ({
               </div>
 
               {/* Subscription Plans Section */}
+              {/* When running inside a native app (Capacitor), Apple/Google require IAP */}
+              {typeof window !== 'undefined' && window.Capacitor ? (
+                <div className="plans-section" style={{ marginTop: '2rem' }}>
+                  <div className="payment-header">
+                    <h3>Manage Subscription</h3>
+                  </div>
+                  <div style={{
+                    padding: '24px',
+                    borderRadius: '16px',
+                    background: 'rgba(59, 130, 246, 0.05)',
+                    border: '1px solid rgba(59, 130, 246, 0.15)',
+                    textAlign: 'center',
+                    marginTop: '1rem'
+                  }}>
+                    <p style={{ marginBottom: '16px', opacity: 0.8 }}>
+                      Subscriptions are managed through your device&apos;s app store.
+                    </p>
+                    <button
+                      className="plan-button-native primary"
+                      onClick={() => {
+                        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+                        if (isIOS) {
+                          window.open('https://apps.apple.com/account/subscriptions', '_blank');
+                        } else {
+                          window.open('https://play.google.com/store/account/subscriptions', '_blank');
+                        }
+                      }}
+                      style={{ padding: '12px 32px' }}
+                    >
+                      Manage in App Store
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <div className="plans-section" style={{ marginTop: '2rem' }}>
                 <div className="payment-header">
                   <h3>Available Plans</h3>
@@ -1073,6 +1107,7 @@ const DashboardView = ({
                   </div>
                 </div>
               </div>
+              )}
             </div>
           )}
 
@@ -1177,6 +1212,56 @@ const DashboardView = ({
                      Reset Tour
                   </button>
                 </div>
+
+                {/* DATA EXPORT: GDPR/CCPA Requirement */}
+                {isLoggedIn && (
+                  <div className="setting-row" style={{
+                    marginTop: '32px',
+                    paddingTop: '24px',
+                    borderTop: '1px solid rgba(59, 130, 246, 0.2)',
+                    background: 'rgba(59, 130, 246, 0.03)',
+                    padding: '24px',
+                    borderRadius: '16px'
+                  }}>
+                    <div className="setting-info">
+                      <h4 style={{ color: 'var(--color-primary)' }}>Export My Data</h4>
+                      <p>Download a copy of all your personal data (profile, projects, generations).</p>
+                    </div>
+                    <button
+                      className="secondary-button"
+                      onClick={async () => {
+                        try {
+                          const token = await auth.currentUser?.getIdToken();
+                          if (!token) return;
+                          const res = await fetch(`${BACKEND_URL}/api/user/export-data`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                          });
+                          if (!res.ok) throw new Error('Export failed');
+                          const blob = await res.blob();
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `studio-agents-data-${new Date().toISOString().split('T')[0]}.json`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        } catch (err) {
+                          console.error('Data export failed:', err);
+                          alert('Failed to export data. Please try again.');
+                        }
+                      }}
+                      style={{
+                        background: 'rgba(59, 130, 246, 0.1)',
+                        border: '1px solid var(--color-primary)',
+                        color: 'var(--color-primary)',
+                        fontWeight: '700',
+                        padding: '10px 20px'
+                      }}
+                    >
+                      <Download size={16} />
+                       Export Data
+                    </button>
+                  </div>
+                )}
 
                 {/* DANGER ZONE: Account Deletion (App Store Requirement) */}
                 {isLoggedIn && (

@@ -7242,6 +7242,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     ref={textareaRef}
                     placeholder={`Describe what you want ${selectedAgent.name} to create...`}
                     className="studio-textarea"
+                    aria-label={`Prompt for ${selectedAgent.name}`}
                     style={{
                       minHeight: isMobile ? '100px' : '120px',
                       padding: isMobile ? '12px' : '20px'
@@ -13955,7 +13956,7 @@ const fetchUserCredits = useCallback(async (uid) => {
         {/* Login Modal */}
         {showLoginModal && (
           <div className="modal-overlay" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); setAuthMode('login'); setAuthEmail(''); setAuthPassword(''); }}>
-            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="modal-content animate-fadeInUp" onClick={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }} role="dialog" aria-modal="true" aria-label="Sign in">
               <button className="modal-close" onClick={() => { setShowLoginModal(false); setSelectedPlan(null); setAuthMode('login'); }}><X size={20} /></button>
               <div className="modal-header">
                 <div className="logo-box" style={{ width: '48px', height: '48px', margin: '0 auto 1rem' }}>
@@ -14490,13 +14491,15 @@ const fetchUserCredits = useCallback(async (uid) => {
         )}
 
         {/* Mobile Bottom Navigation */}
-        <nav className="bottom-nav">
+        <nav className="bottom-nav" aria-label="Main navigation">
           <div 
             data-tour="nav-team"
             className={`bottom-nav-item ${activeTab === 'agents' ? 'active' : ''}`} 
             onClick={() => { setActiveTab('agents'); setSelectedAgent(null); }}
             role="button"
             tabIndex={0}
+            aria-label="Team agents"
+            aria-current={activeTab === 'agents' ? 'page' : undefined}
           >
             <LayoutGrid size={22} />
             <span>Team</span>
@@ -14508,6 +14511,8 @@ const fetchUserCredits = useCallback(async (uid) => {
             onClick={() => { setActiveTab('hub'); setSelectedAgent(null); }}
             role="button"
             tabIndex={0}
+            aria-label="Projects"
+            aria-current={activeTab === 'hub' ? 'page' : undefined}
           >
             <Folder size={22} />
             <span>Projects</span>
@@ -14520,6 +14525,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             onClick={() => setShowProjectTypeChoice(true)}
             role="button"
             tabIndex={0}
+            aria-label="Create new project"
           >
             <div style={{
               background: 'var(--color-purple)',
@@ -14543,6 +14549,8 @@ const fetchUserCredits = useCallback(async (uid) => {
             onClick={() => { setActiveTab('mystudio'); setSelectedAgent(null); }}
             role="button"
             tabIndex={0}
+            aria-label="My studio"
+            aria-current={activeTab === 'mystudio' ? 'page' : undefined}
           >
             <Layers size={22} />
             <span>Studio</span>
@@ -14554,6 +14562,8 @@ const fetchUserCredits = useCallback(async (uid) => {
             onClick={() => { setActiveTab('more'); setSelectedAgent(null); }}
             role="button"
             tabIndex={0}
+            aria-label="More options"
+            aria-current={activeTab === 'more' ? 'page' : undefined}
           >
             <Menu size={22} />
             <span>More</span>

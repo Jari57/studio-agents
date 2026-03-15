@@ -3,7 +3,7 @@ const cors = require('cors');
 const compression = require('compression');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const helmet = require('helmet');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require('@google/generative-ai');
 const path = require('path');
 const morgan = require('morgan');
 const winston = require('winston');
@@ -726,6 +726,31 @@ const validatePromptSafety = (prompt) => {
   return { safe: true };
 };
 
+// ====================================================================
+// OUTPUT CONTENT MODERATION — App Store compliance (Apple 1.2, Google Families)
+// Scans AI outputs for policy-violating content before returning to client
+// ====================================================================
+const BLOCKED_CONTENT_PATTERNS = [
+  /\b(how\s+to\s+(make|build|create)\s+(a\s+)?(bomb|weapon|explosive|drug))/i,
+  /\b(kill\s+(yourself|himself|herself|myself))\b/i,
+  /\bsuicid(e|al)\s+(method|instruction|guide|how)/i,
+  /\b(child|minor|underage)\s*(porn|sex|nude|naked)/i,
+];
+
+const moderateOutput = (text) => {
+  if (!text || typeof text !== 'string') return { safe: true, text };
+  for (const pattern of BLOCKED_CONTENT_PATTERNS) {
+    if (pattern.test(text)) {
+      logger.warn('Content moderation blocked output', { pattern: pattern.source });
+      return { 
+        safe: false, 
+        text: 'This content was flagged by our safety filters. Please try a different prompt.' 
+      };
+    }
+  }
+  return { safe: true, text };
+};
+
 // 🛡️ Safe error detail — hide internal messages in production
 const safeErrorDetail = (err) => {
   if (isDevelopment) return err && err.message ? err.message : String(err);
@@ -1060,6 +1085,18 @@ if (!apiKey) {
 
 // Initialize Gemini
 const genAI = new GoogleGenerativeAI(apiKey);
+
+// ====================================================================
+// CONTENT SAFETY — Gemini safety settings for App Store compliance
+// Apple & Google require content moderation for AI-generated output.
+// ====================================================================
+const GEMINI_SAFETY_SETTINGS = [
+  { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  { category: HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE }
+];
 
 // Attempt to list available models at startup to help with debugging model selection.
 (async () => {
@@ -2832,6 +2869,86 @@ app.post('/api/user/delete-account', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// ====================================================================
+// GET /api/user/export-data — GDPR/CCPA data export (App Store requirement)
+// Returns all user data as JSON download
+// ====================================================================
+app.get('/api/user/export-data', verifyFirebaseToken, async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const db = getFirestoreDb();
+  if (!db) return res.status(503).json({ error: 'Database unavailable' });
+
+  const userId = req.user.uid;
+  logger.info(`📦 Data export requested: ${userId}`);
+
+  try {
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      userId: userId,
+      account: {},
+      projects: [],
+      generations: [],
+      creditHistory: [],
+      voices: [],
+      preferences: {}
+    };
+
+    // 1. User profile
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (userDoc.exists) {
+      const data = userDoc.data();
+      exportData.account = {
+        email: data.email || req.user.email,
+        displayName: data.displayName,
+        plan: data.plan,
+        credits: data.credits,
+        createdAt: data.createdAt,
+        lastLogin: data.lastLogin
+      };
+    }
+
+    // 2. Projects
+    const projectsSnapshot = await db.collection('users').doc(userId).collection('projects').get();
+    projectsSnapshot.forEach(doc => {
+      exportData.projects.push({ id: doc.id, ...doc.data() });
+    });
+
+    // 3. Credit history
+    const historySnapshot = await db.collection('users').doc(userId).collection('credit_history').get();
+    historySnapshot.forEach(doc => {
+      exportData.creditHistory.push({ id: doc.id, ...doc.data() });
+    });
+
+    // 4. Voices
+    const voicesSnapshot = await db.collection('users').doc(userId).collection('voices').get();
+    voicesSnapshot.forEach(doc => {
+      exportData.voices.push({ id: doc.id, ...doc.data() });
+    });
+
+    // 5. Preferences
+    try {
+      const prefsDoc = await db.collection('users').doc(userId).collection('preferences').doc('settings').get();
+      if (prefsDoc.exists) exportData.preferences = prefsDoc.data();
+    } catch (_) { /* may not exist */ }
+
+    // 6. Generations
+    const gensSnapshot = await db.collection('users').doc(userId).collection('generations').get();
+    gensSnapshot.forEach(doc => {
+      exportData.generations.push({ id: doc.id, ...doc.data() });
+    });
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="studio-agents-data-export-${Date.now()}.json"`);
+    res.json(exportData);
+  } catch (err) {
+    logger.error('Data export error:', err);
+    res.status(500).json({ error: 'Failed to export data' });
+  }
+});
+
 // GET /api/user/projects - Get all projects
 app.get('/api/user/projects', verifyFirebaseToken, async (req, res) => {
   if (!req.user) {
@@ -3036,7 +3153,8 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
     try {
       const model = genAI.getGenerativeModel({ 
         model: desiredModel,
-        systemInstruction: sanitizedSystemInstruction || undefined
+        systemInstruction: sanitizedSystemInstruction || undefined,
+        safetySettings: GEMINI_SAFETY_SETTINGS
       });
 
       const startTime = Date.now();
@@ -3077,7 +3195,8 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
         try {
           const fallbackModel = genAI.getGenerativeModel({ 
             model: tryModel,
-            systemInstruction: sanitizedSystemInstruction || undefined
+            systemInstruction: sanitizedSystemInstruction || undefined,
+            safetySettings: GEMINI_SAFETY_SETTINGS
           });
 
           const startTime = Date.now();
@@ -3103,7 +3222,8 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
             try {
               const thirdModel = genAI.getGenerativeModel({ 
                 model: 'gemini-1.5-flash-8b',
-                systemInstruction: sanitizedSystemInstruction || undefined
+                systemInstruction: sanitizedSystemInstruction || undefined,
+                safetySettings: GEMINI_SAFETY_SETTINGS
               });
               
               const result = await thirdModel.generateContent(sanitizedPrompt);
@@ -3126,6 +3246,12 @@ app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCred
       } else {
         throw primaryError; 
       }
+    }
+
+    // Content moderation gate — App Store compliance
+    const modResult = moderateOutput(text);
+    if (!modResult.safe) {
+      return res.json({ output: modResult.text, model: usedModel, moderated: true });
     }
 
     res.json({ output: text, model: usedModel });
@@ -3243,7 +3369,8 @@ Generate a comprehensive MASTER OUTPUT that combines all elements into a profess
     
     const model = genAI.getGenerativeModel({ 
       model: desiredModel,
-      systemInstruction
+      systemInstruction,
+      safetySettings: GEMINI_SAFETY_SETTINGS
     });
     
     const startTime = Date.now();
@@ -3442,7 +3569,7 @@ Your lyrics MUST:
 
 Keep output to ONLY the lyrics with section labels. No commentary, no explanations. Length must fill exactly ${duration} seconds when performed.`;
 
-    const lyricsResponse = await genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' }).generateContent({
+    const lyricsResponse = await genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp', safetySettings: GEMINI_SAFETY_SETTINGS }).generateContent({
       contents: [{ role: 'user', parts: [{ text: lyricsPrompt }] }],
       systemInstruction: lyricsSystemInstruction
     });
@@ -3968,7 +4095,8 @@ app.post('/api/generate-image', verifyFirebaseToken, requireAuthOrFreeLimit, che
         logger.info('Generating image with Nano Banana', { prompt: prompt.substring(0, 50) });
         
         const nanoBananaModel = genAI.getGenerativeModel({ 
-          model: 'gemini-2.5-flash-image'
+          model: 'gemini-2.5-flash-image',
+          safetySettings: GEMINI_SAFETY_SETTINGS
         });
         
         const result = await nanoBananaModel.generateContent({
@@ -6999,7 +7127,8 @@ app.post('/api/amo/orchestrate', verifyFirebaseToken, requireAuth, generationLim
           const systemInstruction = getAgentSystemPrompt(agent, session);
           const model = genAI.getGenerativeModel({ 
             model: process.env.GENERATIVE_MODEL || "gemini-2.0-flash",
-            systemInstruction 
+            systemInstruction,
+            safetySettings: GEMINI_SAFETY_SETTINGS
           });
           
           const result = await model.generateContent(prompt);
@@ -7278,7 +7407,8 @@ app.post('/api/translate', verifyFirebaseToken, requireAuth, checkCreditsFor('tr
     const modelName = process.env.GENERATIVE_MODEL || "gemini-2.0-flash";
     const model = genAI.getGenerativeModel({ 
       model: modelName,
-      systemInstruction: `Return ONLY the translated text, no explanations.`
+      systemInstruction: `Return ONLY the translated text, no explanations.`,
+      safetySettings: GEMINI_SAFETY_SETTINGS
     });
 
     const prompt = `Translate this text from ${sourceLanguage} to ${targetLanguage}: "${text}"`;
