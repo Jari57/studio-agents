@@ -3044,6 +3044,105 @@ app.delete('/api/user/projects/:id', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+// A&R GRADING SYSTEM — Billboard-Quality Scoring
+// Grade each generation like a professional A&R executive
+// ═══════════════════════════════════════════════════════════════════
+app.post('/api/grade-generation', verifyFirebaseToken, requireAuth, generationLimiter, async (req, res) => {
+  try {
+    const { content, contentType, genre, prompt } = req.body;
+
+    if (!content) {
+      return res.status(400).json({ error: 'No content to grade' });
+    }
+
+    const truncatedContent = typeof content === 'string' ? content.substring(0, 3000) : JSON.stringify(content).substring(0, 3000);
+
+    const gradingPrompt = `You are a senior A&R executive at a major record label (Def Jam, Atlantic, Interscope level). You've signed multi-platinum artists and know exactly what separates a demo from a Billboard hit.
+
+Grade this ${contentType || 'music'} generation on a scale of 1-5 stars. Genre: ${genre || 'hip-hop'}.
+
+THE CONTENT TO GRADE:
+"""
+${truncatedContent}
+"""
+
+ORIGINAL PROMPT: "${(prompt || '').substring(0, 500)}"
+
+Score each dimension (1-5 stars):
+1. **Hook Factor** — Is it catchy? Would it stick in someone's head after one listen?
+2. **Originality** — Does it bring something fresh, or is it generic filler?
+3. **Technical Craft** — Rhyme schemes, wordplay, flow, structure, production quality
+4. **Emotional Impact** — Does it make you FEEL something? Would a listener connect?
+5. **Commercial Viability** — Could this chart? Would a label sign this?
+
+RESPOND IN EXACTLY THIS JSON FORMAT (no markdown, no code fences):
+{
+  "overallScore": <number 1-5, can use 0.5 increments>,
+  "verdict": "<one of: 'Demo Tape', 'Studio Ready', 'Single Potential', 'Album Cut', 'Billboard Hit'>",
+  "hookFactor": <1-5>,
+  "originality": <1-5>,
+  "technicalCraft": <1-5>,
+  "emotionalImpact": <1-5>,
+  "commercialViability": <1-5>,
+  "feedback": "<2-3 sentences of specific, actionable A&R feedback — what works, what doesn't, what to fix>",
+  "highlights": "<1 sentence: the strongest element>",
+  "weaknesses": "<1 sentence: the biggest area for improvement>",
+  "suggestion": "<1 sentence: specific revision suggestion to level up>"
+}`;
+
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.0-flash',
+      safetySettings: GEMINI_SAFETY_SETTINGS
+    });
+
+    const result = await model.generateContent(gradingPrompt);
+    const responseText = result.response.text().trim();
+
+    // Parse JSON response (handle potential markdown fences)
+    let grading;
+    try {
+      const jsonStr = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      grading = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      logger.warn('A&R grading parse error, using fallback:', parseErr.message);
+      grading = {
+        overallScore: 3,
+        verdict: 'Studio Ready',
+        hookFactor: 3,
+        originality: 3,
+        technicalCraft: 3,
+        emotionalImpact: 3,
+        commercialViability: 3,
+        feedback: 'Content has solid foundations. Consider strengthening the hook and adding more unique elements to stand out.',
+        highlights: 'Shows creative potential.',
+        weaknesses: 'Could use more distinctive character.',
+        suggestion: 'Try adding a more memorable hook or unexpected twist.'
+      };
+    }
+
+    // Clamp scores to valid range
+    const clamp = (n) => Math.min(5, Math.max(1, Number(n) || 3));
+    grading.overallScore = clamp(grading.overallScore);
+    grading.hookFactor = clamp(grading.hookFactor);
+    grading.originality = clamp(grading.originality);
+    grading.technicalCraft = clamp(grading.technicalCraft);
+    grading.emotionalImpact = clamp(grading.emotionalImpact);
+    grading.commercialViability = clamp(grading.commercialViability);
+
+    const validVerdicts = ['Demo Tape', 'Studio Ready', 'Single Potential', 'Album Cut', 'Billboard Hit'];
+    if (!validVerdicts.includes(grading.verdict)) {
+      grading.verdict = validVerdicts[Math.min(4, Math.floor(grading.overallScore) - 1)];
+    }
+
+    logger.info(`A&R Grade: ${grading.overallScore}/5 - ${grading.verdict}`);
+    res.json(grading);
+  } catch (err) {
+    logger.error('A&R grading error:', err);
+    res.status(500).json({ error: 'Grading failed', details: safeErrorDetail(err) });
+  }
+});
+
 // GENERATION ROUTE (with optional Firebase auth) - 1 credit for text/lyrics
 app.post('/api/generate', verifyFirebaseToken, requireAuthOrFreeLimit, checkCreditsFor('text'), generationLimiter, async (req, res) => {
   try {

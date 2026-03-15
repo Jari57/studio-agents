@@ -668,6 +668,8 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
   const [agentPreviews, setAgentPreviews] = useState({});
   const [saveStatus, setSaveStatus] = useState('idle');
   const [showExternalSaveModal, setShowExternalSaveModal] = useState(false);
+  const [arGrade, setArGrade] = useState(null);
+  const [isGrading, setIsGrading] = useState(false);
   const [showSessionGuide, setShowSessionGuide] = useState(false);
   const [sessionGuideStep, setSessionGuideStep] = useState(0);
   const [sessionHelpEnabled, setSessionHelpEnabled] = useState(() => {
@@ -5051,6 +5053,11 @@ const fetchUserCredits = useCallback(async (uid) => {
       setPreviewView('lyrics'); // Reset to lyrics view for new generations
       setAgentPreviews(prev => ({ ...prev, [targetAgentSnapshot.id]: newItem }));
       
+      // A&R Auto-Grade — score the generation in background
+      if (!newItem.isError && (newItem.snippet || newItem.content)) {
+        gradeGeneration(newItem, prompt);
+      }
+      
       // Success toast (error cases already returned early above)
       toast.success(`Generation complete! Review your result.`, { id: toastId });
       
@@ -5072,6 +5079,43 @@ const fetchUserCredits = useCallback(async (uid) => {
   
   // Set ref for TDZ-safe access from voice recognition callback
   handleGenerateRef.current = handleGenerate;
+
+  // A&R GRADING — Score generations like a Billboard A&R executive
+  const gradeGeneration = async (item, promptText) => {
+    if (isGrading || !item) return;
+    setIsGrading(true);
+    setArGrade(null);
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (isLoggedIn && auth?.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const content = item.snippet || item.content || item.title || '';
+      if (!content || content.length < 10) {
+        setIsGrading(false);
+        return;
+      }
+      const res = await fetch(`${BACKEND_URL}/api/grade-generation`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          content,
+          contentType: item.type || 'text',
+          genre: heroGenre || voiceSettings.genre || 'hip-hop',
+          prompt: promptText || ''
+        })
+      });
+      if (res.ok) {
+        const grade = await res.json();
+        setArGrade(grade);
+      }
+    } catch (err) {
+      console.warn('A&R grading failed:', err);
+    } finally {
+      setIsGrading(false);
+    }
+  };
 
   // Save the previewed item to projects with timeout and loading feedback
   // targetProject can be: 'hub' (just save to hub), project object (save to specific project), or 'new:ProjectName' (create new project)
@@ -12872,6 +12916,7 @@ const fetchUserCredits = useCallback(async (uid) => {
             isModalTransitioning.current = false;
             setPreviewSaveMode(false);
             setNewProjectNameInPreview('');
+            setArGrade(null);
             setPreviewItem(null);
           }}>
             <div className="modal-content animate-fadeInUp" onClick={(e) => {
@@ -12886,6 +12931,7 @@ const fetchUserCredits = useCallback(async (uid) => {
                     isModalTransitioning.current = false;
                     setPreviewSaveMode(false);
                     setNewProjectNameInPreview('');
+                    setArGrade(null);
                     setPreviewItem(null);
                   }}
                   style={{ 
@@ -13594,6 +13640,159 @@ const fetchUserCredits = useCallback(async (uid) => {
                 </>
                 )}
               </div>
+
+              {/* A&R GRADE CARD — Billboard Quality Score */}
+              {(arGrade || isGrading) && !previewItem.isExistingAsset && (
+                <div style={{
+                  margin: '0 1.5rem 0.75rem',
+                  padding: '1rem 1.25rem',
+                  borderRadius: '14px',
+                  background: isGrading ? 'rgba(255,255,255,0.03)' : 
+                    arGrade?.overallScore >= 4.5 ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(255, 165, 0, 0.05))' :
+                    arGrade?.overallScore >= 3.5 ? 'rgba(16, 185, 129, 0.06)' :
+                    arGrade?.overallScore >= 2.5 ? 'rgba(59, 130, 246, 0.06)' :
+                    'rgba(239, 68, 68, 0.06)',
+                  border: isGrading ? '1px solid rgba(255,255,255,0.08)' :
+                    arGrade?.overallScore >= 4.5 ? '1px solid rgba(255, 215, 0, 0.3)' :
+                    arGrade?.overallScore >= 3.5 ? '1px solid rgba(16, 185, 129, 0.2)' :
+                    arGrade?.overallScore >= 2.5 ? '1px solid rgba(59, 130, 246, 0.2)' :
+                    '1px solid rgba(239, 68, 68, 0.2)',
+                  flexShrink: 0
+                }}>
+                  {isGrading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', padding: '8px 0' }}>
+                      <div className="animate-pulse" style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }} />
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: '600' }}>A&R is reviewing your track...</span>
+                    </div>
+                  ) : arGrade && (
+                    <>
+                      {/* Header: Verdict + Overall Score */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '1.3rem' }}>{
+                            arGrade.overallScore >= 4.5 ? '👑' :
+                            arGrade.overallScore >= 3.5 ? '🔥' :
+                            arGrade.overallScore >= 2.5 ? '📝' : '🔄'
+                          }</span>
+                          <div>
+                            <div style={{ 
+                              fontSize: '0.95rem', 
+                              fontWeight: '800',
+                              color: arGrade.overallScore >= 4.5 ? '#fbbf24' :
+                                arGrade.overallScore >= 3.5 ? '#10b981' :
+                                arGrade.overallScore >= 2.5 ? '#3b82f6' : '#ef4444',
+                              letterSpacing: '-0.3px'
+                            }}>
+                              {arGrade.verdict || 'Reviewed'}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>A&R Score</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
+                          <span style={{ 
+                            fontSize: '2rem', 
+                            fontWeight: '900',
+                            background: arGrade.overallScore >= 4.5 
+                              ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' 
+                              : arGrade.overallScore >= 3.5 
+                              ? 'linear-gradient(135deg, #10b981, #059669)'
+                              : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent'
+                          }}>{arGrade.overallScore}</span>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>/5</span>
+                        </div>
+                      </div>
+
+                      {/* Star Bars */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', marginBottom: '10px' }}>
+                        {[
+                          { label: 'Hook', score: arGrade.hookFactor, icon: '🎣' },
+                          { label: 'Originality', score: arGrade.originality, icon: '💡' },
+                          { label: 'Craft', score: arGrade.technicalCraft, icon: '🔧' },
+                          { label: 'Emotion', score: arGrade.emotionalImpact, icon: '💜' },
+                          { label: 'Commercial', score: arGrade.commercialViability, icon: '📈' }
+                        ].map(({ label, score, icon }) => (
+                          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.7rem', width: '14px', textAlign: 'center' }}>{icon}</span>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', width: '68px', fontWeight: '600' }}>{label}</span>
+                            <div style={{ flex: 1, height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                              <div style={{
+                                width: `${(score / 5) * 100}%`,
+                                height: '100%',
+                                borderRadius: '3px',
+                                background: score >= 4.5 ? 'linear-gradient(90deg, #fbbf24, #f59e0b)' :
+                                  score >= 3.5 ? 'linear-gradient(90deg, #10b981, #059669)' :
+                                  score >= 2.5 ? 'linear-gradient(90deg, #3b82f6, #2563eb)' :
+                                  'linear-gradient(90deg, #ef4444, #dc2626)',
+                                transition: 'width 0.8s ease'
+                              }} />
+                            </div>
+                            <span style={{ fontSize: '0.72rem', fontWeight: '700', width: '18px', textAlign: 'right', 
+                              color: score >= 4 ? '#10b981' : score >= 3 ? '#3b82f6' : '#ef4444' 
+                            }}>{score}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Feedback */}
+                      <div style={{ 
+                        fontSize: '0.8rem', 
+                        color: 'var(--text-secondary)', 
+                        lineHeight: '1.5',
+                        background: 'rgba(0,0,0,0.15)',
+                        padding: '10px 12px',
+                        borderRadius: '10px'
+                      }}>
+                        <div style={{ marginBottom: '6px' }}>
+                          {arGrade.feedback}
+                        </div>
+                        {arGrade.highlights && (
+                          <div style={{ color: '#10b981', fontSize: '0.75rem' }}>
+                            <strong>Strength:</strong> {arGrade.highlights}
+                          </div>
+                        )}
+                        {arGrade.suggestion && (
+                          <div style={{ color: '#f59e0b', fontSize: '0.75rem', marginTop: '3px' }}>
+                            <strong>Level Up:</strong> {arGrade.suggestion}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Billboard Goal Tracker */}
+                      <div style={{
+                        marginTop: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        background: arGrade.overallScore >= 5 ? 'rgba(255, 215, 0, 0.1)' : 'rgba(255,255,255,0.03)'
+                      }}>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: '600' }}>BILLBOARD GOAL</span>
+                        <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                          <div style={{
+                            width: `${(arGrade.overallScore / 5) * 100}%`,
+                            height: '100%',
+                            borderRadius: '2px',
+                            background: arGrade.overallScore >= 4.5 
+                              ? 'linear-gradient(90deg, #fbbf24, #f59e0b)' 
+                              : 'linear-gradient(90deg, #8b5cf6, #6d28d9)',
+                            transition: 'width 1s ease'
+                          }} />
+                        </div>
+                        <span style={{ 
+                          fontSize: '0.7rem', 
+                          fontWeight: '800',
+                          color: arGrade.overallScore >= 4.5 ? '#fbbf24' : 'var(--text-secondary)'
+                        }}>
+                          {arGrade.overallScore >= 5 ? '★ BILLBOARD HIT ★' : `${Math.round((arGrade.overallScore / 5) * 100)}%`}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div style={{ 
