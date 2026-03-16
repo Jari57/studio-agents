@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
-  Play, Pause, Square, Volume2, SkipBack, Headphones
+  Play, Pause, Square, Volume2, VolumeX, SkipBack, Headphones, Mic, Music
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// REALTIME PREVIEW MIXER — Web Audio API Live Mix Preview
-// Plays beat + vocal tracks simultaneously with real-time volume control
-// No server round-trip needed — browser-native Web Audio API
+// REALTIME PREVIEW MIXER — DAW-Style Dual-Channel Mixer
+// Beat + Vocal channels with solo/mute, real-time faders, transport bar
+// Web Audio API — no server round-trip needed
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function RealtimePreviewMixer({
@@ -24,8 +24,11 @@ export default function RealtimePreviewMixer({
   const [beatLoaded, setBeatLoaded] = useState(false);
   const [vocalLoaded, setVocalLoaded] = useState(false);
   const [initError, setInitError] = useState(null);
+  const [beatMuted, setBeatMuted] = useState(false);
+  const [vocalMuted, setVocalMuted] = useState(false);
+  const [beatSolo, setBeatSolo] = useState(false);
+  const [vocalSolo, setVocalSolo] = useState(false);
 
-  // Audio refs
   const audioContextRef = useRef(null);
   const beatAudioRef = useRef(null);
   const vocalAudioRef = useRef(null);
@@ -36,7 +39,6 @@ export default function RealtimePreviewMixer({
   const animFrameRef = useRef(null);
   const isInitializedRef = useRef(false);
 
-  // Format media URL (handle base64, objects, arrays)
   const formatSrc = useCallback((url) => {
     if (!url) return null;
     if (typeof url === 'object' && url.url) return url.url;
@@ -50,61 +52,38 @@ export default function RealtimePreviewMixer({
   const beatSrc = formatSrc(beatUrl);
   const vocalSrc = formatSrc(vocalUrl);
 
-  // Initialize Web Audio API
   const initAudio = useCallback(() => {
     if (isInitializedRef.current) return;
-    
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) {
-        setInitError('Web Audio API not supported in this browser');
-        return;
-      }
-
+      if (!AudioCtx) { setInitError('Web Audio API not supported'); return; }
       const ctx = new AudioCtx();
       audioContextRef.current = ctx;
-
-      // Create gain nodes
       beatGainRef.current = ctx.createGain();
       vocalGainRef.current = ctx.createGain();
-      
       beatGainRef.current.gain.value = beatVolume;
       vocalGainRef.current.gain.value = vocalVolume;
-      
       beatGainRef.current.connect(ctx.destination);
       vocalGainRef.current.connect(ctx.destination);
 
-      // Create audio elements and connect
       if (beatSrc) {
         const beatAudio = new Audio();
         beatAudio.crossOrigin = 'anonymous';
         beatAudio.preload = 'auto';
         beatAudio.src = beatSrc;
         beatAudioRef.current = beatAudio;
-
         beatAudio.addEventListener('canplaythrough', () => {
           if (!beatSourceRef.current && audioContextRef.current) {
             try {
               const source = audioContextRef.current.createMediaElementSource(beatAudio);
               source.connect(beatGainRef.current);
               beatSourceRef.current = source;
-            } catch (e) {
-              // Source may already be connected
-              console.warn('[PreviewMixer] Beat source already connected:', e.message);
-            }
+            } catch (e) { console.warn('[Mixer] Beat source connected:', e.message); }
           }
           setBeatLoaded(true);
         }, { once: true });
-
-        beatAudio.addEventListener('loadedmetadata', () => {
-          setDuration(prev => Math.max(prev, beatAudio.duration));
-        });
-
-        beatAudio.addEventListener('error', (e) => {
-          console.warn('[PreviewMixer] Beat audio load error:', e);
-          setBeatLoaded(false);
-        });
-
+        beatAudio.addEventListener('loadedmetadata', () => setDuration(prev => Math.max(prev, beatAudio.duration)));
+        beatAudio.addEventListener('error', () => setBeatLoaded(false));
         beatAudio.load();
       }
 
@@ -114,120 +93,68 @@ export default function RealtimePreviewMixer({
         vocalAudio.preload = 'auto';
         vocalAudio.src = vocalSrc;
         vocalAudioRef.current = vocalAudio;
-
         vocalAudio.addEventListener('canplaythrough', () => {
           if (!vocalSourceRef.current && audioContextRef.current) {
             try {
               const source = audioContextRef.current.createMediaElementSource(vocalAudio);
               source.connect(vocalGainRef.current);
               vocalSourceRef.current = source;
-            } catch (e) {
-              console.warn('[PreviewMixer] Vocal source already connected:', e.message);
-            }
+            } catch (e) { console.warn('[Mixer] Vocal source connected:', e.message); }
           }
           setVocalLoaded(true);
         }, { once: true });
-
-        vocalAudio.addEventListener('loadedmetadata', () => {
-          setDuration(prev => Math.max(prev, vocalAudio.duration));
-        });
-
-        vocalAudio.addEventListener('error', (e) => {
-          console.warn('[PreviewMixer] Vocal audio load error:', e);
-          setVocalLoaded(false);
-        });
-
+        vocalAudio.addEventListener('loadedmetadata', () => setDuration(prev => Math.max(prev, vocalAudio.duration)));
+        vocalAudio.addEventListener('error', () => setVocalLoaded(false));
         vocalAudio.load();
       }
-
       isInitializedRef.current = true;
-    } catch (err) {
-      console.error('[PreviewMixer] Init error:', err);
-      setInitError(err.message);
-    }
+    } catch (err) { console.error('[Mixer] Init error:', err); setInitError(err.message); }
   }, [beatSrc, vocalSrc, beatVolume, vocalVolume]);
 
-  // Initialize on mount or when URLs change
   useEffect(() => {
-    if (beatSrc || vocalSrc) {
-      // Reset if sources change
-      cleanup();
-      isInitializedRef.current = false;
-      initAudio();
-    }
-
+    if (beatSrc || vocalSrc) { cleanup(); isInitializedRef.current = false; initAudio(); }
     return () => cleanup();
   }, [beatSrc, vocalSrc]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update gain nodes when volume changes (real-time)
+  // Solo/mute logic: solo overrides mute
   useEffect(() => {
-    if (beatGainRef.current) {
-      beatGainRef.current.gain.setValueAtTime(
-        beatVolume,
-        audioContextRef.current?.currentTime || 0
-      );
-    }
-  }, [beatVolume]);
+    if (!beatGainRef.current) return;
+    const anySolo = beatSolo || vocalSolo;
+    const shouldPlay = anySolo ? beatSolo : !beatMuted;
+    beatGainRef.current.gain.setValueAtTime(shouldPlay ? beatVolume : 0, audioContextRef.current?.currentTime || 0);
+  }, [beatVolume, beatMuted, beatSolo, vocalSolo]);
 
   useEffect(() => {
-    if (vocalGainRef.current) {
-      vocalGainRef.current.gain.setValueAtTime(
-        vocalVolume,
-        audioContextRef.current?.currentTime || 0
-      );
-    }
-  }, [vocalVolume]);
+    if (!vocalGainRef.current) return;
+    const anySolo = beatSolo || vocalSolo;
+    const shouldPlay = anySolo ? vocalSolo : !vocalMuted;
+    vocalGainRef.current.gain.setValueAtTime(shouldPlay ? vocalVolume : 0, audioContextRef.current?.currentTime || 0);
+  }, [vocalVolume, vocalMuted, beatSolo, vocalSolo]);
 
-  // Playback time tracking
   const updateTime = useCallback(() => {
     const beatTime = beatAudioRef.current?.currentTime || 0;
     const vocalTime = vocalAudioRef.current?.currentTime || 0;
     setCurrentTime(Math.max(beatTime, vocalTime));
-
-    // Check if playback ended
     const beatEnded = beatAudioRef.current ? beatAudioRef.current.ended : true;
     const vocalEnded = vocalAudioRef.current ? vocalAudioRef.current.ended : true;
-    
-    if (beatEnded && vocalEnded && isPlaying) {
-      setIsPlaying(false);
-      setCurrentTime(0);
-      return;
-    }
-
-    if (isPlaying) {
-      animFrameRef.current = requestAnimationFrame(updateTime);
-    }
+    if (beatEnded && vocalEnded && isPlaying) { setIsPlaying(false); setCurrentTime(0); return; }
+    if (isPlaying) animFrameRef.current = requestAnimationFrame(updateTime);
   }, [isPlaying]);
 
   useEffect(() => {
-    if (isPlaying) {
-      animFrameRef.current = requestAnimationFrame(updateTime);
-    }
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    };
+    if (isPlaying) animFrameRef.current = requestAnimationFrame(updateTime);
+    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
   }, [isPlaying, updateTime]);
 
   const play = async () => {
     try {
-      // Resume AudioContext if suspended (browsers require user interaction)
-      if (audioContextRef.current?.state === 'suspended') {
-        await audioContextRef.current.resume();
-      }
-
+      if (audioContextRef.current?.state === 'suspended') await audioContextRef.current.resume();
       const promises = [];
-      if (beatAudioRef.current && beatLoaded) {
-        promises.push(beatAudioRef.current.play().catch(e => console.warn('[PreviewMixer] Beat play error:', e)));
-      }
-      if (vocalAudioRef.current && vocalLoaded) {
-        promises.push(vocalAudioRef.current.play().catch(e => console.warn('[PreviewMixer] Vocal play error:', e)));
-      }
-      
+      if (beatAudioRef.current && beatLoaded) promises.push(beatAudioRef.current.play().catch(() => {}));
+      if (vocalAudioRef.current && vocalLoaded) promises.push(vocalAudioRef.current.play().catch(() => {}));
       await Promise.all(promises);
       setIsPlaying(true);
-    } catch (err) {
-      console.error('[PreviewMixer] Play error:', err);
-    }
+    } catch (err) { console.error('[Mixer] Play error:', err); }
   };
 
   const pause = () => {
@@ -237,22 +164,12 @@ export default function RealtimePreviewMixer({
   };
 
   const stop = () => {
-    if (beatAudioRef.current) {
-      beatAudioRef.current.pause();
-      beatAudioRef.current.currentTime = 0;
-    }
-    if (vocalAudioRef.current) {
-      vocalAudioRef.current.pause();
-      vocalAudioRef.current.currentTime = 0;
-    }
-    setIsPlaying(false);
-    setCurrentTime(0);
+    if (beatAudioRef.current) { beatAudioRef.current.pause(); beatAudioRef.current.currentTime = 0; }
+    if (vocalAudioRef.current) { vocalAudioRef.current.pause(); vocalAudioRef.current.currentTime = 0; }
+    setIsPlaying(false); setCurrentTime(0);
   };
 
-  const restart = () => {
-    stop();
-    setTimeout(() => play(), 50);
-  };
+  const restart = () => { stop(); setTimeout(() => play(), 50); };
 
   const seekTo = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -265,39 +182,17 @@ export default function RealtimePreviewMixer({
 
   const cleanup = () => {
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    if (beatAudioRef.current) {
-      beatAudioRef.current.pause();
-      beatAudioRef.current.src = '';
-    }
-    if (vocalAudioRef.current) {
-      vocalAudioRef.current.pause();
-      vocalAudioRef.current.src = '';
-    }
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close().catch(() => {});
-    }
-    beatSourceRef.current = null;
-    vocalSourceRef.current = null;
-    beatAudioRef.current = null;
-    vocalAudioRef.current = null;
-    audioContextRef.current = null;
-    beatGainRef.current = null;
-    vocalGainRef.current = null;
+    if (beatAudioRef.current) { beatAudioRef.current.pause(); beatAudioRef.current.src = ''; }
+    if (vocalAudioRef.current) { vocalAudioRef.current.pause(); vocalAudioRef.current.src = ''; }
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') audioContextRef.current.close().catch(() => {});
+    beatSourceRef.current = null; vocalSourceRef.current = null;
+    beatAudioRef.current = null; vocalAudioRef.current = null;
+    audioContextRef.current = null; beatGainRef.current = null; vocalGainRef.current = null;
     isInitializedRef.current = false;
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    setBeatLoaded(false);
-    setVocalLoaded(false);
-    setInitError(null);
+    setIsPlaying(false); setCurrentTime(0); setDuration(0); setBeatLoaded(false); setVocalLoaded(false); setInitError(null);
   };
 
-  const formatTime = (seconds) => {
-    if (!seconds || !isFinite(seconds)) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  const fmt = (s) => { if (!s || !isFinite(s)) return '0:00'; return `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`; };
 
   const hasAnySrc = !!(beatSrc || vocalSrc);
   const isReady = (beatSrc ? beatLoaded : true) && (vocalSrc ? vocalLoaded : true) && hasAnySrc;
@@ -305,265 +200,202 @@ export default function RealtimePreviewMixer({
 
   if (!hasAnySrc) return null;
 
+  // Channel strip sub-component
+  const ChannelStrip = ({ label, icon: Icon, color, loaded, volume, onVolumeChange, muted, onMute, solo, onSolo, hasSrc }) => {
+    if (!hasSrc) return null;
+    const anySolo = beatSolo || vocalSolo;
+    const isAudible = anySolo ? solo : !muted;
+    return (
+      <div style={{
+        flex: 1,
+        background: 'rgba(0,0,0,0.25)',
+        borderRadius: '10px',
+        padding: isMobile ? '10px' : '12px',
+        border: `1px solid ${isAudible && loaded ? color + '33' : 'rgba(255,255,255,0.06)'}`,
+        opacity: loaded ? 1 : 0.5,
+        minWidth: 0
+      }}>
+        {/* Channel Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+          <div style={{
+            width: '24px', height: '24px', borderRadius: '6px',
+            background: isAudible ? color + '22' : 'rgba(255,255,255,0.04)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: `1px solid ${isAudible ? color + '44' : 'rgba(255,255,255,0.08)'}`
+          }}>
+            <Icon size={12} color={isAudible ? color : 'rgba(255,255,255,0.2)'} />
+          </div>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: isAudible ? color : 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            {label}
+          </span>
+          {!loaded && <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)' }}>loading...</span>}
+        </div>
+
+        {/* Volume Fader */}
+        <div style={{ marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input
+              type="range" min="0" max="1" step="0.01"
+              value={volume}
+              onChange={(e) => onVolumeChange?.(parseFloat(e.target.value))}
+              style={{ flex: 1, accentColor: color, height: '6px', cursor: 'pointer' }}
+              aria-label={`${label} volume`}
+            />
+            <span style={{
+              fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace',
+              color: isAudible ? color : 'rgba(255,255,255,0.2)',
+              minWidth: '32px', textAlign: 'right'
+            }}>
+              {Math.round(volume * 100)}
+            </span>
+          </div>
+        </div>
+
+        {/* S / M Buttons */}
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button
+            onClick={onSolo}
+            style={{
+              flex: 1, height: isMobile ? '36px' : '30px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+              background: solo ? '#eab308' : 'rgba(255,255,255,0.06)',
+              color: solo ? '#000' : 'rgba(255,255,255,0.4)',
+              fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.05em',
+              transition: 'all 0.15s'
+            }}
+            title={`Solo ${label}`}
+          >S</button>
+          <button
+            onClick={onMute}
+            style={{
+              flex: 1, height: isMobile ? '36px' : '30px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+              background: muted ? '#ef4444' : 'rgba(255,255,255,0.06)',
+              color: muted ? '#fff' : 'rgba(255,255,255,0.4)',
+              fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.05em',
+              transition: 'all 0.15s'
+            }}
+            title={`Mute ${label}`}
+          >M</button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{
-      background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.08), rgba(139, 92, 246, 0.08))',
-      borderRadius: '12px',
-      padding: isMobile ? '12px' : '14px',
-      border: '1px solid rgba(6, 182, 212, 0.2)',
-      marginTop: '8px'
+      background: 'linear-gradient(180deg, rgba(15,15,20,0.95), rgba(10,10,15,0.95))',
+      borderRadius: '14px',
+      border: '1px solid rgba(255,255,255,0.08)',
+      marginTop: '8px',
+      overflow: 'hidden'
     }}>
-      {/* Header */}
+      {/* Transport Bar */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        marginBottom: '10px'
+        display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '10px',
+        padding: isMobile ? '10px 12px' : '10px 14px',
+        background: 'rgba(0,0,0,0.3)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)'
       }}>
-        <Headphones size={14} color="#22d3ee" />
-        <span style={{
-          fontSize: '0.7rem',
-          fontWeight: '700',
-          color: '#22d3ee',
-          textTransform: 'uppercase',
-          letterSpacing: '0.05em'
-        }}>
-          Live Preview — Hear Changes In Real-Time
-        </span>
-        {!isReady && hasAnySrc && (
-          <span style={{
-            fontSize: '0.65rem',
-            color: 'rgba(255,255,255,0.4)',
-            fontStyle: 'italic'
+        {/* Controls */}
+        <button onClick={restart} disabled={!isReady}
+          style={{ width: '30px', height: '30px', borderRadius: '6px', background: 'transparent', border: 'none', color: isReady ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.12)', cursor: isReady ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          title="Restart">
+          <SkipBack size={14} />
+        </button>
+
+        <button onClick={isPlaying ? pause : play} disabled={!isReady}
+          style={{
+            width: isMobile ? '40px' : '38px', height: isMobile ? '40px' : '38px',
+            borderRadius: '50%', flexShrink: 0,
+            background: isReady ? (isPlaying ? 'rgba(239,68,68,0.25)' : 'linear-gradient(135deg, #22d3ee, #8b5cf6)') : 'rgba(255,255,255,0.04)',
+            border: isReady ? (isPlaying ? '2px solid rgba(239,68,68,0.5)' : '2px solid rgba(34,211,238,0.4)') : '1px solid rgba(255,255,255,0.08)',
+            color: isReady ? '#fff' : 'rgba(255,255,255,0.15)',
+            cursor: isReady ? 'pointer' : 'default',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.2s'
+          }}
+          title={isPlaying ? 'Pause' : 'Play'}>
+          {isPlaying ? <Pause size={16} /> : <Play size={16} style={{ marginLeft: '2px' }} />}
+        </button>
+
+        <button onClick={stop} disabled={!isReady || !isPlaying}
+          style={{ width: '30px', height: '30px', borderRadius: '6px', background: 'transparent', border: 'none', color: isReady && isPlaying ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.12)', cursor: isReady && isPlaying ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          title="Stop">
+          <Square size={11} />
+        </button>
+
+        {/* Progress / Scrubber */}
+        <div style={{ flex: 1, minWidth: 0, cursor: isReady ? 'pointer' : 'default' }} onClick={isReady ? seekTo : undefined}>
+          <div style={{
+            height: '28px', background: 'rgba(0,0,0,0.4)', borderRadius: '6px',
+            position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.04)'
           }}>
-            Loading audio...
-          </span>
-        )}
-      </div>
-
-      {initError && (
-        <div style={{
-          fontSize: '0.75rem',
-          color: '#ef4444',
-          padding: '8px',
-          background: 'rgba(239,68,68,0.1)',
-          borderRadius: '8px',
-          marginBottom: '8px'
-        }}>
-          {initError}
-        </div>
-      )}
-
-      {/* Playback Controls + Waveform */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px'
-      }}>
-        {/* Control Buttons */}
-        <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-          <button
-            onClick={restart}
-            disabled={!isReady}
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: isReady ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.15)',
-              cursor: isReady ? 'pointer' : 'default',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Restart"
-          >
-            <SkipBack size={14} />
-          </button>
-
-          <button
-            onClick={isPlaying ? pause : play}
-            disabled={!isReady}
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              background: isReady
-                ? (isPlaying
-                    ? 'rgba(239, 68, 68, 0.2)'
-                    : 'linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(139, 92, 246, 0.3))')
-                : 'rgba(255,255,255,0.03)',
-              border: isReady
-                ? (isPlaying
-                    ? '1.5px solid rgba(239, 68, 68, 0.4)'
-                    : '1.5px solid rgba(6, 182, 212, 0.4)')
-                : '1px solid rgba(255,255,255,0.08)',
-              color: isReady ? (isPlaying ? '#ef4444' : '#22d3ee') : 'rgba(255,255,255,0.15)',
-              cursor: isReady ? 'pointer' : 'default',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s'
-            }}
-            title={isPlaying ? 'Pause' : 'Play preview'}
-          >
-            {isPlaying ? <Pause size={16} /> : <Play size={16} style={{ marginLeft: '2px' }} />}
-          </button>
-
-          <button
-            onClick={stop}
-            disabled={!isReady || !isPlaying}
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: isReady && isPlaying ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.15)',
-              cursor: isReady && isPlaying ? 'pointer' : 'default',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            title="Stop"
-          >
-            <Square size={12} />
-          </button>
-        </div>
-
-        {/* Progress Bar / Waveform */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            onClick={isReady ? seekTo : undefined}
-            style={{
-              height: '24px',
-              background: 'rgba(0,0,0,0.3)',
-              borderRadius: '4px',
-              position: 'relative',
-              overflow: 'hidden',
-              cursor: isReady ? 'pointer' : 'default',
-              border: '1px solid rgba(255,255,255,0.05)'
-            }}
-          >
-            {/* Progress fill */}
             <div style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: `${progress}%`,
-              background: 'linear-gradient(90deg, rgba(6, 182, 212, 0.3), rgba(139, 92, 246, 0.3))',
-              transition: isPlaying ? 'none' : 'width 0.1s ease',
-              borderRight: progress > 0 ? '2px solid #22d3ee' : 'none'
+              position: 'absolute', left: 0, top: 0, bottom: 0, width: `${progress}%`,
+              background: 'linear-gradient(90deg, rgba(34,211,238,0.25), rgba(139,92,246,0.25))',
+              transition: isPlaying ? 'none' : 'width 0.1s'
             }} />
-            
-            {/* Decorative waveform */}
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1px',
-              paddingLeft: '4px',
-              opacity: 0.3
-            }}>
-              {[...Array(40)].map((_, i) => (
-                <div
-                  key={i}
-                  style={{
-                    width: '2px',
-                    height: `${20 + Math.sin(i * 0.5) * 40 + Math.random() * 30}%`,
-                    background: i / 40 * 100 < progress ? '#22d3ee' : 'rgba(255,255,255,0.15)',
-                    borderRadius: '1px',
-                    transition: 'background 0.1s'
-                  }}
-                />
-              ))}
+            {/* Playhead */}
+            {progress > 0 && <div style={{ position: 'absolute', left: `${progress}%`, top: 0, bottom: 0, width: '2px', background: '#22d3ee', boxShadow: '0 0 6px rgba(34,211,238,0.5)' }} />}
+            {/* Mini waveform */}
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', gap: '1px', padding: '0 4px', opacity: 0.25 }}>
+              {[...Array(isMobile ? 30 : 50)].map((_, i) => {
+                const total = isMobile ? 30 : 50;
+                const h = 20 + Math.sin(i * 0.5) * 40 + ((i * 7 + 13) % 30);
+                return <div key={i} style={{ width: '2px', height: `${h}%`, background: (i / total * 100) < progress ? '#22d3ee' : 'rgba(255,255,255,0.2)', borderRadius: '1px' }} />;
+              })}
             </div>
           </div>
         </div>
 
-        {/* Time Display */}
-        <span style={{
-          fontSize: '0.7rem',
-          fontWeight: '600',
-          color: 'rgba(255,255,255,0.5)',
-          fontFamily: 'monospace',
-          flexShrink: 0,
-          minWidth: '65px',
-          textAlign: 'right'
-        }}>
-          {formatTime(currentTime)} / {formatTime(duration)}
-        </span>
+        {/* Time */}
+        <div style={{ flexShrink: 0, textAlign: 'right', minWidth: isMobile ? '55px' : '65px' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, fontFamily: 'monospace', color: isPlaying ? '#22d3ee' : 'rgba(255,255,255,0.4)' }}>
+            {fmt(currentTime)}
+          </span>
+          <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.2)', fontFamily: 'monospace' }}>
+            {' / '}{fmt(duration)}
+          </span>
+        </div>
+
+        {/* Live indicator */}
+        {isPlaying && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', animation: 'mixerPulse 1s infinite' }} />
+            <span style={{ fontSize: '0.6rem', fontWeight: 800, color: '#22c55e', letterSpacing: '0.08em' }}>LIVE</span>
+          </div>
+        )}
       </div>
 
-      {/* Track Status Indicators */}
+      {initError && (
+        <div style={{ fontSize: '0.75rem', color: '#ef4444', padding: '8px 14px', background: 'rgba(239,68,68,0.08)' }}>
+          {initError}
+        </div>
+      )}
+
+      {/* Channel Strips */}
       <div style={{
-        display: 'flex',
-        gap: '12px',
-        marginTop: '8px',
-        fontSize: '0.65rem'
+        display: 'flex', gap: '8px',
+        padding: isMobile ? '10px' : '12px',
+        flexDirection: isMobile && !vocalSrc ? 'column' : 'row'
       }}>
-        {beatSrc && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            color: beatLoaded ? '#22d3ee' : 'rgba(255,255,255,0.3)'
-          }}>
-            <div style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: beatLoaded ? '#22d3ee' : 'rgba(255,255,255,0.2)'
-            }} />
-            <Volume2 size={10} />
-            Beat {beatLoaded ? `${Math.round(beatVolume * 100)}%` : '...'}
-          </div>
-        )}
-        {vocalSrc && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            color: vocalLoaded ? '#a78bfa' : 'rgba(255,255,255,0.3)'
-          }}>
-            <div style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: vocalLoaded ? '#a78bfa' : 'rgba(255,255,255,0.2)'
-            }} />
-            <Volume2 size={10} />
-            Vocal {vocalLoaded ? `${Math.round(vocalVolume * 100)}%` : '...'}
-          </div>
-        )}
-        {isPlaying && (
-          <span style={{
-            color: '#22c55e',
-            fontWeight: '700',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}>
-            <div style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: '#22c55e',
-              animation: 'pulse 1s infinite'
-            }} />
-            LIVE
-          </span>
-        )}
+        <ChannelStrip
+          label="Beat" icon={Music} color="#22d3ee"
+          loaded={beatLoaded} hasSrc={!!beatSrc}
+          volume={beatVolume} onVolumeChange={onBeatVolumeChange}
+          muted={beatMuted} onMute={() => setBeatMuted(!beatMuted)}
+          solo={beatSolo} onSolo={() => setBeatSolo(!beatSolo)}
+        />
+        <ChannelStrip
+          label="Vocal" icon={Mic} color="#a78bfa"
+          loaded={vocalLoaded} hasSrc={!!vocalSrc}
+          volume={vocalVolume} onVolumeChange={onVocalVolumeChange}
+          muted={vocalMuted} onMute={() => setVocalMuted(!vocalMuted)}
+          solo={vocalSolo} onSolo={() => setVocalSolo(!vocalSolo)}
+        />
       </div>
 
       <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
+        @keyframes mixerPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
       `}</style>
     </div>
   );

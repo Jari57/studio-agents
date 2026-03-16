@@ -1,4 +1,4 @@
-/* eslint-disable no-use-before-define */
+﻿/* eslint-disable no-use-before-define */
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { 
@@ -11439,1194 +11439,604 @@ const fetchUserCredits = useCallback(async (uid) => {
           </div>
         )}
 
-        {/* Studio Session Overlay (Global Mechanism) */}
+        {/* Studio Session Overlay — DAW-Inspired Musician-First Design */}
         {showStudioSession && (
-          <div className="studio-session-overlay animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.95)', zIndex: 10000, display: 'flex', flexDirection: 'column' }}>
-            {/* Header */}
-            <div style={{ padding: isMobile ? '12px' : '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px' }}>
-                <div style={{ width: isMobile ? '32px' : '40px', height: isMobile ? '32px' : '40px', borderRadius: '8px', background: 'var(--color-purple)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <LayoutGrid size={isMobile ? 18 : 24} color="white" />
+          <div className="studio-session-overlay animate-fadeIn" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(180deg, #0a0a0f, #111118)', zIndex: 10000, display: 'flex', flexDirection: 'column' }}>
+            
+            {/* ── TOP BAR: Transport + Title ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: isMobile ? '10px 14px' : '12px 20px',
+              background: 'rgba(0,0,0,0.5)', borderBottom: '1px solid rgba(255,255,255,0.06)',
+              gap: '12px', flexShrink: 0
+            }}>
+              {/* Left: Logo + Title */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, var(--color-purple), var(--color-pink))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <LayoutGrid size={16} color="white" />
                 </div>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: isMobile ? '1rem' : '1.2rem' }}>Studio Session</h2>
-                  {!isMobile && <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Multi-Agent Orchestration</p>}
+                <div style={{ minWidth: 0 }}>
+                  <h2 style={{ margin: 0, fontSize: isMobile ? '0.95rem' : '1.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Session Mixer</h2>
+                  {!isMobile && <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{selectedProject?.name || 'Untitled Project'}</p>}
                 </div>
-                <button 
-                  onClick={() => { setSessionGuideStep(0); setShowSessionGuide(true); }}
-                  title="Open session guide — learn how to use the mixer"
-                  style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: sessionHelpEnabled ? 'flex' : 'none', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', marginLeft: '8px' }}
-                >
-                  <CircleHelp size={14} color="var(--text-secondary)" />
-                </button>
-                {/* Help Toggle */}
-                <button
-                  onClick={() => toggleSessionHelp()}
-                  title={sessionHelpEnabled ? 'Turn off tooltips & guides' : 'Turn on tooltips & guides'}
-                  style={{
-                    background: sessionHelpEnabled ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${sessionHelpEnabled ? 'rgba(168, 85, 247, 0.4)' : 'rgba(255,255,255,0.1)'}`,
-                    borderRadius: '14px',
-                    padding: '4px 10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    cursor: 'pointer',
-                    marginLeft: '4px',
-                    fontSize: '0.68rem',
-                    fontWeight: 600,
-                    color: sessionHelpEnabled ? '#a78bfa' : 'rgba(255,255,255,0.35)',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Lightbulb size={12} />
-                  {!isMobile && (sessionHelpEnabled ? 'Tips On' : 'Tips Off')}
-                </button>
               </div>
-              <button onClick={() => { setShowStudioSession(false); setSessionPlaying(false); }} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}>
-                <X size={24} />
-              </button>
-            </div>
 
-            {/* Main Stage */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: isMobile ? '8px' : '12px', gap: isMobile ? '8px' : '12px', overflowY: 'auto' }}>
+              {/* Center: Transport Controls */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '8px' }}>
+                <button onClick={handleUndo} disabled={historyIndex <= 0}
+                  style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: 'none', color: historyIndex > 0 ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.15)', cursor: historyIndex > 0 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  title="Undo"><Undo size={16} /></button>
 
-              {/* Visual Preview */}
-              <div style={{ flex: isMobile ? 'none' : 2, background: '#000', borderRadius: isMobile ? '12px' : '16px', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: isMobile ? '180px' : '300px' }}>
-                {sessionTracks.visual ? (
-                  sessionTracks.visual.videoUrl ? (
-                    <video 
-                      src={sessionTracks.visual.videoUrl} 
-                      style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
-                      muted 
-                      loop 
-                      ref={sessionVideoRef}
-                    />
-                  ) : (
-                    <img src={sessionTracks.visual.imageUrl} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  )
-                ) : (
-                  <div style={{ color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-                    <ImageIcon size={48} />
-                    <span>No Visual Selected</span>
-                  </div>
-                )}
-                
-                {/* Audio Elements (Hidden) — playback controlled by sync engine useEffect */}
-                {sessionTracks.audio && (
-                  <audio
-                    data-track="session-audio"
-                    src={sessionTracks.audio.audioUrl}
-                    ref={sessionAudioRef}
-                    loop={sessionTracks.audioLoop !== false}
-                    volume={sessionTracks.audioMuted ? 0 : (sessionTracks.audioVolume ?? 0.8)}
-                  />
-                )}
-                {sessionTracks.vocal && (
-                  <audio
-                    data-track="session-vocal"
-                    src={sessionTracks.vocal.audioUrl}
-                    ref={sessionVocalRef}
-                    loop={sessionTracks.vocalLoop !== false}
-                    volume={sessionTracks.vocalMuted ? 0 : (sessionTracks.vocalVolume ?? 1.0)}
-                  />
-                )}
-
-                {/* Play/Pause Overlay Button (always visible on visual preview) */}
                 <button
                   onClick={() => setSessionPlaying(!sessionPlaying)}
-                  title={sessionPlaying ? 'Pause all tracks' : 'Play all tracks together'}
                   style={{
-                    position: 'absolute',
-                    bottom: isMobile ? '12px' : '16px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: isMobile ? '52px' : '64px',
-                    height: isMobile ? '52px' : '64px',
+                    width: isMobile ? '48px' : '52px', height: isMobile ? '48px' : '52px',
                     borderRadius: '50%',
-                    background: sessionPlaying
-                      ? 'rgba(168, 85, 247, 0.9)'
-                      : 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    color: 'white',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 20px rgba(168, 85, 247, 0.5)',
-                    zIndex: 10,
-                    transition: 'all 0.2s ease'
+                    background: sessionPlaying ? 'rgba(239,68,68,0.25)' : 'linear-gradient(135deg, var(--color-purple), var(--color-pink))',
+                    border: sessionPlaying ? '2px solid rgba(239,68,68,0.5)' : '2px solid rgba(168,85,247,0.5)',
+                    color: 'white', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: sessionPlaying ? '0 0 20px rgba(239,68,68,0.3)' : '0 0 20px rgba(168,85,247,0.3)',
+                    transition: 'all 0.2s'
                   }}
-                  aria-label={sessionPlaying ? "Pause All Tracks" : "Play All Tracks"}
+                  aria-label={sessionPlaying ? "Pause" : "Play"}
                 >
-                  {sessionPlaying ? <Pause size={28} fill="white" /> : <Play size={28} fill="white" style={{ marginLeft: '3px' }} />}
+                  {sessionPlaying ? <Pause size={22} fill="white" /> : <Play size={22} fill="white" style={{ marginLeft: '2px' }} />}
                 </button>
+
+                <button onClick={handleRedo} disabled={historyIndex >= sessionHistory.length - 1}
+                  style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: 'none', color: historyIndex < sessionHistory.length - 1 ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.15)', cursor: historyIndex < sessionHistory.length - 1 ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  title="Redo"><Redo size={16} /></button>
               </div>
 
-              {/* Mixer / Timeline */}
-              <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', borderRadius: isMobile ? '10px' : '14px', padding: isMobile ? '8px' : '14px', display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : '12px' }}>
-
-                {/* Simple Pro Settings Bar - Captions.ai Style */}
-                <div style={{
-                  display: 'flex',
-                  flexDirection: isMobile ? 'column' : 'row',
-                  justifyContent: 'space-between',
-                  alignItems: isMobile ? 'stretch' : 'center',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '12px',
-                  padding: isMobile ? '10px' : '12px 16px',
-                  gap: isMobile ? '10px' : '0'
-                }}>
-                  <div style={{ display: 'flex', gap: isMobile ? '8px' : '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    {/* Real Assets Toggle */}
-                    <div 
-                      onClick={() => updateSessionWithHistory(prev => ({ ...prev, generateRealAssets: !prev.generateRealAssets }))}
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '8px', 
-                        cursor: 'pointer',
-                        background: sessionTracks.generateRealAssets ? 'linear-gradient(135deg, var(--color-purple), var(--color-pink))' : 'rgba(255,255,255,0.1)',
-                        padding: '6px 12px',
-                        borderRadius: '20px',
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-                      <div style={{ 
-                        width: '32px', 
-                        height: '18px', 
-                        borderRadius: '9px', 
-                        background: sessionTracks.generateRealAssets ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
-                        position: 'relative',
-                        transition: 'all 0.3s ease'
-                      }}>
-                        <div style={{
-                          width: '14px',
-                          height: '14px',
-                          borderRadius: '50%',
-                          background: 'white',
-                          position: 'absolute',
-                          top: '2px',
-                          left: sessionTracks.generateRealAssets ? '16px' : '2px',
-                          transition: 'left 0.3s ease'
-                        }} />
-                      </div>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                        {sessionTracks.generateRealAssets ? '⚡ Real Assets' : '📝 Text Mode'}
-                      </span>
-                    </div>
-                    
-                    <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)' }} />
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>BPM</span>
-                      <input 
-                        type="number" 
-                        title="Beats per minute — controls tempo for beat sync and visual cuts"
-                        value={sessionTracks.bpm || 120}
-                        onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, bpm: parseInt(e.target.value) || 120 }))}
-                        style={{ width: '50px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', padding: '4px 8px', color: 'var(--color-cyan)', fontSize: '0.85rem', fontWeight: 600, textAlign: 'center' }}
-                      />
-                    </div>
-                    <select 
-                      title="Video frame rate — 24fps for cinematic, 30fps standard, 60fps smooth"
-                      value={sessionTracks.frameRate || 30}
-                      onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, frameRate: parseInt(e.target.value) }))}
-                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', padding: '4px 8px', color: 'white', fontSize: '0.8rem', cursor: 'pointer' }}
-                    >
-                      <option value="24">24fps</option>
-                      <option value="30">30fps</option>
-                      <option value="60">60fps</option>
-                    </select>
-                    <select 
-                      title="Aspect ratio — 16:9 for YouTube/TV, 9:16 for TikTok/Reels, 1:1 for Instagram"
-                      value={sessionTracks.aspectRatio || '16:9'}
-                      onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, aspectRatio: e.target.value }))}
-                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '6px', padding: '4px 8px', color: 'white', fontSize: '0.8rem', cursor: 'pointer' }}
-                    >
-                      <option value="16:9">16:9</option>
-                      <option value="9:16">9:16</option>
-                      <option value="1:1">1:1</option>
-                    </select>
-                    
-                    {/* Quick Instrumental Toggle */}
-                    <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.1)' }} />
-                    <button
-                      onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocalMuted: !prev.vocalMuted }))}
-                      title={sessionTracks.vocalMuted ? 'Restore Vocals' : 'Play Instrumental Only'}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '6px',
-                        background: sessionTracks.vocalMuted ? 'linear-gradient(135deg, rgba(239,68,68,0.3), rgba(239,68,68,0.1))' : 'rgba(255,255,255,0.1)',
-                        border: sessionTracks.vocalMuted ? '1px solid rgba(239,68,68,0.4)' : '1px solid transparent',
-                        borderRadius: '20px', padding: '5px 12px', cursor: 'pointer',
-                        color: sessionTracks.vocalMuted ? '#ef4444' : 'rgba(255,255,255,0.7)',
-                        fontSize: '0.75rem', fontWeight: 600, transition: 'all 0.3s ease', whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {sessionTracks.vocalMuted ? <VolumeX size={13} /> : <Music size={13} />}
-                      {sessionTracks.vocalMuted ? 'Vocals Off' : 'Instrumental'}
-                    </button>
-                  </div>
-                  
-                  {/* Render Counter - Simple */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      {[1, 2, 3].map(n => (
-                        <div 
-                          key={n}
-                          style={{ 
-                            width: '8px', 
-                            height: '8px', 
-                            borderRadius: '50%',
-                            background: n <= (sessionTracks.renderCount || 0) ? 'var(--color-purple)' : 'rgba(255,255,255,0.2)'
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {3 - (sessionTracks.renderCount || 0)} renders left
-                    </span>
-                  </div>
+              {/* Right: Actions + Close */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Render dots */}
+                <div style={{ display: 'flex', gap: '3px', marginRight: '4px' }}>
+                  {[1,2,3].map(n => <div key={n} style={{ width: '7px', height: '7px', borderRadius: '50%', background: n <= (sessionTracks.renderCount || 0) ? 'var(--color-purple)' : 'rgba(255,255,255,0.15)' }} />)}
                 </div>
+                <button onClick={() => { setShowStudioSession(false); setSessionPlaying(false); }}
+                  style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(255,255,255,0.06)', border: 'none', color: 'rgba(255,255,255,0.6)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  title="Close session"><X size={20} /></button>
+              </div>
+            </div>
+
+            {/* ── MAIN CONTENT ── */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden' }}>
+              
+              {/* ── LEFT: Visual Preview + Settings ── */}
+              <div style={{ flex: isMobile ? 'none' : '1 1 45%', display: 'flex', flexDirection: 'column', borderRight: isMobile ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
                 
-                {/* Real Assets Info Banner */}
-                {sessionTracks.generateRealAssets && (
-                  <div style={{ 
-                    padding: '10px 16px', 
-                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(236, 72, 153, 0.2))', 
-                    borderRadius: '8px',
-                    border: '1px solid rgba(168, 85, 247, 0.3)',
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <div>
-                      <strong>⚡ Real Asset Mode</strong> — AI will generate actual audio, images & video
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Uses Imagen 4.0 * Veo 3.0 * MusicGen
-                    </div>
-                  </div>
-                )}
-
-                {/* Agent Insight / Tip */}
-                {sessionHelpEnabled && (
-                <div style={{ padding: '12px', background: 'rgba(168, 85, 247, 0.1)', borderRadius: '8px', borderLeft: '4px solid var(--color-purple)', fontSize: '0.9rem', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                   <Sparkles size={18} className="text-purple" />
-                   <div>
-                     <strong>Agent Insight:</strong> 
-                     {sessionTracks.audio?.agent === 'Beat Architect' ? " This beat has a strong transient profile. Keep vocals dry to cut through." : 
-                      sessionTracks.vocal?.agent === 'Ghostwriter' ? " These lyrics are dense. Ensure the beat leaves room for the flow." :
-                      " Combine assets from different agents to create a unique sound."}
-                   </div>
-                </div>
-                )}
-
-                {/* Track 1: Beat / Audio A */}
-                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: isMobile ? '12px' : '16px', border: sessionTracks.audio ? '1px solid var(--color-cyan)' : '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px', marginBottom: sessionTracks.audio ? '12px' : 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-                    {!isMobile && <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Disc size={24} className="text-cyan" /></div>}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-                        <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track 1</label>
-                        <select 
-                          style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--color-cyan)', fontSize: '0.75rem', cursor: 'pointer' }}
-                          value={sessionTracks.audioOutputType || 'waveform'}
-                          onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, audioOutputType: e.target.value }))}
-                        >
-                          <option value="waveform">🎵 Waveform</option>
-                          <option value="file">📁 File</option>
-                          <option value="stems">🎛️ Stems</option>
-                          <option value="midi">🎹 MIDI</option>
-                        </select>
+                {/* Visual Preview */}
+                <div style={{
+                  flex: 1, background: '#000', position: 'relative',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  minHeight: isMobile ? '200px' : '280px',
+                  maxHeight: isMobile ? '240px' : 'none'
+                }}>
+                  {sessionTracks.visual ? (
+                    sessionTracks.visual.videoUrl ? (
+                      <video src={sessionTracks.visual.videoUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} muted loop ref={sessionVideoRef} />
+                    ) : sessionTracks.visual.imageUrl ? (
+                      <img src={sessionTracks.visual.imageUrl} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain' }} alt="Visual preview" />
+                    ) : (
+                      <div style={{ color: 'rgba(255,255,255,0.2)', textAlign: 'center' }}>
+                        <ImageIcon size={40} />
+                        <p style={{ fontSize: '0.8rem', marginTop: '8px' }}>No visual loaded</p>
                       </div>
-                      <select 
-                        style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
-                        value={sessionTracks.audio?.id || ''}
-                        onChange={(e) => {
-                          const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
-                          const asset = assets.find(a => a?.id?.toString() === e.target.value);
-                          updateSessionWithHistory(prev => ({ ...prev, audio: asset || null }));
-                        }}
-                      >
-                        <option value="">Select Audio Asset...</option>
-                        {(selectedProject?.assets || []).filter(a => a?.audioUrl || a?.type === 'audio' || a?.agent?.includes('Beat') || a?.agent?.includes('Sound')).map(a => (
-                          <option key={a.id} value={a.id}>🎵 {a.title || 'Untitled'} ({a.agent || a.type})</option>
-                        ))}
-                        {(selectedProject?.assets || []).filter(a => !a?.audioUrl && a?.type !== 'audio').map(a => (
-                          <option key={a.id} value={a.id}>📄 {a.title || 'Untitled'} ({a.agent || a.type})</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div style={{ width: isMobile ? '60px' : '80px', textAlign: 'center' }}>
-                       <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Vol</label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="1"
-                         step="0.1"
-                         value={sessionTracks.audioVolume || 0.8}
-                         onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, audioVolume: parseFloat(e.target.value) }))}
-                         style={{ width: '100%' }}
-                       />
-                       <div style={{ fontSize: '0.7rem', color: 'var(--color-cyan)' }}>{Math.round((sessionTracks.audioVolume || 0.8) * 100)}%</div>
-                    </div>
-                    {/* Track 1 Controls: Loop + Mute */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                      <button
-                        onClick={() => updateSessionWithHistory(prev => ({ ...prev, audioLoop: !(prev.audioLoop !== false) }))}
-                        title={sessionTracks.audioLoop !== false ? 'Loop On' : 'Loop Off'}
-                        style={{
-                          width: '32px', height: '32px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                          background: sessionTracks.audioLoop !== false ? 'var(--color-cyan)' : 'rgba(255,255,255,0.1)',
-                          color: sessionTracks.audioLoop !== false ? '#000' : 'var(--text-secondary)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '0.65rem', fontWeight: 700, transition: 'all 0.2s'
-                        }}
-                      >
-                        <RefreshCw size={14} />
-                      </button>
-                      <button
-                        onClick={() => updateSessionWithHistory(prev => ({ ...prev, audioMuted: !prev.audioMuted }))}
-                        title={sessionTracks.audioMuted ? 'Unmute Beat' : 'Mute Beat'}
-                        style={{
-                          width: '32px', height: '32px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                          background: sessionTracks.audioMuted ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.1)',
-                          color: sessionTracks.audioMuted ? '#ef4444' : 'var(--text-secondary)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '0.65rem', fontWeight: 700, transition: 'all 0.2s'
-                        }}
-                      >
-                        {sessionTracks.audioMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                  {/* Waveform Visualization for Track 1 */}
-                  {sessionTracks.audio && (
-                    <div style={{ marginTop: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px', overflow: 'hidden' }}>
-                      {sessionTracks.audioOutputType === 'waveform' || !sessionTracks.audioOutputType ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '40px' }}>
-                          {/* Animated Waveform Bars */}
-                          {[...Array(48)].map((_, i) => (
-                            <div 
-                              key={i}
-                              style={{
-                                flex: 1,
-                                background: `linear-gradient(to top, var(--color-cyan), rgba(6, 182, 212, 0.3))`,
-                                borderRadius: '2px',
-                                height: sessionPlaying ? `${20 + Math.sin(i * 0.5 + Date.now() / 200) * 20}px` : `${10 + Math.sin(i * 0.3) * 15}px`,
-                                transition: 'height 0.1s ease',
-                                animation: sessionPlaying ? `waveform${i % 4} 0.5s ease-in-out infinite` : 'none'
-                              }}
-                            />
-                          ))}
-                        </div>
-                      ) : sessionTracks.audioOutputType === 'file' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-cyan)', fontSize: '0.85rem' }}>
-                          <FileAudio size={24} />
-                          <div>
-                            <div style={{ fontWeight: 600 }}>{sessionTracks.audio.title || 'Audio File'}</div>
-                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{sessionTracks.audio.agent} * WAV/MP3</div>
-                          </div>
-                          <div style={{ marginLeft: 'auto', fontSize: '0.75rem', opacity: 0.5 }}>~3:24</div>
-                        </div>
-                      ) : sessionTracks.audioOutputType === 'stems' ? (
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          {['Drums', 'Bass', 'Melody', 'FX'].map((stem, i) => (
-                            <div key={stem} style={{ flex: 1, background: `rgba(6, 182, 212, ${0.2 + i * 0.1})`, borderRadius: '6px', padding: '6px', textAlign: 'center', fontSize: '0.7rem' }}>
-                              <div style={{ color: 'var(--color-cyan)' }}>{stem}</div>
-                              <div style={{ width: '100%', height: '16px', background: 'rgba(0,0,0,0.3)', borderRadius: '4px', marginTop: '4px', overflow: 'hidden' }}>
-                                <div style={{ width: `${60 + i * 10}%`, height: '100%', background: 'var(--color-cyan)', borderRadius: '4px' }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-cyan)', fontSize: '0.8rem' }}>
-                          <Piano size={20} />
-                          <div style={{ display: 'flex', gap: '2px', flex: 1 }}>
-                            {/* MIDI Note representation */}
-                            {[...Array(16)].map((_, i) => (
-                              <div key={i} style={{ 
-                                width: '8px', 
-                                height: `${8 + (i % 3) * 6}px`, 
-                                background: i % 2 === 0 ? 'var(--color-cyan)' : 'transparent',
-                                border: '1px solid var(--color-cyan)',
-                                borderRadius: '2px' 
-                              }} />
-                            ))}
-                          </div>
-                          <div style={{ fontSize: '0.7rem', opacity: 0.5 }}>128 BPM * C Major</div>
-                        </div>
-                      )}
+                    )
+                  ) : (
+                    <div style={{ color: 'rgba(255,255,255,0.15)', textAlign: 'center' }}>
+                      <ImageIcon size={40} />
+                      <p style={{ fontSize: '0.8rem', marginTop: '8px' }}>Add a visual from Track 3</p>
                     </div>
                   )}
-                </div>
 
-                {/* Track 2: Vocals / Audio B */}
-                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: isMobile ? '12px' : '16px', border: sessionTracks.vocal ? '1px solid var(--color-purple)' : '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px', marginBottom: sessionTracks.vocal ? '12px' : 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-                    {!isMobile && <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><Mic size={24} className="text-purple" /></div>}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-                        <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track 2</label>
-                        <select 
-                          style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--color-purple)', fontSize: '0.75rem', cursor: 'pointer' }}
-                          value={sessionTracks.vocalOutputType || 'waveform'}
-                          onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, vocalOutputType: e.target.value }))}
-                        >
-                          <option value="waveform">🎵 Waveform</option>
-                          <option value="file">📁 File</option>
-                          <option value="lyrics">📝 Lyrics</option>
-                          <option value="adlibs">🎤 Adlibs</option>
-                        </select>
-                      </div>
-                      <select 
-                        style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
-                        value={sessionTracks.vocal?.id || ''}
-                        onChange={(e) => {
-                          const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
-                          const asset = assets.find(a => a?.id?.toString() === e.target.value);
-                          updateSessionWithHistory(prev => ({ ...prev, vocal: asset || null }));
-                        }}
-                      >
-                        <option value="">Select Vocal/Lyrics Asset...</option>
-                        {(selectedProject?.assets || []).filter(a => a?.agent?.includes('Ghost') || a?.agent?.includes('Vocal') || a?.type === 'lyrics').map(a => (
-                          <option key={a.id} value={a.id}>🎤 {a.title || 'Untitled'} ({a.agent || a.type})</option>
-                        ))}
-                        {(selectedProject?.assets || []).filter(a => !a?.agent?.includes('Ghost') && !a?.agent?.includes('Vocal') && a?.type !== 'lyrics').map(a => (
-                          <option key={a.id} value={a.id}>📄 {a.title || 'Untitled'} ({a.agent || a.type})</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div style={{ width: isMobile ? '60px' : '80px', textAlign: 'center' }}>
-                       <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Vol</label>
-                       <input
-                         type="range"
-                         min="0"
-                         max="1"
-                         step="0.1"
-                         value={sessionTracks.vocalVolume || 1.0}
-                         onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, vocalVolume: parseFloat(e.target.value) }))}
-                         style={{ width: '100%' }}
-                       />
-                       <div style={{ fontSize: '0.7rem', color: 'var(--color-purple)' }}>{Math.round((sessionTracks.vocalVolume || 1.0) * 100)}%</div>
-                    </div>
-                    {/* Track 2 Controls: Loop + Mute Vocals */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                      <button
-                        onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocalLoop: !(prev.vocalLoop !== false) }))}
-                        title={sessionTracks.vocalLoop !== false ? 'Loop On' : 'Loop Off'}
-                        style={{
-                          width: '32px', height: '32px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                          background: sessionTracks.vocalLoop !== false ? 'var(--color-purple)' : 'rgba(255,255,255,0.1)',
-                          color: sessionTracks.vocalLoop !== false ? '#fff' : 'var(--text-secondary)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '0.65rem', fontWeight: 700, transition: 'all 0.2s'
-                        }}
-                      >
-                        <RefreshCw size={14} />
-                      </button>
-                      <button
-                        onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocalMuted: !prev.vocalMuted }))}
-                        title={sessionTracks.vocalMuted ? 'Unmute Vocals' : 'Mute Vocals (Instrumental)'}
-                        style={{
-                          width: '32px', height: '32px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                          background: sessionTracks.vocalMuted ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.1)',
-                          color: sessionTracks.vocalMuted ? '#ef4444' : 'var(--text-secondary)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: '0.65rem', fontWeight: 700, transition: 'all 0.2s'
-                        }}
-                      >
-                        {sessionTracks.vocalMuted ? <VolumeX size={14} /> : <Mic size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                  {/* Waveform/Lyrics Visualization for Track 2 */}
-                  {sessionTracks.vocal && (
-                    <div style={{ marginTop: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px', overflow: 'hidden' }}>
-                      {sessionTracks.vocalOutputType === 'waveform' || !sessionTracks.vocalOutputType ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', height: '40px' }}>
-                          {[...Array(48)].map((_, i) => (
-                            <div 
-                              key={i}
-                              style={{
-                                flex: 1,
-                                background: `linear-gradient(to top, var(--color-purple), rgba(168, 85, 247, 0.3))`,
-                                borderRadius: '2px',
-                                height: sessionPlaying ? `${15 + Math.cos(i * 0.4 + Date.now() / 180) * 25}px` : `${8 + Math.cos(i * 0.3) * 12}px`,
-                                transition: 'height 0.1s ease'
-                              }}
-                            />
-                          ))}
-                        </div>
-                      ) : sessionTracks.vocalOutputType === 'file' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-purple)', fontSize: '0.85rem' }}>
-                          <FileAudio size={24} />
-                          <div>
-                            <div style={{ fontWeight: 600 }}>{sessionTracks.vocal.title || 'Vocal File'}</div>
-                            <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{sessionTracks.vocal.agent} * WAV</div>
-                          </div>
-                          <div style={{ marginLeft: 'auto', fontSize: '0.75rem', opacity: 0.5 }}>~2:48</div>
-                        </div>
-                      ) : sessionTracks.vocalOutputType === 'lyrics' ? (
-                        <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.85rem', lineHeight: 1.6, maxHeight: '80px', overflow: 'auto' }}>
-                          <div style={{ color: 'var(--color-purple)', marginBottom: '4px', fontSize: '0.7rem' }}>📝 Lyrics Preview</div>
-                          {sessionTracks.vocal.content?.substring(0, 200) || sessionTracks.vocal.snippet?.substring(0, 200) || 'No lyrics content...'}
-                          {(sessionTracks.vocal.content?.length > 200 || sessionTracks.vocal.snippet?.length > 200) && '...'}
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          {['Yeah!', 'Uh', 'Let\'s go', 'Woo!', 'Ayy'].map((adlib) => (
-                            <div key={adlib} style={{ 
-                              background: 'rgba(168, 85, 247, 0.2)', 
-                              border: '1px solid var(--color-purple)',
-                              borderRadius: '16px', 
-                              padding: '4px 12px', 
-                              fontSize: '0.75rem',
-                              color: 'var(--color-purple)'
-                            }}>
-                              {adlib}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Track 3: Visual */}
-                <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: isMobile ? '12px' : '16px', border: sessionTracks.visual ? '1px solid var(--color-pink)' : '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '16px', marginBottom: sessionTracks.visual ? '12px' : 0, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-                    {!isMobile && <div style={{ width: '40px', display: 'flex', justifyContent: 'center' }}><VideoIcon size={24} className="text-pink" /></div>}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-                        <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track 3</label>
-                        <select 
-                          style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.2)', color: 'var(--color-pink)', fontSize: '0.75rem', cursor: 'pointer' }}
-                          value={sessionTracks.visualOutputType || 'video'}
-                          onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualOutputType: e.target.value }))}
-                        >
-                          <option value="video">🎬 Video</option>
-                          <option value="image">🖼️ Image</option>
-                          <option value="animation">✨ Animation</option>
-                          <option value="thumbnail">📷 Thumbnail</option>
-                        </select>
-                      </div>
-                      <select 
-                        style={{ width: '100%', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
-                        value={sessionTracks.visual?.id || ''}
-                        onChange={(e) => {
-                          const assets = Array.isArray(selectedProject?.assets) ? selectedProject.assets : [];
-                          const asset = assets.find(a => a?.id?.toString() === e.target.value);
-                          updateSessionWithHistory(prev => ({ ...prev, visual: asset || null }));
-                        }}
-                      >
-                        <option value="">Select Visual Asset...</option>
-                        {(selectedProject?.assets || []).filter(a => a?.imageUrl || a?.videoUrl || a?.type === 'image' || a?.type === 'video').map(a => (
-                          <option key={a.id} value={a.id}>{a.videoUrl ? '🎬' : '🖼️'} {a.title || 'Untitled'} ({a.agent || a.type})</option>
-                        ))}
-                        {(selectedProject?.assets || []).filter(a => !a?.imageUrl && !a?.videoUrl && a?.type !== 'image' && a?.type !== 'video').map(a => (
-                          <option key={a.id} value={a.id}>📄 {a.title || 'Untitled'} ({a.agent || a.type})</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  {/* Visual Preview for Track 3 */}
-                  {sessionTracks.visual && (
-                    <div style={{ marginTop: '8px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', padding: '8px', overflow: 'hidden' }}>
-                      {sessionTracks.visualOutputType === 'video' || !sessionTracks.visualOutputType ? (
-                        sessionTracks.visual.videoUrl ? (
-                          <video src={sessionTracks.visual.videoUrl} style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '6px' }} muted />
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-pink)', fontSize: '0.85rem' }}>
-                            <VideoIcon size={24} />
-                            <div>
-                              <div style={{ fontWeight: 600 }}>{sessionTracks.visual.title || 'Video Asset'}</div>
-                              <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Video will be generated on render</div>
-                            </div>
-                          </div>
-                        )
-                      ) : sessionTracks.visualOutputType === 'image' ? (
-                        sessionTracks.visual.imageUrl ? (
-                          <img src={sessionTracks.visual.imageUrl} alt="Visual" loading="lazy" style={{ width: '100%', maxHeight: '120px', objectFit: 'cover', borderRadius: '6px' }} />
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--color-pink)', fontSize: '0.85rem' }}>
-                            <ImageIcon size={24} />
-                            <div>Image will be generated</div>
-                          </div>
-                        )
-                      ) : sessionTracks.visualOutputType === 'animation' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-pink)' }}>
-                          <div style={{ display: 'flex', gap: '4px' }}>
-                            {[...Array(6)].map((_, i) => (
-                              <div key={i} style={{
-                                width: '32px',
-                                height: '32px',
-                                background: `linear-gradient(135deg, var(--color-pink), var(--color-purple))`,
-                                borderRadius: '4px',
-                                opacity: 0.3 + (i * 0.14),
-                                transform: `rotate(${i * 15}deg)`
-                              }} />
-                            ))}
-                          </div>
-                          <div style={{ fontSize: '0.8rem', marginLeft: '12px' }}>
-                            <div style={{ fontWeight: 600 }}>Animation Sequence</div>
-                            <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>6 keyframes * 30fps</div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ 
-                            width: '80px', 
-                            height: '45px', 
-                            background: 'linear-gradient(135deg, var(--color-pink), var(--color-purple))',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>
-                            <Camera size={20} color="white" />
-                          </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--color-pink)' }}>
-                            <div style={{ fontWeight: 600 }}>Cover Thumbnail</div>
-                            <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>1280x720 * YouTube Ready</div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {/* Hidden audio elements for sync engine */}
+                  {sessionTracks.audio && <audio data-track="session-audio" src={sessionTracks.audio.audioUrl} ref={sessionAudioRef} loop={sessionTracks.audioLoop !== false} />}
+                  {sessionTracks.vocal && <audio data-track="session-vocal" src={sessionTracks.vocal.audioUrl} ref={sessionVocalRef} loop={sessionTracks.vocalLoop !== false} />}
                   
-                  {/* Sync Controls — User drives visual-to-audio sync */}
-                  {sessionTracks.visual && (
-                    <div style={{ 
-                      marginTop: '8px', 
-                      background: 'rgba(236, 72, 153, 0.08)', 
-                      borderRadius: '8px', 
-                      padding: '10px 12px',
-                      border: '1px solid rgba(236, 72, 153, 0.15)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Activity size={14} className="text-pink" />
-                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-pink)' }}>Sync Controls</span>
-                        </div>
-                        <select
-                          title="How visuals sync to audio — Auto detects best match, Beat cuts on tempo, Vocal follows voice entries"
-                          value={sessionTracks.syncMode || 'auto'}
-                          onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, syncMode: e.target.value }))}
-                          style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--color-pink)', fontSize: '0.7rem', cursor: 'pointer' }}
-                        >
-                          <option value="auto">Auto Sync</option>
-                          <option value="beat">Sync to Beat</option>
-                          <option value="vocal">Sync to Vocals</option>
-                          <option value="manual">Manual Offset</option>
-                        </select>
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: isMobile ? '8px' : '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        {/* Sync Source */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Source</span>
-                          <select
-                            title="Which track drives visual sync timing"
-                            value={sessionTracks.syncSource || 'beat'}
-                            onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, syncSource: e.target.value }))}
-                            style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.7rem', cursor: 'pointer' }}
-                          >
-                            <option value="beat">Track 1 (Beat)</option>
-                            <option value="vocal">Track 2 (Vocals)</option>
-                            <option value="both">Both Tracks</option>
-                          </select>
-                        </div>
-                        
-                        {/* Visual Start Offset */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Offset</span>
-                          <input
-                            type="number"
-                            title="Visual start offset in seconds — negative values start visual before audio"
-                            min="-10"
-                            max="30"
-                            step="0.5"
-                            value={sessionTracks.visualOffset || 0}
-                            onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualOffset: parseFloat(e.target.value) || 0 }))}
-                            style={{ width: '50px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '3px 6px', color: 'var(--color-pink)', fontSize: '0.75rem', fontWeight: 600, textAlign: 'center' }}
-                          />
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>sec</span>
-                        </div>
-
-                        {/* Visual Duration */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Duration</span>
-                          <select
-                            title="How much of the track the visual covers"
-                            value={sessionTracks.visualDuration || 'full'}
-                            onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualDuration: e.target.value }))}
-                            style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.7rem', cursor: 'pointer' }}
-                          >
-                            <option value="full">Full Track</option>
-                            <option value="chorus">Chorus Only</option>
-                            <option value="verse1">First Verse</option>
-                            <option value="custom">Custom</option>
-                          </select>
-                        </div>
-
-                        {/* Transition Style */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Transition</span>
-                          <select
-                            title="Visual transition style between scenes"
-                            value={sessionTracks.visualTransition || 'cut'}
-                            onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualTransition: e.target.value }))}
-                            style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '0.7rem', cursor: 'pointer' }}
-                          >
-                            <option value="cut">Cut</option>
-                            <option value="fade">Fade</option>
-                            <option value="crossfade">Crossfade</option>
-                            <option value="zoom">Zoom In</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Sync status hint */}
-                      <div style={{ marginTop: '6px', fontSize: '0.65rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: sessionTracks.syncMode === 'manual' ? 'var(--color-pink)' : 'var(--color-cyan)', animation: 'pulse 2s infinite' }} />
-                        {sessionTracks.syncMode === 'auto' && 'Visual syncs to audio start automatically'}
-                        {sessionTracks.syncMode === 'beat' && `Visual cuts on beat at ${sessionTracks.bpm || 120} BPM`}
-                        {sessionTracks.syncMode === 'vocal' && 'Visual enters when vocals begin'}
-                        {sessionTracks.syncMode === 'manual' && `Visual starts at ${sessionTracks.visualOffset || 0}s offset`}
-                        {!sessionTracks.syncMode && 'Visual syncs to audio start automatically'}
-                      </div>
+                  {/* Live indicator */}
+                  {sessionPlaying && (
+                    <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', alignItems: 'center', gap: '5px', background: 'rgba(0,0,0,0.6)', borderRadius: '12px', padding: '4px 10px' }}>
+                      <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444', animation: 'pulse 1s infinite' }} />
+                      <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#ef4444', letterSpacing: '0.1em' }}>REC</span>
                     </div>
                   )}
                 </div>
 
-                {/* <button className="btn-dashed" style={{ width: '100%', padding: '8px', fontSize: '0.8rem' }}>+ Add Track</button> */}
+                {/* Settings Strip */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px',
+                  padding: isMobile ? '8px 12px' : '10px 16px',
+                  background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(255,255,255,0.04)',
+                  flexWrap: 'wrap', flexShrink: 0
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', fontWeight: 600 }}>BPM</span>
+                    <input type="number" value={sessionTracks.bpm || 120}
+                      onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, bpm: parseInt(e.target.value) || 120 }))}
+                      style={{ width: '44px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', padding: '3px 6px', color: '#22d3ee', fontSize: '0.8rem', fontWeight: 700, textAlign: 'center' }} />
+                  </div>
+                  <select value={sessionTracks.frameRate || 30}
+                    onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, frameRate: parseInt(e.target.value) }))}
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', padding: '3px 8px', color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', cursor: 'pointer' }}>
+                    <option value="24">24fps</option><option value="30">30fps</option><option value="60">60fps</option>
+                  </select>
+                  <select value={sessionTracks.aspectRatio || '16:9'}
+                    onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, aspectRatio: e.target.value }))}
+                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', padding: '3px 8px', color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', cursor: 'pointer' }}>
+                    <option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option>
+                  </select>
+                  <div style={{ flex: 1 }} />
+                  {/* Real Assets Toggle */}
+                  <button
+                    onClick={() => updateSessionWithHistory(prev => ({ ...prev, generateRealAssets: !prev.generateRealAssets }))}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      background: sessionTracks.generateRealAssets ? 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(236,72,153,0.3))' : 'rgba(255,255,255,0.06)',
+                      border: sessionTracks.generateRealAssets ? '1px solid rgba(168,85,247,0.4)' : '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '16px', padding: '4px 10px', cursor: 'pointer',
+                      fontSize: '0.7rem', fontWeight: 700, color: sessionTracks.generateRealAssets ? '#c084fc' : 'rgba(255,255,255,0.4)',
+                      transition: 'all 0.2s'
+                    }}>
+                    {sessionTracks.generateRealAssets ? '⚡ Real' : '📝 Text'}
+                  </button>
+                </div>
+              </div>
+
+              {/* ── RIGHT: Track Lanes ── */}
+              <div style={{
+                flex: isMobile ? 'none' : '1 1 55%', overflowY: 'auto',
+                padding: isMobile ? '8px' : '12px',
+                display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : '10px'
+              }}>
+
+                {/* ── TRACK 1: Beat ── */}
+                {(() => {
+                  const audioAssets = (selectedProject?.assets || []).filter(a => a?.audioUrl || a?.type === 'audio' || a?.agent?.includes('Beat') || a?.agent?.includes('Sound'));
+                  const isActive = !!sessionTracks.audio;
+                  return (
+                    <div style={{
+                      background: isActive ? 'rgba(6,182,212,0.04)' : 'rgba(255,255,255,0.02)',
+                      borderRadius: '12px', overflow: 'hidden',
+                      border: isActive ? '1px solid rgba(6,182,212,0.2)' : '1px solid rgba(255,255,255,0.06)'
+                    }}>
+                      {/* Track Header */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: isMobile ? '10px 12px' : '10px 14px',
+                        background: 'rgba(0,0,0,0.2)'
+                      }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: isActive ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isActive ? 'rgba(6,182,212,0.3)' : 'rgba(255,255,255,0.06)'}` }}>
+                          <Disc size={14} color={isActive ? '#22d3ee' : 'rgba(255,255,255,0.2)'} />
+                        </div>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isActive ? '#22d3ee' : 'rgba(255,255,255,0.35)', flex: 1 }}>
+                          BEAT
+                          {sessionTracks.audio && <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.3)', marginLeft: '8px', fontSize: '0.7rem' }}>{sessionTracks.audio.title || sessionTracks.audio.agent || ''}</span>}
+                        </span>
+
+                        {/* Volume + Controls */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <input type="range" min="0" max="1" step="0.05" value={sessionTracks.audioVolume || 0.8}
+                            onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, audioVolume: parseFloat(e.target.value) }))}
+                            style={{ width: isMobile ? '60px' : '80px', accentColor: '#22d3ee', height: '4px' }} />
+                          <span style={{ fontSize: '0.68rem', fontFamily: 'monospace', color: '#22d3ee', minWidth: '26px', textAlign: 'right' }}>{Math.round((sessionTracks.audioVolume || 0.8) * 100)}</span>
+                          <button onClick={() => updateSessionWithHistory(prev => ({ ...prev, audioMuted: !prev.audioMuted }))}
+                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.audioMuted ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.06)', color: sessionTracks.audioMuted ? '#ef4444' : 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            title={sessionTracks.audioMuted ? 'Unmute' : 'Mute'}>
+                            {sessionTracks.audioMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+                          </button>
+                          <button onClick={() => updateSessionWithHistory(prev => ({ ...prev, audioLoop: !(prev.audioLoop !== false) }))}
+                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.audioLoop !== false ? 'rgba(6,182,212,0.2)' : 'rgba(255,255,255,0.06)', color: sessionTracks.audioLoop !== false ? '#22d3ee' : 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            title={sessionTracks.audioLoop !== false ? 'Loop on' : 'Loop off'}>
+                            <RefreshCw size={12} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Asset Switcher — Tap cards instead of dropdown */}
+                      <div style={{ padding: isMobile ? '8px' : '8px 12px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                        <div style={{ display: 'flex', gap: '6px', minWidth: 'max-content' }}>
+                          {audioAssets.length === 0 ? (
+                            <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)', fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', textAlign: 'center', width: '100%' }}>
+                              No audio assets. Create a beat first.
+                            </div>
+                          ) : audioAssets.map(a => {
+                            const selected = sessionTracks.audio?.id === a.id;
+                            return (
+                              <button key={a.id}
+                                onClick={() => updateSessionWithHistory(prev => ({ ...prev, audio: selected ? null : a }))}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '8px',
+                                  padding: isMobile ? '10px 14px' : '8px 14px',
+                                  background: selected ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.03)',
+                                  border: selected ? '1.5px solid rgba(6,182,212,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                                  borderRadius: '8px', cursor: 'pointer',
+                                  color: selected ? '#22d3ee' : 'rgba(255,255,255,0.5)',
+                                  fontSize: '0.75rem', fontWeight: selected ? 700 : 500,
+                                  whiteSpace: 'nowrap', transition: 'all 0.15s',
+                                  flexShrink: 0
+                                }}>
+                                <Music size={13} />
+                                {a.title || a.agent || 'Beat'}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Waveform */}
+                      {sessionTracks.audio && (
+                        <div style={{ padding: '0 12px 8px', overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1px', height: '32px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '0 4px' }}>
+                            {[...Array(isMobile ? 40 : 60)].map((_, i) => {
+                              const total = isMobile ? 40 : 60;
+                              return <div key={i} style={{ flex: 1, background: 'linear-gradient(to top, #22d3ee, rgba(6,182,212,0.2))', borderRadius: '1px', height: `${15 + Math.sin(i*0.5)*30 + ((i*7+13)%25)}%`, opacity: sessionPlaying ? (0.4 + Math.sin(i*0.4 + Date.now()/200)*0.3) : 0.35, transition: 'height 0.1s' }} />;
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* ── TRACK 2: Vocals ── */}
+                {(() => {
+                  const vocalAssets = (selectedProject?.assets || []).filter(a => a?.agent?.includes('Ghost') || a?.agent?.includes('Vocal') || a?.type === 'lyrics' || a?.type === 'vocal');
+                  const isActive = !!sessionTracks.vocal;
+                  return (
+                    <div style={{
+                      background: isActive ? 'rgba(168,85,247,0.04)' : 'rgba(255,255,255,0.02)',
+                      borderRadius: '12px', overflow: 'hidden',
+                      border: isActive ? '1px solid rgba(168,85,247,0.2)' : '1px solid rgba(255,255,255,0.06)'
+                    }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: isMobile ? '10px 12px' : '10px 14px',
+                        background: 'rgba(0,0,0,0.2)'
+                      }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: isActive ? 'rgba(168,85,247,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isActive ? 'rgba(168,85,247,0.3)' : 'rgba(255,255,255,0.06)'}` }}>
+                          <Mic size={14} color={isActive ? '#a78bfa' : 'rgba(255,255,255,0.2)'} />
+                        </div>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isActive ? '#a78bfa' : 'rgba(255,255,255,0.35)', flex: 1 }}>
+                          VOCALS
+                          {sessionTracks.vocal && <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.3)', marginLeft: '8px', fontSize: '0.7rem' }}>{sessionTracks.vocal.title || sessionTracks.vocal.agent || ''}</span>}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <input type="range" min="0" max="1" step="0.05" value={sessionTracks.vocalVolume || 1.0}
+                            onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, vocalVolume: parseFloat(e.target.value) }))}
+                            style={{ width: isMobile ? '60px' : '80px', accentColor: '#a78bfa', height: '4px' }} />
+                          <span style={{ fontSize: '0.68rem', fontFamily: 'monospace', color: '#a78bfa', minWidth: '26px', textAlign: 'right' }}>{Math.round((sessionTracks.vocalVolume || 1.0) * 100)}</span>
+                          <button onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocalMuted: !prev.vocalMuted }))}
+                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.vocalMuted ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.06)', color: sessionTracks.vocalMuted ? '#ef4444' : 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            title={sessionTracks.vocalMuted ? 'Unmute' : 'Mute'}>
+                            {sessionTracks.vocalMuted ? <VolumeX size={13} /> : <Mic size={13} />}
+                          </button>
+                          <button onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocalLoop: !(prev.vocalLoop !== false) }))}
+                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: sessionTracks.vocalLoop !== false ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.06)', color: sessionTracks.vocalLoop !== false ? '#a78bfa' : 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            title={sessionTracks.vocalLoop !== false ? 'Loop on' : 'Loop off'}>
+                            <RefreshCw size={12} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: isMobile ? '8px' : '8px 12px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                        <div style={{ display: 'flex', gap: '6px', minWidth: 'max-content' }}>
+                          {vocalAssets.length === 0 ? (
+                            <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)', fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', textAlign: 'center', width: '100%' }}>
+                              No vocal assets. Write lyrics or generate vocals first.
+                            </div>
+                          ) : vocalAssets.map(a => {
+                            const selected = sessionTracks.vocal?.id === a.id;
+                            return (
+                              <button key={a.id}
+                                onClick={() => updateSessionWithHistory(prev => ({ ...prev, vocal: selected ? null : a }))}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '8px',
+                                  padding: isMobile ? '10px 14px' : '8px 14px',
+                                  background: selected ? 'rgba(168,85,247,0.15)' : 'rgba(255,255,255,0.03)',
+                                  border: selected ? '1.5px solid rgba(168,85,247,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                                  borderRadius: '8px', cursor: 'pointer',
+                                  color: selected ? '#a78bfa' : 'rgba(255,255,255,0.5)',
+                                  fontSize: '0.75rem', fontWeight: selected ? 700 : 500,
+                                  whiteSpace: 'nowrap', transition: 'all 0.15s', flexShrink: 0
+                                }}>
+                                <Mic size={13} />
+                                {a.title || a.agent || 'Vocal'}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {sessionTracks.vocal && (
+                        <div style={{ padding: '0 12px 8px', overflow: 'hidden' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1px', height: '32px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '0 4px' }}>
+                            {[...Array(isMobile ? 40 : 60)].map((_, i) => {
+                              const total = isMobile ? 40 : 60;
+                              return <div key={i} style={{ flex: 1, background: 'linear-gradient(to top, #a78bfa, rgba(168,85,247,0.2))', borderRadius: '1px', height: `${10 + Math.cos(i*0.4)*25 + ((i*11+7)%20)}%`, opacity: sessionPlaying ? (0.35 + Math.cos(i*0.3 + Date.now()/180)*0.3) : 0.3, transition: 'height 0.1s' }} />;
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* ── TRACK 3: Visual ── */}
+                {(() => {
+                  const visualAssets = (selectedProject?.assets || []).filter(a => a?.imageUrl || a?.videoUrl || a?.type === 'image' || a?.type === 'video');
+                  const isActive = !!sessionTracks.visual;
+                  return (
+                    <div style={{
+                      background: isActive ? 'rgba(236,72,153,0.04)' : 'rgba(255,255,255,0.02)',
+                      borderRadius: '12px', overflow: 'hidden',
+                      border: isActive ? '1px solid rgba(236,72,153,0.2)' : '1px solid rgba(255,255,255,0.06)'
+                    }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: isMobile ? '10px 12px' : '10px 14px',
+                        background: 'rgba(0,0,0,0.2)'
+                      }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: isActive ? 'rgba(236,72,153,0.15)' : 'rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${isActive ? 'rgba(236,72,153,0.3)' : 'rgba(255,255,255,0.06)'}` }}>
+                          <VideoIcon size={14} color={isActive ? '#ec4899' : 'rgba(255,255,255,0.2)'} />
+                        </div>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: isActive ? '#ec4899' : 'rgba(255,255,255,0.35)', flex: 1 }}>
+                          VISUAL
+                          {sessionTracks.visual && <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.3)', marginLeft: '8px', fontSize: '0.7rem' }}>{sessionTracks.visual.title || sessionTracks.visual.agent || ''}</span>}
+                        </span>
+
+                        {/* Sync controls - simplified */}
+                        {sessionTracks.visual && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <select value={sessionTracks.syncMode || 'auto'}
+                              onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, syncMode: e.target.value }))}
+                              style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '5px', padding: '2px 6px', color: '#ec4899', fontSize: '0.68rem', cursor: 'pointer' }}>
+                              <option value="auto">Auto Sync</option>
+                              <option value="beat">Beat Sync</option>
+                              <option value="vocal">Vocal Sync</option>
+                              <option value="manual">Manual</option>
+                            </select>
+                            {sessionTracks.syncMode === 'manual' && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <input type="number" min="-10" max="30" step="0.5" value={sessionTracks.visualOffset || 0}
+                                  onChange={(e) => updateSessionWithHistory(prev => ({ ...prev, visualOffset: parseFloat(e.target.value) || 0 }))}
+                                  style={{ width: '40px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px', padding: '2px 4px', color: '#ec4899', fontSize: '0.7rem', fontWeight: 600, textAlign: 'center' }} />
+                                <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)' }}>s</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Visual asset cards — thumbnail-style */}
+                      <div style={{ padding: isMobile ? '8px' : '8px 12px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                        <div style={{ display: 'flex', gap: '6px', minWidth: 'max-content' }}>
+                          {visualAssets.length === 0 ? (
+                            <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.1)', fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)', textAlign: 'center', width: '100%' }}>
+                              No visual assets. Generate an image or video first.
+                            </div>
+                          ) : visualAssets.map(a => {
+                            const selected = sessionTracks.visual?.id === a.id;
+                            const thumb = a.imageUrl || a.videoUrl;
+                            return (
+                              <button key={a.id}
+                                onClick={() => updateSessionWithHistory(prev => ({ ...prev, visual: selected ? null : a }))}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '8px',
+                                  padding: '4px',
+                                  background: selected ? 'rgba(236,72,153,0.15)' : 'rgba(255,255,255,0.03)',
+                                  border: selected ? '1.5px solid rgba(236,72,153,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                                  borderRadius: '8px', cursor: 'pointer',
+                                  transition: 'all 0.15s', flexShrink: 0
+                                }}>
+                                {thumb && (a.imageUrl ? (
+                                  <img src={a.imageUrl} alt="" loading="lazy" style={{ width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', borderRadius: '6px', objectFit: 'cover' }} />
+                                ) : (
+                                  <div style={{ width: isMobile ? '40px' : '48px', height: isMobile ? '40px' : '48px', borderRadius: '6px', background: 'rgba(236,72,153,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <VideoIcon size={16} color="#ec4899" />
+                                  </div>
+                                ))}
+                                <div style={{ paddingRight: '8px' }}>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: selected ? 700 : 500, color: selected ? '#ec4899' : 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>
+                                    {a.title || a.agent || 'Visual'}
+                                  </div>
+                                  <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.2)' }}>
+                                    {a.videoUrl ? '🎬 Video' : '🖼️ Image'}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Agent Insight */}
+                {sessionHelpEnabled && (sessionTracks.audio || sessionTracks.vocal) && (
+                  <div style={{ padding: '10px 14px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', borderLeft: '3px solid rgba(168,85,247,0.3)', fontSize: '0.78rem', display: 'flex', gap: '10px', alignItems: 'center', color: 'rgba(255,255,255,0.6)' }}>
+                    <Sparkles size={15} color="#a78bfa" style={{ flexShrink: 0 }} />
+                    {sessionTracks.audio?.agent === 'Beat Architect' ? "Strong transients — keep vocals dry to cut through." :
+                     sessionTracks.vocal?.agent === 'Ghostwriter' ? "Dense lyrics — give the beat room for the flow." :
+                     "Combine assets from different agents for a unique sound."}
+                  </div>
+                )}
 
               </div>
             </div>
 
-            {/* Footer Controls */}
-            <div style={{ padding: isMobile ? '12px' : '20px', background: 'rgba(0,0,0,0.5)', borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? '10px' : '0' }}>
-               <div style={{ display: 'flex', gap: isMobile ? '8px' : '16px', alignItems: 'center' }}>
-                 {/* Undo / Redo */}
-                 <div style={{ display: 'flex', gap: '8px', marginRight: isMobile ? '4px' : '16px' }}>
-                    <button 
-                      onClick={handleUndo} 
-                      disabled={historyIndex <= 0}
-                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px', padding: '8px', cursor: historyIndex > 0 ? 'pointer' : 'not-allowed', opacity: historyIndex > 0 ? 1 : 0.3 }}
-                      title="Undo"
-                    >
-                      <Undo size={20} color="white" />
-                    </button>
-                    <button 
-                      onClick={handleRedo} 
-                      disabled={historyIndex >= sessionHistory.length - 1}
-                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px', padding: '8px', cursor: historyIndex < sessionHistory.length - 1 ? 'pointer' : 'not-allowed', opacity: historyIndex < sessionHistory.length - 1 ? 1 : 0.3 }}
-                      title="Redo"
-                    >
-                      <Redo size={20} color="white" />
-                    </button>
-                 </div>
+            {/* ── BOTTOM BAR: Actions ── */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: isMobile ? '10px 14px' : '12px 20px',
+              background: 'rgba(0,0,0,0.5)', borderTop: '1px solid rgba(255,255,255,0.06)',
+              gap: '8px', flexShrink: 0, flexWrap: isMobile ? 'wrap' : 'nowrap'
+            }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn-pill secondary"
+                  onClick={() => {
+                    const updatedProject = { ...selectedProject, sessionState: sessionTracks, lastModified: Date.now() };
+                    setSelectedProject(updatedProject);
+                    setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updatedProject.id ? updatedProject : p) : [updatedProject]);
+                    if (isLoggedIn && user) saveProjectToCloud(user.uid, updatedProject).catch(err => devWarn('Cloud save failed:', err));
+                    handleTextToVoice("Project session saved.");
+                    toast.success('Session saved!');
+                  }}
+                  style={{ padding: isMobile ? '8px 14px' : '8px 16px', fontSize: '0.8rem' }}>
+                  <Save size={16} /> Save
+                </button>
+                <button className="btn-pill secondary" onClick={() => setShowExternalSaveModal(true)}
+                  style={{ padding: isMobile ? '8px 14px' : '8px 16px', fontSize: '0.8rem', background: 'rgba(6,182,212,0.12)', borderColor: 'rgba(6,182,212,0.25)' }}>
+                  <Cloud size={16} /> Cloud
+                </button>
+                <button className="btn-pill secondary"
+                  onClick={() => {
+                    if (!selectedProject?.assets?.length) { toast.error('No assets to share.'); return; }
+                    const masterAsset = selectedProject.assets.find(a => a?.type === 'Master') || selectedProject.assets[0];
+                    setSharePostText(`Check out "${selectedProject.name}" — made with Studio Agents 🎵`);
+                    setShareSelectedPlatforms(['instagram', 'twitter']);
+                    setPreviewItem(masterAsset);
+                    _setActiveTab('activity');
+                    setShowStudioSession(false); setSessionPlaying(false);
+                  }}
+                  style={{ padding: isMobile ? '8px 14px' : '8px 16px', fontSize: '0.8rem', background: 'rgba(168,85,247,0.12)', borderColor: 'rgba(168,85,247,0.25)' }}>
+                  <Share2 size={16} /> Share
+                </button>
+              </div>
 
-                 <button
-                   className="btn-circle"
-                   aria-label={sessionPlaying ? "Pause Session" : "Play Session"}
-                   title={sessionPlaying ? 'Pause all tracks' : 'Play all tracks in sync'}
-                   style={{ width: isMobile ? '44px' : '56px', height: isMobile ? '44px' : '56px', borderRadius: '50%', background: 'var(--color-purple)', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                   onClick={() => setSessionPlaying(!sessionPlaying)}
-                 >
-                   {sessionPlaying ? <Pause size={24} fill="white" /> : <Play size={24} fill="white" />}
-                 </button>
-               </div>
-               
-               <div style={{ display: 'flex', gap: isMobile ? '6px' : '12px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-                 <button 
-                   className="btn-pill secondary"
-                   onClick={() => {
-                     const updatedProject = {
-                       ...selectedProject,
-                       sessionState: sessionTracks,
-                       lastModified: Date.now()
-                     };
-                     setSelectedProject(updatedProject);
-                     setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updatedProject.id ? updatedProject : p) : [updatedProject]);
-                     
-                     if (isLoggedIn && user) {
-                       saveProjectToCloud(user.uid, updatedProject).catch(err => {
-                         devWarn('Cloud save failed:', err);
-                         toast.error('Failed to sync to cloud. Your changes are saved locally.');
-                       });
-                     }
-                     
-                     handleTextToVoice("Project session saved.");
-                     toast.success('Session saved!');
-                   }}
-                   title="Save session state to project"
-                 >
-                   <Save size={18} /> Save
-                 </button>
+              <button className="btn-pill primary"
+                disabled={(sessionTracks.renderCount || 0) >= 3 || isGenerating}
+                style={{ padding: isMobile ? '10px 18px' : '10px 24px', fontSize: '0.85rem', opacity: ((sessionTracks.renderCount || 0) >= 3 || isGenerating) ? 0.5 : 1 }}
+                onClick={async () => {
+                  if (isGenerating) return;
+                  if ((sessionTracks.renderCount || 0) >= 3) { toast.error('Maximum 3 renders reached.'); return; }
+                  setIsGenerating(true);
+                  const agentOutputs = [sessionTracks.audio, sessionTracks.vocal, sessionTracks.visual].filter(Boolean);
+                  if (agentOutputs.length === 0) { toast.error('Select at least one asset to render'); setIsGenerating(false); return; }
+                  const renderNumber = (sessionTracks.renderCount || 0) + 1;
+                  handleTextToVoice(`Render pass ${renderNumber} of 3. Orchestrating your agents.`);
+                  toast.loading(`AMO Render ${renderNumber}/3...`, { id: 'amo-render' });
+                  
+                  try {
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (auth?.currentUser) {
+                      const token = await auth.currentUser.getIdToken();
+                      headers['Authorization'] = `Bearer ${token}`;
+                    }
 
-                 <button
-                   className="btn-pill secondary"
-                   onClick={() => { setShowExternalSaveModal(true); }}
-                   title="Save to cloud or external storage"
-                   style={{ background: 'rgba(6, 182, 212, 0.15)', borderColor: 'rgba(6, 182, 212, 0.3)' }}
-                 >
-                   <Cloud size={18} /> Cloud
-                 </button>
+                    const hasRealBeat = sessionTracks.audio?.audioUrl && sessionTracks.audio.audioUrl.startsWith('http');
+                    const hasRealVocals = sessionTracks.vocal?.audioUrl && sessionTracks.vocal.audioUrl.startsWith('http');
 
-                 <button
-                   className="btn-pill secondary"
-                   onClick={() => {
-                     if (!selectedProject?.assets?.length) {
-                       toast.error('No assets to share. Render first!');
-                       return;
-                     }
-                     const masterAsset = selectedProject.assets.find(a => a?.type === 'Master') || selectedProject.assets[0];
-                     setSharePostText(`Check out "${selectedProject.name}" — made with Studio Agents 🎵`);
-                     setShareSelectedPlatforms(['instagram', 'twitter']);
-                     setPreviewItem(masterAsset);
-                     _setActiveTab('activity');
-                     setShowStudioSession(false);
-                     setSessionPlaying(false);
-                     toast.success('Ready to share! Compose your post below.');
-                   }}
-                   title="Share to Social Media Hub"
-                   style={{ background: 'rgba(168, 85, 247, 0.15)', borderColor: 'rgba(168, 85, 247, 0.3)' }}
-                 >
-                   <Share2 size={18} /> Share
-                 </button>
+                    if (hasRealBeat || hasRealVocals) {
+                      toast.loading('Mixing your tracks...', { id: 'amo-render' });
+                      let mixedAudioUrl = null;
 
-                 <button 
-                   className="btn-pill primary"
-                   title="Mix and master all tracks into a final production — saves to your Hub"
-                   disabled={(sessionTracks.renderCount || 0) >= 3 || isGenerating}
-                   style={{ opacity: ((sessionTracks.renderCount || 0) >= 3 || isGenerating) ? 0.5 : 1 }}
-                   onClick={async () => {
-                     // PREVENT DUPLICATE CALLS
-                     if (isGenerating) return;
+                      if (hasRealBeat && hasRealVocals) {
+                        const mixRes = await fetch(`${BACKEND_URL}/api/create-final-mix`, {
+                          method: 'POST', headers,
+                          body: JSON.stringify({
+                            vocalUrl: sessionTracks.vocal.audioUrl, beatUrl: sessionTracks.audio.audioUrl,
+                            vocalVolume: sessionTracks.vocalVolume ?? 0.85, beatVolume: sessionTracks.audioVolume ?? 0.60,
+                            style: 'rapper', outputFormat: 'music'
+                          })
+                        });
+                        if (mixRes.ok) { const mixData = await mixRes.json(); mixedAudioUrl = mixData.mixedAudioUrl; }
+                        else { devWarn('[RenderMaster] Mix failed, using beat track'); mixedAudioUrl = sessionTracks.audio.audioUrl; }
+                      } else {
+                        mixedAudioUrl = hasRealBeat ? sessionTracks.audio.audioUrl : sessionTracks.vocal.audioUrl;
+                      }
 
-                     // Check render limit
-                     if ((sessionTracks.renderCount || 0) >= 3) {
-                       toast.error('Maximum 3 renders reached. Pro users can reset.');
-                       return;
-                     }
-                     
-                     setIsGenerating(true);
-                     
-                     // Collect selected assets for orchestration
-                     const agentOutputs = [
-                       sessionTracks.audio,
-                       sessionTracks.vocal,
-                       sessionTracks.visual
-                     ].filter(Boolean);
-                     
-                     if (agentOutputs.length === 0) {
-                       toast.error('Select at least one asset to render');
-                       setIsGenerating(false);
-                       return;
-                     }
-                     
-                     const renderNumber = (sessionTracks.renderCount || 0) + 1;
-                     handleTextToVoice(`Render pass ${renderNumber} of 3. Orchestrating your agents.`);
-                     toast.loading(`AMO Render ${renderNumber}/3...`, { id: 'amo-render' });
-                     
-                     try {
-                       // Get auth token
-                       const headers = { 'Content-Type': 'application/json' };
-                       if (auth?.currentUser) {
-                         const token = await auth.currentUser.getIdToken();
-                         headers['Authorization'] = `Bearer ${token}`;
-                       }
+                      updateSessionWithHistory(prev => ({
+                        ...prev, renderCount: renderNumber, lastRenderTime: new Date().toISOString(),
+                        renderHistory: [...(prev.renderHistory || []), { pass: renderNumber, timestamp: Date.now() }]
+                      }));
 
-                       // Check if real audio URLs exist — if so, mix them directly
-                       const hasRealBeat = sessionTracks.audio?.audioUrl && sessionTracks.audio.audioUrl.startsWith('http');
-                       const hasRealVocals = sessionTracks.vocal?.audioUrl && sessionTracks.vocal.audioUrl.startsWith('http');
+                      const masterAsset = {
+                        id: `master-${generateId()}`, title: `Studio Master ${renderNumber}/3 - ${selectedProject.name}`,
+                        type: "Master", agent: "Session Mixer", date: "Just now", color: "agent-purple",
+                        snippet: `Mixed master: ${hasRealBeat ? 'beat' : ''}${hasRealBeat && hasRealVocals ? ' + ' : ''}${hasRealVocals ? 'vocals' : ''}`,
+                        content: `Mixed master render ${renderNumber}`, audioUrl: mixedAudioUrl,
+                        stems: { audio: sessionTracks.audio?.audioUrl, vocal: sessionTracks.vocal?.audioUrl },
+                        imageUrl: sessionTracks.visual?.imageUrl,
+                        metadata: { audioVolume: sessionTracks.audioVolume, vocalVolume: sessionTracks.vocalVolume, vocalMuted: sessionTracks.vocalMuted || false, renderedAt: new Date().toISOString(), renderPass: renderNumber, bpm: sessionTracks.bpm || 120, syncMode: sessionTracks.syncMode || 'auto', mixedDirectly: true }
+                      };
 
-                       if (hasRealBeat || hasRealVocals) {
-                         // Direct audio mixing path — use /api/create-final-mix
-                         toast.loading('Mixing your tracks...', { id: 'amo-render' });
+                      const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets], updatedAt: new Date().toISOString() };
+                      setSelectedProject(updated); setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
+                      if (isLoggedIn) { const uid = localStorage.getItem('studio_user_id'); if (uid) saveProjectToCloud(uid, updated).catch(err => devWarn("Failed to sync master to cloud", err)); }
+                      toast.dismiss('amo-render'); setShowStudioSession(false); setSessionPlaying(false);
+                      handleTextToVoice("Master mix complete. Your mixed production is ready."); toast.success('Master mixed and saved to your Hub!');
+                      setIsGenerating(false); return;
+                    }
 
-                         let mixedAudioUrl = null;
+                    // Fallback: text-only orchestration
+                    const response = await fetch(`${BACKEND_URL}/api/orchestrate`, {
+                      method: 'POST', headers,
+                      body: JSON.stringify({
+                        agentOutputs: agentOutputs.map(a => ({ id: a.id, agent: a.agent || a.type, type: a.type, content: a.snippet || a.content || a.text, audioUrl: a.audioUrl, imageUrl: a.imageUrl, videoUrl: a.videoUrl })),
+                        projectName: selectedProject.name, projectDescription: selectedProject.description,
+                        syncSettings: { bpm: sessionTracks.bpm || 120, frameRate: sessionTracks.frameRate || 30, aspectRatio: sessionTracks.aspectRatio || '16:9', syncMode: sessionTracks.syncMode || 'auto', syncSource: sessionTracks.syncSource || 'beat', visualOffset: sessionTracks.visualOffset || 0 },
+                        renderPass: renderNumber, generateRealAssets: sessionTracks.generateRealAssets || false
+                      })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Orchestration failed');
 
-                         if (hasRealBeat && hasRealVocals) {
-                           // Mix both tracks
-                           const mixRes = await fetch(`${BACKEND_URL}/api/create-final-mix`, {
-                             method: 'POST',
-                             headers,
-                             body: JSON.stringify({
-                               vocalUrl: sessionTracks.vocal.audioUrl,
-                               beatUrl: sessionTracks.audio.audioUrl,
-                               vocalVolume: sessionTracks.vocalVolume ?? 0.85,
-                               beatVolume: sessionTracks.audioVolume ?? 0.60,
-                               style: 'rapper',
-                               outputFormat: 'music'
-                             })
-                           });
+                    let generatedAudioUrl = sessionTracks.audio?.audioUrl;
+                    let generatedImageUrl = sessionTracks.visual?.imageUrl;
+                    let generatedVideoUrl = sessionTracks.visual?.videoUrl;
 
-                           if (mixRes.ok) {
-                             const mixData = await mixRes.json();
-                             mixedAudioUrl = mixData.mixedAudioUrl;
-                           } else {
-                             devWarn('[RenderMaster] Mix failed, using beat track');
-                             mixedAudioUrl = sessionTracks.audio.audioUrl;
-                           }
-                         } else {
-                           // Single track — use it directly as the master
-                           mixedAudioUrl = hasRealBeat ? sessionTracks.audio.audioUrl : sessionTracks.vocal.audioUrl;
-                         }
+                    if (sessionTracks.generateRealAssets) {
+                      toast.loading('Generating real assets...', { id: 'amo-assets' });
+                      if (sessionTracks.visual && !sessionTracks.visual.imageUrl) {
+                        try { const imgRes = await fetch(`${BACKEND_URL}/api/generate-image`, { method: 'POST', headers, body: JSON.stringify({ prompt: (sessionTracks.visual.snippet || `Album artwork for ${selectedProject.name}`).substring(0, 500), aspectRatio: sessionTracks.aspectRatio || '16:9' }) }); const imgData = await imgRes.json(); if (imgData.imageUrl) generatedImageUrl = imgData.imageUrl; } catch (e) { devLog('Image generation skipped:', e.message); }
+                      }
+                      if (sessionTracks.audio && !sessionTracks.audio.audioUrl) {
+                        try { const audRes = await fetch(`${BACKEND_URL}/api/generate-audio`, { method: 'POST', headers, body: JSON.stringify({ prompt: (sessionTracks.audio.snippet || `${sessionTracks.bpm || 120} BPM beat`).substring(0, 200) }) }); const audData = await audRes.json(); if (audData.audioUrl) generatedAudioUrl = audData.audioUrl; } catch (e) { devLog('Audio generation skipped:', e.message); }
+                      }
+                      toast.dismiss('amo-assets');
+                    }
 
-                         // Increment render count
-                         updateSessionWithHistory(prev => ({
-                           ...prev,
-                           renderCount: renderNumber,
-                           lastRenderTime: new Date().toISOString(),
-                           renderHistory: [...(prev.renderHistory || []), { pass: renderNumber, timestamp: Date.now() }]
-                         }));
+                    if (generatedAudioUrl) {
+                      try { toast.loading('Mastering audio...', { id: 'amo-master' }); const masterRes = await fetch(`${BACKEND_URL}/api/master-audio`, { method: 'POST', headers, body: JSON.stringify({ audioUrl: generatedAudioUrl, preset: 'streaming', normalize: true, format: 'wav' }) }); const masterData = await masterRes.json(); if (masterData.audioUrl) generatedAudioUrl = masterData.audioUrl; toast.dismiss('amo-master'); } catch (e) { devLog('Mastering skipped:', e.message); toast.dismiss('amo-master'); }
+                    }
 
-                         const masterAsset = {
-                           id: `master-${generateId()}`,
-                           title: `Studio Master ${renderNumber}/3 - ${selectedProject.name}`,
-                           type: "Master",
-                           agent: "Session Mixer",
-                           date: "Just now",
-                           color: "agent-purple",
-                           snippet: `Mixed master: ${hasRealBeat ? 'beat' : ''}${hasRealBeat && hasRealVocals ? ' + ' : ''}${hasRealVocals ? 'vocals' : ''}`,
-                           content: `Mixed master render ${renderNumber}`,
-                           audioUrl: mixedAudioUrl,
-                           stems: {
-                             audio: sessionTracks.audio?.audioUrl,
-                             vocal: sessionTracks.vocal?.audioUrl
-                           },
-                           imageUrl: sessionTracks.visual?.imageUrl,
-                           metadata: {
-                             audioVolume: sessionTracks.audioVolume,
-                             vocalVolume: sessionTracks.vocalVolume,
-                             vocalMuted: sessionTracks.vocalMuted || false,
-                             renderedAt: new Date().toISOString(),
-                             renderPass: renderNumber,
-                             bpm: sessionTracks.bpm || 120,
-                             syncMode: sessionTracks.syncMode || 'auto',
-                             syncSource: sessionTracks.syncSource || 'beat',
-                             visualOffset: sessionTracks.visualOffset || 0,
-                             visualTransition: sessionTracks.visualTransition || 'cut',
-                             mixedDirectly: true
-                           }
-                         };
+                    updateSessionWithHistory(prev => ({
+                      ...prev, renderCount: renderNumber, lastRenderTime: new Date().toISOString(),
+                      renderHistory: [...(prev.renderHistory || []), { pass: renderNumber, timestamp: Date.now() }]
+                    }));
 
-                         const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets], updatedAt: new Date().toISOString() };
-                         setSelectedProject(updated);
-                         setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
+                    const masterAsset = data.masterAsset || {
+                      id: `master-${generateId()}`, title: `Studio Master ${renderNumber}/3 - ${selectedProject.name}`,
+                      type: "Master", agent: "AMO Orchestrator", date: "Just now", color: "agent-purple",
+                      snippet: data.output?.slice(0, 200) || "Orchestrated Master Composition.",
+                      content: data.output, audioUrl: generatedAudioUrl,
+                      stems: { audio: generatedAudioUrl, vocal: sessionTracks.vocal?.audioUrl },
+                      imageUrl: generatedImageUrl, videoUrl: generatedVideoUrl,
+                      metadata: { audioVolume: sessionTracks.audioVolume, vocalVolume: sessionTracks.vocalVolume, agentsProcessed: agentOutputs.length, renderedAt: new Date().toISOString(), renderPass: renderNumber, bpm: sessionTracks.bpm || 120, realAssets: sessionTracks.generateRealAssets || false }
+                    };
 
-                         if (isLoggedIn) {
-                           const uid = localStorage.getItem('studio_user_id');
-                           if (uid) {
-                             saveProjectToCloud(uid, updated).catch(err => devWarn("Failed to sync master to cloud", err));
-                           }
-                         }
+                    const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets], updatedAt: new Date().toISOString() };
+                    setSelectedProject(updated); setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
+                    if (isLoggedIn) { const uid = localStorage.getItem('studio_user_id'); if (uid) saveProjectToCloud(uid, updated).catch(err => devWarn("Failed to sync master to cloud", err)); }
 
-                         toast.dismiss('amo-render');
-                         setShowStudioSession(false);
-                         setSessionPlaying(false);
-                         handleTextToVoice("Master mix complete. Your mixed production is ready.");
-                         toast.success('Master mixed and saved to your Hub!');
-                         setIsGenerating(false);
-                         return;
-                       }
+                    toast.dismiss('amo-render'); setShowStudioSession(false); setSessionPlaying(false);
+                    handleTextToVoice("Master render complete. Your orchestrated production is ready."); toast.success('Master rendered and saved to your Hub!');
 
-                       // Fallback: text-only orchestration via /api/orchestrate
-                       const response = await fetch(`${BACKEND_URL}/api/orchestrate`, {
-                         method: 'POST',
-                         headers,
-                         body: JSON.stringify({
-                           agentOutputs: agentOutputs.map(a => ({
-                             id: a.id,
-                             agent: a.agent || a.type,
-                             type: a.type,
-                             content: a.snippet || a.content || a.text,
-                             audioUrl: a.audioUrl,
-                             imageUrl: a.imageUrl,
-                             videoUrl: a.videoUrl
-                           })),
-                           projectName: selectedProject.name,
-                           projectDescription: selectedProject.description,
-                           // Professional sync settings for TV-ready output
-                           syncSettings: {
-                             bpm: sessionTracks.bpm || 120,
-                             timeSignature: sessionTracks.timeSignature || '4/4',
-                             key: sessionTracks.key || 'C Major',
-                             frameRate: sessionTracks.frameRate || 30,
-                             sampleRate: sessionTracks.sampleRate || 48000,
-                             bitDepth: sessionTracks.bitDepth || 24,
-                             aspectRatio: sessionTracks.aspectRatio || '16:9',
-                             // User-driven visual sync
-                             syncMode: sessionTracks.syncMode || 'auto',
-                             syncSource: sessionTracks.syncSource || 'beat',
-                             visualOffset: sessionTracks.visualOffset || 0,
-                             visualDuration: sessionTracks.visualDuration || 'full',
-                             visualTransition: sessionTracks.visualTransition || 'cut'
-                           },
-                           renderPass: renderNumber,
-                           generateRealAssets: sessionTracks.generateRealAssets || false
-                         })
-                       });
-                       
-                       const data = await response.json();
-                       
-                       if (!response.ok) {
-                         throw new Error(data.error || 'Orchestration failed');
-                       }
-                       
-                       // If generateRealAssets is enabled, also call media generation APIs
-                       let generatedAudioUrl = sessionTracks.audio?.audioUrl;
-                       let generatedImageUrl = sessionTracks.visual?.imageUrl;
-                       let generatedVideoUrl = sessionTracks.visual?.videoUrl;
-                       
-                       if (sessionTracks.generateRealAssets) {
-                         toast.loading('Generating real assets...', { id: 'amo-assets' });
-                         
-                         // Generate image if we have visual content but no URL
-                         if (sessionTracks.visual && !sessionTracks.visual.imageUrl) {
-                           try {
-                             const imagePrompt = sessionTracks.visual.snippet || sessionTracks.visual.content || `Album artwork for ${selectedProject.name}`;
-                             const imgRes = await fetch(`${BACKEND_URL}/api/generate-image`, {
-                               method: 'POST',
-                               headers,
-                               body: JSON.stringify({ prompt: imagePrompt.substring(0, 500), aspectRatio: sessionTracks.aspectRatio || '16:9' })
-                             });
-                             const imgData = await imgRes.json();
-                             if (imgData.imageUrl) generatedImageUrl = imgData.imageUrl;
-                           } catch (e) { devLog('Image generation skipped:', e.message); }
-                         }
-                         
-                         // Generate audio if we have audio content but no URL
-                         if (sessionTracks.audio && !sessionTracks.audio.audioUrl) {
-                           try {
-                             const audioPrompt = sessionTracks.audio.snippet || sessionTracks.audio.content || `${sessionTracks.bpm || 120} BPM beat`;
-                             const audRes = await fetch(`${BACKEND_URL}/api/generate-audio`, {
-                               method: 'POST',
-                               headers,
-                               body: JSON.stringify({ prompt: audioPrompt.substring(0, 200) })
-                             });
-                             const audData = await audRes.json();
-                             if (audData.audioUrl) generatedAudioUrl = audData.audioUrl;
-                           } catch (e) { devLog('Audio generation skipped:', e.message); }
-                         }
-                         
-                         toast.dismiss('amo-assets');
-                       }
-
-                       // Master the audio track if we have one (actual audio processing)
-                       if (generatedAudioUrl) {
-                         try {
-                           toast.loading('Mastering audio...', { id: 'amo-master' });
-                           const masterRes = await fetch(`${BACKEND_URL}/api/master-audio`, {
-                             method: 'POST',
-                             headers,
-                             body: JSON.stringify({
-                               audioUrl: generatedAudioUrl,
-                               preset: 'streaming',
-                               targetSampleRate: sessionTracks.sampleRate || 48000,
-                               targetBitDepth: sessionTracks.bitDepth || 24,
-                               normalize: true,
-                               format: 'wav'
-                             })
-                           });
-                           const masterData = await masterRes.json();
-                           if (masterData.audioUrl) {
-                             generatedAudioUrl = masterData.audioUrl;
-                           }
-                           toast.dismiss('amo-master');
-                         } catch (e) {
-                           devLog('Mastering skipped (backend unavailable):', e.message);
-                           toast.dismiss('amo-master');
-                         }
-                       }
-                       
-                       // Increment render count
-                       updateSessionWithHistory(prev => ({
-                         ...prev,
-                         renderCount: renderNumber,
-                         lastRenderTime: new Date().toISOString(),
-                         renderHistory: [...(prev.renderHistory || []), { pass: renderNumber, timestamp: Date.now() }]
-                       }));
-                       
-                       // Use the master asset from the API response
-                       const masterAsset = data.masterAsset || {
-                         id: `master-${generateId()}`,
-                         title: `Studio Master ${renderNumber}/3 - ${selectedProject.name}`,
-                         type: "Master",
-                         agent: "AMO Orchestrator",
-                         date: "Just now",
-                         color: "agent-purple",
-                         snippet: data.output?.slice(0, 200) || "Orchestrated Master Composition.",
-                         content: data.output,
-                         audioUrl: generatedAudioUrl,
-                         stems: {
-                           audio: generatedAudioUrl,
-                           vocal: sessionTracks.vocal?.audioUrl
-                         },
-                         imageUrl: generatedImageUrl,
-                         videoUrl: generatedVideoUrl,
-                         metadata: {
-                           audioVolume: sessionTracks.audioVolume,
-                           vocalVolume: sessionTracks.vocalVolume,
-                           agentsProcessed: agentOutputs.length,
-                           renderedAt: new Date().toISOString(),
-                           renderPass: renderNumber,
-                           bpm: sessionTracks.bpm || 120,
-                           frameRate: sessionTracks.frameRate || 30,
-                           aspectRatio: sessionTracks.aspectRatio || '16:9',
-                           realAssets: sessionTracks.generateRealAssets || false
-                         }
-                       };
-                       
-                       // Update project with master asset
-                       const updated = { ...selectedProject, assets: [masterAsset, ...selectedProject.assets], updatedAt: new Date().toISOString() };
-                       setSelectedProject(updated);
-                       setProjects(prev => Array.isArray(prev) ? prev.map(p => p.id === updated.id ? updated : p) : [updated]);
-
-                       // Save to cloud
-                       if (isLoggedIn) {
-                         const uid = localStorage.getItem('studio_user_id');
-                         if (uid) {
-                           saveProjectToCloud(uid, updated).catch(err => devWarn("Failed to sync master to cloud", err));
-                         }
-                       }
-                       
-                       toast.dismiss('amo-render');
-                       setShowStudioSession(false);
-                       setSessionPlaying(false);
-                       handleTextToVoice("Master render complete. Your orchestrated production is ready.");
-                       toast.success('Master rendered and saved to your Hub!');
-                       
-                     } catch (err) {
-                       devWarn('AMO Orchestration error:', err);
-                       toast.dismiss('amo-render');
-                       toast.error(err.message || 'Orchestration failed. Check your internet connection and try again.', { id: 'orch-error' });
-                       handleTextToVoice("Orchestration failed. Please try again.");
-                     } finally {
-                       setIsGenerating(false);
-                     }
-                   }}
-                 >
-                   <Zap size={18} /> Render Master
-                 </button>
-               </div>
-
-               {/* Session Guide Indicator */}
-               {sessionHelpEnabled && (
-               <button
-                 onClick={() => setShowSessionGuide(true)}
-                 title="Open interactive session guide"
-                 style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-               >
-                 <CircleHelp size={18} color="var(--text-secondary)" />
-               </button>
-               )}
+                  } catch (err) {
+                    devWarn('AMO Orchestration error:', err);
+                    toast.dismiss('amo-render');
+                    toast.error(err.message || 'Orchestration failed. Try again.', { id: 'orch-error' });
+                    handleTextToVoice("Orchestration failed. Please try again.");
+                  } finally {
+                    setIsGenerating(false);
+                  }
+                }}>
+                <Zap size={18} /> Render Master
+              </button>
             </div>
           </div>
         )}
