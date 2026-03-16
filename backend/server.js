@@ -4855,7 +4855,20 @@ Return ONLY valid JSON, no markdown.`;
 
         // Build Suno tags — inject reference song analysis if available
         let sunoTags = `${genre}, ${style.includes('female') ? 'female vocals' : 'male vocals'}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`;
-        let sunoTopic = prompt.substring(0, 1500);
+        
+        // Clean lyrics for Suno — strip structure tags, keep only singable text
+        let sunoLyrics = prompt
+          .replace(/\[Verse[^\]]*\]/gi, '[Verse]')
+          .replace(/\[Chorus[^\]]*\]/gi, '[Chorus]')
+          .replace(/\[Bridge[^\]]*\]/gi, '[Bridge]')
+          .replace(/\[Pre-Chorus[^\]]*\]/gi, '[Pre-Chorus]')
+          .replace(/\[Hook[^\]]*\]/gi, '[Hook]')
+          .replace(/\[Outro[^\]]*\]/gi, '[Outro]')
+          .replace(/\[Intro[^\]]*\]/gi, '[Intro]')
+          .substring(0, 2999);
+        
+        let sunoTitle = (prompt.split('\n').find(l => l.trim()) || 'Studio Track').substring(0, 80);
+        
         if (refSongAnalysis) {
           // Override tags with reference-derived characteristics
           const refTags = refSongAnalysis.suno_tags || '';
@@ -4863,13 +4876,10 @@ Return ONLY valid JSON, no markdown.`;
           const refTone = refSongAnalysis.tone || '';
           const refGenreTags = refSongAnalysis.genre_tags || '';
           sunoTags = `${refTags}, ${refGenreTags}, ${refMood}, ${refTone} tone, ${style.includes('female') ? 'female vocals' : 'male vocals'}, professional studio recording`.replace(/,\s*,/g, ',').replace(/^,\s*/, '');
-          // Prepend vocal direction to topic for style guidance
-          if (refSongAnalysis.vocal_direction) {
-            sunoTopic = `[Style: ${refSongAnalysis.vocal_direction}]\n\n${sunoTopic}`;
-          }
           logger.info('🎵 Suno tags enhanced with reference analysis', { tags: sunoTags.substring(0, 100) });
         }
 
+        // Use custom lyrics mode — Suno sings the user's actual lyrics acapella-style
         const sunoResponse = await fetch('https://studio-api.suno.ai/api/external/generate/', {
           method: 'POST',
           headers: {
@@ -4877,10 +4887,11 @@ Return ONLY valid JSON, no markdown.`;
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            topic: sunoTopic,
+            prompt: sunoLyrics,
             tags: sunoTags,
+            title: sunoTitle,
             make_instrumental: false,
-            is_custom: true
+            mv: 'chirp-v4'
           })
         });
 
