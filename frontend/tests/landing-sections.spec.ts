@@ -48,7 +48,7 @@ test.describe('Jump Into Studio Navigation', () => {
     await jumpSection.scrollIntoViewIfNeeded();
     await expect(jumpSection).toBeVisible({ timeout: 10000 });
 
-    for (const label of ['AI Orchestrator', 'Agents', 'Resources', 'Social Media Hub']) {
+    for (const label of ['AI Orchestrator', 'Agents', 'Resources', 'News & Entertainment']) {
       await expect(page.locator(`button:has-text("${label}")`).first()).toBeVisible();
     }
   });

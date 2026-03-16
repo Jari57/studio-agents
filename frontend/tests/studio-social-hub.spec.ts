@@ -27,17 +27,17 @@ test.describe('Studio Social Hub (unauthenticated)', () => {
     expect(critical).toEqual([]);
   });
 
-  test('landing page Social Media Hub quicknav button exists', async ({ page }) => {
+  test('landing page News & Entertainment quicknav button exists', async ({ page }) => {
     await page.goto(FRONTEND_URL);
     const jumpSection = page.locator('text=Jump Into the Studio').first();
     await jumpSection.scrollIntoViewIfNeeded();
     await expect(jumpSection).toBeVisible({ timeout: 10000 });
 
-    const socialBtn = page.locator('button:has-text("Social Media Hub")').first();
-    await expect(socialBtn).toBeVisible();
+    const newsBtn = page.locator('button:has-text("News & Entertainment")').first();
+    await expect(newsBtn).toBeVisible();
   });
 
-  test('clicking Social Media Hub quicknav does not crash', async ({ page }) => {
+  test('clicking News & Entertainment quicknav does not crash', async ({ page }) => {
     const jsErrors: string[] = [];
     page.on('pageerror', err => jsErrors.push(err.message));
 
@@ -45,8 +45,8 @@ test.describe('Studio Social Hub (unauthenticated)', () => {
     const jumpSection = page.locator('text=Jump Into the Studio').first();
     await jumpSection.scrollIntoViewIfNeeded();
 
-    const socialBtn = page.locator('button:has-text("Social Media Hub")').first();
-    await socialBtn.click();
+    const newsBtn = page.locator('button:has-text("News & Entertainment")').first();
+    await newsBtn.click();
     await page.waitForTimeout(3000);
 
     // May redirect to auth or load studio

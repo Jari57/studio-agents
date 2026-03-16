@@ -7289,7 +7289,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               border: '1px solid rgba(255,255,255,0.1)',
               width: '100%',
               maxWidth: '800px',
-              maxHeight: isMobile ? '98vh' : '90vh',
+              maxHeight: isMobile ? '100dvh' : '90vh',
               overflow: 'auto',
               display: 'flex',
               flexDirection: 'column',

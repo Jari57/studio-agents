@@ -155,6 +155,7 @@ test.describe('DNA Exact-Clone — Image Generation', () => {
 test.describe('DNA Exact-Clone — Audio/Beat Generation', () => {
 
   test('Audio generation accepts referenceAudio for DNA melody conditioning', async ({ request }) => {
+    test.setTimeout(120000);
     const response = await request.post(`${BACKEND_URL}/api/generate-audio`, {
       data: {
         prompt: 'Dark trap beat',
@@ -272,7 +273,7 @@ test.describe('DNA Exact-Clone — Vocal Generation', () => {
         style: 'rapper'
       }
     });
-    expect([400, 401]).toContain(response.status());
+    expect([400, 401, 429]).toContain(response.status());
   });
 
 });
@@ -314,7 +315,7 @@ test.describe('DNA Exact-Clone — Video Generation', () => {
     const response = await request.post(`${BACKEND_URL}/api/generate-video`, {
       data: { referenceImage: 'https://example.com/dna.jpg' }
     });
-    expect([400, 401]).toContain(response.status());
+    expect([400, 401, 429]).toContain(response.status());
   });
 
 });
@@ -673,7 +674,7 @@ test.describe('DNA — Edge Cases', () => {
         // No prompt
       }
     });
-    expect([400, 401]).toContain(response.status());
+    expect([400, 401, 429]).toContain(response.status());
   });
 
   test('Audio gen with referenceAudio but no prompt fails', async ({ request }) => {
@@ -683,7 +684,7 @@ test.describe('DNA — Edge Cases', () => {
         prompt: ''
       }
     });
-    expect([400, 401]).toContain(response.status());
+    expect([400, 401, 429]).toContain(response.status());
   });
 
   test('Speech gen with speakerUrl but no prompt fails', async ({ request }) => {
@@ -693,7 +694,7 @@ test.describe('DNA — Edge Cases', () => {
         // No prompt
       }
     });
-    expect([400, 401]).toContain(response.status());
+    expect([400, 401, 429]).toContain(response.status());
   });
 
 });

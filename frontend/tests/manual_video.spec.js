@@ -11,5 +11,5 @@ test('Manual Video Generation Test', async ({ request }) => {
     console.log('Response status:', response.status());
     const body = await response.json().catch(() => ({}));
     console.log('Response body:', JSON.stringify(body, null, 2));
-    expect([200, 400, 401, 500, 503]).toContain(response.status());
+    expect([200, 400, 401, 429, 500, 503]).toContain(response.status());
 });

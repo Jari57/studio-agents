@@ -1527,7 +1527,9 @@ export default function CanvasView({
             width: isMobile ? '85vw' : '380px', maxWidth: '420px',
             background: 'var(--color-bg-secondary, #12121a)',
             borderLeft: '1px solid rgba(255,255,255,0.08)',
-            zIndex: 91, overflowY: 'auto', padding: '24px',
+            zIndex: 91, overflowY: 'auto',
+            padding: '24px',
+            paddingTop: 'calc(24px + env(safe-area-inset-top, 0px))',
             animation: 'slideInFromRight 0.3s ease',
             display: 'flex', flexDirection: 'column', gap: '24px'
           }}>

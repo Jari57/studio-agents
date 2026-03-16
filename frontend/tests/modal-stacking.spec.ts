@@ -226,7 +226,7 @@ test.describe('Mutual Exclusion (Source Verification)', () => {
   test('useEffect dependencies include all modal states for ESC handler', () => {
     const source = fs.readFileSync(orchestratorPath, 'utf-8');
     // The ESC handler useEffect should have all modal states in its dependency array
-    const escEffect = source.match(/\[showRegenerateConfirm.*maximizedSlot\]/);
+    const escEffect = source.match(/\[show\w+,\s*showRegenerateConfirm.*maximizedSlot\]|\[showRegenerateConfirm.*maximizedSlot\]/);
     expect(escEffect).not.toBeNull();
     const deps = escEffect![0];
     expect(deps).toContain('showRegenerateConfirm');

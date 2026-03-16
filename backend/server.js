@@ -1258,6 +1258,176 @@ app.get('/api/status/apis', verifyFirebaseToken, requireAdmin, async (req, res) 
   res.json(status);
 });
 
+// ==================== DEEP HEALTH CHECK — Production Support Dashboard ====================
+app.get('/api/admin/health-deep', verifyFirebaseToken, requireAdmin, async (req, res) => {
+  const started = Date.now();
+  const results = { timestamp: new Date().toISOString(), checks: {} };
+
+  // 1. Process health
+  const mem = process.memoryUsage();
+  results.checks.process = {
+    status: 'ok',
+    uptime: process.uptime(),
+    pid: process.pid,
+    nodeVersion: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    memory: {
+      heapUsedMB: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotalMB: Math.round(mem.heapTotal / 1024 / 1024),
+      rssMB: Math.round(mem.rss / 1024 / 1024),
+      externalMB: Math.round(mem.external / 1024 / 1024),
+      heapUtilization: ((mem.heapUsed / mem.heapTotal) * 100).toFixed(1) + '%'
+    },
+    cpuUsage: process.cpuUsage(),
+    env: NODE_ENV
+  };
+
+  // 2. Firebase connectivity
+  const db = getFirestoreDb();
+  if (db) {
+    try {
+      const testStart = Date.now();
+      await db.collection('_health').doc('ping').set({ ts: admin.firestore.FieldValue.serverTimestamp() });
+      const latency = Date.now() - testStart;
+      results.checks.firebase = { status: 'ok', latencyMs: latency, project: 'studioagents-app' };
+    } catch (e) {
+      results.checks.firebase = { status: 'error', error: e.message };
+    }
+  } else {
+    results.checks.firebase = { status: 'not_configured' };
+  }
+
+  // 3. API provider probes  (parallel)
+  const probePromises = [];
+
+  // Gemini
+  if (process.env.GEMINI_API_KEY) {
+    probePromises.push(
+      (async () => {
+        try {
+          const t = Date.now();
+          const model = genAI.getGenerativeModel({ model: GENERATIVE_MODEL });
+          const r = await model.generateContent('Reply with just the word ok');
+          const text = r?.response?.text?.() || '';
+          results.checks.gemini = { status: 'ok', latencyMs: Date.now() - t, model: GENERATIVE_MODEL, testResponse: text.substring(0, 50) };
+        } catch (e) {
+          results.checks.gemini = { status: 'error', error: e.message };
+        }
+      })()
+    );
+  } else {
+    results.checks.gemini = { status: 'not_configured' };
+  }
+
+  // Replicate
+  const repKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
+  if (repKey) {
+    probePromises.push(
+      (async () => {
+        try {
+          const t = Date.now();
+          const r = await fetch('https://api.replicate.com/v1/account', {
+            headers: { 'Authorization': `Bearer ${repKey}` }
+          });
+          const d = await r.json().catch(() => ({}));
+          results.checks.replicate = { status: r.ok ? 'ok' : 'error', latencyMs: Date.now() - t, username: d.username, httpStatus: r.status };
+        } catch (e) {
+          results.checks.replicate = { status: 'error', error: e.message };
+        }
+      })()
+    );
+  } else {
+    results.checks.replicate = { status: 'not_configured' };
+  }
+
+  // ElevenLabs
+  if (process.env.ELEVENLABS_API_KEY) {
+    probePromises.push(
+      (async () => {
+        try {
+          const t = Date.now();
+          const r = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
+            headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY }
+          });
+          const d = await r.json().catch(() => ({}));
+          results.checks.elevenlabs = {
+            status: r.ok ? 'ok' : 'error',
+            latencyMs: Date.now() - t,
+            tier: d.tier,
+            charactersUsed: d.character_count,
+            characterLimit: d.character_limit,
+            characterUtilization: d.character_limit > 0 ? ((d.character_count / d.character_limit) * 100).toFixed(1) + '%' : 'N/A'
+          };
+        } catch (e) {
+          results.checks.elevenlabs = { status: 'error', error: e.message };
+        }
+      })()
+    );
+  } else {
+    results.checks.elevenlabs = { status: 'not_configured' };
+  }
+
+  // Stability AI
+  if (process.env.STABILITY_API_KEY) {
+    probePromises.push(
+      (async () => {
+        try {
+          const t = Date.now();
+          const r = await fetch('https://api.stability.ai/v1/user/balance', {
+            headers: { 'Authorization': `Bearer ${process.env.STABILITY_API_KEY}` }
+          });
+          const d = await r.json().catch(() => ({}));
+          results.checks.stability = { status: r.ok ? 'ok' : 'error', latencyMs: Date.now() - t, credits: d.credits };
+        } catch (e) {
+          results.checks.stability = { status: 'error', error: e.message };
+        }
+      })()
+    );
+  } else {
+    results.checks.stability = { status: 'not_configured' };
+  }
+
+  // Stripe
+  if (stripe) {
+    probePromises.push(
+      (async () => {
+        try {
+          const t = Date.now();
+          const balance = await stripe.balance.retrieve();
+          results.checks.stripe = {
+            status: 'ok',
+            latencyMs: Date.now() - t,
+            available: balance.available?.map(b => ({ amount: b.amount / 100, currency: b.currency })),
+            pending: balance.pending?.map(b => ({ amount: b.amount / 100, currency: b.currency }))
+          };
+        } catch (e) {
+          results.checks.stripe = { status: 'error', error: e.message };
+        }
+      })()
+    );
+  } else {
+    results.checks.stripe = { status: 'not_configured' };
+  }
+
+  await Promise.allSettled(probePromises);
+
+  // 4. In-flight operations
+  results.checks.operations = {
+    videoJobs: videoJobs.size,
+    pendingVideoOps: pendingVideoOps.size,
+    pendingConversions: pendingConversions.size,
+    activeConversions
+  };
+
+  // 5. Overall status
+  const checkStatuses = Object.values(results.checks).map(c => c.status);
+  results.overallStatus = checkStatuses.every(s => s === 'ok' || s === 'not_configured') ? 'healthy' : 'degraded';
+  results.totalCheckTimeMs = Date.now() - started;
+
+  res.json(results);
+});
+
 app.get('/api/models', async (req, res) => {
   try {
     if (!apiKey) {
@@ -1663,7 +1833,7 @@ app.post('/api/admin/demo/setup', verifyFirebaseToken, requireAdmin, async (req,
   }
 });
 
-// GET /api/admin/stats - Get platform statistics (admin only)
+// GET /api/admin/stats - Comprehensive platform statistics (admin only)
 app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) => {
   const db = getFirestoreDb();
   if (!db) {
@@ -1671,35 +1841,244 @@ app.get('/api/admin/stats', verifyFirebaseToken, requireAdmin, async (req, res) 
   }
   
   try {
-    // Get user counts
+    // ── 1. USER METRICS ──
     const usersSnapshot = await db.collection('users').get();
     const totalUsers = usersSnapshot.size;
+    const now = new Date();
+    const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
     
     let totalCredits = 0;
     let paidUsers = 0;
-    const tierCounts = { free: 0, creator: 0, pro: 0, lifetime: 0 };
+    let newUsersToday = 0;
+    let newUsersWeek = 0;
+    let newUsersMonth = 0;
+    let activeUsersDay = 0;
+    let activeUsersWeek = 0;
+    let totalRevenue = 0;
+    const tierCounts = { free: 0, creator: 0, studio: 0, pro: 0, lifetime: 0 };
+    const signupsByDay = {};
+    const creditDistribution = { '0': 0, '1-10': 0, '11-50': 0, '51-100': 0, '100+': 0 };
     
     usersSnapshot.forEach(doc => {
       const data = doc.data();
-      totalCredits += data.credits || 0;
-      if (data.tier && data.tier !== 'free') paidUsers++;
-      tierCounts[data.tier || 'free'] = (tierCounts[data.tier || 'free'] || 0) + 1;
+      const credits = data.credits || 0;
+      totalCredits += credits;
+      
+      // Tier classification
+      const tier = data.tier || 'free';
+      tierCounts[tier] = (tierCounts[tier] || 0) + 1;
+      if (tier !== 'free') paidUsers++;
+      
+      // Credit distribution
+      if (credits === 0) creditDistribution['0']++;
+      else if (credits <= 10) creditDistribution['1-10']++;
+      else if (credits <= 50) creditDistribution['11-50']++;
+      else if (credits <= 100) creditDistribution['51-100']++;
+      else creditDistribution['100+']++;
+      
+      // Signup date analysis
+      const createdAt = data.createdAt?.toDate?.() || data.createdAt;
+      if (createdAt) {
+        if (createdAt > oneDayAgo) newUsersToday++;
+        if (createdAt > sevenDaysAgo) newUsersWeek++;
+        if (createdAt > thirtyDaysAgo) newUsersMonth++;
+        const dayKey = new Date(createdAt).toISOString().split('T')[0];
+        signupsByDay[dayKey] = (signupsByDay[dayKey] || 0) + 1;
+      }
+      
+      // Active user tracking
+      const lastActive = data.lastActive?.toDate?.() || data.updatedAt?.toDate?.() || data.lastActive || data.updatedAt;
+      if (lastActive) {
+        if (lastActive > oneDayAgo) activeUsersDay++;
+        if (lastActive > sevenDaysAgo) activeUsersWeek++;
+      }
     });
+
+    // ── 2. REVENUE & FINANCIAL METRICS ──
+    // Credit pricing model
+    const CREDIT_PRICE_MAP = { 10: 1.99, 50: 7.99, 150: 19.99, 500: 49.99 };
+    const SUB_PRICES = { creator: 4.99, studio: 14.99, lifetime: 99.00 };
+    const MONTHLY_COST_PER_GEN = {
+      text: 0.001, vocal: 0.03, beat: 0.07, image: 0.03, video: 0.15, orchestrate: 0.05
+    };
     
+    // Calculate MRR from paid subscribers
+    let mrr = 0;
+    tierCounts.creator && (mrr += tierCounts.creator * SUB_PRICES.creator);
+    tierCounts.studio && (mrr += tierCounts.studio * SUB_PRICES.studio);
+
+    // Annualized from lifetime (amortize over 24 months)
+    const lifetimeAmortized = (tierCounts.lifetime * SUB_PRICES.lifetime) / 24;
+    mrr += lifetimeAmortized;
+    
+    const arr = mrr * 12;
+    const conversionRate = totalUsers > 0 ? ((paidUsers / totalUsers) * 100).toFixed(1) : 0;
+    const arpu = totalUsers > 0 ? (mrr / totalUsers).toFixed(2) : 0;
+    const arppu = paidUsers > 0 ? (mrr / paidUsers).toFixed(2) : 0;
+    
+    // ── 3. UNIT ECONOMICS ──
+    const avgCostPerGen = 0.042; // Weighted avg across all gen types
+    const avgRevenuePerCredit = 0.15; // Based on credit pack pricing
+    const grossMargin = ((avgRevenuePerCredit - avgCostPerGen) / avgRevenuePerCredit * 100).toFixed(1);
+    const avgCreditsPerUser = totalUsers > 0 ? Math.round(totalCredits / totalUsers) : 0;
+    const ltv = arppu * 18; // Avg 18 month retention
+    const cac = 2.50; // Estimated blended CAC (organic + paid)
+    const ltvCacRatio = cac > 0 ? (ltv / cac).toFixed(1) : 'N/A';
+    const paybackMonths = mrr > 0 ? (cac / (arppu * (parseFloat(grossMargin) / 100))).toFixed(1) : 'N/A';
+
+    // ── 4. GROWTH METRICS ──
+    const dailyGrowthRate = totalUsers > 0 ? ((newUsersToday / totalUsers) * 100).toFixed(2) : 0;
+    const weeklyGrowthRate = totalUsers > 0 ? ((newUsersWeek / totalUsers) * 100).toFixed(2) : 0;
+    const monthlyGrowthRate = totalUsers > 0 ? ((newUsersMonth / totalUsers) * 100).toFixed(2) : 0;
+    // CAGR projection based on monthly growth
+    const monthlyGRate = parseFloat(monthlyGrowthRate) / 100;
+    const projectedCAGR = (Math.pow(1 + monthlyGRate, 12) - 1) * 100;
+
+    // ── 5. SYSTEM HEALTH ──
+    const memUsage = process.memoryUsage();
+    const uptimeSeconds = process.uptime();
+    const uptimeDays = (uptimeSeconds / 86400).toFixed(1);
+    
+    // ── 6. API PROVIDER STATUS ──
+    const apiProviders = {
+      gemini: { configured: !!process.env.GEMINI_API_KEY, model: 'gemini-2.0-flash' },
+      replicate: { configured: !!(process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN), services: ['MusicGen', 'Flux 1.1 Pro'] },
+      elevenlabs: { configured: !!process.env.ELEVENLABS_API_KEY, services: ['TTS', 'Voice Cloning'] },
+      stability: { configured: !!process.env.STABILITY_API_KEY, services: ['Image Gen'] },
+      fal: { configured: !!(process.env.FAL_KEY || process.env.FAL_API_KEY), services: ['Video Gen'] },
+      stripe: { configured: !!process.env.STRIPE_SECRET_KEY, webhookConfigured: !!process.env.STRIPE_WEBHOOK_SECRET },
+      firebase: { configured: firebaseInitialized, project: 'studioagents-app' }
+    };
+
+    // ── 7. ACTIVE OPERATIONS ──
+    const activeVideoJobs = videoJobs.size;
+    const activePendingOps = pendingVideoOps.size;
+    const activeFormatConversions = pendingConversions.size;
+    
+    // ── 8. RATE LIMITING STATUS ──
+    const rateLimits = {
+      api: { window: '15 min', max: 1000 },
+      generation: { window: '1 min', max: 30 },
+      auth: { window: '15 min', max: 10 }
+    };
+
+    // ── 9. BREAKEVEN ANALYSIS ──
+    const fixedMonthlyCosts = {
+      railway: 20,        // Hosting
+      firebase: 25,       // Blaze plan estimated
+      domains: 2,         // Domain costs amortized
+      monitoring: 0,      // Currently free tier
+      total: 47
+    };
+    const variableCostPerUser = avgCostPerGen * avgCreditsPerUser; // Per month
+    const totalVariableCosts = variableCostPerUser * activeUsersDay * 30; // Estimated
+    const totalMonthlyCosts = fixedMonthlyCosts.total + totalVariableCosts;
+    const breakEvenUsers = mrr > 0 ? Math.ceil(totalMonthlyCosts / (mrr / Math.max(paidUsers, 1))) : 0;
+    const monthsToBreakeven = mrr > totalMonthlyCosts ? 0 : (mrr > 0 ? Math.ceil((totalMonthlyCosts - mrr) / (mrr * monthlyGRate || 1)) : 'N/A');
+
+    // ── 10. SIGNUPS TREND (last 30 days) ──
+    const signupsTrend = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      signupsTrend.push({ date: key, count: signupsByDay[key] || 0 });
+    }
+
     res.json({
+      // Core metrics
       users: {
         total: totalUsers,
         paid: paidUsers,
         free: totalUsers - paidUsers,
-        byTier: tierCounts
+        byTier: tierCounts,
+        newToday: newUsersToday,
+        newThisWeek: newUsersWeek,
+        newThisMonth: newUsersMonth,
+        dauEstimate: activeUsersDay,
+        wauEstimate: activeUsersWeek,
+        creditDistribution
       },
+      
+      // Financial
+      revenue: {
+        mrr: parseFloat(mrr.toFixed(2)),
+        arr: parseFloat(arr.toFixed(2)),
+        arpu: parseFloat(arpu),
+        arppu: parseFloat(arppu),
+        conversionRate: parseFloat(conversionRate),
+        projectedCAGR: parseFloat(projectedCAGR.toFixed(1)),
+        subscriptionPrices: SUB_PRICES,
+        creditPackPrices: CREDIT_PRICE_MAP
+      },
+      
+      // Unit economics
+      unitEconomics: {
+        avgCostPerGeneration: avgCostPerGen,
+        avgRevenuePerCredit: avgRevenuePerCredit,
+        grossMargin: parseFloat(grossMargin),
+        ltv: parseFloat(ltv.toFixed(2)),
+        cac: cac,
+        ltvCacRatio: parseFloat(ltvCacRatio),
+        paybackMonths: parseFloat(paybackMonths) || paybackMonths,
+        creditCosts: CREDIT_COSTS
+      },
+
+      // Breakeven
+      breakeven: {
+        fixedMonthlyCosts,
+        estimatedVariableCosts: parseFloat(totalVariableCosts.toFixed(2)),
+        totalMonthlyCosts: parseFloat(totalMonthlyCosts.toFixed(2)),
+        currentMRR: parseFloat(mrr.toFixed(2)),
+        breakEvenUsers,
+        monthsToBreakeven,
+        profitable: mrr > totalMonthlyCosts
+      },
+      
+      // Growth
+      growth: {
+        dailyRate: parseFloat(dailyGrowthRate),
+        weeklyRate: parseFloat(weeklyGrowthRate),
+        monthlyRate: parseFloat(monthlyGrowthRate),
+        projectedCAGR: parseFloat(projectedCAGR.toFixed(1)),
+        signupsTrend
+      },
+      
+      // Credits
       credits: {
         totalInCirculation: totalCredits,
-        averagePerUser: totalUsers > 0 ? Math.round(totalCredits / totalUsers) : 0
+        averagePerUser: avgCreditsPerUser
       },
+      
+      // System
+      system: {
+        uptime: uptimeSeconds,
+        uptimeDays: parseFloat(uptimeDays),
+        memory: {
+          heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+          heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+          rss: Math.round(memUsage.rss / 1024 / 1024),
+          external: Math.round(memUsage.external / 1024 / 1024)
+        },
+        nodeVersion: process.version,
+        platform: process.platform,
+        env: NODE_ENV,
+        activeVideoJobs,
+        activePendingOps,
+        activeFormatConversions
+      },
+      
+      // APIs
+      apiProviders,
+      rateLimits,
+      
+      // Meta
       admins: ADMIN_EMAILS,
       demoAccounts: Object.keys(DEMO_ACCOUNTS),
-      timestamp: new Date().toISOString()
+      timestamp: now.toISOString(),
+      generatedIn: `${Date.now() - now.getTime()}ms`
     });
   } catch (error) {
     logger.error('Admin stats failed:', error);

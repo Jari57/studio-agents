@@ -1,0 +1,317 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - complementary [ref=e5]:
+    - generic [ref=e6] [cursor=pointer]:
+      - img [ref=e8]
+      - generic [ref=e11]:
+        - generic [ref=e12]: STUDIO AGENTS V3.5
+        - generic [ref=e13]: AI ECOSYSTEM
+        - generic [ref=e14]: studioagentsai.com
+    - navigation [ref=e15]:
+      - button "My Studio" [ref=e16] [cursor=pointer]:
+        - img [ref=e17]
+        - generic [ref=e21]: My Studio
+      - button "Agents Team" [ref=e22] [cursor=pointer]:
+        - img [ref=e23]
+        - generic [ref=e28]: Agents Team
+      - button "Project Hub" [ref=e29] [cursor=pointer]:
+        - img [ref=e30]
+        - generic [ref=e32]: Project Hub
+      - button "Social Media Hub" [ref=e33] [cursor=pointer]:
+        - img [ref=e34]
+        - generic [ref=e36]: Social Media Hub
+      - button "Resources" [ref=e37] [cursor=pointer]:
+        - img [ref=e38]
+        - generic [ref=e40]: Resources
+      - button "Industry Pulse" [ref=e41] [cursor=pointer]:
+        - img [ref=e42]
+        - generic [ref=e45]: Industry Pulse
+      - button "Support" [ref=e46] [cursor=pointer]:
+        - img [ref=e47]
+        - generic [ref=e50]: Support
+    - generic [ref=e52] [cursor=pointer]:
+      - generic [ref=e54]: U
+      - generic [ref=e55]:
+        - paragraph [ref=e56]: Pro Creator
+        - paragraph [ref=e57]: Pro Plan
+        - button "Sign Out" [ref=e58]
+  - main [ref=e59]:
+    - generic [ref=e60]:
+      - heading "Agents" [level=2] [ref=e62]
+      - generic [ref=e63]:
+        - button "Back to Landing Page" [ref=e64] [cursor=pointer]:
+          - img [ref=e65]
+        - button "Profile" [ref=e68] [cursor=pointer]:
+          - img [ref=e69]
+          - generic [ref=e72]: Profile
+        - button "Tour" [ref=e73] [cursor=pointer]:
+          - img [ref=e74]
+          - generic [ref=e77]: Tour
+        - button "Help" [ref=e78] [cursor=pointer]:
+          - img [ref=e79]
+          - generic [ref=e82]: Help
+        - button [ref=e83] [cursor=pointer]:
+          - img [ref=e84]
+        - generic [ref=e89]: U
+        - button "New Project (0)" [ref=e91] [cursor=pointer]
+    - generic [ref=e93]:
+      - generic [ref=e94]:
+        - heading "Agents" [level=3] [ref=e96]:
+          - img [ref=e97]
+          - text: Agents
+        - generic [ref=e100]:
+          - button "Ghostwriter" [ref=e101] [cursor=pointer]:
+            - img [ref=e103]
+            - text: Ghostwriter
+          - button "Music GPT" [ref=e106] [cursor=pointer]:
+            - img [ref=e108]
+            - text: Music GPT
+          - button "Album Artist 2.0" [ref=e111] [cursor=pointer]:
+            - img [ref=e113]
+            - text: Album Artist 2.0
+          - button "Viral Video Agent" [ref=e116] [cursor=pointer]:
+            - img [ref=e118]
+            - text: Viral Video Agent
+          - button "Mastering Lab" [ref=e121] [cursor=pointer]:
+            - img [ref=e123]
+            - text: Mastering Lab
+          - button "Trend Hunter" [ref=e126] [cursor=pointer]:
+            - img [ref=e128]
+            - text: Trend Hunter
+          - button "AR Suite" [ref=e131] [cursor=pointer]:
+            - img [ref=e133]
+            - text: AR Suite
+          - button "Release Manager" [ref=e136] [cursor=pointer]:
+            - img [ref=e138]
+            - text: Release Manager
+          - button "Vocal Lab" [ref=e141] [cursor=pointer]:
+            - img [ref=e143]
+            - text: Vocal Lab
+          - button "Instrumentalist" [ref=e146] [cursor=pointer]:
+            - img [ref=e148]
+            - text: Instrumentalist
+          - button "Beat Architect" [ref=e151] [cursor=pointer]:
+            - img [ref=e153]
+            - text: Beat Architect
+          - button "Crate Digger" [ref=e156] [cursor=pointer]:
+            - img [ref=e158]
+            - text: Crate Digger
+          - button "Drop Zone" [ref=e161] [cursor=pointer]:
+            - img [ref=e163]
+            - text: Drop Zone
+          - button "Score Editor" [ref=e166] [cursor=pointer]:
+            - img [ref=e168]
+            - text: Score Editor
+          - button "Collab Connect" [ref=e171] [cursor=pointer]:
+            - img [ref=e173]
+            - text: Collab Connect
+          - button "Video Scorer" [ref=e176] [cursor=pointer]:
+            - img [ref=e178]
+            - text: Video Scorer
+      - generic [ref=e182]:
+        - generic [ref=e183]:
+          - generic [ref=e184]:
+            - heading "AI Agents Studio" [level=2] [ref=e185]:
+              - img [ref=e186]
+              - text: AI Agents Studio
+            - paragraph [ref=e189]: 16 specialized agents * Click any card to start creating
+          - generic [ref=e190]:
+            - button "Whitepapers" [ref=e191] [cursor=pointer]:
+              - img [ref=e192]
+              - text: Whitepapers
+            - button "Legal" [ref=e195] [cursor=pointer]:
+              - img [ref=e196]
+              - text: Legal
+        - generic [ref=e198]:
+          - generic [ref=e199]:
+            - img [ref=e200]
+            - generic [ref=e203]: Free Tier
+            - generic [ref=e204]: "-4 agents included"
+          - generic [ref=e205]:
+            - generic [ref=e206] [cursor=pointer]:
+              - generic [ref=e207]: Free
+              - img [ref=e209]
+              - heading "Ghostwriter" [level=3] [ref=e212]
+              - paragraph [ref=e213]: Music Creation
+              - paragraph [ref=e214]: AI lyricist creating bars with Udio-style structure
+              - generic [ref=e215]:
+                - generic [ref=e216]: Udio/Suno Structural Tags
+                - generic [ref=e217]: Rhyme Scheme Analysis
+            - generic [ref=e218] [cursor=pointer]:
+              - generic [ref=e219]: Free
+              - img [ref=e221]
+              - heading "Music GPT" [level=3] [ref=e224]
+              - paragraph [ref=e225]: Pro Producer
+              - paragraph [ref=e226]: The world's most powerful AI music engine (MusicGen + Riffusion DNA)
+              - generic [ref=e227]:
+                - generic [ref=e228]: High-Fidelity Audio
+                - generic [ref=e229]: Riffusion Spectrogram Forks
+            - generic [ref=e230] [cursor=pointer]:
+              - generic [ref=e231]: Free
+              - img [ref=e233]
+              - heading "Album Artist 2.0" [level=3] [ref=e236]
+              - paragraph [ref=e237]: Visual Identity
+              - paragraph [ref=e238]: Vibe-aligned artwork with Riffusion-style color mapping
+              - generic [ref=e239]:
+                - generic [ref=e240]: Style Extraction
+                - generic [ref=e241]: Riffusion Vibe Mapping
+            - generic [ref=e242] [cursor=pointer]:
+              - generic [ref=e243]: Free
+              - generic [ref=e244]: BETA
+              - img [ref=e246]
+              - heading "Viral Video Agent" [level=3] [ref=e249]
+              - paragraph [ref=e250]: Visual Identity
+              - paragraph [ref=e251]: Generate viral-ready video concepts for TikTok, Reels, YouTube Shorts, and social platforms.
+              - generic [ref=e252]:
+                - generic [ref=e253]: Frame-Perfect Beat Sync
+                - generic [ref=e254]: Platform-Specific Strategies
+          - generic [ref=e255]:
+            - img [ref=e256]
+            - generic [ref=e258]: Monthly -$4.99/mo
+            - generic [ref=e259]: "-4 agents"
+          - generic [ref=e260]:
+            - generic [ref=e261] [cursor=pointer]:
+              - generic [ref=e262]: Creator
+              - img [ref=e263]
+              - img [ref=e267]
+              - heading "Mastering Lab" [level=3] [ref=e270]
+              - paragraph [ref=e271]: Audio Engineering
+              - paragraph [ref=e272]: Stem-aware AI mastering with BandLab collaboration
+              - generic [ref=e273]:
+                - generic [ref=e274]: Stem-aware EQ
+                - generic [ref=e275]: Cloud-Collaboration Review
+            - generic [ref=e276] [cursor=pointer]:
+              - generic [ref=e277]: Creator
+              - img [ref=e278]
+              - img [ref=e282]
+              - heading "Trend Hunter" [level=3] [ref=e285]
+              - paragraph [ref=e286]: Career Growth
+              - paragraph [ref=e287]: Analyze viral trends and hashtag performance in real-time.
+              - generic [ref=e288]:
+                - generic [ref=e289]: Viral Sound Analysis
+                - generic [ref=e290]: Hashtag Strategy
+            - generic [ref=e291] [cursor=pointer]:
+              - generic [ref=e292]: Creator
+              - img [ref=e293]
+              - img [ref=e297]
+              - heading "AR Suite" [level=3] [ref=e300]
+              - paragraph [ref=e301]: Career Growth
+              - paragraph [ref=e302]: Create augmented reality experience concepts for your music.
+              - generic [ref=e303]:
+                - generic [ref=e304]: Voice input for track descriptions
+                - generic [ref=e305]: Text-to-speech AR concept readouts
+            - generic [ref=e306] [cursor=pointer]:
+              - generic [ref=e307]: Creator
+              - img [ref=e308]
+              - img [ref=e312]
+              - heading "Release Manager" [level=3] [ref=e315]
+              - paragraph [ref=e316]: Career Growth
+              - paragraph [ref=e317]: Strategic release planning and rollout strategies
+              - generic [ref=e318]:
+                - generic [ref=e319]: Rollout Timelines
+                - generic [ref=e320]: Pitching Guides
+          - generic [ref=e321]:
+            - img [ref=e322]
+            - generic [ref=e325]: Pro -$9.99/mo
+            - generic [ref=e326]: "-8 agents"
+          - generic [ref=e327]:
+            - generic [ref=e328] [cursor=pointer]:
+              - generic [ref=e329]: Pro
+              - img [ref=e330]
+              - generic [ref=e333]: BETA
+              - img [ref=e335]
+              - heading "Vocal Lab" [level=3] [ref=e338]
+              - paragraph [ref=e339]: Pro Performer
+              - paragraph [ref=e340]: AI vocal synthesis with Suno-style emotional tags
+              - generic [ref=e341]:
+                - generic [ref=e342]: "[Emotional Tagging]"
+                - generic [ref=e343]: Udio-Style Phrasing
+            - generic [ref=e344] [cursor=pointer]:
+              - generic [ref=e345]: Pro
+              - img [ref=e346]
+              - generic [ref=e349]: BETA
+              - img [ref=e351]
+              - heading "Instrumentalist" [level=3] [ref=e354]
+              - paragraph [ref=e355]: Music Creation
+              - paragraph [ref=e356]: AI-driven virtual session players for pro performance
+              - generic [ref=e357]:
+                - generic [ref=e358]: Solo Generation
+                - generic [ref=e359]: Rhythm Section AI
+            - generic [ref=e360] [cursor=pointer]:
+              - generic [ref=e361]: Pro
+              - img [ref=e362]
+              - generic [ref=e365]: BETA
+              - img [ref=e367]
+              - heading "Beat Architect" [level=3] [ref=e370]
+              - paragraph [ref=e371]: Music Creation
+              - paragraph [ref=e372]: Advanced drum machine and rhythm generator
+              - generic [ref=e373]:
+                - generic [ref=e374]: Custom Kit Design
+                - generic [ref=e375]: Polyrhythmic Patterns
+            - generic [ref=e376] [cursor=pointer]:
+              - generic [ref=e377]: Pro
+              - img [ref=e378]
+              - img [ref=e382]
+              - heading "Crate Digger" [level=3] [ref=e385]
+              - paragraph [ref=e386]: Music Creation
+              - paragraph [ref=e387]: Discover rare samples and production inspiration across music history.
+              - generic [ref=e388]:
+                - generic [ref=e389]: Voice search input
+                - generic [ref=e390]: Text-to-speech sample descriptions
+            - generic [ref=e391] [cursor=pointer]:
+              - generic [ref=e392]: Pro
+              - img [ref=e393]
+              - generic [ref=e396]: BETA
+              - img [ref=e398]
+              - heading "Drop Zone" [level=3] [ref=e401]
+              - paragraph [ref=e402]: Music Creation
+              - paragraph [ref=e403]: High-energy EDM and Trap drop generator
+              - generic [ref=e404]:
+                - generic [ref=e405]: Build-up Logic
+                - generic [ref=e406]: Drop Synthesis
+            - generic [ref=e407] [cursor=pointer]:
+              - generic [ref=e408]: Pro
+              - img [ref=e409]
+              - img [ref=e413]
+              - heading "Score Editor" [level=3] [ref=e416]
+              - paragraph [ref=e417]: Music Creation
+              - paragraph [ref=e418]: Precision scoring for film and media
+              - generic [ref=e419]:
+                - generic [ref=e420]: Sheet Music Export
+                - generic [ref=e421]: Orchestral Layering
+            - generic [ref=e422] [cursor=pointer]:
+              - generic [ref=e423]: Pro
+              - img [ref=e424]
+              - img [ref=e428]
+              - heading "Collab Connect" [level=3] [ref=e431]
+              - paragraph [ref=e432]: Career Growth
+              - paragraph [ref=e433]: Find the perfect collaborators with AI matching
+              - generic [ref=e434]:
+                - generic [ref=e435]: Artist Matching
+                - generic [ref=e436]: Producer Outreach
+            - generic [ref=e437] [cursor=pointer]:
+              - generic [ref=e438]: Pro
+              - img [ref=e439]
+              - generic [ref=e442]: BETA
+              - img [ref=e444]
+              - heading "Video Scorer" [level=3] [ref=e447]
+              - paragraph [ref=e448]: Visual Identity
+              - paragraph [ref=e449]: Upload video and AI generates the soundtrack
+              - generic [ref=e450]:
+                - generic [ref=e451]: Scene Detection
+                - generic [ref=e452]: Emotional Mapping
+  - generic [ref=e454]:
+    - button [ref=e455] [cursor=pointer]:
+      - img [ref=e456]
+    - generic [ref=e459]:
+      - generic [ref=e460]: 🎧
+      - heading "Welcome to The Studio" [level=2] [ref=e461]
+      - paragraph [ref=e462]: 16 AI agents ready to help you write, produce, and grow your music career.
+      - paragraph [ref=e463]: Pick an agent to start. That's it.
+      - button "Enter Studio" [ref=e464] [cursor=pointer]
+      - button "Take a Guided Tour" [ref=e465] [cursor=pointer]:
+        - img [ref=e466]
+        - text: Take a Guided Tour
+```

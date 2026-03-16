@@ -80,7 +80,8 @@ export function PreviewModal({
         justifyContent: 'center',
         zIndex: 10002,
         backdropFilter: 'blur(12px)',
-        animation: 'fadeIn 0.2s ease-out'
+        animation: 'fadeIn 0.2s ease-out',
+        padding: 'env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px)'
       }}
       onClick={onClose}
     >

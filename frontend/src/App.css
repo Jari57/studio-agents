@@ -5971,7 +5971,7 @@ select optgroup {
     padding: 1.25rem;
     border-radius: 16px;
     max-width: 100%;
-    max-height: 95vh;
+    max-height: 95dvh;
     margin: 0.5rem;
   }
 
@@ -10320,16 +10320,11 @@ button:not(.icon-btn):not(.nav-btn):not(.close-btn):not(.preview-btn):not(.btn-i
   }
 }
 
-/* Prevent fixed position issues - but exclude modal-close which needs absolute */
-.modal-overlay *:not(.modal-close) {
-  position: relative;
-}
-
 /* Ensure modal-close is always clickable and properly positioned */
 .modal-close {
-  position: absolute !important;
-  z-index: 10 !important; /* Relative to modal-overlay */
+  z-index: 10;
   pointer-events: auto !important;
+  flex-shrink: 0;
 }
 
 /* Ensure modal content uses flex layout */

@@ -16104,21 +16104,21 @@ const fetchUserCredits = useCallback(async (uid) => {
                 }}
                 style={{
                   position: 'fixed',
-                  left: '20px',
+                  left: isMobile ? '8px' : '20px',
                   top: '50%',
                   transform: 'translateY(-50%)',
                   background: 'rgba(255,255,255,0.1)',
                   border: '1px solid rgba(255,255,255,0.2)',
                   borderRadius: '50%',
-                  width: '50px',
-                  height: '50px',
-                  display: 'flex',
+                  width: isMobile ? '40px' : '50px',
+                  height: isMobile ? '40px' : '50px',
+                  display: isMobile ? 'none' : 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
                   color: 'white',
                   backdropFilter: 'blur(8px)',
-                  zIndex: 2001,
+                  zIndex: 10001,
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.4)'}
@@ -16166,21 +16166,21 @@ const fetchUserCredits = useCallback(async (uid) => {
                 }}
                 style={{
                   position: 'fixed',
-                  right: '20px',
+                  right: isMobile ? '8px' : '20px',
                   top: '50%',
                   transform: 'translateY(-50%)',
                   background: 'rgba(255,255,255,0.1)',
                   border: '1px solid rgba(255,255,255,0.2)',
                   borderRadius: '50%',
-                  width: '50px',
-                  height: '50px',
-                  display: 'flex',
+                  width: isMobile ? '40px' : '50px',
+                  height: isMobile ? '40px' : '50px',
+                  display: isMobile ? 'none' : 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
                   color: 'white',
                   backdropFilter: 'blur(8px)',
-                  zIndex: 2001,
+                  zIndex: 10001,
                   transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(168, 85, 247, 0.4)'}
@@ -16196,9 +16196,9 @@ const fetchUserCredits = useCallback(async (uid) => {
             onClick={e => e.stopPropagation()} 
             style={{ 
               maxWidth: previewMaximized ? '100vw' : (isMobile ? '100vw' : (safePreview.type === 'image' ? '90vw' : '85vw')),
-              maxHeight: previewMaximized ? '100vh' : (isMobile ? '100vh' : '85vh'),
+              maxHeight: previewMaximized ? '100dvh' : (isMobile ? '100dvh' : '85vh'),
               width: previewMaximized ? '100vw' : (isMobile ? '100vw' : (safePreview.type === 'image' ? 'auto' : '100%')),
-              height: previewMaximized ? '100vh' : (isMobile ? '100vh' : 'auto'),
+              height: previewMaximized ? '100dvh' : (isMobile ? '100dvh' : 'auto'),
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
