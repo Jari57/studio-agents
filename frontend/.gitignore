@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Test artifacts
+playwright-report/
+test-results/
+test-results.json
+
+# Build analysis
+bundle-stats.html
+
+# Claude temp files
+tmpclaude-*

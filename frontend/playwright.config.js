@@ -33,7 +33,7 @@ export default defineConfig({
       command: 'cd ../backend && node server.js',
       url: 'http://localhost:3001/health',
       reuseExistingServer: !process.env.CI,
-      timeout: 30 * 1000,
+      timeout: 60 * 1000,
     },
     {
       command: 'npm run dev',
