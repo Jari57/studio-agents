@@ -3290,7 +3290,13 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       // Ensure we only send the actual lyrics content, not the intro/prompt fluff
       const { content: lyricsOnly } = splitCreativeContent(lyricsText);
-      const cleanLyrics = lyricsOnly || lyricsText;
+      // Aggressively strip AI preamble even in fallback to prevent prompt context in vocals
+      let cleanLyrics = lyricsOnly || lyricsText;
+      cleanLyrics = cleanLyrics
+        .replace(/^(Sure!?|Okay!?|Absolutely!?|Here('s| is| are))[^\n]*\n/i, '')
+        .replace(/^(I've written|I wrote|I created|Let me|Below are|These lyrics)[^\n]*\n/i, '')
+        .replace(/^(Here('s| is| are) (a|the|your|some))[^\n]*\n/i, '')
+        .trim();
 
       // Use the same voice mapping as handleGenerateLyricsVocal
       const voiceMapping = {

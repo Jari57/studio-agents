@@ -4956,7 +4956,16 @@ Return ONLY valid JSON, no markdown.`;
           .replace(/\[([^\]]*)\]/g, '')
           .replace(/\n{2,}/g, '\n')
           .trim();
-        const barkSingingPrompt = `\u266A ${singingPrompt.substring(0, 800)} \u266A`;
+        // Bark can only handle ~280 chars reliably before gibberish
+        // Use intelligent line-based chunking to keep complete lines
+        let truncatedSinging = '';
+        const singingLines = singingPrompt.split('\n').filter(l => l.trim());
+        for (const line of singingLines) {
+          if ((truncatedSinging + '\n' + line).length > 270) break;
+          truncatedSinging += (truncatedSinging ? '\n' : '') + line;
+        }
+        if (!truncatedSinging) truncatedSinging = singingPrompt.substring(0, 270);
+        const barkSingingPrompt = `\u266A ${truncatedSinging} \u266A`;
         // Adjust Bark temperature based on reference analysis
         let barkTextTemp = 0.7;
         let barkWaveformTemp = 0.7;
@@ -7692,7 +7701,7 @@ function getAgentSystemPrompt(agent, session) {
   const baseContext = session ? `Session context: BPM=${session.bpm || 120}, Key=${session.key || 'C major'}, Style=${session.style || 'contemporary'}, Bars=${session.musicalBars || 8}.` : '';
   
   const agentPrompts = {
-    'Ghostwriter': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay. Ensure lyrics flow perfectly at the specified BPM and song length.`,
+    'Ghostwriter': `You are the Ghostwriter AI, an elite lyricist and songwriter. ${baseContext} Write compelling, emotionally resonant lyrics with clever wordplay. Ensure lyrics flow perfectly at the specified BPM and song length. IMPORTANT: Return ONLY the lyrics with [Verse], [Chorus], [Bridge] etc. structure tags. Do NOT include any preamble, introduction, explanation, or commentary. Start directly with the first structure tag.`,
     'BeatArchitect': `You are the Beat Architect AI, a master producer and beatmaker. ${baseContext} Create detailed beat concepts and drum patterns. Prefer 100% professional musicality. Reference the specified BPM and exact Bar count (${session?.musicalBars || 8} bars) in your creative decisions for rhythm and timing.`,
     'VisualVibe': `You are the Visual Vibe AI, a music video and artwork conceptualist. ${baseContext} Design compelling visual concepts, color palettes, and mood boards for music.`,
     'SoundscapeDesigner': `You are the Soundscape Designer AI, an ambient and texture specialist. ${baseContext} Create atmospheric soundscapes, textures, and ambient elements.`,
