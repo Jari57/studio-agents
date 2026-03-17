@@ -2805,6 +2805,9 @@ export default function StudioOrchestratorV2({
     setIsGenerating(true);
     toast.loading('Generating content...', { id: 'gen-all' });
 
+    // Declare outside try so finally block can close it
+    let eventSource = null;
+
     // Build pipeline steps based on active slots
     const steps = [];
     if (selectedAgents.lyrics) steps.push({ id: 'lyrics', label: 'Writing lyrics', status: 'pending', startTime: null, endTime: null });
@@ -2825,7 +2828,6 @@ export default function StudioOrchestratorV2({
       // SSE pipeline session for real-time progress from backend
       const pipelineSessionId = crypto.randomUUID();
       headers['x-pipeline-session'] = pipelineSessionId;
-      let eventSource = null;
       try {
         eventSource = new EventSource(`${BACKEND_URL}/api/pipeline-events/${pipelineSessionId}`);
         eventSource.addEventListener('step', (e) => {
