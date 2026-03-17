@@ -4847,14 +4847,25 @@ Return ONLY valid JSON, no markdown.`;
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // PRIORITY 0: SUNO API — Real AI singing (when API key configured)
+    // PRIORITY 0: SUNO API — Real AI singing/rapping (when API key configured)
+    // Suno produces actual musical performances: singing, rapping, melodic delivery.
+    // Activated for: singers, rappers, and premium quality requests.
     // ═══════════════════════════════════════════════════════════════
-    if (sunoApiKey && !audioUrl && isSingingStyle) {
+    const useSunoForVocals = isSingingStyle || isRapStyle || req.body.quality === 'premium';
+    if (sunoApiKey && !audioUrl && useSunoForVocals) {
       try {
-        logger.info('🎵 Using Suno API for real singing vocals', { style, genre, hasRefAnalysis: !!refSongAnalysis });
+        logger.info('🎵 Using Suno API for real musical vocals', { style, genre, isRap: isRapStyle, isSinging: isSingingStyle });
 
-        // Build Suno tags — inject reference song analysis if available
-        let sunoTags = `${genre}, ${style.includes('female') ? 'female vocals' : 'male vocals'}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`;
+        // Build Suno tags — adapt for singing vs rapping
+        const vocalGender = style.includes('female') ? 'female vocals' : 'male vocals';
+        const rapStyle = req.body.rapStyle || '';
+        let sunoTags;
+        if (isRapStyle) {
+          // Rap-specific Suno tags for authentic delivery
+          sunoTags = `${genre || 'hip-hop'}, rap, ${rapStyle || 'aggressive'}, ${vocalGender}, bars, rhythmic flow, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`;
+        } else {
+          sunoTags = `${genre}, ${vocalGender}, ${outputFormat === 'music' ? 'billboard quality' : outputFormat}, professional studio recording`;
+        }
         
         // Clean lyrics for Suno — strip structure tags, keep only singable text
         let sunoLyrics = prompt
