@@ -4568,7 +4568,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
 
       // Always call the mixing endpoint when we have both vocals + beat (dry vocals, clean mix)
       if (hasVocals && hasBeat) {
-        toast.loading('Mixing vocals + beat into master (~15s)...', { id: 'final-mix' });
+        toast.loading('Mixing vocals + beat into master (auto-tune + tempo sync ~30s)...', { id: 'final-mix' });
 
         const headers = await getHeaders();
         const response = await fetch(`${BACKEND_URL}/api/create-final-mix`, {
@@ -4583,6 +4583,10 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             vocalVolume: mixVocalVolume,
             beatVolume: mixBeatVolume,
             preset: mixPreset || 'rapper-over-beat',
+            // Billboard-ready processing flags
+            beatBpm: parseInt(projectBpm) || null,
+            autoTune: true,
+            tempoSync: true,
             // ID3 metadata for professional export
             title: songIdea || 'Untitled',
             artist: 'Studio Agents AI',

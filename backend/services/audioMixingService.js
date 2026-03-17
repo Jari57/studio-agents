@@ -380,9 +380,365 @@ function getMixPreset(presetName) {
   return presets[presetName] || presets['rapper-over-beat'];
 }
 
+/**
+ * Detect BPM of an audio file using FFmpeg energy onset analysis.
+ * Returns estimated BPM or null if detection fails.
+ */
+function detectBpmFromFile(audioPath, logger) {
+  return new Promise((resolve) => {
+    try {
+      const { execFile } = require('child_process');
+
+      // Get audio duration using ffmpeg-static (no ffprobe needed)
+      execFile(ffmpegStatic, [
+        '-i', audioPath,
+        '-af', 'astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-',
+        '-f', 'null', '-'
+      ], { timeout: 30000, maxBuffer: 10 * 1024 * 1024 }, (error, _stdout, stderr) => {
+        // FFmpeg prints duration info to stderr even on success
+        const durationMatch = (stderr || '').match(/Duration:\s*(\d+):(\d+):([\d.]+)/);
+        if (!durationMatch) {
+          if (logger) logger.warn('BPM detection: could not determine duration');
+          resolve(null);
+          return;
+        }
+
+        const duration = parseInt(durationMatch[1]) * 3600 + parseInt(durationMatch[2]) * 60 + parseFloat(durationMatch[3]);
+        if (duration < 2) { resolve(null); return; }
+
+        // Use a separate call with volumedetect + astats to find onset peaks
+        const analysisPath = audioPath + '.energy.txt';
+        execFile(ffmpegStatic, [
+          '-i', audioPath,
+          '-af', `astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=${analysisPath}`,
+          '-f', 'null', '-'
+        ], { timeout: 30000 }, (error2) => {
+          if (error2 || !fs.existsSync(analysisPath)) {
+            if (logger) logger.warn('BPM detection: energy analysis failed', { error: error2?.message });
+            resolve(null);
+            return;
+          }
+
+          try {
+            const lines = fs.readFileSync(analysisPath, 'utf8').split('\n');
+            const energyValues = [];
+            let currentTime = null;
+
+            for (const line of lines) {
+              const timeMatch = line.match(/pts_time:([\d.]+)/);
+              if (timeMatch) currentTime = parseFloat(timeMatch[1]);
+              const rmsMatch = line.match(/RMS_level=(-?[\d.]+)/);
+              if (rmsMatch && currentTime !== null) {
+                energyValues.push({ time: currentTime, rms: parseFloat(rmsMatch[1]) });
+              }
+            }
+
+            fs.unlinkSync(analysisPath);
+
+            if (energyValues.length < 10) {
+              resolve(null);
+              return;
+            }
+
+            // Find peaks (onsets) in energy
+            const threshold = energyValues.reduce((s, v) => s + v.rms, 0) / energyValues.length + 3;
+            const peaks = [];
+            for (let i = 1; i < energyValues.length - 1; i++) {
+              if (energyValues[i].rms > energyValues[i - 1].rms &&
+                  energyValues[i].rms > energyValues[i + 1].rms &&
+                  energyValues[i].rms > threshold) {
+                // Debounce: skip peaks too close to previous (< 200ms)
+                if (peaks.length === 0 || energyValues[i].time - peaks[peaks.length - 1] > 0.2) {
+                  peaks.push(energyValues[i].time);
+                }
+              }
+            }
+
+            if (peaks.length < 4) {
+              resolve(null);
+              return;
+            }
+
+            // Calculate inter-onset intervals and estimate BPM
+            const intervals = [];
+            for (let i = 1; i < peaks.length; i++) {
+              intervals.push(peaks[i] - peaks[i - 1]);
+            }
+
+            // Cluster intervals to find dominant tempo
+            const median = intervals.sort((a, b) => a - b)[Math.floor(intervals.length / 2)];
+            const bpm = Math.round(60 / median);
+
+            // Clamp to musical range and resolve octave ambiguity
+            let finalBpm = bpm;
+            if (finalBpm < 60) finalBpm *= 2;
+            if (finalBpm > 200) finalBpm = Math.round(finalBpm / 2);
+            finalBpm = Math.max(60, Math.min(200, finalBpm));
+
+            if (logger) logger.info('BPM detected from audio', { bpm: finalBpm, peaks: peaks.length, confidence: peaks.length > 10 ? 'high' : 'low' });
+            resolve(finalBpm);
+          } catch (parseErr) {
+            try { fs.unlinkSync(analysisPath); } catch {}
+            resolve(null);
+          }
+        });
+      });
+    } catch (err) {
+      if (logger) logger.warn('BPM detection error', { error: err.message });
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Time-stretch vocal audio to match beat BPM using FFmpeg atempo filter.
+ * Preserves pitch while adjusting timing to lock vocals to the beat grid.
+ *
+ * @param {string} vocalPath - Path to vocal audio file
+ * @param {number} vocalBpm - Detected vocal rhythm/speech rate as BPM
+ * @param {number} targetBpm - Beat BPM to match
+ * @param {string} outputPath - Output file path
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<string>} Path to time-stretched audio
+ */
+function tempoStretchVocal(vocalPath, vocalBpm, targetBpm, outputPath, logger) {
+  return new Promise((resolve, reject) => {
+    if (!vocalBpm || !targetBpm || vocalBpm === targetBpm) {
+      resolve(vocalPath); // No stretch needed
+      return;
+    }
+
+    const ratio = targetBpm / vocalBpm;
+
+    // Only stretch if ratio is within a reasonable range (0.75x to 1.33x)
+    // Beyond this, the audio would sound unnatural
+    if (ratio < 0.75 || ratio > 1.33) {
+      if (logger) logger.info('Tempo ratio too extreme, skipping stretch', { ratio: ratio.toFixed(3), vocalBpm, targetBpm });
+      resolve(vocalPath);
+      return;
+    }
+
+    if (logger) logger.info('Time-stretching vocal to match beat BPM', { vocalBpm, targetBpm, ratio: ratio.toFixed(3) });
+
+    // FFmpeg atempo supports 0.5–2.0. For ratios outside, chain multiple filters.
+    const filters = [];
+    let remaining = ratio;
+    while (remaining < 0.5 || remaining > 2.0) {
+      if (remaining < 0.5) {
+        filters.push('atempo=0.5');
+        remaining /= 0.5;
+      } else {
+        filters.push('atempo=2.0');
+        remaining /= 2.0;
+      }
+    }
+    filters.push(`atempo=${remaining.toFixed(4)}`);
+
+    ffmpeg(vocalPath)
+      .audioFilters(filters.join(','))
+      .audioCodec('libmp3lame')
+      .audioBitrate('320k')
+      .output(outputPath)
+      .on('end', () => {
+        if (logger) logger.info('Vocal tempo-stretch complete', { ratio: ratio.toFixed(3) });
+        resolve(outputPath);
+      })
+      .on('error', (err) => {
+        if (logger) logger.warn('Tempo stretch failed, using original', { error: err.message });
+        resolve(vocalPath); // Fallback to original
+      })
+      .run();
+  });
+}
+
+/**
+ * Detect the first strong beat (downbeat) in the instrumental and calculate
+ * the silence padding needed to align vocal start to the beat grid.
+ *
+ * @param {string} beatPath - Path to instrumental audio
+ * @param {number} bpm - BPM of the beat
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<number>} Seconds of silence to prepend to vocals (0 if already aligned or detection fails)
+ */
+function detectDownbeatOffset(beatPath, bpm, logger) {
+  return new Promise((resolve) => {
+    try {
+      const { execFile } = require('child_process');
+      const ffmpegStatic = require('ffmpeg-static');
+
+      // Use silencedetect to find the first non-silent moment (start of music)
+      const analysisPath = beatPath + '.silence.txt';
+      execFile(ffmpegStatic, [
+        '-i', beatPath,
+        '-af', `silencedetect=noise=-30dB:d=0.1`,
+        '-f', 'null', '-'
+      ], { timeout: 15000 }, (error, _stdout, stderr) => {
+        // silencedetect outputs to stderr
+        const output = stderr || '';
+        const silenceEndMatch = output.match(/silence_end:\s*([\d.]+)/);
+
+        if (silenceEndMatch) {
+          const musicStart = parseFloat(silenceEndMatch[1]);
+          // Beat interval in seconds
+          const beatInterval = 60 / (bpm || 120);
+          // Calculate how many beats of intro before vocals should start
+          // Standard: vocals enter after 4 or 8 beats (1 or 2 bars in 4/4 time)
+          const barsOfIntro = musicStart < beatInterval * 6 ? 1 : 2; // 1 bar for short intros, 2 for longer
+          const vocalEntryPoint = musicStart + (beatInterval * 4 * barsOfIntro);
+
+          if (logger) logger.info('Downbeat alignment calculated', {
+            musicStart: musicStart.toFixed(3),
+            beatInterval: beatInterval.toFixed(3),
+            vocalEntryPoint: vocalEntryPoint.toFixed(3),
+            barsOfIntro
+          });
+
+          resolve(vocalEntryPoint);
+        } else {
+          // No silence detected — music starts immediately, add 1 bar of intro
+          const beatInterval = 60 / (bpm || 120);
+          resolve(beatInterval * 4); // 1 bar
+        }
+
+        try { if (fs.existsSync(analysisPath)) fs.unlinkSync(analysisPath); } catch {}
+      });
+    } catch (err) {
+      if (logger) logger.warn('Downbeat detection failed', { error: err.message });
+      resolve(0);
+    }
+  });
+}
+
+/**
+ * Add silence padding to the beginning of a vocal track for beat alignment.
+ *
+ * @param {string} vocalPath - Path to vocal audio
+ * @param {number} paddingSeconds - Seconds of silence to prepend
+ * @param {string} outputPath - Output path
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<string>} Path to padded audio
+ */
+function padVocalStart(vocalPath, paddingSeconds, outputPath, logger) {
+  return new Promise((resolve, reject) => {
+    if (!paddingSeconds || paddingSeconds <= 0 || paddingSeconds > 10) {
+      resolve(vocalPath);
+      return;
+    }
+
+    if (logger) logger.info('Padding vocal start for downbeat alignment', { paddingSeconds: paddingSeconds.toFixed(3) });
+
+    ffmpeg(vocalPath)
+      .audioFilters(`adelay=${Math.round(paddingSeconds * 1000)}|${Math.round(paddingSeconds * 1000)}`)
+      .audioCodec('libmp3lame')
+      .audioBitrate('320k')
+      .output(outputPath)
+      .on('end', () => {
+        if (logger) logger.info('Vocal padding complete');
+        resolve(outputPath);
+      })
+      .on('error', (err) => {
+        if (logger) logger.warn('Vocal padding failed, using original', { error: err.message });
+        resolve(vocalPath);
+      })
+      .run();
+  });
+}
+
+/**
+ * Apply auto-tune effect to vocal audio using FFmpeg.
+ * Uses a combination of effects to create the characteristic pitch-corrected sound.
+ * NOT true per-note pitch correction — this is the aesthetic "auto-tune effect"
+ * commonly heard in trap, R&B, and pop music.
+ *
+ * @param {string} vocalPath - Path to vocal audio
+ * @param {string} genre - Musical genre (determines intensity of effect)
+ * @param {string} outputPath - Output path
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<string>} Path to processed audio
+ */
+function applyAutoTuneEffect(vocalPath, genre, outputPath, logger) {
+  return new Promise((resolve, reject) => {
+    // Determine auto-tune intensity based on genre
+    const genreLower = (genre || '').toLowerCase();
+
+    // Skip auto-tune for spoken word, podcast, or explicit rap styles
+    const skipGenres = ['podcast', 'spoken', 'audiobook', 'comedy', 'news'];
+    if (skipGenres.some(g => genreLower.includes(g))) {
+      resolve(vocalPath);
+      return;
+    }
+
+    // Heavy auto-tune: trap, R&B, pop, electronic
+    const heavyGenres = ['trap', 'r&b', 'rnb', 'pop', 'electronic', 'edm', 'future', 'cloud rap', 'auto'];
+    // Medium auto-tune: hip-hop, rap, alternative, indie
+    const mediumGenres = ['hip-hop', 'hip hop', 'rap', 'alternative', 'indie', 'rock'];
+    // Light auto-tune: soul, jazz, country, folk (polish only)
+    const lightGenres = ['soul', 'jazz', 'country', 'folk', 'acoustic', 'gospel', 'classical'];
+
+    let intensity = 'medium'; // default
+    if (heavyGenres.some(g => genreLower.includes(g))) intensity = 'heavy';
+    else if (lightGenres.some(g => genreLower.includes(g))) intensity = 'light';
+    else if (mediumGenres.some(g => genreLower.includes(g))) intensity = 'medium';
+
+    if (logger) logger.info('Applying auto-tune vocal effect', { genre, intensity });
+
+    // Build filter chain based on intensity
+    const filters = [];
+
+    // === STAGE 1: Vocal cleanup ===
+    filters.push('highpass=f=80');  // Remove rumble
+    filters.push('acompressor=threshold=-20dB:ratio=3:attack=5:release=50:makeup=2dB'); // Vocal compression
+
+    if (intensity === 'heavy') {
+      // === HEAVY AUTO-TUNE (Travis Scott / T-Pain / Future style) ===
+      // Tight compression + sharp EQ + chorus for pitch "glue" + subtle vibrato modulation
+      filters.push('equalizer=f=1000:width_type=o:width=0.5:g=2');   // Nasal/forward vocal push
+      filters.push('equalizer=f=3500:width_type=o:width=1:g=4');     // Extreme presence boost
+      filters.push('equalizer=f=8000:width_type=o:width=2:g=2');     // Air/shimmer
+      filters.push('acompressor=threshold=-12dB:ratio=8:attack=1:release=30:makeup=4dB'); // Hard compression (squashes dynamics = auto-tune-like)
+      filters.push('chorus=0.5:0.9:50|60:0.4|0.32:0.25|0.4:2|1.3'); // Slight pitch doubling for that "corrected" shimmer
+      filters.push('vibrato=f=6.5:d=0.015');                         // Very subtle pitch wobble (mimics fast correction)
+      filters.push('alimiter=limit=0.95:attack=2:release=20');       // Brick-wall limiter for consistent level
+    } else if (intensity === 'medium') {
+      // === MEDIUM AUTO-TUNE (Drake / Kanye / modern hip-hop) ===
+      filters.push('equalizer=f=3000:width_type=o:width=1.5:g=3');   // Presence
+      filters.push('equalizer=f=6000:width_type=o:width=2:g=1.5');   // Air
+      filters.push('acompressor=threshold=-15dB:ratio=4:attack=3:release=60:makeup=3dB'); // Moderate compression
+      filters.push('chorus=0.6:0.9:40:0.3:0.3:2');                   // Subtle doubling
+      filters.push('alimiter=limit=0.95:attack=3:release=40');
+    } else {
+      // === LIGHT AUTO-TUNE (polish/warmth, no obvious effect) ===
+      filters.push('equalizer=f=2500:width_type=o:width=2:g=1.5');   // Gentle presence
+      filters.push('equalizer=f=200:width_type=o:width=1:g=-1');     // Cut mud
+      filters.push('acompressor=threshold=-18dB:ratio=2:attack=10:release=100:makeup=2dB'); // Gentle compression
+    }
+
+    ffmpeg(vocalPath)
+      .audioFilters(filters.join(','))
+      .audioCodec('libmp3lame')
+      .audioBitrate('320k')
+      .audioFrequency(44100)
+      .output(outputPath)
+      .on('end', () => {
+        if (logger) logger.info('Auto-tune effect applied', { intensity });
+        resolve(outputPath);
+      })
+      .on('error', (err) => {
+        if (logger) logger.warn('Auto-tune effect failed, using original vocal', { error: err.message });
+        resolve(vocalPath); // Fallback to original
+      })
+      .run();
+  });
+}
+
 module.exports = {
   mixAudioProfessional,
   mixAudioFromUrls,
   getMixPreset,
-  downloadAudio
+  downloadAudio,
+  detectBpmFromFile,
+  tempoStretchVocal,
+  detectDownbeatOffset,
+  padVocalStart,
+  applyAutoTuneEffect
 };

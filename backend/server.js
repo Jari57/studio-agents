@@ -5621,12 +5621,75 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
       const isTtsProvider = ['bark', 'gemini-tts', 'uberduck-tts'].includes(provider);
       if (backingTrackUrl && !isTtsProvider) {
         try {
-          logger.info('🎚️ Mixing vocal with backing track');
+          logger.info('🎚️ Mixing vocal with backing track (with auto-tune + tempo sync)');
           const tempDir = path.join(__dirname, 'temp');
           if (!fs.existsSync(tempDir)) {
             fs.mkdirSync(tempDir, { recursive: true });
           }
-          const mixedOutputPath = path.join(tempDir, `mixed_vocal_${Date.now()}.mp3`);
+          const ts = Date.now();
+          const mixedOutputPath = path.join(tempDir, `mixed_vocal_${ts}.mp3`);
+
+          const { mixAudioFromUrls, downloadAudio: dlAudio,
+                  applyAutoTuneEffect, detectBpmFromFile, tempoStretchVocal,
+                  detectDownbeatOffset, padVocalStart } = require('./services/audioMixingService');
+
+          // ── PRE-PROCESSING: Auto-tune + tempo sync before mixing ──
+          let processedVocalUrl = audioUrl;
+          const preTempFiles = [];
+          try {
+            const rawVocalPath = path.join(tempDir, `vocal_pre_${ts}.mp3`);
+            const beatLocalPath = path.join(tempDir, `beat_pre_${ts}.mp3`);
+            await Promise.all([
+              dlAudio(audioUrl, rawVocalPath),
+              dlAudio(backingTrackUrl, beatLocalPath)
+            ]);
+            preTempFiles.push(rawVocalPath, beatLocalPath);
+
+            let currentVocalPath = rawVocalPath;
+
+            // Auto-tune effect (genre-adaptive)
+            const autoTunedPath = path.join(tempDir, `vocal_at_${ts}.mp3`);
+            const atResult = await applyAutoTuneEffect(currentVocalPath, genre || style, autoTunedPath, logger);
+            if (atResult !== currentVocalPath) {
+              preTempFiles.push(autoTunedPath);
+              currentVocalPath = autoTunedPath;
+            }
+
+            // Tempo sync — detect beat BPM, stretch vocal to match
+            const targetBpm = await detectBpmFromFile(beatLocalPath, logger);
+            if (targetBpm) {
+              const vocalBpm = await detectBpmFromFile(currentVocalPath, logger);
+              if (vocalBpm && vocalBpm !== targetBpm) {
+                const stretchedPath = path.join(tempDir, `vocal_ts_${ts}.mp3`);
+                const tsResult = await tempoStretchVocal(currentVocalPath, vocalBpm, targetBpm, stretchedPath, logger);
+                if (tsResult !== currentVocalPath) {
+                  preTempFiles.push(stretchedPath);
+                  currentVocalPath = stretchedPath;
+                }
+              }
+
+              // Downbeat alignment
+              const entryPoint = await detectDownbeatOffset(beatLocalPath, targetBpm, logger);
+              if (entryPoint > 0) {
+                const paddedPath = path.join(tempDir, `vocal_pad_${ts}.mp3`);
+                const padResult = await padVocalStart(currentVocalPath, entryPoint, paddedPath, logger);
+                if (padResult !== currentVocalPath) {
+                  preTempFiles.push(paddedPath);
+                  currentVocalPath = paddedPath;
+                }
+              }
+            }
+
+            const processedBuffer = fs.readFileSync(currentVocalPath);
+            processedVocalUrl = `data:audio/mpeg;base64,${processedBuffer.toString('base64')}`;
+            logger.info('✅ Vocal pre-processed (auto-tune + tempo sync)');
+          } catch (preErr) {
+            logger.warn('Vocal pre-processing failed, mixing with original vocal', { error: preErr.message });
+          } finally {
+            for (const f of preTempFiles) {
+              try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch {}
+            }
+          }
 
           // Use professional mixing preset for vocals over beat
           const mixOptions = {
@@ -5639,14 +5702,13 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
             outputPath: mixedOutputPath
           };
 
-          const { mixAudioFromUrls } = require('./services/audioMixingService');
-          const mixResult = await mixAudioFromUrls(audioUrl, backingTrackUrl, mixOptions, logger);
+          const mixResult = await mixAudioFromUrls(processedVocalUrl, backingTrackUrl, mixOptions, logger);
 
           if (mixResult && mixResult.outputPath && fs.existsSync(mixResult.outputPath)) {
             // Read mixed audio and convert to base64
             const mixedAudioBuffer = fs.readFileSync(mixResult.outputPath);
             audioUrl = `data:audio/mpeg;base64,${mixedAudioBuffer.toString('base64')}`;
-            logger.info('✅ Vocal successfully mixed with backing track');
+            logger.info('✅ Vocal successfully mixed with backing track (billboard-ready)');
 
             // Clean up temp file
             try { fs.unlinkSync(mixResult.outputPath); } catch {}
@@ -6309,19 +6371,95 @@ app.post('/api/mix-audio', verifyFirebaseToken, requireAuth, checkCreditsFor('mi
 app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCreditsFor('mixing'), generationLimiter, async (req, res) => {
   try {
     const { vocalUrl, beatUrl, style = 'rapper', outputFormat = 'music', genre = '', vocalVolume, beatVolume,
-            title, artist, coverArtUrl, exportFormat = 'mp3', preset: requestedPreset } = req.body;
+            title, artist, coverArtUrl, exportFormat = 'mp3', preset: requestedPreset,
+            beatBpm, autoTune = true, tempoSync = true } = req.body;
 
     if (!vocalUrl || !beatUrl) {
       return res.status(400).json({ error: 'Both vocalUrl and beatUrl are required' });
     }
 
-    logger.info('🎚️ Creating final mix', { style, outputFormat, genre, requestedPreset });
+    logger.info('🎚️ Creating final mix', { style, outputFormat, genre, requestedPreset, beatBpm, autoTune, tempoSync });
 
-    const { mixAudioFromUrls, getMixPreset } = require('./services/audioMixingService');
+    const { mixAudioFromUrls, getMixPreset, downloadAudio: dlAudio,
+            detectBpmFromFile, tempoStretchVocal, detectDownbeatOffset, padVocalStart, applyAutoTuneEffect } = require('./services/audioMixingService');
 
     const tempDir = path.join(__dirname, 'temp');
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-    const outputPath = path.join(tempDir, `final_mix_${Date.now()}.mp3`);
+    const ts = Date.now();
+    const outputPath = path.join(tempDir, `final_mix_${ts}.mp3`);
+
+    // ── BILLBOARD-READY PRE-PROCESSING PIPELINE ──
+    // 1. Download vocals + beat
+    // 2. Auto-tune effect on vocals (genre-adaptive)
+    // 3. Detect BPM of both tracks → tempo-stretch vocals to match beat
+    // 4. Detect downbeat → pad vocals to start on the beat grid
+    // 5. Professional mix with EQ, compression, sidechain, LUFS
+
+    let processedVocalUrl = vocalUrl;
+    const tempFiles = []; // Track all temp files for cleanup
+
+    try {
+      // Step 1: Download vocal to temp file for processing
+      const rawVocalPath = path.join(tempDir, `vocal_raw_${ts}.mp3`);
+      const beatLocalPath = path.join(tempDir, `beat_local_${ts}.mp3`);
+      await Promise.all([
+        dlAudio(vocalUrl, rawVocalPath),
+        dlAudio(beatUrl, beatLocalPath)
+      ]);
+      tempFiles.push(rawVocalPath, beatLocalPath);
+
+      let currentVocalPath = rawVocalPath;
+
+      // Step 2: Auto-tune effect (genre-adaptive)
+      if (autoTune !== false) {
+        const autoTunedPath = path.join(tempDir, `vocal_tuned_${ts}.mp3`);
+        const result = await applyAutoTuneEffect(currentVocalPath, genre || style, autoTunedPath, logger);
+        if (result !== currentVocalPath) {
+          tempFiles.push(autoTunedPath);
+          currentVocalPath = autoTunedPath;
+        }
+      }
+
+      // Step 3: Tempo synchronization
+      if (tempoSync !== false) {
+        const targetBpm = beatBpm || await detectBpmFromFile(beatLocalPath, logger);
+        if (targetBpm) {
+          const vocalBpm = await detectBpmFromFile(currentVocalPath, logger);
+          if (vocalBpm && vocalBpm !== targetBpm) {
+            const stretchedPath = path.join(tempDir, `vocal_stretched_${ts}.mp3`);
+            const result = await tempoStretchVocal(currentVocalPath, vocalBpm, targetBpm, stretchedPath, logger);
+            if (result !== currentVocalPath) {
+              tempFiles.push(stretchedPath);
+              currentVocalPath = stretchedPath;
+            }
+          }
+
+          // Step 4: Downbeat alignment — pad vocals to start on the beat grid
+          const entryPoint = await detectDownbeatOffset(beatLocalPath, targetBpm, logger);
+          if (entryPoint > 0) {
+            const paddedPath = path.join(tempDir, `vocal_aligned_${ts}.mp3`);
+            const result = await padVocalStart(currentVocalPath, entryPoint, paddedPath, logger);
+            if (result !== currentVocalPath) {
+              tempFiles.push(paddedPath);
+              currentVocalPath = paddedPath;
+            }
+          }
+        }
+      }
+
+      // Convert processed vocal back to data URL for the mixer
+      const processedBuffer = fs.readFileSync(currentVocalPath);
+      processedVocalUrl = `data:audio/mpeg;base64,${processedBuffer.toString('base64')}`;
+      logger.info('✅ Vocal pre-processing complete', { autoTune: autoTune !== false, tempoSync: tempoSync !== false });
+    } catch (preErr) {
+      logger.warn('Vocal pre-processing failed, mixing with original vocal', { error: preErr.message });
+      // Continue with original vocal URL — non-fatal
+    } finally {
+      // Clean up temp files from pre-processing
+      for (const f of tempFiles) {
+        try { if (fs.existsSync(f)) fs.unlinkSync(f); } catch {}
+      }
+    }
 
     // Use explicit preset if provided, otherwise infer from style/outputFormat
     const presetName = requestedPreset
@@ -6333,7 +6471,7 @@ app.post('/api/create-final-mix', verifyFirebaseToken, requireAuth, checkCredits
 
     const preset = getMixPreset(presetName);
 
-    const mixResult = await mixAudioFromUrls(vocalUrl, beatUrl, {
+    const mixResult = await mixAudioFromUrls(processedVocalUrl, beatUrl, {
       ...preset,
       ...(typeof vocalVolume === 'number' ? { vocalVolume } : {}),
       ...(typeof beatVolume === 'number' ? { beatVolume } : {}),
