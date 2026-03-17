@@ -32,6 +32,7 @@ import {
 import { AGENTS, BACKEND_URL, getAgentHex, CREATOR_MODES, getCreatorMode } from '../constants';
 import { getDemoModeState, getMockResponse, toggleDemoMode, checkDemoCode, DEMO_BANNER_STYLES } from '../utils/demoMode';
 import { Analytics, trackPageView } from '../utils/analytics';
+import { setUser as setSentryUser, clearUser as clearSentryUser } from '../utils/errorMonitoring';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
 
 // Dev-only logger — no-ops in production builds (tree-shaken by Vite/terser)
@@ -2560,6 +2561,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           localStorage.setItem('studio_user_id', currentUser.uid);
           userRef.current = currentUser; // UPDATE REF for retry logic
           setUser(currentUser); // Immediately trigger state isolation effect
+          setSentryUser(currentUser); // Set user context for error tracking
           setIsLoggedIn(true); // Set this LAST after user is set
           setAuthChecking(false); // Auth check complete
           
@@ -2779,6 +2781,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
           } else {
             // No previous session or retries exhausted - clear auth
             setUser(null);
+            clearSentryUser(); // Clear user context for error tracking
             setUserToken(null);
             setUserCredits(3);
             localStorage.removeItem('studio_user_id');
@@ -2871,6 +2874,7 @@ function StudioView({ onBack, startWizard, startOrchestrator, startTour, initial
     
     // Clear ALL sensitive state
     setUser(null);
+    clearSentryUser(); // Clear user context for error tracking
     setUserToken(null);
     setUserCredits(3);
     setIsAdmin(false);
