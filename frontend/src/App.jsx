@@ -13,7 +13,7 @@ const VocalsResourcePage = React.lazy(() => import('./components/VocalsResourceP
 const BillboardBlueprintPage = React.lazy(() => import('./components/BillboardBlueprintPage'));
 const ContentMultiplicationPage = React.lazy(() => import('./components/ContentMultiplicationPage'));
 
-// Loading fallback component
+// Loading fallback component with skeleton shimmer
 const StudioLoadingFallback = () => (
   <div style={{
     minHeight: '100vh',
@@ -25,6 +25,16 @@ const StudioLoadingFallback = () => (
     color: 'white',
     gap: '20px'
   }}>
+    {/* Skeleton header bar */}
+    <div style={{ width: '90%', maxWidth: '800px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ height: '48px', borderRadius: '12px', background: 'linear-gradient(90deg, rgba(168,85,247,0.08) 25%, rgba(168,85,247,0.15) 50%, rgba(168,85,247,0.08) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+      <div style={{ display: 'flex', gap: '12px' }}>
+        {[1,2,3,4].map(i => (
+          <div key={i} style={{ flex: 1, height: '120px', borderRadius: '12px', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+        ))}
+      </div>
+      <div style={{ height: '200px', borderRadius: '12px', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', animationDelay: '0.6s' }} />
+    </div>
     <div style={{
       width: '60px',
       height: '60px',
@@ -33,7 +43,8 @@ const StudioLoadingFallback = () => (
       borderRadius: '50%',
       animation: 'spin 1s linear infinite'
     }} />
-    <p style={{ fontSize: '1rem', opacity: 0.8 }}>Loading...</p>
+    <p style={{ fontSize: '1rem', opacity: 0.8 }}>Loading Studio...</p>
+    <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
   </div>
 );
 

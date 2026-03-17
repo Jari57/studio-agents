@@ -1,18 +1,22 @@
 /**
  * Error Monitoring Module
  * 
- * Provides error tracking and performance monitoring with local logging.
- * Errors are captured, logged to console, and stored in localStorage.
+ * Provides error tracking with local logging + optional Sentry integration.
+ * When VITE_SENTRY_DSN is set, errors are sent to Sentry for real-time alerting.
+ * Otherwise, errors are logged locally and stored in localStorage.
  * 
- * For production Sentry integration:
+ * Setup Sentry:
  * 1. npm install @sentry/react
- * 2. Uncomment the Sentry integration code below
- * 3. Add VITE_SENTRY_DSN to your .env file
+ * 2. Add VITE_SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx to frontend/.env
  */
 
 // Configuration
 const ENVIRONMENT = import.meta.env.MODE || 'development';
 const RELEASE = import.meta.env.VITE_APP_VERSION || '1.0.0';
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
+
+// Sentry lazy-loaded reference
+let Sentry = null;
 
 // Error queue for batching
 const errorQueue = [];
@@ -30,6 +34,28 @@ const MAX_BREADCRUMBS = 50;
  * Call this once at app startup
  */
 export async function initErrorMonitoring() {
+  // Try to initialize Sentry if DSN is configured
+  if (SENTRY_DSN) {
+    try {
+      // Use variable to prevent Vite from failing build when @sentry/react isn't installed
+      const sentryPkg = '@sentry/' + 'react';
+      const sentryModule = await import(/* @vite-ignore */ sentryPkg);
+      Sentry = sentryModule;
+      Sentry.init({
+        dsn: SENTRY_DSN,
+        environment: ENVIRONMENT,
+        release: RELEASE,
+        tracesSampleRate: ENVIRONMENT === 'production' ? 0.1 : 1.0,
+        replaysSessionSampleRate: 0,
+        replaysOnErrorSampleRate: ENVIRONMENT === 'production' ? 1.0 : 0,
+      });
+      console.log(`✅ Sentry initialized (${ENVIRONMENT})`);
+      return true;
+    } catch {
+      console.warn('⚠️ @sentry/react not installed — using local error logging. Run: npm install @sentry/react');
+    }
+  }
+  
   console.log(`ℹ️ Error monitoring initialized (local mode - ${ENVIRONMENT})`);
   setupLocalErrorHandling();
   return true;
@@ -76,6 +102,11 @@ export function captureException(error, context = {}) {
     release: RELEASE,
   };
 
+  // Forward to Sentry if available
+  if (Sentry) {
+    Sentry.captureException(error, { extra: context });
+  }
+
   // Local logging
   console.error('🚨 Error captured:', errorData);
   
@@ -117,6 +148,11 @@ export function setUser(user) {
     email: user?.email,
     username: user?.displayName,
   } : null;
+  
+  // Forward to Sentry if available
+  if (Sentry) {
+    Sentry.setUser(currentUser);
+  }
 }
 
 /**

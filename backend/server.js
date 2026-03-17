@@ -1,4 +1,66 @@
-﻿const express = require('express');
+﻿// ╔═══════════════════════════════════════════════════════════════════════════╗
+// ║  STUDIO AGENTS — Backend Server (Express 5, Node 18+)                    ║
+// ║  Single-file architecture: all routes, middleware, and integrations.      ║
+// ╠═══════════════════════════════════════════════════════════════════════════╣
+// ║  TABLE OF CONTENTS                                                       ║
+// ║                                                                          ║
+// ║  ~50    Imports & Environment Setup                                      ║
+// ║  ~118   Firebase Admin Initialization                                    ║
+// ║  ~125   Admin Accounts Configuration                                     ║
+// ║  ~147   Video Job Tracking (in-memory)                                   ║
+// ║  ~161   Credit Costs Per Feature                                         ║
+// ║  ~286   Firebase Storage Initialization                                  ║
+// ║  ~467   Credit Middleware & Helpers                                       ║
+// ║  ~624   Express App Setup, CORS, Helmet, Morgan                          ║
+// ║  ~729   Content Moderation (AI output scanning)                          ║
+// ║  ~908   Anonymous Generation Tracking (free tier abuse prevention)       ║
+// ║  ~982   Rate Limiting (API, Generation, Auth)                            ║
+// ║  ~1089  App Store Compliance Middleware                                   ║
+// ║  ~1131  Health Check Endpoints (/health, /api/health)                    ║
+// ║  ~1166  Voices API                                                        ║
+// ║  ~1185  Diagnostic / API Config Check (admin)                            ║
+// ║  ~1261  Deep Health Check — Production Support Dashboard                 ║
+// ║  ~1459  ElevenLabs Voices API                                            ║
+// ║  ~1484  Uberduck Voices API                                              ║
+// ║  ~1548  Investor Access API                                              ║
+// ║  ~1645  Admin Endpoints                                                   ║
+// ║  ~2090  User Data & Preferences Endpoints                                ║
+// ║  ~2176  User Preferences & Contact Info                                  ║
+// ║  ~2250  Generation History Endpoints                                     ║
+// ║  ~2380  Session Logging (security & analytics)                           ║
+// ║  ~2449  Subscription & Billing Info                                      ║
+// ║  ~2554  Credits Endpoints                                                ║
+// ║  ~2771  Asset Upload & Storage Endpoints                                 ║
+// ║  ~3135  Saved Projects Endpoints                                         ║
+// ║  ~3253  User Data Export (JSON download)                                 ║
+// ║  ~3428  A&R Grading (POST /api/grade-generation)                         ║
+// ║  ~3765  Agent Model Orchestrator (AMO)                                   ║
+// ║  ~3980  Investor Showcase Feature                                        ║
+// ║  ~4353  Video Frame Extraction                                           ║
+// ║  ~4458  Image Generation (Flux 1.1 Pro → Nano Banana → Imagen)           ║
+// ║  ~4697  Vocal Generation (Suno → Bark → ElevenLabs → Gemini)             ║
+// ║  ~5875  Audio/Beat Generation (Gemini → MusicGen)                        ║
+// ║  ~6254  Audio Mixing (vocal + beat mixing & mastering)                   ║
+// ║  ~6380  Final Mix Endpoint                                               ║
+// ║  ~6635  Distribution (SoundCloud, share links)                           ║
+// ║  ~6795  Video+Audio Mux                                                  ║
+// ║  ~6975  Video Generation (Replicate → Veo → Fallback)                    ║
+// ║  ~7748  AMO Orchestrator Endpoint                                        ║
+// ║  ~7865  Audio Mastering (distribution-ready format)                      ║
+// ║  ~8044  Translation API (Gemini)                                         ║
+// ║  ~8087  Twitter/X OAuth 2.0                                              ║
+// ║  ~8099  Concerts API                                                     ║
+// ║  ~8276  Entertainment News API                                           ║
+// ║  ~8595  Music Hub API                                                    ║
+// ║  ~9222  Meta (Instagram & Facebook) OAuth 2.0                            ║
+// ║  ~9464  Stripe Payment Integration                                       ║
+// ║  ~9954  Project Persistence (My Studio)                                  ║
+// ║  ~10175 Synced Music Video Generation Routes                             ║
+// ║  ~10676 Format Conversion Endpoints (MP3 ↔ WAV)                          ║
+// ║  ~10814 Global Error Handler                                             ║
+// ╚═══════════════════════════════════════════════════════════════════════════╝
+
+const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
@@ -1022,7 +1084,11 @@ app.get('/api/debug-status', verifyFirebaseToken, requireAdmin, (req, res) => {
 const generationLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 30, // 30 AI generations per minute per client (prevents abuse)
-  keyGenerator: createFingerprint,
+  keyGenerator: (req) => {
+    // Use authenticated userId when available (prevents multi-IP abuse by same user)
+    if (req.user?.uid) return req.user.uid;
+    return createFingerprint(req);
+  },
   handler: (req, res) => {
     logger.warn('⚠️ AI generation rate limit exceeded', {
       ip: req.ip,
@@ -1139,6 +1205,10 @@ app.get('/health', (req, res) => {
       total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + ' MB'
     },
     apiKey: apiKey ? 'configured' : 'missing',
+    sunoApi: process.env.SUNO_API_KEY ? 'configured' : 'missing',
+    elevenLabs: process.env.ELEVENLABS_API_KEY ? 'configured' : 'missing',
+    replicate: process.env.REPLICATE_API_TOKEN ? 'configured' : 'missing',
+    stripe: process.env.STRIPE_SECRET_KEY ? 'configured' : 'missing',
     rateLimiting: 'active',
     nodeVersion: process.version,
     platform: process.platform
@@ -1160,6 +1230,51 @@ app.get('/api/health', (req, res) => {
       gemini: apiKey ? 'configured' : 'missing',
       firebase: firebaseInitialized ? 'connected' : 'not configured'
     }
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SSE PIPELINE PROGRESS — Real-time generation status streaming
+// ═══════════════════════════════════════════════════════════════
+// In-memory map of active SSE connections per session
+const sseClients = new Map();
+
+// POST an update to a session's SSE stream (called internally from generation routes)
+function emitPipelineEvent(sessionId, event, data) {
+  const client = sseClients.get(sessionId);
+  if (client && !client.writableEnded) {
+    client.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+}
+
+// SSE endpoint — client connects to receive real-time pipeline updates
+app.get('/api/pipeline-events/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no' // Disable nginx buffering
+  });
+  
+  // Send initial connection event
+  res.write(`event: connected\ndata: ${JSON.stringify({ sessionId, timestamp: Date.now() })}\n\n`);
+  
+  // Register this client
+  sseClients.set(sessionId, res);
+  
+  // Heartbeat every 30s to keep connection alive
+  const heartbeat = setInterval(() => {
+    if (!res.writableEnded) {
+      res.write(`:heartbeat\n\n`);
+    }
+  }, 30000);
+  
+  // Cleanup on disconnect
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    sseClients.delete(sessionId);
   });
 });
 
@@ -4718,6 +4833,12 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
     } = req.body;
     
     if (!prompt) return res.status(400).json({ error: 'Prompt/text is required' });
+    
+    // SSE pipeline progress (if client provided session ID)
+    const pipelineSession = req.headers['x-pipeline-session'];
+    const emit = (step, status) => {
+      if (pipelineSession) emitPipelineEvent(pipelineSession, 'step', { step, status, timestamp: Date.now() });
+    };
 
     // Map long language names to codes for XTTS/Bark
     const langMap = {
@@ -4855,6 +4976,7 @@ Return ONLY valid JSON, no markdown.`;
     if (sunoApiKey && !audioUrl && useSunoForVocals) {
       try {
         logger.info('🎵 Using Suno API for real musical vocals', { style, genre, isRap: isRapStyle, isSinging: isSingingStyle });
+        emit('vocals', 'suno-starting');
 
         // Build Suno tags — adapt for singing vs rapping
         const vocalGender = style.includes('female') ? 'female vocals' : 'male vocals';
@@ -4910,8 +5032,10 @@ Return ONLY valid JSON, no markdown.`;
           const sunoData = await sunoResponse.json();
           const clipId = sunoData.id || sunoData.clip_id || (sunoData.clips && sunoData.clips[0]?.id);
           if (clipId) {
+            emit('vocals', 'suno-polling');
             for (let i = 0; i < 60 && !audioUrl; i++) {
               await new Promise(r => setTimeout(r, 3000));
+              emit('vocals', `suno-poll-${i + 1}`);
               const statusResp = await fetch(`https://studio-api.suno.ai/api/external/clips/?ids=${clipId}`, {
                 headers: { 'Authorization': `Bearer ${sunoApiKey}` }
               });
@@ -4924,6 +5048,7 @@ Return ONLY valid JSON, no markdown.`;
                     const audioBuffer = await audioResponse.arrayBuffer();
                     audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioBuffer).toString('base64')}`;
                     provider = 'suno';
+                    emit('vocals', 'suno-complete');
                     logger.info('✅ Suno singing vocal generated');
                   }
                   break;

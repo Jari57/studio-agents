@@ -12,6 +12,7 @@ import toast from 'react-hot-toast';
 import { db, auth, doc, setDoc, updateDoc, increment, getDoc } from '../firebase';
 import { collection, query, getDocs, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { formatImageSrc, formatAudioSrc, formatVideoSrc } from '../utils/mediaUtils';
+import { Analytics } from '../utils/analytics';
 
 // Lazy load modals and heavy sub-sections (standardizing to React.lazy to prevent 'lazy is not defined' error)
 const PreviewModal = React.lazy(() => import('./PreviewModal'));
@@ -2126,6 +2127,11 @@ export default function StudioOrchestratorV2({
   const [showAssets, setShowAssets] = useState(true); // Your Assets section visibility
   const [showProjectSwitcher, setShowProjectSwitcher] = useState(false); // Project picker overlay
 
+  // First-run onboarding
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    return !localStorage.getItem('studio_onboarding_complete');
+  });
+
   // Arrangement Editor state
   const [arrangementSections, setArrangementSections] = useState(null); // null = use defaults
 
@@ -2816,6 +2822,26 @@ export default function StudioOrchestratorV2({
       const headers = await getHeaders();
       console.log('[handleGenerate] headers:', headers);
       
+      // SSE pipeline session for real-time progress from backend
+      const pipelineSessionId = crypto.randomUUID();
+      headers['x-pipeline-session'] = pipelineSessionId;
+      let eventSource = null;
+      try {
+        eventSource = new EventSource(`${BACKEND_URL}/api/pipeline-events/${pipelineSessionId}`);
+        eventSource.addEventListener('step', (e) => {
+          try {
+            const { step, status } = JSON.parse(e.data);
+            // Update pipeline step label with backend progress info
+            if (status.startsWith('suno-poll-')) {
+              const pollNum = parseInt(status.split('-')[2]);
+              setPipelineSteps(prev => prev.map(s =>
+                s.id === step ? { ...s, label: `Recording AI vocals (${pollNum * 3}s)...` } : s
+              ));
+            }
+          } catch { /* ignore parse errors */ }
+        });
+      } catch { /* SSE optional — pipeline works without it */ }
+      
       const modelId = model === 'Gemini 2.0 Flash' ? 'gemini-2.0-flash' : 
                     model === 'Gemini 2.0 Pro (Exp)' ? 'gemini-2.0-flash-exp' : 
                     model === 'Gemini 1.5 Pro' ? 'gemini-1.5-pro' : 'gemini-2.0-flash';
@@ -2925,6 +2951,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             });
             setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
             console.log(`[handleGenerate] ${slot} generated successfully`);
+            // Track analytics event
+            Analytics.contentGenerated(agentId, slot);
             // Auto-grade the generation in background
             gradeGeneration(slot, data.output, songIdea);
             updatePipelineStep(stepId, 'done');
@@ -3095,6 +3123,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       
       toast.dismiss('gen-all');
       toast.success('Generation complete!');
+      Analytics.featureUsed('full_song_pipeline');
       
     } catch (err) {
       console.error('Generation error:', err);
@@ -3108,6 +3137,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         { id: 'orch-gen-fail', duration: 4000 }
       );
     } finally {
+      // Close SSE connection
+      if (eventSource) { try { eventSource.close(); } catch {} }
       setIsGenerating(false);
       setGeneratingSlots({ lyrics: false, audio: false, visual: false, video: false });
       // Reset media generation guards so retries aren't blocked
@@ -5482,6 +5513,69 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         overflow: 'hidden'
       }}
     >
+      {/* First-Run Onboarding Wizard */}
+      {showOnboarding && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 99999,
+          background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+            borderRadius: '24px', padding: isMobile ? '32px 24px' : '48px 40px',
+            maxWidth: '520px', width: '100%',
+            border: '1px solid rgba(139, 92, 246, 0.3)',
+            boxShadow: '0 20px 80px rgba(139, 92, 246, 0.15)',
+            textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🎵</div>
+            <h2 style={{ color: 'white', fontSize: '1.5rem', fontWeight: '700', marginBottom: '8px' }}>
+              Welcome to Studio Agents
+            </h2>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '24px' }}>
+              Create professional music with AI — lyrics, beats, vocals, artwork, and music videos. All from a single prompt.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left', marginBottom: '32px' }}>
+              {[
+                { icon: '✍️', title: 'Quick Create', desc: 'Type a song idea + pick a genre → we handle the rest' },
+                { icon: '🎛️', title: 'Advanced Mode', desc: 'Fine-tune each agent: lyrics, beat, artwork, video' },
+                { icon: '🎤', title: 'AI Vocals', desc: 'Real singing and rapping powered by Suno + ElevenLabs' },
+                { icon: '📦', title: 'Download Everything', desc: 'Export stems, master mix, artwork, and video' }
+              ].map((item, i) => (
+                <div key={i} style={{
+                  display: 'flex', gap: '12px', alignItems: 'flex-start',
+                  padding: '12px', borderRadius: '12px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)'
+                }}>
+                  <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>{item.icon}</span>
+                  <div>
+                    <div style={{ color: 'white', fontWeight: '600', fontSize: '0.85rem' }}>{item.title}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem' }}>{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => {
+                localStorage.setItem('studio_onboarding_complete', 'true');
+                setShowOnboarding(false);
+                Analytics.featureUsed('onboarding_complete');
+              }}
+              style={{
+                width: '100%', padding: '14px 24px', borderRadius: '12px',
+                background: 'linear-gradient(135deg, #8b5cf6, #a855f7)',
+                border: 'none', color: 'white', fontSize: '1rem',
+                fontWeight: '700', cursor: 'pointer',
+                boxShadow: '0 4px 20px rgba(139, 92, 246, 0.4)'
+              }}
+            >
+              Start Creating
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div style={{ 
         padding: isMobile ? '12px 16px' : '16px 24px', 
