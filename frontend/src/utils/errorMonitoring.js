@@ -10,13 +10,14 @@
  * 2. Add VITE_SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx to frontend/.env
  */
 
+// Sentry — must be imported at top level to avoid TDZ errors
+import * as Sentry from '@sentry/react';
+
 // Configuration
 const ENVIRONMENT = import.meta.env.MODE || 'development';
 const RELEASE = import.meta.env.VITE_APP_VERSION || '1.0.0';
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN || '';
-
-// Sentry lazy-loaded reference
-let Sentry = null;
+let _sentryInitialized = false;
 
 // Error queue for batching
 const errorQueue = [];
@@ -34,13 +35,8 @@ const MAX_BREADCRUMBS = 50;
  * Call this once at app startup
  */
 export async function initErrorMonitoring() {
-  // Try to initialize Sentry if DSN is configured
   if (SENTRY_DSN) {
     try {
-      // Use variable to prevent Vite from failing build when @sentry/react isn't installed
-      const sentryPkg = '@sentry/' + 'react';
-      const sentryModule = await import(/* @vite-ignore */ sentryPkg);
-      Sentry = sentryModule;
       Sentry.init({
         dsn: SENTRY_DSN,
         environment: ENVIRONMENT,
@@ -49,10 +45,11 @@ export async function initErrorMonitoring() {
         replaysSessionSampleRate: 0,
         replaysOnErrorSampleRate: ENVIRONMENT === 'production' ? 1.0 : 0,
       });
+      _sentryInitialized = true;
       console.log(`✅ Sentry initialized (${ENVIRONMENT})`);
       return true;
-    } catch {
-      console.warn('⚠️ @sentry/react not installed — using local error logging. Run: npm install @sentry/react');
+    } catch (e) {
+      console.warn('⚠️ Sentry init failed:', e);
     }
   }
   
@@ -102,8 +99,8 @@ export function captureException(error, context = {}) {
     release: RELEASE,
   };
 
-  // Forward to Sentry if available
-  if (Sentry) {
+  // Forward to Sentry if initialized
+  if (_sentryInitialized) {
     Sentry.captureException(error, { extra: context });
   }
 
@@ -149,8 +146,8 @@ export function setUser(user) {
     username: user?.displayName,
   } : null;
   
-  // Forward to Sentry if available
-  if (Sentry) {
+  // Forward to Sentry if initialized
+  if (_sentryInitialized) {
     Sentry.setUser(currentUser);
   }
 }
