@@ -195,6 +195,8 @@ function GeneratorCard({
   isLoading,
   mediaType = null,
   mediaUrl = null,
+  arGrade = null,
+  isGradingAr = false,
   onGenerateMedia = null,
   isGeneratingMedia = false,
   onRegenerate = null,
@@ -826,6 +828,126 @@ function GeneratorCard({
                  'Next: Create Video'}
               </button>
             ) : null}
+          </div>
+        )}
+
+        {/* A&R GRADE CARD — Billboard Quality Score */}
+        {(arGrade || isGradingAr) && output && (
+          <div style={{
+            margin: '0 12px',
+            padding: isMobile ? '10px' : '12px 14px',
+            borderRadius: '12px',
+            background: isGradingAr ? 'rgba(255,255,255,0.03)' :
+              arGrade?.overallScore >= 4.5 ? 'linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(255, 165, 0, 0.05))' :
+              arGrade?.overallScore >= 3.5 ? 'rgba(16, 185, 129, 0.06)' :
+              arGrade?.overallScore >= 2.5 ? 'rgba(59, 130, 246, 0.06)' :
+              'rgba(239, 68, 68, 0.06)',
+            border: isGradingAr ? '1px solid rgba(255,255,255,0.08)' :
+              arGrade?.overallScore >= 4.5 ? '1px solid rgba(255, 215, 0, 0.3)' :
+              arGrade?.overallScore >= 3.5 ? '1px solid rgba(16, 185, 129, 0.2)' :
+              arGrade?.overallScore >= 2.5 ? '1px solid rgba(59, 130, 246, 0.2)' :
+              '1px solid rgba(239, 68, 68, 0.2)',
+            flexShrink: 0
+          }}>
+            {isGradingAr ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', padding: '6px 0' }}>
+                <div className="animate-pulse" style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }} />
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: '600' }}>A&R reviewing...</span>
+              </div>
+            ) : arGrade && (
+              <>
+                {/* Header: Verdict + Overall Score */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '1.1rem' }}>{
+                      arGrade.overallScore >= 4.5 ? '\uD83D\uDC51' :
+                      arGrade.overallScore >= 3.5 ? '\uD83D\uDD25' :
+                      arGrade.overallScore >= 2.5 ? '\uD83D\uDCDD' : '\uD83D\uDD04'
+                    }</span>
+                    <div>
+                      <div style={{
+                        fontSize: '0.82rem',
+                        fontWeight: '800',
+                        color: arGrade.overallScore >= 4.5 ? '#fbbf24' :
+                          arGrade.overallScore >= 3.5 ? '#10b981' :
+                          arGrade.overallScore >= 2.5 ? '#3b82f6' : '#ef4444',
+                        letterSpacing: '-0.3px'
+                      }}>
+                        {arGrade.verdict || 'Reviewed'}
+                      </div>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>A&R Score</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+                    <span style={{
+                      fontSize: '1.6rem',
+                      fontWeight: '900',
+                      background: arGrade.overallScore >= 4.5
+                        ? 'linear-gradient(135deg, #fbbf24, #f59e0b)'
+                        : arGrade.overallScore >= 3.5
+                        ? 'linear-gradient(135deg, #10b981, #059669)'
+                        : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent'
+                    }}>{arGrade.overallScore}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>/5</span>
+                  </div>
+                </div>
+
+                {/* Dimension Bars */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', marginBottom: '8px' }}>
+                  {[
+                    { label: 'Hook', score: arGrade.hookFactor, icon: '\uD83C\uDFA3' },
+                    { label: 'Originality', score: arGrade.originality, icon: '\uD83D\uDCA1' },
+                    { label: 'Craft', score: arGrade.technicalCraft, icon: '\uD83D\uDD27' },
+                    { label: 'Emotion', score: arGrade.emotionalImpact, icon: '\uD83D\uDC9C' },
+                    { label: 'Commercial', score: arGrade.commercialViability, icon: '\uD83D\uDCC8' }
+                  ].map(({ label, score, icon: dimIcon }) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ fontSize: '0.6rem', width: '12px', textAlign: 'center' }}>{dimIcon}</span>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', width: '58px', fontWeight: '600' }}>{label}</span>
+                      <div style={{ flex: 1, height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${(score / 5) * 100}%`,
+                          height: '100%',
+                          borderRadius: '3px',
+                          background: score >= 4.5 ? 'linear-gradient(90deg, #fbbf24, #f59e0b)' :
+                            score >= 3.5 ? 'linear-gradient(90deg, #10b981, #059669)' :
+                            score >= 2.5 ? 'linear-gradient(90deg, #3b82f6, #2563eb)' :
+                            'linear-gradient(90deg, #ef4444, #dc2626)',
+                          transition: 'width 0.8s ease'
+                        }} />
+                      </div>
+                      <span style={{ fontSize: '0.65rem', fontWeight: '700', width: '16px', textAlign: 'right',
+                        color: score >= 4 ? '#10b981' : score >= 3 ? '#3b82f6' : '#ef4444'
+                      }}>{score}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Feedback */}
+                <div style={{
+                  fontSize: '0.72rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: '1.4',
+                  background: 'rgba(0,0,0,0.15)',
+                  padding: '8px 10px',
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ marginBottom: '4px' }}>{arGrade.feedback}</div>
+                  {arGrade.highlights && (
+                    <div style={{ color: '#10b981', fontSize: '0.68rem' }}>
+                      <strong>Strength:</strong> {arGrade.highlights}
+                    </div>
+                  )}
+                  {arGrade.suggestion && (
+                    <div style={{ color: '#f59e0b', fontSize: '0.68rem', marginTop: '2px' }}>
+                      <strong>Level Up:</strong> {arGrade.suggestion}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -1937,6 +2059,9 @@ export default function StudioOrchestratorV2({
   });
   // Track which AI provider generated each asset (for quality indicators)
   const [generationProviders, setGenerationProviders] = useState({});
+  // A&R Grading — per-slot grades and loading states
+  const [arGrades, setArGrades] = useState({ lyrics: null, audio: null, visual: null, video: null });
+  const [gradingSlots, setGradingSlots] = useState({ lyrics: false, audio: false, visual: false, video: false });
   // Ref mirror so async pipeline code can read latest values
   const mediaUrlsRef = useRef(mediaUrls);
   mediaUrlsRef.current = mediaUrls;
@@ -2553,11 +2678,41 @@ export default function StudioOrchestratorV2({
     return headers;
   }, [authToken]);
 
+  // A&R GRADING — Score each generation like a Billboard A&R exec
+  const gradeGeneration = useCallback(async (slot, content, promptText) => {
+    if (!content || !authToken) return;
+    const text = typeof content === 'string' ? content : JSON.stringify(content);
+    if (text.length < 20) return;
+    setGradingSlots(prev => ({ ...prev, [slot]: true }));
+    try {
+      const headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` };
+      const res = await fetch(`${BACKEND_URL}/api/grade-generation`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          content: text.substring(0, 3000),
+          contentType: slot === 'lyrics' ? 'lyrics' : slot === 'audio' ? 'beat' : slot === 'visual' ? 'visual concept' : 'video concept',
+          genre: heroGenre || 'hip-hop',
+          prompt: promptText || songIdea || ''
+        })
+      });
+      if (res.ok) {
+        const grade = await res.json();
+        setArGrades(prev => ({ ...prev, [slot]: grade }));
+      }
+    } catch (err) {
+      console.warn(`[A&R] Grading failed for ${slot}:`, err);
+    } finally {
+      setGradingSlots(prev => ({ ...prev, [slot]: false }));
+    }
+  }, [authToken, heroGenre, songIdea]);
+
   // Clear all outputs and generate fresh
   const clearAndGenerate = useCallback(() => {
     setOutputs({ lyrics: null, audio: null, visual: null, video: null });
     setMediaUrls({ audio: null, image: null, video: null, vocals: null, lyricsVocal: null, mixedAudio: null });
     setGenerationProviders({});
+    setArGrades({ lyrics: null, audio: null, visual: null, video: null });
     setMusicVideoUrl(null);
     setFinalMixPreview(null);
     setVisualDnaUrl(null);
@@ -2770,6 +2925,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
             });
             setGeneratingSlots(prev => ({ ...prev, [slot]: false }));
             console.log(`[handleGenerate] ${slot} generated successfully`);
+            // Auto-grade the generation in background
+            gradeGeneration(slot, data.output, songIdea);
             updatePipelineStep(stepId, 'done');
             
             // Track media generation promises so we can sequence the pipeline
@@ -4129,18 +4286,38 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     // PREVENT DUPLICATE CALLS
     if (generatingMedia.video) return;
 
-    // ═══ REQUIRE BEAT AUDIO: Video should never start without a beat ═══
     // Read from ref (not closure) to get the latest state after async pipeline ops
     const latestMedia = mediaUrlsRef.current || mediaUrls;
     const audioSource = latestMedia.mixedAudio || latestMedia.audio;
 
     if (!audioSource) {
-      toast('Generate a beat first — the video needs music to sync with', {
-        icon: '🎵',
-        duration: 5000
-      });
-      return;
+      // No beat yet — try to auto-generate beat first, then come back
+      const audioPrompt = outputsRef.current.audio || outputs.audio;
+      if (audioPrompt && !generatingMedia.audio) {
+        toast.loading('Generating beat first, then video...', { id: 'gen-video', duration: 300000 });
+        try {
+          await handleGenerateAudio(audioPrompt);
+          // Re-read after beat generation
+          const updatedMedia = mediaUrlsRef.current || {};
+          if (!updatedMedia.mixedAudio && !updatedMedia.audio) {
+            toast.error('Beat generation failed — try creating a beat first, then video', { id: 'gen-video' });
+            return;
+          }
+        } catch {
+          toast.error('Beat generation failed — create a beat first', { id: 'gen-video' });
+          return;
+        }
+      } else {
+        toast('Generate a beat first — the video needs music to sync with', {
+          icon: '\uD83C\uDFB5',
+          duration: 5000
+        });
+        return;
+      }
     }
+
+    // Re-read audio source after potential auto-generation
+    const finalAudioSource = (mediaUrlsRef.current || mediaUrls).mixedAudio || (mediaUrlsRef.current || mediaUrls).audio || audioSource;
 
     // Use directInput (if string), outputsRef, current outputs, or auto-synthesize from session context
     const videoPromptText = (typeof directInput === 'string' ? directInput : null)
@@ -4198,7 +4375,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
         body: JSON.stringify({
-          audioUrl: audioSource,
+          audioUrl: finalAudioSource,
           videoPrompt: `${visualDnaUrl || videoDnaUrl ? '100% CLONE ALIGNMENT: The artist in the video MUST look EXACTLY like the reference image — same face, same style, same colors, same identity in EVERY frame. ' : ''}Elite cinematic music video, professional motion design, high-fidelity quality: ${videoPrompt.substring(0, 700)}${visualMatchDirective}${lyricsSceneGuide}`,
           imageUrl: latestMedia.image,
           videoUrl: latestMedia.video,
@@ -4226,7 +4403,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               referenceVideo: videoDnaUrl,
               duration: Math.round(videoDuration),
               audioDuration: Math.round(beatDuration),
-              audioUrl: audioSource,
+              audioUrl: finalAudioSource,
               vocalUrl: latestMedia.mixedAudio ? null : (latestMedia.vocals || latestMedia.lyricsVocal)
             })
           });
@@ -4564,6 +4741,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       if (response.ok) {
         if (data.videoUrl) {
           setMusicVideoUrl(data.videoUrl);
+          setMediaUrls(prev => ({ ...prev, video: data.videoUrl }));
+          mediaUrlsRef.current = { ...mediaUrlsRef.current, video: data.videoUrl };
           // Update final mix with music video
           if (finalMixPreview) {
             setFinalMixPreview(prev => ({
@@ -4576,9 +4755,47 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           }
           toast.success(`🎬 Image to video created! (${data.duration}s, ${data.bpm} BPM)`, { id: 'prof-video' });
         } else if (data.jobId) {
-          // Long-form video queued
-          toast.success(`🎬 Video queued for processing (Job: ${data.jobId.substring(0, 8)}...)`, { id: 'prof-video' });
-          console.log('Video job started:', data);
+          // Long-form video queued — poll for completion
+          toast.loading(`🎬 Video rendering... 0%`, { id: 'prof-video', duration: 1200000 });
+          console.log('[Orchestrator] Professional video job started:', data.jobId);
+          const maxPolls = 120;
+          let jobSuccess = false;
+          for (let i = 0; i < maxPolls; i++) {
+            await new Promise(r => setTimeout(r, 10000));
+            try {
+              const statusRes = await fetch(`${BACKEND_URL}/api/video-job-status/${data.jobId}`, { headers });
+              const statusData = await statusRes.json();
+              console.log(`[Orchestrator] Prof video poll ${i + 1}:`, statusData.status, statusData.progress);
+              if (statusData.status === 'completed' && statusData.videoUrl) {
+                setMusicVideoUrl(statusData.videoUrl);
+                setMediaUrls(prev => ({ ...prev, video: statusData.videoUrl }));
+                mediaUrlsRef.current = { ...mediaUrlsRef.current, video: statusData.videoUrl };
+                if (finalMixPreview) {
+                  setFinalMixPreview(prev => ({
+                    ...prev,
+                    musicVideoUrl: statusData.videoUrl,
+                    musicVideoGenerated: true,
+                    bpm: statusData.bpm || data.bpm,
+                    beatCount: statusData.beats || data.beats
+                  }));
+                }
+                toast.success(`🎬 Image to video created! (${statusData.duration || 'N/A'}s)`, { id: 'prof-video' });
+                jobSuccess = true;
+                break;
+              } else if (statusData.status === 'failed') {
+                toast.error(`❌ Video rendering failed: ${statusData.error || 'Unknown error'}`, { id: 'prof-video' });
+                break;
+              } else {
+                const pct = statusData.progress || Math.round((i / maxPolls) * 100);
+                toast.loading(`🎬 Video rendering... ${pct}%`, { id: 'prof-video' });
+              }
+            } catch (pollErr) {
+              console.warn('[Orchestrator] Prof video poll error:', pollErr);
+            }
+          }
+          if (!jobSuccess) {
+            toast.error('❌ Video rendering timed out. Check back later.', { id: 'prof-video' });
+          }
         }
       } else if (response.status === 503) {
         toast.error('❌ Video API not configured', { id: 'prof-video' });
@@ -4995,6 +5212,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
     setOutputs(prev => ({ ...prev, [slot]: null }));
     // Update ref too
     outputsRef.current[slot] = null;
+    // Clear A&R grade for this slot
+    setArGrades(prev => ({ ...prev, [slot]: null }));
 
     if (slot === 'audio') setMediaUrls(prev => ({ ...prev, audio: null }));
     if (slot === 'visual') setMediaUrls(prev => ({ ...prev, image: null }));
@@ -7193,6 +7412,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
               slot.key === 'visual' ? mediaUrls.image :
               slot.key === 'video' ? mediaUrls.video : null
             }
+            arGrade={arGrades[slot.key]}
+            isGradingAr={gradingSlots[slot.key]}
             onGenerateMedia={
               slot.key === 'audio' ? handleGenerateAudio :
               slot.key === 'lyrics' ? handleGenerateVocals :
@@ -7371,6 +7592,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
                       slot.key === 'visual' ? mediaUrls.image :
                       slot.key === 'video' ? mediaUrls.video : null
                     }
+                    arGrade={arGrades[slot.key]}
+                    isGradingAr={gradingSlots[slot.key]}
                     onGenerateMedia={
                       slot.key === 'audio' ? handleGenerateAudio :
                       slot.key === 'lyrics' ? handleGenerateVocals :
