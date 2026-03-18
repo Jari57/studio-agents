@@ -1263,7 +1263,7 @@ function ProductionControlHub({
   const hasVocals = hasVocalMedia || !!outputs.lyrics;
   const hasVideo = !!mediaUrls.video;
   const hasVisual = !!mediaUrls.image;
-  const isSyncAvailable = hasBeat && (hasVideo || hasVocals || hasVisual);
+  const isSyncAvailable = hasBeat && (hasVideo || hasVisual || !!outputs?.video);
   const isSyncComplete = !!musicVideoUrl;
 
   return (
@@ -4747,8 +4747,8 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
       return;
     }
 
-    if (!mediaUrls.audio || (!outputs.video && !mediaUrls.image)) {
-      toast.error('Need beat audio and video concept to sync');
+    if (!mediaUrls.audio || (!outputs.video && !mediaUrls.image && !mediaUrls.video)) {
+      toast.error('Need beat audio and a video concept or image to sync');
       return;
     }
 

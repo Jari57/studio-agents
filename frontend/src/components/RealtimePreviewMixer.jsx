@@ -29,13 +29,8 @@ export default function RealtimePreviewMixer({
   const [beatSolo, setBeatSolo] = useState(false);
   const [vocalSolo, setVocalSolo] = useState(false);
 
-  const audioContextRef = useRef(null);
   const beatAudioRef = useRef(null);
   const vocalAudioRef = useRef(null);
-  const beatGainRef = useRef(null);
-  const vocalGainRef = useRef(null);
-  const beatSourceRef = useRef(null);
-  const vocalSourceRef = useRef(null);
   const animFrameRef = useRef(null);
   const isInitializedRef = useRef(false);
 
@@ -52,59 +47,46 @@ export default function RealtimePreviewMixer({
   const beatSrc = formatSrc(beatUrl);
   const vocalSrc = formatSrc(vocalUrl);
 
+  // Apply volume/mute/solo to an audio element using HTMLAudioElement.volume (no CORS needed)
+  const applyVolume = useCallback((audioEl, volume, muted, solo, otherSolo) => {
+    if (!audioEl) return;
+    const anySolo = solo || otherSolo;
+    const shouldPlay = anySolo ? solo : !muted;
+    audioEl.volume = shouldPlay ? Math.max(0, Math.min(1, volume)) : 0;
+  }, []);
+
   const initAudio = useCallback(() => {
     if (isInitializedRef.current) return;
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) { setInitError('Web Audio API not supported'); return; }
-      const ctx = new AudioCtx();
-      audioContextRef.current = ctx;
-      beatGainRef.current = ctx.createGain();
-      vocalGainRef.current = ctx.createGain();
-      beatGainRef.current.gain.value = beatVolume;
-      vocalGainRef.current.gain.value = vocalVolume;
-      beatGainRef.current.connect(ctx.destination);
-      vocalGainRef.current.connect(ctx.destination);
-
       if (beatSrc) {
         const beatAudio = new Audio();
-        beatAudio.crossOrigin = 'anonymous';
         beatAudio.preload = 'auto';
         beatAudio.src = beatSrc;
+        beatAudio.volume = beatVolume;
         beatAudioRef.current = beatAudio;
-        beatAudio.addEventListener('canplaythrough', () => {
-          if (!beatSourceRef.current && audioContextRef.current) {
-            try {
-              const source = audioContextRef.current.createMediaElementSource(beatAudio);
-              source.connect(beatGainRef.current);
-              beatSourceRef.current = source;
-            } catch (e) { console.warn('[Mixer] Beat source connected:', e.message); }
-          }
-          setBeatLoaded(true);
-        }, { once: true });
+        beatAudio.addEventListener('canplaythrough', () => setBeatLoaded(true), { once: true });
         beatAudio.addEventListener('loadedmetadata', () => setDuration(prev => Math.max(prev, beatAudio.duration)));
-        beatAudio.addEventListener('error', () => setBeatLoaded(false));
+        beatAudio.addEventListener('error', (e) => {
+          console.warn('[Mixer] Beat audio load error:', e);
+          setBeatLoaded(false);
+          setInitError('Beat audio failed to load');
+        });
         beatAudio.load();
       }
 
       if (vocalSrc) {
         const vocalAudio = new Audio();
-        vocalAudio.crossOrigin = 'anonymous';
         vocalAudio.preload = 'auto';
         vocalAudio.src = vocalSrc;
+        vocalAudio.volume = vocalVolume;
         vocalAudioRef.current = vocalAudio;
-        vocalAudio.addEventListener('canplaythrough', () => {
-          if (!vocalSourceRef.current && audioContextRef.current) {
-            try {
-              const source = audioContextRef.current.createMediaElementSource(vocalAudio);
-              source.connect(vocalGainRef.current);
-              vocalSourceRef.current = source;
-            } catch (e) { console.warn('[Mixer] Vocal source connected:', e.message); }
-          }
-          setVocalLoaded(true);
-        }, { once: true });
+        vocalAudio.addEventListener('canplaythrough', () => setVocalLoaded(true), { once: true });
         vocalAudio.addEventListener('loadedmetadata', () => setDuration(prev => Math.max(prev, vocalAudio.duration)));
-        vocalAudio.addEventListener('error', () => setVocalLoaded(false));
+        vocalAudio.addEventListener('error', (e) => {
+          console.warn('[Mixer] Vocal audio load error:', e);
+          setVocalLoaded(false);
+          setInitError('Vocal audio failed to load');
+        });
         vocalAudio.load();
       }
       isInitializedRef.current = true;
@@ -116,20 +98,14 @@ export default function RealtimePreviewMixer({
     return () => cleanup();
   }, [beatSrc, vocalSrc]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Solo/mute logic: solo overrides mute
+  // Solo/mute logic via HTMLAudioElement.volume
   useEffect(() => {
-    if (!beatGainRef.current) return;
-    const anySolo = beatSolo || vocalSolo;
-    const shouldPlay = anySolo ? beatSolo : !beatMuted;
-    beatGainRef.current.gain.setValueAtTime(shouldPlay ? beatVolume : 0, audioContextRef.current?.currentTime || 0);
-  }, [beatVolume, beatMuted, beatSolo, vocalSolo]);
+    applyVolume(beatAudioRef.current, beatVolume, beatMuted, beatSolo, vocalSolo);
+  }, [beatVolume, beatMuted, beatSolo, vocalSolo, applyVolume]);
 
   useEffect(() => {
-    if (!vocalGainRef.current) return;
-    const anySolo = beatSolo || vocalSolo;
-    const shouldPlay = anySolo ? vocalSolo : !vocalMuted;
-    vocalGainRef.current.gain.setValueAtTime(shouldPlay ? vocalVolume : 0, audioContextRef.current?.currentTime || 0);
-  }, [vocalVolume, vocalMuted, beatSolo, vocalSolo]);
+    applyVolume(vocalAudioRef.current, vocalVolume, vocalMuted, vocalSolo, beatSolo);
+  }, [vocalVolume, vocalMuted, beatSolo, vocalSolo, applyVolume]);
 
   const updateTime = useCallback(() => {
     const beatTime = beatAudioRef.current?.currentTime || 0;
@@ -148,7 +124,6 @@ export default function RealtimePreviewMixer({
 
   const play = async () => {
     try {
-      if (audioContextRef.current?.state === 'suspended') await audioContextRef.current.resume();
       const promises = [];
       if (beatAudioRef.current && beatLoaded) promises.push(beatAudioRef.current.play().catch(() => {}));
       if (vocalAudioRef.current && vocalLoaded) promises.push(vocalAudioRef.current.play().catch(() => {}));
@@ -184,10 +159,7 @@ export default function RealtimePreviewMixer({
     if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     if (beatAudioRef.current) { beatAudioRef.current.pause(); beatAudioRef.current.src = ''; }
     if (vocalAudioRef.current) { vocalAudioRef.current.pause(); vocalAudioRef.current.src = ''; }
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') audioContextRef.current.close().catch(() => {});
-    beatSourceRef.current = null; vocalSourceRef.current = null;
     beatAudioRef.current = null; vocalAudioRef.current = null;
-    audioContextRef.current = null; beatGainRef.current = null; vocalGainRef.current = null;
     isInitializedRef.current = false;
     setIsPlaying(false); setCurrentTime(0); setDuration(0); setBeatLoaded(false); setVocalLoaded(false); setInitError(null);
   };
@@ -199,6 +171,12 @@ export default function RealtimePreviewMixer({
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   if (!hasAnySrc) return null;
+
+  if (initError) return (
+    <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', marginTop: '8px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
+      ⚠️ Preview mixer unavailable — {initError}. Your final mix will still be created server-side.
+    </div>
+  );
 
   // Channel strip sub-component
   const ChannelStrip = ({ label, icon: Icon, color, loaded, volume, onVolumeChange, muted, onMute, solo, onSolo, hasSrc }) => {
