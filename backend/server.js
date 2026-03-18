@@ -4148,7 +4148,8 @@ Requirements:
 - Every bar must have 4-beat metric alignment for ${bpm} BPM delivery
 - Use vivid imagery, metaphor, and emotional specificity — no generic filler
 - Style: ${style}. Language: ${language === 'en' ? 'English' : language}.
-- Add Suno-style performance tags in brackets: [Hard Hitting Rap], [Soulful Vocals], [Whispered], [Ad-lib: yeah!], etc.`;
+- Add Suno-style performance tags in brackets: [Hard Hitting Rap], [Soulful Vocals], [Whispered], [Ad-lib: yeah!], etc.
+IMPORTANT: Performance tags are for STRUCTURE/LABELS ONLY — they will NOT be sung. The singer only performs the words between tags.`;
 
     const lyricsSystemInstruction = `You are a Grammy-winning ${genre} songwriter who has written #1 Billboard hits. You understand song structure, melodic hooks, rhythmic cadence, and emotional storytelling at the highest professional level.
 
@@ -4999,6 +5000,9 @@ Return ONLY valid JSON, no markdown.`;
           .replace(/\[Hook[^\]]*\]/gi, '[Hook]')
           .replace(/\[Outro[^\]]*\]/gi, '[Outro]')
           .replace(/\[Intro[^\]]*\]/gi, '[Intro]')
+          .replace(/\[Ad-lib:[^\]]*\]/gi, '')  // Strip ad-lib direction tags
+          .replace(/\[(?!Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)[^\]]*\]/gi, '')  // Strip ALL non-standard bracketed tags
+          .replace(/^\s*\n/gm, '')  // Remove empty lines left by stripped tags
           .substring(0, 2999);
         
         let sunoTitle = (prompt.split('\n').find(l => l.trim()) || 'Studio Track').substring(0, 80);

@@ -2904,11 +2904,11 @@ SONG STRUCTURE: ${songStructure === 'single' ? 'SHORT FORMAT — 1 Verse + 1 Cho
 REQUIREMENTS:
 - The CHORUS/HOOK must be catchy enough to get stuck in someone's head after one listen
 - Use multi-syllable rhyme schemes (AABB or ABAB), internal rhymes, and wordplay
-- Include Suno-style performance/vocal tags: [Hard Hitting Rap], [Soulful Vocals], [Building Intensity], [Ad-lib: yeah!], [Whispered]
 - Every line must have rhythmic cadence that locks to the beat's groove
 - Use vivid metaphors, emotional specificity, and cultural references — zero generic filler
 - Match the flow and delivery style of current chart-topping ${style} artists
-- NO intro text, NO commentary, NO explanations — ONLY lyrics with section labels` : ''}
+- NO intro text, NO commentary, NO explanations — ONLY lyrics with section labels
+- Do NOT include performance direction tags, vocal cues, or production notes inside the lyrics — only the words to be spoken/sung` : ''}
         ${slot === 'audio' ? `BEAT DNA AGENT INSTRUCTIONS:
 Describe a Billboard-ready instrumental concept (${useBars ? bars + ' bars' : duration + ' seconds'}, BPM: ${projectBpm}).
 REQUIREMENTS:
@@ -3486,6 +3486,9 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         .replace(/^(Sure!?|Okay!?|Absolutely!?|Here('s| is| are))[^\n]*\n/i, '')
         .replace(/^(I've written|I wrote|I created|Let me|Below are|These lyrics)[^\n]*\n/i, '')
         .replace(/^(Here('s| is| are) (a|the|your|some))[^\n]*\n/i, '')
+        .replace(/\[Ad-lib:[^\]]*\]/gi, '')  // Strip ad-lib direction tags
+        .replace(/\[(?!Verse|Chorus|Bridge|Pre-Chorus|Hook|Outro|Intro)[^\]]*\]/gi, '')  // Strip non-standard performance/direction tags
+        .replace(/^\s*\n/gm, '')  // Remove empty lines left by stripped tags
         .trim();
 
       // Use the same voice mapping as handleGenerateLyricsVocal
