@@ -4868,6 +4868,7 @@ app.post('/api/generate-speech', verifyFirebaseToken, requireAuthOrFreeLimit, ch
 
     let audioUrl = null;
     let provider = null;
+    let persistedCloneId = null; // Tracks the ElevenLabs voice_id for cloned voices (cached or newly created)
     let systemCreditIssue = false;
     const replicateKey = process.env.REPLICATE_API_KEY || process.env.REPLICATE_API_TOKEN;
     const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
@@ -5198,8 +5199,97 @@ Return ONLY valid JSON, no markdown.`;
         .replace(/\n{2,}/g, '\n')
         .trim();
 
-      // ── TRY 1: ElevenLabs Instant Voice Clone ──
+      // ── TRY 1: ElevenLabs Instant Voice Clone (PERSISTENT) ──
+      // Check Firestore for an existing cloned voice for this speakerUrl before re-cloning.
+      // This avoids re-creating a disposable voice on every generation.
       if (elevenLabsKey && speakerUrl) {
+        try {
+          // Check if we already have a cached clone for this exact speaker URL
+          const db = getFirestoreDb();
+          if (db && req.user?.uid) {
+            const cachedSnap = await db.collection('users').doc(req.user.uid)
+              .collection('voices')
+              .where('speakerUrl', '==', speakerUrl)
+              .where('provider', '==', 'elevenlabs-ivc')
+              .orderBy('createdAt', 'desc')
+              .limit(1)
+              .get();
+            if (!cachedSnap.empty) {
+              persistedCloneId = cachedSnap.docs[0].data().voiceId;
+              logger.info('🎤 Reusing cached ElevenLabs clone', { voiceId: persistedCloneId, speakerUrl: speakerUrl.substring(0, 60) });
+            }
+          }
+        } catch (cacheErr) {
+          logger.warn('Clone cache lookup failed, will re-clone', { error: cacheErr.message });
+        }
+      }
+
+      // Use cached clone if available, otherwise create a new one
+      if (elevenLabsKey && speakerUrl && persistedCloneId) {
+        // ── FAST PATH: Generate TTS with the persisted clone voice ──
+        try {
+          const cloneAbort = new AbortController();
+          const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
+
+          const cloneVoiceSettings = {
+            stability: 0.85,
+            similarity_boost: 1.0,
+            style: 0.85,
+            use_speaker_boost: true
+          };
+
+          if (refSongAnalysis) {
+            const energy = parseInt(refSongAnalysis.energy) || 5;
+            const warmth = parseInt(refSongAnalysis.warmth) || 5;
+            cloneVoiceSettings.stability = Math.max(0.82, Math.min(0.92, 0.83 + (warmth * 0.009)));
+            cloneVoiceSettings.style = Math.max(0.80, Math.min(0.95, 0.82 + (energy * 0.013)));
+          }
+
+          const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${persistedCloneId}?output_format=mp3_44100_192`, {
+            method: 'POST',
+            headers: {
+              'Accept': 'audio/mpeg',
+              'xi-api-key': elevenLabsKey,
+              'Content-Type': 'application/json'
+            },
+            signal: cloneAbort.signal,
+            body: JSON.stringify({
+              text: clonePrompt.substring(0, 5000),
+              model_id: 'eleven_multilingual_v2',
+              voice_settings: cloneVoiceSettings
+            })
+          });
+          clearTimeout(cloneTimeout);
+
+          if (ttsResp.ok) {
+            const audioBuf = await ttsResp.arrayBuffer();
+            if (audioBuf.byteLength > 1000) {
+              audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioBuf).toString('base64')}`;
+              provider = 'elevenlabs-clone';
+              logger.info('✅ ElevenLabs cloned vocal generated (cached voice)', { voiceId: persistedCloneId, bytes: audioBuf.byteLength });
+            }
+          } else {
+            // Cached voice may have been deleted externally — clear cache and fall through to re-clone
+            logger.warn('Cached clone voice TTS failed, will re-clone', { status: ttsResp.status });
+            persistedCloneId = null;
+            const db = getFirestoreDb();
+            if (db && req.user?.uid) {
+              const staleSnap = await db.collection('users').doc(req.user.uid)
+                .collection('voices')
+                .where('speakerUrl', '==', speakerUrl)
+                .where('provider', '==', 'elevenlabs-ivc')
+                .get();
+              for (const doc of staleSnap.docs) await doc.ref.delete();
+            }
+          }
+        } catch (cachedCloneErr) {
+          logger.error('Cached clone TTS error:', cachedCloneErr.message);
+          persistedCloneId = null;
+        }
+      }
+
+      if (elevenLabsKey && speakerUrl && !audioUrl) {
+        // ── SLOW PATH: Create new ElevenLabs IVC clone + persist it ──
         try {
           logger.info('🎤 ElevenLabs Instant Voice Clone — uploading voice sample', { speaker: speakerUrl.substring(0, 60) });
 
@@ -5211,11 +5301,11 @@ Return ONLY valid JSON, no markdown.`;
           const sampleExt = sampleContentType.includes('wav') ? 'wav' : (sampleContentType.includes('webm') ? 'webm' : 'mp3');
           logger.info('🎤 Voice sample downloaded', { size: sampleBuffer.length, contentType: sampleContentType });
 
-          // Use Node built-in FormData + Blob (works with native fetch, unlike npm form-data)
+          // Use Node built-in FormData + Blob
           const cloneForm = new FormData();
-          cloneForm.append('name', `Clone_${Date.now()}`);
+          cloneForm.append('name', `Clone_${req.user?.uid?.substring(0, 8) || 'anon'}_${Date.now()}`);
           cloneForm.append('files', new Blob([sampleBuffer], { type: sampleContentType }), `voice_sample.${sampleExt}`);
-          cloneForm.append('description', 'Auto-cloned voice from Studio Agents');
+          cloneForm.append('description', 'Studio Agents cloned voice');
 
           const addVoiceResp = await fetch('https://api.elevenlabs.io/v1/voices/add', {
             method: 'POST',
@@ -5228,12 +5318,32 @@ Return ONLY valid JSON, no markdown.`;
             const clonedVoiceId = voiceData.voice_id;
             logger.info('✅ ElevenLabs voice cloned', { voiceId: clonedVoiceId });
 
+            // PERSIST the clone to Firestore so future generations reuse it
+            const db = getFirestoreDb();
+            if (db && req.user?.uid) {
+              await db.collection('users').doc(req.user.uid)
+                .collection('voices').add({
+                  voiceId: clonedVoiceId,
+                  name: `Auto-Clone`,
+                  provider: 'elevenlabs-ivc',
+                  speakerUrl: speakerUrl,
+                  sampleCount: 1,
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                  userId: req.user.uid
+                });
+              // Update user's primary clone
+              await db.collection('users').doc(req.user.uid).update({
+                clonedVoiceId: clonedVoiceId,
+                lastVoiceClone: Date.now()
+              }).catch(() => {});
+              logger.info('🎤 Clone voice persisted to Firestore', { voiceId: clonedVoiceId });
+            }
+            persistedCloneId = clonedVoiceId;
+
             // Generate TTS with the cloned voice
             const cloneAbort = new AbortController();
             const cloneTimeout = setTimeout(() => cloneAbort.abort(), 90000);
 
-            // Clone voice settings — EXACT CLONE: maximum fidelity to reference sample
-            // stability HIGH = consistent voice identity, similarity_boost MAX = exact timbre match
             const cloneVoiceSettings = {
               stability: 0.85,
               similarity_boost: 1.0,
@@ -5241,13 +5351,11 @@ Return ONLY valid JSON, no markdown.`;
               use_speaker_boost: true
             };
 
-            // If reference analysis exists, fine-tune clone delivery — keep floors high for exact clone
             if (refSongAnalysis) {
               const energy = parseInt(refSongAnalysis.energy) || 5;
               const warmth = parseInt(refSongAnalysis.warmth) || 5;
               cloneVoiceSettings.stability = Math.max(0.82, Math.min(0.92, 0.83 + (warmth * 0.009)));
               cloneVoiceSettings.style = Math.max(0.80, Math.min(0.95, 0.82 + (energy * 0.013)));
-              // similarity_boost stays at 1.0 — never reduce clone fidelity
             }
 
             const ttsResp = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${clonedVoiceId}?output_format=mp3_44100_192`, {
@@ -5268,7 +5376,7 @@ Return ONLY valid JSON, no markdown.`;
 
             if (ttsResp.ok) {
               const audioBuf = await ttsResp.arrayBuffer();
-              if (audioBuf.byteLength > 1000) { // Sanity: must be > 1KB to be real audio
+              if (audioBuf.byteLength > 1000) {
                 audioUrl = `data:audio/mpeg;base64,${Buffer.from(audioBuf).toString('base64')}`;
                 provider = 'elevenlabs-clone';
                 logger.info('✅ ElevenLabs cloned vocal generated', { voiceId: clonedVoiceId, bytes: audioBuf.byteLength });
@@ -5279,14 +5387,7 @@ Return ONLY valid JSON, no markdown.`;
               const ttsErr = await ttsResp.text().catch(() => '');
               logger.warn('ElevenLabs clone TTS failed', { status: ttsResp.status, error: ttsErr.substring(0, 200) });
             }
-
-            // Clean up the temporary cloned voice (don't accumulate)
-            try {
-              await fetch(`https://api.elevenlabs.io/v1/voices/${clonedVoiceId}`, {
-                method: 'DELETE',
-                headers: { 'xi-api-key': elevenLabsKey }
-              });
-            } catch {}
+            // Voice is PERSISTED — do NOT delete it
           } else {
             const errBody = await addVoiceResp.text().catch(() => '');
             logger.warn('ElevenLabs voice add failed', { status: addVoiceResp.status, error: errBody.substring(0, 300) });
@@ -5299,7 +5400,11 @@ Return ONLY valid JSON, no markdown.`;
       // ── TRY 2: XTTS v2 fallback for voice cloning ──
       if (replicateKey && !audioUrl) {
         try {
-          const targetSpeaker = speakerUrl || 'https://replicate.delivery/pbxt/HN48RVB1mXdZY3K2eSLvGXGkZCz57NzDJYXCCz01DJZEZOfe/output.wav';
+          if (!speakerUrl) {
+            logger.warn('XTTS v2 clone skipped — no voice sample URL provided');
+            throw new Error('No speaker URL for XTTS cloning');
+          }
+          const targetSpeaker = speakerUrl;
           logger.info('🎤 Using XTTS v2 for voice cloning (fallback)', { speaker: targetSpeaker.substring(0, 50) + '...' });
           
           const response = await fetch('https://api.replicate.com/v1/predictions', {
@@ -5965,6 +6070,7 @@ if (elevenLabsKey && !audioUrl && !(style === 'cloned' && !req.body.elevenLabsVo
         temporaryUrl: permanentUrl ? audioUrl : null,
         mimeType: audioUrl.startsWith('data:audio/wav') ? 'audio/wav' : 'audio/mpeg',
         provider,
+        clonedVoiceId: persistedCloneId || null,
         style,
         isRealGeneration: true,
         referenceAnalysis: refSongAnalysis || null,

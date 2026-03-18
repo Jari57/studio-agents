@@ -3572,6 +3572,11 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
         setMediaUrls(prev => ({ ...prev, ...vocalUpdate }));
         mediaUrlsRef.current = { ...mediaUrlsRef.current, ...vocalUpdate }; // Sync ref for pipeline reads
         setGenerationProviders(prev => ({ ...prev, lyrics: data.provider || 'ai' }));
+        // If backend returned a persisted clonedVoiceId, save it so future generations skip re-cloning
+        if (data.clonedVoiceId && !clonedVoiceId) {
+          setClonedVoiceId(data.clonedVoiceId);
+          setElevenLabsVoiceId(data.clonedVoiceId);
+        }
         // Ensure outputs.vocals is set so the asset is included in the project save
         setOutputs(prev => ({ 
           ...prev, 
@@ -3622,6 +3627,7 @@ ${contextLyrics && typeof contextLyrics === 'string' && contextLyrics.includes('
           'suno': 'Suno AI Singing',
           'bark-singing': 'Bark Singing Engine',
           'elevenlabs-premium': 'ElevenLabs Premium',
+          'elevenlabs-clone': 'ElevenLabs Voice Clone',
           'bark': 'Bark Speech',
           'xtts-v2-clone': 'XTTS Voice Clone',
           'gemini-tts': 'Gemini TTS',
