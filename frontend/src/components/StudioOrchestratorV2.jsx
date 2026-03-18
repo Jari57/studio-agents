@@ -2698,7 +2698,7 @@ export default function StudioOrchestratorV2({
         body: JSON.stringify({
           content: text.substring(0, 3000),
           contentType: slot === 'lyrics' ? 'lyrics' : slot === 'audio' ? 'beat' : slot === 'visual' ? 'visual concept' : 'video concept',
-          genre: heroGenre || 'hip-hop',
+          genre: genre || 'hip-hop',
           prompt: promptText || songIdea || ''
         })
       });
@@ -2711,7 +2711,7 @@ export default function StudioOrchestratorV2({
     } finally {
       setGradingSlots(prev => ({ ...prev, [slot]: false }));
     }
-  }, [authToken, heroGenre, songIdea]);
+  }, [authToken, genre, songIdea]);
 
   // Clear all outputs and generate fresh
   const clearAndGenerate = useCallback(() => {
